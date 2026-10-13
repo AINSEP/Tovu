@@ -6,7 +6,7 @@ import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { createTovuAgentPluginLifecycle, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { loadDeployTargetRegistry, loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
+import { loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { sql } from "kysely";
 import type { Clock } from "@jini-ai/core/primitives";
 import { deriveAvailableName } from "@jini-ai/core/naming";
@@ -282,7 +282,9 @@ export async function loadSiteVaultKinds(input: { workspaceId: string; siteDir?:
   }).loadPluginContributions;
   const registries = await Promise.all([
     loadDeployTargetRegistry({ workspaceId: input.workspaceId }, { loadContributions }),
-    loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
+    // Every bundled plugin's source, not one: a legacy publish row must resolve its vendor even
+    // before the hosting plugin that now owns its target has been seeded and switched on.
+    loadBundledDeployTargetRegistry({ sourceRoot: join(resolveProductRoot(), "content", "agent-plugins") }),
   ]);
   const registry = createTovuVaultKinds({ policy: {
     validateMeta: ({ meta }) => meta,

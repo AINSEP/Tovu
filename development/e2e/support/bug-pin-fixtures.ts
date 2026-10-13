@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { copyFileSync, cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync, watch } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync, watch } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { APIRequestContext, PlaywrightWorkerArgs, TestInfo } from "@playwright/test";
@@ -162,10 +162,11 @@ async function runPinSite(
     if (testInfo.titlePath.includes("Bug pin: static-site-tab")) {
       // Preview/publish pins must stay credential-free, including every descriptor env alias:
       // a runner's real token would turn the expected local refusal into an outbound publish.
-      const deploy = JSON.parse(readFileSync(path.join(REPO_ROOT, "content/agent-plugins/deploy/tovu-deploy-targets.json"), "utf8")) as {
-        targets: Array<{ id: string; env?: { tokenVars: string[] } }>;
-      };
-      for (const target of deploy.targets) {
+      // Each hosting plugin ships its own targets file, so read every bundled one.
+      const pluginsRoot = path.join(REPO_ROOT, "content/agent-plugins");
+      const targets = readdirSync(pluginsRoot).map(dir => path.join(pluginsRoot, dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
+        .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; env?: { tokenVars: string[] } }> }).targets);
+      for (const target of targets) {
         if (target.id !== "github-pages" && target.id !== "vercel") continue;
         for (const key of target.env?.tokenVars ?? []) manifest.env[key] = "";
       }

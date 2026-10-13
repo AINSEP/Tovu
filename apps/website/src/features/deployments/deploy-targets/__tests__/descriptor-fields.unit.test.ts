@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -12,7 +12,15 @@ import { loadBundledDeployTargets } from "./bundled-deploy-targets.fixture.js";
  * `tovu-deploy-targets.json`, parsed and validated by the registry.
  */
 
-const REAL_DESCRIPTOR_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/tovu-deploy-targets.json");
+const BUNDLED_AGENT_PLUGINS_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+
+/** Every shipped hosting plugin's descriptor file, parsed and merged (each host is its own plugin). */
+function parseShippedDescriptors(): ReturnType<typeof parseDeployTargetsFile> {
+  const files = readdirSync(BUNDLED_AGENT_PLUGINS_ROOT).sort().map((dir) => path.join(BUNDLED_AGENT_PLUGINS_ROOT, dir, "tovu-deploy-targets.json")).filter((file) => existsSync(file));
+  const parsed = files.map((file) => parseDeployTargetsFile(readFileSync(file, "utf8")));
+  const failed = parsed.find((result) => !result.ok);
+  return failed ?? { ok: true, descriptors: parsed.flatMap((result) => (result.ok ? result.descriptors : [])) };
+}
 
 function file(targets: readonly Record<string, unknown>[]): string {
   return JSON.stringify({ schemaVersion: 1, targets });
@@ -46,7 +54,7 @@ test("a config field may carry a separate person-facing userHelp; a non-string o
 });
 
 test("the shipped github-pages owner field has person-facing help that does not address the agent", () => {
-  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  const parsed = parseShippedDescriptors();
   assert.ok(parsed.ok);
   const owner = parsed.descriptors.find((descriptor) => descriptor.id === "github-pages")?.configFields.find((field) => field.name === "owner");
   assert.ok(owner?.userHelp);
@@ -67,7 +75,7 @@ test("a credential may carry a separate person-facing userHelp; a non-string one
 });
 
 test("the shipped S3 credential and Public URL speak to the person, not in the agent's voice", () => {
-  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  const parsed = parseShippedDescriptors();
   assert.ok(parsed.ok);
   const credential = parsed.descriptors.find((descriptor) => descriptor.id === "s3-compatible")?.credential;
   const publicUrl = credential?.fields.find((field) => field.name === "publicUrl");
@@ -78,7 +86,7 @@ test("the shipped S3 credential and Public URL speak to the person, not in the a
 });
 
 test("the shipped Cloudflare credential help and Account ID help do not point to different places", () => {
-  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+  const parsed = parseShippedDescriptors();
   assert.ok(parsed.ok);
   const credential = parsed.descriptors.find((descriptor) => descriptor.id === "cloudflare-pages")?.credential;
   const accountId = credential?.fields.find((field) => field.name === "accountId");
@@ -121,8 +129,8 @@ test("malformed config fields and env blocks are refused with the exact reason",
   });
 });
 
-test("the shipped deploy plugin declares the publish fields and env vars core used to hard-code", () => {
-  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+test("the shipped hosting plugins declare the publish fields and env vars core used to hard-code", () => {
+  const parsed = parseShippedDescriptors();
   assert.equal(parsed.ok, true, JSON.stringify(parsed));
   if (!parsed.ok) return;
   const byId = new Map(parsed.descriptors.map((descriptor) => [descriptor.id, descriptor]));
@@ -188,7 +196,7 @@ test("credential token links must be HTTPS and project-name copy rejects malform
   assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, projectName: { label: "Release", help: "Commit description" } }])), { ok: true, descriptors: [{ ...BASE, configFields: [], projectName: { label: "Release", help: "Commit description" } }] });
 });
 
-test("the shipped deploy plugin names each credential check's vendor and which hosts return an account label", async () => {
+test("the shipped hosting plugins name each credential check's vendor and which hosts return an account label", async () => {
   const registry = await loadBundledDeployTargets();
   const check = (id: string) => {
     const spec = registry.get(id)?.descriptor.credential;
@@ -201,8 +209,8 @@ test("the shipped deploy plugin names each credential check's vendor and which h
   assert.deepEqual(check("s3-compatible"), ["the storage provider", false]);
 });
 
-test("the shipped deploy plugin declares the credential fields and vendors core used to hard-code", () => {
-  const parsed = parseDeployTargetsFile(readFileSync(REAL_DESCRIPTOR_PATH, "utf8"));
+test("the shipped hosting plugins declare the credential fields and vendors core used to hard-code", () => {
+  const parsed = parseShippedDescriptors();
   assert.equal(parsed.ok, true, JSON.stringify(parsed));
   if (!parsed.ok) return;
   const byId = new Map(parsed.descriptors.map((descriptor) => [descriptor.id, descriptor]));

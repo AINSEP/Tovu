@@ -63,7 +63,7 @@ import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/f
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadDeployOpsRegistryFromSource } from "#src/features/deployments/deploy-ops/registry";
-import { loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
+import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
 import { loadCredentialSchemeRegistryFromSource } from "#src/features/custom-credentials/auth-schemes";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
@@ -1490,10 +1490,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `server/deps.ts`'s
     // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: describeSiteBinding().dir }),
-    // Hermetic: the bundled deploy plugin's own source directory, no install or activation step —
-    // see `routes/types.ts`'s `loadDeployTargets` doc.
+    // Hermetic: every bundled plugin's own source directory (each hosting plugin ships its own
+    // targets), no install or activation step — see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
-      loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
+      loadBundledDeployTargetRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     loadDeployOps: () => loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
     // Hermetic the same way: the bundled github plugin's source directory — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.

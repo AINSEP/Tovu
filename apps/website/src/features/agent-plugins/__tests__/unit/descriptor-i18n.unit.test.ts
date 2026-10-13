@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -85,10 +85,13 @@ function declaredStrings(entry: Record<string, any>): Set<string> {
   return out;
 }
 
+/** Each hosting plugin ships its own descriptor file: every bundled `<id>/tovu-deploy-targets.json`. */
+const DEPLOY_TARGET_FILES = readdirSync(CONTENT).sort().map((dir) => `${dir}/tovu-deploy-targets.json`).filter((file) => existsSync(path.join(CONTENT, file)));
+
 for (const [file, listKey] of [
-  ["deploy/tovu-deploy-targets.json", "targets"],
-  ["github/tovu-source-control.json", "providers"],
-] as const) {
+  ...DEPLOY_TARGET_FILES.map((file) => [file, "targets"] as const),
+  ["github/tovu-source-control.json", "providers"] as const,
+]) {
   test(`${file}: every i18n key is a string that entry declares (no stale translation)`, () => {
     const json = JSON.parse(readFileSync(path.join(CONTENT, file), "utf8")) as Record<string, Record<string, any>[]>;
     for (const entry of json[listKey]!) {
@@ -100,7 +103,8 @@ for (const [file, listKey] of [
   });
 }
 
-test("both bundled descriptor files still parse with their i18n blocks", () => {
-  assert.equal(parseDeployTargetsFile(readFileSync(path.join(CONTENT, "deploy/tovu-deploy-targets.json"), "utf8")).ok, true);
+test("every bundled descriptor file still parses with its i18n blocks", () => {
+  assert.ok(DEPLOY_TARGET_FILES.length > 0);
+  for (const file of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile(readFileSync(path.join(CONTENT, file), "utf8")).ok, true, file);
   assert.equal(parseSourceControlProvidersFile(readFileSync(path.join(CONTENT, "github/tovu-source-control.json"), "utf8")).ok, true);
 });

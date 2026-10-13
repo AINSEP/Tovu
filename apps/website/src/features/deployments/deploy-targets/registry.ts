@@ -1,7 +1,9 @@
+import type { Dirent } from "node:fs";
+import { access, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { parseDescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, RETIRED_BUNDLED_AGENT_PLUGINS, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
@@ -61,7 +63,9 @@ const targetContribution = defineExecutablePluginContribution<DeployTargetDescri
  * @complexity O(p) installed plugins, each one small file read plus one import per declared target.
  */
 export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<DeployTargetRegistry> {
-  const load = await required.loadContributions({ ...ctx, definition: targetContribution });
+  // Plugin-id order, not installed order: each host is its own plugin, so the Static site tab
+  // lists them the same way on every site, and the same way as the hermetic bundled registry below.
+  const load = await required.loadContributions({ ...ctx, definition: targetContribution }, { orderByPluginId: true });
   return buildRegistry(load.items, load.refusals);
 }
 
@@ -79,6 +83,45 @@ type TargetPackage = TrustedPluginPackage;
 export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: targetContribution });
   return buildRegistry(load.items, load.refusals);
+}
+
+/**
+ * The hermetic registry for EVERY bundled plugin at once: each directory under `sourceRoot` (the
+ * product's own `content/agent-plugins/`, `bundledAgentPluginsSourceRoot()`) that holds both
+ * `plugin.json` and {@link DEPLOY_TARGETS_FILENAME}, minus retired ids, in plugin-id order (the
+ * installed loader's `orderByPluginId`). A directory without the file is skipped, as the installed
+ * path skips a package that does not ship it; a target id two directories both declare is dropped
+ * for both by {@link buildRegistry}. Same trust basis and same caveat as
+ * {@link loadDeployTargetRegistryFromSource}: never point it at anything an operator can write.
+ *
+ * @throws Only a filesystem fault listing `sourceRoot` itself.
+ * @complexity O(p + t): one listing, two existence checks per plugin dir, one import per target.
+ */
+export async function loadBundledDeployTargetRegistry(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
+  const entries: Dirent[] = await readdir(required.sourceRoot, { withFileTypes: true });
+  const pluginIds = entries.filter((entry) => entry.isDirectory() && !RETIRED_BUNDLED_AGENT_PLUGINS.has(entry.name)).map((entry) => entry.name).sort();
+  const items: LoadedDeployTarget[] = [];
+  const refusals: string[] = [];
+  for (const pluginId of pluginIds) {
+    const packageRoot = path.join(required.sourceRoot, pluginId);
+    if (!(await allExist(packageRoot, ["plugin.json", DEPLOY_TARGETS_FILENAME]))) continue;
+    const load = await loadPluginContributionsFromSource({ plugin: { pluginId, packageRoot }, definition: targetContribution });
+    items.push(...load.items);
+    refusals.push(...load.refusals);
+  }
+  return buildRegistry(items, refusals);
+}
+
+/** Whether every named file exists in `dir`. @complexity O(f) stats. */
+async function allExist(dir: string, filenames: readonly string[]): Promise<boolean> {
+  for (const filename of filenames) {
+    try {
+      await access(path.join(dir, filename));
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Validate the default export after Jini's contained import. @complexity O(1). */

@@ -1449,8 +1449,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config
-   * fields each takes. `server/deps.ts` loads the installed, activated deploy Agent Plugin;
-   * `server/app.ts`'s hermetic root reads the bundled plugin's source directory directly.
+   * fields each takes. `server/deps.ts` loads the installed, activated Agent Plugins that ship
+   * targets, in plugin-id order; `server/app.ts`'s hermetic root reads every bundled plugin's source
+   * directory directly (`loadBundledDeployTargetRegistry`).
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /** Fresh installed-plugin trust gates in production; bundled source in the hermetic root. */

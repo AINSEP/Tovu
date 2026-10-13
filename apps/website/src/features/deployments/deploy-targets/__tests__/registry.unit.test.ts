@@ -5,7 +5,7 @@ import { agentPluginActivations } from "../../../agent-plugins/activation-effect
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -16,7 +16,7 @@ import { recordBundledAgentPluginDigests } from "../../../agent-plugins/lifecycl
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
-import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "../registry.js";
+import { DEPLOY_TARGETS_FILENAME, loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "../registry.js";
 
 /**
  * @file `registry.ts` — the generic seam that lets an Agent Plugin add a deploy host.
@@ -283,4 +283,70 @@ test("an altered installation is refused even when the original bundled digest i
       `deploy targets from 'fixture-deploy' were not loaded: only plugins shipped with Tovu may add deploy targets (installed digest ${changed.slice(0, 12)} is not the one this build shipped)`,
     ]);
   });
+});
+
+test("installed targets list in plugin-id order, not install order", async () => {
+  await withWorkspace(async (workspaceRoot) => {
+    const zeta = await installPackage("zeta-deploy", { ...FIXTURE_FILES, [DEPLOY_TARGETS_FILENAME]: descriptorJson([{ id: "zeta-host", label: "Zeta", module: "targets/fixture.mjs" }]) });
+    const alpha = await installPackage("alpha-deploy", { ...FIXTURE_FILES, [DEPLOY_TARGETS_FILENAME]: descriptorJson([{ id: "alpha-host", label: "Alpha", module: "targets/fixture.mjs" }]) });
+    await markBundled(workspaceRoot, "zeta-deploy", zeta);
+    await markBundled(workspaceRoot, "alpha-deploy", alpha);
+
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+
+    assert.deepEqual(registry.list().map((target) => target.pluginId), ["alpha-deploy", "zeta-deploy"]);
+  });
+});
+
+/** Writes plugin source dirs under a fresh bundled root: `{ <dir>: { <file>: <content> } }`. */
+async function withSourceRoot<T>(plugins: Readonly<Record<string, Readonly<Record<string, string>>>>, fn: (sourceRoot: string) => Promise<T>): Promise<T> {
+  const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-bundled-targets-"));
+  try {
+    for (const [pluginId, files] of Object.entries(plugins)) {
+      for (const [entryPath, content] of Object.entries({ "plugin.json": JSON.stringify({ name: pluginId, version: "1.0.0" }), ...files })) {
+        await mkdir(path.dirname(path.join(sourceRoot, pluginId, entryPath)), { recursive: true });
+        await writeFile(path.join(sourceRoot, pluginId, entryPath), content);
+      }
+    }
+    return await fn(sourceRoot);
+  } finally {
+    await forceRemove(sourceRoot);
+  }
+}
+
+const hostFiles = (id: string, label: string) => ({ ...FIXTURE_FILES, [DEPLOY_TARGETS_FILENAME]: descriptorJson([{ id, label, module: "targets/fixture.mjs" }]) });
+
+test("the bundled source registry is the union of every plugin dir that ships targets, in plugin-id order", async () => {
+  await withSourceRoot({ "zeta-host": hostFiles("zeta", "Zeta"), "alpha-host": hostFiles("alpha", "Alpha"), "no-targets": { "README.md": "no targets here" } }, async (sourceRoot) => {
+    const registry = await loadBundledDeployTargetRegistry({ sourceRoot });
+
+    assert.deepEqual(registry.list().map((target) => [target.pluginId, target.descriptor.id]), [["alpha-host", "alpha"], ["zeta-host", "zeta"]]);
+    assert.deepEqual(registry.refusals, []);
+  });
+});
+
+test("the bundled source registry skips retired ids and dirs without a plugin.json", async () => {
+  await withSourceRoot({ "tovu-deploy-fly": hostFiles("retired", "Retired"), live: hostFiles("live", "Live") }, async (sourceRoot) => {
+    await mkdir(path.join(sourceRoot, "loose", "targets"), { recursive: true });
+    await writeFile(path.join(sourceRoot, "loose", DEPLOY_TARGETS_FILENAME), descriptorJson([{ id: "loose", label: "Loose", module: "targets/fixture.mjs" }]));
+    const registry = await loadBundledDeployTargetRegistry({ sourceRoot });
+
+    assert.deepEqual(registry.list().map((target) => target.descriptor.id), ["live"]);
+  });
+});
+
+test("the bundled source registry drops a target id two plugin dirs both declare", async () => {
+  await withSourceRoot({ "first-host": hostFiles("shared", "Shared"), "second-host": hostFiles("shared", "Shared") }, async (sourceRoot) => {
+    const registry = await loadBundledDeployTargetRegistry({ sourceRoot });
+
+    assert.equal(registry.get("shared"), undefined);
+    assert.deepEqual(registry.refusals, ["deploy target 'shared' was not loaded: more than one plugin declares it ('first-host', 'second-host')"]);
+  });
+});
+
+test("the product's own bundled plugins load every host with no refusal (no target left in two plugins)", async () => {
+  const registry = await loadBundledDeployTargetRegistry({ sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+
+  assert.deepEqual(registry.refusals, []);
+  assert.deepEqual(registry.list().map((target) => target.descriptor.id).sort(), ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"]);
 });
