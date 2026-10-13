@@ -92,6 +92,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "no se pudieron cargar los datos de SEO de la entrada",
   "failed to save SEO overrides": "no se pudieron guardar las anulaciones de SEO",
   "failed to load entries": "no se pudieron cargar las entradas",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "La imagen para compartir solo mide {width} px de ancho; usa una imagen de al menos 1200 px de ancho.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "La imagen para compartir solo mide {height} px de alto; usa una imagen de al menos 630 px de alto.",
   },
   id: {
     "Selected image": "Gambar dipilih",
@@ -170,6 +172,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "gagal memuat data SEO entri",
   "failed to save SEO overrides": "gagal menyimpan penggantian SEO",
   "failed to load entries": "gagal memuat entri",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "Gambar bagikan hanya selebar {width} px; gunakan gambar dengan lebar minimal 1200 px.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "Gambar bagikan hanya setinggi {height} px; gunakan gambar dengan tinggi minimal 630 px.",
   },
   de: {
     "Selected image": "Ausgewähltes Bild",
@@ -248,6 +252,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "SEO-Daten des Eintrags konnten nicht geladen werden",
   "failed to save SEO overrides": "SEO-Überschreibungen konnten nicht gespeichert werden",
   "failed to load entries": "Einträge konnten nicht geladen werden",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "Das Teilen-Bild ist nur {width} px breit; verwende ein Bild mit mindestens 1200 px Breite.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "Das Teilen-Bild ist nur {height} px hoch; verwende ein Bild mit mindestens 630 px Höhe.",
   },
   "zh-CN": {
     "Selected image": "已选择图片",
@@ -326,6 +332,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "无法加载条目 SEO 数据",
   "failed to save SEO overrides": "无法保存 SEO 覆盖项",
   "failed to load entries": "无法加载条目",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "分享图片宽度仅为 {width} px；请使用宽度至少为 1200 px 的图片。",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "分享图片高度仅为 {height} px；请使用高度至少为 630 px 的图片。",
   },
   "zh-TW": {
     "Selected image": "已選取圖片",
@@ -404,6 +412,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "無法載入項目 SEO 資料",
   "failed to save SEO overrides": "無法儲存 SEO 覆寫",
   "failed to load entries": "無法載入項目",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "分享圖片寬度僅 {width} px；請使用寬度至少 1200 px 的圖片。",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "分享圖片高度僅 {height} px；請使用高度至少 630 px 的圖片。",
   },
   "pt-BR": {
     "Selected image": "Imagem selecionada",
@@ -482,6 +492,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "falha ao carregar os dados de SEO da entrada",
   "failed to save SEO overrides": "falha ao salvar as substituições de SEO",
   "failed to load entries": "falha ao carregar as entradas",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "A imagem de compartilhamento tem apenas {width} px de largura; use uma imagem com pelo menos 1200 px de largura.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "A imagem de compartilhamento tem apenas {height} px de altura; use uma imagem com pelo menos 630 px de altura.",
   },
   ru: {
     "Selected image": "Выбранное изображение",
@@ -560,6 +572,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "не удалось загрузить данные SEO записи",
   "failed to save SEO overrides": "не удалось сохранить переопределения SEO",
   "failed to load entries": "не удалось загрузить записи",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "Ширина изображения для публикации всего {width} px; используйте изображение шириной не менее 1200 px.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "Высота изображения для публикации всего {height} px; используйте изображение высотой не менее 630 px.",
   },
   fa: {
     "Selected image": "تصویر انتخاب‌شده",
@@ -622,6 +636,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "بارگذاری داده‌های SEO مورد ناموفق بود",
   "failed to save SEO overrides": "ذخیره بازنویسی‌های SEO ناموفق بود",
   "failed to load entries": "بارگذاری موارد ناموفق بود",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "عرض تصویر اشتراک‌گذاری فقط {width} px است؛ از تصویری با عرض حداقل 1200 px استفاده کنید.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "ارتفاع تصویر اشتراک‌گذاری فقط {height} px است؛ از تصویری با ارتفاع حداقل 630 px استفاده کنید.",
   },
   ar: {
     "Selected image": "الصورة المحددة",
@@ -684,6 +700,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "فشل تحميل بيانات SEO للإدخال",
   "failed to save SEO overrides": "فشل حفظ تجاوزات SEO",
   "failed to load entries": "فشل تحميل الإدخالات",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "عرض صورة المشاركة {width} px فقط؛ استخدم صورة لا يقل عرضها عن 1200 px.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "ارتفاع صورة المشاركة {height} px فقط؛ استخدم صورة لا يقل ارتفاعها عن 630 px.",
   },
   ja: {
     "Selected image": "選択した画像",
@@ -746,6 +764,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "エントリーの SEO データを読み込めませんでした",
   "failed to save SEO overrides": "SEO オーバーライドを保存できませんでした",
   "failed to load entries": "エントリーを読み込めませんでした",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "共有画像の幅は {width} px しかありません。幅 1200 px 以上の画像を使用してください。",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "共有画像の高さは {height} px しかありません。高さ 630 px 以上の画像を使用してください。",
   },
   ko: {
     "Selected image": "선택한 이미지",
@@ -808,6 +828,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "항목 SEO 데이터를 불러오지 못했습니다",
   "failed to save SEO overrides": "SEO 재정의를 저장하지 못했습니다",
   "failed to load entries": "항목을 불러오지 못했습니다",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "공유 이미지의 너비가 {width} px에 불과합니다. 너비가 1200 px 이상인 이미지를 사용하세요.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "공유 이미지의 높이가 {height} px에 불과합니다. 높이가 630 px 이상인 이미지를 사용하세요.",
   },
   pl: {
     "Selected image": "Wybrany obraz",
@@ -870,6 +892,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "nie udało się wczytać danych SEO wpisu",
   "failed to save SEO overrides": "nie udało się zapisać nadpisań SEO",
   "failed to load entries": "nie udało się wczytać wpisów",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "Obraz do udostępniania ma tylko {width} px szerokości; użyj obrazu o szerokości co najmniej 1200 px.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "Obraz do udostępniania ma tylko {height} px wysokości; użyj obrazu o wysokości co najmniej 630 px.",
   },
   hu: {
     "Selected image": "Kiválasztott kép",
@@ -932,6 +956,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "nem sikerült betölteni a bejegyzés SEO adatait",
   "failed to save SEO overrides": "nem sikerült menteni a SEO felülbírálásokat",
   "failed to load entries": "nem sikerült betölteni a bejegyzéseket",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "A megosztási kép csak {width} px széles; használj legalább 1200 px széles képet.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "A megosztási kép csak {height} px magas; használj legalább 630 px magas képet.",
   },
   fr: {
     "Selected image": "Image sélectionnée",
@@ -994,6 +1020,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "échec du chargement des données SEO de l'entrée",
   "failed to save SEO overrides": "échec de l'enregistrement des surcharges SEO",
   "failed to load entries": "échec du chargement des entrées",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "L’image de partage ne fait que {width} px de large ; utilisez une image d’au moins 1200 px de large.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "L’image de partage ne fait que {height} px de haut ; utilisez une image d’au moins 630 px de haut.",
   },
   uk: {
     "Selected image": "Вибране зображення",
@@ -1056,6 +1084,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "не вдалося завантажити дані SEO запису",
   "failed to save SEO overrides": "не вдалося зберегти перевизначення SEO",
   "failed to load entries": "не вдалося завантажити записи",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "Ширина зображення для поширення лише {width} px; використайте зображення шириною щонайменше 1200 px.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "Висота зображення для поширення лише {height} px; використайте зображення висотою щонайменше 630 px.",
   },
   tr: {
     "Selected image": "Seçilen görsel",
@@ -1118,6 +1148,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "girdi SEO verileri yüklenemedi",
   "failed to save SEO overrides": "SEO geçersiz kılmaları kaydedilemedi",
   "failed to load entries": "girdiler yüklenemedi",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "Paylaşım görseli yalnızca {width} px genişliğinde; en az 1200 px genişliğinde bir görsel kullanın.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "Paylaşım görseli yalnızca {height} px yüksekliğinde; en az 630 px yüksekliğinde bir görsel kullanın.",
   },
   th: {
     "Selected image": "รูปภาพที่เลือก",
@@ -1180,6 +1212,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "โหลดข้อมูล SEO ของรายการไม่สำเร็จ",
   "failed to save SEO overrides": "บันทึกการแทนที่ SEO ไม่สำเร็จ",
   "failed to load entries": "โหลดรายการไม่สำเร็จ",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "รูปภาพสำหรับแชร์กว้างเพียง {width} px ใช้รูปภาพที่กว้างอย่างน้อย 1200 px",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "รูปภาพสำหรับแชร์สูงเพียง {height} px ใช้รูปภาพที่สูงอย่างน้อย 630 px",
   },
   it: {
     "Selected image": "Immagine selezionata",
@@ -1242,6 +1276,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "impossibile caricare i dati SEO della voce",
   "failed to save SEO overrides": "impossibile salvare gli override SEO",
   "failed to load entries": "impossibile caricare le voci",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "L’immagine di condivisione è larga solo {width} px; usa un’immagine larga almeno 1200 px.",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "L’immagine di condivisione è alta solo {height} px; usa un’immagine alta almeno 630 px.",
   },
   hi: {
     "Selected image": "चुनी गई छवि",
@@ -1304,6 +1340,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "एंट्री का SEO डेटा लोड नहीं हो सका",
   "failed to save SEO overrides": "SEO ओवरराइड सहेजे नहीं जा सके",
   "failed to load entries": "एंट्री लोड नहीं हो सकीं",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "शेयर इमेज केवल {width} px चौड़ी है; कम से कम 1200 px चौड़ी इमेज का उपयोग करें।",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "शेयर इमेज केवल {height} px ऊँची है; कम से कम 630 px ऊँची इमेज का उपयोग करें।",
   },
   ur: {
     "Selected image": "منتخب تصویر",
@@ -1366,6 +1404,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "اندراج کا SEO ڈیٹا لوڈ نہ ہو سکا",
   "failed to save SEO overrides": "SEO اوور رائیڈز محفوظ نہ ہو سکیں",
   "failed to load entries": "اندراجات لوڈ نہ ہو سکیں",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "شیئر تصویر صرف {width} px چوڑی ہے؛ کم از کم 1200 px چوڑی تصویر استعمال کریں۔",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "شیئر تصویر صرف {height} px اونچی ہے؛ کم از کم 630 px اونچی تصویر استعمال کریں۔",
   },
   bn: {
     "Selected image": "নির্বাচিত ছবি",
@@ -1428,6 +1468,8 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   "failed to load entry SEO data": "এন্ট্রির SEO ডেটা লোড করা যায়নি",
   "failed to save SEO overrides": "SEO ওভাররাইড সংরক্ষণ করা যায়নি",
   "failed to load entries": "এন্ট্রি লোড করা যায়নি",
+  "The share image is only {width} px wide; use an image at least 1200 px wide.": "শেয়ার ছবিটি মাত্র {width} px চওড়া; অন্তত 1200 px চওড়া একটি ছবি ব্যবহার করুন।",
+  "The share image is only {height} px tall; use an image at least 630 px tall.": "শেয়ার ছবিটি মাত্র {height} px উঁচু; অন্তত 630 px উঁচু একটি ছবি ব্যবহার করুন।",
   },
 };
 

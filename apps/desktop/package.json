@@ -22,7 +22,7 @@
   "dependencies": {
     "@jini-ai/agent-runtime": "^0.4.8",
     "@jini-ai/chat": "^0.6.0",
-    "@jini-ai/core": "^0.4.4",
+    "@jini-ai/core": "^0.4.5",
     "@jini-ai/daemon": "^0.6.3",
     "@jini-ai/desktop-host": "^0.4.1",
     "@jini-ai/mcp": "^0.4.3",
@@ -68,6 +68,6 @@
     "vite": "^8.2.0"
   },
   "overrides": {
-    "@jini-ai/core": "^0.4.4"
+    "@jini-ai/core": "^0.4.5"
   }
 }
