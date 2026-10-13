@@ -450,7 +450,8 @@ test("renderSite home entry list: 12 at a time from listing.after, numbering con
   const first = await renderSite({ theme: null, route: "home", siteTitle: "Home", posts, listing: { pagePath: "/", after: 0 } });
   assert.equal(first.match(/class="entry"/g)?.length, 12);
   assert.match(first, /<ol class="entries" data-jini-listing="1"><!--jini-listing:1-->/);
-  assert.match(first, /<a class="jini-see-more" data-jini-more="1" href="\/_more\/1\/12" rel="nofollow" hidden>/);
+  // @jini-ai/cms 0.5.6 (Jini eeb19050) made See more a `<button>` carrying the batch URL in `data-jini-more-href`.
+  assert.match(first, /<button type="button" class="jini-see-more" data-jini-more="1" data-jini-more-href="\/_more\/1\/12" data-jini-loading="Loading…" hidden>/);
   const last = await renderSite({ theme: null, route: "home", siteTitle: "Home", posts, listing: { pagePath: "/", after: 12 } });
   assert.deepEqual([...last.matchAll(/№ (\d+)/g)].map((m) => m[1]), ["13", "14"]);
   assert.doesNotMatch(last, /data-jini-more/);
