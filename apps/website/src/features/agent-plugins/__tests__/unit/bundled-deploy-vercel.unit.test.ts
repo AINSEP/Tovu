@@ -794,6 +794,26 @@ describe('VercelDeployTarget.publish', () => {
     expect(result.status).toBe('ready');
   });
 
+  it('tries the public <project>.vercel.app alias first even when Vercel lists the team-scoped alias before it', async () => {
+    // 2026-10-11: the team alias answered `protected` first and the publish stopped there, though the
+    // public alias served 200.
+    const ready = { readyState: 'READY', url: 'plannie-leon-abc123-team.vercel.app', alias: ['plannie-leon-team.vercel.app', 'plannie-leon.vercel.app'] };
+    const probed: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'POST' && url.includes('/v13/deployments')) return jsonResponse(200, ready);
+      if (url.startsWith('https://api.vercel.com/')) return new Response('', { status: 200 });
+      probed.push(url);
+      return url.startsWith('https://plannie-leon.vercel.app')
+        ? new Response('', { status: 200 })
+        : new Response('', { status: 401, headers: { 'set-cookie': '_vercel_sso_nonce=dummy' } });
+    }));
+    const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'plannie-leon' });
+    expect(result.status).toBe('ready');
+    expect(result.url).toBe('https://plannie-leon.vercel.app');
+    expect(probed.some((url) => url.includes('-team'))).toBe(false);
+  });
+
   it('reports a URL that redirects to Vercel login as protected, not ready', async () => {
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
       ? jsonResponse(200, { readyState: 'READY', url: 'demo-abc123.vercel.app' })

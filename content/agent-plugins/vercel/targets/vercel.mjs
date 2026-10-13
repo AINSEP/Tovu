@@ -149,7 +149,8 @@ export function bindVercel(kit) {
           // `target: "production"`: without it Vercel makes a preview deployment, and only a project's
           // FIRST deployment takes the production alias, so every later publish never reached the
           // public address (2026-10-11). A publish is meant to update the live site.
-          const body = JSON.stringify({ name: safeVercelProjectName(input.projectName), files: refs, target: 'production', projectSettings: { framework: null } });
+          const name = safeVercelProjectName(input.projectName);
+          const body = JSON.stringify({ name, files: refs, target: 'production', projectSettings: { framework: null } });
           let createResp = await createVercelDeployment(this.config, body);
           let created = await readVercelJson(createResp);
           const missing = created?.error?.code === 'missing_files' ? created.error.missing : undefined;
@@ -184,7 +185,7 @@ export function bindVercel(kit) {
               // addition for the full re-derivation.
               throw new DeployError(readyError?.message || 'Vercel deployment failed.', 502, ready ?? undefined);
           }
-          const candidates = deploymentUrlCandidates(ready, created);
+          const candidates = deploymentUrlCandidates(`${name}.vercel.app`, ready, created);
           let link = await waitForReachableDeploymentUrl(candidates.length ? candidates : [initialUrl], {
               providerLabel: 'Vercel',
               detectProtected: isVercelProtectedResponse,
@@ -386,7 +387,7 @@ export function bindVercel(kit) {
   }
   /**
    * `if (!json) continue` is unreachable via this file's one call site,
-   * `deploymentUrlCandidates(ready, created)` in `publish()`: `created` comes
+   * `deploymentUrlCandidates(publicHost, ready, created)` in `publish()`: `created` comes
    * from `readVercelJson`, which either returns a real parsed `JsonObject` or
    * throws (never resolves to null/undefined); `ready` is either `created`
    * itself (same guarantee) or `pollVercelDeployment`'s result, which — per
@@ -400,7 +401,7 @@ export function bindVercel(kit) {
    * today's only caller" reasoning `netlify.ts`'s own `netlifyUrlCandidates`
    * already documents for its structurally identical guard.
    */
-  function deploymentUrlCandidates(...responses) {
+  function deploymentUrlCandidates(publicHost, ...responses) {
       // Aliases (the production `<project>.vercel.app` among them) are tried before `url`: `url` is the
       // per-deployment address, which Deployment Protection puts behind Vercel's login by default.
       const urls = [];
@@ -426,7 +427,13 @@ export function bindVercel(kit) {
               }
           }
       }
-      return [...new Set([...urls, ...deploymentUrls].map(normalizeDeploymentUrl).filter(Boolean))];
+      const candidates = [...new Set([...urls, ...deploymentUrls].map(normalizeDeploymentUrl).filter(Boolean))];
+      // The public `<project>.vercel.app` alias goes first when Vercel lists it. Vercel orders aliases
+      // its own way, so the team-scoped `<project>-<team>.vercel.app` (behind Deployment Protection)
+      // can come first, and the reachability wait stops at the first `protected` answer: a publish
+      // whose public alias served 200 was reported `protected` (2026-10-11).
+      const publicUrl = normalizeDeploymentUrl(publicHost);
+      return candidates.includes(publicUrl) ? [publicUrl, ...candidates.filter((url) => url !== publicUrl)] : candidates;
   }
 
   return { VercelDeployTarget, isVercelProtectedResponse };
