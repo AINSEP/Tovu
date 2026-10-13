@@ -13,6 +13,7 @@ import { openSitePage } from "../site-assistant-fixtures.js";
 import { sendVisitorMessage } from "../site-assistant-fixtures.js";
 import { THEMES_TARGET } from "../site-assistant-fixtures.js";
 import { readPersistedState } from "../site-assistant-fixtures.js";
+import { controlEdgeContrast, parseComputedColor } from "../support/css-contrast.js";
 import path from "node:path";
 
 // Public-widget pins exercise anonymous visitors; setup writes use a separate admin context.
@@ -1027,37 +1028,21 @@ test.describe('front: vanilla mobile accessibility', () => {
     await expect(panel).toBeVisible();
     const input = panel.getByRole('textbox');
     expect(await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
-    const ratios = await panel.evaluate(element => {
-      // Chrome serializes the theme's oklch() tokens as oklch(), not rgb(), so both forms are read:
-      // oklch goes through OKLab to linear sRGB (Ottosson's matrices), rgb through the sRGB curve.
-      const luminance = (css: string) => {
-        const values = css.match(/[\d.]+%?/g)!.map(value => value.endsWith('%') ? parseFloat(value) / 100 : Number(value));
-        let linear: number[];
-        if (css.startsWith('oklch(')) {
-          const [L, C, H] = values as [number, number, number];
-          const a = C * Math.cos(H * Math.PI / 180), b = C * Math.sin(H * Math.PI / 180);
-          const l = (L + .3963377774 * a + .2158037573 * b) ** 3;
-          const m = (L - .1055613458 * a - .0638541728 * b) ** 3;
-          const s = (L - .0894841775 * a - 1.291485548 * b) ** 3;
-          linear = [4.0767416621 * l - 3.3077115913 * m + .2309699292 * s,
-            -1.2684380046 * l + 2.6097574011 * m - .3413193965 * s,
-            -.0041960863 * l - .7034186147 * m + 1.707614701 * s].map(channel => Math.min(1, Math.max(0, channel)));
-        } else {
-          if (!css.startsWith('rgb')) throw new Error(`unparsed color ${css}`);
-          linear = values.slice(0, 3).map(value => {
-            const channel = value / 255; return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
-          });
-        }
-        return .2126 * linear[0]! + .7152 * linear[1]! + .0722 * linear[2]!;
-      };
-      const background = luminance(getComputedStyle(element).backgroundColor);
-      return Array.from(element.querySelectorAll('textarea, button:not(:disabled)')).filter(control => !control.closest('[hidden]')).map(control => {
-        const borderColor = getComputedStyle(control).borderTopColor;
-        const border = luminance(borderColor);
-        const ratio = (Math.max(background, border) + .05) / (Math.min(background, border) + .05);
-        return { ratio, label: `${control.tagName.toLowerCase()}.${control.className} border ${borderColor} on ${getComputedStyle(element).backgroundColor}` };
-      });
-    });
+    // Read computed colours in the page; measure in Node (`css-contrast.ts`), alpha included.
+    const { surface, controls } = await panel.evaluate(element => ({
+      surface: getComputedStyle(element).backgroundColor,
+      controls: Array.from(element.querySelectorAll('textarea, button:not(:disabled)')).filter(control => !control.closest('[hidden]')).map(control => ({
+        className: `${control.tagName.toLowerCase()}.${control.className}`,
+        border: getComputedStyle(control).borderTopColor,
+        background: getComputedStyle(control).backgroundColor,
+      })),
+    }));
+    // WCAG 1.4.11 needs no boundary on a text-labelled control, so a borderless one (the pill
+    // suggestions, 956bbe98b) is not border-measured; every drawn border, even a faint one, is.
+    const ratios = controls.filter(({ border }) => parseComputedColor(border)[3] > 0).map(({ className, border, background }) => ({
+      ratio: controlEdgeContrast({ surface, border, background }),
+      label: `${className} border ${border} fill ${background} on ${surface}`,
+    }));
     expect(ratios.length).toBeGreaterThan(1);
     for (const { ratio, label } of ratios) expect(ratio, label).toBeGreaterThanOrEqual(3);
     const pageLink = page.locator('a[href]').filter({ visible: true }).first();
