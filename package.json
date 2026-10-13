@@ -119,7 +119,7 @@
     "@jini-ai/analytics": "^0.2.0",
     "@jini-ai/chat": "^0.5.8",
     "@jini-ai/cli": "^0.4.0",
-    "@jini-ai/cms": "^0.5.9",
+    "@jini-ai/cms": "^0.5.10",
     "@jini-ai/core": "^0.4.3",
     "@jini-ai/daemon": "^0.6.3",
     "@jini-ai/db": "^0.3.2",
