@@ -1,3 +1,4 @@
+import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { Express } from "express";
 import type { RememberedApprovalPort } from "@jini-ai/core";
 import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
@@ -299,6 +300,8 @@ export interface MediaDeps {
    * Optional like `legacyPublishCredentialsReady`: only the real composition wires it.
    */
   siteAppBootWork?: ReadonlySet<Promise<void>>;
+  /** Native site composition owns detection state and closes it with the site store. */
+  assistantAgentInventory?: AssistantAgentInventory;
 }
 
 /**

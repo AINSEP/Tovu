@@ -1,3 +1,5 @@
+import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
@@ -1074,6 +1076,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    assistantAgentInventory: createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) }),
     workspaceId: seededWorkspace.id,
     trash,
     // The rest of this root stays hermetic; only term/taxonomy exercise the shared scratch database.

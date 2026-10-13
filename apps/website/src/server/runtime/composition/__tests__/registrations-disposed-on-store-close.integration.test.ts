@@ -71,3 +71,20 @@ test("closing the site store unsubscribes its redirect-hit fold from the bus", a
     "a closed site's hit fold must no longer run"
   );
 });
+
+test("site composition owns independent agent runtime caches and clears them with the store", async (t) => {
+  const a = await openSite(t);
+  const b = await openSite(t);
+  try {
+    const aRuntime = a.deps.assistantAgentInventory?.runtime;
+    const bRuntime = b.deps.assistantAgentInventory?.runtime;
+    assert.ok(aRuntime); assert.ok(bRuntime);
+    assert.notEqual(aRuntime.state, bRuntime.state);
+    aRuntime.state.capabilities.set("site-agent", { host: true });
+    bRuntime.state.capabilities.set("site-agent", { host: false });
+    await a.store.close();
+    assert.equal(aRuntime.state.capabilities.size, 0);
+    assert.deepEqual(bRuntime.state.capabilities.get("site-agent"), { host: false });
+    await assert.rejects(aRuntime.detectAgents({}), { name: "InvalidStateError", message: "Agent runtime is disposed" });
+  } finally { await b.store.close(); }
+});

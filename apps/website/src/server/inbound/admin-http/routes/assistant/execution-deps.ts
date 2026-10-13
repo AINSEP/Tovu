@@ -45,6 +45,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type AssistantExecutionRouteDeps = Pick<
   RouteDeps,
   | "workspaceId"
+  | "assistantAgentInventory"
   | "authorize"
   | "siteAssistantCredentialRepo"
   | "siteAssistantSecretSealer"

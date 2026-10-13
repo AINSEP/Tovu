@@ -76,7 +76,8 @@ import type { Principal } from "@jini-ai/core";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, type MessageAttachmentImage } from "@jini-ai/daemon";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
-import { getAgentDef, resolveAgentLaunch } from "@jini-ai/agent-runtime";
+import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createDiskAttachmentStore, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { AdapterContext } from "@jini-ai/http-kit";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -135,8 +136,6 @@ import { installFirstPartyToolContributors } from "../../runtime/composition/too
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import {
-  listAssistantAgents,
-  rescanAssistantAgents,
   createCustomInstructionsCache,
   DELEGATED_TOOL_CALLS_PATH,
   requireAgentDaemonToken,
@@ -187,6 +186,9 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
 const DEFAULT_AGENT_ID = "claude";
+const assistantRuntime = createNativeAgentRuntime({ env: process.env });
+const assistantInventory = createAssistantAgentInventory({ runtime: assistantRuntime });
+const { getAgentDef, resolveAgentLaunch } = assistantRuntime;
 
 // A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
 const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
@@ -207,6 +209,7 @@ async function exitDaemon(exitCode: number): Promise<void> {
   } catch (error) {
     console.error("[agent-daemon] failed to remove its discovery record", error);
   }
+  await assistantInventory.dispose({});
   process.exit(exitCode);
 }
 
@@ -692,6 +695,10 @@ const agentExecutor = createAgentExecutor({
   // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
   getAgentDef,
   resolveAgentLaunch,
+  runtimeState: assistantRuntime.state,
+  hostEnv: assistantRuntime.hostEnv,
+  codexDisablePlugins: assistantRuntime.codexDisablePlugins,
+  piGracefulShutdownMs: assistantRuntime.piGracefulShutdownMs,
   // Each run's bridge gets its own credential, resolved back to that run's principal; see
   // `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
   mcpJsonInjection: resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {})),
@@ -1262,7 +1269,7 @@ registerRunRoutes({ app, deps: { lifecycle, onStarted, deliverUserMessage: (inpu
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
 // bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
-registerAgentRoutes({ app, deps: { listAgents: listAssistantAgents, rescanAgents: rescanAssistantAgents }, adapter });
+registerAgentRoutes({ app, deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, adapter });
 // `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
 // served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
 registerRunActiveContextRoute(app, runActiveContexts);

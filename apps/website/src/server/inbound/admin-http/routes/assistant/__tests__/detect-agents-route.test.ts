@@ -5,7 +5,8 @@ import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-c
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import type { DetectedAgent } from "@jini-ai/agent-runtime";
+import { createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
+import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 // Detection is the external PATH/process boundary. Keep route registration and projection real.
@@ -118,4 +119,32 @@ test("Rescan forces discovery once after the cached response and preserves exact
   assert.equal(calls, 2);
   assert.deepEqual(forces, [false, true]);
   assert.deepEqual((capture.jsonBody as { data: { models: unknown[] }[] }).data[0]?.models, [{ id: "model-pro", label: "Model Pro" }]);
+});
+
+
+test("each route uses its composition's inventory rather than the process compatibility inventory", async () => {
+  const inventories = ["host-a", "host-b"].map(model => createAssistantAgentInventory({
+    runtime: createNativeAgentRuntime({ env: { PATH: "/missing", HOME: "/missing" } }),
+    detector: async () => [{ ...agents[0]!, models: [{ id: model, label: model }] }],
+  }));
+  try {
+    const received: unknown[] = [];
+    for (const assistantAgentInventory of inventories) {
+      await assistantAgentInventory.listAssistantAgents({}, { waitForProbe: true });
+      const app = express();
+      registerAdminAssistantDetectAgentsRoute(app, {
+        assistantAgentInventory,
+        adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
+        siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
+        siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+        workspaceId: "workspace-test", authorize: async () => ({ allowed: true, reason: "granted" }),
+      });
+      const { res, capture } = createCapturingResponse();
+      res.locals.principal = { id: "principal-test" };
+      await extractRouteHandler(app, "post", routePath)({ params: { workspaceId: "workspace-test" } }, res);
+      assert.equal(capture.statusCode, 200);
+      received.push((capture.jsonBody as { data: { models: unknown[] }[] }).data[0]?.models);
+    }
+    assert.deepEqual(received, [[{ id: "host-a", label: "host-a" }], [{ id: "host-b", label: "host-b" }]]);
+  } finally { await Promise.all(inventories.map(inventory => inventory.dispose({}))); }
 });

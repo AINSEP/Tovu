@@ -7,7 +7,7 @@
  * PATH probing performs filesystem I/O. Cache it across session-lifetime health polls because
  * installed CLIs do not change each turn; explicit rescan refreshes that fact.
  */
-import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createCliProbeCache } from "./cli-probe-cache.js";
 import type { AgentSummary } from "@jini-ai/daemon/http";
 
@@ -40,6 +40,16 @@ export type AssistantAgentSummary = AgentSummary & {
   readonly carriesOwnMemory: boolean;
 };
 
+/** Tovu projections and background inventory lifecycle bound to one native runtime. */
+export interface AssistantAgentInventory {
+  readonly runtime: NativeAgentRuntime;
+  readonly listDetectedAssistantAgents: typeof listDetectedAssistantAgents;
+  readonly assistantAgentDiscoveryPending: typeof assistantAgentDiscoveryPending;
+  readonly listAssistantAgents: typeof listAssistantAgents;
+  readonly rescanAssistantAgents: typeof rescanAssistantAgents;
+  dispose(required: Record<string, never>, optional?: Record<string, never>): Promise<void>;
+}
+
 /** Defs the executor cannot drive stay out of the picker. Keep this list aligned with the
  * runtime's compatibility rules; its compatibility predicate is not publicly exported. */
 const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
@@ -53,11 +63,11 @@ const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
 type AgentModelProber = typeof probeAgentModels;
 let agentModelProber: AgentModelProber | null = null;
 
-/** Test-only: install a fake model prober (or `null` to restore the real one) and drop the cache. */
+/** Compatibility test wrapper: install a fake model prober (or `null` to restore the real one)
+ * and replace the default inventory. Native host inventories keep their own bindings. */
 export function setAgentModelProberForTesting(prober: AgentModelProber | null): void {
   agentModelProber = prober;
-  cachedAgents = createAssistantDetectionCache({});
-  projectedSource = undefined;
+  defaultInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
 }
 
 /**
@@ -71,15 +81,15 @@ export function setAgentModelProberForTesting(prober: AgentModelProber | null): 
  * defs read-only metadata processes bounded by each def's timeout and the shared process queue. Space: O(d).
  * @overallScore 100
  */
-async function probeAssistantAgents({ force = false }: { force?: boolean } = {}, { modelProber = agentModelProber }: { modelProber?: AgentModelProber | null } = {}): Promise<DetectedAgent[]> {
+async function probeAssistantAgents({ force = false }: { force?: boolean } = {}, { modelProber = agentModelProber, runtime }: { modelProber?: AgentModelProber | null; runtime: NativeAgentRuntime }): Promise<DetectedAgent[]> {
   // The full detector owns version, capabilities, auth and models. Both HTTP inventories share
   // this result instead of launching a separate model-only sweep for the chat picker.
-  if (!modelProber) return detectAgents({}, { force });
+  if (!modelProber) return runtime.detectAgents({}, { force });
   const results: DetectedAgent[] = [];
   for (const def of AGENT_DEFS.filter((candidate) => !UNSUPPORTED_AGENT_IDS.has(candidate.id))) {
-    const launch = resolveAgentLaunch({ def });
+    const launch = runtime.resolveAgentLaunch({ def });
     const modelResult = launch.launchPath
-      ? await modelProber({ def }, { force })
+      ? await modelProber({ def }, { force, state: runtime.state, env: runtime.hostEnv })
       : { models: def.fallbackModels, source: "fallback" as const };
     results.push({ ...def, available: Boolean(launch.launchPath), models: modelResult.models,
       modelsSource: modelResult.source, ...(launch.selectedPath ? { path: launch.selectedPath } : {}),
@@ -125,59 +135,92 @@ function projectAssistantAgent({ def, launch, modelResult }: {
 /** The runtime owns discovery; this host owns the shared snapshot consumed by both HTTP routes.
  * An injected detector supplies an isolated inventory for embedding hosts and route tests. */
 export function createAssistantDetectionCache(
-  { detector }: { detector?: typeof detectAgents },
+  { detector, runtime = createNativeAgentRuntime({ env: process.env }) }: { detector?: typeof detectAgents; runtime?: NativeAgentRuntime },
   _options: Record<string, never> = {},
 ) {
   const modelProber = agentModelProber;
-  const detect: typeof detectAgents = detector ?? ((_input, options = {}) => probeAssistantAgents({ force: options.force }, { modelProber }));
+  const detect: typeof detectAgents = detector ?? ((_input, options = {}) => probeAssistantAgents({ ...(options.force !== undefined ? { force: options.force } : {}) }, { modelProber, runtime }));
   return createCliProbeCache({
     initial: (): DetectedAgent[] => AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map((def) => {
-      const launch = resolveAgentLaunch({ def });
+      const launch = runtime.resolveAgentLaunch({ def });
       return { ...def, available: Boolean(launch.launchPath), models: def.fallbackModels.filter(model => model.id !== "default"),
         modelsSource: "fallback", ...(launch.selectedPath ? { path: launch.selectedPath } : {}) };
     }),
     probe: ({ force }) => detect({}, { force }),
   });
 }
-let cachedAgents = createAssistantDetectionCache({});
-let projectedSource: Promise<DetectedAgent[]> | undefined;
-let projectedPending = false;
-let projectedAgents: Promise<AssistantAgentSummary[]> | undefined;
+/** Tovu's picker and settings projection over one host-owned Jini runtime.
+ * @param required - The runtime created by the native composition root, plus an optional detector.
+ * @returns One inventory shared by both HTTP surfaces, with cleanup after background scans settle.
+ * @example const inventory = createAssistantAgentInventory({ runtime });
+ */
+export function createAssistantAgentInventory(
+  { runtime, detector }: { runtime: NativeAgentRuntime; detector?: typeof detectAgents },
+  _optional: Record<string, never> = {},
+): AssistantAgentInventory {
+  const cachedAgents = createAssistantDetectionCache({ runtime, ...(detector ? { detector } : {}) });
+  let projectedSource: Promise<DetectedAgent[]> | undefined;
+  let projectedPending = false;
+  let projectedAgents: Promise<AssistantAgentSummary[]> | undefined;
 
-/** Admin detection and the chat picker read one settled inventory. No request waits for probes. */
-export function listDetectedAssistantAgents({ force = false }: { force?: boolean } = {}, _options = {}): Promise<DetectedAgent[]> {
-  return cachedAgents.read({ force });
-}
-
-export function assistantAgentDiscoveryPending(_input = {}, _options = {}): boolean { return cachedAgents.isPending({}); }
-
-/** Preserve promise identity until the runtime snapshot changes, including while a scan runs. */
-export function listAssistantAgents(_input = {}, { waitForProbe = false } = {}): Promise<AssistantAgentSummary[]> {
-  const source = listDetectedAssistantAgents();
-  if (waitForProbe) return cachedAgents.settled({}).then(() => listAssistantAgents());
-  const discoveryPending = cachedAgents.isPending({});
-  if (source !== projectedSource || discoveryPending !== projectedPending) {
-    projectedPending = discoveryPending;
-    projectedSource = source;
-    projectedAgents = source.then(agents => agents.map(agent => {
-      const registered = AGENT_DEFS.find(candidate => candidate.id === agent.id)!;
-      const def = { ...registered, ...(agent.reasoningOptions ? { reasoningOptions: agent.reasoningOptions } : {}) };
-      return { ...projectAssistantAgent({ def, launch: { launchPath: agent.available ? agent.path : undefined }, modelResult: {
-        models: agent.models, source: agent.modelsSource,
-        ...(agent.modelCatalog ? { catalog: agent.modelCatalog } : {}),
-        ...(agent.defaultModelResolution ? { defaultModelResolution: agent.defaultModelResolution } : {}),
-      } }), discoveryPending,
-        ...(agent.version ? { version: agent.version } : {}),
-        ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
-      };
-    }));
+  /** Admin detection and the chat picker read one settled inventory. No request waits for probes. */
+  function listDetectedAssistantAgents({ force = false }: { force?: boolean } = {}, _options = {}): Promise<DetectedAgent[]> {
+    return cachedAgents.read({ force });
   }
-  return projectedAgents!;
+
+  function assistantAgentDiscoveryPending(_input = {}, _options = {}): boolean { return cachedAgents.isPending({}); }
+
+  /** Preserve promise identity until the runtime snapshot changes, including while a scan runs. */
+  function listAssistantAgents(_input = {}, { waitForProbe = false } = {}): Promise<AssistantAgentSummary[]> {
+    const source = listDetectedAssistantAgents();
+    if (waitForProbe) return cachedAgents.settled({}).then(() => listAssistantAgents());
+    const discoveryPending = cachedAgents.isPending({});
+    if (source !== projectedSource || discoveryPending !== projectedPending) {
+      projectedPending = discoveryPending;
+      projectedSource = source;
+      projectedAgents = source.then(agents => agents.map(agent => {
+        const registered = AGENT_DEFS.find(candidate => candidate.id === agent.id)!;
+        const def = { ...registered, ...(agent.reasoningOptions ? { reasoningOptions: agent.reasoningOptions } : {}) };
+        return { ...projectAssistantAgent({ def, launch: { launchPath: agent.available ? agent.path : undefined }, modelResult: {
+          models: agent.models, source: agent.modelsSource,
+          ...(agent.modelCatalog ? { catalog: agent.modelCatalog } : {}),
+          ...(agent.defaultModelResolution ? { defaultModelResolution: agent.defaultModelResolution } : {}),
+        } }), discoveryPending,
+          ...(agent.version ? { version: agent.version } : {}),
+          ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
+        };
+      }));
+    }
+    return projectedAgents!;
+  }
+
+  /** Explicit Rescan schedules a forced refresh while retaining the previous inventory.
+   * The optional completion port is for diagnostics/tests; HTTP never opts into waiting. */
+  function rescanAssistantAgents(_input = {}, { waitForProbe = false } = {}): Promise<AssistantAgentSummary[]> {
+    listDetectedAssistantAgents({ force: true });
+    return waitForProbe ? cachedAgents.settled({}).then(() => listAssistantAgents()) : listAssistantAgents();
+  }
+
+  return { runtime, listDetectedAssistantAgents, assistantAgentDiscoveryPending, listAssistantAgents, rescanAssistantAgents,
+    /** Dispose only after the host stops admitting requests; a pending scan finishes before cache clear. */
+    async dispose(_required: Record<string, never>, _optional: Record<string, never> = {}): Promise<void> {
+      await cachedAgents.settled({});
+      await runtime.dispose({});
+    },
+  };
 }
 
-/** Explicit Rescan schedules a forced refresh while retaining the previous inventory.
- * The optional completion port is for diagnostics/tests; HTTP never opts into waiting. */
-export function rescanAssistantAgents(_input = {}, { waitForProbe = false } = {}): Promise<AssistantAgentSummary[]> {
-  listDetectedAssistantAgents({ force: true });
-  return waitForProbe ? cachedAgents.settled({}).then(() => listAssistantAgents()) : listAssistantAgents();
+// Published process-level functions remain compatibility wrappers; native hosts create inventories.
+let defaultInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
+export function listDetectedAssistantAgents(input: { force?: boolean } = {}, options = {}): Promise<DetectedAgent[]> {
+  return defaultInventory.listDetectedAssistantAgents(input, options);
+}
+export function assistantAgentDiscoveryPending(input = {}, options = {}): boolean {
+  return defaultInventory.assistantAgentDiscoveryPending(input, options);
+}
+export function listAssistantAgents(input = {}, options: { waitForProbe?: boolean } = {}): Promise<AssistantAgentSummary[]> {
+  return defaultInventory.listAssistantAgents(input, options);
+}
+export function rescanAssistantAgents(input = {}, options: { waitForProbe?: boolean } = {}): Promise<AssistantAgentSummary[]> {
+  return defaultInventory.rescanAssistantAgents(input, options);
 }

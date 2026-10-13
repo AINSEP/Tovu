@@ -1,3 +1,5 @@
+import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
 import { createLocalCredentialCopy } from "./local-credential-copy.js";
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -1035,6 +1037,8 @@ async function composeSiteRouteDeps(
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
+  const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
+  onStoreClose(() => assistantAgentInventory.dispose({}));
 
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
   // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
@@ -2033,6 +2037,7 @@ async function composeSiteRouteDeps(
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    assistantAgentInventory,
     workspaceId: workspaceId,
     localCredentialCopy: createLocalCredentialCopy({ targetKernel: kernel, targetWorkspaceId: workspaceId,
       targetSiteDir: resolvedSiteBinding.dir, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,

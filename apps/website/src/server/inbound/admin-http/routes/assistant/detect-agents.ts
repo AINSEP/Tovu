@@ -147,7 +147,7 @@ export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
  * inventory immediately while one background scan refreshes it; no per-caller configuration.
  */
 export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
-  const inventory = deps.detectAgents ? createAssistantDetectionCache({ detector: deps.detectAgents }) : undefined;
+  const inventory = deps.detectAgents ? createAssistantDetectionCache({ detector: deps.detectAgents, ...(deps.assistantAgentInventory ? { runtime: deps.assistantAgentInventory.runtime } : {}) }) : undefined;
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -172,8 +172,8 @@ export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteReg
       }
 
       const input = { force: req.body?.force === true };
-      const agents = await (inventory ? inventory.read(input) : listDetectedAssistantAgents(input));
-      const discoveryPending = inventory ? inventory.isPending({}) : assistantAgentDiscoveryPending();
+      const agents = await (inventory ? inventory.read(input) : (deps.assistantAgentInventory?.listDetectedAssistantAgents ?? listDetectedAssistantAgents)(input));
+      const discoveryPending = inventory ? inventory.isPending({}) : (deps.assistantAgentInventory?.assistantAgentDiscoveryPending ?? assistantAgentDiscoveryPending)();
       res.json({ data: agents.map(agent => ({ ...toExecutionTabAgent(agent), discoveryPending })) });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
