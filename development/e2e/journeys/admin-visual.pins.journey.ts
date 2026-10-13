@@ -501,7 +501,8 @@ async function capture(page: Page, filename: string): Promise<void> {
   // fullPage could expand the image to an overflowing off-canvas mobile sidebar's width.
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot(filename, {
-    animations: "disabled", caret: "hide", mask: masks, style: "[data-visual-under-dock] { visibility: hidden !important; }",
+    animations: "disabled", caret: "hide", mask: masks,
+    stylePath: path.join(import.meta.dirname, "admin-visual.under-dock.css"),
   });
 }
 
