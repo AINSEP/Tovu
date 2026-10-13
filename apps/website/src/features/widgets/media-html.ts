@@ -10,8 +10,15 @@ const SAFE_ELEMENTS = new Set('a abbr address article aside audio b blockquote b
 // Content attributes run through the SAME value checks as the shared allowlist's URL attribute.
 // Names are fixed here, never taken from input; script-bearing attributes remain disallowed.
 const CONTENT_ATTRIBUTES = new Set('src srcset href alt width height controls preload sizes type name value method action for required disabled checked selected multiple placeholder rows cols min max step colspan rowspan datetime open download target rel'.split(' '));
+// Inline SVG icons (shape + paint only). No script/style/foreignObject/a/use/image/animate/set:
+// those execute, load external resources, or rewrite attributes after this check runs.
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const SVG_ELEMENTS = new Set('svg g path rect circle ellipse line polyline polygon defs title desc linearGradient radialGradient stop clipPath mask'.split(' '));
+// Presentation/geometry names only (parse5 keeps SVG camelCase). Values still pass the URL-value check.
+const SVG_ATTRIBUTES = new Set('viewBox preserveAspectRatio focusable d points x y x1 y1 x2 y2 cx cy r rx ry width height transform fill fill-rule fill-opacity stroke stroke-width stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset stroke-opacity opacity clip-path clip-rule clipPathUnits mask maskUnits vector-effect offset stop-color stop-opacity gradientUnits gradientTransform fx fy pathLength'.split(' '));
 function safeAttribute(attr: Element['attrs'][number], options: { styleContext?: 'stylesheet' } = {}): boolean {
   if (attr.namespace || attr.prefix) return false;
+  if (SVG_ATTRIBUTES.has(attr.name)) return safeAttribute({ name: 'poster', value: attr.value });
   if (attr.name === 'srcset') {
     for (const source of attr.value.split(',')) {
       const url = source.trim().split(/\s+/)[0];
@@ -36,7 +43,8 @@ export function sanitizePageHtml({ html }: { html: string }, _optional: Record<s
       if (!('tagName' in child)) return child.nodeName === '#text';
       // Bound native serializer recursion as well as our own traversal on imported HTML.
       if (depth >= 128) return false;
-      if (child.namespaceURI !== 'http://www.w3.org/1999/xhtml' || !SAFE_ELEMENTS.has(child.tagName)) return false;
+      const allowed = child.namespaceURI === 'http://www.w3.org/1999/xhtml' ? SAFE_ELEMENTS : child.namespaceURI === SVG_NAMESPACE ? SVG_ELEMENTS : undefined;
+      if (!allowed?.has(child.tagName)) return false;
       if (child.tagName === 'style') {
         const css = child.childNodes.map(node => 'value' in node ? node.value : '').join('');
         // A stylesheet may use Unicode glyph escapes; the inline-attribute policy rejects them.

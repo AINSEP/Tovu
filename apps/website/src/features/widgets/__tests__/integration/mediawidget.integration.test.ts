@@ -29,7 +29,9 @@ test('sanitizer decodes attributes and rejects foreign namespaces, event handler
   assert.ok(output.includes('data-ok="yes"'));
   assert.ok(output.includes('.safe{color:red}'));
   assert.ok(!output.includes('@import'));
-  assert.ok(!/onplay|poster|svg|iframe|style=/.test(output));
+  // Inline SVG icons are allowed (landing carousel buttons); its foreignObject subtree still drops.
+  assert.ok(output.includes('<svg></svg>'));
+  assert.ok(!/onplay|poster|foreignObject|onerror|<img|iframe|style=/.test(output));
 });
 test('media structured config renders mixed media and keeps safe attributes with no unknown broken image', () => {
   const html = renderWidgetIr({ componentId: 'media', props: { config: { mode: 'media', items: [{ slug: 'photo' }, { slug: 'missing' }, { slug: 'audio', caption: 'Sound' }], layout: 'carousel', htmlAttributes: 'data-kui="scroll-snap-x" onclick="x"' }, media: { ...media, audio: { assetId: 'audio-id', slug: 'audio', contentType: 'audio/mpeg' } } } });
