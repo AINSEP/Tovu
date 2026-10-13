@@ -489,7 +489,7 @@ export const READ_GROUPS: { name: string; select: (key: string) => boolean; orde
  * outside these transcripts (OAuth replay, sealed state, checkKey, commerce); they are pinned by
  * their own suites. */
 export interface ParityDelta {
-  transcript: "read" | "write";
+  transcript: "read" | "write" | "cascade";
   keys: RegExp;
   before: string;
   after: string;
@@ -526,6 +526,9 @@ export const PARITY_DELTAS: readonly ParityDelta[] = [
   { transcript: "read", keys: /^destination\.get@/, before: "hint derived from the address", after: "no hint",
     reason: "P0 audit delta 3: an address is not a token (probes-and-cards.test.ts:92)", apply: dropTokenHint },
   { transcript: "write", keys: /^destination\.[68]\.get$/, before: "hint", after: "no hint", reason: "same", apply: dropTokenHint },
+  { transcript: "cascade", keys: /^workspace\.2\.site$/, before: "deleted workspace's site key orphaned and still readable", after: "unset",
+    reason: "intended (2026-10-12): secrets_vault.workspace_id is ON DELETE CASCADE (9b20083b6), like every other workspace key; site_assistant_credentials had no FK",
+    apply: () => ({ ok: { isSet: false, masked: null, tokenHint: null, provider: "google", baseUrl: null, model: null, updatedAt: null } }) },
 ];
 
 /** Real behaviour differences these transcripts found (2026-10-11). Each is pinned by a `todo`
@@ -537,7 +540,7 @@ export const KNOWN_PARITY_ISSUES: readonly KnownParityIssue[] = [
 ];
 
 /** The golden transcript with every reviewed delta applied. */
-export function expectedTranscript(golden: Transcript, transcript: "read" | "write", deltas: readonly ParityDelta[] = PARITY_DELTAS): Transcript {
+export function expectedTranscript(golden: Transcript, transcript: ParityDelta["transcript"], deltas: readonly ParityDelta[] = PARITY_DELTAS): Transcript {
   const out: Transcript = structuredClone(golden);
   for (const delta of deltas) {
     if (delta.transcript !== transcript) continue;
