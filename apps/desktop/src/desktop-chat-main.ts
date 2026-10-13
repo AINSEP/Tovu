@@ -1,12 +1,12 @@
 /**
- * @file Composition root for the desktop chat's main-process half — the one call `main.ts` makes.
+ * @file Composition root for the desktop chat's main-process half (boot wiring is owner-paused).
  *
  * Kept out of `main.ts` so that file's hunk stays one line, and so the wiring itself (which tracked
  * site a renderer-reported `activeSiteDir` resolves to, where the agent's cwd and transcript live) is
  * testable without Electron: every Electron-owned effect arrives as a port.
  */
 import path from "node:path";
-import { AGENT_DEFS, probeAgentModels, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, runtimeSupportsExternalTools, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createDesktopAgentRuntime, type DesktopAgentRuntime } from "./desktop-agent.ts";
 import { buildDesktopAgentTools, UNBUILT_SITE_TOOL_GATEWAY, type SiteToolGateway, type TurnAddressee } from "./desktop-agent-tools.ts";
 import { createAgentInventory } from "./desktop-agent-inventory.ts";
@@ -15,6 +15,8 @@ import { registerWorkspaceChatIpc, WORKSPACE_CHAT_IPC, type ChatIpcMain } from "
 import { readTrackedSites } from "./tracked-sites.ts";
 
 interface DesktopChatMainDeps {
+  /** Created once at app boot, shared by detection and execution, disposed by app shutdown. */
+  agentRuntime: NativeAgentRuntime;
   ipcMain: ChatIpcMain;
   userDataDir: string;
   projectsPath: string;
@@ -45,12 +47,13 @@ function resolveTrackedAddressee(
  * the runtime binds its loopback listener in the background and handlers await it.
  *
  * @param deps Electron-owned effects as ports.
- * @param optional `siteTools` — the gateway to the active site's own tools (unbuilt-route default).
+ * @param optional Site-tool gateway (unbuilt-route default) and an injectable chat factory.
  * @returns the runtime promise, for shutdown and for the tool-list evidence the report needs.
  * @complexity O(1) beyond the runtime's own startup.
  */
-function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: SiteToolGateway } = {}): Promise<DesktopAgentRuntime> {
-  const runtime = createDesktopAgentRuntime({
+function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: SiteToolGateway; createDesktopAgentRuntime?: typeof createDesktopAgentRuntime } = {}): Promise<DesktopAgentRuntime> {
+  const runtime = (optional.createDesktopAgentRuntime ?? createDesktopAgentRuntime)({
+    agentRuntime: deps.agentRuntime,
     workDir: path.join(deps.userDataDir, "desktop-agent"),
     buildTools: ({ addresseeOf }) => buildDesktopAgentTools({
       sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, revealPath: deps.revealPath },
@@ -70,8 +73,8 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     }),
     listAgents: createAgentInventory({
       defs: AGENT_DEFS,
-      resolveLaunch: resolveAgentLaunch,
-      probeModels: probeAgentModels,
+      resolveLaunch: deps.agentRuntime.resolveAgentLaunch,
+      probeModels: deps.agentRuntime.probeAgentModels,
       supportsTools: runtimeSupportsExternalTools,
     }),
     pickDirectory: deps.pickDirectory,

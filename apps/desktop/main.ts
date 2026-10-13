@@ -105,6 +105,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
 import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen } from "electron";
+import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.ts";
@@ -426,6 +427,9 @@ const siteTransitions = createSiteTransitions();
 // can therefore leave an empty map with a detached tovu serve still holding content.db open;
 // if its crash-safety row was already removed, the next launch cannot discover that orphan.
 const pendingTeardowns = createShutdownTracker({});
+
+/** One app-owned Jini runtime, shared with desktop chat when its paused boot wiring is enabled. */
+const desktopAgentRuntime = createNativeAgentRuntime({ env: process.env });
 
 /** Where `before-quit`'s graceful multi-site shutdown is: `"idle"`, `"draining"` (stopping every open
  *  site and waiting on in-flight teardowns), or `"drained"` (finished, its own `app.quit()` going
@@ -1884,6 +1888,11 @@ app
 app.on("before-quit", (event) => {
   siteDiscoveryAbort?.abort();
   siteValidationAbort?.abort();
+  // Discovery can still be in flight even with no open sites; include its disposal in the same
+  // awaited drain. Repeated quit attempts must not start another disposal while that drain runs.
+  if (quitPhase === "idle") {
+    pendingTeardowns.track({ promise: desktopAgentRuntime.dispose({}) });
+  }
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last
   // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned

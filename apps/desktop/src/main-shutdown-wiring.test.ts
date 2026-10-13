@@ -76,6 +76,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
       exit: () => { assert.fail("the pending teardown must settle before the deadline"); },
     },
     siteThemePreviews: { dispose: () => {} },
+    desktopAgentRuntime: { dispose: async () => {} },
     siteDiscoveryAbort: undefined, siteValidationAbort: undefined,
     quitPhase: "idle", openSites: new Map(), pendingTeardowns,
     decideBeforeQuit, finalQuitHeldForUpdate: () => false,

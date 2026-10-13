@@ -27,6 +27,7 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
+import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type RunLifecycle } from "@jini-ai/daemon";
 import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
@@ -67,6 +68,8 @@ interface DesktopAgentRuntime {
 }
 
 interface DesktopAgentRuntimeRequired {
+  /** App-owned runtime shared with inventory; the app disposes it after stopping chat. */
+  agentRuntime: NativeAgentRuntime;
   /** The agent CLI's working directory; created if missing. Lives under the app's userData. */
   workDir: string;
   /** Builds the tool table; handed the runtime's own per-run addressee lookup. */
@@ -75,7 +78,7 @@ interface DesktopAgentRuntimeRequired {
 
 interface DesktopAgentRuntimeOptions {
   /** Test seam: a fake executor so no real CLI is spawned. */
-  createAgentExecutor?: (ports: { lifecycle: RunLifecycle; daemonUrl: string; credentials: RunScopedCredentials }) => Pick<AgentExecutor, "run">;
+  createAgentExecutor?: (...args: Parameters<typeof createAgentExecutor>) => Pick<AgentExecutor, "run">;
   /** Test seam: the `jini-mcp` entry script. Defaults to the installed `@jini-ai/mcp`'s `bin/serve.js`. */
   mcpServeScript?: string;
   log?: Pick<Console, "error" | "warn">;
@@ -204,15 +207,26 @@ function defaultMcpServeScript(): string {
  * `execPath` is the app binary, which boots a GUI unless `ELECTRON_RUN_AS_NODE` is set — and Jini's
  * agent env allowlist strips this process's own copy before the CLI spawns the bridge, so it must
  * travel on the bridge entry itself (same fix as the site daemon's `mcp-injection.ts`, 2026-10-01).
+ * @param ports The lifecycle, bridge credentials and app-owned Jini runtime.
+ * @param optional Bridge script and injectable executor factory.
+ * @returns The executor bound to the same runtime as desktop detection. @complexity O(1).
+ * @example defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime });
  */
 function defaultAgentExecutor(
-  ports: { lifecycle: RunLifecycle; daemonUrl: string; credentials: RunScopedCredentials },
-  mcpServeScript: string,
+  ports: { lifecycle: RunLifecycle; daemonUrl: string; credentials: RunScopedCredentials; agentRuntime: NativeAgentRuntime },
+  optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
 ): Pick<AgentExecutor, "run"> {
-  return createAgentExecutor({ lifecycle: ports.lifecycle }, {
+  const runtime = ports.agentRuntime;
+  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle }, {
+    getAgentDef: runtime.getAgentDef,
+    resolveAgentLaunch: runtime.resolveAgentLaunch,
+    runtimeState: runtime.state,
+    hostEnv: runtime.hostEnv,
+    codexDisablePlugins: runtime.codexDisablePlugins,
+    piGracefulShutdownMs: runtime.piGracefulShutdownMs,
     mcpJsonInjection: {
       command: process.execPath,
-      args: [mcpServeScript],
+      args: [optional.mcpServeScript ?? defaultMcpServeScript()],
       env: { ELECTRON_RUN_AS_NODE: "1" },
       daemonUrl: ports.daemonUrl,
       credential: ({ runId }) => ports.credentials.mint({ runId }),
@@ -231,7 +245,7 @@ function defaultAgentExecutor(
 /**
  * Builds and starts the desktop agent. Resolves once the loopback listener is bound.
  *
- * @param required `workDir` (the CLI's cwd) and `buildTools`.
+ * @param required `workDir` (the CLI's cwd), `buildTools`, and the app-owned `agentRuntime`.
  * @param optional test seams and a logger.
  * @returns the runtime handle; `close()` stops the listener.
  * @complexity O(n) in the tool count at startup.
@@ -273,7 +287,7 @@ async function createDesktopAgentRuntime(
   const { server, url: daemonUrl } = await listenOnLoopback(app);
   adapter.resolvedPortRef.current = (server.address() as AddressInfo).port;
 
-  const executor = (optional.createAgentExecutor ?? ((ports) => defaultAgentExecutor(ports, optional.mcpServeScript ?? defaultMcpServeScript())))({ lifecycle, daemonUrl, credentials });
+  const executor = defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime: required.agentRuntime }, optional);
 
   async function startTurn(input: DesktopTurnInput, options: DesktopTurnOptions = {}): Promise<{ runId: string }> {
     const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
