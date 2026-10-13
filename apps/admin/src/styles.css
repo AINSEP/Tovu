@@ -1179,6 +1179,20 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    right edge instead of stretching across it. Bare `.page-actions` (used on the non-split
    `.page-header` elsewhere) needs neither — it is already the grid's last auto-placed child there. */
 .page-header-split .page-header-actions { grid-column: 3; justify-self: end; min-width: 0; max-width: 100%; justify-content: flex-end; }
+/* Back is a plain 40px arrow at every width, no button chrome (owner, 2026-10-13: the bordered
+   square looked off-centre on phones, then "consistent everywhere the same back control is used",
+   so desktop/tablet lost the bordered "← Back" pill too), matching the Edit post/page back arrow
+   (`.content-editor-back`, styles/editor.css). Its `aria-label` ("Back: Pages" etc.) still names
+   it. The 40px square stays as the tap area: -10px puts the glyph on the content's left edge, and
+   where a kicker sits above the title (all but Forms) 0.75rem drops the arrow from the kicker's
+   line to the title's. */
+.page-header-split .page-header-lead > .btn-secondary {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; font-size: 0;
+  margin-left: -10px; border-color: transparent; background: transparent; box-shadow: none; color: var(--fg-2);
+}
+.page-header-split .page-header-lead > .btn-secondary::before { content: "\2190"; font-size: var(--text-lg); line-height: 1; }
+.page-header-split:has(.page-kicker) .page-header-lead > .btn-secondary { margin-top: 0.75rem; }
+.page-header-split .page-header-lead > .btn-secondary:hover { background: transparent; color: var(--fg); }
 
 /* CONTAINER query, not `@media (max-width: 900px)` (replaced 2026-09-22 — same swap
    `.agent-plugin-rows` made above, same reason): 900px keyed on the VIEWPORT, and the thing that
@@ -1214,25 +1228,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   /* Left-aligned, Back beside the title (mobile catalog P-6/PG-3/MN-4, 2026-10-06). The stacked,
      centred version this replaced — Back pill, then kicker/title/description, then (Widgets/Menus)
      a Back/Save row — burnt 140-250px of a phone screen before any content, and its centring
-     disagreed with every list page's left-aligned header. Back shrinks to a 40px arrow square (its
-     `aria-label`, "Back: Pages" etc., still names it) so the title keeps the rest of the row. */
+     disagreed with every list page's left-aligned header. Back is the 40px arrow square (the
+     base rule above) so the title keeps the rest of the row. */
   .page-header-split { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-3); row-gap: var(--space-3); }
   .page-header-split .page-header-lead { grid-column: 1; grid-row: 1; justify-content: flex-start; }
   .page-header-split .page-header-text { grid-column: 2; grid-row: 1; align-items: flex-start; text-align: left; }
-  .page-header-split .page-header-lead > .btn-secondary {
-    display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; font-size: 0;
-  }
-  .page-header-split .page-header-lead > .btn-secondary::before { content: "\2190"; font-size: var(--text-lg); line-height: 1; }
-  /* A plain arrow, no button chrome (owner, 2026-10-13: the bordered square looked off-centre),
-     matching the Edit post/page back arrow (`.content-editor-back`, styles/editor.css). The 40px
-     square stays as the tap area: -10px puts the glyph on the content's left edge, and where a
-     kicker sits above the title (all but Forms) 0.75rem drops the arrow from the kicker's line to
-     the title's. */
-  .page-header-split .page-header-lead > .btn-secondary {
-    margin-left: -10px; border-color: transparent; background: transparent; box-shadow: none; color: var(--fg-2);
-  }
-  .page-header-split:has(.page-kicker) .page-header-lead > .btn-secondary { margin-top: 0.75rem; }
-  .page-header-split .page-header-lead > .btn-secondary:hover { background: transparent; color: var(--fg); }
 
   /* Widgets/Menus keep their header actions (Save, Copy embed…) — as one left-aligned row under
      the title, the same place every list page puts its `.page-actions`. */
