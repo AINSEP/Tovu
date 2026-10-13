@@ -27,7 +27,7 @@ import { sitesFilePath } from "../../../apps/desktop/src/tracked-sites.ts";
  *    folder that ALREADY holds a site and never creates one. An empty folder is refused with
  *    `SITE_DIR_EMPTY`'s sentence.
  *  - "Create website" onboarding (`CreateWebsiteOnboarding.tsx` -> `handleCreate`): `tovu init`
- *    into a free folder under the sites home (~/Documents/Tovu/sites; no picker since 59a036e49),
+ *    into a free folder under the sites home (~/Documents/Tovu since 2ffba0dd3; no picker since 59a036e49),
  *    tracked as `created`, so its card offers "Delete…" (which erases files). Cancellation
  *    preserves files; confirming Delete removes the whole tree.
  */
@@ -112,9 +112,10 @@ test("Create website makes a real site whose Delete confirms and removes all fil
     await create.click();
 
     await expect(win.locator(".creation-notice")).toContainText(name, { timeout: 150_000 });
-    // No picker since 59a036e49: the site lands in a free folder under the sites home.
+    // No picker since 59a036e49: the site lands in a free folder under the sites home
+    // (Documents/Tovu itself again since 2ffba0dd3).
     const target = (await listSites(win)).find((s) => s.displayName === name)?.installDir ?? "";
-    expect(target).toMatch(/\/Documents\/Tovu\/sites\/journey-bakery-[a-z0-9]+$/);
+    expect(target).toMatch(/\/Documents\/Tovu\/journey-bakery-[a-z0-9]+$/);
     expect(fs.existsSync(path.join(target, "config.json"))).toBe(true);
     expect(fs.existsSync(siteContentDb(target))).toBe(true);
     const card = siteCard(win, name);

@@ -107,7 +107,7 @@ export function removeScratchTree({ root }: { root: string }, _optional = {}): v
 
 /**
  * A scratch HOME shaped like a real macOS home: "Create website" puts sites under
- * ~/Documents/Tovu/sites (59a036e49) and reports the sites home unavailable without ~/Documents.
+ * ~/Documents/Tovu (2ffba0dd3) and reports the sites home unavailable without ~/Documents.
  */
 function scratchHome(): string {
   const home = scratchDir("home");
