@@ -15,23 +15,29 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
+import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
+import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
+import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 
 
 /** Execute the real daemon's base construction and installed-extension seam. Federation is
- * constructed but never connected; listeners, frontend-only tools and CLI runs are outside this seam. */
+ * constructed but never connected; listeners, frontend-only tools and CLI runs are outside this seam.
+ * Lists through the daemon's own `visibleRegistry` (aec57932c), the model-visible view that hides
+ * permanent deletes outside a granted `deleteScope.fresh()`, matching BYOK's exposed registry. */
 export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Promise<ToolRegistry> {
   const first = daemonVariableStatement(daemonSource.statements, "contributions");
   const registrationLoop = daemonSource.statements.find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource) === "assistantRegistrations");
   assert.ok(registrationLoop, "daemon must register its assistantRegistrations");
-  const registry = await evaluateDaemonStatements<ToolRegistry>(daemonSource.statements.slice(daemonSource.statements.indexOf(first), daemonSource.statements.indexOf(registrationLoop) + 1), {
+  const { registry, visibleRegistry } = await evaluateDaemonStatements<{ registry: ToolRegistry; visibleRegistry: Pick<ToolRegistry, "list"> }>(daemonSource.statements.slice(daemonSource.statements.indexOf(first), daemonSource.statements.indexOf(registrationLoop) + 1), {
     routeDeps, createContributionRegistry, createToolRegistry, installFirstPartyToolContributors,
     loadDeployOpsRegistry: async () => undefined,
     createPluginInstallAttachmentReader, messageAttachmentRefsByRunId: new Map<string, readonly string[]>(),
     buildAssistantToolRegistrations, listToolCatalogEntries, createNativeApprovalMemory,
     liveRunTracker: createLiveRunTracker({}, {}),
+    createChatDeleteScope, readAssistantPermanentDeletesPolicy, isChatToolAllowed, ALL_CHAT_DELETE_TOOLS,
     magicLinkPerEmailLimiter: { check: async () => ({ allowed: true }) },
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-  }, "registry");
+  }, "({ registry, visibleRegistry })");
   const statements = daemonFunction("start").body!.statements;
   const extensions = daemonVariableStatement(statements, "extensions");
   const waitInstalled = statements.find((statement) => ts.isExpressionStatement(statement) && ts.isAwaitExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "extensions.installed");
@@ -41,5 +47,5 @@ export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Pr
     federationDeps: buildExternalMcpFederationDeps({ authorize: routeDeps.authorize, workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo }),
     source: { resolve: async () => [] }, toolExtensions: undefined,
   });
-  return registry;
+  return { ...registry, list: visibleRegistry.list };
 }
