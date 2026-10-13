@@ -193,23 +193,27 @@
   pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
 }
 .page-preview-fab:hover .page-preview-fab-tip, .page-preview-fab:focus-visible .page-preview-fab-tip { opacity: 1; }
-/* Desktop, collapsed (2026-10-11): floating in the frame's top-right corner, the control sat over
-   the previewed site's header (its Log in button). It moves just above the frame instead, at the
-   right end of the Save/Delete row (empty on this screen), as a plain icon button since it no longer
-   floats over page content. `bottom: 100% + 9px` matches the measured 9px row-to-frame gap above.
-   Expanded keeps the in-frame float: there is no row above the panel to sit in. */
-@media (min-width: 641px) {
-  .page-preview-host .page-preview-stage > .page-preview-fab {
-    top: auto; bottom: calc(100% + 9px); right: 0;
-    opacity: 1; color: var(--fg-2); background: transparent; backdrop-filter: none;
-  }
-  .page-preview-host .page-preview-stage > .page-preview-fab:hover,
-  .page-preview-host .page-preview-stage > .page-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+/* Collapsed (desktop 2026-10-11, every width 2026-10-13): floating in the frame's top-right corner,
+   the control sat over the previewed site's header (its Log in button). It moves just above the
+   frame instead, at the right end of the Save/Delete row (empty on this screen), as a plain icon
+   button since it no longer floats over page content. `bottom: 100% + 9px` matches the measured 9px
+   row-to-frame gap above. Expanded keeps the in-frame float: there is no row above the panel to sit
+   in. Phones keep this spot too (owner, 2026-10-13: the control floated alone on its own line
+   under the row); see the phone block below for how it follows the row's sticky position there. */
+.page-preview-host .page-preview-stage > .page-preview-fab {
+  top: auto; bottom: calc(100% + 9px); right: 0;
+  opacity: 1; color: var(--fg-2); background: transparent; backdrop-filter: none;
 }
+.page-preview-host .page-preview-stage > .page-preview-fab:hover,
+.page-preview-host .page-preview-stage > .page-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+/* The control sits over the row without being in it, so the row keeps its width free: a draft's
+   wider Draft/Publish/Save/Delete group stops short of it instead of running underneath. */
+.page > .editor-action-row:has(~ .page-preview-host) { padding-right: calc(40px + var(--space-2)); }
 /* Phones: same as the post editor's `.post-preview-fab` (`styles/editor.css`, 2026-10-10). The
    previewed theme's own menu button sits in the frame's top-right corner, so the floating control
    covered it; here it moves out onto its own right-aligned line just above the frame (`order: -1`;
-   it follows the frame in the DOM) as a plain icon button, collapsed and expanded alike.
+   it follows the frame in the DOM) as a plain icon button. Expanded only since 2026-10-13 — the
+   collapsed control moves up into the row (next rule).
    `position: relative`, not `static`, so the button stays the containing block of its own tip. */
 @media (max-width: 640px) {
   .page-preview-stage > .page-preview-fab {
@@ -218,6 +222,16 @@
   }
   .page-preview-stage > .page-preview-fab:hover,
   .page-preview-stage > .page-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+  /* Collapsed: on the Save/Delete row's right end, like wider screens. The row is sticky on phones
+     (`styles.css`), and an absolutely placed control scrolled away from it, drifting up over the
+     stuck row. So the control is sticky too, at the row's own offset plus its 6px padding, and is
+     pulled up into the row by its 40px tap height plus 15px (that padding plus the 9px row-to-frame
+     gap), which it hands back below so the frame does not move. `z-index: 7` clears the row's 6,
+     whose background would otherwise cover it. */
+  .page-preview-host .page-preview-stage > .page-preview-fab {
+    position: sticky; inset: auto; top: calc(6px - var(--space-4)); z-index: 7;
+    margin: calc(-40px - 15px) 0 15px;
+  }
 }
 
 /* `position: absolute; inset: 0` against `.admin-main-col` (`styles.css`, which is where its own
