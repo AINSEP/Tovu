@@ -80,13 +80,17 @@ jobs:
       matrix:
         include:
           - { id: mac-arm64, os: macos-15,       arch: arm64, eb: "--mac --arm64", out: "Tovu-mac-arm64.dmg",       asar: "release/mac-arm64/Tovu.app/Contents/Resources/app.asar", app: "release/mac-arm64/Tovu.app", lipo: arm64 }
-          - { id: mac-x64,   os: macos-15-intel, arch: x64,   eb: "--mac --x64",   out: "Tovu-mac-x64.dmg",         asar: "release/mac/Tovu.app/Contents/Resources/app.asar",       app: "release/mac/Tovu.app",       lipo: x86_64 }
+          - { id: mac-x64,   os: macos-15-intel, arch: x64,   eb: "--mac --x64",   out: "Tovu-mac-x64.dmg",         asar: "release/mac/Tovu.app/Contents/Resources/app.asar",       app: "release/mac/Tovu.app",       lipo: x86_64, cloudkit_soft: "1" }
           # win-x64 is unsigned (no CSC_LINK/CSC_KEY_PASSWORD on Windows — see the `electron-builder`
           # step's env below); the draft release's notes already say so.
           - { id: win-x64,   os: windows-2025,   arch: x64,   eb: "--win --x64",   out: "Tovu-windows-x64-setup.exe", asar: "release/win-unpacked/resources/app.asar" }
     runs-on: ${{ matrix.os }}
     environment: desktop-release           # secrets live here; optional required reviewer
     defaults: { run: { shell: bash } }
+    # mac-x64 only: macos-15-intel cannot reach Apple's CloudKit (actions/runner-images#14924), so a
+    # staple/validate that fails ONLY with that network drop warns instead of failing; see
+    # scripts/stapler-retry.sh. Notarization itself stays mandatory in every row.
+    env: { STAPLER_CLOUDKIT_SOFT: "${{ matrix.cloudkit_soft || '' }}" }
     steps:
       - if: runner.os == 'Windows'
         run: git config --global core.longpaths true                      # long paths on the Windows runner
@@ -137,10 +141,17 @@ jobs:
         working-directory: apps/desktop
         run: |
           codesign --verify --deep --strict --verbose=2 "${{ matrix.app }}"
-          # Captured, not piped: `grep -q` exiting early can SIGPIPE a `tee` under pipefail. A non-zero
-          # spctl fails the assignment itself under `bash -e`.
-          out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)"; echo "$out"
-          grep -q "source=Notarized Developer ID" <<<"$out"
+          # Captured, not piped: `grep -q` exiting early can SIGPIPE a `tee` under pipefail. `|| true`
+          # keeps a rejecting spctl from ending the step before its output is printed; the grep is the
+          # verdict. An .app electron-builder could not staple (CloudKit drop, see the job env) is judged
+          # online by spctl, over the same unreachable CloudKit; its notarization verdict is
+          # @electron/notarize's, which throws on anything but Accepted before it staples.
+          out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)" || true; echo "$out"
+          if grep -qE '^staple .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+            grep -q "source=Notarized Developer ID" <<<"$out" || echo "::warning::unstapled .app: spctl could not confirm notarization offline"
+          else
+            grep -q "source=Notarized Developer ID" <<<"$out"
+          fi
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.app }}"
           test "$(lipo -archs "${{ matrix.app }}/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
       - if: runner.os == 'macOS'
@@ -148,13 +159,19 @@ jobs:
         working-directory: apps/desktop/release
         env: { KID: "${{ secrets.APPLE_API_KEY_ID }}", ISS: "${{ secrets.APPLE_API_ISSUER }}" }
         # `notarytool submit --wait` can exit 0 on an `Invalid` submission, so its exit code is not
-        # the verdict: the stapled ticket (`stapler validate`) and spctl's `source=` line are.
+        # the verdict: its JSON `status` (mandatory, never softened), the stapled ticket
+        # (`stapler validate`) and spctl's `source=` line are.
         run: |
-          xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "$KID" --issuer "$ISS" --wait
+          sub="$(xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "$KID" --issuer "$ISS" --wait --output-format json)"; echo "$sub"
+          grep -qE '"status" *: *"Accepted"' <<<"$sub"
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" staple "${{ matrix.out }}"
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.out }}"
-          out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)"; echo "$out"
-          grep -q "source=Notarized Developer ID" <<<"$out"
+          out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)" || true; echo "$out"
+          if grep -qE '^staple .*\.dmg$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+            grep -q "source=Notarized Developer ID" <<<"$out" || echo "::warning::unstapled dmg: spctl could not confirm notarization offline (notarytool said Accepted)"
+          else
+            grep -q "source=Notarized Developer ID" <<<"$out"
+          fi
       - if: always() && runner.os == 'macOS'
         name: Remove the App Store Connect key file
         run: rm -f "$RUNNER_TEMP/AuthKey.p8"
@@ -195,6 +212,15 @@ jobs:
         run: |
           test -s latest.yml && test -s "${{ matrix.out }}.blockmap"
           grep -q "url: ${{ matrix.out }}" latest.yml
+      - if: runner.os == 'macOS'
+        name: Ship the CloudKit-degraded list (files to staple + validate locally)
+        run: |
+          f="$RUNNER_TEMP/stapler-cloudkit-degraded.txt"
+          if [ -s "$f" ]; then
+            cp "$f" "apps/desktop/release/stapler-cloudkit-degraded-${{ matrix.arch }}.txt"
+            { echo "### ${{ matrix.id }}: NOT stapled/validated in CI (CloudKit unreachable)"; sed 's/^/- /' "$f"; } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::${{ matrix.id }}: staple/validate skipped for: $(tr '\n' ';' < "$f")"
+          fi
       - name: Checksum
         working-directory: apps/desktop/release
         # Node, not shasum/sha256sum: the same tool and output format (`<hex>  <name>`) on all runners.
@@ -209,6 +235,7 @@ jobs:
             apps/desktop/release/Tovu-mac-*.zip
             apps/desktop/release/Tovu-mac-*.zip.blockmap
             apps/desktop/release/latest*.yml
+            apps/desktop/release/stapler-cloudkit-degraded-*.txt
           retention-days: 7
           if-no-files-found: error
 
@@ -287,6 +314,11 @@ jobs:
       # Only the three release rows: the Store job's package goes to Partner Center, never here.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with: { path: dist, pattern: "{mac-arm64,mac-x64,win-x64}", merge-multiple: true }
+      - name: Warn about artifacts CI could not staple
+        run: |
+          for f in dist/stapler-cloudkit-degraded-*.txt; do
+            [ -e "$f" ] && echo "::warning::$f lists files to staple + validate locally before publishing: $(tr '\n' ';' < "$f")"
+          done; true
       - name: Merge the two mac update manifests into one latest-mac.yml
         run: node apps/desktop/scripts/merge-latest-mac.ts dist/latest-mac.yml dist/latest-mac-arm64.yml dist/latest-mac-x64.yml
       - name: Draft release
