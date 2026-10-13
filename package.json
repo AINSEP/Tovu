@@ -114,7 +114,7 @@
     "@ag-ui/core": "0.0.58",
     "@ag-ui/encoder": "0.0.58",
     "@electric-sql/pglite": "0.5.8",
-    "@jini-ai/agent-runtime": "^0.4.7",
+    "@jini-ai/agent-runtime": "^0.4.8",
     "@jini-ai/agentic": "^0.4.4",
     "@jini-ai/analytics": "^0.2.0",
     "@jini-ai/chat": "^0.5.8",
