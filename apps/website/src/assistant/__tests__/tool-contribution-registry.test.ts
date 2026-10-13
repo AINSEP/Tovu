@@ -221,6 +221,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "plugins",
     // 2026-10-05: confirmed installs, each its own domain beside the tools they feed.
     "plugins-install",
+    // 2026-10-11 (0f7305e84): `plugin_source_*` tools for a site plugin's own source files.
+    "plugin-source",
     "agent-plugins-install",
     "skills-install",
     "post",
@@ -240,6 +242,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "site-backup",
     "site-evidence",
     "site-inspection",
+    // 2026-10-09 (83d4dff4f): `site_guide`, the "How Tovu works" meta tool.
+    "site-guide",
+    // 2026-10-11 (7d5f99033): `assistant_chats_list`/`assistant_chats_read`.
+    "assistant-history",
     "sites",
     // 2026-10-08: `web_fetch_page` (`features/web`), registered right after `sites`.
     "web",
@@ -247,6 +253,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "web-screenshot",
     "source-control",
     "static-publish",
+    // 2026-10-11 (9b20083b6): copy saved keys between projects, registered right before `credential-save`.
+    "credential-copy",
     "credential-save",
     "taxonomy",
     "themes",
