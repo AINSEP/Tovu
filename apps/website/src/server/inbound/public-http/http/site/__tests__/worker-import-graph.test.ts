@@ -34,6 +34,9 @@ const FORBIDDEN_IN_WORKER = [
   "/node_modules/aws4fetch/",
   "/Jini/packages/db/",
   "/Jini/packages/agentic/",
+  // The same packages as installed from npm (a deployed build has no `/Jini/packages/` checkout).
+  "/node_modules/@jini-ai/db/",
+  "/node_modules/@jini-ai/agentic/",
 ];
 
 function loadWorkerGraph(workerFile: string): { entryError: string; modules: string[] } {

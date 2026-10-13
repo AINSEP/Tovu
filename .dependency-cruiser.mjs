@@ -594,6 +594,12 @@ const EXTRA_TO_EXEMPT = {
     "^apps/website/src/features/deployments/(static-publish|publish-credentials)/index\\.ts$",
     "^apps/website/src/features/deployments/publish-agent-tools\\.ts$",
   ],
+  // 2026-10-12: `product-root.ts` is a node:fs/node:path leaf, reached directly by the public
+  // `render.ts`, which also runs inside the 64 MB theme render workers. Through `index.ts` that one
+  // `resolveAppDistDir` import loaded site-registry/repair-site/new-site-owner and with them the
+  // whole database stack (worker OOM in prod; `worker-import-graph.test.ts`). Every other site-dir
+  // file stays guarded.
+  "platform/site-dir": ["^apps/website/src/platform/site-dir/product-root\\.ts$"],
 };
 
 // Modules whose `no-deep-imports:<mod>` rule has had its full per-file Category 1/2/3 triage done

@@ -2,7 +2,9 @@ import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
-import { resolveAppDistDir } from "#src/platform/site-dir/index";
+// The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
+// barrel's site-registry/repair/new-site members load the database (`worker-import-graph.test.ts`).
+import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
