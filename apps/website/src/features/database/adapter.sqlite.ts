@@ -15,8 +15,8 @@ export interface DatabaseHealthSummary {
   canOpenDb: boolean;
   /** Whether `__drizzle_migrations` exists and a `SELECT` against it succeeds. */
   migrationsTableReadable: boolean;
-  /** `"unknown"` whenever either `SchemaSnapshot` side is unavailable — never fabricated
-   * (`disclosure.ts`'s "never fabricate" discipline, `agent-tools.ts`'s own precedent). */
+  /** `"unknown"` when the applied migration identity is unavailable. Compare it to the persisted
+   * stamp, or the real bundled runtime identity when no stamp is readable; never fabricate one. */
   driftStatus: DriftStatus | "unknown";
 }
 

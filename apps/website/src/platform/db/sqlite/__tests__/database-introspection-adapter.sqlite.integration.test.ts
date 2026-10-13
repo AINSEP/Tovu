@@ -70,17 +70,20 @@ test("real content.db: canOpenDb/migrationsTableReadable are true right after op
   }
 });
 
-test("real content.db: no .site-meta.json on disk -> schema state is 'unknown', never fabricated, health drift is 'unknown' too", async () => {
+test("real content.db: no .site-meta.json and a migrated db -> 'in-sync' against the bundled runtime, without writing meta", async () => {
   const { dir, dbPath, db } = openRealContentDb();
   try {
+    const runtime = runtimeSchemaVersion();
+    assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false);
     const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
     const state = await adapter.getSchemaState();
-    assert.equal(state.status, "unknown");
+    assert.equal(state.status, "in-sync");
     assert.equal(state.siteMeta, null);
-    assert.ok(state.runtime, "the runtime side is readable from a freshly-migrated real content.db");
+    assert.deepEqual(state.runtime, { version: runtime.index, tag: runtime.tag });
 
     const health = await adapter.getHealth();
-    assert.equal(health.driftStatus, "unknown");
+    assert.equal(health.driftStatus, "in-sync");
+    assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false);
   } finally {
     db.$client.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -131,7 +134,7 @@ test("real content.db: a malformed .site-meta.json (bad JSON) is treated as abse
 
     const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
     const state = await adapter.getSchemaState();
-    assert.equal(state.status, "unknown");
+    assert.equal(state.status, "in-sync");
     assert.equal(state.siteMeta, null);
   } finally {
     db.$client.close();
@@ -146,7 +149,7 @@ test("real content.db: a .site-meta.json missing schemaVersion/schemaTag is trea
 
     const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
     const state = await adapter.getSchemaState();
-    assert.equal(state.status, "unknown");
+    assert.equal(state.status, "in-sync");
     assert.equal(state.siteMeta, null);
   } finally {
     db.$client.close();
@@ -306,6 +309,8 @@ test("a database with no __drizzle_migrations table at all (never migrated) repo
     assert.equal(health.driftStatus, "unknown");
 
     const state = await adapter.getSchemaState();
+    assert.equal(state.status, "unknown");
+    assert.equal(state.siteMeta, null);
     assert.equal(state.runtime, null);
 
     const pending = await adapter.listPendingMigrations();

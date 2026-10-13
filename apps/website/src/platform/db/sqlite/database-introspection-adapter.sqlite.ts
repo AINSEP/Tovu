@@ -28,9 +28,11 @@ const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
  * adapter composed into `RouteDeps` at all.
  *
  * Purpose:
- * Reads the two real sources `drift.ts`'s header names (ADR-041 §3) — a site's persisted
- * `.site-meta.json` stamp and the runtime's `__drizzle_migrations` table — plus the bundled
- * `db/drizzle/meta/_journal.json` this runtime ships, and turns them into the three read
+ * Compares the applied migration identity against a site's persisted `.site-meta.json` stamp
+ * (ADR-041 §3), or this runtime's bundled identity when that stamp is absent. Non-CLI production
+ * boots can have a migrated database without a meta file; the bundled journal is a real comparison
+ * source, so checking status does not need to create a file that also affects site-key resolution.
+ * Reads `__drizzle_migrations` plus the bundled `db/drizzle/meta/_journal.json`, producing the three read
  * summaries the Database agent-tool catalog promises. `__drizzle_migrations`'s shape
  * (`id`/`hash`/`created_at`) was confirmed empirically against `drizzle-orm`'s own
  * `SQLiteSyncDialect.migrate()` (`node_modules/drizzle-orm/sqlite-core/dialect.js`), not assumed:
@@ -122,18 +124,25 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
   }
 
   /**
-   * @complexity O(1) — one `.site-meta.json` read plus one bounded `__drizzle_migrations` query.
+   * Compares the applied identity to the persisted stamp, falling back to the bundled runtime
+   * identity without changing `siteMeta` or writing a meta file. An unreadable applied identity
+   * remains `unknown`.
+   * @complexity O(m) in bundled journal entries — bounded migration query and small JSON reads.
    * @overallScore 100
    */
   async getSchemaState(): Promise<SchemaStateSummary> {
     const siteMeta = this.readSiteMetaSnapshot();
     const runtime = await this.readAppliedSnapshot();
 
-    if (!siteMeta || !runtime) {
-      // AC-03/drift.ts's own CIC U-002-B1: never guess a status from a partial pair.
+    if (!runtime) {
+      // No real applied identity to compare; the bundled identity cannot stand in for it.
       return { status: "unknown", siteMeta, runtime };
     }
-    return { status: getDriftStatus({ siteMeta, runtime }), siteMeta, runtime };
+    // No stamp: compare against this runtime's bundled journal head (the injected journal).
+    const head = this.readJournal()?.entries.at(-1);
+    const expected = siteMeta ?? (head ? { version: head.idx, tag: head.tag } : null);
+    if (!expected) return { status: "unknown", siteMeta, runtime };
+    return { status: getDriftStatus({ siteMeta: expected, runtime }), siteMeta, runtime };
   }
 
   /**
