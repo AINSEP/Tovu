@@ -22,6 +22,12 @@ test("How Tovu works uses stable manifest identity and valid main topics with re
   const form = parsed.descriptors.find(topic => topic.id === "how-tovu-works-forms")!;
   assert.ok(form.workflows[0]?.steps.some(step => step.includes("widget")));
   assert.ok(form.workflows[0]?.permissions.includes("widgets.create"));
+  // 2026-10-12 deploy split: the shared static-publish procedure moved here out of the deploy plugin's skill.
+  const deploy = parsed.descriptors.find(topic => topic.id === "how-tovu-works-deploy")!;
+  assert.ok(deploy.pointers.some(pointer => pointer.tool === "deployment_get_static_publish_capabilities"));
+  assert.ok(deploy.pointers.every(pointer => pointer.tool !== "agent_plugin_deploy"));
+  assert.ok(deploy.workflows[0]?.steps.some(step => step.includes("deployment_execute_static_publish")));
+  assert.ok(deploy.workflows[0]?.permissions.includes("deployments.publish"));
 });
 test("site-guide seam delegates active bundled-package admission to lifecycle and never imports modules", async () => {
   const root = resolve("content/agent-plugins/how-tovu-works"); const engine = resolveSiteGuideEngine({});

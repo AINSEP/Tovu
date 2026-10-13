@@ -240,7 +240,7 @@ test("preview/execute schemas name no host: target is any id the capabilities to
     const target = (entry.inputSchema as { properties: { target: { enum?: unknown; description: string } } }).properties.target;
     assert.equal(target.enum, undefined, `${name}: no enum of host ids`);
     assert.match(target.description, /deployment_get_static_publish_capabilities/);
-    assert.doesNotMatch(entry.description + target.description, /github|vercel|netlify|cloudflare/i, `${name}: host names live in the deploy plugin, not in core tool text`);
+    assert.doesNotMatch(entry.description + target.description, /github|vercel|netlify|cloudflare/i, `${name}: host names live in the hosting plugins, not in core tool text`);
   }
 });
 

@@ -11,7 +11,8 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
 /**
  * @file The bundled `deploy` Agent Plugin carries the fly.io SERVER deploy procedure that used to be
  * its own bundled plugin, `tovu-deploy-fly` (merged 2026-09-29: one deploy plugin for every host,
- * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, T10).
+ * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, T10). Since the 2026-10-12
+ * split the static hosts are their own plugins and `deploy` ("Server Deploy") keeps only this job.
  *
  * The procedure lives in `skills/deploy/references/fly-server.md`, beside its two templates and
  * `machines-api-path.md`; the deploy skill points at it. Three kinds of assertion, kept from the old

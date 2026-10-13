@@ -58,10 +58,11 @@ test("mcp.json declares ZERO servers — hosts run in-process through the deploy
   assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], []);
 });
 
-test("the eponymous skill exists and names the host it can publish to", async () => {
+test("the eponymous skill exists, names the server host it deploys to, and points at every hosting plugin", async () => {
   const skill = await readFile(path.join(PACKAGE_ROOT, "skills", "deploy", "SKILL.md"), "utf8");
   assert.match(skill, /^---\nname: deploy\n/);
-  assert.match(skill, /Netlify/);
+  assert.match(skill, /fly\.io/);
+  for (const { pluginId } of HOST_PLUGINS) assert.ok(skill.includes(`\`${pluginId}\``), pluginId);
 });
 
 test("each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them)", async () => {
