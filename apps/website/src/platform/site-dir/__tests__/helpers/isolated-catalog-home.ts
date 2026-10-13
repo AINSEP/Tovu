@@ -5,6 +5,7 @@
  * would expose the real catalog again. Each test child owns one temporary home, removed on exit.
  */
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 
@@ -19,3 +20,15 @@ Object.assign(process.env, {
 delete process.env.TOVU_SITES_HOME;
 delete process.env.TOVU_SITE_ROOTS;
 process.once("exit", () => fs.rmSync(isolatedCatalogHome, { recursive: true, force: true }));
+
+/** Fail before fixture readers run if a boot-pinned layout escaped the test's temporary root.
+ * The default covers the isolated home catalog; explicit fixtures pass their own mkdtemp root.
+ */
+export function assertIsolatedCatalogPath(
+  { root }: { root: string },
+  { fixtureRoot = isolatedCatalogHome }: { fixtureRoot?: string } = {},
+): void {
+  const relative = path.relative(path.resolve(fixtureRoot), path.resolve(root));
+  assert.ok(relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative),
+    "Test site layout escaped its isolated fixture root.");
+}

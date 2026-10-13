@@ -1,3 +1,4 @@
+import { assertIsolatedCatalogPath } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -140,20 +141,38 @@ async function withEmptySkillsDir<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function withOneInstalledSkill<T>(workspaceId: string, fn: () => Promise<T>): Promise<T> {
+/** Boot only after both folder overrides exist, then write the skill into that pinned layout. */
+async function withOneInstalledSkill<T>(fn: (routeDeps: ReturnType<typeof createRouteDeps>) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-process-root-parity-skills-"));
   const previous = process.env.TOVU_SKILLS_DIR;
   process.env.TOVU_SKILLS_DIR = dir;
   try {
-    const skillDir = path.join(dir, "ws", workspaceId, "incident-response");
+    const routeDeps = createIsolatedRouteDeps();
+    await routeDeps.identityReady;
+    const skillDir = path.join(routeDeps.skillLayout.forWorkspace(routeDeps.workspaceId).root, "incident-response");
     await mkdir(skillDir, { recursive: true });
     await writeFile(path.join(skillDir, "SKILL.md"), INCIDENT_RESPONSE_SKILL_MD, "utf8");
-    return await fn();
+    return await fn(routeDeps);
   } finally {
     if (previous === undefined) delete process.env.TOVU_SKILLS_DIR;
     else process.env.TOVU_SKILLS_DIR = previous;
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/** Reject ambient owner folders before boot, and check the pinned result before extension reads.
+ * A folder override applied after createRouteDeps is too late since ac0d0db40.
+ */
+function createIsolatedRouteDeps(): ReturnType<typeof createRouteDeps> {
+  const pluginRoot = process.env.TOVU_AGENT_PLUGINS_DIR;
+  const skillRoot = process.env.TOVU_SKILLS_DIR;
+  assert.ok(pluginRoot, "Set the temporary Agent Plugins folder before boot.");
+  assert.ok(skillRoot, "Set the temporary Skills folder before boot.");
+  for (const root of [pluginRoot, skillRoot]) assertIsolatedCatalogPath({ root }, { fixtureRoot: tmpdir() });
+  const routeDeps = createRouteDeps();
+  assert.equal(routeDeps.agentPluginLayout.root, pluginRoot, "Agent Plugins must use the pre-boot fixture.");
+  assert.equal(routeDeps.skillLayout.root, skillRoot, "Skills must use the pre-boot fixture.");
+  return routeDeps;
 }
 
 interface RoleSnapshot {
@@ -221,7 +240,7 @@ test("the shared base (installFirstPartyToolContributors + buildAssistantToolReg
   // on anything this test is actually meant to catch. Since ac0d0db40 `createRouteDeps` resolves the
   // agent-plugin layout once, at boot, so the empty trees must be in place before it runs.
   await withEmptyAgentPluginsDir(() => withEmptySkillsDir(async () => {
-    const routeDeps = createRouteDeps();
+    const routeDeps = createIsolatedRouteDeps();
     await routeDeps.identityReady;
 
     const base = buildBaseRole(routeDeps);
@@ -235,16 +254,13 @@ test("the shared base (installFirstPartyToolContributors + buildAssistantToolReg
 });
 
 test("the daemon construction seam and real BYOK root expose identical installed-skill, native-tool and resource sets", async () => {
-  const routeDeps = createRouteDeps();
-  await routeDeps.identityReady;
-
   // Both roles are built under the SAME fixture — an empty Agent Plugins tree and one real installed
   // skill — so this proves BYOK now picks up the installed skill too (S1's fix), not merely that both
   // sides agree when neither has one. Building `byok` outside this wrapper (as before the fix, when
   // BYOK never read either tree at all) would have been harmless; after the fix it would silently
   // stop proving anything, since BYOK's own disk read would see no installed skill either.
   const { byok, daemon } = await withEmptyAgentPluginsDir(() =>
-    withOneInstalledSkill(routeDeps.workspaceId, async () => ({
+    withOneInstalledSkill(async (routeDeps) => ({
       byok: await buildByokRole(routeDeps),
       daemon: await buildDaemonRole(routeDeps),
     }))
@@ -272,11 +288,8 @@ test("the daemon construction seam and real BYOK root expose identical installed
 });
 
 test("BYOK's search_tools catalog finds an installed skill's tool once ready resolves — proving the catalog rebuild, not just the registry, picks it up", async () => {
-  const routeDeps = createRouteDeps();
-  await routeDeps.identityReady;
-
   await withEmptyAgentPluginsDir(() =>
-    withOneInstalledSkill(routeDeps.workspaceId, async () => {
+    withOneInstalledSkill(async (routeDeps) => {
       contributions.contributors.clear({});
       resetPublishContentContributorsForTests();
       resetDuplicateResourceHandlersForTests();
@@ -302,24 +315,28 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
 });
 
 test("BYOK's federation is a real, non-stubbed FederationRuntime that boots lazily — built but not started before any turn", async () => {
-  const routeDeps = createRouteDeps();
-  await routeDeps.identityReady;
+  await withEmptyAgentPluginsDir(() => withEmptySkillsDir(async () => {
+    const routeDeps = createIsolatedRouteDeps();
+    await routeDeps.identityReady;
 
-  contributions.contributors.clear({});
-  resetPublishContentContributorsForTests();
-  resetDuplicateResourceHandlersForTests();
-  const { toolSurface } = createAssistantByokModule(routeDeps);
+    contributions.contributors.clear({});
+    resetPublishContentContributorsForTests();
+    resetDuplicateResourceHandlersForTests();
+    const { toolSurface } = createAssistantByokModule(routeDeps);
 
-  // Proves federation is attached at all (S1-S6 above wired it into `createByokToolSurface` itself
-  // — see that file's own header — not merely typed as optional and left `undefined` for every real
-  // caller) without waiting on `toolSurface.ready` or `awaitFederation` first: this assertion is
-  // ABOUT the state before either of those would start it.
-  assert.ok(toolSurface.federation, "createAssistantByokModule's real surface must carry a federation runtime, not undefined");
-  // Proves the boot pass is lazy, not eager: constructing the module (and therefore `createApp`)
-  // must cost nothing beyond building the object — no connection, no subprocess, no I/O — until a
-  // turn actually calls `awaitFederation`. An eager `start()` here (the daemon's own timing, wrongly
-  // copied onto BYOK) would flip this to `true` before this assertion ever runs.
-  assert.equal(toolSurface.federation?.started, false, "federation must not be started at construction — BYOK starts it lazily on the first turn, not at boot");
+    // Proves federation is attached at all (S1-S6 above wired it into `createByokToolSurface` itself
+    // — see that file's own header — not merely typed as optional and left `undefined` for every real
+    // caller) without waiting on `toolSurface.ready` or `awaitFederation` first: this assertion is
+    // ABOUT the state before either of those would start it.
+    assert.ok(toolSurface.federation, "createAssistantByokModule's real surface must carry a federation runtime, not undefined");
+    // Proves the boot pass is lazy, not eager: constructing the module (and therefore `createApp`)
+    // must cost nothing beyond building the object — no connection, no subprocess, no I/O — until a
+    // turn actually calls `awaitFederation`. An eager `start()` here (the daemon's own timing, wrongly
+    // copied onto BYOK) would flip this to `true` before this assertion ever runs.
+    assert.equal(toolSurface.federation?.started, false, "federation must not be started at construction — BYOK starts it lazily on the first turn, not at boot");
+    // Keep fixture folders alive until the installed-extension read settles, after the lazy check.
+    await toolSurface.ready;
+  }));
 });
 
 // REGRESSION: fails if permissionMode is moved back into agentExecutor.run's first argument.

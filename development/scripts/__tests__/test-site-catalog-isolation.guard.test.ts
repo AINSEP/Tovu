@@ -1,4 +1,4 @@
-import "../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { assertIsolatedCatalogPath, isolatedCatalogHome } from "../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -84,5 +84,17 @@ test("with the home catalog isolated, a temp-cwd layout stays inside its temp di
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   for (const root of [resolveAgentPluginLayout({ cwd, env: {} }).root, resolveSkillLayout({ cwd, env: {} }).root]) {
     assert.ok(root.startsWith(cwd + path.sep), `${root} escaped ${cwd}`);
+  }
+});
+
+test("runtime guard rejects owner-home layouts and sibling-prefix escapes before disk reads", () => {
+  const fixtureRoot = path.join(tmpdir(), "tovu-layout-fixture");
+  assertIsolatedCatalogPath({ root: path.join(isolatedCatalogHome, "Documents", "Tovu", "test", "agent-plugins") });
+  assertIsolatedCatalogPath({ root: fixtureRoot }, { fixtureRoot });
+  assertIsolatedCatalogPath({ root: path.join(fixtureRoot, "skills") }, { fixtureRoot });
+  for (const root of [path.resolve("/Users/fixture-owner/Documents/Tovu/tovu-dev/agent-plugins"), `${fixtureRoot}-other/agent-plugins`, path.join(fixtureRoot, "..", "agent-plugins")]) {
+    assert.throws(() => assertIsolatedCatalogPath({ root }, { fixtureRoot }), {
+      message: "Test site layout escaped its isolated fixture root.",
+    });
   }
 });
