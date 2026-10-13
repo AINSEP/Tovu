@@ -1,4 +1,4 @@
-import { renderMediaRawHtml, sanitizePageHtml } from "#src/features/widgets/media-html";
+import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
@@ -1997,9 +1997,13 @@ export function renderAssignedTermsBlock(terms: readonly AssignedTermView[]): st
 function renderPostBody(ctx: SiteRenderContext): string {
   const post = ctx.post;
   if (!post) return "";
+  // An "html" body renders unmodified: only `pages.edit_html` holders (theme-source trust) write it,
+  // and its own inline scripts are the page (`admin-http/routes/pages/update-html.ts`, Authorization).
+  // `sanitizePageHtml` is for less-trusted Raw HTML widget content; on page bodies it stripped
+  // tovu.dev's carousel scripts and icons (owner report, 2026-10-12).
   const body =
     post.bodyFormat === "html"
-      ? renderHtmlPageBody(sanitizePageHtml({ html: post.bodyHtml ?? "" }), ctx.pageHtmlEmbeds)
+      ? renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds)
       : renderDocNode(projectPostBody({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null,
           hasPublicTransform: ctx.mediaTransformVersions.has("public") }) as JsonValue, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
   return body + renderAssignedTermsBlock(ctx.assignedTerms);

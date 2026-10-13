@@ -3284,9 +3284,9 @@ test("renderSite: an unowned unsupported embed type remains authored for later r
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"unsupported-future-type","id":"asset-1"}'></div>` });
   const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post, pageHtmlEmbeds: htmlEmbeds() });
-  // The page sanitizer serializes attributes with double quotes and escapes their JSON quotes.
-  // The unowned config must survive unchanged in meaning for a later rendering stage.
-  assert.ok(html.includes('<div data-embed-config="{&quot;type&quot;:&quot;unsupported-future-type&quot;,&quot;id&quot;:&quot;asset-1&quot;}"></div>'));
+  // Page HTML renders unmodified (no page sanitizer since 2026-10-12, see render.ts renderPostBody),
+  // so the unowned config survives byte-for-byte for a later rendering stage.
+  assert.ok(html.includes(`<div data-embed-config='{"type":"unsupported-future-type","id":"asset-1"}'></div>`));
   assert.doesNotMatch(html, /widget-placeholder/);
 });
 

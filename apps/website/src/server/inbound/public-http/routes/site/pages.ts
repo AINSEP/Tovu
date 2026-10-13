@@ -1,4 +1,3 @@
-import { sanitizePageHtml } from "#src/features/widgets/media-html";
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
@@ -448,7 +447,8 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
     },
-    input: { workspaceId: deps.workspaceId, html: sanitizePageHtml({ html: post.bodyHtml ?? "" }) },
+    // The same unmodified body `render.ts`'s `renderPostBody` renders (trusted page HTML, see there).
+    input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
   });
 }
 
@@ -1245,15 +1245,18 @@ async function fetchHtmlFormatBody(
   ref: ContentMarkerRef,
   pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
 ): Promise<string | undefined> {
+  // Page HTML is spliced unmodified: only `pages.edit_html` holders write it and its inline scripts
+  // are part of the page (`admin-http/routes/pages/update-html.ts`, Authorization). Sanitizing here
+  // stripped tovu.dev's carousel scripts and icons (owner report, 2026-10-12).
   if (pendingHtmlOverride && (ref.by === "id" ? ref.id === pendingHtmlOverride.id : ref.slug === pendingHtmlOverride.slug)) {
-    return sanitizePageHtml({ html: pendingHtmlOverride.bodyHtml });
+    return pendingHtmlOverride.bodyHtml;
   }
   const entity =
     ref.by === "id"
       ? await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id: ref.id } })
       : await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug: ref.slug } });
   if (!entity || entity.bodyFormat !== "html") return undefined;
-  return sanitizePageHtml({ html: entity.bodyHtml ?? "" });
+  return entity.bodyHtml ?? "";
 }
 
 /**
