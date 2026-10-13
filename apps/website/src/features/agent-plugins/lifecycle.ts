@@ -20,6 +20,7 @@ import {
 import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/node";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
+import { carryDeployDisabled } from "./deploy-split-activation.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 
 export {
@@ -88,7 +89,14 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   const policy: AgentPluginLifecycleOptional = {
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
     onEvent: ({ event, message }) => console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message),
-    migrateBeforeSeed: ({ layout, workspaceId }) => migrateSiteAgentPluginLayouts({ layout: hostLayout(layout), workspaceId }),
+    // Layout first, then the deploy split's carry of an operator's "Deploy Online off" — before the
+    // seeder switches the new host plugins on (`deploy-split-activation.ts`). `owner` is bound below;
+    // this runs only at seed time, after it exists.
+    migrateBeforeSeed: async ({ layout, workspaceId }) => {
+      const migration = await migrateSiteAgentPluginLayouts({ layout: hostLayout(layout), workspaceId });
+      if (migration.complete) await carryDeployDisabled({ workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: owner });
+      return migration;
+    },
     formatBundledUninstallRecovery: ({ pluginId }) => `used, disable it instead: call plugins_set_enabled with family 'agent-plugin', pluginId '${pluginId}', ` +
       "enabled false (disabling needs no confirmation), or turn it off from the Agent Plugins admin screen.",
   };
