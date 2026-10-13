@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
-import { discoverSealedColumns, listSealedCredentials, SealedCredentialInventoryLimitError } from "../sealed-credential-inventory.js";
+import { discoverSealedColumns, inventoryVaultCredentials, SealedCredentialInventoryLimitError } from "../vault-credential-inventory.js";
 import { resolveSiteAssistantApiKey, setSiteAssistantCredential } from "#src/assistant/site-credential-store";
 import { createCustomCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
 import { SqlSiteAssistantCredentialRepo } from "../repos/site-credential-repo.js";
@@ -22,7 +22,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await fx.kernel.execute(sql`CREATE TABLE _vault_backup_inventory (sealed_ciphertext text)`);
     await fx.kernel.execute(sql`INSERT INTO _vault_backup_inventory VALUES ('LEAK-backup')`);
     try {
-      const inventory = await listSealedCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
+      const inventory = await inventoryVaultCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
       assert.deepEqual(inventory.totals, { sealed: 2, opens: 2, doesNotOpen: 0, unknown: 0 });
       assert.deepEqual(inventory.metadataOnly, [{ workspaceId: WS, rowId: "settings", label: "media-provider (settings)" }]);
       assert.equal(inventory.columns.some(column => column.table.startsWith("_vault_backup_")), false);
@@ -36,7 +36,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await fx.kernel.execute(sql`CREATE TABLE inventory_unknown (sealed_ciphertext text, sealed_key_id text)`);
     await fx.kernel.execute(sql`INSERT INTO inventory_unknown VALUES ('opaque','key')`);
     try {
-      const inventory = await listSealedCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
+      const inventory = await inventoryVaultCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
       assert.deepEqual(inventory.totals, { sealed: 1, opens: 0, doesNotOpen: 0, unknown: 1 });
       assert.equal(inventory.columns.find(column => column.table === "inventory_unknown")?.coverage, "no-descriptor");
       assert.equal(inventory.entries[0]?.unknownReason, "incomplete-sealed-row");
@@ -48,19 +48,19 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     const fx = await fixture(each.make());
     const record = await fx.put({ id: "one" });
     const deps = { kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true };
-    assert.equal((await listSealedCredentials({ ...deps, ...fx.wrong })).entries[0]?.opensUnderActiveKey, false);
+    assert.equal((await inventoryVaultCredentials({ ...deps, ...fx.wrong })).entries[0]?.opensUnderActiveKey, false);
     let derived = 0;
-    const absent = await listSealedCredentials({ ...deps, hasSiteKeySource: () => false,
+    const absent = await inventoryVaultCredentials({ ...deps, hasSiteKeySource: () => false,
       keyring: { activeKey: async () => { derived += 1; throw new Error("must not mint"); } } });
     assert.equal(absent.entries[0]?.unknownReason, "no-site-key");
     assert.equal(derived, 0);
-    const unavailable = await listSealedCredentials({ ...deps, sealer: { seal: async () => { throw new Error("LEAK-error"); }, open: fx.right.sealer.open.bind(fx.right.sealer) } });
+    const unavailable = await inventoryVaultCredentials({ ...deps, sealer: { seal: async () => { throw new Error("LEAK-error"); }, open: fx.right.sealer.open.bind(fx.right.sealer) } });
     assert.equal(unavailable.entries[0]?.unknownReason, "active-key-unavailable");
-    const unknown = await listSealedCredentials({ ...deps, aadFor: () => { throw new Error("LEAK-error"); } });
+    const unknown = await inventoryVaultCredentials({ ...deps, aadFor: () => { throw new Error("LEAK-error"); } });
     assert.equal(unknown.entries[0]?.unknownReason, "unrecognized-aad-version");
     await fx.repo.put({ expectedRevision: record.revision, record: { ...record, revision: record.revision + 1,
       sealed: { ...record.sealed!, alg: "future-alg" } } });
-    assert.equal((await listSealedCredentials(deps)).entries[0]?.unknownReason, "unsupported-alg");
+    assert.equal((await inventoryVaultCredentials(deps)).entries[0]?.unknownReason, "unsupported-alg");
     assert.equal(JSON.stringify(unknown).includes("LEAK-error"), false);
   });
 
@@ -68,10 +68,10 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     const fx = await fixture(each.make());
     await fx.put({ id: "one" }); await fx.put({ id: "two" });
     const deps = { kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true };
-    await assert.rejects(listSealedCredentials(deps, { maxEntries: 1 }), error => error instanceof SealedCredentialInventoryLimitError && error.sealedRows === 2);
-    await assert.rejects(listSealedCredentials(deps, { maxEntries: 0 }), RangeError);
+    await assert.rejects(inventoryVaultCredentials(deps, { maxEntries: 1 }), error => error instanceof SealedCredentialInventoryLimitError && error.sealedRows === 2);
+    await assert.rejects(inventoryVaultCredentials(deps, { maxEntries: 0 }), RangeError);
     let probes = 0;
-    const inventory = await listSealedCredentials({ ...deps, sealer: {
+    const inventory = await inventoryVaultCredentials({ ...deps, sealer: {
       seal: async input => { if (++probes > 1) throw new Error("key lost"); return fx.right.sealer.seal(input); },
       open: async (input, options) => {
         if (options?.aad === "sealed-credential-inventory-probe:v1") return fx.right.sealer.open(input, options);
@@ -108,7 +108,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
       const reasons = new Set<string | null>();
       for (const run of [deps, { ...deps, hasSiteKeySource: () => false }, { ...deps, aadFor: () => { throw new Error("no lineage"); } },
         { ...deps, keyring: { activeKey: async () => { throw new Error("key unavailable"); } } }, { ...deps, ...fx.wrong }]) {
-        for (const entry of (await listSealedCredentials(run)).entries) reasons.add(entry.unknownReason);
+        for (const entry of (await inventoryVaultCredentials(run)).entries) reasons.add(entry.unknownReason);
       }
       assert.deepEqual([...reasons].sort(), [null, "active-key-unavailable", "incomplete-sealed-row", "no-descriptor", "no-site-key",
         "unrecognized-aad-version", "unsupported-alg"].sort());
@@ -125,7 +125,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     const custom = new SqlCustomCredentialSetRepo(fx.kernel);
     await createCustomCredential({ ...store, repo: custom, idGen: { newId: () => "custom-real" } },
       { workspaceId: WS, label: "Mail", category: "general", baseUrl: "https://mail.example.test", connection: { token: "LEAK-real-store-token" } });
-    const inventory = await listSealedCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
+    const inventory = await inventoryVaultCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
     assert.equal((await resolveSiteAssistantApiKey({ repo: assistant, sealer: fx.right.sealer }, { workspaceId: WS }))?.apiKey, "LEAK-real-store-api-key");
     assert.equal((await resolveCustomCredentialByLabel({ repo: custom, sealer: fx.right.sealer }, { workspaceId: WS, label: "Mail" }))?.connection.token, "LEAK-real-store-token");
     assert.deepEqual(inventory.totals, { sealed: 2, opens: 2, doesNotOpen: 0, unknown: 0 });
@@ -136,7 +136,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     const fx = await fixture(each.make());
     await fx.put({ id: "one" }); await fx.put({ id: "two", key: fx.wrong });
     let crypto = 0;
-    const inventory = await listSealedCredentials({ kernel: fx.kernel, hasSiteKeySource: () => true,
+    const inventory = await inventoryVaultCredentials({ kernel: fx.kernel, hasSiteKeySource: () => true,
       keyring: { activeKey: async () => { throw new Error("LEAK-key-error"); } },
       sealer: { seal: async () => { crypto += 1; throw new Error("unexpected seal"); }, open: async () => { crypto += 1; throw new Error("unexpected open"); } } });
     assert.equal(crypto, 0);
@@ -149,7 +149,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
   test(`a probe that round-trips the wrong plaintext reports unknown, never "does not open" [${each.name}]`, async () => {
     const fx = await fixture(each.make());
     await fx.put({ id: "one" }); await fx.put({ id: "two", key: fx.wrong });
-    const inventory = await listSealedCredentials({ kernel: fx.kernel, keyring: fx.right.keyring, hasSiteKeySource: () => true,
+    const inventory = await inventoryVaultCredentials({ kernel: fx.kernel, keyring: fx.right.keyring, hasSiteKeySource: () => true,
       sealer: { seal: fx.right.sealer.seal.bind(fx.right.sealer), open: async () => "not-the-probe-plaintext" } });
     assert.deepEqual(inventory.totals, { sealed: 2, opens: 0, doesNotOpen: 0, unknown: 2 });
     assert.ok(inventory.entries.every(entry => entry.unknownReason === "active-key-unavailable"));

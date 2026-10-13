@@ -8,12 +8,14 @@ import { listColumns, listTables } from "./kernel/dialect.js";
 import { deviceAad } from "./repos/oauth-pending-store.js";
 
 /** @file Host inventory over Jini's vault plus catalog coverage for unknown sealed columns.
+ * Jini owns vault persistence and AAD; the host scan adds unknown plugin columns and the retained
+ * device-code store (`oauth_device_authorizations`).
  * Catalog discovery must remain: a plugin's unregistered sealed table must never disappear from
  * the count guarding a key replacement. Restore copies are artifacts, not live credentials.
  * Only safe identity and enum reasons leave this module; payloads, metadata, hints and errors do not.
  */
 export type OpensUnderActiveKey = true | false | "unknown";
-export type SealedCredentialUnknownReason = "no-descriptor" | "descriptor-schema-mismatch" | "descriptor-error" |
+export type SealedCredentialUnknownReason = "no-descriptor" |
   "incomplete-sealed-row" | "unrecognized-aad-version" | "unsupported-alg" | "no-site-key" | "active-key-unavailable";
 export interface SealedCredentialEntry {
   table: string; column: string; workspaceId: string | null; rowId: string | null;
@@ -21,7 +23,7 @@ export interface SealedCredentialEntry {
   unknownReason: SealedCredentialUnknownReason | null;
 }
 export interface SealedColumnSummary {
-  table: string; column: string; coverage: "classified" | "no-descriptor" | "descriptor-schema-mismatch"; sealedRows: number;
+  table: string; column: string; coverage: "classified" | "no-descriptor"; sealedRows: number;
 }
 export interface SealedCredentialInventory {
   activeKeyId: string | null; columns: readonly SealedColumnSummary[]; entries: readonly SealedCredentialEntry[];

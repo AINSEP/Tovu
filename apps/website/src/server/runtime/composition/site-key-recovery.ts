@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
-import { discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "#src/platform/db/sealed-credential-discard";
+import { discardVaultCredentialsNotOpening, resealVaultCredentialsOpeningUnder } from "#src/platform/db/vault-credential-recovery";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -15,7 +15,7 @@ import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secr
 import { buildVaultAad, SecretsVaultService, VAULT_KINDS, VaultError, type VaultMetaParsers, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
-import { listSealedCredentials } from "#src/platform/db/sealed-credential-inventory";
+import { inventoryVaultCredentials } from "#src/platform/db/vault-credential-inventory";
 import { legacyVaultAad } from "./vault-legacy-codecs.js";
 import { createTovuVaultKinds } from "./vault-kinds.js";
 import { legacyContext, loadSiteVaultKinds, recoverLegacyVaultRecord } from "./vault-boot.js";
@@ -52,12 +52,12 @@ export interface SiteKeyRecoveryInput {
 }
 
 /** Counts sealed values (and the storage secret) that open under `input.hex`.
- *  @complexity {@link listSealedCredentials}'s cost plus one small file read. */
+ *  @complexity {@link inventoryVaultCredentials}'s cost plus one small file read. */
 async function checkKey(input: SiteKeyRecoveryInput): Promise<SiteKeyKeyCheck> {
   const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.hex));
   const keyring = new FixedSiteKeyKeyring(input.hex);
   const counts = await withSiteKernel(input, async kernel => {
-    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, aadFor: recoveryAad });
+    const inventory = await inventoryVaultCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, aadFor: recoveryAad });
     return { sealed: inventory.totals.sealed, opens: inventory.totals.opens, metadataOnly: inventory.metadataOnly.length,
       legacy: inventory.legacySealed };
   }, { sealed: 0, opens: 0, metadataOnly: 0, legacy: 0 });
@@ -65,10 +65,10 @@ async function checkKey(input: SiteKeyRecoveryInput): Promise<SiteKeyKeyCheck> {
 }
 
 /** Removes every sealed value that does not open under `input.hex`. The caller takes a restore point
- *  first. @complexity {@link discardSealedCredentialsNotOpening}'s cost. */
+ *  first. @complexity {@link discardVaultCredentialsNotOpening}'s cost. */
 async function discardNotOpening(input: SiteKeyRecoveryInput): Promise<{ discarded: number; kept: number }> {
   const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.hex));
-  return withSiteKernel(input, (kernel) => discardSealedCredentialsNotOpening({ kernel, sealer, aadFor: recoveryAad }), { discarded: 0, kept: 0 });
+  return withSiteKernel(input, (kernel) => discardVaultCredentialsNotOpening({ kernel, sealer, aadFor: recoveryAad }), { discarded: 0, kept: 0 });
 }
 
 export interface SiteKeyResealInput extends SiteKeyRecoveryInput {
@@ -78,7 +78,7 @@ export interface SiteKeyResealInput extends SiteKeyRecoveryInput {
 
 /** Moves every sealed value (and `.storage-secret.json`) that opens under `previousHex` but not
  *  under `hex` onto `hex`, so switching to `hex` strands nothing. The caller takes a restore point
- *  first. @complexity {@link resealCredentialsOpeningUnder}'s cost plus one small file rewrite. */
+ *  first. @complexity {@link resealVaultCredentialsOpeningUnder}'s cost plus one small file rewrite. */
 async function resealFrom(input: SiteKeyResealInput): Promise<{ resealed: number; unreadable: number }> {
   const keyring = new FixedSiteKeyKeyring(input.hex);
   const sealer = new AesGcmSecretSealer(keyring);
@@ -86,7 +86,7 @@ async function resealFrom(input: SiteKeyResealInput): Promise<{ resealed: number
   const key = await keyring.activeKey();
   const counts = await withSiteKernel(
     input,
-    (kernel) => resealCredentialsOpeningUnder({ kernel, sealer, key, previous, aadFor: recoveryAad,
+    (kernel) => resealVaultCredentialsOpeningUnder({ kernel, sealer, key, previous, aadFor: recoveryAad,
       resealRecord: ({ record, previous }) => resealRecord({ kernel, siteDir: input.siteDir, keyring, sealer, record, previous }),
     }),
     { resealed: 0, unreadable: 0 }

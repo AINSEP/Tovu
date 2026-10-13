@@ -416,8 +416,6 @@ test("Tovu parsers call injected policy on reads/complete patches, retain proven
   for (const meta of [null, [], { category: "unknown" }, { category: "general", baseUrl: "https://name:password@example.test" },
     { category: "general", additionalHosts: ["https://example.test/path"] }, { category: "general", legacyAad: {} },
     { category: "general", unexpected: "field" }]) assert.throws(() => parse({ meta }));
-  const override = createTovuVaultKinds({ policy }, { parsers: { vendor: ({ meta }) => ({ ...(meta as VaultMeta), accountLabel: "normalized" }) } });
-  assert.equal(override.metaParsers.vendor({ meta: { accountLabel: "old" } }).accountLabel, "normalized");
   assert.deepEqual(Object.keys(registered.metaParsers).sort(), [...VAULT_KINDS].sort());
 });
 

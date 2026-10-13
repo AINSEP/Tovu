@@ -22,9 +22,9 @@ export interface TovuVaultPolicy {
  */
 export function createTovuVaultKinds(
   { policy }: { policy: TovuVaultPolicy },
-  { parsers = {} }: { parsers?: Partial<VaultMetaParsers> } = {},
+  _optional: Record<string, never> = {},
 ): { metaParsers: VaultMetaParsers; policy: TovuVaultPolicy; isCopyableKind: typeof isCopyableKind } {
-  const base = createVaultMetaParsers({}, { parsers });
+  const base = createVaultMetaParsers({});
   const metaParsers = createVaultMetaParsers({}, { parsers: Object.fromEntries(VAULT_KINDS.map(kind => [kind,
     ({ meta }: { meta: unknown }, _options: VaultOptions = {}) => {
       if (Object.hasOwn(meta as object, "legacyAad")) throw new VaultError({ code: "invalid-meta" });

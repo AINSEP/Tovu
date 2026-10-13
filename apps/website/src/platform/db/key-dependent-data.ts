@@ -17,7 +17,7 @@ import type { StorageKernel } from "./kernel/port.js";
  * (ADR-067) and runs {@link hasKeyDependentData} on it.
  *
  * Sealed columns come from the catalog (`listTables` + `listColumns`), every column whose name ends
- * in `sealed_ciphertext` — the same discovery `sealed-credential-inventory.ts` uses, so
+ * in `sealed_ciphertext` — the same discovery `vault-credential-inventory.ts` uses, so
  * `secrets_vault.sealed_ciphertext` and retained device codes count too. Restore artifacts
  * are excluded consistently with inventory; metadata-only configurations need no key. `webhook_subscriptions` counts on any
  * row: its signing secrets derive from the key without a sealed column.

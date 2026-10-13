@@ -6,8 +6,6 @@ import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
 import type { ContentDb } from "./content-db.js";
 
-export { deviceAad } from "../repos/oauth-pending-store.js";
-
 /**
  * @file The cross-process device authorization store on a site's SQLite `content.db`: the one Kysely
  * query body (`repos/oauth-pending-store.ts`, whose header carries the security posture), built

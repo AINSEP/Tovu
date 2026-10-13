@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
-import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "../sealed-credential-discard.js";
+import { countVaultCredentialsOpening, discardVaultCredentialsNotOpening, resealVaultCredentialsOpeningUnder } from "../vault-credential-recovery.js";
 import { eachDialect } from "../kernel/__tests__/dialect-matrix.js";
 import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
 import { recoveryAad } from "#src/server/runtime/composition/site-key-recovery";
@@ -27,8 +27,8 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await fx.put({ id: "vendor-next", kind: "vendor", provider: "host", key: fx.wrong });
     await fx.put({ id: "vendor-readable", kind: "vendor", provider: "host" });
     const common = { kernel: fx.kernel, sealer: fx.right.sealer };
-    assert.deepEqual(await countSealedCredentialsOpening(common), { sealed: 9, opens: 2 });
-    assert.deepEqual(await discardSealedCredentialsNotOpening(common), { discarded: 7, kept: 2 });
+    assert.deepEqual(await countVaultCredentialsOpening(common), { sealed: 9, opens: 2 });
+    assert.deepEqual(await discardVaultCredentialsNotOpening(common), { discarded: 7, kept: 2 });
     assert.equal(await fx.repo.find({ workspaceId: WS, id: "custom-wrong" }), null);
     for (const id of ["site-assistant", "personal-execution", "media-provider", "publish-peer"]) {
       const record = await fx.repo.find({ workspaceId: WS, id });
@@ -46,7 +46,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await fx.put({ id: "ordinary" });
     let opens = 0;
     const sealer = { open: async () => { opens += 1; return "unexpected"; } };
-    assert.deepEqual(await countSealedCredentialsOpening({ kernel: fx.kernel, sealer, aadFor: () => { throw new Error("no lineage"); } }), { sealed: 1, opens: 0 });
+    assert.deepEqual(await countVaultCredentialsOpening({ kernel: fx.kernel, sealer, aadFor: () => { throw new Error("no lineage"); } }), { sealed: 1, opens: 0 });
     assert.equal(opens, 0);
 
     // Migrated before boot normalization: still sealed under its original table's AAD.
@@ -56,11 +56,11 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
       meta: { ...scaffold.meta, legacyAad: lineage, migration: { ...lineage, mappedId: "legacy" } },
       sealed: await fx.right.sealer.seal({ plaintext: JSON.stringify({ token: "legacy-token" }), key: await fx.right.keyring.activeKey(),
         aad: `custom-credential-set:v1:${WS}:legacy` }) } });
-    assert.deepEqual(await countSealedCredentialsOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { sealed: 2, opens: 1 },
+    assert.deepEqual(await countVaultCredentialsOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { sealed: 2, opens: 1 },
       "ordinary reads have no legacy fallback");
     const recovery = { kernel: fx.kernel, sealer: fx.right.sealer, aadFor: recoveryAad };
-    assert.deepEqual(await countSealedCredentialsOpening(recovery), { sealed: 2, opens: 2 });
-    assert.deepEqual(await discardSealedCredentialsNotOpening(recovery), { discarded: 0, kept: 2 });
+    assert.deepEqual(await countVaultCredentialsOpening(recovery), { sealed: 2, opens: 2 });
+    assert.deepEqual(await discardVaultCredentialsNotOpening(recovery), { discarded: 0, kept: 2 });
     assert.deepEqual(await fx.repo.find(legacy), legacy);
   });
 
@@ -71,7 +71,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await fx.kernel.execute(sql`INSERT INTO external_mcp_servers (workspace_id,server_id,transport,auth_mode,enabled,url,
       created_at,updated_at,env_secret_id,oauth_secret_id,oauth_status) VALUES (${WS},'server','streamable_http','oauth',
       ${fx.kernel.dialect === "sqlite" ? 1 : true},'https://mcp.example.test',${NOW},${NOW},'env','auth','connected')`);
-    assert.deepEqual(await discardSealedCredentialsNotOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { discarded: 1, kept: 1 });
+    assert.deepEqual(await discardVaultCredentialsNotOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { discarded: 1, kept: 1 });
     const [server] = await fx.kernel.query<{ env_secret_id: string; oauth_secret_id: null; oauth_status: string }>(sql`SELECT env_secret_id,oauth_secret_id,oauth_status FROM external_mcp_servers`);
     assert.deepEqual(server, { env_secret_id: "env", oauth_secret_id: null, oauth_status: "needs_reauth" });
     assert.equal(await fx.repo.find({ workspaceId: WS, id: "auth" }), null);
@@ -88,8 +88,8 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
         return fx.right.sealer.open(...args);
       } };
       const deps = { kernel: fx.kernel, sealer };
-      if (action === "discard") assert.deepEqual(await discardSealedCredentialsNotOpening(deps), { discarded: 0, kept: 1 });
-      else assert.deepEqual(await resealCredentialsOpeningUnder({ ...deps, key: await fx.right.keyring.activeKey(), previous: fx.wrong.sealer,
+      if (action === "discard") assert.deepEqual(await discardVaultCredentialsNotOpening(deps), { discarded: 0, kept: 1 });
+      else assert.deepEqual(await resealVaultCredentialsOpeningUnder({ ...deps, key: await fx.right.keyring.activeKey(), previous: fx.wrong.sealer,
         resealRecord: async () => { throw new Error("stale callback must not run"); } }), { resealed: 0, unreadable: 0 });
       assert.equal((await fx.repo.find(record))?.meta.username, "new-settings");
       assert.deepEqual((await fx.repo.find(record))?.sealed, record.sealed);
@@ -105,7 +105,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await device.put("server", { deviceCode: "device-secret", userCode: "CODE", verificationUri: "https://auth.example.test",
       verificationUriComplete: null, expiresAt: "2026-10-11T01:00:00.000Z", intervalSeconds: 5 });
     const registry = createTovuVaultKinds({ policy: { validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined } });
-    const result = await resealCredentialsOpeningUnder({ kernel: fx.kernel, sealer: fx.right.sealer, key: await fx.right.keyring.activeKey(), previous: previous.sealer,
+    const result = await resealVaultCredentialsOpeningUnder({ kernel: fx.kernel, sealer: fx.right.sealer, key: await fx.right.keyring.activeKey(), previous: previous.sealer,
       resealRecord: async ({ record, previous }) => {
         const service = new SecretsVaultService({ repo: fx.repo, keyring: fx.right.keyring, metaParsers: registry.metaParsers,
           sealer: { seal: fx.right.sealer.seal.bind(fx.right.sealer), open: previous.open.bind(previous) },
@@ -113,7 +113,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
         await service.rotate({ ...record, expectedRevision: record.revision });
       } });
     assert.deepEqual(result, { resealed: 2, unreadable: 1 });
-    assert.deepEqual(await countSealedCredentialsOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { sealed: 4, opens: 3 });
+    assert.deepEqual(await countVaultCredentialsOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { sealed: 4, opens: 3 });
     assert.deepEqual(await fx.repo.find(stranded), stranded);
     const moved = await fx.repo.find({ workspaceId: WS, id: "move" });
     assert.equal(await fx.right.sealer.open({ sealed: moved!.sealed! }, { aad: buildVaultAad(moved!) }), JSON.stringify({ token: "LEAK-token-move" }));
@@ -123,7 +123,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     const fx = await fixture(each.make());
     const before = [await fx.put({ id: "a", key: fx.wrong }), await fx.put({ id: "b", key: fx.wrong })];
     let writes = 0;
-    await assert.rejects(resealCredentialsOpeningUnder({ kernel: fx.kernel, sealer: fx.right.sealer,
+    await assert.rejects(resealVaultCredentialsOpeningUnder({ kernel: fx.kernel, sealer: fx.right.sealer,
       key: await fx.right.keyring.activeKey(), previous: fx.wrong.sealer, resealRecord: async ({ record }) => {
         if (++writes === 2) throw new Error("second write failed");
         await fx.repo.put({ expectedRevision: record.revision, record: { ...record, revision: record.revision + 1, sealed: null } });
@@ -145,7 +145,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
         return typeof value === "function" ? value.bind(target) : value;
       },
     }))) };
-    await assert.rejects(discardSealedCredentialsNotOpening({ kernel, sealer: fx.right.sealer }), /second delete failed/);
+    await assert.rejects(discardVaultCredentialsNotOpening({ kernel, sealer: fx.right.sealer }), /second delete failed/);
     for (const record of before) assert.deepEqual(await fx.repo.find(record), record);
   });
 
@@ -158,7 +158,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
       await fx.kernel.execute(sql`INSERT INTO recovery_unknown_required VALUES ('opaque')`);
       await fx.kernel.execute(sql`INSERT INTO recovery_unknown_optional VALUES ('opaque','nonce','hint','keep')`);
       await fx.kernel.execute(sql`INSERT INTO _vault_backup_recovery VALUES ('backup')`);
-      assert.deepEqual(await discardSealedCredentialsNotOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { discarded: 2, kept: 0 });
+      assert.deepEqual(await discardVaultCredentialsNotOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { discarded: 2, kept: 0 });
       assert.deepEqual(await fx.kernel.query(sql`SELECT * FROM recovery_unknown_required`), []);
       assert.deepEqual(await fx.kernel.query(sql`SELECT * FROM recovery_unknown_optional`), [{ sealed_ciphertext: null, sealed_nonce: null, masked: null, setting: "keep" }]);
       assert.deepEqual(await fx.kernel.query(sql`SELECT * FROM _vault_backup_recovery`), [{ sealed_ciphertext: "backup" }]);
