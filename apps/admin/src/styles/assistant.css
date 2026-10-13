@@ -1164,7 +1164,8 @@ button.jini-composer-leading,
  *
  * Owner feedback on the pinned-plugin chip (screenshot, 2026-08-21): it read as a floating,
  * detached box with no visual relationship to the input beneath it, and more than one or two
- * chips would wrap onto a growing second line instead of staying a single row.
+ * chips would wrap onto a growing second line instead of staying a single row. The later
+ * "Send selected skills" action must stay visible too, so the tray now wraps within the dock.
  *
  * `.admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-tray` (4 classes) is
  * the minimum specificity that reliably wins here — this file's own header already documents why:
@@ -1183,32 +1184,30 @@ button.jini-composer-leading,
  * this border to attach to on an empty tray — no stray line shows up for a conversation with
  * nothing pinned.
  *
- * `flex-wrap: nowrap` + `overflow-x: auto` replace Jini's own wrap-and-grow behavior with a single
- * scrollable row, so 3+ pinned chips scroll instead of pushing the composer taller. The mask-image
- * pair is a static edge-fade affordance ("is there more?") — matches the tray's own real
- * background (inherited from `.jini-composer`'s `--jini-chat-subtle`, which this file already
- * remaps to `--surface-2` above) so it reads as the row fading into its own surface, not a new
- * color.
+ * The former nowrap/scroll row and edge-fade mask kept 3+ pinned chips from growing the composer.
+ * With a Send action in the same tray that hid the action at the edge. Wrapping now keeps every
+ * action visible; a bounded chip truncates its own label instead of pushing the dock sideways.
  */
 .admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-tray {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  flex-wrap: wrap;
+  overflow: visible;
   max-height: none;
   padding-bottom: 10px;
   margin-bottom: 2px;
   border-bottom: 1px solid var(--jini-chat-border-soft);
-  scrollbar-width: thin;
-  -webkit-mask-image: linear-gradient(to right, transparent, black 18px, black calc(100% - 18px), transparent);
-  mask-image: linear-gradient(to right, transparent, black 18px, black calc(100% - 18px), transparent);
 }
 
 /* Without this, a chip nearest the edge can shrink (flex's default `flex-shrink: 1`) rather than
-   overflow into the new scrollable row, which would clip its label text before the row ever
-   scrolls. `flex: none` keeps every chip at its natural width regardless of how many are pinned. */
+   overflow into the old scrollable row, which would clip its label text before the row ever
+   scrolled. `flex: none` still keeps each chip intact; its own copy now truncates within the dock. */
 .admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-chip {
   flex: none;
+  min-width: 0;
+  max-width: 100%;
 }
+.admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-chip-body,
+.admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-chip-copy { min-width: 0; }
+.admin-chat-dock .jini-chat-pane .jini-composer-leading button.jini-attachment-chip { white-space: normal; overflow-wrap: anywhere; }
 
 /* --- Runtime/agent picker --- */
 
