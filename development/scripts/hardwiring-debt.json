@@ -500,28 +500,28 @@
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
       "line": 26,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "55c2f091f6875bb4f547545b52827c664f518d7d9bb1bd5834256dc6983d9c01"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
       "line": 33,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "faf7d64f411b19d03a7015b772eab413fbbf62c58055e31a9f3fda9717fc4199"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
       "line": 45,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "c0944c2f6a93b05e93f14485a109ae6e3b45f9938212ba2e179df9e5086c25af"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
       "line": 52,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "55c2f091f6875bb4f547545b52827c664f518d7d9bb1bd5834256dc6983d9c01"

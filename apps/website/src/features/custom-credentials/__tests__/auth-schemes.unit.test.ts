@@ -6,7 +6,7 @@ const { setAgentPluginActivation } = agentPluginActivations;
 import { detectSelfDescribingAuthScheme, parseCredentialSchemesFile } from "@jini-ai/integrations/credentialed-http";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -21,21 +21,22 @@ import {
   CREDENTIAL_SCHEMES_FILENAME,
   loadCredentialSchemeRegistry,
   loadCredentialSchemeRegistryFromSource,
+  loadBundledCredentialSchemeRegistry,
   type CredentialSchemeRule,
 } from "../auth-schemes.js";
-import { BUNDLED_DEPLOY_PLUGIN_ROOT, loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
+import { BUNDLED_FLY_PLUGIN_ROOT, loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
 /**
  * @file `auth-schemes.ts` — self-describing token scheme rules shipped as plugin data, and the pure
  * `detectSelfDescribingAuthScheme` that applies them. Replaces the old per-vendor recognizer tests
  * (`custom-credentials/providers/__tests__/`) with the same exact semantics, run against the rules the
- * bundled `deploy` plugin actually ships. Every token is SYNTHETIC, never a real credential.
+ * bundled `fly` plugin actually ships. Every token is SYNTHETIC, never a real credential.
  * End-to-end proof that `credentialed-request.ts` applies the rules lives in
  * `credentialed-request.unit.test.ts` and `auth-failure-diagnostic.unit.test.ts`.
  */
 
 // ---------------------------------------------------------------------------------------------
-// detect, against the bundled deploy plugin's shipped rules
+// detect, against the bundled fly plugin's shipped rules
 // ---------------------------------------------------------------------------------------------
 
 test("detect: a token starting with FlyV1 splits into scheme 'FlyV1' and everything after it as the value", async () => {
@@ -76,11 +77,11 @@ test("detect: the scheme sent may differ from the prefix matched", () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// the bundled deploy plugin's file
+// the bundled fly plugin's file
 // ---------------------------------------------------------------------------------------------
 
-test("the bundled deploy plugin ships exactly one rule, fly-io, sending FlyV1 for a FlyV1 prefix", async () => {
-  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "deploy", packageRoot: BUNDLED_DEPLOY_PLUGIN_ROOT });
+test("the bundled fly plugin ships exactly one rule, fly-io, sending FlyV1 for a FlyV1 prefix", async () => {
+  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: BUNDLED_FLY_PLUGIN_ROOT });
   assert.deepEqual(registry.rules, [{ id: "fly-io", prefix: "FlyV1", scheme: "FlyV1" }]);
   assert.deepEqual(registry.refusals, []);
 });
@@ -259,4 +260,22 @@ test("registry: a malformed plugin does not discard a healthy plugin's rules", a
       refusals: [`credential schemes from 'bad-scheme' were not loaded: ${CREDENTIAL_SCHEMES_FILENAME} is invalid: not valid JSON`],
     });
   });
+});
+
+test("bundled scheme discovery unions packages and refuses duplicates, skipping missing categories, non-packages and retired ids", async () => {
+  const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-scheme-union-"));
+  try {
+    for (const [pluginId, id] of [["zeta", "last"], ["alpha", "first"], ["one", "shared"], ["two", "shared"], ["tovu-deploy-fly", "retired"], ["scratch", "scratch"]]) {
+      const packageRoot = path.join(sourceRoot, pluginId!);
+      await mkdir(packageRoot);
+      if (pluginId !== "scratch") await writeFile(path.join(packageRoot, "plugin.json"), JSON.stringify({ name: pluginId, version: "1.0.0" }));
+      await writeFile(path.join(packageRoot, CREDENTIAL_SCHEMES_FILENAME), JSON.stringify({ schemaVersion: 1, schemes: [{ id, prefix: "FixV1", scheme: "FixV1" }] }));
+    }
+    await mkdir(path.join(sourceRoot, "no-category"));
+    await writeFile(path.join(sourceRoot, "no-category", "plugin.json"), '{"name":"no-category","version":"1.0.0"}');
+    assert.deepEqual(await loadBundledCredentialSchemeRegistry({ sourceRoot }), {
+      rules: [{ id: "first", prefix: "FixV1", scheme: "FixV1" }, { id: "last", prefix: "FixV1", scheme: "FixV1" }],
+      refusals: ["credential scheme 'shared' was not loaded: more than one plugin declares it"],
+    });
+  } finally { await forceRemove(sourceRoot); }
 });

@@ -1466,7 +1466,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /**
    * This workspace's self-describing token scheme rules (`custom-credentials/auth-schemes.ts`), read
    * by `custom_credential_make_request`/`_verify`. `server/deps.ts` injects its boot-bound lifecycle to read the
-   * installed plugins; `server/app.ts`'s hermetic root reads the bundled `deploy` plugin's source.
+   * installed plugins; `server/app.ts`'s hermetic root reads the bundled plugins' sources.
    */
   loadAuthSchemes: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
   /**

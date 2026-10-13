@@ -1,0 +1,35 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fly",
+  "version": "0.1.0",
+  "description": "Deploys the Tovu server itself to fly.io: one machine only (SQLite), secrets never in fly.toml, deploying ships code, not content. Contributes Fly operations, server config generation and the FlyV1 credential scheme.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Fly.io",
+      "summary": "Deploys the Tovu server itself to fly.io: one machine only (SQLite), secrets never in fly.toml, deploying ships code, not content. Contributes Fly operations, server config generation and the FlyV1 credential scheme.",
+      "id": "tovu/fly",
+      "provides": [
+        "deploy-ops:fly",
+        "deploy-config:fly",
+        "credential-scheme:fly-io"
+      ]
+    }
+  },
+  "keywords": [
+    "deploy",
+    "hosting",
+    "fly",
+    "fly.io",
+    "flyctl",
+    "machines",
+    "server",
+    "volume",
+    "secrets",
+    "readyz",
+    "deploy-ops:fly",
+    "deploy-config:fly",
+    "credential-scheme:fly-io"
+  ]
+}

@@ -97,7 +97,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
       return { newId: () => `deps-cred-${++n}` };
     })(),
     customCredentialsHttpClient: httpClient,
-    // The bundled deploy plugin's scheme rules from source, as the hermetic root passes them.
+    // The bundled Fly plugin's scheme rules from source, as the hermetic root passes them.
     loadAuthSchemes: loadBundledAuthSchemes,
     customCredentialsAudit: audit,
     authorize: async (params: Record<string, unknown>) => {

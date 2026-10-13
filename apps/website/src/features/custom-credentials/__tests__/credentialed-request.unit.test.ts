@@ -85,7 +85,7 @@ function makeDeps(overrides: Partial<CredentialedRequestDeps> & { httpClient: Ht
     repo: base.repo,
     sealer: base.sealer,
     clock: base.clock,
-    // The bundled deploy plugin's shipped scheme rules (FlyV1), as the hermetic root passes them.
+    // The bundled Fly plugin's shipped scheme rules (FlyV1), as the hermetic root passes them.
     loadAuthSchemes: loadBundledAuthSchemes,
     ...overrides,
   };
@@ -1294,3 +1294,33 @@ for (const fixture of [
     assert.deepEqual(httpClient.calls[0]!.headers, { Authorization: fixture.header });
   });
 }
+
+test("disabled installed Fly retains its trusted FlyV1 rule and sends the exact auth header", async () => {
+  const { mkdtemp } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { default: path } = await import("node:path");
+  const { forceRemove } = await import("../../agent-plugins/__tests__/fixtures/force-remove.js");
+  const { resolveAgentPluginLayout } = await import("../../agent-plugins/layout.js");
+  const { createTovuAgentPluginLifecycle } = await import("../../agent-plugins/lifecycle.js");
+  const { loadCredentialSchemeRegistry } = await import("../auth-schemes.js");
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-disabled-fly-header-"));
+  try {
+    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const packed = await lifecycle.packAgentPluginDirectory(path.resolve("content/agent-plugins/fly"));
+    const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: WORKSPACE, archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
+    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "fly", archiveDigest: installed.archiveDigest }] });
+    await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "fly", enabled: false, actor: "operator" }, { origin: "bundled" });
+    const writeDeps = makeWriteDeps();
+    await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "fly.io", category: "ops", baseUrl: "https://api.fly.io", connection: { token: "FlyV1fake_test_token_value" } });
+    const httpClient = new FakeHttpClient();
+    const deps = makeDeps({ httpClient, loadAuthSchemes: async () => {
+      const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE }, { loadContributions: lifecycle.loadPluginContributions });
+      assert.deepEqual(registry.refusals, []);
+      return registry.rules;
+    } }, writeDeps);
+    await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+    assert.equal(httpClient.calls[0]!.headers.Authorization, "FlyV1 fake_test_token_value");
+  } finally { await forceRemove(root); }
+});

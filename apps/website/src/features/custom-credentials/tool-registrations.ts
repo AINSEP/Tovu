@@ -133,7 +133,7 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   readonly observability?: ObservabilityPort;
   /** The self-describing token scheme rules `custom_credential_make_request`/`_verify` apply
    *  (`CredentialedRequestDeps.loadAuthSchemes`): composition supplies the installed plugins; the hermetic
-   *  root and tests pass the bundled `deploy` plugin's source rules. */
+   *  root and tests pass the bundled plugins' source rules. */
   readonly loadAuthSchemes: CredentialedRequestDeps["loadAuthSchemes"];
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;

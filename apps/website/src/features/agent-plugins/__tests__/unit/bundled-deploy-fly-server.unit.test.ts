@@ -12,9 +12,9 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * @file The bundled `deploy` Agent Plugin carries the fly.io SERVER deploy procedure that used to be
  * its own bundled plugin, `tovu-deploy-fly` (merged 2026-09-29: one deploy plugin for every host,
  * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, T10). Since the 2026-10-12
- * split the static hosts are their own plugins and `deploy` ("Server Deploy") keeps only this job.
+ * Phase B split gives this procedure to `fly` ("Fly.io"), alongside its ops/config/scheme data.
  *
- * The procedure lives in `skills/deploy/references/fly-server.md`, beside its two templates and
+ * The procedure lives in `skills/fly/references/fly-server.md`, beside its two templates and
  * `machines-api-path.md`; the deploy skill points at it. Three kinds of assertion, kept from the old
  * package test for the same reasons:
  *
@@ -29,8 +29,8 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  */
 
 const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
-const PACKAGE_ROOT = path.join(CONTENT_ROOT, "deploy");
-const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "deploy");
+const PACKAGE_ROOT = path.join(CONTENT_ROOT, "fly");
+const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "fly");
 const FLY_REFERENCES = ["fly-server.md", "fly.template.toml", "fly-deploy.template.yml", "machines-api-path.md"] as const;
 
 async function readPackageFile(relativePath: string): Promise<string> {
@@ -49,7 +49,7 @@ test("the old tovu-deploy-fly package is gone — retire-bundled.ts removes it f
 test("plugin.json still parses and carries the fly vocabulary an operator would search for", async () => {
   const parsed = parseAgentPluginManifest({ value: JSON.parse(await readPackageFile("plugin.json")) });
   assert.equal(parsed.ok, true);
-  assert.equal(parsed.ok && parsed.manifest.name, "deploy");
+  assert.equal(parsed.ok && parsed.manifest.name, "fly");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
   assert.match(parsed.ok ? (parsed.manifest.description ?? "") : "", /fly\.io/);
 
@@ -64,7 +64,7 @@ test("plugin.json still parses and carries the fly vocabulary an operator would 
   }
 });
 
-test("the deploy skill triggers for a Fly server deploy and points at the procedure", async () => {
+test("the fly skill triggers for a Fly server deploy and points at the procedure", async () => {
   const skill = await readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8");
   const frontmatter = skill.slice(0, skill.indexOf("\n---", 4));
   assert.match(frontmatter, /fly\.io/);
@@ -77,9 +77,9 @@ test("the package packs through the real installer's own packer, fly references 
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
 
   assert.ok(packed.files.includes("plugin.json"));
-  assert.ok(packed.files.includes("skills/deploy/SKILL.md"));
+  assert.ok(packed.files.includes("skills/fly/SKILL.md"));
   for (const reference of FLY_REFERENCES) {
-    const asset = `skills/deploy/references/${reference}`;
+    const asset = `skills/fly/references/${reference}`;
     assert.ok(packed.files.includes(asset), `${asset} must survive packing — the assistant reads it off disk`);
   }
   assert.ok(!packed.files.some((file) => file.includes("tovu-deploy-fly")), "no file may still live under the old plugin's skill folder");
@@ -263,4 +263,20 @@ test("fly-server.md never tells the assistant to handle a secret value itself", 
 
   // And the positive half: it must actively say this step is the human's.
   assert.match(skill, /You cannot do this step/i);
+});
+
+test("Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds enabled", async () => {
+  const { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../bundled-catalog.js");
+  const manifest = JSON.parse(await readPackageFile("plugin.json"));
+  assert.equal(manifest.extensions.tovu.id, "tovu/fly");
+  assert.equal(manifest.extensions.tovu.displayName, "Fly.io");
+  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-ops:fly", "deploy-config:fly", "credential-scheme:fly-io"]);
+  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry: { id: string }) => entry.id), ["fly"]);
+  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry: { id: string }) => entry.id), ["fly"]);
+  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  assert.ok(packed.files.includes("deploy-ops/fly.mjs"));
+  assert.ok(packed.files.includes("deploy-configs/fly.mjs"));
+  assert.ok(packed.files.includes("tovu-credential-schemes.json"));
+  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("fly"), true);
 });

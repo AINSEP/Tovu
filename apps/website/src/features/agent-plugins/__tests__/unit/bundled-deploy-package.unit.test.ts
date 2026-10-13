@@ -27,7 +27,7 @@ import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features
  */
 
 const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
-const PACKAGE_ROOT = path.join(CONTENT_ROOT, "deploy");
+const PACKAGE_ROOT = path.join(CONTENT_ROOT, "fly");
 const WORKSPACE_ID = "workspace-local";
 
 /** Every publish target, the bundled plugin that ships it, and its label. Target ids are the legacy
@@ -48,7 +48,7 @@ async function readPackageJson(relativePath: string, packageRoot = PACKAGE_ROOT)
 test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings", async () => {
   const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
   assert.equal(parsed.ok, true);
-  assert.equal(parsed.ok && parsed.manifest.name, "deploy");
+  assert.equal(parsed.ok && parsed.manifest.name, "fly");
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
@@ -59,8 +59,8 @@ test("mcp.json declares ZERO servers — hosts run in-process through the deploy
 });
 
 test("the eponymous skill exists, names the server host it deploys to, and points at every hosting plugin", async () => {
-  const skill = await readFile(path.join(PACKAGE_ROOT, "skills", "deploy", "SKILL.md"), "utf8");
-  assert.match(skill, /^---\nname: deploy\n/);
+  const skill = await readFile(path.join(PACKAGE_ROOT, "skills", "fly", "SKILL.md"), "utf8");
+  assert.match(skill, /^---\nname: fly\n/);
   assert.match(skill, /fly\.io/);
   for (const { pluginId } of HOST_PLUGINS) assert.ok(skill.includes(`\`${pluginId}\``), pluginId);
 });
@@ -78,7 +78,7 @@ test("each plugin's target ids are the legacy provider ids it owns (sealed crede
 
 test("the package packs through the real packer, and ships no publish target of its own any more", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
-  for (const file of ["plugin.json", "mcp.json", "skills/deploy/SKILL.md"]) {
+  for (const file of ["plugin.json", "mcp.json", "skills/fly/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
   // Every host is its own plugin (2026-10-12); a leftover entry here would drop that host for everyone.

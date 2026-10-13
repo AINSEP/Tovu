@@ -1,5 +1,5 @@
 ---
-name: deploy
+name: fly
 description: Deploy the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content. Publishing the site's static export to a host is not this plugin's job - each host is its own plugin.
 ---
 

@@ -19,14 +19,15 @@
  * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
  * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin that absorbed it. `seed-bundled.ts` never seeds a
  * retired id, even if a stale build still carries its directory.
  *
  * `tovu-deploy-fly` -> `deploy` (2026-09-29): one deploy plugin for every host; the fly.io server
- * procedure is now `deploy`'s `references/fly-server.md`.
+ * procedure moved again to `fly` in Phase B. The old mapping and `deploy` seed entry remain
+ * until B7's Jini seed-failure safety gate passes; retirement is intentionally not activated yet.
  *
  * `create-tovu-theme` and `tovuize-site` -> `tovu-theme` (2026-10-06): one theme plugin for both
  * jobs, a new theme or a converted static site. They shared the theme-format rules and had started

@@ -7,8 +7,8 @@ import { ValidationError } from "#src/platform/site-dir/index";
 
 import { createDeployConfigKit, MIGRATIONS_NOTE, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
 
-/** The bundled `deploy` plugin's generator module, imported from its source like the other bundled-deploy tests. */
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/deploy-configs/fly.mjs");
+/** The bundled `fly` plugin's generator module, imported from its source like the other bundled-deploy tests. */
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/fly/deploy-configs/fly.mjs");
 const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule };
 
 /** The module's `render` with the real host kit, under the name the core renderer had before it moved. */

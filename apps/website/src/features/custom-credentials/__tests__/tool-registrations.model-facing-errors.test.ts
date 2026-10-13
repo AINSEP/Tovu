@@ -93,7 +93,7 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     idGen,
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
-    // The bundled deploy plugin's scheme rules from source, as the hermetic root passes them.
+    // The bundled Fly plugin's scheme rules from source, as the hermetic root passes them.
     loadAuthSchemes: loadBundledAuthSchemes,
     customCredentialsAudit: new InMemoryCredentialedRequestAuditLog(),
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),

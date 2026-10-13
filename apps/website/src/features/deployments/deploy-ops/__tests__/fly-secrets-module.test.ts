@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AT } from "./module-fixture.js";
-const fly = (await import(new URL("../../../../../../../content/agent-plugins/deploy/deploy-ops/fly.mjs", import.meta.url).href)).default;
+const fly = (await import(new URL("../../../../../../../content/agent-plugins/fly/deploy-ops/fly.mjs", import.meta.url).href)).default;
 const API = "https://api.machines.dev/v1/apps/shop/secrets";
 
 /** A bound-facade double: scripted GET bodies and recorded writes; no host, credential or network. */
