@@ -525,9 +525,9 @@ function resolvePublicUrl(routeDeps: PostToolDeps, post: PostRecord): string | n
  *   own `buildPostAutosaveDraft` doc: "`PostEditor` is reached only via `/admin/posts/{id}`" (no
  *   slug-based route exists for a Post).
  * - `kind: "page"` -> `/admin/pages/{handle}`, mirroring `apps/admin/src/features/pages/rules.ts`'s
- *   `pageAdminPath` exactly: prefers `slug`, falling back to `id` only when the slug cannot be a
- *   path segment at all (today, only the literal root slug `ROOT_SLUG`/`"/"`, gated to `kind: "page"`
- *   — every other slug is `SLUG_FORMAT_PATTERN`-validated and can never contain `/`).
+ *   `pageAdminPath` exactly: prefers `slug`, using `home` for the literal root slug `ROOT_SLUG`/`"/"`
+ *   because `/` cannot be one path segment. The alias wins, so a real page with slug `home` uses
+ *   its id to keep both pages accessible without reserving a public slug.
  * Both prefixed with `/admin`, `@jini-ai/admin/core`'s own `DEFAULT_ADMIN_BASE`
  * (`apps/admin/src/lib/router.ts`'s `ADMIN_BASE`) — the real, browser-visible admin URL, not the
  * SPA-router-relative path `pageAdminPath` itself returns before `adminHref()` prefixes it.
@@ -536,7 +536,8 @@ function resolvePublicUrl(routeDeps: PostToolDeps, post: PostRecord): string | n
  */
 function resolveAdminUrl(post: PostRecord): string {
   if (post.kind === "post") return `/admin/posts/${post.id}`;
-  const handle = post.slug === ROOT_SLUG ? post.id : post.slug;
+  if (post.slug === ROOT_SLUG) return "/admin/pages/home";
+  const handle = post.slug === "home" ? post.id : post.slug;
   return `/admin/pages/${handle}`;
 }
 

@@ -301,18 +301,22 @@ describe("pagePublicPath", () => {
  * every page-editor admin link (`Pages.tsx`'s title link and row-menu Edit, `ThemeExplore.tsx`'s and
  * `use-theme-pages.hooks.ts`'s collision links). Regression coverage for the bug family this
  * replaces: `45101306` fixed the root-slug page by switching every link to id, which broke readable
- * URLs for every ordinary page; this pins both halves — slug for the ordinary case, id only for the
- * one page a slug can't express as a path segment.
+ * URLs for every ordinary page. Pins readable ordinary slugs, the root's `home` alias, and the id
+ * fallback that keeps a real `home` page distinct from the root.
  */
 describe("pageAdminPath", () => {
   it("prefers the slug for an ordinary page", () => {
     expect(pageAdminPath({ id: "pg1", slug: "about" })).toBe("/pages/about");
   });
 
-  it("falls back to the id for a page holding the literal root slug '/'", () => {
+  it("uses the home alias for a page holding the literal root slug '/'", () => {
     // Must FAIL if this collapses back to `/pages/${slug}` — `/pages//` cannot match the admin
     // router's `/:slug` pattern (`panels.tsx`) and the link silently does nothing.
-    expect(pageAdminPath({ id: "home-1", slug: "/" })).toBe("/pages/home-1");
+    expect(pageAdminPath({ id: "home-1", slug: "/" })).toBe("/pages/home");
+  });
+
+  it("falls back to the id for a real page whose slug is 'home'", () => {
+    expect(pageAdminPath({ id: "home-2", slug: "home" })).toBe("/pages/home-2");
   });
 
   it("does not special-case a slug that merely starts with a slash but isn't exactly '/'", () => {

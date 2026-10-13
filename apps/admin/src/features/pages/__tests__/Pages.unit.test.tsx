@@ -172,25 +172,25 @@ describe("populated table", () => {
    * both its edit links pointed at `/admin/pages//` / navigated to `/pages//`, which the admin
    * router's `/:slug` pattern cannot match — the link silently did nothing. `pageAdminPath`
    * (`rules.ts`, 2026-09-03 consolidation pass) now owns this slug-vs-id choice for every page-
-   * editor link in the app: slug for an ordinary page (see the test above), id for this one, since
-   * a value containing `/` can never match a single `/:slug` segment. Must FAIL if that fallback
+   * editor link in the app: slug for an ordinary page (see the test above), the `home` alias for
+   * this one, since a value containing `/` can never match a single `/:slug` segment. Must FAIL if that fallback
    * regresses and pass now that both edit links route through `pageAdminPath` and the site link
    * goes through `pagePublicPath`.
    */
-  it("renders a root-slug ('/') page's Slug column as '/' and its edit links by id, not slug", async () => {
+  it("renders a root-slug ('/') page's Slug column as '/' and its edit links via the home alias", async () => {
     const user = userEvent.setup();
     const HOME_PAGE: AdminPost = { ...PAGE, id: "home-1", title: "Home", slug: "/" };
     renderWith({ pages: [HOME_PAGE] });
 
     const titleLink = screen.getByRole("link", { name: "Home" });
-    expect(titleLink).toHaveAttribute("href", "/admin/pages/home-1");
+    expect(titleLink).toHaveAttribute("href", "/admin/pages/home");
 
     const slugLink = screen.getByRole("link", { name: "/" });
     expect(slugLink).toHaveAttribute("href", siteUrl("/"));
 
     await user.click(screen.getByRole("button", { name: 'Actions for "Home"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/pages/home-1");
+    expect(navigate).toHaveBeenCalledWith("/pages/home");
   });
 });
 
@@ -774,12 +774,12 @@ describe("Theme Pages tab", () => {
     });
 
     /**
-     * Regression test — the collision link must fall back to the id for a colliding Page holding
+     * Regression test — the collision link must use the `home` alias for a colliding Page holding
      * the literal root slug `"/"` (`pageAdminPath`, `rules.ts`, 2026-09-03), since `/admin/pages//`
      * cannot match the admin router's `/:slug` pattern. Must FAIL against a bare `/pages/${slug}`
      * template and pass now that `themePageCollisionAdminPath` routes through `pageAdminPath`.
      */
-    it("links to the Pages editor by id when the colliding Page holds the root slug '/'", async () => {
+    it("links to the Pages editor via the home alias when the colliding Page holds the root slug '/'", async () => {
       const user = userEvent.setup();
       renderWith(
         { pages: [PAGE] },
@@ -794,7 +794,7 @@ describe("Theme Pages tab", () => {
       );
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       await openDetails(user, "about");
-      expect(screen.getByRole("link", { name: "Open Home" })).toHaveAttribute("href", "/admin/pages/home-1");
+      expect(screen.getByRole("link", { name: "Open Home" })).toHaveAttribute("href", "/admin/pages/home");
     });
 
     it("states plainly that the home Page wins over index — not the 'whichever wins' wording", async () => {

@@ -31,6 +31,7 @@ import { useEditorHtmlJump } from "./use-editor-html-jump.hooks";
 import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
+  HOME_PAGE_HANDLE,
   pageAcceptsHtmlBody,
   pageAdminPath,
   pageDirtyGuardBaseline,
@@ -633,9 +634,9 @@ export interface PageEditorDependencies {
 
 /**
  * `routeSlug` names what the URL actually carries: the page's slug for an ordinary page, as read
- * from the route (see `panels.tsx`'s `/:slug` pattern) — or the page's id for the one page whose
- * slug can never be a path segment at all, the root slug `"/"` (`pageAdminPath`, `rules.ts`, is
- * what the admin app's own links now build with this choice). Either way it doubles as a legacy
+ * from the route (see `panels.tsx`'s `/:slug` pattern), `home` for the root page, or the id of a
+ * page whose real slug is `home` (`pageAdminPath`, `rules.ts`). The alias maps to `/` for reads;
+ * all other handles pass through unchanged. An id also works as a legacy
  * id-based bookmark too: the server-side lookup this feeds (`getAdminPostByIdOrSlug`) tries the
  * slug FIRST and falls back to an exact id match, so an old id-based bookmark still resolves —
  * corrected 2026-09-03, this comment previously stated the two checks in the opposite order. Every
@@ -665,7 +666,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
    */
   const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber(boundT), [boundT]);
   const pageKey = useMemo(() => ["pages", "detail", routeSlug] as const, [routeSlug]);
-  const fetchPage = useCallback(() => port.getPage(routeSlug), [port, routeSlug]);
+  const fetchPage = useCallback(() => port.getPage(routeSlug === HOME_PAGE_HANDLE ? "/" : routeSlug), [port, routeSlug]);
   const pageLoader = useCachedLoader({ key: pageKey, fetch: fetchPage }, { staleTime: 0 });
   const readPage = useCallback((id: string) => pageLoader.load({ key: ["pages", "detail", id], fetch: () => port.getPage(id) }), [port, pageLoader]);
   const invalidate = useInvalidate();
@@ -765,11 +766,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         setActiveThemeApiVersion(themeApiVersion);
         setActiveThemeTier(themeTier);
         applyLoadedPage(post, { setPage, setTitle, setSlug, setStatus, setTemplateChoice, setSavedTemplateChoice, setHtml, setSavedHtml });
-        // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same rule
-        // `use-widget-instance-editor.hooks.ts` applies for widgets. Skipped for the root page
-        // (`slug === "/"`) — its canonical URL IS its id (`pageAdminPath`'s own fallback, `rules.ts`),
-        // so `routeSlug` there is never a stale bookmark to redirect away from.
-        if (post.slug !== "/") {
+        // Old id bookmarks catch up to the canonical URL. Keep the root page out of the generic
+        // slug redirect (`/pages//` cannot match), and keep a real `home` page on its id so it
+        // cannot redirect into the root alias.
+        if (post.slug === "/") {
+          if (routeSlug === post.id) navigate(pageAdminPath(post), { replace: true });
+        } else if (post.slug !== HOME_PAGE_HANDLE) {
           const redirectPath = slugRedirectPath("/pages", routeSlug, post);
           if (redirectPath) navigate(redirectPath, { replace: true });
         }

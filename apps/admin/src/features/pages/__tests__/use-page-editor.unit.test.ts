@@ -547,15 +547,37 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       expect(deps.navigate).not.toHaveBeenCalled();
     });
 
-    // The root page's slug ("/") can never be a path segment — `pageAdminPath` (`rules.ts`) already
-    // links to it by id, so the id in the URL here is the CANONICAL address, not a stale bookmark.
-    // Must never "redirect" to the nonsensical `/pages//`.
-    it("does not navigate for the root page, whose slug is '/' and whose canonical URL is its id", async () => {
+    it("loads the root page through the '/' API handle for route 'home' without redirecting", async () => {
+      const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "/" };
+      const deps = fakeDeps({ page });
+      const getPage = vi.spyOn(deps.port, "getPage");
+      const { result } = renderHook(() => usePageEditor("home", deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(result.current.page).toMatchObject({ id: PAGE_UUID, slug: "/" });
+      expect(getPage).toHaveBeenCalledWith("/");
+      expect(getPage).not.toHaveBeenCalledWith("home");
+      expect(deps.navigate).not.toHaveBeenCalled();
+    });
+
+    // A root id bookmark must use the readable alias, never the unmatchable `/pages//`.
+    it("replace-navigates a root page id bookmark to '/pages/home'", async () => {
       const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "/" };
       const deps = fakeDeps({ page });
       const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
 
       await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(deps.navigate).toHaveBeenCalledWith("/pages/home", { replace: true });
+    });
+
+    it("keeps a real 'home' page on its id URL without redirecting into the root alias", async () => {
+      const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "home" };
+      const deps = fakeDeps({ page });
+      const getPage = vi.spyOn(deps.port, "getPage");
+      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      expect(getPage).toHaveBeenCalledWith(PAGE_UUID);
       expect(deps.navigate).not.toHaveBeenCalled();
     });
   });

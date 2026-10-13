@@ -84,20 +84,20 @@ export interface PageAdminHandle {
   slug: string;
 }
 
+/** Readable admin alias for the root page; a real `home` slug uses its id to avoid a collision. */
+export const HOME_PAGE_HANDLE = "home";
+
 /**
  * The in-SPA path to a page's admin editor — `/pages/<handle>`, the bare route path `navigate()`
  * (`lib/router.ts`) expects, or that `adminHref()` (same module) turns into a real `<a href>`.
  *
- * **Prefers the slug; falls back to the id only when the slug can't be a path segment at all** —
- * today that is exactly the literal root slug `"/"` (`post.ts`'s `ROOT_SLUG`, gated to
- * `kind: "page"`; every other slug is validated against `isValidSlugFormat`'s
- * lowercase-letters/numbers/dashes pattern, so `"/"` is the only slug value a `/` can ever appear
- * in). The page-editor route is registered as `/:slug` — one path segment (`panels.tsx`) — and a
- * value containing `/` can never match that pattern, which is exactly the bug `45101306` hit and
- * fixed by switching to id-always. This restores the slug for every ordinary page while keeping
- * that fix for the one page it targeted: `getAdminPostByIdOrSlug`
- * (`apps/website/src/features/post/post.ts`) resolves either handle server-side (slug checked
- * first, id as the fallback), so both forms are lossless.
+ * Prefers the slug, with `home` as the readable alias for the literal root slug `"/"`
+ * (`post.ts`'s `ROOT_SLUG`, gated to `kind: "page"`). The page-editor route is registered as
+ * `/:slug` — one path segment (`panels.tsx`) — so `/` cannot match it, the bug `45101306` fixed
+ * by switching to id-always. The editor maps `home` back to `/` before fetching. The alias wins:
+ * a real page whose legal slug is `home` uses its id, preserving access without reserving a
+ * public slug. `getAdminPostByIdOrSlug` (`apps/website/src/features/post/post.ts`) resolves an
+ * ordinary slug or id server-side (slug checked first, id as the fallback).
  *
  * Deliberately returns the bare route path rather than a full href or two id/slug-flavored
  * variants — a caller building a real `<a href>` wraps this in `adminHref()`; a caller driving the
@@ -108,7 +108,8 @@ export interface PageAdminHandle {
  * @complexity O(1).
  */
 export function pageAdminPath(page: PageAdminHandle): string {
-  return `/pages/${page.slug === "/" ? page.id : page.slug}`;
+  if (page.slug === "/") return `/pages/${HOME_PAGE_HANDLE}`;
+  return `/pages/${page.slug === HOME_PAGE_HANDLE ? page.id : page.slug}`;
 }
 
 /** The callbacks a row menu needs. Passed in rather than imported so this module stays free of

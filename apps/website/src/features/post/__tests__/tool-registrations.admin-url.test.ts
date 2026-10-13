@@ -115,13 +115,25 @@ test("content_post_get returns adminUrl '/admin/pages/{slug}' for a page, prefer
   assert.equal(result.post.adminUrl, "/admin/pages/about");
 });
 
-test("content_post_get returns adminUrl '/admin/pages/{id}' for a page claiming the literal root slug '/' — a slug cannot be a path segment", async () => {
+test("content_post_get returns adminUrl '/admin/pages/home' for a page claiming the literal root slug '/'", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { id: "home-page", slug: "/", kind: "page" });
   const registrations = registrationsFor(deps);
 
   const result = (await call(tool(registrations, "content_post_get"), { id: "home-page", kind: "page" })) as { post: { adminUrl: string } };
-  assert.equal(result.post.adminUrl, "/admin/pages/home-page");
+  assert.equal(result.post.adminUrl, "/admin/pages/home");
+});
+
+test("content_post_get keeps a real 'home' page distinct from the root alias by using its id", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { id: "root-page", slug: "/", kind: "page" });
+  await seedPost(postRepo, { id: "home-page", slug: "home", kind: "page" });
+  const registrations = registrationsFor(deps);
+
+  const root = (await call(tool(registrations, "content_post_get"), { id: "root-page", kind: "page" })) as { post: { adminUrl: string } };
+  const home = (await call(tool(registrations, "content_post_get"), { id: "home-page", kind: "page" })) as { post: { adminUrl: string } };
+  assert.equal(root.post.adminUrl, "/admin/pages/home");
+  assert.equal(home.post.adminUrl, "/admin/pages/home-page");
 });
 
 test("adminUrl is present for a DRAFT — unlike publicUrl, it is never null (a draft is always editable)", async () => {

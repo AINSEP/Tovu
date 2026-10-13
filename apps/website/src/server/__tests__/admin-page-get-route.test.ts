@@ -76,6 +76,15 @@ test("GET /pages/:idOrSlug still resolves a Page by its real id (bookmark compat
   assert.equal((JSON.parse(body) as { post: { slug: string } }).post.slug, page.slug);
 });
 
+test("GET /pages/:idOrSlug resolves the root page from an encoded \"/\" (the admin's `home` alias fetch)", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+
+  const { status, body } = await getPage(baseUrl, cookie, encodeURIComponent("/"));
+
+  assert.equal(status, 200, body);
+  assert.equal((JSON.parse(body) as { post: { slug: string } }).post.slug, "/");
+});
+
 test("GET /pages/:idOrSlug 404s a Post's slug — kind mismatch, indistinguishable from not-found", async (t) => {
   const { baseUrl, cookie } = await startServer(t);
   const post = await createRow(baseUrl, cookie, "posts", "A blog post");
