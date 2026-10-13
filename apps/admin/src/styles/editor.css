@@ -154,6 +154,20 @@
    expanded, where the panel is flush against its own box and there is no toolbar above it. */
 .post-preview-surface { margin-top: 1rem; }
 .post-preview-expanded .post-preview-surface { margin-top: 0; }
+/* Collapsed, the control leaves the frame's corner (where it covered the previewed theme's own
+   header controls) for the right end of the action row, right after the settings gear (owner,
+   2026-10-13) — the same spot Pages uses (`pages.css`). Only while the preview directly follows the
+   row: when the slug-collision warning sits between them the control keeps its in-frame float.
+   `bottom` is `.page`'s 24px gap plus the 1rem margin above, so its bottom lands on the row's; it
+   takes the gear's 37px square, and the gear carries that width as right margin so the two sit
+   side by side. */
+.page > .editor-action-row + .post-preview-surface > .post-preview-fab {
+  top: auto; right: 0; bottom: calc(100% + var(--space-6) + 1rem); width: 37px; height: 37px;
+  opacity: 1; color: var(--fg-2); background: transparent; backdrop-filter: none;
+}
+.page > .editor-action-row + .post-preview-surface > .post-preview-fab:hover,
+.page > .editor-action-row + .post-preview-surface > .post-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+.page > .editor-action-row:has(+ .post-preview-surface) > .post-settings-trigger { margin-right: 37px; }
 
 /* Content analysis card (`features/content-analysis/ContentAnalysisCard.tsx`, AW-7 Tier 2) — sits
    above the Categories & Tags box in the post editor. Reuses `.card`, `.dash-stat-*` type styles
@@ -292,6 +306,18 @@
      leaving 40px of empty space above it. Expanded keeps `margin-top: 0` (higher-specificity rule). */
   .post-preview-surface { margin-top: calc(var(--space-2) - var(--space-6)); }
   .post-preview-surface > .post-editor-pane { margin-top: 0; }
+  /* Collapsed (owner, 2026-10-13: "put expand right next to the settings button"): the control
+     moves up from its own line into the action row, after the gear. The row is sticky here
+     (`styles.css`), so the control is sticky too, at the row's offset plus its 6px padding; it is
+     pulled up by its 40px tap height plus 14px (that padding plus the 8px row-to-surface gap above)
+     and hands that back below, so the frame rises to 8px under the row. `z-index: 7` clears the
+     row's 6. Same mechanism as the Pages control (`pages.css`). The gear's 40px phone size sets
+     its margin. */
+  .page > .editor-action-row + .post-preview-surface > .post-preview-fab {
+    position: sticky; inset: auto; top: calc(6px - var(--space-4)); z-index: 7;
+    margin: calc(-40px - 14px) 0 14px;
+  }
+  .page > .editor-action-row:has(+ .post-preview-surface) > .post-settings-trigger { margin-right: 40px; }
 }
 
 /* The template and Draft/Published selects are as wide as the chosen value, not a fixed 14rem
