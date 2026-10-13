@@ -105,7 +105,7 @@ test("widgets_create_instance: an unregistered widgetType is a shape rejection â
       assert.deepEqual(includedSchema.required, ["widgetType", "title", "config"]);
       assert.equal(includedSchema.additionalProperties, false);
       assert.equal(includedSchema.properties.widgetType.type, "string");
-      assert.deepEqual(includedSchema.properties.widgetType.enum, ["text", "social-links", "recent-entries", "menu", "contact-form"]);
+      assert.deepEqual(includedSchema.properties.widgetType.enum, ["media", "gallery", "text", "social-links", "recent-entries", "menu", "contact-form"]);
       assert.equal(includedSchema.properties.title.type, "string");
       assert.equal(includedSchema.properties.title.minLength, 1);
       assert.equal(includedSchema.properties.config.type, "object");
@@ -136,7 +136,7 @@ test("widgets_create_instance: a config missing a required field is a shape reje
       assert.deepEqual(includedSchema.required, ["widgetType", "title", "config"]);
       assert.equal(includedSchema.additionalProperties, false);
       assert.equal(includedSchema.properties.widgetType.type, "string");
-      assert.deepEqual(includedSchema.properties.widgetType.enum, ["text", "social-links", "recent-entries", "menu", "contact-form"]);
+      assert.deepEqual(includedSchema.properties.widgetType.enum, ["media", "gallery", "text", "social-links", "recent-entries", "menu", "contact-form"]);
       assert.equal(includedSchema.properties.title.type, "string");
       assert.equal(includedSchema.properties.title.minLength, 1);
       assert.equal(includedSchema.properties.config.type, "object");
