@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - GitHub Pages, S3-compatible storage; Vercel, Netlify and Cloudflare Pages are their own plugins. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content.
+description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - S3-compatible storage; Vercel, Netlify, Cloudflare Pages and GitHub Pages are their own plugins. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content.
 ---
 
 # Deploy the site to a host
@@ -11,10 +11,10 @@ This plugin owns **publishing the site's static export to a hosting service**. T
 site to plain files, and the chosen host serves them. The host code ships inside this plugin; Tovu runs
 it only because Tovu shipped it.
 
-Hosts this plugin runs today: **GitHub Pages** (`references/github-pages.md`), plus **S3-compatible
-storage** (AWS S3, Cloudflare R2, Backblaze B2, MinIO, ...), whose bucket and keys all live on the saved
-credential. **Vercel**, **Netlify** and **Cloudflare Pages** are their own plugins, `vercel`, `netlify`
-and `cloudflare-pages`. The tools below work the same for every host.
+Hosts this plugin runs today: **S3-compatible storage** (AWS S3, Cloudflare R2, Backblaze B2, MinIO,
+...), whose bucket and keys all live on the saved credential. **Vercel**, **Netlify**, **Cloudflare
+Pages** and **GitHub Pages** are their own plugins, `vercel`, `netlify`, `cloudflare-pages` and
+`github-pages`. The tools below work the same for every host.
 
 ## The procedure
 
@@ -34,7 +34,7 @@ and `cloudflare-pages`. The tools below work the same for every host.
 
 ## Security headers
 
-Tovu hands every host the live site's security headers. GitHub Pages has no header config.
+Tovu hands every host the live site's security headers.
 
 ## Deploying the Tovu server to fly.io
 

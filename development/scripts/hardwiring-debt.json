@@ -549,14 +549,14 @@
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/github-pages.mjs",
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
       "line": 51,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "b2fd47bfbc5a4de17a621c69c1407b826d21731da4f7ea0c3c01cb6e044b8b9c"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/github-pages.mjs",
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
       "line": 475,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "357c646886b87a0dbe3355c82e9bc83d626b43765d5de05df3826cc21a77a02d"

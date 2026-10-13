@@ -33,7 +33,7 @@ const WORKSPACE_ID = "workspace-local";
 /** Every publish target, the bundled plugin that ships it, and its label. Target ids are the legacy
  *  provider ids (sealed credentials bind to them); each split-out host is a plugin of the same id. */
 const TARGETS: readonly { readonly id: string; readonly pluginId: string; readonly label: string }[] = [
-  { id: "github-pages", pluginId: "deploy", label: "GitHub Pages" },
+  { id: "github-pages", pluginId: "github-pages", label: "GitHub Pages" },
   { id: "vercel", pluginId: "vercel", label: "Vercel" },
   { id: "netlify", pluginId: "netlify", label: "Netlify" },
   { id: "cloudflare-pages", pluginId: "cloudflare-pages", label: "Cloudflare Pages" },

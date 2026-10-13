@@ -38,7 +38,7 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 const NETLIFY_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/netlify/targets/netlify.mjs");
 const CLOUDFLARE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs");
 const VERCEL_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/vercel/targets/vercel.mjs");
-const GITHUB_PAGES_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/github-pages.mjs");
+const GITHUB_PAGES_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github-pages/targets/github-pages.mjs");
 
 function credentialSource(extra: Record<string, string> = {}): PublishCredentialSource {
   return {

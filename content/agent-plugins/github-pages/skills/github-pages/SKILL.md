@@ -1,4 +1,14 @@
+---
+name: github-pages
+description: Publish the site's static export to GitHub Pages with the workspace's own saved token. Covers the token, the owner, repo and branch fields, the address and base path, and what each failure means in plain words.
+---
+
 # GitHub Pages
+
+The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
+credential is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
+publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
+This file is what is particular to GitHub Pages.
 
 - **Token:** a fine-grained personal access token (https://github.com/settings/personal-access-tokens)
   for the repository, with **Contents: Read and write** and **Pages: Read and write**. Saved in Admin,

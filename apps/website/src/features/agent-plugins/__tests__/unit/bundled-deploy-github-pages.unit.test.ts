@@ -10,8 +10,8 @@ import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "
 import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 /**
- * @file The bundled `deploy` plugin's GitHub Pages module
- * (`content/agent-plugins/deploy/targets/github-pages.mjs`).
+ * @file The bundled `github-pages` plugin's module
+ * (`content/agent-plugins/github-pages/targets/github-pages.mjs`).
  *
  * PORTED, not re-authored, from `@jini-ai/devops` `src/deploy/__tests__/github-pages.test.ts` at Jini
  * commit 28f67f9a (vitest): every original case below the "Ported" marker is unchanged, running on
@@ -23,7 +23,7 @@ import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 installNetworkGuard();
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/github-pages.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github-pages/targets/github-pages.mjs");
 
 interface GitHubPagesBinding {
   GitHubPagesDeployTarget: new (config: { token: string; owner: string; repo: string; branch?: string }) => {
@@ -69,7 +69,7 @@ function stubGitHubApi(): { treePaths: () => string[]; refUrls: string[] } {
   return { treePaths: () => treePaths, refUrls };
 }
 
-describe("deploy plugin module contract (github-pages)", () => {
+describe("hosting plugin module contract (github-pages)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });

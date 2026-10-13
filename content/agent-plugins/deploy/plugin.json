@@ -12,7 +12,6 @@
       "id": "tovu/deploy",
       "provides": [
         "deploy-target:fly",
-        "deploy-target:github-pages",
         "deploy-target:s3-compatible",
         "deploy-config:railway",
         "deploy-config:render"
@@ -25,7 +24,6 @@
     "hosting",
     "static-site",
     "static-export",
-    "github-pages",
     "go-live",
     "website",
     "fly",
@@ -37,7 +35,6 @@
     "secrets",
     "readyz",
     "deploy-target:fly",
-    "deploy-target:github-pages",
     "deploy-target:s3-compatible",
     "deploy-config:railway",
     "deploy-config:render"
