@@ -1,6 +1,7 @@
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
- * `deploy` and each hosting plugin split out of it (2026-10-12: `vercel`, `netlify`, `cloudflare-pages`, `github-pages`, `s3-compatible`) host the publish targets
+ * `deploy` and each hosting plugin split out of it (2026-10-12: `vercel`, `netlify`,
+ * `cloudflare-pages`, `github-pages`, `s3-compatible`) host the publish targets
  * (`features/deployments/deploy-targets/`): with them off, publishing a site would stop working.
  * Owner rule: a user should never have to fix anything by hand, so they are on from the first boot,
  * and an existing site's untouched disabled seed record is switched on too (`activation.ts`'s
