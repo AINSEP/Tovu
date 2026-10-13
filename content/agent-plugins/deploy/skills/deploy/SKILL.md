@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - S3-compatible storage; Vercel, Netlify, Cloudflare Pages and GitHub Pages are their own plugins. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content.
+description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Every host is its own plugin - Vercel, Netlify, Cloudflare Pages, GitHub Pages, S3-compatible storage. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content.
 ---
 
 # Deploy the site to a host
@@ -11,10 +11,8 @@ This plugin owns **publishing the site's static export to a hosting service**. T
 site to plain files, and the chosen host serves them. The host code ships inside this plugin; Tovu runs
 it only because Tovu shipped it.
 
-Hosts this plugin runs today: **S3-compatible storage** (AWS S3, Cloudflare R2, Backblaze B2, MinIO,
-...), whose bucket and keys all live on the saved credential. **Vercel**, **Netlify**, **Cloudflare
-Pages** and **GitHub Pages** are their own plugins, `vercel`, `netlify`, `cloudflare-pages` and
-`github-pages`. The tools below work the same for every host.
+Every host is its own plugin: **Vercel** (`vercel`), **Netlify** (`netlify`), **Cloudflare Pages**
+(`cloudflare-pages`), **GitHub Pages** (`github-pages`) and **S3-compatible storage** (`s3-compatible`). The tools below work the same for every host.
 
 ## The procedure
 

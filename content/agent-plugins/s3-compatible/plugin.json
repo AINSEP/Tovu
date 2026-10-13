@@ -1,0 +1,34 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "s3-compatible",
+  "version": "0.1.0",
+  "description": "Publishes the site's static export to S3-compatible object storage (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, MinIO, ...) with the workspace's own saved access key. Ships the host code itself (Tovu loads it only because Tovu shipped it) and the know-how an agent needs: what to set up in the bucket first, which credential fields go where, and what each failure means in plain words.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "S3",
+      "summary": "Puts your website online in your own storage bucket, such as Amazon S3, Cloudflare R2 or Backblaze B2, using an access key you have saved. The assistant shows you a preview first.\n\nIf something goes wrong, it tells you what happened in plain words and what to do next.",
+      "id": "tovu/s3-compatible",
+      "provides": [
+        "deploy-target:s3-compatible"
+      ]
+    }
+  },
+  "keywords": [
+    "s3-compatible",
+    "s3",
+    "r2",
+    "b2",
+    "object-storage",
+    "bucket",
+    "deploy",
+    "publish",
+    "hosting",
+    "static-site",
+    "static-export",
+    "go-live",
+    "website",
+    "deploy-target:s3-compatible"
+  ]
+}

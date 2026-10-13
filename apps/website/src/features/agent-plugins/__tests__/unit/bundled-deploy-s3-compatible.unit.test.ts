@@ -12,8 +12,8 @@ import type { DeployHostKit, DeployTargetModule, HostDeployTarget } from "#src/f
 import { installNetworkGuard } from "../fixtures/vitest-compat.js";
 
 /**
- * @file The bundled `deploy` plugin's S3-compatible module
- * (`content/agent-plugins/deploy/targets/s3-compatible.mjs`).
+ * @file The bundled `s3-compatible` plugin's module
+ * (`content/agent-plugins/s3-compatible/targets/s3-compatible.mjs`).
  *
  * MOVED, not re-authored, from Tovu core's
  * `features/deployments/static-publish/__tests__/s3-compatible-target.unit.test.ts`: every case below
@@ -25,7 +25,7 @@ import { installNetworkGuard } from "../fixtures/vitest-compat.js";
 
 installNetworkGuard();
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/s3-compatible.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/s3-compatible/targets/s3-compatible.mjs");
 
 interface S3CompatibleBinding {
   S3CompatibleDeployTarget: new (config: typeof CONFIG & { endpoint?: string }) => HostDeployTarget;
@@ -1253,7 +1253,7 @@ test("publish: uploads at most 8 files concurrently (bounded worker pool), even 
   }
 });
 
-// ---- New: the deploy plugin module contract ----
+// ---- New: the hosting plugin module contract ----
 
 const CREDENTIAL = {
   token: CONFIG.secretAccessKey,

@@ -348,7 +348,7 @@ test("a supplied buildTarget (the target-construction test seam) still wins over
   assert.equal(result.ok, true);
 });
 
-const S3_COMPATIBLE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/s3-compatible.mjs");
+const S3_COMPATIBLE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/s3-compatible/targets/s3-compatible.mjs");
 
 for (const [id, modulePath] of [
   ["netlify", NETLIFY_MODULE_PATH],

@@ -1,6 +1,6 @@
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
- * `deploy` and each hosting plugin split out of it (2026-10-12: `vercel`, `netlify`, `cloudflare-pages`, `github-pages`) host the publish targets
+ * `deploy` and each hosting plugin split out of it (2026-10-12: `vercel`, `netlify`, `cloudflare-pages`, `github-pages`, `s3-compatible`) host the publish targets
  * (`features/deployments/deploy-targets/`): with them off, publishing a site would stop working.
  * Owner rule: a user should never have to fix anything by hand, so they are on from the first boot,
  * and an existing site's untouched disabled seed record is switched on too (`activation.ts`'s
@@ -18,7 +18,7 @@
  * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
  * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "vercel", "netlify", "cloudflare-pages", "github-pages", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin that absorbed it. `seed-bundled.ts` never seeds a

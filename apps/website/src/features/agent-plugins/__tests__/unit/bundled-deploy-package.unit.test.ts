@@ -37,7 +37,7 @@ const TARGETS: readonly { readonly id: string; readonly pluginId: string; readon
   { id: "vercel", pluginId: "vercel", label: "Vercel" },
   { id: "netlify", pluginId: "netlify", label: "Netlify" },
   { id: "cloudflare-pages", pluginId: "cloudflare-pages", label: "Cloudflare Pages" },
-  { id: "s3-compatible", pluginId: "deploy", label: "S3-compatible storage" },
+  { id: "s3-compatible", pluginId: "s3-compatible", label: "S3-compatible storage" },
 ];
 const HOST_PLUGINS = TARGETS.filter((target) => target.pluginId !== "deploy");
 
@@ -75,12 +75,14 @@ test("each plugin's target ids are the legacy provider ids it owns (sealed crede
   }
 });
 
-test("the package packs through the real packer with its descriptor and modules", async () => {
+test("the package packs through the real packer, and ships no publish target of its own any more", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
-  const modules = TARGETS.filter((target) => target.pluginId === "deploy").map((target) => `targets/${target.id}.mjs`);
-  for (const file of ["plugin.json", "mcp.json", DEPLOY_TARGETS_FILENAME, ...modules, "skills/deploy/SKILL.md"]) {
+  for (const file of ["plugin.json", "mcp.json", "skills/deploy/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
+  // Every host is its own plugin (2026-10-12); a leftover entry here would drop that host for everyone.
+  assert.equal(packed.files.includes(DEPLOY_TARGETS_FILENAME), false);
+  assert.deepEqual(packed.files.filter((file) => file.startsWith("targets/")), []);
 });
 
 for (const host of HOST_PLUGINS) {
