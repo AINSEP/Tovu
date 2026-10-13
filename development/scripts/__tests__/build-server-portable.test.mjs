@@ -8,7 +8,7 @@ import { buildServer, stageServerRuntimeAssets } from '../build-server.mjs';
 test('asset-only refresh replaces stale plugin catalogs without invoking a compiler', () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), 'tovu-plugin-catalog-'));
   try {
-    for (const dir of ['templates', 'themes', 'agent-plugins', 'public']) mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
+    for (const dir of ['templates', 'themes', 'agent-plugins', 'plugins', 'public']) mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
     mkdirSync(path.join(repoRoot, 'apps/website/src/platform/db/drizzle'), { recursive: true });
     mkdirSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site'), { recursive: true });
     writeFileSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site/plugin.json'), 'retired');
@@ -17,7 +17,10 @@ test('asset-only refresh replaces stale plugin catalogs without invoking a compi
       writeFileSync(path.join(repoRoot, 'content/agent-plugins', id, 'plugin.json'), id);
       writeFileSync(path.join(repoRoot, 'content/agent-plugins', id, 'skills', id, 'SKILL.md'), `# ${id}`);
     }
+    mkdirSync(path.join(repoRoot, 'content/plugins/charts-recharts/0.1.0/client'), { recursive: true });
+    writeFileSync(path.join(repoRoot, 'content/plugins/charts-recharts/0.1.0/client/provider.js'), 'reviewed provider');
     stageServerRuntimeAssets({ repoRoot });
+    assert.equal(readFileSync(path.join(repoRoot, 'dist/content/plugins/charts-recharts/0.1.0/client/provider.js'), 'utf8'), 'reviewed provider');
     assert.equal(existsSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site')), false);
     for (const id of ['site-import', 'tovu-theme', 'how-tovu-works']) {
       assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins', id, 'plugin.json'), 'utf8'), id);
@@ -29,7 +32,7 @@ test('asset-only refresh replaces stale plugin catalogs without invoking a compi
 test('portable build clears stale sources, runs compilers in order, and copies hidden content files', () => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), 'tovu-build-server-'));
   try {
-    for (const dir of ['templates', 'themes', 'agent-plugins', 'public']) {
+    for (const dir of ['templates', 'themes', 'agent-plugins', 'plugins', 'public']) {
       mkdirSync(path.join(repoRoot, 'content', dir), { recursive: true });
       writeFileSync(path.join(repoRoot, 'content', dir, '.asset'), dir);
     }
@@ -51,7 +54,7 @@ test('portable build clears stale sources, runs compilers in order, and copies h
       ['/fake/tsc', '-p', 'tsconfig.json'],
       [path.join(repoRoot, 'development/scripts/emit-dist-package-json.mjs')],
     ]);
-    for (const dir of ['templates', 'themes', 'agent-plugins', 'public']) {
+    for (const dir of ['templates', 'themes', 'agent-plugins', 'plugins', 'public']) {
       assert.equal(readFileSync(path.join(repoRoot, 'dist/content', dir, '.asset'), 'utf8'), dir);
     }
     assert.equal(readFileSync(path.join(repoRoot, 'dist/src/platform/db/drizzle/fixture.sql'), 'utf8'), '-- fixture only');

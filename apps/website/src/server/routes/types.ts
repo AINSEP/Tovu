@@ -1039,6 +1039,10 @@ export interface WidgetsDeps {
  * not a content-model repo.
  */
 export interface PluginRuntimeDeps {
+  /** Admitted runtime chart assets; disable and quarantine retire the same loader generation. */
+  browserProviders?: (input: Record<string, never>, options?: Record<string, never>) => { generation: number; providers: readonly import("@jini-ai/plugins/host").AdmittedBrowserProvider[] };
+  /** Site settings and admitted metadata projected at the composition boundary. */
+  chartProviderSnapshot?: (input: Record<string, never>, options?: Record<string, never>) => Promise<import("#src/contracts/headless/chart-providers").AdminChartProviderSnapshot>;
   pluginContributions?: import("@jini-ai/plugins/host").PluginContributionRegistry;
   pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;

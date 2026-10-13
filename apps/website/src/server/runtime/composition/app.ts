@@ -198,6 +198,9 @@ import { TrashAwareInMemoryEntryRepo, type TrashableEntryRecord } from "#src/fea
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { readAdminChartProviderSnapshot } from "./chart-providers.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
+import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -405,7 +408,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     activationRepo: pluginActivationRepo,
     // content-analyzer (AW-7 Tier 2) is tier-2: compiled in, disabled until enabled, and its code
     // only ever runs in a fresh worker per call (`plugin-runtime.ts`'s tier-2 import seam).
-    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE],
+    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE, RECHARTS_RUNTIME_SOURCE],
+    browserProviderApprovals: [RECHARTS_BROWSER_APPROVAL],
+    bundledEnabledIds: [RECHARTS_RUNTIME_SOURCE.manifest.id],
     coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
     // AW-7 Tier 1: plugins' declared content types go through core's own `registerContentType`.
     // Deferred: `contentTypeRepo`/`outbox` are declared further down, and enable never runs during
@@ -516,6 +521,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
@@ -1457,10 +1463,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     pluginSource: pluginRuntime.pluginSource,
     pluginSourcePolicy: pluginRuntime.pluginSourcePolicy,
     pluginLoadedVersion: pluginRuntime.pluginLoadedVersion,
+    browserProviders: pluginRuntime.browserProviders,
+    chartProviderSnapshot: () => readAdminChartProviderSnapshot({ workspaceId: seededWorkspace.id, settingsRepo, browserProviders: pluginRuntime.browserProviders }),
     pluginContributions: pluginRuntime.pluginContributions,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
-    // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
-    // mirrors `commentsReady`'s identical hermetic-vs-real split.
+    // Assigned after pluginHost exists: first-boot chart defaults use the same activation loader.
     pluginRuntimeReady: Promise.resolve(),
     // Task 6 of the publish-content (Publish Content) feature — hermetic double for
     // `server/runtime/composition/deps.ts`'s real `SqlitePublishContentBundleRepo`. Hoisted above
@@ -1595,6 +1602,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
+  routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
   return routeDeps;
 }
 

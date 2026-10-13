@@ -202,6 +202,9 @@ import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
+import { readAdminChartProviderSnapshot } from "./chart-providers.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
+import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -1140,7 +1143,9 @@ async function composeSiteRouteDeps(
     activationRepo: pluginActivationRepo,
     // content-analyzer (AW-7 Tier 2) is tier-2: compiled in, disabled until enabled, and its code
     // only ever runs in a fresh worker per call (`plugin-runtime.ts`'s tier-2 import seam).
-    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE],
+    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE, RECHARTS_RUNTIME_SOURCE],
+    browserProviderApprovals: [RECHARTS_BROWSER_APPROVAL],
+    bundledEnabledIds: [RECHARTS_RUNTIME_SOURCE.manifest.id],
     // Reachability fix: previously omitted entirely, so `discoverPlugins()` only ever scanned the
     // compiled-in built-in registry — a plugin placed on disk (REQ-02's install layout) was
     // invisible to every real boot of this composition root, no matter how it got there.
@@ -1261,6 +1266,7 @@ async function composeSiteRouteDeps(
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
@@ -2429,6 +2435,8 @@ async function composeSiteRouteDeps(
     pluginSource: pluginRuntime.pluginSource,
     pluginSourcePolicy: pluginRuntime.pluginSourcePolicy,
     pluginLoadedVersion: pluginRuntime.pluginLoadedVersion,
+    browserProviders: pluginRuntime.browserProviders,
+    chartProviderSnapshot: () => readAdminChartProviderSnapshot({ workspaceId: workspaceId, settingsRepo, browserProviders: pluginRuntime.browserProviders }),
     pluginContributions: pluginRuntime.pluginContributions,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // Replaced after the host exists, before these dependencies leave composition.

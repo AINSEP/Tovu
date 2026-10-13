@@ -11,6 +11,7 @@ export type {
 } from "./contracts.js";
 
 export { deriveContentConversationTitle } from "./content-chat-title.js";
+export type { AdminChartProviderSnapshot } from "./chart-providers.js";
 
 export { directPageAction, TOOL_APPROVAL_POLICY } from "./assistant-tool-approval-policy.js";
 export * from "./assistant-permanent-deletes-policy.js";

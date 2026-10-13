@@ -1,0 +1,40 @@
+/** Chart plan step 5: real authenticated bootstrap, exact retained assets and workspace isolation. */
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createHash } from "node:crypto";
+import express from "express";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import type { AdminChartProviderSnapshot } from "#src/contracts/headless/chart-providers";
+import { registerChartProviderRoutes } from "../../chart-providers.js";
+
+test("step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs", async (t) => {
+  const deps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  app.use("/api/admin", requireAdminSession(deps));
+  registerChartProviderRoutes({ app, deps });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `/api/admin/v1/workspaces/${deps.workspaceId}/chart-providers`;
+  const response = await fetch(baseUrl + base, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  const { data } = await response.json() as { data: AdminChartProviderSnapshot };
+  assert.equal(data.siteProvider, "plugin.recharts");
+  assert.equal(data.providers[0]?.id, "plugin.recharts");
+  const javascript = data.providers[0]!.javascript;
+  const asset = await fetch(baseUrl + javascript, { headers: { cookie } });
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get("content-type")?.split(";")[0], "text/javascript");
+  const digest = `sha256-${createHash("sha256").update(Buffer.from(await asset.arrayBuffer())).digest("hex")}`;
+  assert.ok(javascript.includes(digest));
+  assert.equal((await fetch(baseUrl + javascript.replace(digest, "sha256-invalid"), { headers: { cookie } })).status, 404);
+  assert.equal((await fetch(baseUrl + base.replace(deps.workspaceId, "foreign"), { headers: { cookie } })).status, 404);
+  assert.equal((await fetch(baseUrl + javascript)).status, 401);
+  deps.onPluginDisabled("charts-recharts");
+  const disabled = await (await fetch(baseUrl + base, { headers: { cookie } })).json() as { data: AdminChartProviderSnapshot };
+  assert.deepEqual(disabled.data.providers, []);
+  assert.notEqual(disabled.data.generation, data.generation);
+  assert.equal((await fetch(baseUrl + javascript, { headers: { cookie } })).status, 404);
+});

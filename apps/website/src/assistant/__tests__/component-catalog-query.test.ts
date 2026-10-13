@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildComponentCatalogQuery } from "../component-catalog-query.js";
+import { buildComponentCatalogQuery, chartCatalogManifests } from "../component-catalog-query.js";
 
 /**
  * @file Tests this module's own wiring — scoring/ranking over `ALL_MANIFESTS` and converting a
@@ -15,6 +15,25 @@ test("search finds the data-table providers by a capability-term match", () => {
   const hits = catalog.search({ query: "data table" }).map((hit) => hit.id);
   assert.ok(hits.includes("native.data-table"));
   assert.ok(hits.includes("shadcn.data-table"));
+});
+
+test("step 5: live catalog preserves wire IDs and resolves each specific capability, then falls back after disable", () => {
+  let manifests = chartCatalogManifests({ snapshot: { generation: "1", siteProvider: "plugin.recharts", providers: [
+    { id: "plugin.pie", kinds: ["pie"], javascript: "/pie.js" },
+    { id: "plugin.recharts", kinds: ["bar", "line", "pie"], javascript: "/recharts.js" },
+  ] } });
+  const catalog = buildComponentCatalogQuery({ getManifests: () => manifests });
+  assert.equal(catalog.describe({ id: "recharts.bar-chart" })?.provider, "plugin.recharts");
+  assert.equal(catalog.describe({ id: "recharts.line-chart" })?.provider, "plugin.recharts");
+  // The site default wins over registration order for every kind it declares.
+  assert.equal(catalog.describe({ id: "recharts.pie-chart" })?.provider, "plugin.recharts");
+  assert.ok(catalog.search({ query: "bar chart" }).some(({ id }) => id === "recharts.bar-chart"));
+  manifests = chartCatalogManifests({ snapshot: { generation: "2", siteProvider: "plugin.recharts", providers: [
+    { id: "plugin.pie", kinds: ["pie"], javascript: "/pie.js" },
+  ] } });
+  assert.equal(catalog.describe({ id: "recharts.pie-chart" })?.provider, "plugin.pie");
+  manifests = chartCatalogManifests({ snapshot: { generation: "3", siteProvider: "plugin.recharts", providers: [] } });
+  for (const kind of ["bar", "line", "pie"]) assert.equal(catalog.describe({ id: `recharts.${kind}-chart` })?.provider, "core.table");
 });
 
 test("search returns an empty array, not an error, for no matches", () => {

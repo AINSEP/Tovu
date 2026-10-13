@@ -1,3 +1,4 @@
+import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
@@ -156,6 +157,7 @@ import {
   parseRunStartContextRef,
   buildPageContextPromptBlock,
   buildComponentCatalogQuery,
+  chartCatalogManifests,
   buildToolCatalogQuery,
   listToolCatalogEntries,
   constrainPrincipalToReadOnlyTools,
@@ -1606,7 +1608,24 @@ async function start(): Promise<void> {
   // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
   // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from
   // the start rather than adding it later. See `component-catalog-query.ts`.
-  registerComponentCatalogRoutes({ app, deps: { catalog: buildComponentCatalogQuery() }, adapter });
+  // Admin's chart snapshot also decides which provider each legacy chart alias reports here.
+  // ComponentCatalogQuery is synchronous, so the transport refreshes site settings before dispatch.
+  let componentManifests = ALL_MANIFESTS;
+  let componentGeneration = "core";
+  app.use("/api/components", async (_req, res, next) => {
+    try {
+      await Promise.all([routeDeps.pluginRuntimeReady, routeDeps.siteTitleReady]);
+      const snapshot = await routeDeps.chartProviderSnapshot?.({});
+      if (snapshot && snapshot.generation !== componentGeneration) {
+        componentManifests = chartCatalogManifests({ snapshot });
+        componentGeneration = snapshot.generation;
+      }
+      next();
+    } catch {
+      res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" });
+    }
+  });
+  registerComponentCatalogRoutes({ app, deps: { catalog: buildComponentCatalogQuery({ getManifests: () => componentManifests }) }, adapter });
 
   // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
   // process on construction — see its own doc), so it cannot be a module-scope `const` the way

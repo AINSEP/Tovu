@@ -1,5 +1,7 @@
 import type { ComponentCatalogEntry, ComponentCatalogQuery, ComponentCatalogSearchHit } from "@jini-ai/daemon/http";
 import { ALL_MANIFESTS, type InteractiveComponentManifest } from "@jini-ai/ui/interactive-ui/manifests";
+import { chartProvidersByKind, createChartProviderRegistry } from "@jini-ai/ui/charts";
+import type { AdminChartProviderSnapshot } from "#src/contracts/headless/chart-providers";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 /**
@@ -10,10 +12,13 @@ import { zodToJsonSchema } from "zod-to-json-schema";
  *
  * **In-memory, not SQLite, and no reseed step.** `tool-catalog-query.ts` seeds an FTS5 index from
  * `registry.list()` because tools are runtime-registered (federated MCP tools, domain plugins —
- * the set changes per boot and per workspace). `ALL_MANIFESTS` is static, built-in, compile-time
- * data shipped inside `@jini-ai/ui` — there is nothing to reseed, and a handful of manifests today
- * doesn't warrant a database for substring matching. Revisit this if the catalog ever grows large
- * enough, or dynamic enough, for FTS5 to actually earn its cost — it does not today.
+ * the set changes per boot and per workspace). Component manifests are a handful of entries shipped
+ * inside `@jini-ai/ui` — a handful of manifests today doesn't warrant a database for substring
+ * matching. Revisit this if the catalog ever grows large enough for FTS5 to actually earn its cost.
+ *
+ * The host may supply the current admitted registry's entries. Each query reads that snapshot,
+ * so disabling a provider or changing the site default cannot leave a stale catalog behind.
+ * `ALL_MANIFESTS` remains the compatibility default for hosts without a chart snapshot.
  *
  * `propsSchema` is `unknown` on the wire (`ComponentCatalogEntry`'s own type) precisely so
  * `@jini-ai/http-kit` never has to depend on `zod` — this file is the one place a manifest's live
@@ -56,24 +61,52 @@ function toEntry(manifest: InteractiveComponentManifest): ComponentCatalogEntry 
 }
 
 /**
- * Builds a `ComponentCatalogQuery` over `ALL_MANIFESTS` — a fresh scored ranking per call (cheap:
+ * The admin's live chart aliases without React: the same wire IDs and schemas, each reporting the
+ * provider Jini's headless `chartProvidersByKind` picks (what admin renders), or `core.table`.
+ * The server cannot import `@jini-ai/ui/charts/react` or `@jini-ai/ui/interactive-ui` — both pull
+ * React and its UI peers, which the website's production install does not carry.
+ * @complexity O(m + p) per snapshot (m manifests, p admitted providers); callers cache by generation.
+ * @example chartCatalogManifests({ snapshot });
+ */
+export function chartCatalogManifests(
+  { snapshot }: { snapshot: AdminChartProviderSnapshot },
+  _options: Record<string, never> = {},
+): readonly InteractiveComponentManifest[] {
+  const registry = createChartProviderRegistry({ providers: snapshot.providers.map(({ id, kinds }) => ({
+    id, kinds, enabled: true, load: () => Promise.reject(new Error("chart providers load in the browser only")),
+  })) });
+  return ALL_MANIFESTS.map((manifest) => {
+    const capability = manifest.capabilities.includes("chart") ? manifest.capabilities.find((c) => c.endsWith("-chart")) : undefined;
+    if (!capability) return manifest;
+    const [selected] = chartProvidersByKind({ registry, kind: capability.slice(0, -"-chart".length) }, { siteProvider: snapshot.siteProvider });
+    return selected ? { ...manifest, provider: selected.id } : manifest;
+  });
+}
+
+/**
+ * Builds a `ComponentCatalogQuery` over the host's current manifests — a fresh ranking per call (cheap:
  * a handful of manifests, plain string matching), not a precomputed index.
  *
  * @complexity O(m) per `search` call (m = manifest count, ~single digits today); O(m) per
  * `describe` call for the linear lookup — a `Map` isn't worth the extra state at this size.
+ * The optional first object preserves existing nullary callers; live hosts inject their snapshot.
+ * @example buildComponentCatalogQuery({ getManifests: () => registry.list() });
  */
-export function buildComponentCatalogQuery(): ComponentCatalogQuery {
+export function buildComponentCatalogQuery(
+  { getManifests = () => ALL_MANIFESTS }: { getManifests?: () => readonly InteractiveComponentManifest[] } = {},
+  _options: Record<string, never> = {},
+): ComponentCatalogQuery {
   return {
     search({ query }, { limit = 10 } = {}) {
       const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-      return ALL_MANIFESTS.map((manifest) => ({ manifest, score: scoreManifest(manifest, terms) }))
+      return getManifests().map((manifest) => ({ manifest, score: scoreManifest(manifest, terms) }))
         .filter(({ score }) => score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
         .map(({ manifest, score }) => toSearchHit(manifest, score));
     },
     describe({ id }) {
-      const manifest = ALL_MANIFESTS.find((candidate) => candidate.id === id);
+      const manifest = getManifests().find((candidate) => candidate.id === id);
       return manifest ? toEntry(manifest) : null;
     },
   };

@@ -35,7 +35,7 @@ export function stageServerRuntimeAssets({ repoRoot }, _options = {}) {
   for (const relative of ['dist/content', 'dist/src/platform/db/drizzle', 'dist/src/platform/db/drizzle-database-journal']) {
     rmSync(path.join(repoRoot, relative), { recursive: true, force: true });
   }
-  for (const relative of ['content/templates', 'content/themes', 'content/agent-plugins', 'content/public', 'src/platform/db/drizzle']) {
+  for (const relative of ['content/templates', 'content/themes', 'content/agent-plugins', 'content/plugins', 'content/public', 'src/platform/db/drizzle']) {
     const source = relative.startsWith('src/') ? path.join(repoRoot, 'apps/website', relative) : path.join(repoRoot, relative);
     const destination = path.join(repoRoot, 'dist', relative);
     mkdirSync(destination, { recursive: true });

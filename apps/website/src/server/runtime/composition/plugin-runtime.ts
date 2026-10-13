@@ -3,7 +3,7 @@ import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBin
 import { lstat } from "node:fs/promises";
 import path from "node:path";
 import { assertPluginInstallIdle, createPluginSourceService, installSitePlugin, previewSitePluginInstall, pruneSitePluginVersions, type PluginInstallerPort, type PluginSourcePort } from "@jini-ai/plugins/host/node";
-import { addedPluginCapabilities, createPluginContributionCapture, createPluginContributionRegistry, pluginCapabilitySet, type PluginContributionRegistry, type PluginSdk, setPluginEnabled, type PluginSourcePolicyPort } from '@jini-ai/plugins/host';
+import { addedPluginCapabilities, createPluginContributionCapture, createPluginContributionRegistry, initializeBundledPlugins, pluginCapabilitySet, type AdmittedBrowserProvider, type BundledBrowserProviderApproval, type PluginContributionRegistry, type PluginSdk, setPluginEnabled, type PluginSourcePolicyPort } from '@jini-ai/plugins/host';
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
@@ -158,6 +158,9 @@ function resolvePackageLocation(params: {
 }
 
 export interface ComposePluginRuntimeRequired {
+  /** Review pins and first-boot defaults supplied only by the product composition roots. */
+  readonly browserProviderApprovals?: readonly BundledBrowserProviderApproval[];
+  readonly bundledEnabledIds?: readonly string[];
   readonly pluginSourcePolicy?: PluginSourcePolicyPort;
   readonly getPluginHost?: () => import("#src/contracts/headless/plugin-host").PluginHostPort | undefined;
   readonly workspaceId: string;
@@ -186,6 +189,8 @@ export interface ComposePluginRuntimeRequired {
 }
 
 export interface PluginRuntimeBindings {
+  /** Successfully attached, admitted providers only; disable/quarantine retires their assets. */
+  readonly browserProviders: (input: Record<string, never>, options?: Record<string, never>) => { generation: number; providers: readonly AdmittedBrowserProvider[] };
   readonly pluginSource?: PluginSourcePort;
   readonly pluginSourcePolicy: PluginSourcePolicyPort;
   /** Actual loaded snapshot revision, used by the existing cross-process activation poll. */
@@ -237,6 +242,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   const { activationRepo, clock, sources, installDir } = required;
   const pluginSourcePolicy = required.pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env });
   const loadedVersions = new Map<string, string>();
+  const browserProviders = new Map<string, readonly AdmittedBrowserProvider[]>();
+  let browserGeneration = 0;
   const pluginContributions = createPluginContributionRegistry({});
   const loadEpochs = new Map<string, number>();
   const tier2CallRunner = required.tier2CallRunner ?? createTier2WorkerRunner({});
@@ -350,6 +357,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         });
     const result = await loadPlugin(
       { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter,
+        browserProviderApprovals: required.browserProviderApprovals ?? [],
         pluginSdkBinding: { ...pluginHostBinding.pluginSdkBinding,
           buildSdk: ({ sdk }) => {
             const host = required.getPluginHost?.();
@@ -375,6 +383,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     }
     if (filter === null) {
       pluginContributions.replace({ contributions });
+      retainBrowserProviders({ pluginId, providers: result.browserProviders ?? [] });
       hookRegistry.detach({ pluginId });
       loadedVersions.set(pluginId, record.version);
       return;
@@ -389,6 +398,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         declaredFields: manifest.fields,
       });
       pluginContributions.replace({ contributions });
+      retainBrowserProviders({ pluginId, providers: result.browserProviders ?? [] });
       loadedVersions.set(pluginId, record.version);
     } catch (error) {
       hookRegistry.detach({ pluginId });
@@ -396,7 +406,17 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     }
   }
 
+  /** Publish admission only after successful attachment; no partial setup can leak assets.
+   * @complexity O(1) map replacement; Jini already owns the immutable asset bytes.
+   */
+  function retainBrowserProviders({ pluginId, providers }: { pluginId: string; providers: readonly AdmittedBrowserProvider[] }): void {
+    if (providers.length === 0 && !browserProviders.has(pluginId)) return;
+    browserProviders.set(pluginId, providers);
+    browserGeneration++;
+  }
+
   function onPluginDisabled(pluginId: string): void {
+    if (browserProviders.delete(pluginId)) browserGeneration++;
     loadEpochs.set(pluginId, (loadEpochs.get(pluginId) ?? 0) + 1);
     pluginContributions.detach({ pluginId });
     hookRegistry.detach({ pluginId });
@@ -415,6 +435,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       if (!enabledIds.has(pluginId)) continue;
       const reason = describeBootConflictQuarantine({ conflicts: pluginConflicts });
       await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId, workspaceId: required.workspaceId, consecutiveFailures: 0, reason } });
+      onPluginDisabled(pluginId);
       // eslint-disable-next-line no-console
       console.warn(`[plugin-runtime] '${pluginId}' quarantined at boot: ${reason}`);
       quarantined.add(pluginId);
@@ -423,6 +444,15 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   }
 
   async function attachEnabledPluginsAtBoot(): Promise<void> {
+    // Serialize first-boot defaults with boot attachment. Existing disabled/quarantined rows win.
+    const initialized = await initializeBundledPlugins({
+      deps: { clock, repo: activationRepo, discovery: required.bundledEnabledIds?.length ? await discoverPlugins().catch((error: unknown) => {
+        console.warn("[plugin-runtime] bundled discovery failed; chart providers remain unavailable", error);
+        return [];
+      }) : [], onEnabled: onPluginEnabled, onDisabled: onPluginDisabled },
+      input: { workspaceId: required.workspaceId, pluginIds: required.bundledEnabledIds ?? [] },
+    });
+    for (const failure of initialized.failed) console.warn(`[plugin-runtime] bundled initialization failed for '${failure.pluginId}'`, failure.error);
     const records = await activationRepo.listAll();
     const enabledHere = records.filter(
       (record) => record.workspaceId === required.workspaceId && record.enabled
@@ -442,10 +472,12 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       // own discovery read here anyway). Logged, not thrown — same isolation as a per-plugin failure.
       // eslint-disable-next-line no-console
       console.warn(`[plugin-runtime] boot conflict check failed, no plugin attached: ${error instanceof Error ? error.message : String(error)}`);
+      for (const record of enabledHere) onPluginDisabled(record.pluginId);
       return;
     }
     for (const record of enabledHere) {
       if (quarantined.has(record.pluginId)) continue;
+      if (initialized.enabled.includes(record.pluginId)) continue; // The initializer already attached it.
       try {
         if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
         const discovered = discovery.find((candidate) => candidate.id === record.pluginId);
@@ -566,6 +598,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   });
 
   return {
+    browserProviders: () => ({ generation: browserGeneration, providers: [...browserProviders.values()].flat() }),
     ...(pluginInstaller === undefined ? {} : { pluginInstaller }),
     ...(pluginSource === undefined ? {} : { pluginSource }),
     pluginSourcePolicy,

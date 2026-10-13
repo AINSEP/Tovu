@@ -1,4 +1,5 @@
 import { registerPluginsListRoute } from "#src/server/inbound/admin-http/routes/plugins/list";
+import { registerChartProviderRoutes } from "#src/server/inbound/admin-http/routes/plugins/chart-providers";
 import { registerPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/plugins/set-enabled";
 import { registerPluginFilesRoute } from "#src/server/inbound/admin-http/routes/plugins/files";
 import { registerPluginPreviewRoute } from "#src/server/inbound/admin-http/routes/plugins/preview";
@@ -30,6 +31,7 @@ export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
     name: "plugins",
     registerRoutes: (app) => {
+      registerChartProviderRoutes({ app, deps });
       registerPluginsListRoute(app, deps);
       registerPluginSetEnabledRoute(app, deps);
       registerPluginUninstallRoute(app, deps);
