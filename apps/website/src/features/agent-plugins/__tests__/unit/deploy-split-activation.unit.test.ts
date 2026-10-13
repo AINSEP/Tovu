@@ -71,3 +71,75 @@ test("a host that already has a record keeps it, and a second run writes nothing
     assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), after);
   });
 });
+
+test("Phase B carries a post-Phase-A deploy off only to missing server successors", async () => {
+  await withWorkspaceRoot(async workspaceRoot => {
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "operator" }, { origin: "bundled" });
+    for (const pluginId of ["vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible"]) {
+      await setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: DEPLOY_SPLIT_ACTOR }, { origin: "bundled" });
+    }
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "fly", enabled: true, actor: "operator" }, { origin: "bundled" });
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "railway", enabled: false, actor: "operator" }, { origin: "bundled" });
+    const before = await readAgentPluginActivations({ workspaceRoot });
+    assert.deepEqual(await carry(workspaceRoot), ["render"]);
+    const after = await readAgentPluginActivations({ workspaceRoot });
+    for (const [pluginId, record] of Object.entries(before.plugins)) assert.deepEqual(after.plugins[pluginId], record);
+    assert.deepEqual(await carry(workspaceRoot), []);
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), after);
+  });
+});
+
+test("unreadable activation state refuses carry and seeding without writing successor decisions", async () => {
+  const { writeFile, readFile } = await import("node:fs/promises");
+  const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
+  const { resolveAgentPluginLayout } = await import("../../layout.js");
+  await withWorkspaceRoot(async root => {
+    const layout = resolveAgentPluginLayout({ siteDir: root, env: {} });
+    const workspaceRoot = layout.forWorkspace("ws").root;
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(workspaceRoot, { recursive: true });
+    const file = path.join(workspaceRoot, "activations.json");
+    await writeFile(file, "{");
+    await assert.rejects(carry(workspaceRoot));
+    assert.equal(await readFile(file, "utf8"), "{");
+    const seeded = await createTovuAgentPluginLifecycle({ layout }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot: path.resolve("content/agent-plugins") });
+    assert.ok(seeded.outcomes.length > 0);
+    assert.equal(seeded.outcomes.every(outcome => outcome.status === "failed"), true);
+    assert.deepEqual(seeded.retirements, []);
+    assert.equal(await readFile(file, "utf8"), "{");
+  });
+});
+
+for (const malformedId of ["deploy", "render"]) {
+  test(`unreadable ${malformedId} record refuses the whole carry before any successor write`, async () => {
+    const { writeFile, readFile } = await import("node:fs/promises");
+    await withWorkspaceRoot(async workspaceRoot => {
+      await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "operator" }, { origin: "bundled" });
+      const file = path.join(workspaceRoot, "activations.json");
+      const value = JSON.parse(await readFile(file, "utf8"));
+      value.plugins[malformedId] = { origin: "bundled", enabled: "unreadable" };
+      const bytes = JSON.stringify(value);
+      await writeFile(file, bytes);
+      await assert.rejects(carry(workspaceRoot));
+      assert.equal(await readFile(file, "utf8"), bytes);
+    });
+  });
+}
+
+test("carry retry preserves decisions already written before an activation writer failure", async () => {
+  await withWorkspaceRoot(async workspaceRoot => {
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "operator" }, { origin: "bundled" });
+    const activations = { ...agentPluginActivations, setAgentPluginActivation: async (...args: Parameters<typeof setAgentPluginActivation>) => {
+      if (args[0].pluginId === "render") throw new Error("fixture write failure");
+      return setAgentPluginActivation(...args);
+    } };
+    await assert.rejects(carryDeployDisabled({ workspaceRoot, activations }), { message: "fixture write failure" });
+    const beforeRetry = await readAgentPluginActivations({ workspaceRoot });
+    assert.equal(beforeRetry.plugins.fly?.enabled, false);
+    assert.equal(beforeRetry.plugins.render, undefined);
+    assert.deepEqual(await carry(workspaceRoot), ["render", "railway"]);
+    const after = await readAgentPluginActivations({ workspaceRoot });
+    for (const [pluginId, record] of Object.entries(beforeRetry.plugins)) assert.deepEqual(after.plugins[pluginId], record);
+    assert.deepEqual(await carry(workspaceRoot), []);
+  });
+});
