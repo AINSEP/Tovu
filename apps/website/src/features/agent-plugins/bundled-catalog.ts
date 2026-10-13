@@ -1,14 +1,15 @@
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
- * `deploy` and each hosting plugin split out of it (2026-10-12: `vercel`, `netlify`,
- * `cloudflare-pages`, `github-pages`, `s3-compatible`) host the publish targets
+ * Each hosting plugin split out of `deploy` (2026-10-12: `vercel`, `netlify`,
+ * `cloudflare-pages`, `github-pages`, `s3-compatible`) hosts the publish targets
  * (`features/deployments/deploy-targets/`): with them off, publishing a site would stop working.
  * Owner rule: a user should never have to fix anything by hand, so they are on from the first boot,
  * and an existing site's untouched disabled seed record is switched on too (`activation.ts`'s
  * `recordBundledAgentPluginIfAbsent`). An operator can still turn one off, and that decision survives
  * every later boot; an operator who had turned `deploy` off keeps the split-out hosts off too
  * (`deploy-split-activation.ts`). Phase B extends that carry to Fly, Render and Railway; GitHub
- * Actions deploys moved into `github` and follow its switch (owner, 2026-10-12).
+ * Actions deploys moved into `github` and follow its switch (owner, 2026-10-12). `deploy` itself is
+ * retired (Phase B7, `RETIRED_BUNDLED_AGENT_PLUGINS` below) and no longer seeded.
  * `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
  * moved out of core 2026-09-29: with it off, a site that saved that provider's key would silently
  * stop sending mail. `github` hosts the only git-host provider (`features/source-control/provider-registry.ts`),
@@ -21,7 +22,7 @@
  * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
  * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
