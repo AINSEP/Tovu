@@ -16,7 +16,7 @@ import {
   type ToolPickerFilter,
   type VisibleToolRow,
 } from "./ExternalMcpToolPicker.hooks";
-import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
+import { displayToolDescription, isToolRowLocked, toolPickerFooterLocks, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-picker.hooks";
 
 /**
@@ -206,7 +206,8 @@ function ToolPickerToolbar(props: {
 }
 
 /** The one action area: the count and the restart note on the left, Cancel and Save on the right.
- *  Its own component for the same complexity-ceiling reason as {@link ToolPickerRowItem}; it also
+ *  Cancel closes the dialog (the draft lives in this component, so closing discards it); see
+ *  `toolPickerFooterLocks` for why only an in-flight save may disable it. Its own component for the same complexity-ceiling reason as {@link ToolPickerRowItem}; it also
  *  keeps the count — the one thing the owner asked to be legible without scrolling a 157-row list —
  *  outside the scroll container, pinned under it. */
 function ToolPickerFooter(props: {
@@ -218,9 +219,10 @@ function ToolPickerFooter(props: {
   t: Translate;
   tUi: ReturnType<typeof useT>;
   onSave: () => void;
-  onReset: () => void;
+  onCancel: () => void;
 }) {
-  const { base, countLabel, zero, dirty, saving, t, tUi, onSave, onReset } = props;
+  const { base, countLabel, zero, dirty, saving, t, tUi, onSave, onCancel } = props;
+  const locks = toolPickerFooterLocks({ dirty, saving });
   return (
     <div className="external-mcp-tool-foot">
       <div className="external-mcp-tool-foot-text">
@@ -237,9 +239,9 @@ function ToolPickerFooter(props: {
         <button
           type="button"
           className="btn-secondary"
-          {...agentHandle({ handle: `${base}-reset` }, { role: "button", label: "Discard unsaved tool selection changes" })}
-          onClick={onReset}
-          disabled={!dirty || saving}
+          {...agentHandle({ handle: `${base}-cancel` }, { role: "button", label: "Close without saving this server's tool selection" })}
+          onClick={onCancel}
+          disabled={locks.cancelDisabled}
         >
           {tUi("Cancel")}
         </button>
@@ -248,7 +250,7 @@ function ToolPickerFooter(props: {
           className="external-mcp-tool-save"
           {...agentHandle({ handle: `${base}-save` }, { role: "button", label: "Save this server's tool selection" })}
           onClick={onSave}
-          disabled={!dirty || saving}
+          disabled={locks.saveDisabled}
         >
           {tUi("Save")}
         </button>
@@ -320,13 +322,15 @@ export interface ExternalMcpToolPickerProps {
   writeAllowedToolNames: string | undefined;
   saving: boolean;
   onSave: (fields: { allowedToolNames: string; writeAllowedToolNames: string }) => void;
+  /** The footer's Cancel — the host dialog's own close. */
+  onCancel: () => void;
   /** This server's card handle, from `resolveExternalMcpCardHandles` — the picker derives its own
    *  namespace from it so the two never collide. */
   cardHandle: string;
 }
 
 export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
-  const { serverId, active, connectionEnabled, allowedToolNames, writeAllowedToolNames, saving, onSave, cardHandle } = props;
+  const { serverId, active, connectionEnabled, allowedToolNames, writeAllowedToolNames, saving, onSave, onCancel, cardHandle } = props;
   const t = useExternalMcpDriftCopy();
   const tUi = useT();
   const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
@@ -373,7 +377,7 @@ export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
         t={t}
         tUi={tUi}
         onSave={() => onSave(picker.fieldValues())}
-        onReset={picker.reset}
+        onCancel={onCancel}
       />
     </section>
   );

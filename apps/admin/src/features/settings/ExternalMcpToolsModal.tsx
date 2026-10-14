@@ -107,6 +107,7 @@ export function ExternalMcpToolsModal({
             writeAllowedToolNames={writeAllowedToolNames}
             saving={saving}
             onSave={onSave}
+            onCancel={onClose}
             cardHandle={cardHandle}
           />
         </div>

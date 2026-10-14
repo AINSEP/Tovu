@@ -16,6 +16,7 @@ import {
   setToolRowEnabled,
   setToolRowMayWrite,
   toolPickerFieldValues,
+  toolPickerFooterLocks,
   type ToolPickerRow,
 } from "../external-mcp-tool-picker-rules";
 
@@ -437,5 +438,13 @@ describe("refreshToolRowDeclarations — a re-probe updates declarations without
     const draft = [row({ remoteName: "erase", enabled: true, destructiveDeclared: true })];
     const refreshed = refreshToolRowDeclarations(draft, [tool({ remoteName: "erase", destructiveDeclared: true })], "", "");
     expect(refreshed[0]!.enabled).toBe(true);
+  });
+});
+
+describe("toolPickerFooterLocks — Cancel is never held by a clean draft or a load", () => {
+  it("keeps Cancel enabled on a clean or dirty draft and holds both only while saving", () => {
+    expect(toolPickerFooterLocks({ dirty: false, saving: false })).toEqual({ cancelDisabled: false, saveDisabled: true });
+    expect(toolPickerFooterLocks({ dirty: true, saving: false })).toEqual({ cancelDisabled: false, saveDisabled: false });
+    expect(toolPickerFooterLocks({ dirty: true, saving: true })).toEqual({ cancelDisabled: true, saveDisabled: true });
   });
 });

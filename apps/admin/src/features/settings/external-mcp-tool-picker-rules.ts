@@ -383,3 +383,12 @@ function sameNames(names: readonly string[], saved: ReadonlySet<string>): boolea
   const draft = new Set(names);
   return draft.size === saved.size && [...draft].every((name) => saved.has(name));
 }
+
+/** Which footer buttons are unavailable. Save needs a real change and no save in flight. Cancel
+ *  closes the dialog, so neither a clean draft nor a probe/refresh in flight may hold it — an operator
+ *  must always be able to back out of a 10-second "Refreshing…" (owner, 2026-10-14; it used to be a
+ *  discard-edits button disabled until something changed, which read as a dead Cancel). Only an
+ *  in-flight SAVE holds it, the same `disabled={saving}` every other admin dialog's Cancel uses. */
+export function toolPickerFooterLocks(input: { dirty: boolean; saving: boolean }): { cancelDisabled: boolean; saveDisabled: boolean } {
+  return { cancelDisabled: input.saving, saveDisabled: !input.dirty || input.saving };
+}

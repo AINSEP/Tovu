@@ -249,10 +249,22 @@
 .external-mcp-tool-actions button {
   color: var(--primary-ink);
 }
+/* Same tie for a disabled Save: near-white `--primary-ink` on `button:disabled`'s grey fill left the
+   label unreadable. Use the app's disabled label colour. */
+.external-mcp-tool-actions button:disabled {
+  color: var(--muted);
+}
 /* Cancel uses the app's existing secondary variant — restated explicitly rather than left to that
    class's own definition, for the same legibility reason as the line above. */
 .external-mcp-tool-actions .btn-secondary {
   color: var(--fg-2);
+}
+/* ...but this (0,2,0) rule loads after `styles.css`'s `.btn-secondary:disabled` (also 0,2,0) and won,
+   so a disabled Cancel kept the enabled label colour and looked clickable (owner, 2026-10-14).
+   Restate the disabled look at higher specificity. */
+.external-mcp-tool-actions .btn-secondary:disabled {
+  color: var(--faint);
+  border-color: var(--border);
 }
 
 .external-mcp-tool-note {

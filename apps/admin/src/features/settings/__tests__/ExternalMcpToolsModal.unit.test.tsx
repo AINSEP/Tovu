@@ -10,7 +10,7 @@ import { ExternalMcpToolsModal } from "../ExternalMcpToolsModal";
 import type { ToolPickerRow } from "../external-mcp-tool-picker-rules";
 
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
-const pickerProps = { serverId: "atlas", active: true, connectionEnabled: true, allowedToolNames: "read, write", writeAllowedToolNames: "write", saving: false, onSave: vi.fn(), cardHandle: "atlas" };
+const pickerProps = { serverId: "atlas", active: true, connectionEnabled: true, allowedToolNames: "read, write", writeAllowedToolNames: "write", saving: false, onSave: vi.fn(), onCancel: vi.fn(), cardHandle: "atlas" };
 function tool(remoteName: string, overrides: Partial<AdminRemoteToolSurfaceEntry> = {}): AdminRemoteToolSurfaceEntry {
   return { remoteName, description: "", writeDeclared: false, destructiveDeclared: false, hintsAbsent: false, allowlisted: false, writeAllowed: false, admitted: false, refusalReason: null, ...overrides };
 }
@@ -145,30 +145,36 @@ it("shows each tool's own description, strips the model-facing warning, and pres
   expect(row("silent").querySelector(".external-mcp-tool-description")).toBeNull();
 });
 
-it("restores saved tool grants on Cancel and disables draft actions again without saving", async () => {
-  // Author Checklist F2.4/F4.5/F6.5: drive the real header's reset callback;
-  // reject wiring Cancel to a no-op or Save, or leaving an edited write grant behind.
-  stubProbe(async () => Response.json({ tools: [tool("read"), tool("write", { writeDeclared: true })] }));
+it("keeps Cancel enabled while the probe loads and after it, and closes without saving", async () => {
+  // Owner 2026-10-14: Cancel was a discard-edits button disabled on a clean draft, so it looked live
+  // but did nothing. Reject gating Cancel on dirty/loading/refreshing, or wiring it to Save.
+  const held = deferred<Response>();
+  stubProbe(() => held.promise);
   const user = userEvent.setup();
   const onSave = vi.fn();
-  render(<ExternalMcpToolPicker {...pickerProps} onSave={onSave} />, { wrapper });
-  await screen.findByRole("checkbox", { name: "write" });
-  const writer = screen.getByRole("checkbox", { name: "write" });
-  const writeGrant = within(writer.closest("li")!).getByRole("checkbox", { name: "Allow changes" });
-  expect(writer).toBeChecked();
-  expect(writeGrant).toBeChecked();
-  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-  await user.click(writer);
-  expect(writer).not.toBeChecked();
-  expect(writeGrant).not.toBeChecked();
-  expect(screen.getByText("1 of 2 tools enabled")).toBeInTheDocument();
+  const onCancel = vi.fn();
+  render(<ExternalMcpToolPicker {...pickerProps} onSave={onSave} onCancel={onCancel} />, { wrapper });
+  expect(screen.getByRole("button", { name: "Refreshing…" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(writer).toBeChecked();
-  expect(writeGrant).toBeChecked();
-  expect(screen.getByText("2 of 2 tools enabled")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  expect(onCancel).toHaveBeenCalledTimes(1);
+  await act(async () => { held.resolve(Response.json({ tools: [tool("read"), tool("write", { writeDeclared: true })] })); });
+  const writer = await screen.findByRole("checkbox", { name: "write" });
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  await user.click(writer);
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(onCancel).toHaveBeenCalledTimes(2);
   expect(onSave).not.toHaveBeenCalled();
+});
+
+it("closes the Tools modal from the footer Cancel", async () => {
+  stubProbe(async () => Response.json({ tools: [] }));
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  render(<ExternalMcpToolsModal {...pickerProps} name="Atlas" onClose={onClose} />, { wrapper });
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 it("locks a newly destructive tool on refresh while preserving an unrelated unsaved write grant", async () => {
