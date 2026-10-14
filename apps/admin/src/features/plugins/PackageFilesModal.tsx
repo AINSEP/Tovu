@@ -1,5 +1,5 @@
 import { RemixIcon } from "@jini-ai/ui";
-import { PreviewModalShell } from "@jini-ai/ui/renderers";
+import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
 

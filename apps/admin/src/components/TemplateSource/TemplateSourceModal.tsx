@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
 import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
-import { PreviewModalShell } from "@jini-ai/ui/renderers";
+import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 
 import type { ThemeTier } from "@/lib/api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
