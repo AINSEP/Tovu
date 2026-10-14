@@ -670,6 +670,10 @@ button { font: inherit; color: inherit; }
 .workspace__act--icon { display: grid; place-items: center; width: 28px; padding: 0; }
 .workspace__act--icon svg { width: 14px; height: 14px; }
 .workspace__act--icon[aria-pressed='true'] { border-color: var(--primary); color: var(--primary); }
+/* Back, forward and reload draw no frame, like every other back arrow in the app ("← Back",
+   "← All websites") and a browser's own history buttons; hover still lights the hit area (owner
+   2026-10-14). */
+.workspace__nav .workspace__act { border-color: transparent; background: transparent; }
 
 /* Positions the guest and its recovery overlay in the same box (see `SiteWorkspace` in
    App.tsx) — `min-height: 0` is load-bearing for the same reason `.workspace__frame` needed it
