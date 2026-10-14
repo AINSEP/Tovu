@@ -59,6 +59,21 @@ async function createFaq(request: APIRequestContext, title: string, answer: stri
 }
 
 test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
+  // Left installed, the sample shows up in later files' Plugins screenshots (`settings-locale`'s
+  // phone-plugins), so their baselines would depend on run order. Off first: an on plugin can't be removed.
+  test.afterAll(async ({ request }) => {
+    for (const id of ["testimonials-faq", "faq-clash"]) {
+      const state = await pluginState(request, id);
+      if (!state) continue;
+      if (state.enabled) {
+        const off = await request.patch(`${WS_API}/plugins/${id}`, { data: { enabled: false } });
+        expect(off.status(), await off.text()).toBeLessThan(300);
+      }
+      const removed = await request.delete(`${WS_API}/plugins/${id}`);
+      expect(removed.status(), await removed.text()).toBeLessThan(300);
+    }
+  });
+
   test("the install preview says no code runs, lists the content types, and installs switched off", { tag: ["@unrun"] }, async ({ page, request }) => {
     const dialog = await previewFolder(page, SAMPLE_DIR);
     await expect(dialog.getByRole("heading", { name: SAMPLE_NAME })).toBeVisible();

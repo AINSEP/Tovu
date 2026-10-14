@@ -463,7 +463,9 @@ async function capture(page: Page, filename: string): Promise<void> {
   // - .deployment-facts code: absolute filesystem paths vary with the isolated runtime directory.
   // - .site-key-fingerprint: per-runtime generated key fingerprint (never reveal the key).
   // - .site-key-status-note code: absolute per-runtime key-file path.
-  // No random entity IDs or avatars are displayed by the representative states.
+  // - [data-visual-random-id]: text under Observability > Queries holding a per-runtime UUID (the
+  //   chart-providers query key carries the signed-in principal's id since Recharts ships enabled).
+  // No other random entity IDs or avatars are displayed by the representative states.
   // Stable titles, slugs, nav icons, media thumbnails, menu rows, skill chips and popup are visible.
   await page.evaluate(() => {
     for (const table of document.querySelectorAll("#main-content table")) {
@@ -474,6 +476,12 @@ async function capture(page: Page, filename: string): Promise<void> {
         for (const row of table.querySelectorAll("tbody tr")) row.children[index]?.setAttribute("data-visual-timestamp", "");
       });
     }
+    const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    const scroll = document.querySelector(".observability-queries-scroll");
+    const walker = scroll && document.createTreeWalker(scroll, NodeFilter.SHOW_TEXT);
+    for (let node = walker?.nextNode(); node; node = walker!.nextNode()) {
+      if (uuid.test(node.textContent ?? "")) node.parentElement?.setAttribute("data-visual-random-id", "");
+    }
   });
   const masked = [
     page.locator("[data-visual-timestamp]"),
@@ -483,6 +491,7 @@ async function capture(page: Page, filename: string): Promise<void> {
     page.locator(".deployment-facts code"),
     page.locator(".site-key-fingerprint"),
     page.locator(".site-key-status-note code"),
+    page.locator("[data-visual-random-id]"),
   ];
   // Playwright paints masks above everything. On a phone the open chat dock is a bottom sheet over
   // the page, so a masked cell under it would cover the dock's own messages and slash popup. Those
