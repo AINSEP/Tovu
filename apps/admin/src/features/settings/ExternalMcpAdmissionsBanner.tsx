@@ -26,7 +26,7 @@ import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-a
  *  the tick that fixes it. A real `<label>`, not an `aria-label`: an icon-only or bare checkbox
  *  would have no accessible name at all, and `agentHandle`'s `label` does not supply one (it emits
  *  `data-agent-label`). The visible words also make the translated sentence beside it
- *  ("Tick 'may write' to enable this tool.") literally true rather than a reference to a control
+ *  ("Tick 'Allow changes' to enable this tool.") literally true rather than a reference to a control
  *  that is not there. */
 function AdmissionDriftRow(props: {
   entry: AdmissionDriftEntry;
@@ -65,7 +65,7 @@ function AdmissionDriftRow(props: {
             onChange={() => onAllowWrite(entry.connectionId, remoteName)}
             data-agent-element={`mcp-drift-grant-${entry.connectionId}-${remoteName}`}
           />
-          <span>{t("may write")}</span>
+          <span>{t("Allow changes")}</span>
         </label>
       ) : null}
     </li>
@@ -139,7 +139,7 @@ function AdmissionRestartFooter(props: { controller: ExternalMcpAdmissionsContro
 export interface ExternalMcpAdmissionsBannerProps {
   controller: ExternalMcpAdmissionsController;
   t: Translate;
-  /** Ticks "may write" for one tool by writing the connection's `writeAllowedToolNames` field
+  /** Ticks "Allow changes" for one tool by writing the connection's `writeAllowedToolNames` field
    *  through the same `updateSource` port the card's own edit form uses. */
   onAllowWrite: (connectionId: string, remoteName: string) => void;
   /** Opens the existing confirmation dialog; only its Confirm calls the existing delete hook. */

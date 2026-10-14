@@ -48,7 +48,7 @@ describe("describeConnectionDrift", () => {
     expect(drift?.entries[0]?.kind).toBe("needs-write-grant");
     // The exact translated key from `external-mcp-i18n.ts`, not a paraphrase — a different string
     // is a different i18n key, and a different key renders English in all 21 locales.
-    expect(drift?.entries[0]?.messageKey).toBe("Tick 'may write' to enable this tool.");
+    expect(drift?.entries[0]?.messageKey).toBe("Tick 'Allow changes' to enable this tool.");
   });
 
   it("states saved-vs-live, so 'I ticked it and nothing happened' has a visible answer", () => {

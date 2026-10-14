@@ -138,7 +138,7 @@ const SERVER_SIDE_DEFECT = "server-side-defect" as const satisfies AdmissionDrif
  * should be rare, since `createDictionaryTranslator` falls back to the English key.
  */
 const REFUSAL_COPY: Readonly<Record<Exclude<AdminToolRefusalReason, typeof ROUTINE_REFUSAL>, { kind: AdmissionDriftKind; key: string }>> = {
-  "remote-declares-not-read-only": { kind: "needs-write-grant", key: "Tick 'may write' to enable this tool." },
+  "remote-declares-not-read-only": { kind: "needs-write-grant", key: "Tick 'Allow changes' to enable this tool." },
   "remote-declares-destructive": {
     kind: "destructive",
     key: "The server marks this tool as destructive. Tovu does not enable destructive external tools.",

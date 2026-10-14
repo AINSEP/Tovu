@@ -46,7 +46,7 @@ function higgsfieldDrift(overrides: Partial<AdmissionDriftConnection> = {}): Adm
         connectionId: "higgsfield",
         remoteName: "generate_image",
         kind: "needs-write-grant",
-        messageKey: "Tick 'may write' to enable this tool.",
+        messageKey: "Tick 'Allow changes' to enable this tool.",
         messageVars: {},
       },
     ],
@@ -87,7 +87,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     );
 
     expect(screen.getByText("generate_image")).toBeInTheDocument();
-    expect(screen.getByText("Tick 'may write' to enable this tool.")).toBeInTheDocument();
+    expect(screen.getByText("Tick 'Allow changes' to enable this tool.")).toBeInTheDocument();
     expect(screen.getByText("Saved. The assistant is still running with its previous tool list.")).toBeInTheDocument();
     // `{live}`/`{saved}`/`{names}` must be interpolated, not rendered as tokens.
     expect(screen.getByText("Live now: 1 tools. Saved: 2 tools — generate_image are not loaded.")).toBeInTheDocument();
@@ -102,7 +102,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
 
     // By ROLE and NAME: a checkbox whose only label were `agentHandle`'s `data-agent-label` would
     // have no accessible name at all and would not be found here.
-    const tick = screen.getByRole("checkbox", { name: "may write" });
+    const tick = screen.getByRole("checkbox", { name: "Allow changes" });
     await user.click(tick);
 
     expect(onAllowWrite).toHaveBeenCalledExactlyOnceWith("higgsfield", "generate_image");
