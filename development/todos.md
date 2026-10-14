@@ -84,6 +84,19 @@ Admin → Studio → Themes (owner screenshot): move "View site ↗" to the TOP-
 ## LATER (owner 2026-10-11): JSON listing API + client-side card templates
 "See more" ships first as server-rendered HTML snippets (core listing function → next-batch HTML). Later: a public JSON listing API on the same core function (`items + nextCursor`; title, href, date, excerpt, cover, terms, author) and client-side rendering from a theme-provided `<template>` card (data-field placeholders) filled by one generic Jini script; static export writes the same JSON as files. Owner: "doesn't seem scalable to have the server draw the card" — JSON is the target; HTML now because themes have no card template yet. Designs: ADS-memory/.local-artifacts/pagination-design-2026-10-11/{opus.md,codex run output}.
 
+## HIGH, PARKED for a design talk (owner 2026-10-13): in-app agents get full CLI ability, but TOOLS FIRST (IRON RULE)
+Audit: `ADS-memory/.local-artifacts/assistant-restrictions-audit/audit.md`, listing 16 active restrictions plus a KEEP list. The restrictions were added on purpose, to expose tool-call gaps. Owner: Claude, Codex and Gemini agents "should be able to do whatever but prefer tools first". Bash and file editing are a LAST RESORT. Agents, workflows, the user's MCPs (Claude in Chrome), settings and skills come back.
+- Open owner calls: K3 (site keys vs Bash: accept / best-effort hook / Keychain) and K4 (cross-site writes through Bash).
+- Bug to fix regardless: an ACP permission request fails the whole run, because there is no `acpPermissionHandler` (Jini agent-runtime acp/session.ts ~1320).
+- Log every Bash/edit fallback, so the gaps stay visible.
+
+## LATER — VERIFY + VALIDATE FIRST (owner 2026-10-13): decouple Jini packages from @jini-ai/ui
+Owner question: should packages that use UI take components through a getter (`getUIComponent()`) plus dependency injection, so nothing is hard-coupled to `@jini-ai/ui`? Not decided. Verify the facts and validate the approach before any code.
+- Facts on 2026-10-13: the published packages that depend on `@jini-ai/ui` are admin, chat, commerce and user-management. Layers (Jini scripts/check-package-layers.ts): ui = L5 and admin = L5 (with the allowed same-layer edge `admin→ui`). chat = L4 depends UP on ui and needs a special exception (`owner === 'chat' && target === 'ui'`). user-management depends on ui only as an optional peer.
+- Coordinator's suggestion (to validate): avoid a plain global string getter, because it hides dependencies, loses types, and fails only at runtime. Prefer TYPED injection with defaults: a package declares the components it needs as a typed interface, the host provides them once at the app root (context/registry), and ui's components are the fallback. Do this ONLY at real swap points (DataTable, dialogs, chart and icon providers, chat UI); plain dependencies on stable lower layers are fine elsewhere. Precedents already in Jini: the chart provider registry with a table fallback, and the A2UI component catalog.
+- First candidate: chat takes ui components through injection, which removes the L4→L5 exception.
+- Next step when picked up: an architect writes a short ADR (exact component list per package, the injection shape, migration order), the owner reviews it, and only then is it built.
+
 ## LOW (Jini): reachability wait stops at the first "protected" candidate
 `waitForReachableDeploymentUrl` (Jini packages/devops/src/deploy/reachability.ts:276-290) returns on the FIRST `protected` candidate instead of trying the rest; it should keep trying and report `protected` only when no candidate is ready. Found through the Vercel "protected" report for a public alias (2026-10-11), already fixed in Tovu's `vercel` plugin by trying `<project>.vercel.app` first; this is the generic root cause, for the next Jini release.
 
