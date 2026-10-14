@@ -112,6 +112,7 @@ import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
+import { createExternalSiteStopper } from "./src/external-site-stop.ts";
 import { createKeyedSerializer } from "./src/keyed-serializer.ts";
 import { createSiteSupervisor } from "./src/site-supervisor.ts";
 import { createSiteTransitions } from "./src/site-transitions.ts";
@@ -1807,6 +1808,9 @@ app
           siteThemePreviews.stop({ siteDir }, {});
         },
         sharedSites,
+        // The card's Stop for a site `npm run dev` (or another instance) serves — owner 2026-10-13.
+        // Signals dev.mjs, never the lease pid's watcher-held server; see `external-site-stop.ts`.
+        externalSites: createExternalSiteStopper({}),
         adoptSiteDir: (input: Parameters<typeof adoptSiteDir>[0]) => adoptSiteDir({ ...input, sharedSites }),
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the

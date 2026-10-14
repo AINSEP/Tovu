@@ -11,7 +11,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { IN_FLIGHT_STATUS, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
+import fs from 'node:fs';
+
+import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
+import { cardOverlay } from './SiteGrid.hooks.js';
+import { hookHarness, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 const RECORD = { id: '/sites/a', status: 'running', port: 4321 } as unknown as SiteRecord;
@@ -186,4 +190,71 @@ test('a Stop never opens the site', async () => {
   assert.equal(error, null);
   assert.deepEqual(updated, [RECORD]);
   assert.deepEqual(opened, []);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Stop for a site another process serves (owner 2026-10-13)
+// ---------------------------------------------------------------------------------------------
+
+const DEV_SITE = { id: '/sites/dev', displayName: 'Tovu Dev', status: 'running', port: 3000, runningApp: 'Web',
+  externalUrl: 'https://localhost:3000/admin/', externalLauncher: 'npm-run-dev' } as unknown as SiteRecord;
+
+test('an npm run dev site gets the owner\'s confirm copy; another app gets one naming it', () => {
+  assert.deepEqual(externalStopConfirm({ project: DEV_SITE }, { locale: 'en' }), {
+    confirmTitle: 'Stop Tovu Dev?',
+    confirmBody: 'This stops `npm run dev`, including the admin dev server.',
+    confirmButtonLabel: 'Stop',
+    confirmButtonBusyLabel: 'Stopping…',
+    confirmButtonClass: 'button button--primary',
+  });
+  const other = externalStopConfirm({ project: { ...DEV_SITE, externalLauncher: 'other', runningApp: 'Desktop' } }, { locale: 'en' });
+  assert.equal(other?.confirmBody, 'This stops the server running this site in Desktop.');
+  assert.equal(externalStopConfirm({ project: { ...DEV_SITE, externalLauncher: 'other', runningApp: undefined } }, { locale: 'en' })?.confirmBody, 'This stops the server running this site in Tovu.');
+  assert.equal(externalStopConfirm({ project: { ...DEV_SITE, externalLauncher: undefined } }), null, 'unstoppable: no confirm, and no Stop');
+  assert.equal(externalStopConfirm({ project: { ...DEV_SITE, externalUrl: undefined } }), null, 'our own server needs no confirm');
+  assert.equal(externalStopConfirm({ project: DEV_SITE }, { locale: 'de' })?.confirmTitle, 'Tovu Dev stoppen?');
+});
+
+test('codeSpans renders backticked text as code and drops empty parts', () => {
+  assert.deepEqual(codeSpans('This stops `npm run dev`, including it.'), [
+    { text: 'This stops ', code: false }, { text: 'npm run dev', code: true }, { text: ', including it.', code: false },
+  ]);
+  assert.deepEqual(codeSpans('`npm run dev` を停止'), [{ text: 'npm run dev', code: true }, { text: ' を停止', code: false }]);
+  assert.deepEqual(codeSpans('plain'), [{ text: 'plain', code: false }]);
+});
+
+test('the Stop confirm is its own card overlay; delete still wins a tie', () => {
+  assert.equal(cardOverlay('/a', null, null, '/a'), 'stop');
+  assert.equal(cardOverlay('/a', '/a', null, '/a'), 'confirm');
+  assert.equal(cardOverlay('/a', null, '/a', '/a'), 'stop');
+  assert.equal(cardOverlay('/a', null, null, '/b'), null);
+  assert.equal(cardOverlay('/a', null, '/a'), 'rename');
+});
+
+test('Stop on an external site asks first: only Confirm reaches the bridge, Cancel never does', async () => {
+  const source = fs.readFileSync(new URL('./use-site-power.hooks.ts', import.meta.url), 'utf8');
+  const harness = hookHarness();
+  const stops: string[] = [];
+  const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
+    powerControl, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
+    runnerInventoryBridge: () => ({ stopSite: async (id: string) => { stops.push(id); return { ...DEV_SITE, status: 'stopped' }; } }),
+  });
+  const render = () => harness.render(() => usePower());
+  assert.equal(powerControl('running', { external: false })?.action, 'stop', 'a stoppable external site shows the ordinary Stop');
+  await render().toggle(DEV_SITE);
+  assert.equal(render().confirmingStopId, DEV_SITE.id);
+  assert.deepEqual(stops, [], 'the click only opened the confirm');
+  render().cancelStop();
+  assert.equal(render().confirmingStopId, null);
+  assert.deepEqual(stops, []);
+  await render().toggle(DEV_SITE);
+  await render().confirmStop(DEV_SITE);
+  assert.equal(render().confirmingStopId, null);
+  assert.deepEqual(stops, [DEV_SITE.id]);
+  // An unstoppable external site (no launcher) has no control at all, so a click cannot even ask.
+  await render().toggle({ ...DEV_SITE, externalLauncher: undefined });
+  assert.equal(render().confirmingStopId, null);
+  // Our own site's Stop does not ask.
+  await render().toggle({ ...DEV_SITE, id: '/sites/own', externalUrl: undefined, externalLauncher: undefined });
+  assert.deepEqual(stops, [DEV_SITE.id, '/sites/own']);
 });

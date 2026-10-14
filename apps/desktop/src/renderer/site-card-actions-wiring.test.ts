@@ -35,7 +35,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
-import { IN_FLIGHT_STATUS, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
+import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
 
 const grid = fs.readFileSync(path.join(import.meta.dirname, 'SiteGrid.tsx'), 'utf8');
 const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
@@ -154,7 +154,7 @@ test('the ⋮ trigger carries an accessible name, since it has no visible text',
 
 test('the power button calls power.toggle and renders the label powerControl decided', () => {
   const actions = actionsBody();
-  assert.match(actions, /const control = powerControl\(status, \{ external: Boolean\(project\.externalUrl\) \}\);/);
+  assert.match(actions, /const control = powerControl\(status, \{ external: Boolean\(project\.externalUrl\) && !project\.externalLauncher \}\);/);
   assert.match(actions, /className="button button--create card__power"[\s\S]*?onClick=\{\(\) => void power\.toggle\(project\)\}/);
   assert.match(actions, /disabled=\{control\.action === null\}/, 'a busy control must be inert, not merely dimmed');
   assert.match(actions, /\{control\.label\}/, 'the label must come from the control, never from what was clicked');
@@ -274,8 +274,8 @@ test('delete still goes through the confirm overlay — a menu entry makes that 
   assert.equal(render().pendingId, null);
   assert.deepEqual(deleted, [], 'Cancel cannot delete');
   render().requestDelete('/sites/a');
-  const overlay = sourceFunction(grid, 'CardConfirmOverlay');
-  const confirm = elements(overlay({ project: { id: '/sites/a' }, copy: { confirmButtonLabel: 'Delete' },
+  const overlay = sourceFunction(grid, 'CardConfirmOverlay', { codeSpans });
+  const confirm = elements(overlay({ project: { id: '/sites/a' }, copy: { confirmBody: 'Erases it.', confirmButtonLabel: 'Delete' },
     onCancel: render().cancelDelete, onConfirm: render().confirmDelete })).find((element) => element.type === 'button' && element.props.children === 'Delete');
   assert.ok(confirm);
   confirm.props.onClick();
@@ -359,4 +359,21 @@ test('a located card replaces the missing one in the grid at once, not on the ne
   assert.match(hooks, /if \(project\.id === previousId\) return \[record\];/);
   // A Locate onto a folder that already has a card merges into it: that card must not stay twice.
   assert.match(hooks, /return project\.id === record\.id \? \[\] : \[project\];/);
+});
+
+test('an external Stop confirms in the same overlay, with `npm run dev` as code, and Confirm reaches the hook', async () => {
+  assert.match(grid, /overlay=\{cardOverlay\(project\.id, pendingId, rename\.renamingId, power\.confirmingStopId \?\? null\)\}/);
+  assert.match(grid, /overlay === 'stop' && \(/);
+  assert.match(grid, /powerControl\(status, \{ external: Boolean\(project\.externalUrl\) && !project\.externalLauncher \}\)/);
+  const project = { id: '/sites/dev', displayName: 'Tovu Dev', externalUrl: 'https://localhost:3000/admin/', externalLauncher: 'npm-run-dev', runningApp: 'Web' };
+  const overlay = sourceFunction(grid, 'CardConfirmOverlay', { codeSpans });
+  const confirmed: string[] = [];
+  const tree = elements(overlay({ project, copy: externalStopConfirm({ project } as never, { locale: 'en' }), busy: false, error: null,
+    onCancel: () => confirmed.push('cancel'), onConfirm: async (id: string) => { confirmed.push(id); } }));
+  const code = tree.find((element) => element.type === 'code');
+  assert.equal(code?.props.children, 'npm run dev');
+  assert.ok(tree.some((element) => element.type === 'p' && element.props.children === 'Stop Tovu Dev?'));
+  tree.find((element) => element.type === 'button' && element.props.children === 'Stop').props.onClick();
+  tree.find((element) => element.type === 'button' && element.props.children === 'Cancel').props.onClick();
+  assert.deepEqual(confirmed, ['/sites/dev', 'cancel']);
 });

@@ -143,13 +143,14 @@ export function deleteActionCopy(project: SiteRecord): DeleteActionCopy {
  *
  * @complexity O(1) time, O(1) space.
  */
-export type CardOverlayMode = 'confirm' | 'rename' | null;
+export type CardOverlayMode = 'confirm' | 'stop' | 'rename' | null;
 
 /**
  * The overlay mode for one card, given the grid's two single-slot ids.
  *
  * Delete wins a tie. It cannot currently happen — opening either flow does not close the other's
- * slot — but if it ever did, the destructive confirmation is the one that must not be hidden.
+ * slot — but if it ever did, the destructive confirmation is the one that must not be hidden. The
+ * external-Stop confirm (`stop`, see `externalStopConfirm`) comes next, for the same reason.
  *
  * @complexity O(1) time, O(1) space.
  */
@@ -157,8 +158,10 @@ export function cardOverlay(
   id: string,
   pendingDeleteId: string | null,
   renamingId: string | null,
+  confirmingStopId: string | null = null,
 ): CardOverlayMode {
   if (pendingDeleteId === id) return 'confirm';
+  if (confirmingStopId === id) return 'stop';
   return renamingId === id ? 'rename' : null;
 }
 

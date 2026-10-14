@@ -6,6 +6,9 @@ export interface DesktopCopy {
   restart: string;
   restarting: string;
   siteErrors: { invalid: string; empty: string; incomplete: string; unreadable: string; add: string; start: string };
+  /** The confirm before stopping a site another process serves. `{name}`/`{app}` are filled by the
+   *  caller; text between backticks renders as code. */
+  stopConfirm: { title: string; devBody: string; otherBody: string; confirm: string; confirming: string };
 }
 const COPY: Record<string, readonly [string, string, string, string, string]> = {
   en: ['Settings', 'Automatically update Tovu', 'Could not save update preference', 'Restart', 'Restarting…'],
@@ -57,6 +60,32 @@ const SITE_ERROR_COPY: Record<string, readonly [string, string, string, string, 
   bn: ['এই ফোল্ডারটি Tovu ওয়েবসাইট নয়। আপনার ওয়েবসাইট থাকা ফোল্ডারটি বেছে নিন।', 'এই ফোল্ডারে কোনো Tovu ওয়েবসাইট পাওয়া যায়নি। বিদ্যমান ওয়েবসাইট বেছে নিন বা ওয়েবসাইট তৈরি করুন ব্যবহার করুন।', 'এই Tovu ওয়েবসাইটটি অসম্পূর্ণ। সম্পূর্ণ ওয়েবসাইটের ফোল্ডার বেছে নিন।', 'ওয়েবসাইটের ফোল্ডার পড়া যাচ্ছে না। এটি উপলব্ধ আছে এবং Tovu-এর পড়ার অনুমতি আছে কিনা দেখুন।', 'এই ওয়েবসাইট যোগ করা যায়নি। ফোল্ডার পরীক্ষা করে আবার চেষ্টা করুন।', 'এই ওয়েবসাইট চালু করা যায়নি। আবার চেষ্টা করুন বা এর লগ পরীক্ষা করুন।'],
 };
 
+/** [title, devBody, otherBody, confirm, confirming] — owner 2026-10-13 wrote the English dev body. */
+const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string, string]> = {
+  en: ['Stop {name}?', 'This stops `npm run dev`, including the admin dev server.', 'This stops the server running this site in {app}.', 'Stop', 'Stopping…'],
+  es: ['¿Detener {name}?', 'Esto detiene `npm run dev`, incluido el servidor de desarrollo del panel de administración.', 'Esto detiene el servidor que ejecuta este sitio en {app}.', 'Detener', 'Deteniendo…'],
+  de: ['{name} stoppen?', 'Dadurch wird `npm run dev` beendet, einschließlich des Admin-Entwicklungsservers.', 'Dadurch wird der Server beendet, der diese Website in {app} ausführt.', 'Stoppen', 'Wird gestoppt…'],
+  it: ['Arrestare {name}?', 'Questo arresta `npm run dev`, incluso il server di sviluppo dell’amministrazione.', 'Questo arresta il server che esegue questo sito in {app}.', 'Arresta', 'Arresto…'],
+  'zh-CN': ['停止 {name}？', '这将停止 `npm run dev`，包括管理后台开发服务器。', '这将停止在 {app} 中运行此网站的服务器。', '停止', '正在停止…'],
+  'zh-TW': ['停止 {name}？', '這會停止 `npm run dev`，包括管理後台開發伺服器。', '這會停止在 {app} 中執行此網站的伺服器。', '停止', '正在停止…'],
+  ar: ['إيقاف {name}؟', 'سيؤدي هذا إلى إيقاف `npm run dev`، بما في ذلك خادم تطوير لوحة الإدارة.', 'سيؤدي هذا إلى إيقاف الخادم الذي يشغّل هذا الموقع في {app}.', 'إيقاف', 'جارٍ الإيقاف…'],
+  fa: ['{name} متوقف شود؟', 'این کار `npm run dev` را متوقف می‌کند، از جمله سرور توسعهٔ پنل مدیریت.', 'این کار سروری را که این سایت را در {app} اجرا می‌کند متوقف می‌کند.', 'توقف', 'در حال توقف…'],
+  ru: ['Остановить {name}?', 'Это остановит `npm run dev`, включая сервер разработки админ-панели.', 'Это остановит сервер, на котором этот сайт работает в {app}.', 'Остановить', 'Остановка…'],
+  ja: ['{name} を停止しますか？', '`npm run dev` を停止します。管理画面の開発サーバーも停止します。', '{app} でこのサイトを実行しているサーバーを停止します。', '停止', '停止中…'],
+  id: ['Hentikan {name}?', 'Ini menghentikan `npm run dev`, termasuk server pengembangan admin.', 'Ini menghentikan server yang menjalankan situs ini di {app}.', 'Hentikan', 'Menghentikan…'],
+  'pt-BR': ['Parar {name}?', 'Isso para o `npm run dev`, incluindo o servidor de desenvolvimento do admin.', 'Isso para o servidor que executa este site no {app}.', 'Parar', 'Parando…'],
+  ko: ['{name}을(를) 중지할까요?', '`npm run dev`를 중지합니다. 관리자 개발 서버도 함께 중지됩니다.', '{app}에서 이 사이트를 실행 중인 서버를 중지합니다.', '중지', '중지하는 중…'],
+  pl: ['Zatrzymać {name}?', 'To zatrzyma `npm run dev`, w tym serwer deweloperski panelu administracyjnego.', 'To zatrzyma serwer, który uruchamia tę witrynę w {app}.', 'Zatrzymaj', 'Zatrzymywanie…'],
+  hu: ['Leállítod: {name}?', 'Ez leállítja az `npm run dev` folyamatot, az admin fejlesztői szerverével együtt.', 'Ez leállítja a szervert, amely ezt a webhelyet a(z) {app} alkalmazásban futtatja.', 'Leállítás', 'Leállítás folyamatban…'],
+  fr: ['Arrêter {name} ?', 'Cela arrête `npm run dev`, y compris le serveur de développement de l’administration.', 'Cela arrête le serveur qui exécute ce site dans {app}.', 'Arrêter', 'Arrêt…'],
+  uk: ['Зупинити {name}?', 'Це зупинить `npm run dev`, разом із сервером розробки адмін-панелі.', 'Це зупинить сервер, на якому цей сайт працює в {app}.', 'Зупинити', 'Зупинення…'],
+  tr: ['{name} durdurulsun mu?', 'Bu işlem, yönetici geliştirme sunucusu dahil `npm run dev` sürecini durdurur.', 'Bu işlem, bu siteyi {app} içinde çalıştıran sunucuyu durdurur.', 'Durdur', 'Durduruluyor…'],
+  th: ['หยุด {name} ไหม', 'การดำเนินการนี้จะหยุด `npm run dev` รวมถึงเซิร์ฟเวอร์พัฒนาของผู้ดูแลระบบ', 'การดำเนินการนี้จะหยุดเซิร์ฟเวอร์ที่รันเว็บไซต์นี้ใน {app}', 'หยุด', 'กำลังหยุด…'],
+  hi: ['{name} रोकें?', 'इससे `npm run dev` रुक जाएगा, जिसमें एडमिन डेवलपमेंट सर्वर भी शामिल है।', 'इससे वह सर्वर रुक जाएगा जो इस साइट को {app} में चला रहा है।', 'रोकें', 'रोका जा रहा है…'],
+  ur: ['{name} روکیں؟', 'اس سے `npm run dev` رک جائے گا، بشمول ایڈمن ڈیولپمنٹ سرور۔', 'اس سے وہ سرور رک جائے گا جو اس سائٹ کو {app} میں چلا رہا ہے۔', 'روکیں', 'روکا جا رہا ہے…'],
+  bn: ['{name} বন্ধ করবেন?', 'এটি `npm run dev` বন্ধ করবে, অ্যাডমিন ডেভেলপমেন্ট সার্ভারসহ।', 'এটি {app}-এ এই সাইট চালানো সার্ভারটি বন্ধ করবে।', 'বন্ধ করুন', 'বন্ধ হচ্ছে…'],
+};
+
 export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
   const normalized = locale.replace(/_/g, '-');
   const key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase())
@@ -64,5 +93,7 @@ export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}):
   const row = COPY[key] ?? COPY.en!;
   const [settings, automaticUpdates, saveUpdateError, restart, restarting] = row;
   const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en!;
-  return { settings, automaticUpdates, saveUpdateError, restart, restarting, siteErrors: { invalid, empty, incomplete, unreadable, add, start } };
+  const [title, devBody, otherBody, confirm, confirming] = STOP_CONFIRM_COPY[key] ?? STOP_CONFIRM_COPY.en!;
+  return { settings, automaticUpdates, saveUpdateError, restart, restarting, siteErrors: { invalid, empty, incomplete, unreadable, add, start },
+    stopConfirm: { title, devBody, otherBody, confirm, confirming } };
 }

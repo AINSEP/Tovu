@@ -31,6 +31,7 @@ import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
 import type { SiteRecord } from "./contracts/project.ts";
+import type { ExternalSiteStopper } from "./external-site-stop.ts";
 
 import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
@@ -282,7 +283,7 @@ function siteLifecycle(running: boolean, transition: "starting" | "stopping" | n
  *
  * @complexity O(1).
  */
-type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>;
+type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "externalSites">>;
 type SharedRunning = ReturnType<ReturnType<SitesWorkspace["running"]>["read"]> | undefined;
 
 /** The admin URL of a server this window does not own: an external one it attached to, or the other app's. */
@@ -319,6 +320,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   // is not exercising them) it reads `null` and nothing here changes.
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
   const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? sharedStarting);
+  const externalUrl = siteExternalUrl(openEntry, sharedRunning, lifecycle.status);
   return {
     id: row.siteDir,
     slug: path.basename(row.siteDir),
@@ -327,7 +329,10 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     installDir: row.siteDir,
     port: openEntry?.server.port ?? sharedPort,
     runningApp: sharedRunning?.app,
-    externalUrl: siteExternalUrl(openEntry, sharedRunning, lifecycle.status),
+    externalUrl,
+    // Only for a site this window can stop although another process serves it; absent, the card
+    // offers no Stop for it at all. See `external-site-stop.ts`.
+    externalLauncher: externalUrl && sharedRunning ? deps.externalSites?.launcherOf({ lease: sharedRunning }) ?? undefined : undefined,
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
@@ -376,7 +381,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
  */
 function handleList(
   deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> &
-    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir">> & { relocationGate?: RelocationGate },
+    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
 ) {
   if (deps.sharedSites) {
     try {
@@ -1111,23 +1116,52 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  * renderer polls every 4 s, so a card can be a click behind main's truth through no fault of the
  * operator's, and refusing would surface an error for a state they already wanted.
  *
+ * **A site another process serves** (the shared lease names someone else — `npm run dev`, a sibling
+ * instance) is stopped through `deps.externalSites` (owner 2026-10-13; the renderer confirms first).
+ * Without that port wired, it is refused as before: "Stop it in that app."
+ *
  * @returns the project's fresh record, so the card settles on `stopped` without waiting for a poll.
  * @throws {Error} when `id` names a project this shell is not tracking — same refusal, and same
- *   reason, as {@link handleStart}'s — or the child fails to exit after forced shutdown.
+ *   reason, as {@link handleStart}'s — or the child fails to exit after forced shutdown, or an
+ *   external server's identity cannot be proved or it does not exit in time.
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by grace plus exit wait), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "pendingTeardowns">) {
+async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "pendingTeardowns" | "externalSites">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
     const running = deps.sharedSites?.running({ path: id }).read({});
-    if (running && !deps.openSites.get(id)) throw new Error(`Running in ${running.app} (port ${running.port}). Stop it in that app.`);
+    const openEntry = deps.openSites.get(id);
+    const externalSites = deps.externalSites;
+    if (running && (!openEntry || openEntry.server.external) && externalSites) {
+      await markTransition(deps.transitions, id, "stopping", () => stopExternalServer({ id, lease: running, externalSites, deps }));
+      return buildSiteRecord(row, deps);
+    }
+    if (running && !openEntry) throw new Error(`Running in ${running.app} (port ${running.port}). Stop it in that app.`);
     await markTransition(deps.transitions, id, "stopping", () => stopSiteServer(id, deps));
     return buildSiteRecord(row, deps);
   });
+}
+
+/**
+ * {@link handleStop} for a site another process serves. This window's own attachment (if any) is
+ * withdrawn FIRST, for the reason {@link stopSiteServer} drops its entry before stopping: the
+ * attachment's lease watcher would otherwise report the exit the operator asked for as a crash.
+ * Assumes it holds this site's serializer key.
+ * @complexity see `external-site-stop.ts`'s `stopExternalSite`.
+ */
+async function stopExternalServer(
+  { id, lease, externalSites, deps }: {
+    id: string; lease: NonNullable<SharedRunning>; externalSites: NonNullable<ProjectIpcDeps["externalSites"]>;
+    deps: Pick<ProjectIpcDeps, "openSites" | "cancelPreviewCapture" | "registryPath" | "recordSiteClosed" | "pendingTeardowns" | "sharedSites">;
+  },
+  _options = {},
+): Promise<void> {
+  await stopSiteServer(id, deps);
+  await externalSites.stop({ lease, readLease: () => deps.sharedSites?.running({ path: id }).read({}) });
 }
 
 /**
@@ -1374,6 +1408,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   discoverSites?: (required: { scanRoots?: string[] }, options?: {}) => Promise<string[]>;
   recentSiteDirs: () => string[];
   sharedSites?: SitesWorkspace;
+  /** Stops a site another process serves (`external-site-stop.ts`). Absent: such a Stop is refused. */
+  externalSites?: Pick<ExternalSiteStopper, "launcherOf" | "stop">;
   ctx: TCtx;
 }
 

@@ -871,6 +871,84 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
   assert.equal(sharedSites.running({ path: beta }).read({})?.token, betaLease.record.token);
 });
 
+// --- stop a site another process serves (owner 2026-10-13) ------------------------------------
+//
+// `npm run dev` holds the shared lease; this app only attached. Stop goes through the injected
+// `externalSites` port (`external-site-stop.ts`), which these tests fake: no real process is signalled.
+
+function externalLeaseFixture(t: { after: (fn: () => void) => void }) {
+  const transitions = createSiteTransitions();
+  const root = fs.realpathSync(tempDir());
+  const site = writeSite(path.join(root, "dev-site"), "dev-site-id");
+  const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [] });
+  const lease = sharedSites.claim({ path: site, app: "Web", port: 4555 });
+  const release = () => sharedSites.running({ path: site }).release({ token: lease.record.token });
+  t.after(() => { release(); fs.rmSync(root, { recursive: true, force: true }); });
+  const calls: string[] = [];
+  const externalSites: NonNullable<ProjectIpcDeps["externalSites"]> = {
+    launcherOf: ({ lease: seen }) => { calls.push(`launcherOf:${seen.token === lease.record.token}`); return "npm-run-dev"; },
+    stop: async ({ lease: seen, readLease }) => {
+      calls.push(`stop:${seen.token === lease.record.token}:${readLease()?.token === lease.record.token}:${transitions.get(site)}`);
+      release();
+    },
+  };
+  const deps = baseDeps({ transitions, sharedSites, externalSites: externalSites as ProjectIpcDeps["externalSites"], serializer: createKeyedSerializer(), projectsPath: sitesFilePath(root) });
+  trackSite(deps.projectsPath, site);
+  return { site, deps, calls, lease };
+}
+
+test("Stop on a site npm run dev serves goes through externalSites, reads stopping, and settles stopped", async (t) => {
+  const { site, deps, calls } = externalLeaseFixture(t);
+  const listed = handleList(deps).find((row) => row.id === site)!;
+  assert.equal(listed.externalLauncher, "npm-run-dev", "the card learns it may offer Stop, and which confirm");
+  assert.equal(listed.externalUrl, "http://localhost:4555/admin/");
+  const record = await handleStop(site, deps);
+  assert.ok(calls.includes("stop:true:true:stopping"), `the lease handed over is the live one, inside the stopping transition: ${calls}`);
+  assert.equal(record.status, "stopped");
+  assert.equal(record.externalLauncher, undefined);
+  assert.equal(record.externalUrl, undefined);
+});
+
+test("Stop withdraws this window's own attachment BEFORE signalling the external owner", async (t) => {
+  const { site, deps, calls } = externalLeaseFixture(t);
+  const closed: unknown[] = [];
+  deps.recordSiteClosed = (_registry, siteDir, options) => { closed.push([siteDir, options?.pid]); };
+  deps.openSites.set(site, { server: { external: true, pid: 999, port: 4555, origin: "http://localhost:4555", stop: async () => { calls.push("detach"); } } });
+  await handleStop(site, deps);
+  assert.deepEqual(calls.filter((call) => !call.startsWith("launcherOf")).map((call) => call.split(":")[0]), ["detach", "stop"]);
+  assert.equal(deps.openSites.has(site), false);
+});
+
+test("an external Stop that fails surfaces main's sentence and keeps the lease", async (t) => {
+  const { site, deps, lease } = externalLeaseFixture(t);
+  deps.externalSites = { launcherOf: () => "other", stop: async () => { throw new Error("The site did not stop within 15 s. Stop it where it was started."); } };
+  await assert.rejects(handleStop(site, deps), /did not stop within 15 s/);
+  assert.equal(deps.sharedSites!.running({ path: site }).read({})?.token, lease.record.token);
+  assert.equal(handleList(deps).find((row) => row.id === site)?.status, "running");
+});
+
+test("a site this window serves itself never takes the external path, and gets no externalLauncher", async (t) => {
+  const { site, deps, calls, lease } = externalLeaseFixture(t);
+  let drained = 0;
+  // Our own child's drain is what drops its lease.
+  deps.openSites.set(site, { server: { pid: 4242, port: 4555, stop: async () => {
+    drained += 1;
+    deps.sharedSites!.running({ path: site }).release({ token: lease.record.token });
+  } } });
+  assert.equal(handleList(deps).find((row) => row.id === site)?.externalLauncher, undefined);
+  await handleStop(site, deps);
+  assert.equal(drained, 1);
+  assert.deepEqual(calls, [], "neither launcherOf nor stop is consulted for our own child");
+});
+
+test("without a proved launcher the record offers no external Stop", (t) => {
+  const { site, deps } = externalLeaseFixture(t);
+  deps.externalSites = { launcherOf: () => null, stop: async () => assert.fail("unused") };
+  assert.equal(handleList(deps).find((row) => row.id === site)?.externalLauncher, undefined);
+  deps.externalSites = undefined;
+  assert.equal(handleList(deps).find((row) => row.id === site)?.externalLauncher, undefined);
+});
+
 test("a site reads `starting` for its whole boot, not `stopped` until the port opens", async () => {
   const transitions = createSiteTransitions();
   const deps = baseDeps({ transitions });

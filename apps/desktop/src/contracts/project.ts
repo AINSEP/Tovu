@@ -32,6 +32,12 @@ export interface SiteRecord {
   runningApp?: string;
   externalUrl?: string;
   /**
+   * Set only when another process serves this site AND main can stop it: `npm-run-dev` when that
+   * process is `npm run dev`'s `dev.mjs`, else `other`. The card shows Stop, behind a confirm whose
+   * copy depends on it; absent, an externally served card has no Stop. See `external-site-stop.ts`.
+   */
+  externalLauncher?: 'npm-run-dev' | 'other';
+  /**
    * This project's own Electron session-partition string (`desktop-auth.ts`'s `sitePartition`,
    * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `SiteWorkspace`) sets this
    * as its `<webview partition>` so the guest's cookie jar is the exact one main seeded with a

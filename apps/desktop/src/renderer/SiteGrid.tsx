@@ -42,7 +42,7 @@ import { namePasteHandler } from '../contracts/site-name.js';
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
-import { powerControl, useSitePower } from './use-site-power.hooks.js';
+import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
 import { cardOpenClass, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
@@ -125,7 +125,7 @@ export function SiteGrid({
           key={project.id}
           project={project}
           showParent={duplicateNames.has(project.displayName)}
-          overlay={cardOverlay(project.id, pendingId, rename.renamingId)}
+          overlay={cardOverlay(project.id, pendingId, rename.renamingId, power.confirmingStopId ?? null)}
           deleting={deletingId === project.id}
           deleteError={deleteError}
           rename={rename}
@@ -269,10 +269,23 @@ function SiteCard({
         <CardConfirmOverlay
           project={project}
           copy={copy}
-          deleting={deleting}
-          deleteError={deleteError}
+          busy={deleting}
+          error={deleteError}
           onCancel={onCancelDelete}
           onConfirm={onConfirmDelete}
+        />
+      )}
+      {/* Stop for a site another process serves (`npm run dev`) — owner 2026-10-13. The overlay
+          closes on confirm; the card's own button then reads "Stopping…" and any refusal shows
+          on the card's error line, exactly as an ordinary Stop's does. */}
+      {overlay === 'stop' && (
+        <CardConfirmOverlay
+          project={project}
+          copy={externalStopConfirm({ project }) ?? copy}
+          busy={false}
+          error={null}
+          onCancel={() => power.cancelStop?.()}
+          onConfirm={async () => power.confirmStop?.(project)}
         />
       )}
     </article>
@@ -306,15 +319,15 @@ function MissingFolderNotice({ project, locate }: { project: SiteRecord; locate:
 function CardConfirmOverlay({
   project,
   copy,
-  deleting,
-  deleteError,
+  busy,
+  error,
   onCancel,
   onConfirm,
 }: {
   project: SiteRecord;
-  copy: DeleteActionCopy;
-  deleting: boolean;
-  deleteError: string | null;
+  copy: Pick<DeleteActionCopy, 'confirmTitle' | 'confirmBody' | 'confirmButtonLabel' | 'confirmButtonBusyLabel' | 'confirmButtonClass'>;
+  busy: boolean;
+  error: string | null;
   onCancel: () => void;
   onConfirm: (id: string) => Promise<void>;
 }) {
@@ -327,19 +340,21 @@ function CardConfirmOverlay({
       onKeyDown={(event) => event.stopPropagation()}
     >
       <p className="card__confirmtitle">{copy.confirmTitle}</p>
-      <p className="card__confirmbody">{copy.confirmBody}</p>
-      {deleteError && <p className="card__confirmerror" role="alert">{deleteError}</p>}
+      <p className="card__confirmbody">
+        {codeSpans(copy.confirmBody).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}
+      </p>
+      {error && <p className="card__confirmerror" role="alert">{error}</p>}
       <div className="card__confirmacts">
-        <button type="button" className="button button--quiet" onClick={onCancel} disabled={deleting}>
+        <button type="button" className="button button--quiet" onClick={onCancel} disabled={busy}>
           Cancel
         </button>
         <button
           type="button"
           className={copy.confirmButtonClass}
           onClick={() => void onConfirm(project.id)}
-          disabled={deleting}
+          disabled={busy}
         >
-          {deleting ? copy.confirmButtonBusyLabel : copy.confirmButtonLabel}
+          {busy ? copy.confirmButtonBusyLabel : copy.confirmButtonLabel}
         </button>
       </div>
     </div>
@@ -395,7 +410,7 @@ function CardActions({
 }) {
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
   // `powerControl`'s own doc on why that is no button rather than a disabled one.
-  const control = powerControl(status, { external: Boolean(project.externalUrl) });
+  const control = powerControl(status, { external: Boolean(project.externalUrl) && !project.externalLauncher });
   const restart = power.restartControlOf?.(project);
 
   return (

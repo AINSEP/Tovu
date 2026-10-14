@@ -51,6 +51,42 @@ export function restartControl({ project, status, restarting }: {
   return { label, ariaLabel: `${label} ${project.displayName}`, disabled: status !== 'running' || Boolean(project.folderMissing) || Boolean(project.externalUrl) };
 }
 
+/**
+ * The confirm a Stop needs before stopping a site another process serves, or `null` when Stop needs
+ * none. Owner 2026-10-13: Stop on an `npm run dev` site tears down that whole dev stack, so it asks
+ * first and says so; any other external owner gets a generic line naming its app.
+ *
+ * @returns the overlay copy, shaped like the delete confirm's so one overlay renders both.
+ * Pure: no effects or errors.
+ * @complexity O(1).
+ */
+export function externalStopConfirm(
+  { project }: { project: Pick<SiteRecord, 'displayName' | 'externalUrl' | 'externalLauncher' | 'runningApp'> },
+  { locale = typeof navigator === 'undefined' ? 'en' : navigator.language }: { locale?: string } = {},
+) {
+  if (!project.externalUrl || !project.externalLauncher) return null;
+  const copy = desktopCopy({ locale }).stopConfirm;
+  const body = project.externalLauncher === 'npm-run-dev' ? copy.devBody : copy.otherBody.replace('{app}', project.runningApp ?? 'Tovu');
+  return {
+    confirmTitle: copy.title.replace('{name}', project.displayName),
+    confirmBody: body,
+    confirmButtonLabel: copy.confirm,
+    confirmButtonBusyLabel: copy.confirming,
+    // Disruptive, not destructive: nothing is erased, and Start brings the site back in this app.
+    confirmButtonClass: 'button button--primary',
+  };
+}
+
+/**
+ * `text` split on backtick pairs, so a confirm body can show `npm run dev` as code without the
+ * renderer parsing markup. Odd indexes are the code spans.
+ * Pure: no effects or errors.
+ * @complexity O(n) in text length.
+ */
+export function codeSpans(text: string): { text: string; code: boolean }[] {
+  return text.split('`').map((part, index) => ({ text: part, code: index % 2 === 1 })).filter((part) => part.text !== '');
+}
+
 /** What the card should render for a site's power control. */
 export interface SitePowerControl {
   /** What a click does — `null` while a transition is in flight, which renders the button disabled
@@ -70,6 +106,9 @@ export interface SitePowerControl {
  * `failed` gets Start, not a disabled button — a site whose last boot failed is precisely one an
  * operator wants to try again, and `handleStart` is what they would be reaching for.
  *
+ * `external` means another process serves the site AND main cannot stop it (no `externalLauncher`):
+ * no button. One main can stop gets the ordinary Stop, gated by {@link externalStopConfirm}.
+ *
  * @complexity O(1).
  */
 export function powerControl(status: SiteLifecycleStatus, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
@@ -88,10 +127,16 @@ export interface SitePower {
   statusOf: (project: SiteRecord) => SiteLifecycleStatus;
   /** Why this site's last start or stop failed, or `null`. Main's own sentence, verbatim. */
   errorOf: (id: string) => string | null;
-  /** Start a stopped site or stop a running one. A no-op while one is already in flight. */
-  toggle: (project: SiteRecord) => Promise<void>;
+  /** Start a stopped site or stop a running one. A no-op while one is already in flight. A Stop of a
+   *  site another process serves only opens the confirm unless `confirmed`. */
+  toggle: (project: SiteRecord, options?: { confirmed?: boolean }) => Promise<void>;
   restart: (project: SiteRecord) => Promise<void>;
   restartControlOf: (project: SiteRecord) => ReturnType<typeof restartControl>;
+  /** The site whose Stop is waiting on {@link externalStopConfirm}'s confirm, or `null`. Optional
+   *  (with the two below) so card fixtures that never stop an external site need not stub it. */
+  confirmingStopId?: string | null;
+  confirmStop?: (project: SiteRecord) => Promise<void>;
+  cancelStop?: () => void;
 }
 
 /** The status a click's own transition reads as while it is in flight. */
@@ -185,6 +230,7 @@ export function useSitePower(
   // A stable lock independent of React's batched render: a fast second click uses the old closure.
   // useState's lazy initializer preserves the Set for this hook's lifetime without scheduling it.
   const [inFlight] = useState(() => new Set<string>());
+  const [confirmingStopId, setConfirmingStopId] = useState<string | null>(null);
 
   const statusOf = useCallback(
     (project: SiteRecord) => {
@@ -197,11 +243,16 @@ export function useSitePower(
   const errorOf = useCallback((id: string) => errors[id] ?? null, [errors]);
 
   const toggle = useCallback(
-    async (project: SiteRecord) => {
-      const action = powerControl(statusOf(project), { external: Boolean(project.externalUrl) })?.action;
+    async (project: SiteRecord, { confirmed = false }: { confirmed?: boolean } = {}) => {
+      const action = powerControl(statusOf(project), { external: Boolean(project.externalUrl) && !project.externalLauncher })?.action;
       // `null` covers both "nothing to do for this status" and "a transition is already running",
       // so a second click during a stop cannot queue a second one behind it.
       if (action === undefined || action === null || inFlight.has(project.id)) return;
+      // Another process serves this site, so Stop ends THAT process: ask first. See `externalStopConfirm`.
+      if (action === 'stop' && project.externalUrl && !confirmed) {
+        setConfirmingStopId(project.id);
+        return;
+      }
 
       const id = project.id;
       inFlight.add(id);
@@ -242,7 +293,13 @@ export function useSitePower(
     }
   }, [inFlight, onSiteUpdated, restartControlOf]);
 
-  return { statusOf, errorOf, toggle, restart, restartControlOf };
+  const cancelStop = useCallback(() => setConfirmingStopId(null), []);
+  const confirmStop = useCallback(async (project: SiteRecord) => {
+    setConfirmingStopId(null);
+    await toggle(project, { confirmed: true });
+  }, [toggle]);
+
+  return { statusOf, errorOf, toggle, restart, restartControlOf, confirmingStopId, confirmStop, cancelStop };
 }
 
 /**

@@ -15,3 +15,15 @@ test('new desktop copy is translated in all Tovu locales', () => {
   assert.equal(desktopCopy({ locale: 'zh-Hant' }).restart, '重新啟動');
   assert.deepEqual(desktopCopy({ locale: 'unknown' }), english);
 });
+
+test('the external-Stop confirm is translated in every locale and keeps `npm run dev` literal', () => {
+  const english = desktopCopy({ locale: 'en' }).stopConfirm;
+  assert.equal(english.devBody, 'This stops `npm run dev`, including the admin dev server.');
+  for (const locale of ['es', 'de', 'it', 'zh-CN', 'zh-TW', 'ar', 'fa', 'ru', 'ja', 'id', 'pt-BR', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'hi', 'ur', 'bn']) {
+    const copy = desktopCopy({ locale }).stopConfirm;
+    for (const key of Object.keys(english) as (keyof typeof english)[]) assert.notEqual(copy[key], english[key], `${locale}.stopConfirm.${key}`);
+    assert.ok(copy.title.includes('{name}'), `${locale} title names the site`);
+    assert.ok(copy.devBody.includes('`npm run dev`'), `${locale} dev body keeps the command`);
+    assert.ok(copy.otherBody.includes('{app}'), `${locale} other body names the app`);
+  }
+});
