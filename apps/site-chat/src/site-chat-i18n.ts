@@ -34,5 +34,13 @@ export function createSiteChatI18n({ document }: { document: Document }, _option
   const locale = Object.keys(rows).find(key => key.toLowerCase() === language.toLowerCase()) ?? language.split('-')[0]!;
   // The panel-kit translator's barrel imports React, which this shared vanilla host cannot load.
   const dictionary = SITE_CHAT_DICTIONARY[locale] ?? {};
-  return { locale, t: (key: string): string => Object.hasOwn(dictionary, key) ? dictionary[key]! : key };
+  // Jini's chat calls t(key, vars) for timed/named lines ("Thinking… {time}"); fill them in, keeping
+  // an unknown {name} as-is the way Jini's own passthrough translator does.
+  return {
+    locale,
+    t: (key: string, vars?: Record<string, string | number>): string => {
+      const template = Object.hasOwn(dictionary, key) ? dictionary[key]! : key;
+      return vars ? template.replace(/\{(\w+)\}/g, (match, name: string) => vars[name] === undefined ? match : String(vars[name])) : template;
+    },
+  };
 }

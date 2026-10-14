@@ -23,3 +23,13 @@ test('visitor copy covers every admin locale and binds to the page language', ()
   assert.equal(english.t('Chat with this site'), 'Chat with this site');
   dom.window.close();
 });
+
+test("fills Jini chat's {name} placeholders and keeps unknown ones", () => {
+  const dom = new JSDOM('<html lang="en"></html>');
+  const { t } = createSiteChatI18n({ document: dom.window.document });
+  assert.equal(t('Thinking… {time}', { time: '6 s' }), 'Thinking… 6 s');
+  assert.equal(t('Running {tool}… {time}', { tool: 'search', time: 0 }), 'Running search… 0');
+  assert.equal(t('{who} — retrying…', {}), '{who} — retrying…');
+  assert.equal(t('Thinking… {time}'), 'Thinking… {time}');
+  dom.window.close();
+});
