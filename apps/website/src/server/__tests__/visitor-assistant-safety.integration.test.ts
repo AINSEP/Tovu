@@ -70,6 +70,26 @@ test("visitorsafe: Gemini receives a 1024-token budget on the first request and 
   for (const body of requests) assert.equal((body.generationConfig as { maxOutputTokens?: number })?.maxOutputTokens, 1024);
 });
 
+test("visitorsafe: an empty Google response is a correlated provider error before end, not a silent success", async t => {
+  let calls = 0;
+  const f = await boot({ t, reply: () => {
+    calls++;
+    return { status: 200, body: 'data: {"candidates":[{"finishReason":"MAX_TOKENS"}],"usageMetadata":{"thoughtsTokenCount":1024}}\n\n' };
+  } });
+  const response = await post(f);
+  assert.equal(response.status, 200);
+  const frames = (await response.text()).trim().split("\n\n");
+  assert.equal(frames.length, 2);
+  assert.ok(frames[0]!.startsWith("event: error\n"));
+  const error = JSON.parse(frames[0]!.slice("event: error\ndata: ".length));
+  assert.equal(error.code, "provider_error");
+  assert.equal(error.message, `The assistant couldn't answer right now. Please try again. (error ${error.errorId})`);
+  assert.deepEqual(f.logs, [{ errorId: error.errorId, code: "provider_error",
+    diagnostic: "Google returned no text or tool calls (MAX_TOKENS)" }]);
+  assert.equal(frames[1], 'event: end\ndata: {"reason":"error"}');
+  assert.equal(calls, 1, "an empty answer never triggers a second paid request");
+});
+
 test("visitorsafe: provider errors carry only safe text, stable code and an id matching the redacted operator log", async t => {
   const f = await boot({ t, reply: () => ({
     status: 429,
