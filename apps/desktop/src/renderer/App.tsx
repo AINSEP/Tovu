@@ -753,7 +753,7 @@ function SiteWorkspace({
           {!workspace.loaded && !workspace.stalled && (
             <div className="workspace__overlay workspace__overlay--loading" role="status">
               <Spinner />
-              <p>Loading {project.displayName}’s admin…</p>
+              <p>Loading {project.displayName}…</p>
             </div>
           )}
           {workspace.stalled && (
