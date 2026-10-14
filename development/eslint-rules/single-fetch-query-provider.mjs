@@ -11,7 +11,7 @@ const allowed = [
 export default {
   meta: { type: 'problem', schema: [], messages: { secondProvider: 'Only main.tsx composes the admin fetch-query provider; tests use fetch-query-provider.test-helper. A second mount shadows the shared query cache.' } },
   create(context) {
-    const filename = context.getFilename().replaceAll('\\', '/');
+    const filename = (context.filename ?? context.getFilename?.()).replaceAll('\\', '/');
     if (allowed.some(suffix => filename.endsWith(suffix))) return {};
     function check(node) {
       const source = node.source?.value;

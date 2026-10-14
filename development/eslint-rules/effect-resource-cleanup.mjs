@@ -148,7 +148,7 @@ const effectResourceCleanupRule = {
     },
   },
   create(context) {
-    const sourceCode = context.sourceCode ?? context.getSourceCode();
+    const sourceCode = context.sourceCode ?? context.getSourceCode?.();
 
     return {
       CallExpression(node) {
