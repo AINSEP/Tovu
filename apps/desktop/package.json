@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@jini-ai/agent-runtime": "^0.4.9",
-    "@jini-ai/chat": "^0.6.0",
+    "@jini-ai/chat": "^0.6.2",
     "@jini-ai/core": "^0.4.5",
     "@jini-ai/daemon": "^0.6.3",
     "@jini-ai/desktop-host": "^0.4.1",
@@ -44,7 +44,7 @@
     "@jini-ai/agentic": "^0.4.4",
     "@jini-ai/devops": "^0.5.4",
     "@jini-ai/protocol": "^0.4.4",
-    "@jini-ai/ui": "^0.5.0",
+    "@jini-ai/ui": "^0.5.2",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
