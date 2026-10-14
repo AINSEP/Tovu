@@ -41,5 +41,7 @@ test("all-fields demo: the public render emits every field with its native contr
   assert.match(html, /type="checkbox"[^>]*data-tovu-field="tips"[^>]* role="switch"/);
   assert.match(html, /type="range"[^>]*data-tovu-field="budget"/);
   assert.match(html, /enctype="multipart\/form-data"/);
+  const website = html.match(/<input[^>]*data-tovu-field="website"[^>]*>/)?.[0] ?? "";
+  for (const attribute of ['type="text"', 'inputmode="url"', 'autocomplete="url"', 'spellcheck="false"', 'autocapitalize="off"', 'placeholder="yoursite.com or @handle"']) assert.ok(website.includes(attribute), attribute);
   assert.match(html, /<script>/, "range readout ships with the slider");
 });

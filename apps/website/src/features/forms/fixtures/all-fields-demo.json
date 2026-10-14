@@ -5,7 +5,7 @@
     { "id": "full_name", "label": "Your name", "type": "text", "required": true, "placeholder": "Jordan Rivera", "maxLength": 120 },
     { "id": "email", "label": "Email", "type": "email", "required": true, "placeholder": "you@example.com" },
     { "id": "phone", "label": "Phone", "type": "phone", "required": false, "placeholder": "555 123 4567", "pattern": "[0-9 +.\\-]{7,20}", "helpText": "Digits, spaces, + . or - only." },
-    { "id": "website", "label": "Event website or Instagram", "type": "url", "required": false, "placeholder": "https://" },
+    { "id": "website", "label": "Event website or Instagram", "type": "url", "required": false, "placeholder": "yoursite.com or @handle" },
     { "id": "topic", "label": "Topic", "type": "select", "required": true, "placeholder": "Choose a topic", "options": [
       { "value": "request-planner", "label": "Request Planner or Day-of Producer" },
       { "value": "current-event", "label": "Current Event" },
