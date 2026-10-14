@@ -20,22 +20,6 @@ import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
  * the identical choice, since `plugin.json` has no separate display-name field at all.
  */
 
-/**
- * The connected card is the admin's burnt-orange primary (owner, 2026-10-13: the default surface
- * palette rendered it grey). Values, not `var(--primary)`: the card is a sandboxed srcdoc iframe that
- * cannot inherit the host's custom properties, so `outcome.ts`'s `tokens` port is the only way in.
- * Mirrors `apps/admin/src/styles.css`'s light `--primary` / `--primary-ink` (surfaces are pinned
- * light by `FORCE_LIGHT_SURFACE_THEME`); white text on it measures 5.02:1. Panel, border and accent
- * all take the orange so the card's gradient and border resolve to one solid fill.
- */
-const CONNECTED_CARD_TOKENS: SurfaceOutcomeSpec["tokens"] = {
-  "--jini-mcpui-panel": "oklch(55.29% 0.1129 43.4)",
-  "--jini-mcpui-accent": "oklch(55.29% 0.1129 43.4)",
-  "--jini-mcpui-border": "oklch(55.29% 0.1129 43.4)",
-  "--jini-mcpui-text": "oklch(99% 0 0)",
-  "--jini-mcpui-text-strong": "oklch(99% 0 0)",
-};
-
 function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
   return `ui://tovu/agent-plugins-connect/${encodeURIComponent(pluginId)}` as UIResourceUri;
 }
@@ -62,7 +46,6 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): U
       message: "Connected ✓",
       app: { appName: "tovu-agent-plugins-connect", appVersion: "1" },
       preferredFrameSize: ["100%", "200px"],
-      tokens: CONNECTED_CARD_TOKENS,
     });
   }
 
