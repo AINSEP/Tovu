@@ -361,6 +361,11 @@ export function toolPickerFieldValues(rows: readonly ToolPickerRow[]): {
  *  Compares the FIELD VALUES rather than the rows, because that is what actually gets persisted: a
  *  row-level difference the two fields cannot express (a locked row's flags, say) is not a change.
  *
+ *  Compares them as SETS. The draft lists names in the probe's advertised order while the saved
+ *  field keeps whatever order it was typed or last saved in, so a string compare offered Save on a
+ *  picker nobody had touched (owner, 2026-10-14). A saved write grant on a name the allowlist does
+ *  not hold grants nothing (INV-002) and the draft cannot show it, so it is not a difference either.
+ *
  *  @complexity O(n) in row count. */
 export function isToolPickerDirty(
   rows: readonly ToolPickerRow[],
@@ -368,7 +373,13 @@ export function isToolPickerDirty(
   writeAllowedToolNames: string | undefined,
 ): boolean {
   const next = toolPickerFieldValues(rows);
-  const savedAllowed = parseSavedToolNames(allowedToolNames).join(", ");
-  const savedWrite = parseSavedToolNames(writeAllowedToolNames).join(", ");
-  return next.allowedToolNames !== savedAllowed || next.writeAllowedToolNames !== savedWrite;
+  const savedAllowed = new Set(parseSavedToolNames(allowedToolNames));
+  const savedWrite = new Set(parseSavedToolNames(writeAllowedToolNames).filter((name) => savedAllowed.has(name)));
+  return !sameNames(parseSavedToolNames(next.allowedToolNames), savedAllowed)
+    || !sameNames(parseSavedToolNames(next.writeAllowedToolNames), savedWrite);
+}
+
+function sameNames(names: readonly string[], saved: ReadonlySet<string>): boolean {
+  const draft = new Set(names);
+  return draft.size === saved.size && [...draft].every((name) => saved.has(name));
 }

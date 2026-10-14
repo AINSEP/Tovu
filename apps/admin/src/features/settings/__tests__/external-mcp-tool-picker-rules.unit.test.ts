@@ -218,6 +218,43 @@ describe("seedToolPickerRows — existing servers do not change", () => {
   });
 });
 
+describe("isToolPickerDirty — Save stays off until the selection really changes", () => {
+  const tools = [
+    tool({ remoteName: "list_styles" }),
+    tool({ remoteName: "generate_image", writeDeclared: true }),
+    tool({ remoteName: "generate_video", writeDeclared: true }),
+  ];
+
+  it("reads clean on open when the saved fields list the names in a different order than the probe", () => {
+    const allowedToolNames = "generate_video, list_styles, generate_image";
+    const writeAllowedToolNames = "generate_video, generate_image";
+
+    const rows = seedToolPickerRows(tools, allowedToolNames, writeAllowedToolNames);
+
+    expect(isToolPickerDirty(rows, allowedToolNames, writeAllowedToolNames)).toBe(false);
+  });
+
+  it("ignores a saved write grant on a name the allowlist does not hold, since the draft cannot show it", () => {
+    const rows = seedToolPickerRows(tools, "list_styles", "generate_image");
+
+    expect(isToolPickerDirty(rows, "list_styles", "generate_image")).toBe(false);
+  });
+
+  it("turns dirty on a toggle and clean again when the operator toggles back", () => {
+    const allowedToolNames = "generate_image, list_styles";
+    const writeAllowedToolNames = "generate_image";
+    const seeded = seedToolPickerRows(tools, allowedToolNames, writeAllowedToolNames);
+
+    const unticked = setToolRowEnabled(seeded, "list_styles", false);
+    expect(isToolPickerDirty(unticked, allowedToolNames, writeAllowedToolNames)).toBe(true);
+    expect(isToolPickerDirty(setToolRowEnabled(unticked, "list_styles", true), allowedToolNames, writeAllowedToolNames)).toBe(false);
+
+    const noWrite = setToolRowMayWrite(seeded, "generate_image", false);
+    expect(isToolPickerDirty(noWrite, allowedToolNames, writeAllowedToolNames)).toBe(true);
+    expect(isToolPickerDirty(setToolRowMayWrite(noWrite, "generate_image", true), allowedToolNames, writeAllowedToolNames)).toBe(false);
+  });
+});
+
 describe("seedToolPickerRows — a saved name the probe no longer advertises", () => {
   it("survives as its own absent row carrying its saved state, including a write grant, and round-trips unchanged", () => {
     const tools = [tool({ remoteName: "list_styles" })];
