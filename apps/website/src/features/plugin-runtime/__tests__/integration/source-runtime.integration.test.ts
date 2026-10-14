@@ -66,8 +66,12 @@ async function harness(t: TestContext) {
 
 test('chat can scaffold, write, seal and enable after one owner confirmation; updates replace helper module snapshots', async t => {
   const h = await harness(t); await h.createFilter();
-  const first = await h.call('plugin_source_seal', { id }) as { installed: boolean; reloaded: boolean };
+  const manifest = JSON.parse((await h.source.read({ id, path: 'jini.plugin.json' })).content);
+  await h.source.write({ id, path: 'jini.plugin.json', content: JSON.stringify({ ...manifest, extensions: { tovu: { id: 'publisher/site-rules' } } }) });
+  const first = await h.call('plugin_source_seal', { id }) as { installed: boolean; reloaded: boolean; plugin: { publisherId: string } };
   assert.equal(first.installed, true); assert.equal(first.reloaded, false);
+  assert.equal(first.plugin.publisherId, 'publisher/site-rules');
+  assert.equal(JSON.parse(await readFile(path.join(h.installDir, id, '0.1.0/jini.plugin.json'), 'utf8')).extensions.tovu.id, 'publisher/site-rules');
   assert.deepEqual(await h.activationRepo.listAll(), []);
   const { result: enabled, cards } = await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { result: { changed: boolean }; cards: string[] };
   assert.equal(enabled.changed, true); assert.equal(cards.length, 1);
@@ -203,6 +207,16 @@ test('copied site packages lack site-owned provenance and keep their enable conf
   const tool = buildPluginsRegistrations({ ...h.deps, ...runtime, pluginActivationRepo: new InMemoryPluginActivationRepo() }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) }).find(tool => tool.descriptor.id === 'plugins_set_enabled');
   assert.ok(tool);
   await assert.rejects(tool.handler(context({ family: 'site-runtime', pluginId: id, enabled: true }), {}), error => /NO_CONFIRMATION_CHANNEL/.test((error as Error).message));
+});
+
+test('hosted source sealing retains the Tovu opt-in hint and publishes no package', async t => {
+  const h = await harness(t); await h.createFilter();
+  const runtime = composePluginRuntime({ workspaceId, clock, activationRepo: h.activationRepo, sources: [], installDir: h.installDir,
+    pluginSourcePolicy: createPluginSourcePolicy({ hosted: true, localInstallOptIn: false }) });
+  assert.ok(runtime.pluginSource);
+  await assert.rejects(runtime.pluginSource.seal({ id }), { code: 'PLUGIN_LOCAL_INSTALL_DISABLED', message: 'Hosted plugin installs require TOVU_PLUGIN_LOCAL_INSTALL=1.' });
+  await assert.rejects(readFile(path.join(h.installDir, id, '0.1.0/jini.plugin.json')), { code: 'ENOENT' });
+  assert.deepEqual(await h.activationRepo.listAll(), []);
 });
 
 test('the deployment adapter treats desktop and dev as local and production/Fly as hosted', () => {

@@ -77,6 +77,7 @@ export const pluginHostBinding = {
   declarativeContentTypes,
   coreOwnerName: "Tovu core",
   identityNamespace: "tovu",
+  localInstallDisabledMessage: "Hosted plugin installs require TOVU_PLUGIN_LOCAL_INSTALL=1.",
   tierPolicy,
   archiveReader: readSitePluginArchive,
   verifyDigest: async ({ absoluteFilePath }: { absoluteFilePath: string }): Promise<string> =>
