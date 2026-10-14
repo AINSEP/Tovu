@@ -967,7 +967,7 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     category: "media",
     purposeLabel: "Media",
     supportsReplace: true,
-    screenLabel: "Providers · Media",
+    screenLabel: "Media · External Providers",
     screenPath: "/media?tab=external-providers",
   },
   {

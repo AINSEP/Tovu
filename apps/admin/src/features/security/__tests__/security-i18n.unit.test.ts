@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { t as mediaT } from "../../media/media-i18n";
 import {
   accessTokenDuplicateNameMessage,
   accessTokensLoadErrorMessage,
@@ -9,8 +10,8 @@ import {
 } from "../security-i18n";
 
 /**
- * @file `security-i18n.ts` — scoped to the one key the site-key plan (2026-09-24) item 3 added (the
- * SiteKeyTab "no key yet" note), not a full cross-locale sweep of `SECURITY_DICT` (pre-existing
+ * @file `security-i18n.ts` — scoped copy regressions including the SiteKeyTab "no key yet" note
+ * and Media's External Providers deep-link label, not a full sweep of `SECURITY_DICT` (pre-existing
  * dictionary drift elsewhere is out of scope for this fix — same reasoning `roles-i18n.unit.test.ts`
  * gives for its own narrow scope).
  */
@@ -18,6 +19,18 @@ const LOCALES = [
   "es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko",
   "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn",
 ];
+
+describe("Media · External Providers screen label", () => {
+  it.each(["en", ...LOCALES])("matches the Media screen and tab labels in %s", (locale) => {
+    expect(t({ locale, key: "Media · External Providers" })).toBe(
+      `${mediaT({ locale, key: "Media" })} · ${mediaT({ locale, key: "External Providers" })}`,
+    );
+  });
+
+  it("falls back to the English label for an unrecognized locale", () => {
+    expect(t({ locale: "xx", key: "Media · External Providers" })).toBe("Media · External Providers");
+  });
+});
 
 const EXPECTED_STARTUP_COPY: Record<string, string> = {
   es: "La clave se crea automáticamente cuando este sitio se inicia.",

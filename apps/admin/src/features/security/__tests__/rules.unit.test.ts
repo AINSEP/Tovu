@@ -234,6 +234,7 @@ describe("OTHER_CREDENTIAL_STORES / otherCredentialStoreInfo", () => {
   });
 
   it("links media provider credentials to the Media screen's External Providers tab", () => {
+    expect(otherCredentialStoreInfo("media-provider").screenLabel).toBe("Media · External Providers");
     expect(otherCredentialStoreInfo("media-provider").screenPath).toBe("/media?tab=external-providers");
   });
 
