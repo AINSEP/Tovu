@@ -301,6 +301,14 @@ function siteStatusDetail(sharedRunning: SharedRunning, status: string, openSite
   return status === "stopped" ? describeLastExit(openSites, siteDir) : null;
 }
 
+/**
+ * Only for a site this window can stop although another process serves it; absent, the card
+ * offers no Stop for it at all. See `external-site-stop.ts`.
+ */
+function siteExternalLauncher(externalUrl: string | undefined, sharedRunning: SharedRunning, externalSites: SiteRecordDeps["externalSites"]) {
+  return externalUrl && sharedRunning ? externalSites?.launcherOf({ lease: sharedRunning }) ?? undefined : undefined;
+}
+
 /** The card name: an alias, the config's name, or (config gone) the last known name. */
 function siteDisplayName(row: SiteRow, validSite: boolean, readSiteName: (siteDir: string) => string): string {
   return row.displayNameAlias ?? (validSite ? readSiteName(row.siteDir) : row.displayName ?? path.basename(row.siteDir));
@@ -330,9 +338,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     port: openEntry?.server.port ?? sharedPort,
     runningApp: sharedRunning?.app,
     externalUrl,
-    // Only for a site this window can stop although another process serves it; absent, the card
-    // offers no Stop for it at all. See `external-site-stop.ts`.
-    externalLauncher: externalUrl && sharedRunning ? deps.externalSites?.launcherOf({ lease: sharedRunning }) ?? undefined : undefined,
+    externalLauncher: siteExternalLauncher(externalUrl, sharedRunning, deps.externalSites),
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
