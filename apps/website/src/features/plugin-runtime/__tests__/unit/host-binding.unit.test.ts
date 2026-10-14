@@ -63,3 +63,13 @@ test("site entry outside its real package root is refused without importing it",
   const importer = createPluginModuleImporter({ manifest, source: "site" });
   assert.equal(await importer({ plugin: { pluginId: manifest.id, packageRoot }, modulePath }), `module path '${modulePath}' escapes the plugin root`);
 });
+
+for (const filename of ["jini.plugin.json", "tovu.plugin.json"]) { // legacy alias
+  test(`tier policy accepts declarative ${filename} packages while refusing executable files`, () => {
+    const files = new Map([[filename, Buffer.from("{}")]]);
+    const declarative = { ...manifest, tier: "tier-1" as const };
+    assert.doesNotThrow(() => pluginHostBinding.tierPolicy.checkInstall({ manifest: declarative, files }));
+    files.set("server/index.mjs", Buffer.from("export {}"));
+    assert.throws(() => pluginHostBinding.tierPolicy.checkInstall({ manifest: declarative, files }), /must not ship code/);
+  });
+}

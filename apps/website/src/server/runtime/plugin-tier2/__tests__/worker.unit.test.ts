@@ -52,13 +52,15 @@ test("main() posts the call's reply using the injected importer", async () => {
   assert.deepEqual(posted, [{ ok: true, kind: "probe", hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE] }]);
 });
 
-test("main() without an importer resolves @tovu/sdk for a plugin outside the repo and runs its filter", async () => {
+test("main() without an importer resolves both SDK specifiers to the same module outside the repo and runs its filter", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-tier2-worker-"));
   try {
     const entry = path.join(dir, "index.mjs");
     await writeFile(
       entry,
-      `import { definePlugin } from "@tovu/sdk";\n` +
+      `import { definePlugin } from "@jini-ai/plugin-sdk";\n` +
+        `import { definePlugin as legacyDefinePlugin } from "@tovu/sdk"; // legacy alias\n` +
+        `if (definePlugin !== legacyDefinePlugin) throw new Error("SDK aliases diverged");\n` +
         `export default definePlugin({ setup(sdk) { sdk.addFilter("content.entry.beforeSave", (e) => ({ title: e.title })); } });\n`,
     );
     const { posted, parentPort } = port();

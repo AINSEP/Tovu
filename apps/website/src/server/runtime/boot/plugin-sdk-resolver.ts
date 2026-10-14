@@ -1,6 +1,7 @@
 /**
- * @file `registerPluginSdkResolver()` — the boot-time `@tovu/sdk` module-resolution hook
+ * @file `registerPluginSdkResolver()` — the boot-time SDK module-resolution hook
  * (SPEC-005 ADR "SDK Resolution Mechanism"; CIC U-002, `ESCALATE_SECURITY`).
+ * `@jini-ai/plugin-sdk` and `@tovu/sdk` (legacy alias) share the bundled SDK module below.
  *
  * Purpose:
  * A plugin's prebuilt `server/index.mjs` does `import { definePlugin } from '@tovu/sdk'`, but
@@ -34,6 +35,7 @@
 
 import { createRequire, register } from "node:module";
 import { pathToFileURL } from "node:url";
+import { LEGACY_PLUGIN_SDK_SPECIFIER, PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plugins/host";
 
 /** Used only by `resolveDefaultSdkModulePath()` below to reach real Node package resolution for
  * the `@tovu/sdk` bare specifier — same idiom as `admin-static.ts`, `composition/deps.ts`,
@@ -46,15 +48,16 @@ const require = createRequire(import.meta.url);
  * ESM module (it runs in a dedicated hooks realm, not this file's own CJS scope) — a `data:
  * text/javascript,...` URL is a self-contained module specifier Node's ESM loader resolves
  * directly, so this mechanism needs no extra `.mjs` file to keep in sync with the compiled
- * `dist/` output. `initialize(data)` receives the one thing this hook needs at registration time
- * (the resolved SDK URL); `resolve()` redirects only the exact `@tovu/sdk` specifier — v1 ships no
- * other `@tovu/*` package, so there is nothing else to redirect yet.
+ * `dist/` output. `initialize(data)` receives the values this hook needs at registration time
+ * (the resolved SDK URL and accepted specifiers); `resolve()` redirects only the exact canonical
+ * and legacy SDK specifiers — deep imports still go through ordinary package export checks.
  */
 const HOOK_MODULE_SOURCE = `
 let sdkUrl;
-export function initialize(data) { sdkUrl = data.sdkUrl; }
+let sdkSpecifiers;
+export function initialize(data) { sdkUrl = data.sdkUrl; sdkSpecifiers = data.sdkSpecifiers; }
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "@tovu/sdk") {
+  if (sdkSpecifiers.includes(specifier)) { // legacy alias
     return { url: sdkUrl, shortCircuit: true };
   }
   return nextResolve(specifier, context);
@@ -74,7 +77,7 @@ let registered = false;
  * can assert on the real default return value directly, since every other test in this module
  * exercises the `sdkModulePath` override instead. */
 export function resolveDefaultSdkModulePath(): string {
-  return require.resolve("@tovu/sdk");
+  return require.resolve(LEGACY_PLUGIN_SDK_SPECIFIER); // legacy alias: the bundled backing package keeps its workspace name.
 }
 
 /** Thrown by a second `registerPluginSdkResolver()` call in the same process — distinguishes the
@@ -115,6 +118,6 @@ export function registerPluginSdkResolver(_optional: RegisterPluginSdkResolverOp
   const sdkUrl = pathToFileURL(sdkModulePath).href;
   const hookModuleUrl = `data:text/javascript,${encodeURIComponent(HOOK_MODULE_SOURCE)}`;
 
-  register(hookModuleUrl, { data: { sdkUrl } });
+  register(hookModuleUrl, { data: { sdkUrl, sdkSpecifiers: PLUGIN_SDK_SPECIFIERS } }); // legacy alias
   registered = true;
 }

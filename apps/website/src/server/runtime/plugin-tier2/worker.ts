@@ -24,7 +24,7 @@ export interface Tier2WorkerMainRequired {
 }
 
 export interface Tier2WorkerMainOptional {
-  /** Test seam. Omitted ⇒ register the `@tovu/sdk` resolver in this worker, then real `import()`. */
+  /** Test seam. Omitted ⇒ register both SDK specifiers in this worker, then real `import()`. */
   readonly importModule?: (entryPath: string) => Promise<unknown>;
 }
 
@@ -50,7 +50,7 @@ export async function main(required: Tier2WorkerMainRequired, optional: Tier2Wor
   if (!importModule) {
     // CIC U-002, per worker: main-thread `module.register()` hooks do not reach a worker spawned
     // with `execArgv: []` (measured, Node v24.2.0), so without this a site plugin's
-    // `import "@tovu/sdk"` fails, or resolves to a copy planted next to the plugin. Registered
+    // SDK imports (including the legacy alias) fail, or resolve to a copy planted next to the plugin. Registered
     // before the plugin's first import.
     registerPluginSdkResolver();
     importModule = importPluginModule;

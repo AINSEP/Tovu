@@ -22,7 +22,7 @@ The installed-plugins list behind the sidebar's **Design & System → Plugins** 
 
 Start the server with `TOVU_PLUGIN_LOCAL_INSTALL=1` to expose **Install plugin** on the Plugins
 page. Choose **Upload .zip (max 32 MiB)** for a package on your computer, or enter a folder on the
-**server**. The ZIP must contain `tovu.plugin.json` and `server/index.mjs` at its root. Preview it, review the full
+**server**. The ZIP must contain `jini.plugin.json` (`tovu.plugin.json` is a legacy alias) and `server/index.mjs` at its root. The new filename wins when both exist. Preview it, review the full
 machine access warning, then choose **Install (stays off)**. Installed packages appear on
 Downloaded; use Enable there when ready. Installing never evaluates the plugin's code and
 never writes an activation row. The route reuses `admin.plugins.enable`.
@@ -30,7 +30,7 @@ never writes an activation row. The route reuses `admin.plugins.enable`.
 CLI: `tovu plugin install /path/to/package --site /path/to/site` asks for consent;
 `--yes` explicitly accepts it for automation, and `--replace` permits replacing the same version
 while disabled in every workspace. `tovu plugin integrity /path/to/package --write` generates
-the complete `tovu.plugin.json` integrity map. Folder packages must declare `tier-3`, contain
+the complete integrity map in `jini.plugin.json`, reading either manifest filename and leaving any legacy file unchanged. Folder packages must declare `tier-3`, contain
 `server/index.mjs`, and cover every non-manifest file with its SHA-256 hash.
 
 Packages in Trash must be restored or purged there first. Upgrade and replacement refuse any

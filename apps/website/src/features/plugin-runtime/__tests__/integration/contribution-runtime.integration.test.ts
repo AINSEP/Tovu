@@ -63,8 +63,8 @@ async function harness(t: TestContext, options: { coreClaims?: readonly Extensio
   const setPluginEnabledNow = async (id: string, enabled: boolean) => setPluginEnabled({ deps: { clock, repo: activationRepo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled }, input: { workspaceId, pluginId: id, enabled } });
   const author = async (id = pluginId, code = entry('first'), routeClaims = ['POST /public','POST /member','POST /admin']) => {
     await source.create({id,name:'Sample',description:'Site local sample'});
-    const manifest = JSON.parse((await source.read({id,path:'tovu.plugin.json'})).content);
-    await source.write({id,path:'tovu.plugin.json',content:JSON.stringify({...manifest,capabilities:['http.route.register','tools.register','render.contribute'],contributes:{routes:routeClaims,tools:['echo'],widgets:[`${id}-banner`]}})});
+    const manifest = JSON.parse((await source.read({id,path:'jini.plugin.json'})).content);
+    await source.write({id,path:'jini.plugin.json',content:JSON.stringify({...manifest,capabilities:['http.route.register','tools.register','render.contribute'],contributes:{routes:routeClaims,tools:['echo'],widgets:[`${id}-banner`]}})});
     await source.write({id,path:'server/index.mjs',content:code.replaceAll('site-sample-banner', `${id}-banner`)});
     return source.seal({id});
   };

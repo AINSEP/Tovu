@@ -4,11 +4,11 @@ import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { definePlugin, HOOK_POINTS, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft, type PluginSdk } from "@tovu/sdk";
+import { definePlugin, HOOK_POINTS, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft, type PluginSdk } from "@tovu/sdk"; // legacy alias: the bundled backing package.
 import type { ClaimMode, DeclarativeContentTypesPort, PluginManifest, PluginModuleImportPort, PluginSdkBinding, PluginTierPolicy, HookRegistry } from "@jini-ai/plugins/host";
 import { PluginInstallError, snapshotPluginModuleGraph } from "@jini-ai/plugins/host/node";
 import type { RunTier2CallRequired } from "@jini-ai/plugins/host/worker";
-import { PLUGIN_CONTRIBUTION_CAPABILITIES } from "@jini-ai/plugins/host";
+import { PLUGIN_CONTRIBUTION_CAPABILITIES, PLUGIN_MANIFEST_FILENAME, PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
 import { SHARED_EXTENSION_CAPABILITIES } from "../../contracts/core/extension-capability-vocabulary.js";
 import { applyDeclaredContentTypes, parseDeclaredContentTypes, planDeclaredContentTypes, validateDeclarativeManifest, type DeclaredContentTypePlan, type DeclaredContentTypePorts, type DeclaredContentType } from "./declarative-content-types.js";
 import { readSitePluginArchive } from "./install-archive.js";
@@ -53,11 +53,11 @@ const tierPolicy: PluginTierPolicy = {
   execution: "worker",
   siteErrors: ({ manifestValue }) => {
     if (typeof manifestValue !== "object" || manifestValue === null || (manifestValue as { tier?: unknown }).tier !== "tier-2") return [];
-    return [{ code: "TIER_NOT_ALLOWED", file: "tovu.plugin.json", message: "A site-installed plugin cannot declare tier-2: tier-2 is for verified publishers and needs a sandbox that does not exist yet. Declare tier-3 (unverified publisher)." }];
+    return [{ code: "TIER_NOT_ALLOWED", file: PLUGIN_MANIFEST_FILENAME, message: "A site-installed plugin cannot declare tier-2: tier-2 is for verified publishers and needs a sandbox that does not exist yet. Declare tier-3 (unverified publisher)." }];
   },
   checkInstall: ({ manifest, files }) => {
     if (manifest.tier === "tier-1") {
-      const code = [...files.keys()].filter((key) => key !== "tovu.plugin.json" && !DECLARATIVE_DATA_FILE.test(key));
+      const code = [...files.keys()].filter((key) => !PLUGIN_MANIFEST_FILENAMES.includes(key) && !DECLARATIVE_DATA_FILE.test(key)); // legacy alias
       if (code.length) throw new PluginInstallError("PLUGIN_MANIFEST_INVALID", `A declarative (tier-1) plugin must not ship code: ${code.join(", ")}`);
       return;
     }

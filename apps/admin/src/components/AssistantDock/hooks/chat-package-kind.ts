@@ -29,12 +29,12 @@ export async function chatPackageKind(
       const next = cursor + 46 + length + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
       if (next > bytes.length) return "attachment";
       const name = new TextDecoder().decode(bytes.subarray(cursor + 46, cursor + 46 + length)).replaceAll("\\", "/").replace(/^\.\//, "");
-      if (/^(?:[^/]+\/)?(?:SKILL\.md|tovu\.plugin\.json|plugin\.json)$/.test(name) && !name.startsWith("__MACOSX/")) names.add(name.split("/").at(-1)!);
+      if (/^(?:[^/]+\/)?(?:SKILL\.md|(?:jini|tovu)\.plugin\.json|plugin\.json)$/.test(name) && !name.startsWith("__MACOSX/")) names.add(name.split("/").at(-1)!);
       cursor = next;
     }
     if (cursor !== bytes.length) return "attachment";
     // A plugin may bundle skills. Its manifest takes precedence so it can reach the assistant.
-    if (names.has("tovu.plugin.json")) return "site-plugin";
+    if (names.has("jini.plugin.json") || names.has("tovu.plugin.json")) return "site-plugin"; // tovu.plugin.json: legacy alias
     if (names.has("plugin.json")) return "agent-plugin";
     return names.has("SKILL.md") ? "skill" : "attachment";
   } catch {
@@ -50,7 +50,7 @@ export async function partitionChatPackages(
 ): Promise<{ skills: File[]; attachments: File[] }> {
   const paths = files.map(file => ((file as File & { relativePath?: string }).relativePath || file.webkitRelativePath || "").replaceAll("\\", "/"));
   const roots = paths.map(value => value.includes("/") ? value.slice(0, value.indexOf("/") + 1) : "");
-  const pluginRoots = new Set(roots.filter((root, index) => root && (paths[index] === `${root}plugin.json` || paths[index] === `${root}tovu.plugin.json`)));
+  const pluginRoots = new Set(roots.filter((root, index) => root && (paths[index] === `${root}plugin.json` || paths[index] === `${root}jini.plugin.json` || paths[index] === `${root}tovu.plugin.json`))); // tovu.plugin.json: legacy alias
   const skillRoots = new Set(roots.filter((root, index) => root && files[index]!.name === "SKILL.md" && !pluginRoots.has(root)));
   const kinds = await Promise.all(files.map(file => chatPackageKind({ file })));
   const skills: File[] = [], attachments: File[] = [];

@@ -56,8 +56,8 @@ async function harness(t: TestContext) {
   };
   async function createFilter() {
     await call('plugin_source_create', { id, name: 'Site rules', description: 'Test site content rules' });
-    const manifest = JSON.parse((await source.read({ id, path: 'tovu.plugin.json' })).content);
-    await source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, capabilities: ['hooks.attach'], hooks: ['content.entry.beforeSave'], fields: [{ path: `ext.${id}.value`, type: 'integer', queryable: false }] }) });
+    const manifest = JSON.parse((await source.read({ id, path: 'jini.plugin.json' })).content);
+    await source.write({ id, path: 'jini.plugin.json', content: JSON.stringify({ ...manifest, capabilities: ['hooks.attach'], hooks: ['content.entry.beforeSave'], fields: [{ path: `ext.${id}.value`, type: 'integer', queryable: false }] }) });
     await call('plugin_source_write', { id, path: 'server/index.mjs', content: entry });
     await call('plugin_source_write', { id, path: 'server/helper.mjs', content: 'export const value = 1;\n' });
   }
@@ -107,8 +107,8 @@ test('new versions update active pointers across workspaces and the existing pol
 test('removing a filter from a sealed manifest clears the old running hook', async t => {
   const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
   await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
-  const manifest = JSON.parse((await h.source.read({ id, path: 'tovu.plugin.json' })).content);
-  await h.source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, capabilities: [], hooks: [], fields: [] }) });
+  const manifest = JSON.parse((await h.source.read({ id, path: 'jini.plugin.json' })).content);
+  await h.source.write({ id, path: 'jini.plugin.json', content: JSON.stringify({ ...manifest, capabilities: [], hooks: [], fields: [] }) });
   await h.source.write({ id, path: 'server/index.mjs', content: 'export default { definition: { setup() {} } };' });
   await h.source.seal({ id });
   assert.deepEqual(await h.runtime.beforeSaveHook(draft), {});
@@ -181,8 +181,8 @@ test('an unchanged re-seal does not re-prompt; a widened re-seal waits for a new
   assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 5 } });
   // Re-enabling the same capabilities runs directly: `call` fails on any card.
   assert.equal((await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { changed: boolean }).changed, true);
-  const manifest = JSON.parse((await h.source.read({ id, path: 'tovu.plugin.json' })).content);
-  await h.source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, fields: [...manifest.fields, { path: `ext.${id}.extra`, type: 'integer', queryable: false }] }) });
+  const manifest = JSON.parse((await h.source.read({ id, path: 'jini.plugin.json' })).content);
+  await h.source.write({ id, path: 'jini.plugin.json', content: JSON.stringify({ ...manifest, fields: [...manifest.fields, { path: `ext.${id}.extra`, type: 'integer', queryable: false }] }) });
   await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 6;\n' });
   const widened = await h.source.seal({ id });
   assert.equal(widened.reloaded, false); assert.match(widened.reloadError ?? '', /approval/i);

@@ -66,7 +66,7 @@ export function createProgram(): Command {
       await runPluginInstallCommand({ dir, ...options });
     });
   pluginProgram.command("integrity").argument("<dir>", "plugin package folder")
-    .option("--write", "write the complete integrity map to tovu.plugin.json")
+    .option("--write", "write the complete integrity map to jini.plugin.json")
     .action(async (dir: string, options: { write?: boolean }) => { await runPluginIntegrityCommand({ dir, ...options }); });
 
   program
