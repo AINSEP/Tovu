@@ -11,6 +11,9 @@ wording and removed the public draft banner and HTML comments; these copies are 
 Existing legal clauses and the original effective date were preserved; the last-updated date
 is 2026-10-13. Both pages have an `#ai-disclosure` section and a “Report AI content” form link.
 
+On 2026-10-14 the owner removed the unsettled-hosting claims from the privacy copy; no hosting
+provider is named. The live page is a regular page and gets the same edit separately.
+
 The form-IP cleanup worker's nullable-IP migration is committed and installed (2a41f672e); cleanup stays off until a `@jini-ai/cms-forms` release exporting `sweepExpiredSubmissionIps` is installed.
 The wording records the owner's retention rule; coordinate deployment with that worker's
 handoff before treating cleanup as active. No schema or migration was changed by this copy edit.

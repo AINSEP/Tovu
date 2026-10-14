@@ -42,6 +42,12 @@ test("privacy distinguishes 90-day IP deletion from retention of the submission"
   for (const id of ["rights", "self-hosted", "retention"]) assert.match(html, new RegExp(`id="${id}"`));
 });
 
+test("privacy drops unsettled-hosting claims but keeps the chat transfer fact", () => {
+  const html = read("content/legal/tovu-dev/privacy-policy.html");
+  assert.doesNotMatch(html, /not yet settled|not yet deployed|once deployed/i);
+  assert.ok(html.includes("<p>Site chat messages go to today's provider, Google, a US company, so they leave the UK and EEA (section 11).</p>"));
+});
+
 // 4570fce9d removed the tracked deployed seed DB and site-theme copies. Seed-body parity
 // and the seeded contact form no longer have repository subjects; canonical legal HTML
 // is covered above, and the remaining templates are owned by content/themes/static.
