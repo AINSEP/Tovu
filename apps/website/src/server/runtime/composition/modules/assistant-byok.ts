@@ -256,6 +256,28 @@ export function byokTurnOutcome(
   return { status: reportedError ? "failed" : "succeeded" };
 }
 
+/**
+ * Stamps each provider `usage` event with the wall time since the previous one (the first since
+ * `startedAt`). Provider adapters report tokens only, and the chat's "Done · 16s" line needs a
+ * `durationMs` (it shows nothing without time or cost); the client sums a turn's usage events, so
+ * per-event deltas add up to the turn's elapsed time however many usage frames a provider streams.
+ * No `costUsd`: there is no pricing table and the chat never estimates money from tokens.
+ * @complexity O(1) per event; holds one timestamp.
+ */
+export function createByokUsageTimer(
+  { startedAt }: { startedAt: number },
+  { now = Date.now }: { now?: () => number } = {},
+): (event: ByokTurnEvent) => ByokTurnEvent & { durationMs?: number } {
+  let mark = startedAt;
+  return (event) => {
+    if (event.type !== "usage") return event;
+    const at = now();
+    const durationMs = Math.max(0, at - mark);
+    mark = at;
+    return { ...event, durationMs };
+  };
+}
+
 async function resolveByokSystemPrompt(
   routeDeps: RouteDeps,
   federation: { readonly refusalPrefix: string; readonly stillConnecting: boolean },
@@ -479,6 +501,7 @@ export function createAssistantByokModule(
     // DB and outbound spans nest under the run rather than the long-lived request.
     const runTracker = routeDeps.observability.trackAgentRun({ runId: run.id }, { agentName: credential.protocol });
     let reportedError = false;
+    const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
     let result: ByokProviderTurnResult;
     try {
       result = await runTracker.run(() => runByokProviderTurn({
@@ -503,7 +526,7 @@ export function createAssistantByokModule(
         // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
         onEvent: (event: ByokTurnEvent) => {
           if (event.type === "error") reportedError = true;
-          sse(res, event.type === "error" ? "error" : "agent", event);
+          sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
         },
       }));
     } catch (error) {
