@@ -915,9 +915,12 @@ const PREVIEW_CAPTURE_DEBOUNCE_MS = 1500;
 const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
   current: ({ siteDir }) => {
     const entry = openSites.get(siteDir);
-    return entry ? { port: entry.server.port, partition: sitePartition(siteDir) } : undefined;
+    if (entry) return { port: entry.server.port, partition: sitePartition(siteDir) };
+    // A site another app runs (`npm run dev`, a sibling desktop): its lease names the live port.
+    const lease = sharedSites.running({ path: siteDir }).read({});
+    return lease && lease.port > 0 ? { port: lease.port, partition: sitePartition(siteDir), scheme: lease.scheme } : undefined;
   },
-  capture: ({ siteDir, port, partition }) => captureSitePreview(siteDir, port, partition),
+  capture: ({ siteDir, port, partition, scheme }) => captureSitePreview(siteDir, port, partition, scheme),
   schedule: ({ work, delayMs }) => setTimeout(work, delayMs),
   cancel: ({ timer }) => clearTimeout(timer),
 } }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
@@ -946,7 +949,7 @@ const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTim
  *
  * @complexity O(1) beyond the hidden window's own load/capture/destroy cost.
  */
-async function captureSitePreview(siteDir: string, port: number, partition: string): Promise<boolean> {
+async function captureSitePreview(siteDir: string, port: number, partition: string, scheme: "http" | "https" = "http"): Promise<boolean> {
   let window;
   try {
     window = new BrowserWindow({
@@ -955,7 +958,8 @@ async function captureSitePreview(siteDir: string, port: number, partition: stri
       height: PREVIEW_CAPTURE_HEIGHT_PX,
       webPreferences: { partition },
     });
-    await window.loadURL(`http://127.0.0.1:${port}/`);
+    // An https dev server's certificate names `localhost`, not the loopback IP.
+    await window.loadURL(scheme === "https" ? `https://localhost:${port}/` : `http://127.0.0.1:${port}/`);
     await new Promise((resolve) => setTimeout(resolve, PREVIEW_PAINT_SETTLE_MS));
     if (window.isDestroyed()) return false;
     const captured = await window.webContents.capturePage();
@@ -980,6 +984,24 @@ async function captureSitePreview(siteDir: string, port: number, partition: stri
  * @complexity O(1) — one reservation check, one timer.
  */
 function scheduleSitePreview(siteDir: string): void {
+  sitePreviewScheduler.schedule({ siteDir }, {});
+}
+
+/** Every `siteDir` + port the list poll has already asked to capture — see {@link requestListedSitePreview}. */
+const listedPreviewRequests = new Set<string>();
+
+/**
+ * The list poll's ask: capture a running site that has no preview yet. ONE attempt per site per
+ * port: the poll runs every 4 s, and a capture that keeps failing (an untrusted certificate, a page
+ * that never loads) must not open a hidden window on every tick. A restart on a new port earns a
+ * fresh attempt. Goes through the same scheduler, so an open's own capture and this one never race.
+ *
+ * @complexity O(1).
+ */
+function requestListedSitePreview({ siteDir, port }: { siteDir: string; port: number }, _optional = {}): void {
+  const key = `${siteDir}\0${port}`;
+  if (listedPreviewRequests.has(key)) return;
+  listedPreviewRequests.add(key);
   sitePreviewScheduler.schedule({ siteDir }, {});
 }
 
@@ -1779,6 +1801,7 @@ app
         readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
         readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
         deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
+        requestPreviewCapture: requestListedSitePreview,
         cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
           sitePreviewScheduler.cancel({ siteDir }, {});
           siteThemePreviews.stop({ siteDir }, {});

@@ -51,7 +51,7 @@ test('Websites fits at 375px with every nav control and header action inside the
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.route('**/*', (route) => route.abort());
   await page.setContent(`<style>${css}</style><div class="app">${nav}<main class="main">${header}
-    <div class="grid"><article class="card"><div class="card__tile"><span class="card__port">3456</span></div>
+    <div class="grid"><article class="card"><div class="card__tile"><svg class="card__placeholder" viewBox="0 0 48 36"></svg></div>
     <div class="card__body"><div class="card__head"><h2 class="card__name">${'LongWebsiteName'.repeat(12)}</h2><button>⋮</button></div>
     <div class="card__actions"><button class="button">Start</button><button class="button">Restart</button></div></div></article></div>
     </main></div>`);

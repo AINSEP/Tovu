@@ -47,7 +47,7 @@ import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
 import { cardOpenClass, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
-import { sitePortPresentation } from './site-port.rules.js';
+import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SiteActions } from './use-site-actions.hooks.js';
@@ -189,20 +189,26 @@ function SiteCard({
   const status = power.statusOf(project);
   const powerError = power.errorOf(project.id);
   const connection = sitePortPresentation({ port: project.port, status });
+  const statusCopy = siteCardStatus({ project, connection });
   const parentFolder = project.installDir.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || "/";
 
   return (
     <article className={`card is-${status} ${cardOpenClass({ openable })}`} {...openProps}>
       <div className="card__tile">
-        {/* A capture exists once this site has been opened at least once, this run or a prior one.
-            Until then — and forever as the fallback if a capture ever failed — the tile carries the
-            port instead when running: the project's real address, the thing you would type to
-            reach it. A stopped site has no address to show. See `use-site-preview.hooks.ts` and
-            `site-preview-store.ts` for why the record carries only a version token, never bytes. */}
+        {/* A capture exists once main has seen this site running, in this app or another one, this
+            run or a prior one. Until then — and as the fallback if a capture failed — the tile is a
+            neutral placeholder, never the port: owner 2026-10-13, "shouldn't I see a preview of the
+            actual site where it says 3000?" The address lives in the status line's title. The tile's
+            fixed aspect ratio means the image landing causes no layout jump. See
+            `use-site-preview.hooks.ts` and `site-preview-store.ts` for why the record carries only a
+            version token, never bytes. */}
         {previewUrl ? (
           <img className="card__preview" src={previewUrl} alt="" />
         ) : (
-          <span className="card__port">{connection.portLabel}</span>
+          <svg className="card__placeholder" viewBox="0 0 48 36" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <rect x="1" y="1" width="46" height="34" rx="4" />
+            <path d="M1 9h46M7 5h.01M11 5h.01M15 5h.01M9 17h30M9 23h20" strokeLinecap="round" />
+          </svg>
         )}
       </div>
       <div className="card__body">
@@ -228,17 +234,18 @@ function SiteCard({
             {project.templateVersion && <> · Tovu {project.templateVersion}</>}
           </p>
           <p className="card__meta">
-            <span className="state">
+            <span className="state" title={statusCopy.title}>
               <span className="state__dot" aria-hidden="true" />
               {STATUS_LABEL[status]}
             </span>
           </p>
           {/* Everything below spans both columns (`grid-column: 1 / -1`). The failure reason left the
               status line when the status moved into the narrow right column: unbounded text there
-              would squeeze the name's column to nothing. */}
-          {project.statusDetail && (
-            <p className={`card__detail${project.runningApp ? " card__detail--running" : ""}`} title={project.statusDetail}>
-              {project.statusDetail}
+              would squeeze the name's column to nothing. "Running in Web (port N)" is not shown here
+              any more — it moved into the status's title; see `siteCardStatus`. */}
+          {statusCopy.detail && (
+            <p className="card__detail" title={statusCopy.detail}>
+              {statusCopy.detail}
             </p>
           )}
           {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}

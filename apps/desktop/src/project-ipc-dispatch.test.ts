@@ -109,6 +109,22 @@ test("registered list joins current server state and returns fresh names on cons
   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list })[0].displayName, "Changed since the last poll");
 });
 
+// REGRESSION: a running card with no preview must ask main for one; captured or stopped ones must not.
+test("registered list requests a preview only for running sites that have none", (t) => {
+  const f = fixture({ t });
+  const bare = f.site({ name: "bare" });
+  const captured = f.site({ name: "captured" });
+  const stopped = f.site({ name: "stopped" });
+  for (const id of [bare, captured, stopped]) trackSite(f.deps.projectsPath, id);
+  f.deps.openSites.set(bare, { server: { port: 4401 } });
+  f.deps.openSites.set(captured, { server: { port: 4402 } });
+  f.previews.set(captured, "data:image/png;base64,AA==");
+  const requests: unknown[][] = [];
+  f.deps.requestPreviewCapture = (...args) => { requests.push(args); };
+  f.invoke({ channel: SITE_IPC_CHANNELS.list });
+  assert.deepEqual(requests, [[{ siteDir: bare, port: 4401 }, {}]]);
+});
+
 test("registered create forwards the display name to init and records the newly created identity", async (t) => {
   const f = sharedFixture({ t });
   const dir = path.join(f.workspace.home({}), "my-new-website");

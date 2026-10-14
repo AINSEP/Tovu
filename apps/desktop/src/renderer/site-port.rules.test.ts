@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { sitePortPresentation } from './site-port.rules.js';
+import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import { cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { sourceFunction } from './source-test-harness.js';
@@ -44,22 +44,41 @@ const gridSource = fs.readFileSync(new URL('./SiteGrid.tsx', import.meta.url), '
 const appSource = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8');
 
-// REGRESSION: fails if SiteCard renders project.port instead of connection.portLabel.
-test('the rendered card keeps the running port and blanks the stopped port', () => {
+// REGRESSION: owner 2026-10-13 — the card's copy never shows the port; it lives in the status title.
+test('the rendered card keeps the running address in the status title, never in its copy', () => {
   const SiteCard = sourceFunction(gridSource, 'SiteCard', {
-    cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation,
+    cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation, siteCardStatus,
     useSitePreview: () => null, CardActions: () => null, SiteCardMenu: () => null, MissingFolderNotice: () => null,
   });
-  for (const [status, port, expected] of [
-    ['stopped', 0, ''], ['stopped', 4100, ''], ['running', 0, ''],
-    ['stopped', undefined, ''], ['running', 4100, '4100'],
+  for (const [status, port, title] of [
+    ['stopped', 0, 'Stopped.'], ['stopped', 4100, 'Stopped.'], ['running', 0, 'Stopped.'],
+    ['stopped', undefined, 'Stopped.'], ['running', 4100, 'Running at http://localhost:4100'],
   ] as const) {
     const tree = SiteCard({
       project: { id: 'test-site', displayName: 'Test site', installDir: '/sites/test-site', status, port, database: { kind: 'sqlite' } },
       overlay: null, power: { statusOf: () => status, errorOf: () => null },
     });
-    assert.ok(renderToStaticMarkup(tree).includes(`<span class="card__port">${expected}</span>`));
+    const html = renderToStaticMarkup(tree);
+    assert.ok(html.includes(`<span class="state" title="${title}">`), html);
+    assert.ok(!html.includes('4100<') && !html.includes('card__port'), `${status}/${port} must not print the port`);
   }
+});
+
+test('siteCardStatus names the running app in the title and drops its detail line', () => {
+  const running = sitePortPresentation({ port: 3000, status: 'running' });
+  assert.deepEqual(siteCardStatus({ project: { runningApp: 'Web', statusDetail: 'Running in Web (port 3000)' }, connection: running }), {
+    title: 'Running in Web at http://localhost:3000', detail: null,
+  });
+  const starting = sitePortPresentation({ port: 0, status: 'starting' });
+  assert.deepEqual(siteCardStatus({ project: { runningApp: 'Web', statusDetail: 'Running in Web (starting)' }, connection: starting }), {
+    title: 'Starting.', detail: null,
+  });
+  // A stopped site's last exit is the one detail that stays visible.
+  const stopped = sitePortPresentation({ port: 0, status: 'stopped' });
+  assert.deepEqual(siteCardStatus({ project: { statusDetail: "The site's server exited (code 1)." }, connection: stopped }), {
+    title: 'Stopped.', detail: "The site's server exited (code 1).",
+  });
+  assert.deepEqual(siteCardStatus({ project: {}, connection: stopped }), { title: 'Stopped.', detail: null });
 });
 
 // REGRESSION: fails if SiteStartPanel restores `${STATUS_LABEL[project.status]} on port ${project.port}.`.

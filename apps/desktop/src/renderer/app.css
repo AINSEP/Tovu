@@ -1275,18 +1275,17 @@ webview { display: flex; }
   border-bottom: 1px solid var(--border);
 }
 
-/* Until a site has been captured (or when a capture fails), the port stands in for the preview.
-   It is the project's real address rather than decoration, which is why it gets display size. */
-.card__port {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 1.5rem;
-  letter-spacing: -0.02em;
+/* Until a site has been captured (or when a capture fails), a neutral page glyph stands in for the
+   preview. Not the port: the owner (2026-10-13) read a bare "3000" as noise, not an address. */
+.card__placeholder {
+  width: 3rem;
+  height: auto;
   color: var(--faint);
+  opacity: 0.6;
 }
 
 /* `.card__tile`'s `aspect-ratio: 16 / 10` above (not a fixed height) keeps every card's thumbnail
-   the same shape before either the real image or the port fallback has painted, so the grid
+   the same shape before either the real image or the placeholder has painted, so the grid
    doesn't reflow when a capture loads in — same reasoning as the admin's own `.theme-card-preview`
    (`apps/admin/src/styles.css`). `object-position: top` rather than the default `center`: a
    full-page capture cropped to this ratio shows only its top fraction, and the hero is what a
@@ -1298,8 +1297,6 @@ webview { display: flex; }
   object-position: top;
 }
 
-.card.is-running .card__tile { background: var(--primary-dim); }
-.card.is-running .card__port { color: var(--primary); }
 
 /* TWO ROWS: the head (name | ⋮, SQLite | status), then the button row (Start/Stop left, Restart
    right). The owner's 2026-10-06 layout — Start/Stop under the "SQLite" line rather than stacked
@@ -1375,7 +1372,6 @@ webview { display: flex; }
   text-align: right;
   color: var(--faint);
 }
-.card__detail--running { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .card.is-failed .state { color: var(--warning); }
 
 .card__draft {

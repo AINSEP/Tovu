@@ -398,6 +398,25 @@ function handleList(
   return recordsWithRememberedNames({ rows, deps });
 }
 
+/**
+ * Ask main for a preview of every listed site that is running and has none yet. A site another app
+ * runs (`npm run dev`, a sibling desktop) is never opened by this window, so without this its card
+ * kept showing a bare port forever — owner 2026-10-13. Main dedupes and debounces; see
+ * `requestPreviewCapture`. Returns `records` unchanged so the list handler stays one expression.
+ *
+ * @complexity O(n) in listed sites.
+ */
+function requestMissingPreviews<T extends { id: string; status: string; port: number; previewVersion: number | null }>(
+  records: T[], deps: Pick<ProjectIpcDeps, "requestPreviewCapture">,
+): T[] {
+  for (const record of records) {
+    if (record.status === "running" && record.port > 0 && record.previewVersion === null) {
+      deps.requestPreviewCapture?.({ siteDir: record.id, port: record.port }, {});
+    }
+  }
+  return records;
+}
+
 /** Store only the name, never lifecycle status or deletion authority. */
 function rememberSiteName(
   { projectsPath, siteDir, displayName }: { projectsPath: string; siteDir: string; displayName: string }, _optional = {},
@@ -1259,7 +1278,7 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, relocationGate }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => requestMissingPreviews(handleList({ ...deps, relocationGate }), deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.planNewDir, (_event, input) => ({
     path: planNewSiteDir({ name: input?.name }, { workspace: deps.sharedSites }), homeDir: os.homedir(),
   }));
@@ -1321,6 +1340,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   readPreviewDataUrl: (id: string) => string | null;
   deletePreview: (id: string) => void;
   removeSiteTree?: typeof removeSiteTree;
+  /** Capture a running site's preview when its card has none — main's dedupe, never per-poll work. */
+  requestPreviewCapture?: (required: { siteDir: string; port: number }, optional: {}) => void;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
   /** Jini's existing shutdown tracker: Quit must also await Stops removed from openSites. */

@@ -3,10 +3,10 @@
  * (see `use-add-site.hooks.test.ts`'s own header). The hook's own fetch/refetch behaviour is not
  * asserted here at all: `useSitePreview` calls React's `useEffect`, which needs a real render to
  * exercise, so what this file can and does check is narrower — that `SiteCard` actually calls the
- * hook and renders its result, and that the existing port fallback still exists for when it does not.
+ * hook and renders its result, and that a neutral placeholder stands in when it does not.
  *
  * Every assertion runs against COMMENT-STRIPPED source, same discipline `site-card-menu-wiring.test.ts`
- * uses — this file's own doc comments discuss `previewVersion`, `<img>` and the port fallback by
+ * uses — this file's own doc comments discuss `previewVersion`, `<img>` and the placeholder by
  * name, and a naive substring match would pass on the prose instead of the code.
  */
 import test from "node:test";
@@ -38,12 +38,13 @@ test("SiteCard imports and calls useSitePreview with the project's own id and pr
   assert.match(cardBody(), /useSitePreview\(project\.id, project\.previewVersion\)/);
 });
 
-test("the tile renders the capture when one exists, and the port tile otherwise — never both, never neither", () => {
+// REGRESSION: owner 2026-10-13 — "where it says 3000" there should be a preview, never the port.
+test("the tile renders the capture when one exists, and a neutral placeholder otherwise — never the port", () => {
   const body = cardBody();
   assert.match(body, /previewUrl \? \(/, "expected a previewUrl-gated branch inside the tile");
   assert.match(body, /<img className="card__preview" src=\{previewUrl\} alt="" \/>/);
-  assert.match(body, /<span className="card__port">\{connection\.portLabel\}<\/span>/, "the port fallback must use the shared rule");
-  assert.match(body, /<div className="card__tile">\s*\{\s*\}\s*\{previewUrl \? \(\s*<img className="card__preview" src=\{previewUrl\} alt="" \/>\s*\) : \(\s*<span className="card__port">\{connection\.portLabel\}<\/span>\s*\)\}\s*<\/div>/, "the entire tile must contain only the image/fallback conditional in that order");
+  assert.match(body, /<svg className="card__placeholder"[^>]*aria-hidden="true">/);
+  assert.doesNotMatch(body, /card__port|portLabel/, "the tile must not fall back to the port");
 });
 
 test("the preview image carries no alt text — it is decoration, not content", () => {

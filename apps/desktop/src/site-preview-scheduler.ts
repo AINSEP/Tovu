@@ -1,7 +1,7 @@
 /** Preview policy from the 0.1.12 peer repair: reserve once per live lifecycle, resolve the
  * server only when the debounce fires, and let failed or canceled attempts be scheduled again.
  * Electron, site partitions, storage and timers are ports; this module does no I/O itself. */
-export interface PreviewTarget { readonly port: number; readonly partition: string }
+export interface PreviewTarget { readonly port: number; readonly partition: string; readonly scheme?: "http" | "https" }
 
 export interface PreviewSchedulerPorts<Timer> {
   readonly current: (required: { siteDir: string }, optional: {}) => PreviewTarget | undefined;

@@ -40,7 +40,7 @@ test("main.ts imports every site-preview-store operation it needs", () => {
 
 test("captureSitePreview loads the site's OWN public root, never /admin/", () => {
   const body = functionBody("captureSitePreview");
-  assert.match(body, /loadURL\(`http:\/\/127\.0\.0\.1:\$\{port\}\/`\)/, "must load the bare origin root, not an admin path");
+  assert.match(body, /`http:\/\/127\.0\.0\.1:\$\{port\}\/`/, "must load the bare origin root, not an admin path");
   assert.doesNotMatch(body, /\/admin\//, "must never navigate the capture window to /admin/");
 });
 
@@ -104,6 +104,32 @@ test("captureSitePreview's window is hidden and scoped to the site's own partiti
   assert.equal(h.options[0].show, false);
   assert.equal(h.options[0].webPreferences.partition, "persist:alpha-auth");
   assert.deepEqual(h.urls, ["http://127.0.0.1:8123/"]);
+});
+
+// REGRESSION: an https dev server (`npm run dev` with dev TLS) has a localhost certificate.
+test("captureSitePreview loads an https lease through localhost, the name its certificate carries", async () => {
+  const h = captureHarness();
+  await h.run("/sites/dev", 3000, "persist:dev", "https");
+  assert.deepEqual(h.urls, ["https://localhost:3000/"]);
+});
+
+// REGRESSION: fails if a site another app runs never gets a card preview (owner 2026-10-13).
+test("the scheduler falls back to the shared running lease for a site this window does not own", () => {
+  assert.match(source, /current: \(\{ siteDir \}\) => \{[\s\S]*?sharedSites\.running\(\{ path: siteDir \}\)\.read\(\{\}\)[\s\S]*?scheme: lease\.scheme/);
+});
+
+// REGRESSION: the 4 s list poll must not open a hidden window per tick for a failing capture.
+test("requestListedSitePreview schedules once per site and port", () => {
+  const schedules: unknown[][] = [];
+  const request = executable("requestListedSitePreview", {
+    listedPreviewRequests: new Set<string>(),
+    sitePreviewScheduler: { schedule: (...args: unknown[]) => schedules.push(args) },
+  });
+  request({ siteDir: "/sites/web", port: 3000 });
+  request({ siteDir: "/sites/web", port: 3000 });
+  request({ siteDir: "/sites/web", port: 3001 });
+  assert.deepEqual(schedules, [[{ siteDir: "/sites/web" }, {}], [{ siteDir: "/sites/web" }, {}]]);
+  assert.match(source, /requestPreviewCapture: requestListedSitePreview,/);
 });
 
 test("captureSitePreview writes through writePreview, keyed by siteDir, resized before storage", async () => {

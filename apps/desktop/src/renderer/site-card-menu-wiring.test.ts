@@ -17,7 +17,7 @@ import type { SiteRecord } from "../contracts/project.js";
 import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable } from "./SiteGrid.hooks.js";
 import { powerControl } from "./use-site-power.hooks.js";
 import { STATUS_LABEL } from "./site-status.js";
-import { sitePortPresentation } from "./site-port.rules.js";
+import { siteCardStatus, sitePortPresentation } from "./site-port.rules.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -139,7 +139,7 @@ test("a running record with a local stopping status omits Open in browser throug
   }).join("\n");
   const executable = ts.transpileModule(declarations, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const deps = {
-    React, cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL, sitePortPresentation,
+    React, cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL, sitePortPresentation, siteCardStatus,
     useSitePreview: () => null,
     useDismissibleDropdown: () => ({ open: true, setOpen: () => {}, containerRef: { current: null } }),
     MissingFolderNotice: () => null,
@@ -165,11 +165,10 @@ test("a running record with a local stopping status omits Open in browser throug
     }));
     assert.equal(html.includes("Open in browser"), status === "running", `rendered ${status} must decide the menu`);
     assert.ok(html.includes(`card is-${status}`));
-    assert.ok(html.includes('class="card__detail card__detail--running"'));
-    assert.ok(html.includes('Running in Web (port 52612)'));
-    const styles = fs.readFileSync(path.join(here, 'app.css'), 'utf8');
-    const runningStyle = /\.card__detail--running\s*\{([^}]+)\}/.exec(styles)?.[1] ?? '';
-    assert.match(runningStyle, /white-space:\s*normal/); assert.match(runningStyle, /overflow:\s*visible/);
+    // Owner 2026-10-13: "Running in Web (port N)" is noise in the card's copy; it is the status title.
+    assert.ok(!html.includes('class="card__detail"'), "a site another app runs shows no detail line");
+    assert.ok(!html.includes('Running in Web (port 52612)'));
+    assert.equal(html.includes('title="Running in Web at http://localhost:4200"'), status === "running");
     assert.ok(html.includes('<h3 class="card__name" title="Test site">Test site</h3>'), "D-28: card names expose their full text");
   }
   for (const overlay of ["rename", "confirm"]) {

@@ -30,3 +30,31 @@ export function sitePortPresentation(
     statusDescription: `${STATUS_LABEL.running} on port ${portLabel}.`,
   };
 }
+
+/**
+ * A card's status line copy: its hover title, and the detail line under it (or `null`).
+ *
+ * The address and the app that runs the site live in the title, never in the card's main copy —
+ * owner 2026-10-13: "it says running in web port 3000. That's unnecessary." A running card reads
+ * "● Running" and nothing more; pointing at the status still answers "where, and in which app".
+ * A stopped site's last exit ("the server exited (code 1)") stays a visible line: it is the one
+ * detail that tells an operator something is wrong.
+ *
+ * @param required.project the record's `runningApp` and main's `statusDetail`.
+ * @param required.connection {@link sitePortPresentation}'s answer for the rendered status.
+ * @returns `title` for the status element, `detail` for the line under it.
+ * Pure: no effects or errors.
+ * @complexity O(1).
+ */
+export function siteCardStatus(
+  { project, connection }: {
+    project: { runningApp?: string; statusDetail?: string | null };
+    connection: Pick<ReturnType<typeof sitePortPresentation>, 'origin' | 'statusDescription'>;
+  },
+  _optional: Record<string, never> = {},
+) {
+  const where = connection.origin ? ` at ${connection.origin.replace('127.0.0.1', 'localhost')}` : '';
+  const app = project.runningApp ? ` in ${project.runningApp}` : '';
+  const title = connection.origin ? `${STATUS_LABEL.running}${app}${where}` : connection.statusDescription;
+  return { title, detail: project.runningApp ? null : (project.statusDetail ?? null) };
+}
