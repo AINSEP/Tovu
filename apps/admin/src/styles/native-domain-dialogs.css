@@ -1,7 +1,10 @@
 /* Jini owns the native modal lifecycle. These CMS dialogs keep their labelled
-   domain actions, like Jini MediaPicker, so a second generic Close adds no action. */
-.tovu-domain-dialog > .jini-dialog-close { display: none; }
-.settings-dialog.tovu-domain-dialog {
+   domain actions, like Jini MediaPicker, so a second generic Close adds no action.
+   `.jini-domain-dialog` is the host-neutral name Jini admin dialogs use; drop the
+   `.tovu-domain-dialog` alias here once the @jini-ai/admin release carrying it is adopted
+   and Tovu's own dialogs are renamed. */
+:is(.tovu-domain-dialog, .jini-domain-dialog) > .jini-dialog-close { display: none; }
+.settings-dialog:is(.tovu-domain-dialog, .jini-domain-dialog) {
   border: 0; color: var(--fg); margin: auto;
   /* Native dialogs shrink to their content without an explicit width; the media
      instance editor's short labels used to squeeze its fields into 230px. */
@@ -9,32 +12,32 @@
   max-width: calc(100vw - 2rem);
   box-sizing: border-box;
 }
-.tovu-domain-dialog:not([open]) { display: none; }
-.tovu-domain-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+:is(.tovu-domain-dialog, .jini-domain-dialog):not([open]) { display: none; }
+:is(.tovu-domain-dialog, .jini-domain-dialog)::backdrop { background: oklch(0% 0 0 / 0.45); }
 /* The native title sits outside each form; the form still owns submission and
    keeps the same vertical rhythm the former form-as-dialog root supplied. */
-.tovu-domain-dialog > form { display: flex; flex-direction: column; gap: 0.9rem; }
+:is(.tovu-domain-dialog, .jini-domain-dialog) > form { display: flex; flex-direction: column; gap: 0.9rem; }
 
 /* Native Dialog owns modal focus/cancellation. Its body/footer composition keeps long forms
    scrollable while the title and actions stay available, without a second dialog lifecycle. */
-.tovu-domain-dialog[open]:has(> form > .jini-dialog-body) {
+:is(.tovu-domain-dialog, .jini-domain-dialog)[open]:has(> form > .jini-dialog-body) {
   display: flex;
   flex-direction: column;
   max-height: min(85vh, calc(100dvh - var(--space-8)));
   overflow: hidden;
 }
-.tovu-domain-dialog:has(> form > .jini-dialog-body) > form {
+:is(.tovu-domain-dialog, .jini-domain-dialog):has(> form > .jini-dialog-body) > form {
   min-height: 0;
   overflow: hidden;
 }
-.tovu-domain-dialog .jini-dialog-body {
+:is(.tovu-domain-dialog, .jini-domain-dialog) .jini-dialog-body {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
   min-height: 0;
   overflow-y: auto;
 }
-.tovu-domain-dialog .jini-dialog-footer {
+:is(.tovu-domain-dialog, .jini-domain-dialog) .jini-dialog-footer {
   display: flex;
   flex-shrink: 0;
   justify-content: flex-end;
@@ -42,7 +45,7 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
 }
-.tovu-domain-dialog .jini-dialog-section-title {
+:is(.tovu-domain-dialog, .jini-domain-dialog) .jini-dialog-section-title {
   margin: 0 0 var(--space-3);
   font-family: var(--font-display);
   font-size: var(--text-md);
