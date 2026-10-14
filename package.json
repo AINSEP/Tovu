@@ -132,7 +132,7 @@
     "@jini-ai/mcp": "^0.4.3",
     "@jini-ai/oauth": "^0.2.2",
     "@jini-ai/platform": "^0.5.6",
-    "@jini-ai/plugins": "^0.5.0",
+    "@jini-ai/plugins": "^0.5.1",
     "@jini-ai/registry": "^0.5.1",
     "@jini-ai/sandbox": "^0.4.2",
     "@jini-ai/sidecar": "^0.4.3",
