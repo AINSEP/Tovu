@@ -333,7 +333,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 16px;
+  /* The bottom keeps Jini's reservation for `.jini-chat-pane__controls`, an absolute overlay over
+     this list's bottom edge (its live height is `--jini-chat-controls-height`). A flat 12px here
+     hid a long answer's tail under the composer with no way to scroll to it (owner, 2026-10-13). */
+  padding: 12px 16px calc(var(--jini-chat-controls-height, 240px) + 24px);
   display: flex;
   flex-direction: column;
   gap: 12px;
