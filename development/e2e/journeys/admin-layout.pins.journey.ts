@@ -830,6 +830,20 @@ async function expectPreviewControlAnchored(surface: Locator) {
   })).toBe(true);
 }
 
+/** Collapsed, the control sits on the action row right after the settings gear (724fc22dd). */
+async function expectPreviewControlBesideGear(page: Page) {
+  const control = page.locator(".page > .post-preview-surface > .post-preview-fab");
+  await control.scrollIntoViewIfNeeded();
+  await expectReachable(control);
+  await expect.poll(() => control.evaluate((button) => {
+    const row = document.querySelector(".page > .editor-action-row")!.getBoundingClientRect();
+    const gear = document.querySelector(".page > .editor-action-row > .post-settings-trigger")!.getBoundingClientRect();
+    const box = button.getBoundingClientRect();
+    return Math.abs(box.right - row.right) <= 1 && box.left >= gear.right - 1
+      && Math.abs((box.top + box.bottom) / 2 - (gear.top + gear.bottom) / 2) <= 1;
+  })).toBe(true);
+}
+
 test("expanded post preview leaves the chat FAB and open assistant dock accessible", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await loginAsAdmin(page);
@@ -843,7 +857,7 @@ test("expanded post preview leaves the chat FAB and open assistant dock accessib
   if (await dock.isVisible()) await fab.click();
   await expect(dock).toBeHidden();
   await page.getByRole("tab", { name: "Preview", exact: true }).click();
-  await expectPreviewControlAnchored(page.locator(".post-preview-surface"));
+  await expectPreviewControlBesideGear(page);
   await page.getByRole("button", { name: "Show full screen", exact: true }).click();
   const expanded = page.locator(".post-preview-expanded");
   await expect(expanded).toBeVisible();
