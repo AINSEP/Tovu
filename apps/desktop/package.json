@@ -23,7 +23,7 @@
     "@jini-ai/agent-runtime": "^0.4.10",
     "@jini-ai/chat": "^0.6.2",
     "@jini-ai/core": "^0.4.5",
-    "@jini-ai/daemon": "^0.6.3",
+    "@jini-ai/daemon": "^0.6.4",
     "@jini-ai/desktop-host": "^0.4.1",
     "@jini-ai/mcp": "^0.4.3",
     "@jini-ai/platform": "^0.5.6",
