@@ -101,12 +101,12 @@ it("renders destructive and undeclared warnings on their own rows and saves the 
   expect(within(row("erase")).getByText("Writes")).toBeInTheDocument();
   expect(within(row("erase")).getByText("The server marks this tool as destructive. Tovu does not enable destructive external tools.")).toBeInTheDocument();
   expect(screen.getByRole("checkbox", { name: "erase" })).toBeDisabled();
-  expect(within(row("erase")).queryByRole("checkbox", { name: "may write" })).not.toBeInTheDocument();
+  expect(within(row("erase")).queryByRole("checkbox", { name: "Allow changes" })).not.toBeInTheDocument();
   expect(within(row("silent")).getByText("The server does not say what this tool does.")).toBeInTheDocument();
   expect(within(row("legacy")).getByText("This server does not offer a tool by that name.")).toBeInTheDocument();
-  expect(within(row("read")).queryByRole("checkbox", { name: "may write" })).not.toBeInTheDocument();
+  expect(within(row("read")).queryByRole("checkbox", { name: "Allow changes" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("checkbox", { name: "write" }));
-  expect(within(row("write")).getByRole("checkbox", { name: "may write" })).not.toBeChecked();
+  expect(within(row("write")).getByRole("checkbox", { name: "Allow changes" })).not.toBeChecked();
   expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onSave.mock.calls).toEqual([[{ allowedToolNames: "read, legacy", writeAllowedToolNames: "" }]]);
@@ -154,7 +154,7 @@ it("restores saved tool grants on Cancel and disables draft actions again withou
   render(<ExternalMcpToolPicker {...pickerProps} onSave={onSave} />, { wrapper });
   await screen.findByRole("checkbox", { name: "write" });
   const writer = screen.getByRole("checkbox", { name: "write" });
-  const writeGrant = within(writer.closest("li")!).getByRole("checkbox", { name: "may write" });
+  const writeGrant = within(writer.closest("li")!).getByRole("checkbox", { name: "Allow changes" });
   expect(writer).toBeChecked();
   expect(writeGrant).toBeChecked();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
@@ -190,8 +190,8 @@ it("locks a newly destructive tool on refresh while preserving an unrelated unsa
   const writer = screen.getByRole("checkbox", { name: "write" });
   expect(writer).toBeEnabled();
   expect(writer).not.toBeChecked();
-  await user.click(within(reader.closest("li")!).getByRole("checkbox", { name: "may write" }));
-  expect(within(reader.closest("li")!).getByRole("checkbox", { name: "may write" })).toBeChecked();
+  await user.click(within(reader.closest("li")!).getByRole("checkbox", { name: "Allow changes" }));
+  expect(within(reader.closest("li")!).getByRole("checkbox", { name: "Allow changes" })).toBeChecked();
   await user.click(screen.getByRole("button", { name: "Refresh" }));
   await waitFor(() => expect(probes).toBe(2));
   await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled());
@@ -199,9 +199,47 @@ it("locks a newly destructive tool on refresh while preserving an unrelated unsa
   await user.click(writer);
   expect(writer).not.toBeChecked();
   expect(within(writer.closest("li")!).getByText("Destructive")).toBeInTheDocument();
-  expect(within(writer.closest("li")!).queryByRole("checkbox", { name: "may write" })).not.toBeInTheDocument();
+  expect(within(writer.closest("li")!).queryByRole("checkbox", { name: "Allow changes" })).not.toBeInTheDocument();
   expect(reader).toBeChecked();
-  expect(within(reader.closest("li")!).getByRole("checkbox", { name: "may write" })).toBeChecked();
+  expect(within(reader.closest("li")!).getByRole("checkbox", { name: "Allow changes" })).toBeChecked();
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onSave.mock.calls).toEqual([[{ allowedToolNames: "read", writeAllowedToolNames: "read" }]]);
+});
+
+it("filters rows by name or description and selects all / none among the visible, unlocked rows only", async () => {
+  // 2026-10-13 redesign: reject a filter that edits the draft, a bulk select that reaches hidden or
+  // locked rows, a "no match" state that reads as "this server has no tools", or handles that shift.
+  stubProbe(async () => Response.json({ tools: [
+    tool("image_generate", { description: "Make a picture." }),
+    tool("video_generate", { writeDeclared: true, description: "Make a clip." }),
+    tool("image_erase", { destructiveDeclared: true }),
+    tool("list_models", { description: "Lists image models." }),
+  ] }));
+  const user = userEvent.setup();
+  const onSave = vi.fn();
+  render(<ExternalMcpToolPicker {...pickerProps} allowedToolNames="video_generate" writeAllowedToolNames="video_generate" onSave={onSave} />, { wrapper });
+  const search = await screen.findByRole("searchbox", { name: "Search tools" });
+  await user.type(search, "IMAGE");
+  expect(screen.getAllByRole("listitem").map((item) => within(item).getAllByRole("checkbox")[0]!.getAttribute("data-agent-element"))).toEqual([
+    "atlas-tools-image-generate", "atlas-tools-image-erase", "atlas-tools-list-models",
+  ]);
+  await user.click(screen.getByRole("button", { name: "Select all" }));
+  expect(screen.getByRole("checkbox", { name: "image_generate" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "list_models" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "image_erase" })).not.toBeChecked();
+  expect(screen.getByRole("button", { name: "Select all" })).toBeDisabled();
+  expect(screen.getByText("3 of 4 tools enabled")).toBeInTheDocument();
+  await user.clear(search);
+  await user.type(search, "zzz");
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  expect(screen.getByText("No tools match your search.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Select none" })).toBeDisabled();
+  await user.clear(search);
+  await user.type(search, "clip");
+  await user.click(screen.getByRole("button", { name: "Select none" }));
+  expect(screen.getByRole("button", { name: "Select none" })).toBeDisabled();
+  await user.clear(search);
+  expect(screen.getAllByRole("listitem")).toHaveLength(4);
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(onSave.mock.calls).toEqual([[{ allowedToolNames: "image_generate, list_models", writeAllowedToolNames: "" }]]);
 });

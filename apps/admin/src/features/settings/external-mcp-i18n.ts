@@ -69,6 +69,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Los cambios aquí surten efecto la próxima vez que se reinicie el asistente.",
     "Tools": "Herramientas",
     "Connection": "Conexión",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Buscar herramientas",
+    "Select all": "Seleccionar todo",
+    "Select none": "Deseleccionar todo",
+    "No tools match your search.": "Ninguna herramienta coincide con tu búsqueda.",
+    "Allow changes": "Permitir cambios",
   },
   id: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -110,6 +116,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Perubahan di sini akan berlaku saat asisten dimulai ulang berikutnya.",
     "Tools": "Alat",
     "Connection": "Koneksi",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Cari alat",
+    "Select all": "Pilih semua",
+    "Select none": "Batalkan semua",
+    "No tools match your search.": "Tidak ada alat yang cocok dengan pencarian Anda.",
+    "Allow changes": "Izinkan perubahan",
   },
   de: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -151,6 +163,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Änderungen hier werden wirksam, wenn der Assistent das nächste Mal neu gestartet wird.",
     "Tools": "Werkzeuge",
     "Connection": "Verbindung",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Werkzeuge suchen",
+    "Select all": "Alle auswählen",
+    "Select none": "Keine auswählen",
+    "No tools match your search.": "Keine Werkzeuge entsprechen Ihrer Suche.",
+    "Allow changes": "Änderungen erlauben",
   },
   "zh-CN": {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -192,6 +210,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "此处的更改将在助手下次重启时生效。",
     "Tools": "工具",
     "Connection": "连接",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "搜索工具",
+    "Select all": "全选",
+    "Select none": "全不选",
+    "No tools match your search.": "没有与搜索匹配的工具。",
+    "Allow changes": "允许更改",
   },
   "zh-TW": {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -233,6 +257,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "此處的變更將在助理下次重新啟動時生效。",
     "Tools": "工具",
     "Connection": "連線",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "搜尋工具",
+    "Select all": "全選",
+    "Select none": "全不選",
+    "No tools match your search.": "沒有符合搜尋的工具。",
+    "Allow changes": "允許變更",
   },
   "pt-BR": {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -274,6 +304,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "As alterações aqui feitas têm efeito na próxima vez que o assistente for reiniciado.",
     "Tools": "Ferramentas",
     "Connection": "Conexão",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Buscar ferramentas",
+    "Select all": "Selecionar tudo",
+    "Select none": "Desmarcar tudo",
+    "No tools match your search.": "Nenhuma ferramenta corresponde à sua busca.",
+    "Allow changes": "Permitir alterações",
   },
   ru: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -315,6 +351,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Изменения здесь вступят в силу при следующем перезапуске ассистента.",
     "Tools": "Инструменты",
     "Connection": "Подключение",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Поиск инструментов",
+    "Select all": "Выбрать все",
+    "Select none": "Снять все",
+    "No tools match your search.": "Нет инструментов, соответствующих запросу.",
+    "Allow changes": "Разрешить изменения",
   },
   fa: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -356,6 +398,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "تغییرات اینجا با راه‌اندازی مجدد بعدی دستیار اعمال می‌شوند.",
     "Tools": "ابزارها",
     "Connection": "اتصال",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "جستجوی ابزارها",
+    "Select all": "انتخاب همه",
+    "Select none": "لغو انتخاب همه",
+    "No tools match your search.": "هیچ ابزاری با جستجوی شما مطابقت ندارد.",
+    "Allow changes": "اجازهٔ تغییرات",
   },
   ar: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -397,6 +445,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "تصبح التغييرات هنا سارية المفعول عند إعادة تشغيل المساعد في المرة القادمة.",
     "Tools": "الأدوات",
     "Connection": "الاتصال",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "البحث في الأدوات",
+    "Select all": "تحديد الكل",
+    "Select none": "إلغاء تحديد الكل",
+    "No tools match your search.": "لا توجد أدوات تطابق بحثك.",
+    "Allow changes": "السماح بالتغييرات",
   },
   ja: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -438,6 +492,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "ここでの変更は、アシスタントが次に再起動されたときに反映されます。",
     "Tools": "ツール",
     "Connection": "接続",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "ツールを検索",
+    "Select all": "すべて選択",
+    "Select none": "すべて解除",
+    "No tools match your search.": "検索に一致するツールはありません。",
+    "Allow changes": "変更を許可",
   },
   ko: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -479,6 +539,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "여기의 변경 사항은 어시스턴트가 다음에 재시작될 때 적용됩니다.",
     "Tools": "도구",
     "Connection": "연결",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "도구 검색",
+    "Select all": "모두 선택",
+    "Select none": "모두 해제",
+    "No tools match your search.": "검색과 일치하는 도구가 없습니다.",
+    "Allow changes": "변경 허용",
   },
   pl: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -520,6 +586,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Zmiany wprowadzone tutaj zaczną obowiązywać przy następnym ponownym uruchomieniu asystenta.",
     "Tools": "Narzędzia",
     "Connection": "Połączenie",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Szukaj narzędzi",
+    "Select all": "Zaznacz wszystkie",
+    "Select none": "Odznacz wszystkie",
+    "No tools match your search.": "Żadne narzędzie nie pasuje do wyszukiwania.",
+    "Allow changes": "Zezwól na zmiany",
   },
   hu: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -561,6 +633,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Az itt végzett módosítások az asszisztens következő újraindításakor lépnek életbe.",
     "Tools": "Eszközök",
     "Connection": "Kapcsolat",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Eszközök keresése",
+    "Select all": "Összes kijelölése",
+    "Select none": "Kijelölés törlése",
+    "No tools match your search.": "Egy eszköz sem felel meg a keresésnek.",
+    "Allow changes": "Módosítások engedélyezése",
   },
   fr: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -602,6 +680,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Les modifications apportées ici prennent effet au prochain redémarrage de l'assistant.",
     "Tools": "Outils",
     "Connection": "Connexion",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Rechercher des outils",
+    "Select all": "Tout sélectionner",
+    "Select none": "Tout désélectionner",
+    "No tools match your search.": "Aucun outil ne correspond à votre recherche.",
+    "Allow changes": "Autoriser les modifications",
   },
   uk: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -643,6 +727,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Зміни тут набудуть чинності під час наступного перезапуску асистента.",
     "Tools": "Інструменти",
     "Connection": "Підключення",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Пошук інструментів",
+    "Select all": "Вибрати всі",
+    "Select none": "Зняти всі",
+    "No tools match your search.": "Немає інструментів, що відповідають пошуку.",
+    "Allow changes": "Дозволити зміни",
   },
   tr: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -684,6 +774,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Buradaki değişiklikler, asistan bir sonraki kez yeniden başlatıldığında etkili olur.",
     "Tools": "Araçlar",
     "Connection": "Bağlantı",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Araçlarda ara",
+    "Select all": "Tümünü seç",
+    "Select none": "Hiçbirini seçme",
+    "No tools match your search.": "Aramanızla eşleşen araç yok.",
+    "Allow changes": "Değişikliklere izin ver",
   },
   th: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -725,6 +821,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "การเปลี่ยนแปลงที่นี่จะมีผลเมื่อผู้ช่วยรีสตาร์ทครั้งถัดไป",
     "Tools": "เครื่องมือ",
     "Connection": "การเชื่อมต่อ",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "ค้นหาเครื่องมือ",
+    "Select all": "เลือกทั้งหมด",
+    "Select none": "ไม่เลือกทั้งหมด",
+    "No tools match your search.": "ไม่มีเครื่องมือที่ตรงกับการค้นหา",
+    "Allow changes": "อนุญาตให้เปลี่ยนแปลง",
   },
   it: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -766,6 +868,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "Le modifiche qui apportate hanno effetto al prossimo riavvio dell'assistente.",
     "Tools": "Strumenti",
     "Connection": "Connessione",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "Cerca strumenti",
+    "Select all": "Seleziona tutto",
+    "Select none": "Deseleziona tutto",
+    "No tools match your search.": "Nessuno strumento corrisponde alla ricerca.",
+    "Allow changes": "Consenti modifiche",
   },
   hi: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -807,6 +915,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "यहां किए गए बदलाव सहायक के अगली बार पुनः आरंभ होने पर प्रभावी होंगे।",
     "Tools": "टूल",
     "Connection": "कनेक्शन",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "टूल खोजें",
+    "Select all": "सभी चुनें",
+    "Select none": "कोई नहीं चुनें",
+    "No tools match your search.": "आपकी खोज से कोई टूल मेल नहीं खाता।",
+    "Allow changes": "बदलाव की अनुमति दें",
   },
   ur: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -848,6 +962,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "یہاں کی گئی تبدیلیاں اسسٹنٹ کے اگلی بار دوبارہ شروع ہونے پر نافذ ہوں گی۔",
     "Tools": "ٹولز",
     "Connection": "کنکشن",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "ٹولز تلاش کریں",
+    "Select all": "سب منتخب کریں",
+    "Select none": "کوئی منتخب نہ کریں",
+    "No tools match your search.": "آپ کی تلاش سے کوئی ٹول میل نہیں کھاتا۔",
+    "Allow changes": "تبدیلیوں کی اجازت دیں",
   },
   bn: {
     // c7-rev-settings-deploy 2026-09-24: `use-external-mcp.hooks.ts` add/test messages, previously untranslated.
@@ -889,6 +1009,12 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "Changes here take effect when the assistant next restarts.": "এখানে করা পরিবর্তনগুলো সহকারী পরবর্তীতে পুনরায় চালু হলে কার্যকর হবে।",
     "Tools": "টুল",
     "Connection": "সংযোগ",
+    // 2026-10-13 Tools dialog redesign: search box, select all/none, and the row's write-grant label.
+    "Search tools": "টুল খুঁজুন",
+    "Select all": "সব নির্বাচন করুন",
+    "Select none": "কোনোটিই নয়",
+    "No tools match your search.": "আপনার অনুসন্ধানের সাথে কোনো টুল মেলেনি।",
+    "Allow changes": "পরিবর্তনের অনুমতি দিন",
   },
 };
 

@@ -11,7 +11,10 @@ import {
   describeToolRowBadges,
   describeToolRowLock,
   toolPickerHandle,
+  useToolPickerFilter,
   useToolRowHandles,
+  type ToolPickerFilter,
+  type VisibleToolRow,
 } from "./ExternalMcpToolPicker.hooks";
 import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-picker.hooks";
@@ -55,6 +58,15 @@ import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-pic
  * Edit/Save/Cancel pills shipped as invisible text on a light panel (fixed in Jini `b82cbe95`; a
  * prior instance is documented at `settings-dialog.css:851-865`). A `getByText` assertion passes
  * throughout that failure, so legibility here is pinned against the stylesheet source instead.
+ *
+ * ## Layout (2026-10-13 redesign, owner: "the UI is ugly")
+ *
+ * Toolbar (search, select all/none, Refresh) on top, the list as the one scroller, and one footer
+ * holding the count, the restart note and Cancel/Save. The count and the footnote used to sit in two
+ * different places with Refresh/Cancel/Save beside the count and the modal's own Close as a second
+ * button cluster; now there is one action area. Each row is checkbox + name + badges on one line, a
+ * one-line description that expands in place, and "Allow changes" (the write grant, formerly a
+ * bare "may write" checkbox that floated under the description) at the row's right edge.
  */
 
 /** One tool. A real `<label>` wraps each checkbox rather than an `aria-label` — `agentHandle`'s
@@ -75,49 +87,28 @@ function ToolPickerRowItem(props: {
 
   return (
     <li className="external-mcp-tool-row" data-locked={locked || undefined}>
-      <label className="external-mcp-tool-enable">
-        <input
-          type="checkbox"
-          checked={row.enabled}
-          disabled={locked}
-          {...agentHandle({ handle }, { role: "checkbox", label: `Enable the tool ${row.remoteName}` })}
-          onChange={(event) => onEnabled(row.remoteName, event.target.checked)}
-        />
-        <code className="external-mcp-tool-name">{row.remoteName}</code>
-      </label>
+      <div className="external-mcp-tool-title">
+        <label className="external-mcp-tool-enable">
+          <input
+            type="checkbox"
+            checked={row.enabled}
+            disabled={locked}
+            {...agentHandle({ handle }, { role: "checkbox", label: `Enable the tool ${row.remoteName}` })}
+            onChange={(event) => onEnabled(row.remoteName, event.target.checked)}
+          />
+          <span className="external-mcp-tool-name">{row.remoteName}</span>
+        </label>
+        {badges.map((badge) => (
+          <span key={badge.label} className="external-mcp-tool-badge" data-tone={badge.tone}>
+            {badge.label}
+          </span>
+        ))}
+      </div>
 
-      {badges.length > 0 ? (
-        <p className="external-mcp-tool-badges">
-          {badges.map((badge) => (
-            <span key={badge} className="external-mcp-tool-badge">
-              {badge}
-            </span>
-          ))}
-        </p>
-      ) : null}
-
-      {/* `displayToolDescription` strips the `[EXTERNAL TOOL — provided by '...']` wrapper for
-          THIS RENDER ONLY — `row.description` itself keeps carrying it, since that same string
-          (via `describeRemoteToolSurface`/`describeFederatedTool`) is what actually reaches the
-          model; see that function's own doc. `SeeMore` clamps a long one to 3 lines rather than
-          running the row out to the description's full R6-capped length — this list can be 101
-          rows deep, and an operator scanning it should not have to scroll past one tool's essay to
-          reach the next tool's checkbox. */}
-      {row.description ? (
-        <SeeMore
-          lines={3}
-          className="external-mcp-tool-description-wrap"
-          textClassName="external-mcp-tool-description"
-          toggleAriaLabel={`See more of ${row.remoteName}'s description`}
-          agentHandle={`${handle}-description-toggle`}
-        >
-          {displayToolDescription(row.description)}
-        </SeeMore>
-      ) : null}
-
-      {/* Only for a tool that declares it writes — see this file's header. A locked row renders no
-          write control either: its allowlist grant is refused outright, so a write grant on top of
-          it would be doubly meaningless. */}
+      {/* The write grant — only for a tool that declares it writes (see this file's header). A
+          locked row renders no write control either: its allowlist grant is refused outright, so a
+          write grant on top of it would be doubly meaningless. Sits at the row's right edge so it
+          reads as a second switch on THIS tool, not a stray checkbox under the description. */}
       {row.writeDeclared && !locked ? (
         <label className="external-mcp-tool-write">
           <input
@@ -126,8 +117,26 @@ function ToolPickerRowItem(props: {
             {...agentHandle({ handle: `${handle}-write` }, { role: "checkbox", label: `Allow ${row.remoteName} to make changes` })}
             onChange={(event) => onMayWrite(row.remoteName, event.target.checked)}
           />
-          <span>{t("may write")}</span>
+          <span>{t("Allow changes")}</span>
         </label>
+      ) : null}
+
+      {/* `displayToolDescription` strips the `[EXTERNAL TOOL — provided by '...']` wrapper for
+          THIS RENDER ONLY — `row.description` itself keeps carrying it, since that same string
+          (via `describeRemoteToolSurface`/`describeFederatedTool`) is what actually reaches the
+          model; see that function's own doc. `SeeMore` clamps it to ONE line (2026-10-13 redesign;
+          was 3) so a 157-row list scans as names, and the toggle expands it in place. */}
+      {row.description ? (
+        <SeeMore
+          lines={1}
+          className="external-mcp-tool-description-wrap"
+          textClassName="external-mcp-tool-description"
+          toggleClassName="external-mcp-tool-description-toggle"
+          toggleAriaLabel={`See more of ${row.remoteName}'s description`}
+          agentHandle={`${handle}-description-toggle`}
+        >
+          {displayToolDescription(row.description)}
+        </SeeMore>
       ) : null}
 
       {lockReason ? <p className="external-mcp-tool-lock">{lockReason}</p> : null}
@@ -135,42 +144,96 @@ function ToolPickerRowItem(props: {
   );
 }
 
-/** The count line plus the three actions. Its own component for the same complexity-ceiling reason
- *  as {@link ToolPickerRowItem}; it also keeps the count — the one thing the owner asked to be
- *  legible without scrolling a 101-row list — structurally above the scroll container rather than
- *  inside it. */
-function ToolPickerHeader(props: {
+/** Search, select all/none, and Refresh. Search and the bulk buttons only exist once there are rows
+ *  to act on; Refresh is always there, because it is also how a failed probe is retried. Refresh is
+ *  a quiet ghost button: the one primary action in this dialog is Save, in the footer. */
+function ToolPickerToolbar(props: {
+  base: string;
+  filter: ToolPickerFilter | null;
+  saving: boolean;
+  refreshing: boolean;
+  t: Translate;
+  tUi: ReturnType<typeof useT>;
+  onRefresh: () => void;
+}) {
+  const { base, filter, saving, refreshing, t, tUi, onRefresh } = props;
+  return (
+    <div className="external-mcp-tool-toolbar">
+      {filter ? (
+        <>
+          <input
+            type="search"
+            className="external-mcp-tool-search"
+            placeholder={t("Search tools")}
+            aria-label={t("Search tools")}
+            value={filter.query}
+            onChange={(event) => filter.setQuery(event.target.value)}
+            {...agentHandle({ handle: `${base}-search` }, { role: "field", label: "Filter this server's tools by name or description" })}
+          />
+          <div className="external-mcp-tool-bulk">
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={!filter.canSelectAll || saving}
+              onClick={() => filter.selectVisible(true)}
+              {...agentHandle({ handle: `${base}-select-all` }, { role: "button", label: "Enable every tool currently shown" })}
+            >
+              {t("Select all")}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={!filter.canSelectNone || saving}
+              onClick={() => filter.selectVisible(false)}
+              {...agentHandle({ handle: `${base}-select-none` }, { role: "button", label: "Disable every tool currently shown" })}
+            >
+              {t("Select none")}
+            </button>
+          </div>
+        </>
+      ) : null}
+      <button
+        type="button"
+        className="btn-ghost external-mcp-tool-refresh"
+        {...agentHandle({ handle: `${base}-refresh` }, { role: "button", label: "Re-read this server's advertised tool list" })}
+        onClick={onRefresh}
+        disabled={refreshing || saving}
+      >
+        {refreshing ? tUi("Refreshing…") : tUi("Refresh")}
+      </button>
+    </div>
+  );
+}
+
+/** The one action area: the count and the restart note on the left, Cancel and Save on the right.
+ *  Its own component for the same complexity-ceiling reason as {@link ToolPickerRowItem}; it also
+ *  keeps the count — the one thing the owner asked to be legible without scrolling a 157-row list —
+ *  outside the scroll container, pinned under it. */
+function ToolPickerFooter(props: {
   base: string;
   countLabel: string;
   zero: boolean;
   dirty: boolean;
   saving: boolean;
-  refreshing: boolean;
+  t: Translate;
   tUi: ReturnType<typeof useT>;
   onSave: () => void;
   onReset: () => void;
-  onRefresh: () => void;
 }) {
-  const { base, countLabel, zero, dirty, saving, refreshing, tUi, onSave, onReset, onRefresh } = props;
+  const { base, countLabel, zero, dirty, saving, t, tUi, onSave, onReset } = props;
   return (
-    <div className="external-mcp-tool-head">
-      <p
-        className="external-mcp-tool-count"
-        data-zero={zero || undefined}
-        {...agentHandle({ handle: `${base}-count` }, { role: "status", label: "How many of this server's tools are enabled" })}
-      >
-        {countLabel}
-      </p>
-      <div className="external-mcp-tool-actions">
-        <button
-          type="button"
-          className="btn-secondary"
-          {...agentHandle({ handle: `${base}-refresh` }, { role: "button", label: "Re-read this server's advertised tool list" })}
-          onClick={onRefresh}
-          disabled={refreshing || saving}
+    <div className="external-mcp-tool-foot">
+      <div className="external-mcp-tool-foot-text">
+        <p
+          className="external-mcp-tool-count"
+          data-zero={zero || undefined}
+          {...agentHandle({ handle: `${base}-count` }, { role: "status", label: "How many of this server's tools are enabled" })}
         >
-          {refreshing ? tUi("Refreshing…") : tUi("Refresh")}
-        </button>
+          {countLabel}
+        </p>
+        <p className="external-mcp-tool-footnote">{t("Changes here take effect when the assistant next restarts.")}</p>
+      </div>
+      <div className="external-mcp-tool-actions">
         <button
           type="button"
           className="btn-secondary"
@@ -197,19 +260,19 @@ function ToolPickerHeader(props: {
 /** The list, the empty state, and the two states that are NOT an empty list — split out so the
  *  parent stays under the complexity ceiling, and so "the probe failed" and "this server genuinely
  *  advertises nothing" cannot collapse into the same rendering. An empty `<ul>` after a failed probe
- *  would read as "this server has no tools", which is a confident wrong answer. */
+ *  would read as "this server has no tools", which is a confident wrong answer. A search that hides
+ *  every row says so too, rather than leaving a blank list. */
 function ToolPickerBody(props: {
-  base: string;
   loading: boolean;
   unreachable: string | null;
-  rows: readonly ToolPickerRow[];
-  handles: string[];
+  total: number;
+  visible: readonly VisibleToolRow[];
   t: Translate;
   tUi: ReturnType<typeof useT>;
   onEnabled: (remoteName: string, enabled: boolean) => void;
   onMayWrite: (remoteName: string, mayWrite: boolean) => void;
 }) {
-  const { base, loading, unreachable, rows, handles, t, tUi, onEnabled, onMayWrite } = props;
+  const { loading, unreachable, total, visible, t, tUi, onEnabled, onMayWrite } = props;
 
   if (loading) {
     return (
@@ -227,21 +290,18 @@ function ToolPickerBody(props: {
     );
   }
 
-  if (rows.length === 0) {
+  if (total === 0) {
     return <div className="external-mcp-tool-note">{t("This server advertises no tools.")}</div>;
+  }
+
+  if (visible.length === 0) {
+    return <div className="external-mcp-tool-note">{t("No tools match your search.")}</div>;
   }
 
   return (
     <ul className="external-mcp-tool-list">
-      {rows.map((row, index) => (
-        <ToolPickerRowItem
-          key={row.remoteName}
-          row={row}
-          handle={handles[index] ?? `${base}-tool-${index}`}
-          t={t}
-          onEnabled={onEnabled}
-          onMayWrite={onMayWrite}
-        />
+      {visible.map(({ row, handle }) => (
+        <ToolPickerRowItem key={row.remoteName} row={row} handle={handle} t={t} onEnabled={onEnabled} onMayWrite={onMayWrite} />
       ))}
     </ul>
   );
@@ -272,6 +332,7 @@ export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
   const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
   const base = toolPickerHandle(cardHandle);
   const handles = useToolRowHandles(base, picker.rows);
+  const filter = useToolPickerFilter(picker.rows, { handles, base, setEnabled: picker.setEnabled });
   const countLabel = describeToolCount(picker.enabledCount, picker.advertisedCount || picker.rows.length, t);
 
   return (
@@ -282,32 +343,38 @@ export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
         </p>
       )}
 
-      <ToolPickerHeader
+      <ToolPickerToolbar
         base={base}
-        countLabel={countLabel}
-        zero={picker.enabledCount === 0}
-        dirty={picker.dirty}
+        filter={picker.rows.length > 0 ? filter : null}
         saving={saving}
         refreshing={picker.refreshing}
+        t={t}
         tUi={tUi}
-        onSave={() => onSave(picker.fieldValues())}
-        onReset={picker.reset}
         onRefresh={picker.refresh}
       />
 
       <ToolPickerBody
-        base={base}
         loading={picker.loading}
         unreachable={picker.unreachable}
-        rows={picker.rows}
-        handles={handles}
+        total={picker.rows.length}
+        visible={filter.visible}
         t={t}
         tUi={tUi}
         onEnabled={picker.setEnabled}
         onMayWrite={picker.setMayWrite}
       />
 
-      <p className="external-mcp-tool-footnote">{t("Changes here take effect when the assistant next restarts.")}</p>
+      <ToolPickerFooter
+        base={base}
+        countLabel={countLabel}
+        zero={picker.enabledCount === 0}
+        dirty={picker.dirty}
+        saving={saving}
+        t={t}
+        tUi={tUi}
+        onSave={() => onSave(picker.fieldValues())}
+        onReset={picker.reset}
+      />
     </section>
   );
 }

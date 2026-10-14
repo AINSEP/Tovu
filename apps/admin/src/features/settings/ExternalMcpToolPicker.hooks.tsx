@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 
-import { isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
+import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 
 /**
  * @file `ExternalMcpToolPicker.tsx`'s own derived-value logic, split out per the
@@ -45,6 +45,15 @@ export function useToolRowHandles(base: string, rows: readonly ToolPickerRow[]):
   return useMemo(() => buildAgentListHandles({ prefix: base, ids: names }), [base, names.join(" ")]);
 }
 
+/** One badge and how loudly it speaks (2026-10-13 redesign, owner: "the UI is ugly"). Every badge
+ *  used to be the same alarm-red pill, so a plain "Writes" — true of most of a vendor's tools, and
+ *  already answered by the row's own "Allow changes" control — shouted as loudly as "Destructive".
+ *  `neutral` is a fact, `warning` is something unknown, `danger` is a refusal. */
+export interface ToolRowBadge {
+  label: string;
+  tone: "neutral" | "warning" | "danger";
+}
+
 /** What the SERVER declared about one tool, as badges. Never a "safe" or "read-only" badge: the
  *  only positive thing a remote can say is silence-shaped, and `AdminRemoteToolSurfaceEntry`'s own
  *  doc makes "MUST NOT be rendered as read-only" a hard rule for `hintsAbsent`. So the three badges
@@ -52,12 +61,12 @@ export function useToolRowHandles(base: string, rows: readonly ToolPickerRow[]):
  *  its unremarkable row IS the statement.
  *
  *  @complexity O(1). */
-export function describeToolRowBadges(row: ToolPickerRow, t: Translate): string[] {
-  if (row.kind === "absent") return [t("This server does not offer a tool by that name.")];
-  const badges: string[] = [];
-  if (row.destructiveDeclared) badges.push(t("Destructive"));
-  if (row.writeDeclared) badges.push(t("Writes"));
-  if (row.hintsAbsent) badges.push(t("The server does not say what this tool does."));
+export function describeToolRowBadges(row: ToolPickerRow, t: Translate): ToolRowBadge[] {
+  if (row.kind === "absent") return [{ label: t("This server does not offer a tool by that name."), tone: "warning" }];
+  const badges: ToolRowBadge[] = [];
+  if (row.destructiveDeclared) badges.push({ label: t("Destructive"), tone: "danger" });
+  if (row.writeDeclared) badges.push({ label: t("Writes"), tone: "neutral" });
+  if (row.hintsAbsent) badges.push({ label: t("The server does not say what this tool does."), tone: "warning" });
   return badges;
 }
 
@@ -80,4 +89,74 @@ export function describeToolRowLock(row: ToolPickerRow, t: Translate): string | 
 export function describeToolCount(enabled: number, total: number, t: Translate): string {
   if (enabled === 0) return interpolate({ template: t("0 of {total} tools enabled — this connection contributes nothing"), vars: { total } });
   return interpolate({ template: t("{enabled} of {total} tools enabled"), vars: { enabled, total } });
+}
+
+/** One rendered row with the agent handle `useToolRowHandles` gave it, so filtering the list never
+ *  shifts which handle addresses which tool. */
+export interface VisibleToolRow {
+  row: ToolPickerRow;
+  handle: string;
+}
+
+export interface ToolPickerFilter {
+  query: string;
+  setQuery(query: string): void;
+  /** The rows that match `query`, in list order. Every row when the query is blank. */
+  visible: VisibleToolRow[];
+  /** Whether "Select all" would tick anything — some visible, unlocked row is still unticked. */
+  canSelectAll: boolean;
+  /** Whether "Select none" would untick anything — some visible, unlocked row is ticked. */
+  canSelectNone: boolean;
+  /** Ticks or unticks every VISIBLE unlocked row, through the picker's own `setEnabled`, so the
+   *  write-grant rules in `setToolRowEnabled` (unticking drops "Allow changes") still hold. */
+  selectVisible(enabled: boolean): void;
+}
+
+/** Case-insensitive match on the tool's name or the description the row actually shows.
+ *  @complexity O(n) in the name plus description length. */
+export function matchesToolQuery(row: ToolPickerRow, needle: string): boolean {
+  if (!needle) return true;
+  return row.remoteName.toLowerCase().includes(needle) || displayToolDescription(row.description).toLowerCase().includes(needle);
+}
+
+/**
+ * The search box and "Select all / none" over a long tool list (157 on the live higgsfield
+ * connection). The query is view state only: it hides rows, it never changes the draft, and
+ * select all/none act on the visible rows alone so a filtered "Select all" cannot tick tools the
+ * operator never saw.
+ *
+ * @complexity O(n) per render in row count; `selectVisible` is O(n·v) (one `setEnabled` per visible row).
+ */
+export function useToolPickerFilter(
+  rows: readonly ToolPickerRow[],
+  deps: { handles: readonly string[]; base: string; setEnabled: (remoteName: string, enabled: boolean) => void },
+): ToolPickerFilter {
+  const { handles, base, setEnabled } = deps;
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+
+  const visible = useMemo(
+    () =>
+      rows
+        .map((row, index) => ({ row, handle: handles[index] ?? `${base}-tool-${index}` }))
+        .filter(({ row }) => matchesToolQuery(row, needle)),
+    [rows, handles, base, needle],
+  );
+  const selectable = visible.filter(({ row }) => !isToolRowLocked(row));
+
+  const selectVisible = useCallback(
+    (enabled: boolean) => {
+      for (const { row } of selectable) if (row.enabled !== enabled) setEnabled(row.remoteName, enabled);
+    },
+    [selectable, setEnabled],
+  );
+
+  return {
+    query,
+    setQuery,
+    visible,
+    canSelectAll: selectable.some(({ row }) => !row.enabled),
+    canSelectNone: selectable.some(({ row }) => row.enabled),
+    selectVisible,
+  };
 }

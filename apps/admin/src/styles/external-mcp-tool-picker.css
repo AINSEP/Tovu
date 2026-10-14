@@ -19,15 +19,17 @@
  *
  * ## The scrolling list
  *
- * The live higgsfield connection advertises 101 tools. `.external-mcp-tool-list` is a FIXED-HEIGHT
- * scrolling container so a wide-open server cannot grow the settings panel to match it, and every
+ * The live higgsfield connection advertises 157 tools. `.external-mcp-tool-list` is the dialog's one
+ * scrolling container, bounded by the dialog's fixed-height flex column (2026-10-13; was its own
+ * `max-height: 22rem` inside a second scrolling modal body), so a wide-open server cannot grow the
+ * dialog to match it, and every
  * row's tool NAME wraps (`overflow-wrap: anywhere`) rather than clipping or forcing the row wider.
  * jsdom cannot verify either property (no real layout engine), so both are verified live in the
  * browser, not by a component test.
  *
  * A row's DESCRIPTION no longer follows that "always fully visible" rule (2026-09-13, owner: the
  * wrapped third-party text ran long enough per row to dominate a 101-row list) — it clamps to 3
- * lines via `SeeMore` (`ExternalMcpToolPicker.tsx`), with a "See more" toggle rather than a second
+ * lines (one line since 2026-10-13) via `SeeMore` (`ExternalMcpToolPicker.tsx`), with a "See more" toggle rather than a second
  * scroll-within-a-scroll. Text still is never SLICED — `SeeMore`'s own header explains why the full
  * string stays in the DOM, just visually clamped, so in-page search and screen readers still see it.
  */
@@ -85,55 +87,140 @@
 /* `ExternalMcpToolsModal.tsx` — widens the shared `.settings-dialog` (`styles.css`) the same way
    that file's own `.sitemap-modal` widens it for its own wide content; see that rule's comment for
    why `width`, not just `max-width`, is required against `.settings-dialog-backdrop`'s
-   `place-items: center` shrink-to-fit sizing. `ExternalMcpToolPicker`'s own `.external-mcp-tool-list`
-   below already caps itself at `max-height: 22rem` with its own internal scroll, so this modal rarely
-   needs to scroll itself — `.external-mcp-tools-modal-body`'s own scroll is a safety net for a short
-   viewport, not the primary defense. */
+   `place-items: center` shrink-to-fit sizing.
+
+   Redesign (2026-10-13, owner: "the UI is ugly"): ONE surface. The dialog used to be white modal >
+   grey picker panel > white bordered list, with the count/Refresh/Cancel/Save in the grey panel and
+   Close as a second button cluster up top. Now the dialog is a fixed-height flex column — header,
+   toolbar, the list as the one scroller, and a footer pinned under it — and every band shares one
+   horizontal inset, `--tools-pad`, so rows, toolbar and footer line up. A fixed height (not just a
+   max) keeps the dialog from jumping as a search narrows the list. */
 .external-mcp-tools-modal {
+  --tools-pad: var(--space-6);
   width: 42rem;
   max-width: calc(100vw - 2rem);
+  height: min(46rem, 85vh);
   max-height: 85vh;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
 }
 .external-mcp-tools-modal-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--tools-pad) var(--space-3);
+}
+.external-mcp-tools-modal-head h2 {
+  margin: 0;
+  color: var(--fg);
+  overflow-wrap: anywhere;
 }
 .external-mcp-tools-modal-kicker {
-  margin: 0 0 0.2rem;
+  margin: 0 0 var(--space-1);
   font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+}
+/* The × close. A bare `<button>`, so `color` and `background` are both named — see this file's
+   header on the global reset. */
+.external-mcp-tools-modal-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)) 0 0;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+}
+.external-mcp-tools-modal-close:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+  opacity: 1;
+}
+/* The dialog focuses this button on open (`useExternalMcpToolsModalEscape`), so its ring shows on
+   every open: the soft `--primary-ring` halo the app's inputs use, not the global 2px outline. */
+.external-mcp-tools-modal-close:focus-visible {
+  outline: none;
+  color: var(--fg);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 .external-mcp-tools-modal-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .external-mcp-tool-picker {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 0.85rem 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   color: var(--fg);
 }
 
-.external-mcp-tool-head {
+/* Search, select all/none, Refresh — one quiet row above the list. */
+.external-mcp-tool-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--tools-pad, var(--space-4)) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.external-mcp-tool-search {
+  flex: 1 1 12rem;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0.4rem 0.7rem;
+}
+.external-mcp-tool-bulk {
+  display: flex;
+  gap: var(--space-1);
+}
+.external-mcp-tool-toolbar .btn-ghost {
+  padding: 0.4rem 0.6rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-2);
+}
+.external-mcp-tool-toolbar .btn-ghost:disabled {
+  color: var(--faint);
+}
+.external-mcp-tool-refresh {
+  margin-left: auto;
+}
+
+/* The one action area — see `ExternalMcpToolPicker.tsx`'s `ToolPickerFooter`. */
+.external-mcp-tool-foot {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 0.6rem;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--tools-pad, var(--space-4));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.external-mcp-tool-foot-text {
+  flex: 1 1 14rem;
+  min-width: 0;
 }
 
 .external-mcp-tool-count {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--fg);
 }
 /* A connection that is configured but grants nothing looks identical to a working one at a glance —
@@ -144,51 +231,69 @@
   font-weight: 600;
 }
 
+.external-mcp-tool-footnote {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
 .external-mcp-tool-actions {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-2);
   flex-shrink: 0;
+  margin-left: auto;
 }
 /* Bare buttons already get `color: var(--primary-ink)` from the app-wide reset — restated here so
-   this rule is legible on its own without requiring a reader to know that default holds. */
+   this rule is legible on its own without requiring a reader to know that default holds. Save is
+   the bare one: the theme's burnt-orange `--primary`, the dialog's one primary action. */
 .external-mcp-tool-actions button {
   color: var(--primary-ink);
 }
-/* Refresh/Cancel use the app's existing secondary variant so Save is the one primary action in this
-   header (`styles.css`'s own "one primary per screen" rule) — restated explicitly rather than left
-   to that class's own definition, for the same legibility reason as the line above. */
+/* Cancel uses the app's existing secondary variant — restated explicitly rather than left to that
+   class's own definition, for the same legibility reason as the line above. */
 .external-mcp-tool-actions .btn-secondary {
   color: var(--fg-2);
 }
 
 .external-mcp-tool-note {
+  margin: var(--space-4) var(--tools-pad, var(--space-4));
   padding: 0.6rem 0.75rem;
   color: var(--fg);
-  background: var(--surface);
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 .external-mcp-tool-note[role="alert"] {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: var(--danger);
 }
+/* The "switched off" note sits above the toolbar, so it needs no top gap of its own. */
+.external-mcp-tool-picker > .external-mcp-tool-note:first-child {
+  margin-top: 0;
+}
 
-/* Fixed-height scrolling container — see this file's header. */
+/* The one scroller — see this file's header. Bounded by the dialog's fixed-height flex column
+   (`flex` + `min-height: 0`), not by a `max-height` of its own, so it fills whatever the dialog has. */
 .external-mcp-tool-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 22rem;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface);
 }
 
+/* Checkbox + name + badges on line one, "Allow changes" at the right edge of that line, the
+   description on line two, indented to the name. */
 .external-mcp-tool-row {
-  padding: 0.55rem 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: 0.15rem;
+  padding: var(--space-3) var(--tools-pad, var(--space-4));
   border-bottom: 1px solid var(--border);
   color: var(--fg);
 }
@@ -199,10 +304,23 @@
   background: var(--surface-2);
 }
 
-.external-mcp-tool-enable {
+/* The checkbox hangs into the left padding (negative margin on the label), so on a narrow screen a
+   badge that wraps lines up under the tool NAME, not under the checkbox. */
+.external-mcp-tool-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  padding-left: calc(16px + var(--space-3));
+}
+
+.external-mcp-tool-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin-left: calc(-1 * (16px + var(--space-3)));
   color: var(--fg);
   cursor: pointer;
 }
@@ -211,70 +329,111 @@
   cursor: default;
 }
 
+/* The UI font, not `--font-mono`: these names are read and scanned, not copied (2026-10-13). */
 .external-mcp-tool-name {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--fg);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: inherit;
   /* Long tool names (the outline's own worked example ran to 96 characters) wrap inside the row
      rather than clipping or forcing the row wider than its container. */
   overflow-wrap: anywhere;
 }
 
-.external-mcp-tool-badges {
-  margin: 0.3rem 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-/* One badge shape for all three: WRITES, DESTRUCTIVE, and "the server does not say" are all things
-   worth pausing on, per `external-mcp-tool-picker-rules.ts`'s own header — a genuinely declared
-   read-only tool renders no badge at all, so its unremarkable row IS the positive statement. */
+/* `neutral` (Writes) is a fact, so it is quiet; `warning` (the server says nothing / no longer
+   offers this name) and `danger` (Destructive) keep a colour — see `ToolRowBadge`'s doc. A genuinely
+   declared read-only tool renders no badge at all, so its unremarkable row IS the positive
+   statement (`external-mcp-tool-picker-rules.ts`'s header). */
 .external-mcp-tool-badge {
   font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 0 0.45rem;
+}
+.external-mcp-tool-badge[data-tone="warning"] {
+  color: var(--warning);
+  background: var(--warning-bg);
+  border-color: transparent;
+}
+.external-mcp-tool-badge[data-tone="danger"] {
   color: var(--danger);
   background: var(--danger-bg);
-  border: 1px solid var(--danger);
-  border-radius: var(--r-pill);
-  padding: 0.1rem 0.5rem;
-  white-space: nowrap;
+  border-color: transparent;
 }
 
-/* `SeeMore`'s wrapper (2026-09-13) — passed as its `className`, so this carries only the row's own
-   spacing. The clamp mechanics live in `see-more.css`; typography lives on `.external-mcp-tool-
-   description` below, passed as `textClassName` per that component's own contract (`see-more.css`
-   deliberately sets no color/size of its own, so a caller's `textClassName` wins outright). */
+/* `SeeMore`'s wrapper — passed as its `className`. The clamp mechanics live in `see-more.css`;
+   typography lives on `.external-mcp-tool-description` below, passed as `textClassName` per that
+   component's own contract. A flex row so the one-line clamp and its toggle share a line; the
+   indent lines the text up under the tool name (checkbox width + the label's gap). */
 .external-mcp-tool-description-wrap {
-  margin: 0.3rem 0 0;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: calc(16px + var(--space-3));
 }
 
 .external-mcp-tool-description {
-  color: var(--faint);
-  font-size: 0.8rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.45;
   /* R6-capped, but still up to that cap — the text itself still wraps rather than overflowing
-     sideways once `SeeMore`'s 3-line clamp is showing (or lifted via "See more"). */
+     sideways once the "See more" toggle lifts the clamp. */
   overflow-wrap: anywhere;
 }
 
+/* Three classes to outrank `see-more.css`'s two-class `.see-more .see-more-toggle`. The focus ring
+   is the same soft `--primary-ring` halo the app's text inputs use, rather than the global 2px
+   orange outline, which boxed a two-word link far too heavily. */
+.external-mcp-tool-row .see-more .external-mcp-tool-description-toggle {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--link);
+  border-radius: var(--r-sm);
+}
+.external-mcp-tool-row .see-more .external-mcp-tool-description-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* The write grant, as a small pill switch on the row's first line — see `ToolPickerRowItem`. */
 .external-mcp-tool-write {
-  display: flex;
+  grid-column: 2;
+  grid-row: 1;
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.35rem;
+  gap: var(--space-2);
+  padding: 0.2rem 0.6rem 0.2rem 0.45rem;
   color: var(--fg);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
   cursor: pointer;
-  font-size: 0.8rem;
+}
+.external-mcp-tool-write:has(input:checked) {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+}
+.external-mcp-tool-write input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
 }
 
 .external-mcp-tool-lock {
-  margin: 0.35rem 0 0;
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-left: calc(16px + var(--space-3));
   color: var(--danger);
-  font-size: 0.8rem;
-}
-
-.external-mcp-tool-footnote {
-  margin: 0.6rem 0 0;
-  color: var(--faint);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
 }
 
 /* "The assistant is starting" line above the server list (`ExternalMcpAdmissionsBanner.tsx`): a
@@ -321,17 +480,15 @@
   .external-mcp-source-tools-open { margin: 0 0 0 42px; }
 }
 
-/* Phones (mobile catalog IN-3, 2026-10-06): modal > grey picker panel > white list was three nested
-   boxes, leaving ~350px of list for 148 tools inside a fixed-height scroller inside a scrolling
-   modal body, and the "Changes here take effect…" note was cut at the modal's bottom edge. Here the
-   modal is the whole screen, the picker panel loses its own box, and the list grows so the modal
-   body is the one scroller. */
+/* Phones (mobile catalog IN-3, 2026-10-06): the modal is the whole screen. Since the 2026-10-13
+   redesign the picker is already one flat surface with the list as its only scroller, so all this
+   block does is go full-screen and tighten the shared inset. */
 @media (max-width: 640px) {
   .settings-dialog-backdrop:has(> .external-mcp-tools-modal) { place-items: stretch; }
   .settings-dialog.external-mcp-tools-modal {
+    --tools-pad: var(--space-4);
     width: 100%; max-width: none; height: 100dvh; max-height: none;
-    border-radius: 0; padding: 16px;
+    border-radius: 0; padding: 0;
   }
-  .external-mcp-tools-modal .external-mcp-tool-picker { padding: 0; background: transparent; border: 0; }
-  .external-mcp-tools-modal .external-mcp-tool-list { max-height: none; }
+  .external-mcp-tool-search { flex-basis: 100%; }
 }

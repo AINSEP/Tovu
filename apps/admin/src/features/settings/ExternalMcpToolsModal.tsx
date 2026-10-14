@@ -83,14 +83,19 @@ export function ExternalMcpToolsModal({
             <p className="external-mcp-tools-modal-kicker">{tDrift("Tools")}</p>
             <h2 id={titleId}>{name}</h2>
           </div>
+          {/* An icon, not a second labelled button (2026-10-13 redesign): the footer's Cancel/Save
+              is the dialog's one action area. `aria-label` keeps the accessible name "Close". */}
           <button
             ref={closeRef}
             type="button"
-            className="btn-secondary"
+            className="external-mcp-tools-modal-close"
+            aria-label={t("Close")}
             onClick={onClose}
             {...agentHandle({ handle: `${cardHandle}-tools-modal-close` }, { role: "button", label: `Close ${name}'s tool permissions` })}
           >
-            {t("Close")}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
         <div className="external-mcp-tools-modal-body">

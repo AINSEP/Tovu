@@ -1471,7 +1471,7 @@ test("MCP Remove and Tools dialogs contain native Tab navigation and Escape dele
     await expect(dialog).toBeVisible();
     if (modal === "Tools") {
       await expect(dialog.getByText("This server advertises no tools.", { exact: true })).toBeVisible();
-      await expect(dialog.locator(".external-mcp-tool-actions button").first()).toBeEnabled();
+      await expect(dialog.locator(".external-mcp-tool-refresh")).toBeEnabled();
     }
     const controls = dialog.locator("button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex='0']");
     expect(await controls.count()).toBeGreaterThanOrEqual(2);
