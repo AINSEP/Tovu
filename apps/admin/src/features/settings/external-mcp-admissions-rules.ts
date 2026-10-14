@@ -69,7 +69,8 @@ export type AdmissionDriftKind =
   // handshake. Restarting re-runs the same failing launch, so the generic "restart to load it" copy
   // sent the operator round a loop (observed: namecom's child exiting with code 1 on every boot).
   // The daemon's own reason is shown instead. See {@link FAILED_TO_START_KEY}.
-  | "failed-to-start";
+  | "failed-to-start"
+  | "missing-launcher";
 
 /** One place the operator's intent and the running assistant disagree. */
 export interface AdmissionDriftEntry {
@@ -115,6 +116,9 @@ export interface SavedConnectionIntent {
   readonly allowedToolNames: string;
   /** The card's on/off toggle. */
   readonly enabled: boolean;
+  /** Saved launch details, used only to identify a missing stdio launcher. */
+  readonly transport?: string;
+  readonly command?: string;
 }
 
 /** The one refusal that is routine rather than newsworthy — see this file's header. */
@@ -217,7 +221,20 @@ const RESTART_CANNOT_FIX: ReadonlySet<AdmissionDriftKind> = new Set<AdmissionDri
   "server-side-defect",
   "decrypt-failed",
   "failed-to-start",
+  "missing-launcher",
 ]);
+
+/** Whether any drift row can benefit from a restart alone.
+ * @param input.connections - The banner's already-resolved drift rows.
+ * @returns False for an empty banner or exclusively unfixable failures.
+ * @example admissionRestartHelps({ connections: [] }) // false
+ * @complexity O(c · e) time, O(1) space in connections and their rows. */
+export function admissionRestartHelps(
+  { connections }: { connections: readonly AdmissionDriftConnection[] },
+  _optional: Record<string, never> = {},
+): boolean {
+  return connections.some((connection) => connection.entries.some((entry) => !RESTART_CANNOT_FIX.has(entry.kind)));
+}
 
 /**
  * The banner's first line: whether the rows below are waiting on a restart, or are things a restart
@@ -226,8 +243,18 @@ const RESTART_CANNOT_FIX: ReadonlySet<AdmissionDriftKind> = new Set<AdmissionDri
  * @complexity O(c · e) in connections and their rows.
  */
 export function describeDriftHeadline(connections: readonly AdmissionDriftConnection[]): string {
-  const restartHelps = connections.some((connection) => connection.entries.some((entry) => !RESTART_CANNOT_FIX.has(entry.kind)));
+  const restartHelps = admissionRestartHelps({ connections });
   return restartHelps ? RESTART_HEADLINE_KEY : NO_RESTART_HEADLINE_KEY;
+}
+
+/** Matches Node's spawn ENOENT for the saved absolute executable, rather than an error about
+ * a child dependency. POSIX, drive-rooted Windows and UNC paths are read regardless of the
+ * browser's OS because the launcher runs on the site's host.
+ * @complexity O(n) time in command/reason length, O(command length) additional space. */
+function isMissingLauncher(saved: SavedConnectionIntent, reason: string): boolean {
+  if (saved.transport !== "stdio" || !saved.command) return false;
+  const absoluteCommand = /^(?:\/|[a-z]:[\\/]|\\\\)/i.test(saved.command);
+  return absoluteCommand && reason.includes(`spawn ${saved.command} ENOENT`);
 }
 
 /**
@@ -378,18 +405,23 @@ function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolC
  * the `not-running` arm a more specific reading when a boot-time config-resolution failure names a
  * decrypt problem — see {@link DECRYPT_FAILED_KEY}'s own doc on why the generic "restart the
  * assistant" copy is actively wrong for that one case — and, for any OTHER reported failure, the
- * {@link FAILED_TO_START_KEY} reading, where restarting is just as wrong. A `disabled-but-running` connection never
+ * {@link FAILED_TO_START_KEY} reading, where restarting is just as wrong. A missing absolute stdio
+ * launcher gets terse recovery copy instead of the spawn path. A `disabled-but-running` connection never
  * takes this branch: it is live by definition, and a config-resolution failure means the connection
  * never got that far. Split out of {@link connectionLevelEntry}, the same "flat chain rather than a
  * nested ternary" extraction {@link resolveConnectionLevelKind} above already models.
  *
- * @complexity O(1).
+ * @complexity O(n) time in the failure text and command length, O(command length) additional space.
  */
 function resolveNotRunningCopy(
   kind: "not-running" | "disabled-but-running",
   configFailureReason: string | undefined,
+  saved: SavedConnectionIntent,
 ): { readonly kind: AdmissionDriftKind; readonly messageKey: string; readonly messageVars: Readonly<Record<string, string>> } {
   if (kind === "not-running" && configFailureReason !== undefined) {
+    if (isMissingLauncher(saved, configFailureReason)) {
+      return { kind: "missing-launcher", messageKey: "Launcher missing", messageVars: {} };
+    }
     return isDecryptFailureReason(configFailureReason)
       ? { kind: "decrypt-failed", messageKey: DECRYPT_FAILED_KEY, messageVars: {} }
       : { kind: "failed-to-start", messageKey: FAILED_TO_START_KEY, messageVars: { reason: configFailureReason } };
@@ -423,7 +455,7 @@ function connectionLevelEntry(
   const liveToolCount = liveEntry?.admitted.length ?? 0;
   const kind = resolveConnectionLevelKind(saved.enabled, liveEntry !== undefined, liveToolCount);
   if (!kind) return null;
-  const resolved = resolveNotRunningCopy(kind, configFailureReason);
+  const resolved = resolveNotRunningCopy(kind, configFailureReason, saved);
 
   return {
     connectionId,

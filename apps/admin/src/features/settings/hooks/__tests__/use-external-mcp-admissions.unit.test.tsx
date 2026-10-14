@@ -37,6 +37,24 @@ const SAVED: Record<string, SavedConnectionIntent> = {
   higgsfield: { allowedToolNames: "generate_image", enabled: true },
 };
 
+describe("useExternalMcpAdmissions — restart usefulness", () => {
+  it.each([false, true])("exports restartHelps=%s independently of restart permission", async (addFreshServer) => {
+    const port: ExternalMcpAdmissionsPort = {
+      getAdmissions: async () => ({ connections: [], configFailures: [{ connectionId: "broken", reason: "spawn /tmp/launcher ENOENT" }] }),
+      me: async () => ({ effectivePermissions: [] }),
+      restartAssistantDaemon: async () => ({ ok: true }),
+    };
+    const saved: Record<string, SavedConnectionIntent> = {
+      broken: { allowedToolNames: "a", enabled: true, transport: "stdio", command: "/tmp/launcher" },
+    };
+    if (addFreshServer) saved.fresh = { allowedToolNames: "b", enabled: true };
+    const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: saved }), { wrapper });
+    await waitFor(() => expect(result.current.connections.length).toBe(addFreshServer ? 2 : 1));
+    expect(result.current.restartHelps).toBe(addFreshServer);
+    expect(result.current.canRestart).toBe(false);
+  });
+});
+
 /** The pre-restart daemon: `generate_image` refused for want of a write grant. */
 const STALE: AdminExternalMcpAdmissionsSnapshot = {
   connections: [

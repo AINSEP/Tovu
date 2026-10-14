@@ -12,7 +12,7 @@ import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 
-import { describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
+import { admissionRestartHelps, describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 
 /**
@@ -55,6 +55,8 @@ export interface ExternalMcpAdmissionsController {
   readonly waitingForAssistant: boolean;
   /** Only connections with something to say — an agreeing roster renders nothing. */
   readonly connections: readonly AdmissionDriftConnection[];
+  /** Whether any listed disagreement would change on a restart. Independent of permissions. */
+  readonly restartHelps: boolean;
   /** D-4: whether this principal may actually restart the assistant. */
   readonly canRestart: boolean;
   readonly restarting: boolean;
@@ -298,6 +300,7 @@ export function useExternalMcpAdmissions(deps: {
     unavailable: waitingForAssistant ? null : resolveUnavailable(admissions.error, t),
     waitingForAssistant,
     connections,
+    restartHelps: admissionRestartHelps({ connections }),
     canRestart: hasPermission({ permissions: permissions.data?.effectivePermissions ?? [], permission: "system.write" }),
     restarting: restartCall.status === "pending",
     restartError: refusal ?? (restartCall.error ? describeApiError(restartCall.error, t("Could not restart the assistant.")) : null),

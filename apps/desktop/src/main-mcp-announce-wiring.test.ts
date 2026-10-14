@@ -123,7 +123,7 @@ test("the live announcer passes the launcher, site workspace and session unchang
   const siteSession = {};
   const server = { workspaceId: "custom-workspace", adminUrl: "http://127.0.0.1:4200/admin" };
   const deps = {
-    process: { execPath: "/Applications/Tovu.app/Tovu" }, path, __dirname: "/app",
+    process: { execPath: "/Applications/Tovu.app/Tovu", env: {} }, path, __dirname: "/app",
     app: { getPath: (name: string) => { assert.equal(name, "userData"); return "/user-data"; } },
     net, session: { fromPartition: (partition: string) => { assert.equal(partition, "persist:custom-site"); return siteSession; } },
     writeSitesMcpLauncher: (input: unknown) => { order.push("write"); writes.push(input); return "/user-data/launcher"; },
@@ -144,4 +144,22 @@ test("the live announcer passes the launcher, site workspace and session unchang
   const diskWarning = warnings[1];
   assert.ok(diskWarning);
   assert.match(diskWarning, /disk denied/);
+});
+
+test("scratch profiles never write a launcher or PUT desktop registrations into a shared site", () => {
+  for (const override of ["/tmp/tovu-desktop-qa", "", "   "]) {
+    const writes: unknown[] = [];
+    const puts: unknown[] = [];
+    const warnings: string[] = [];
+    const announce = announcer({
+      process: { env: { TOVU_DESKTOP_USER_DATA_DIR: override } },
+      writeSitesMcpLauncher: (input: unknown) => { writes.push(input); return "/tmp/launcher"; },
+      registerSitesMcpServer: async (input: unknown) => { puts.push(input); return { ok: true }; },
+      console: { warn: (message: string) => warnings.push(message) },
+    });
+    announce({ workspaceId: "shared-site", adminUrl: "http://127.0.0.1:4200/admin" }, "persist:shared-site");
+    assert.deepEqual(writes, []);
+    assert.deepEqual(puts, []);
+    assert.deepEqual(warnings, [], "skip before accessing Electron or the filesystem");
+  }
 });

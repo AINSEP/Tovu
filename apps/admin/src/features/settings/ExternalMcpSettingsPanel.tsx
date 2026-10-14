@@ -389,6 +389,8 @@ function ExternalMcpRemoveConfirmSection(props: {
 
 export interface ExternalMcpSettingsPanelProps {
   dependencies: SourceConfigDependencies<SourceConfigItem>;
+  /** Test seam for the admissions reads; removal still uses the panel's existing list port. */
+  useExternalMcpAdmissionsHook?: typeof useWiredExternalMcpAdmissions;
   /** Footer save-status pill text (e.g. the restart notice). Omit to render no footer at all. */
   saveStatusLabel?: string;
   /** Whether to render the "External MCP servers" heading. Defaults to `true` (this panel's
@@ -401,7 +403,7 @@ export interface ExternalMcpSettingsPanelProps {
   showTitle?: boolean;
 }
 
-export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true }: ExternalMcpSettingsPanelProps) {
+export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true, useExternalMcpAdmissionsHook = useWiredExternalMcpAdmissions }: ExternalMcpSettingsPanelProps) {
   const t = useT();
   // The id of the source Remove was pressed for, until Confirm or Cancel resolves it — see this
   // file's own "Remove asks first" header note. `null` means no confirmation dialog is open.
@@ -421,7 +423,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
   // because `mcp-federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
   // existed the gap was visible only in the daemon's boot terminal.
   const savedAllowedToolNamesById = useSavedAllowedToolNamesById(list.sources);
-  const admissions = useWiredExternalMcpAdmissions(savedAllowedToolNamesById);
+  const admissions = useExternalMcpAdmissionsHook(savedAllowedToolNamesById);
   const tDrift = useExternalMcpDriftCopy();
 
   return (
@@ -469,6 +471,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
       <ExternalMcpAdmissionsBanner
         controller={admissions}
         t={tDrift}
+        onRequestRemove={setConfirmRemoveId}
         onAllowWrite={(connectionId, remoteName) => {
           const patch = buildAllowWritePatch(list.sources, connectionId, remoteName);
           if (patch) void list.update(connectionId, patch);

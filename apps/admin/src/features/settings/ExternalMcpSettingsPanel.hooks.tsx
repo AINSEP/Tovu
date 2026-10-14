@@ -40,12 +40,18 @@ export function resolveExternalMcpCardHandles(sources: readonly SourceConfigItem
  *  `@jini-ai/ui`'s type; `toItem` in `use-external-mcp.hooks.ts` always sets it from the stored
  *  record, so `?? true` only ever covers a source that came from somewhere else — and "on" is the
  *  right reading of a missing flag, since a card with no toggle state is not one the operator
- *  turned off. */
+ *  turned off. Saved transport/command identify missing stdio launchers; the existing transport
+ *  rule also supplies the legacy stdio default for cards without an explicit transport. */
 export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[]): Record<string, SavedConnectionIntent> {
   return useMemo(() => {
     const byId: Record<string, SavedConnectionIntent> = {};
     for (const source of sources) {
-      byId[source.id] = { allowedToolNames: source.fields["allowedToolNames"] ?? "", enabled: source.enabled ?? true };
+      byId[source.id] = {
+        allowedToolNames: source.fields["allowedToolNames"] ?? "",
+        enabled: source.enabled ?? true,
+        transport: resolveExternalMcpEffectiveTransport(source.fields),
+        command: source.fields["command"] ?? "",
+      };
     }
     return byId;
   }, [sources]);

@@ -832,7 +832,8 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
  * Register this shell's MCP tool server with the site that just booted, so its assistant can reach
  * the desktop's own capabilities (list the operator's websites, add one, reveal one's folder).
  *
- * **Runs on EVERY site open, and both halves of it are re-asserted rather than created once.** The
+ * **Runs on every ordinary-profile site open; scratch profiles never register.** Both halves
+ * are re-asserted rather than created once. The
  * launcher is regenerated because it embeds an absolute path to the Electron binary inside the
  * `.app` bundle — which goes stale the instant the operator drags the app to `/Applications` or an
  * update replaces it, and a stale one fails at connect with a spawn error naming neither cause.
@@ -852,6 +853,10 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
  * @complexity O(1) — one file write and one request.
  */
 function announceDesktopToolsToSite(server: TovuServerHandle, partition: string): void {
+  // 2026-10-13 scratch-QA incident: opening tovu-dev wrote a temporary launcher's path into
+  // the SHARED content.db, replacing the real desktop row; deleting scratch userData left
+  // the owner's assistant with spawn ENOENT. A profile override must never publish that path.
+  if (process.env.TOVU_DESKTOP_USER_DATA_DIR !== undefined) return;
   try {
     // Read live, never persisted as truth — see this function's own note on staleness.
     const electronPath = process.execPath;

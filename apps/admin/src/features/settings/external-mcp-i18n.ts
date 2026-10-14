@@ -895,3 +895,34 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
 /** Bound translator — call as `t(locale, "<exact English copy>")`. Falls back to `COMMON_I18N`,
  *  then to the English key itself, per `dictionary-translator.ts`. */
 export const t = createDictionaryTranslator({ featureDictionary: EXTERNAL_MCP_DICT }, { commonDictionary: COMMON_I18N });
+
+// 2026-10-13 scratch-desktop registration incident: banner recovery copy.
+// Kept separate at the end so concurrent Tools dialog copy edits stay independent.
+// "Remove" is not repeated here: the translator falls back to COMMON_I18N, which has it.
+const MISSING_LAUNCHER_COPY: Record<string, Record<"Launcher missing", string>> = {
+  es: { "Launcher missing": "Falta el lanzador" },
+  id: { "Launcher missing": "Peluncur tidak ditemukan" },
+  de: { "Launcher missing": "Startdatei fehlt" },
+  "zh-CN": { "Launcher missing": "启动器缺失" },
+  "zh-TW": { "Launcher missing": "啟動器遺失" },
+  "pt-BR": { "Launcher missing": "Inicializador ausente" },
+  ru: { "Launcher missing": "Файл запуска отсутствует" },
+  fa: { "Launcher missing": "راه‌انداز موجود نیست" },
+  ar: { "Launcher missing": "ملف التشغيل مفقود" },
+  ja: { "Launcher missing": "ランチャーが見つかりません" },
+  ko: { "Launcher missing": "실행 파일 없음" },
+  pl: { "Launcher missing": "Brak pliku uruchamiającego" },
+  hu: { "Launcher missing": "Hiányzik az indítófájl" },
+  fr: { "Launcher missing": "Lanceur manquant" },
+  uk: { "Launcher missing": "Файл запуску відсутній" },
+  tr: { "Launcher missing": "Başlatıcı bulunamadı" },
+  th: { "Launcher missing": "ไม่พบตัวเรียกใช้งาน" },
+  it: { "Launcher missing": "File di avvio mancante" },
+  hi: { "Launcher missing": "लॉन्चर नहीं मिला" },
+  ur: { "Launcher missing": "لانچر موجود نہیں" },
+  bn: { "Launcher missing": "লঞ্চার পাওয়া যায়নি" },
+};
+
+for (const [locale, copy] of Object.entries(MISSING_LAUNCHER_COPY)) {
+  Object.assign(EXTERNAL_MCP_DICT[locale]!, copy);
+}

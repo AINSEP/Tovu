@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ExternalMcpAdmissionsBanner } from "../ExternalMcpAdmissionsBanner";
-import type { AdmissionDriftConnection } from "../external-mcp-admissions-rules";
+import { admissionRestartHelps, type AdmissionDriftConnection } from "../external-mcp-admissions-rules";
 import type { ExternalMcpAdmissionsController } from "../hooks/use-external-mcp-admissions.hooks";
 
 /**
@@ -25,6 +25,7 @@ function controller(overrides: Partial<ExternalMcpAdmissionsController> = {}): E
     unavailable: null,
     waitingForAssistant: false,
     connections: [],
+    restartHelps: admissionRestartHelps({ connections: overrides.connections ?? [] }),
     canRestart: true,
     restarting: false,
     restartError: null,
@@ -55,14 +56,14 @@ function higgsfieldDrift(overrides: Partial<AdmissionDriftConnection> = {}): Adm
 
 describe("ExternalMcpAdmissionsBanner", () => {
   it("renders nothing when the running assistant and the saved roster agree", () => {
-    const { container } = render(<ExternalMcpAdmissionsBanner controller={controller()} t={IDENTITY_T} onAllowWrite={() => {}} />);
+    const { container } = render(<ExternalMcpAdmissionsBanner controller={controller()} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={() => {}} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing while the first read is still in flight, rather than flashing a false all-clear", () => {
     const { container } = render(
-      <ExternalMcpAdmissionsBanner controller={controller({ loading: true })} t={IDENTITY_T} onAllowWrite={() => {}} />,
+      <ExternalMcpAdmissionsBanner controller={controller({ loading: true })} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={() => {}} />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -72,7 +73,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     render(
       <ExternalMcpAdmissionsBanner
         controller={controller({ unavailable: "the agent daemon is not reachable — the assistant may not be running" })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -82,7 +83,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
 
   it("names the withheld tool, the exact fix, and the saved-vs-live counts", () => {
     render(
-      <ExternalMcpAdmissionsBanner controller={controller({ connections: [higgsfieldDrift()] })} t={IDENTITY_T} onAllowWrite={() => {}} />,
+      <ExternalMcpAdmissionsBanner controller={controller({ connections: [higgsfieldDrift()] })} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={() => {}} />,
     );
 
     expect(screen.getByText("generate_image")).toBeInTheDocument();
@@ -96,7 +97,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     const onAllowWrite = vi.fn();
     const user = userEvent.setup();
     render(
-      <ExternalMcpAdmissionsBanner controller={controller({ connections: [higgsfieldDrift()] })} t={IDENTITY_T} onAllowWrite={onAllowWrite} />,
+      <ExternalMcpAdmissionsBanner controller={controller({ connections: [higgsfieldDrift()] })} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={onAllowWrite} />,
     );
 
     // By ROLE and NAME: a checkbox whose only label were `agentHandle`'s `data-agent-label` would
@@ -126,7 +127,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
             }),
           ],
         })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -154,7 +155,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
             }),
           ],
         })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -168,7 +169,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     render(
       <ExternalMcpAdmissionsBanner
         controller={controller({ connections: [higgsfieldDrift()], restart })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -183,7 +184,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     render(
       <ExternalMcpAdmissionsBanner
         controller={controller({ connections: [higgsfieldDrift()], canRestart: false })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -196,7 +197,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     render(
       <ExternalMcpAdmissionsBanner
         controller={controller({ connections: [higgsfieldDrift()], restartError: "shutting down" })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -208,7 +209,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     render(
       <ExternalMcpAdmissionsBanner
         controller={controller({ connections: [higgsfieldDrift()], restartAccepted: true })}
-        t={IDENTITY_T}
+        t={IDENTITY_T} onRequestRemove={() => {}}
         onAllowWrite={() => {}}
       />,
     );
@@ -222,7 +223,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
   // and retry, never a red error for that window.
   it("shows a calm 'starting' line, not the red error, while the assistant is still being waited for", () => {
     const { container } = render(
-      <ExternalMcpAdmissionsBanner controller={controller({ waitingForAssistant: true })} t={IDENTITY_T} onAllowWrite={() => {}} />,
+      <ExternalMcpAdmissionsBanner controller={controller({ waitingForAssistant: true })} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={() => {}} />,
     );
 
     expect(screen.getByRole("status")).toHaveTextContent("The assistant is starting. This list updates on its own when it's ready.");
@@ -238,11 +239,35 @@ describe("ExternalMcpAdmissionsBanner", () => {
         { connectionId: "supabase", remoteName: "get_logs", kind: "not-offered", messageKey: "This server does not offer a tool by that name.", messageVars: {} },
       ],
     });
-    render(<ExternalMcpAdmissionsBanner controller={controller({ connections: [notOffered] })} t={IDENTITY_T} onAllowWrite={() => {}} />);
+    render(<ExternalMcpAdmissionsBanner controller={controller({ connections: [notOffered] })} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={() => {}} />);
 
     expect(
       screen.getByText("Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Saved. The assistant is still running with its previous tool list.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restart the assistant" })).not.toBeInTheDocument();
+    expect(screen.queryByText("This ends any conversation in progress.")).not.toBeInTheDocument();
+  });
+
+  it("offers Remove for a missing launcher and requests confirmation for that exact server", async () => {
+    const onRequestRemove = vi.fn();
+    const user = userEvent.setup();
+    const missing = higgsfieldDrift({ connectionId: "desktop", notLoaded: [], entries: [
+      { connectionId: "desktop", remoteName: null, kind: "missing-launcher", messageKey: "Launcher missing", messageVars: {} },
+    ] });
+    render(<ExternalMcpAdmissionsBanner controller={controller({ connections: [missing] })} t={IDENTITY_T} onAllowWrite={() => {}} onRequestRemove={onRequestRemove} />);
+    expect(screen.getByText("Launcher missing")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restart the assistant" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(onRequestRemove).toHaveBeenCalledExactlyOnceWith("desktop");
+  });
+
+  it("shows no restart permission advice for an unfixable failure, and no Remove for a generic startup failure", () => {
+    const failed = higgsfieldDrift({ notLoaded: [], entries: [
+      { connectionId: "higgsfield", remoteName: null, kind: "failed-to-start", messageKey: "The assistant tried to start this server, but it failed: {reason}", messageVars: { reason: "exit code 1" } },
+    ] });
+    render(<ExternalMcpAdmissionsBanner controller={controller({ connections: [failed], canRestart: false })} t={IDENTITY_T} onAllowWrite={() => {}} onRequestRemove={() => {}} />);
+    expect(screen.queryByText("You don't have permission to restart the assistant. Ask someone who does to restart it so this change takes effect.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
   });
 });

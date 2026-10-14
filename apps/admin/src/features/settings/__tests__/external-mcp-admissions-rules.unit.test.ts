@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { AdminFederatedAdmissionEntry } from "@/lib/api";
 
 import {
+  admissionRestartHelps,
   describeAdmissionDrift,
   describeConnectionDrift,
   describeDriftHeadline,
   grantWriteFieldValue,
   parseSavedToolNames,
 } from "../external-mcp-admissions-rules";
+import type { AdmissionDriftKind, SavedConnectionIntent } from "../external-mcp-admissions-rules";
 
 /**
  * @file The operator half of the refusal channel, as pure decisions.
@@ -472,5 +474,68 @@ describe("describeDriftHeadline — does a restart actually help?", () => {
 
     expect(drifted).not.toBeNull();
     expect(describeDriftHeadline(drifted ? [drifted] : [])).toBe(RESTART);
+  });
+});
+
+describe("admissionRestartHelps", () => {
+  it.each<[AdmissionDriftKind, boolean]>([
+    ["not-offered", false], ["destructive", false], ["server-side-defect", false],
+    ["decrypt-failed", false], ["failed-to-start", false], ["missing-launcher", false],
+    ["needs-write-grant", true], ["inert-write-grant", true], ["still-live-after-removal", true],
+    ["not-running", true], ["disabled-but-running", true], ["removed-but-still-running", true],
+  ])("%s: restartHelps is %s", (kind, expected) => {
+    const connections = [{ connectionId: "server", liveToolCount: 0, savedToolCount: 0, notLoaded: [],
+      entries: [{ connectionId: "server", remoteName: null, kind, messageKey: "", messageVars: {} }] }];
+    expect(admissionRestartHelps({ connections })).toBe(expected);
+  });
+
+  it("returns false for no rows and true for one fixable row among failures, regardless of order", () => {
+    expect(admissionRestartHelps({ connections: [] })).toBe(false);
+    const connections = describeAdmissionDrift(
+      { connections: [], configFailures: [{ connectionId: "broken", reason: "spawn /tmp/launcher ENOENT" }] },
+      {
+        broken: { allowedToolNames: "a", enabled: true, transport: "stdio", command: "/tmp/launcher" },
+        fresh: { allowedToolNames: "b", enabled: true },
+      },
+    );
+    expect(admissionRestartHelps({ connections })).toBe(true);
+    expect(admissionRestartHelps({ connections: [...connections].reverse() })).toBe(true);
+  });
+});
+
+describe("missing stdio launcher", () => {
+  const saved: SavedConnectionIntent = { allowedToolNames: "list_sites", enabled: true, transport: "stdio", command: "/tmp/qa profile/launcher.sh" };
+
+  it.each(["/tmp/qa profile/launcher.sh", "C:\\QA profile\\launcher.exe", "\\\\host\\share\\launcher.exe"])("reports only 'Launcher missing' for %s", (command) => {
+    const connections = describeAdmissionDrift(
+      { connections: [], configFailures: [{ connectionId: "desktop", reason: `child process error: spawn ${command} ENOENT` }] },
+      { desktop: { ...saved, command } },
+    );
+    expect(connections[0]?.entries).toEqual([{ connectionId: "desktop", remoteName: null, kind: "missing-launcher", messageKey: "Launcher missing", messageVars: {} }]);
+    expect(admissionRestartHelps({ connections })).toBe(false);
+  });
+
+  it.each([
+    { transport: "streamable_http", command: "/tmp/launcher", reason: "spawn /tmp/launcher ENOENT" },
+    { transport: "stdio", command: "npx", reason: "spawn npx ENOENT" },
+    { transport: "stdio", command: "./launcher", reason: "spawn ./launcher ENOENT" },
+    { transport: "stdio", command: "C:launcher.exe", reason: "spawn C:launcher.exe ENOENT" },
+    { transport: "stdio", command: "", reason: "spawn /tmp/launcher ENOENT" },
+    { transport: "stdio", command: "/tmp/launcher", reason: "spawn /tmp/launcher EACCES" },
+    { transport: "stdio", command: "/tmp/launcher", reason: "spawn /tmp/dependency ENOENT" },
+    { transport: "stdio", command: "/tmp/launcher", reason: "ENOENT: no such file, open /tmp/config" },
+  ])("does not offer launcher removal for $command / $reason", ({ reason, ...launch }) => {
+    const connections = describeAdmissionDrift(
+      { connections: [], configFailures: [{ connectionId: "desktop", reason }] },
+      { desktop: { ...saved, ...launch } },
+    );
+    expect(connections[0]?.entries[0]?.kind).toBe("failed-to-start");
+    expect(connections[0]?.entries[0]?.messageVars).toEqual({ reason });
+  });
+
+  it("does not misattribute another server's failure, or report an intentionally disabled server", () => {
+    const snapshot = { connections: [], configFailures: [{ connectionId: "other", reason: `spawn ${saved.command} ENOENT` }] };
+    expect(describeAdmissionDrift(snapshot, { desktop: saved })[0]?.entries[0]?.kind).toBe("not-running");
+    expect(describeAdmissionDrift(snapshot, { other: { ...saved, enabled: false } })).toEqual([]);
   });
 });

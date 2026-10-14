@@ -28,8 +28,13 @@ import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-a
  *  `data-agent-label`). The visible words also make the translated sentence beside it
  *  ("Tick 'may write' to enable this tool.") literally true rather than a reference to a control
  *  that is not there. */
-function AdmissionDriftRow(props: { entry: AdmissionDriftEntry; t: Translate; onAllowWrite: (connectionId: string, remoteName: string) => void }) {
-  const { entry, t, onAllowWrite } = props;
+function AdmissionDriftRow(props: {
+  entry: AdmissionDriftEntry;
+  t: Translate;
+  onAllowWrite: (connectionId: string, remoteName: string) => void;
+  onRequestRemove: (connectionId: string) => void;
+}) {
+  const { entry, t, onAllowWrite, onRequestRemove } = props;
   const message = interpolate({ template: t(entry.messageKey), vars: entry.messageVars });
   // Bound locally so the null check below narrows inside the `onChange` closure too. A
   // `needs-write-grant` row always names a tool (it comes from a gate refusal), but the type cannot
@@ -47,6 +52,11 @@ function AdmissionDriftRow(props: { entry: AdmissionDriftEntry; t: Translate; on
         </>
       )}
       <span>{message}</span>
+      {entry.kind === "missing-launcher" ? (
+        <button type="button" onClick={() => onRequestRemove(entry.connectionId)} data-agent-element={`mcp-drift-remove-${entry.connectionId}`}>
+          {t("Remove")}
+        </button>
+      ) : null}
       {entry.kind === "needs-write-grant" && remoteName !== null ? (
         <label className="external-mcp-drift-grant">
           <input
@@ -69,8 +79,9 @@ function AdmissionConnectionSection(props: {
   connection: AdmissionDriftConnection;
   t: Translate;
   onAllowWrite: (connectionId: string, remoteName: string) => void;
+  onRequestRemove: (connectionId: string) => void;
 }) {
-  const { connection, t, onAllowWrite } = props;
+  const { connection, t, onAllowWrite, onRequestRemove } = props;
 
   return (
     <section className="external-mcp-drift-connection">
@@ -86,7 +97,7 @@ function AdmissionConnectionSection(props: {
       ) : null}
       <ul>
         {connection.entries.map((entry) => (
-          <AdmissionDriftRow key={`${entry.connectionId}:${entry.remoteName}:${entry.kind}`} entry={entry} t={t} onAllowWrite={onAllowWrite} />
+          <AdmissionDriftRow key={`${entry.connectionId}:${entry.remoteName}:${entry.kind}`} entry={entry} t={t} onAllowWrite={onAllowWrite} onRequestRemove={onRequestRemove} />
         ))}
       </ul>
     </section>
@@ -131,9 +142,11 @@ export interface ExternalMcpAdmissionsBannerProps {
   /** Ticks "may write" for one tool by writing the connection's `writeAllowedToolNames` field
    *  through the same `updateSource` port the card's own edit form uses. */
   onAllowWrite: (connectionId: string, remoteName: string) => void;
+  /** Opens the existing confirmation dialog; only its Confirm calls the existing delete hook. */
+  onRequestRemove: (connectionId: string) => void;
 }
 
-export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite }: ExternalMcpAdmissionsBannerProps) {
+export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite, onRequestRemove }: ExternalMcpAdmissionsBannerProps) {
   if (controller.loading) return null;
 
   if (controller.waitingForAssistant) {
@@ -162,9 +175,9 @@ export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite }: Ext
     <div className="external-mcp-banner external-mcp-drift">
       <p>{t(describeDriftHeadline(controller.connections))}</p>
       {controller.connections.map((connection) => (
-        <AdmissionConnectionSection key={connection.connectionId} connection={connection} t={t} onAllowWrite={onAllowWrite} />
+        <AdmissionConnectionSection key={connection.connectionId} connection={connection} t={t} onAllowWrite={onAllowWrite} onRequestRemove={onRequestRemove} />
       ))}
-      <AdmissionRestartFooter controller={controller} t={t} />
+      {controller.restartHelps ? <AdmissionRestartFooter controller={controller} t={t} /> : null}
     </div>
   );
 }
