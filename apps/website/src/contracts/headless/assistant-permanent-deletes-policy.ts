@@ -7,11 +7,11 @@ export const PERMANENT_DELETE_TOOLS = [
   { id: "comments_purge_comment", group: "Content purges", label: "Delete a comment forever", adminPath: "/admin/trash" },
   { id: "identity_user_delete", group: "Content purges", label: "Delete a trashed user account forever", adminPath: "/admin/trash" },
   { id: "deployment_ops_unset_secret", group: "Settings deletes", label: "Remove a deployment environment secret", adminPath: null },
-  { id: "external_mcp_delete", group: "Settings deletes", label: "Delete an external MCP connection and its authentication", adminPath: "/admin/providers?tab=external-mcp" },
+  { id: "external_mcp_delete", group: "Settings deletes", label: "Delete an external MCP connection and its authentication", adminPath: "/admin/addons/integrations?tab=external-mcp" },
   { id: "custom_credential_delete", group: "Settings deletes", label: "Delete a saved custom provider credential", adminPath: "/admin/access-tokens?tab=access-tokens" },
   { id: "deployment_delete_provider_credential", group: "Settings deletes", label: "Delete a saved deployment provider credential", adminPath: "/admin/access-tokens?tab=access-tokens" },
   { id: "source_control_delete_credential", group: "Settings deletes", label: "Delete a saved source control credential", adminPath: "/admin/access-tokens?tab=access-tokens" },
-  { id: "webhooks_delete_subscription", group: "Settings deletes", label: "Delete a webhook subscription", adminPath: "/admin/providers?tab=webhooks" },
+  { id: "webhooks_delete_subscription", group: "Settings deletes", label: "Delete a webhook subscription", adminPath: "/admin/addons/integrations?tab=webhooks" },
   { id: "identity_role_delete", group: "Settings deletes", label: "Delete a custom role", adminPath: "/admin/roles" },
   { id: "identity_policy_delete", group: "Settings deletes", label: "Delete a custom policy and its permissions", adminPath: "/admin/roles" },
 ] as const;

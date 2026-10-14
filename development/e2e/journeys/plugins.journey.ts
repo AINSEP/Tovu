@@ -37,7 +37,7 @@ async function pluginState(request: APIRequestContext, id: string): Promise<{ en
 
 /** Fills the Plugins "Add a plugin" tab card (`AddPluginPanel`) and previews; returns that card. */
 async function previewFolder(page: Page, folder: string): Promise<ReturnType<Page["getByRole"]>> {
-  await page.goto("/admin/plugins?tab=add");
+  await page.goto("/admin/addons/plugins?tab=add");
   const dialog = page.getByRole("region", { name: "Add a plugin" });
   // The server-path field lives in a collapsed "Advanced" disclosure under the upload drop zone.
   await dialog.getByText("Advanced: install from a path on this server").click();
@@ -70,15 +70,15 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
     await expect(dialog).toContainText(`${SAMPLE_NAME} is installed and switched off. Turn it on in Downloaded.`);
     expect((await pluginState(request, "testimonials-faq"))?.enabled).toBe(false);
-    await page.goto("/admin/plugins?tab=downloaded");
+    await page.goto("/admin/addons/plugins?tab=downloaded");
     await expect(page.getByRole("button", { name: `Enable ${SAMPLE_NAME}` })).toBeVisible();
   });
 
   test("enabling it adds the FAQ type; a page marker renders an accordion with FAQPage JSON-LD", { tag: ["@unrun"] }, async ({ page, request }) => {
-    await page.goto("/admin/plugins?tab=downloaded");
+    await page.goto("/admin/addons/plugins?tab=downloaded");
     await page.getByRole("button", { name: `Enable ${SAMPLE_NAME}` }).click();
     await expect.poll(async () => (await pluginState(request, "testimonials-faq"))?.enabled).toBe(true);
-    await page.goto("/admin/plugins?tab=installed");
+    await page.goto("/admin/addons/plugins?tab=installed");
     await expect(page.getByRole("listitem", { name: SAMPLE_NAME })).toBeVisible();
     await expect(page).toHaveScreenshot("plugins-installed.png");
 
@@ -158,7 +158,7 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
   });
 
   test("the conflicting plugin's row names the clash, and enabling it is refused while the other is on", { tag: ["@unrun"] }, async ({ page, request }) => {
-    await page.goto("/admin/plugins?tab=downloaded");
+    await page.goto("/admin/addons/plugins?tab=downloaded");
     const row = page.locator(`li.plugin-row[aria-label="${CLASH_NAME}"]`);
     await row.locator(".plugin-row-summary").click();
     await expect(row).toContainText(ROW_CONFLICT_HEADING);
@@ -186,9 +186,9 @@ test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
   });
 
   test("enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone", { tag: ["@unrun"] }, async ({ page, request, context }) => {
-    await page.goto("/admin/plugins?tab=downloaded");
+    await page.goto("/admin/addons/plugins?tab=downloaded");
     await page.getByRole("button", { name: "Enable Content Analyzer" }).click();
-    await page.goto("/admin/plugins?tab=installed");
+    await page.goto("/admin/addons/plugins?tab=installed");
     await expect(page.getByRole("listitem", { name: "Content Analyzer" })).toBeVisible();
 
     await page.goto("/admin/posts");
@@ -212,7 +212,7 @@ test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
     // null once its plugin list says the analyzer is off, and that list is only re-read on mount
     // (`useFetchQuery`, no focus refetch). The open card is the one place the server's refusal shows.
     const plugins = await context.newPage();
-    await plugins.goto("/admin/plugins?tab=installed");
+    await plugins.goto("/admin/addons/plugins?tab=installed");
     await plugins.getByRole("button", { name: "Disable Content Analyzer" }).click();
     await expect.poll(async () => (await pluginState(request, "content-analyzer"))?.enabled ?? true).toBe(false);
     await plugins.close();

@@ -11,6 +11,8 @@ import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/
 import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { useRouteLocation } from "./lib/router";
+import { resolveAddonsRoute } from "./lib/addons-routes";
+import { IntegrationsRedirect } from "./features/integrations";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
@@ -53,10 +55,11 @@ import {
 } from "./App.hooks";
 
 /**
- * A resolved route, plus the one Tovu-local wrinkle `@jini-ai/admin/core`'s generic matcher does
- * not know about — see `parseRoute` below.
+ * A resolved route, plus Tovu's legacy sections and Add-ons migration metadata — see `parseRoute`.
  */
 interface Route extends AdminRoute {
+  /** Replacement URL for a retired Add-ons route; resolved in one migration adapter. */
+  redirectPath?: string;
   /**
    * Set only by the legacy `/section/:id` branch when `id` does not match a registered panel.
    * Distinguishes "a stored URL naming a section that no longer exists" (render `Placeholder`,
@@ -86,7 +89,8 @@ const NO_PERMISSIONS: readonly string[] = [];
  * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
  *
  * Delegates to `@jini-ai/admin/core`'s `matchRoute` against `panels.tsx`'s `ADMIN_PANELS` for
- * everything except one Tovu-specific shape the generic matcher was never given a branch for:
+ * Tovu's Add-ons URLs first pass through `resolveAddonsRoute`; Jini still matches their stable
+ * panel IDs. Another Tovu-specific shape the generic matcher was never given a branch for is:
  * legacy `/section/:id` URLs, which — unlike a modern bare `/settings` segment — accept an
  * *arbitrary* id. `matchRoute` matches over an array (`panels.find(p => p.id === segment)`), so
  * the historic `Object.hasOwn` hazard this file used to guard against (`/admin/constructor` etc.
@@ -109,10 +113,11 @@ export function parseRoute(routePath: string): Route {
     // A known id resolves exactly like the modern bare-segment path. Anything past the id is
     // ignored, matching the single inline branch this replaces (`/section/settings/foo` never
     // looked past `settings` either).
-    return matchRoute({ routePath: `/${id}`, panels: ADMIN_PANELS });
+    return parseRoute(`/${id}`);
   }
 
-  return matchRoute({ routePath, panels: ADMIN_PANELS });
+  const moved = resolveAddonsRoute({ routePath });
+  return { ...matchRoute({ routePath: moved.matchPath, panels: ADMIN_PANELS }), redirectPath: moved.redirectPath };
 }
 
 /**
@@ -165,6 +170,8 @@ interface RouteAccess {
  * without a shared dispatch to edit.
  */
 function renderRoute(route: Route, siteSection: SiteSectionAvailability, access: RouteAccess): ReactNode {
+  // Replace the old URL before mounting its screen; the canonical route retains the same gate.
+  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} />;
   if (route.unknownSectionId !== undefined) {
     return <Placeholder sectionId={route.unknownSectionId} />;
   }

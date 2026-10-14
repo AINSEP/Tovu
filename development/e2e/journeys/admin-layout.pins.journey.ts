@@ -424,7 +424,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     });
 
     test("admin tab bar: active tab underline and text", async ({ settingsPage: page }) => {
-      await page.goto("/admin/plugins");
+      await page.goto("/admin/addons/plugins");
       const active = '.tab-bar-item[aria-selected="true"]';
       await expect(page.locator(active).first()).toBeVisible();
       expectPrimary(await swatch(page, { label: "admin tab bar underline", selector: active, property: "border-bottom-color" }));
@@ -1419,7 +1419,7 @@ test("package files wrap long lines and keep each gutter aligned with its source
     },
   }));
   await loginAsAdmin(page);
-  await page.goto("/admin/agent-plugins");
+  await page.goto("/admin/addons/agent-plugins");
   await page.getByRole("button", { name: /^Inspect package files/ }).click();
   const pane = page.locator(".agent-plugin-source-content");
   for (const file of ["SKILL.md", "plugin.json"]) {
@@ -1461,7 +1461,7 @@ test("MCP Remove and Tools dialogs contain native Tab navigation and Escape dele
     json: { tools: [], probedAt: "2026-10-01T00:00:00.000Z" },
   }));
   await loginAsAdmin(page);
-  await page.goto("/admin/providers?tab=external-mcp");
+  await page.goto("/admin/addons/integrations?tab=external-mcp");
   const card = page.getByTestId("source-config-item-card");
   await expect(card).toHaveCount(1);
   for (const modal of ["Remove", "Tools"]) {

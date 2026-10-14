@@ -24,7 +24,7 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  * behavior change by editing those.
  *
  * State and API calls live in `hooks/use-plugins.hooks.ts`; the server-error-message override,
- * toggle-cell decision, subline, and remove-confirm copy live in `rules.ts`. Route `/plugins`;
+ * toggle-cell decision, subline, and remove-confirm copy live in `rules.ts`. Route `/addons/plugins`;
  * consumes `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`/`PLUGIN_UNINSTALL` (`api.listPlugins()`/
  * `api.setPluginEnabled()`/`api.uninstallPlugin()`) as a black box. Every Installed and Downloaded
  * row also has an eye button opening `PluginPackageFilesModal` (`PLUGIN_FILES`, 2026-09-13) — the
@@ -300,7 +300,7 @@ const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProp
 
 /** `TabBar`'s `onChange`: the active tab lives in the URL (`?tab=`), so switching is a navigation. */
 function navigateToPluginsTab(nextTabId: string) {
-  navigate(`/plugins?tab=${nextTabId}`, { replace: true });
+  navigate(`/addons/plugins?tab=${nextTabId}`, { replace: true });
 }
 
 export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {

@@ -301,9 +301,9 @@ test.describe.serial("Content analysis card (AW-7 Tier 2)", () => {
   });
 
   test("enabled from Plugins, a saved post shows score, words, TOC and checks; Analyze now covers unsaved edits", { tag: ["@unrun"] }, async ({ page }) => {
-    await page.goto("/admin/plugins?tab=downloaded");
+    await page.goto("/admin/addons/plugins?tab=downloaded");
     await page.getByRole("button", { name: "Enable Content Analyzer" }).click();
-    await page.goto("/admin/plugins?tab=installed");
+    await page.goto("/admin/addons/plugins?tab=installed");
     await expect(page.getByRole("listitem", { name: "Content Analyzer" })).toBeVisible();
 
     await newPost(page);

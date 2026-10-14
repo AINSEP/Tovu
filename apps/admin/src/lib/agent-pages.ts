@@ -2,6 +2,7 @@ import { buildAgentPageMap } from "@jini-ai/admin/core";
 import type { DomPageDriverPage } from "@jini-ai/agentic/dom";
 import { ADMIN_PANELS } from "../panels";
 import { currentRoutePath, navigate } from "./router";
+import { ADDONS_PANEL_PATHS } from "./addons-routes";
 import { publishContentRefresh } from "./content-refresh-bus";
 
 /**
@@ -40,11 +41,13 @@ import { publishContentRefresh } from "./content-refresh-bus";
  *
  * Every value corresponds to a real `panels.tsx` entry (or a param-free detail route on one), so it
  * is always a path `App.tsx`'s `parseRoute` resolves to something other than the dashboard —
- * `buildAgentPageMap` can only produce entries from panels that exist.
+ * `buildAgentPageMap` can only produce entries from panels that exist. Tovu's Add-ons migration
+ * projects those entries to canonical URLs without changing the published IDs.
  */
-export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = buildAgentPageMap({ panels: ADMIN_PANELS }, {
-  defaultReachable: true,
-});
+export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(buildAgentPageMap({ panels: ADMIN_PANELS }, { defaultReachable: true }))
+    .map(([id, path]) => [id, ADDONS_PANEL_PATHS[id] ?? path]),
+);
 
 /**
  * `id.split('-')` title-cased — `"widget-regions"` -> `"Widget Regions"`.

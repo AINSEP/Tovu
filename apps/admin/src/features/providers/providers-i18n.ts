@@ -1,7 +1,7 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Translations for the Integrations page (`features/providers/Providers.tsx`, route
- * `/admin/providers`) — this feature's own dictionary rather than the shared `lib/admin-nav-i18n.ts`
+ * `/admin/addons/integrations`) — this feature's own dictionary rather than the shared `lib/admin-nav-i18n.ts`
  * one, the same per-feature convention `integrations-i18n.tsx` and `plugins-i18n.ts` follow, so
  * parallel translation passes over different admin sections cannot collide on one file.
  *

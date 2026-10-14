@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { navigate } from "../../../lib/router";
+import { ADDONS_PANEL_PATHS } from "../../../lib/addons-routes";
 
 /**
  * @file The side effect behind `IntegrationsRedirect.tsx` — split out so that `.tsx` file carries no
@@ -9,7 +10,7 @@ import { navigate } from "../../../lib/router";
 
 /**
  * Sends the browser from the retired `/admin/integrations` index route to its two absorbed tabs'
- * new home, `/admin/providers` (labelled "Integrations" — see `panels.tsx`'s own comment on the
+ * new home, `/admin/addons/integrations` (labelled "Integrations" — see `panels.tsx`'s own comment on the
  * `providers`/`integrations` panels for the full history of why this redirect exists at all).
  *
  * `?tab=webhooks` specifically, not the merged screen's own default (`external-mcp`): a bookmark or
@@ -20,18 +21,23 @@ import { navigate } from "../../../lib/router";
  * that promise regardless of what `Providers.tsx`'s own default is or ever becomes.
  *
  * `replace: true`, not a pushed entry — the redirect should not become its own Back-button stop, or
- * Back from `/admin/providers` would land on `/admin/integrations` and bounce forward again
+ * Back from `/admin/addons/integrations` would land on `/admin/integrations` and bounce forward again
  * immediately, the same reasoning `router.ts`'s `redirectLegacyHashUrl` documents for its own
  * `replaceState` call.
  *
- * Runs once per mount via `useEffect` with an empty dependency array — this redirect target is a
- * fixed string, not derived from props or state, so there is nothing for a dependency list to react
- * to.
+ * Also executes the Add-ons migration destinations resolved in `lib/addons-routes.ts` (owner,
+ * 2026-10-13), so all retired paths share one redirect effect. The target is a dependency so a
+ * route change updates an already-mounted redirect. Omitting it keeps the historic Webhooks default.
  *
+ * @param input Destination route path supplied by the migration adapter, or the legacy default.
+ * @returns Nothing; replaces browser history and notifies route subscribers after render.
  * @complexity O(1) — one fixed navigation call.
  */
-export function useIntegrationsRedirect(): void {
+export function useIntegrationsRedirect(
+  { routePath = ADDONS_PANEL_PATHS.integrations! }: { routePath?: string } = {},
+  _options = {},
+): void {
   useEffect(() => {
-    navigate("/providers?tab=webhooks", { replace: true });
-  }, []);
+    navigate(routePath, { replace: true });
+  }, [routePath]);
 }

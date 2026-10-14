@@ -579,7 +579,7 @@ describe("?tab= deep-linking (ADR-063's shared idiom, same as Security.tsx/Datab
     render(<Plugins />);
 
     await user.click(await screen.findByRole("tab", { name: "Downloaded" }));
-    expect(window.location.pathname).toBe("/admin/plugins");
+    expect(window.location.pathname).toBe("/admin/addons/plugins");
     expect(window.location.search).toBe("?tab=downloaded");
   });
 });

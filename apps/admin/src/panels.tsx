@@ -579,6 +579,12 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   },
 
   // --- Add-Ons ---
+  // 2026-10-13, owner: all four rows now live under /admin/addons/* — Plugins at
+  // /addons/plugins, Agent Plugins at /addons/agent-plugins, Skills at /addons/skills, and
+  // `providers` at /addons/integrations. IDs stay stable for permissions and agent navigation.
+  // `lib/addons-routes.ts` owns this Tovu URL mapping and ALL old-path redirect destinations;
+  // App reuses IntegrationsRedirect for their replacement navigation. The rationale below
+  // records the earlier grouping/merge decisions; their old URLs now redirect to these paths.
   // Promoted out of Studio to its own group (owner call). Studio is the design surface — themes,
   // skills, design tokens — whereas plugins/agent-plugins are installed capabilities that extend
   // what the site can DO, which is a different axis.
@@ -710,7 +716,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // `/admin/integrations` URL is a real bookmark/agent-remembered link that used to work.
     //
     // Decision on what `/admin/integrations` (the bare index route) now does: REDIRECTS to
-    // `/providers?tab=webhooks` (`IntegrationsRedirect`, `features/integrations/
+    // `/addons/integrations?tab=webhooks` (`IntegrationsRedirect`, `features/integrations/
     // IntegrationsRedirect.tsx`) rather than 404ing or rendering nothing. A dead URL that used to
     // work is a real regression this file's own dispatch called out explicitly — redirecting is the
     // only one of the three options that keeps an old bookmark landing on real content instead of a
@@ -719,12 +725,12 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // pass — see `use-integrations-redirect.hooks.ts`'s own doc for why.
     //
     // KNOWN, ACCEPTED SIDE EFFECT: the sidebar has no highlight to give while viewing
-    // `/admin/integrations/:subscriptionId` (the deliveries drill-down) — `currentPanelId`
+    // `/admin/addons/integrations/:subscriptionId` (the deliveries drill-down) — `currentPanelId`
     // (`App.tsx`) resolves to this panel's own id, which no nav row claims anymore. Before this pass
     // that view highlighted "APIs & Webhooks"; there is no row to highlight in its place now. Not
-    // fixed here: redirecting the drill-down route too would be a real functionality loss (it is
-    // live content, not a stale index page), and highlighting `providers` instead would be
-    // inaccurate — that row's own URL is not where this content lives.
+    // fixed here: the drill-down is live content, not a stale index page, so its old URL now
+    // redirects to the SAME deliveries screen under /addons/integrations/:subscriptionId;
+    // it never redirects to the merged index and loses that content.
     //
     // `DeveloperApi.tsx`, the page shell that used to render here, is DELETED — its two tabs moved
     // into `providers`/`Providers.tsx` verbatim; see that file's own header for the full move.

@@ -20,10 +20,10 @@ function findPluginsNavItem() {
 }
 
 describe("REQ-17/AC-25: the plugins NavItem is an active link, not disabled/soon", () => {
-  it("has href '/plugins' and no soon flag", () => {
+  it("has href '/addons/plugins' and no soon flag", () => {
     const item = findPluginsNavItem();
     expect(item).toBeDefined();
-    expect(item?.href).toBe("/plugins");
+    expect(item?.href).toBe("/addons/plugins");
     expect(item?.soon).toBeFalsy();
   });
 
@@ -70,6 +70,9 @@ describe("Add-Ons nav section", () => {
 
     const ids = addOns!.items.map((item) => item.id);
     expect(ids).toEqual(["plugins", "agent-plugins", "skills", "providers"]);
+    expect(addOns!.items.map((item) => item.href)).toEqual([
+      "/addons/plugins", "/addons/agent-plugins", "/addons/skills", "/addons/integrations",
+    ]);
   });
 
   // Regression guard: this exact row (route id `providers`) was labelled "Providers", then briefly

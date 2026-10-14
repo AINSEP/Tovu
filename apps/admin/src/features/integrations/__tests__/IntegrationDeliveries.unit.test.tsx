@@ -106,6 +106,6 @@ describe("delivery table", () => {
 describe("page chrome", () => {
   it("links back to the Integrations list", () => {
     render(<IntegrationDeliveries subscriptionId="sub1" useIntegrationDeliveriesHook={() => baseController()} />);
-    expect(screen.getByRole("link", { name: /integrations/i })).toHaveAttribute("href", "/admin/integrations");
+    expect(screen.getByRole("link", { name: /integrations/i })).toHaveAttribute("href", "/admin/addons/integrations?tab=webhooks");
   });
 });

@@ -324,7 +324,7 @@ describe("panel 'integrations'", () => {
   // The panel id/route stay even though the row has no nav entry anymore (second pass, 2026-09-10)
   // — this asserts the id/route pairing that keeps `/admin/integrations` and its deliveries
   // drill-down resolving to real content, not a label (there is none to assert here now).
-  it("index route renders IntegrationsRedirect (redirects to /providers?tab=webhooks)", () => {
+  it("legacy index route renders IntegrationsRedirect (redirects to /addons/integrations?tab=webhooks)", () => {
     const el = panel("integrations").render(ctx()) as ReactElement;
     expect(el.type).toBe(IntegrationsRedirect);
   });
@@ -333,6 +333,24 @@ describe("panel 'integrations'", () => {
     const el = panel("integrations").render(ctx({ view: "integration-deliveries", params: { subscriptionId: "sub1" } })) as ReactElement;
     expect(el.type).toBe(IntegrationDeliveries);
     expect(el.props).toMatchObject({ subscriptionId: "sub1" });
+  });
+});
+
+describe("Add-ons canonical routes", () => {
+  it.each([
+    { path: "/addons/plugins?tab=add", id: "plugins", component: Plugins },
+    { path: "/addons/agent-plugins?tab=add", id: "agent-plugins", component: AgentPlugins },
+    { path: "/addons/skills?tab=add", id: "skills", component: Skills },
+    { path: "/addons/integrations?tab=webhooks", id: "providers", component: Providers },
+    { path: "/addons/integrations/sub1", id: "integrations", component: IntegrationDeliveries },
+  ])("$path renders the owning panel with its stable identity", ({ path, id, component }) => {
+    const route = parseRoute(path);
+    expect(route.panelId).toBe(id);
+    expect(route.redirectPath).toBeUndefined();
+    const element = panel(route.panelId!).render(route) as ReactElement;
+    expect(element.type).toBe(component);
+    if (component === IntegrationDeliveries) expect(element.props).toMatchObject({ subscriptionId: "sub1" });
+    if (component === Providers) expect(element.props).toMatchObject({ tabId: "webhooks" });
   });
 });
 

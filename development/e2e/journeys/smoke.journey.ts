@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { ADDONS_PANEL_PATHS } from "../../../apps/admin/src/lib/addons-routes.js";
 
 import { attemptLoginAsAdmin, logoutAsAdmin } from "../auth-fixtures.js";
 import { JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, PUBLIC_URL, expect, hasHorizontalScroll, test } from "./_fixtures.js";
@@ -101,12 +102,12 @@ test.describe("W11 public rendering smoke", () => {
 
 test.describe("W12 every admin panel loads", () => {
   for (const id of readPanelIds()) {
-    test(`/admin/${id} renders inside the shell with no 5xx`, { tag: ["@unrun"] }, async ({ page }) => {
+    test(`/admin${ADDONS_PANEL_PATHS[id] ?? `/${id}`} renders inside the shell with no 5xx`, { tag: ["@unrun"] }, async ({ page }) => {
       const serverErrors: string[] = [];
       page.on("response", (response) => {
         if (response.url().includes("/api/") && response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
       });
-      await page.goto(`/admin/${id}`);
+      await page.goto(`/admin${ADDONS_PANEL_PATHS[id] ?? `/${id}`}`);
       await expect(page.locator(".admin-layout")).toBeVisible();
       await expect(page.locator(".login-card")).toHaveCount(0);
       await expect(page.locator("main, [role=main]").first()).not.toBeEmpty();

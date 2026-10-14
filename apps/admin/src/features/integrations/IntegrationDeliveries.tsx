@@ -31,7 +31,7 @@ export function IntegrationDeliveries({
 
   return (
     <div className="page">
-      <a href="/admin/integrations">{t("← Integrations")}</a>
+      <a href="/admin/addons/integrations?tab=webhooks">{t("← Integrations")}</a>
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Integrations")}</p>

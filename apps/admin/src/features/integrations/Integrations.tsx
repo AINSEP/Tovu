@@ -249,7 +249,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
             header: t("Label"),
             cell: (subscription, index) => (
               <a
-                href={`/admin/integrations/${subscription.id}`}
+                href={`/admin/addons/integrations/${subscription.id}`}
                 {...agentHandle({ handle: `${rowMenuHandles[index]}-label` }, { role: "link", label: `Open the "${subscription.label}" webhook's deliveries` })}
               >
                 {subscription.label}

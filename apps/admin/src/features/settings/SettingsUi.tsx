@@ -288,7 +288,7 @@ export function SettingsUi(props: SettingsUiProps) {
   const useSettingsUiHook = resolveSettingsUiHook(props.useSettingsUiHook);
   const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook(props.useAdminExecutionCredentialHook);
   const tabId = resolveTabId(props.tabId);
-  useEffect(() => { if (props.tabId === "skills") navigate("/skills", { replace: true }); }, [props.tabId]);
+  useEffect(() => { if (props.tabId === "skills") navigate("/addons/skills", { replace: true }); }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
   const settingsRootRef = useSettingsActiveTabScroll({ ready: !s.loading, tabId });
 

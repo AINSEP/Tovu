@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Skills } from "../Skills";
 import { prepareSkillUpload } from "../skill-upload";
 
-beforeEach(() => window.history.replaceState(null, "", "/admin/skills"));
+beforeEach(() => window.history.replaceState(null, "", "/admin/addons/skills"));
 afterEach(() => {
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
@@ -31,7 +31,7 @@ describe("Skills", () => {
   });
 
   it("opens the bookmarked Add tab and keeps install controls off the Skills tab", async () => {
-    window.history.replaceState(null, "", "/admin/skills?tab=add");
+    window.history.replaceState(null, "", "/admin/addons/skills?tab=add");
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skills: [{ toolId: "skill_example", name: "example", description: "Example skill.", enabled: false, source: "uploaded" }] })));
     render(<Skills />);
     expect(skillTab("Add a skill")).toHaveAttribute("aria-pressed", "true");
@@ -40,7 +40,7 @@ describe("Skills", () => {
     expect(screen.getByRole("button", { name: "Upload folder" })).toBeEnabled();
     expect(screen.queryByRole("list", { name: "Installed skills" })).not.toBeInTheDocument();
     await userEvent.click(skillTab("Skills"));
-    expect(window.location.pathname + window.location.search).toBe("/admin/skills?tab=skills");
+    expect(window.location.pathname + window.location.search).toBe("/admin/addons/skills?tab=skills");
     await screen.findByRole("list", { name: "Installed skills" });
     expect(screen.queryByRole("textbox", { name: "GitHub URL" })).not.toBeInTheDocument();
   });
@@ -52,7 +52,7 @@ describe("Skills", () => {
     await screen.findByText("No skills installed yet");
     const historyLength = window.history.length;
     await user.click(emptyAddButton());
-    expect(window.location.pathname + window.location.search).toBe("/admin/skills?tab=add");
+    expect(window.location.pathname + window.location.search).toBe("/admin/addons/skills?tab=add");
     await user.type(screen.getByRole("textbox", { name: "GitHub URL" }), "https://github.com/acme/incident");
     await user.click(skillTab("Skills"));
     expect(skillTab("Skills")).toHaveAttribute("aria-pressed", "true");
@@ -126,7 +126,7 @@ describe("Skills", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm install" }));
     await screen.findByText("incident-response");
     expect(skillTab("Skills")).toHaveAttribute("aria-pressed", "true");
-    expect(window.location.pathname + window.location.search).toBe("/admin/skills?tab=skills");
+    expect(window.location.pathname + window.location.search).toBe("/admin/addons/skills?tab=skills");
     expect(screen.queryByRole("textbox", { name: "GitHub URL" })).not.toBeInTheDocument();
   });
   it.each(["files", "folder"])("%s picker uploads SKILL.md after confirmation and returns to Skills", async picker => {
@@ -155,7 +155,7 @@ describe("Skills", () => {
   });
 
   it("stays on Add after an install failure, then switches only after a successful retry", async () => {
-    window.history.replaceState(null, "", "/admin/skills?tab=add");
+    window.history.replaceState(null, "", "/admin/addons/skills?tab=add");
     let attempts = 0;
     let installed: unknown[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url, init) => {
@@ -211,7 +211,7 @@ it("Jini-expanded chat folder paths survive skill upload preparation", async () 
 
 
 it("tags every Skills add-tab input/action and both install confirmation choices", async () => {
-  window.history.replaceState(null, "", "/admin/skills?tab=add");
+  window.history.replaceState(null, "", "/admin/addons/skills?tab=add");
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skills: [] })));
   render(<Skills />);
   for (const [name, handle] of [["GitHub URL", "skills-add-github-url"], ["Choose skill files", "skills-add-files-input"], ["Choose skill folder", "skills-add-folder-input"]]) {

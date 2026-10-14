@@ -4,8 +4,8 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
 /**
- * @file Spanish translation for the Integrations list (`/admin/integrations`) and its
- * delivery-log sub-screen (`/admin/integrations/:subscriptionId`) — form labels, table headers,
+ * @file Spanish translation for the Integrations list (`/admin/addons/integrations`) and its
+ * delivery-log sub-screen (`/admin/addons/integrations/:subscriptionId`) — form labels, table headers,
  * empty states, and confirm-dialog copy.
  *
  * Also covers `rules.ts`'s `integrationRowMenuItems` row-menu labels (Pause/Resume/Delete) — the

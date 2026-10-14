@@ -33,7 +33,7 @@ beforeEach(() => {
     }
     // Any other call (e.g. this screen's own listPlugins()) — a benign empty list, so a
     // successfully-implemented Plugins component has something deterministic to render.
-    return new Response(JSON.stringify({ plugins: [] }), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ plugins: [], agentPlugins: [], skills: [], servers: [], subscriptions: [], deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } });
   });
   vi.stubGlobal("fetch", fetchMock);
   // jsdom has no `EventSource`, and `App`'s page-control bridge constructs one in an effect. That
@@ -51,7 +51,7 @@ beforeEach(() => {
   // `replaceState`, not `location.pathname = …`: assigning a path is a real navigation, which jsdom
   // does not implement (it warns and leaves the URL alone, so the app would render the dashboard
   // and this test would pass vacuously — the dashboard has no Placeholder copy either).
-  window.history.replaceState(null, "", "/admin/plugins");
+  window.history.replaceState(null, "", "/admin/addons/plugins");
 });
 
 afterEach(() => {
@@ -71,13 +71,37 @@ it("AC-25: navigating to /admin/plugins does NOT fall through to <Placeholder>'s
    * Assert the route actually resolved, not merely that the Placeholder copy is absent.
    *
    * Raised in an external audit of the hash→path routing change: on its own, the assertion below
-   * passes for the wrong reason if `/admin/plugins` regresses to the dashboard — `findByText(/plugins/i)`
+   * passes for the wrong reason if `/admin/addons/plugins` regresses to the dashboard — `findByText(/plugins/i)`
    * happily matches the *sidebar* nav item, and the dashboard has no Placeholder copy either. So the
    * test would go green while proving nothing. `data-agent-page` is set from `activeSectionId(route)`,
    * making it the one assertion that pins which route the app believes it is on.
    */
   expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "plugins");
   expect(screen.queryByText(PLACEHOLDER_COPY)).not.toBeInTheDocument();
+});
+
+// Owner decision 2026-10-13: exercise redirects through App's real render dispatch and router,
+// so resolving a migration destination without mounting the redirect cannot pass these tests.
+it.each([
+  ["/admin/plugins", "/admin/addons/plugins", "plugins"],
+  ["/admin/agent-plugins", "/admin/addons/agent-plugins", "agent-plugins"],
+  ["/admin/skills", "/admin/addons/skills", "skills"],
+  ["/admin/providers", "/admin/addons/integrations", "providers"],
+  ["/admin/providers?tab=webhooks&cursor=a%2Bb&cursor=x+y", "/admin/addons/integrations?tab=webhooks&cursor=a%2Bb&cursor=x+y", "providers"],
+  ["/admin/plugins?tab=add", "/admin/addons/plugins?tab=add", "plugins"],
+  ["/admin/agent-plugins?tab=add", "/admin/addons/agent-plugins?tab=add", "agent-plugins"],
+  ["/admin/skills?tab=add", "/admin/addons/skills?tab=add", "skills"],
+  ["/admin/integrations", "/admin/addons/integrations?tab=webhooks", "providers"],
+  ["/admin/integrations/sub%2F1?cursor=a%2Bb", "/admin/addons/integrations/sub%2F1?cursor=a%2Bb", "integrations"],
+])("redirects %s to %s with replacement history", async (legacyUrl, canonicalUrl, panelId) => {
+  window.history.replaceState(null, "", legacyUrl);
+  const historyLength = window.history.length;
+  const { container } = render(<App />);
+  await waitFor(() => {
+    expect(window.location.pathname + window.location.search).toBe(canonicalUrl);
+    expect(container.querySelector("main")).toHaveAttribute("data-agent-page", panelId);
+  }, { timeout: 3000 });
+  expect(window.history.length).toBe(historyLength);
 });
 
 /** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render

@@ -1,5 +1,6 @@
 import { buildNav, type AdminNavGroup, type AdminNavItem } from "@jini-ai/admin/core";
 import { ADMIN_PANELS } from "./panels";
+import { ADDONS_PANEL_PATHS } from "./lib/addons-routes";
 
 /**
  * @file Admin sidebar navigation model (grouped) — derived from `panels.tsx`.
@@ -16,7 +17,7 @@ import { ADMIN_PANELS } from "./panels";
  *   reshape `buildNav`'s output into a bespoke local `NavGroup`/`NavItem` (a required
  *   `icon: string`, dropped `order`); that reshaping is gone now that `Sidebar.Nav` itself takes
  *   `AdminNavGroup[]` and handles an absent icon (`item.icon ?? ''`) — one less place for the two
- *   shapes to drift apart. `getNav()` returns exactly `buildNav({ panels: ADMIN_PANELS })`, computed once and
+ *   shapes to drift apart. `getNav()` uses `buildNav({ panels: ADMIN_PANELS })` with Tovu's Add-ons paths, computed once and
  *   cached here so `App.tsx` and `components/Placeholder.tsx` share one nav model instead of each
  *   calling `buildNav` itself.
  * - `href` is a **route path**, not a URL: `/settings`, not `/admin/settings`. Sidebar applies the
@@ -60,6 +61,9 @@ let cachedNav: readonly AdminNavGroup[] | undefined;
  * the first returns the cached array.
  */
 export function getNav(): readonly AdminNavGroup[] {
-  if (!cachedNav) cachedNav = buildNav({ panels: ADMIN_PANELS });
+  if (!cachedNav) cachedNav = buildNav({ panels: ADMIN_PANELS }).map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({ ...item, href: ADDONS_PANEL_PATHS[item.id] ?? item.href })),
+  }));
   return cachedNav;
 }

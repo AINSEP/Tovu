@@ -19,7 +19,7 @@ at runtime:
 - selected CLI card border
 - active BYOK provider chip fill
 - Jini primary button fill and privacy consent primary fill
-- admin tab bar (`/admin/plugins`) active underline and text
+- admin tab bar (`/admin/addons/plugins`) active underline and text
 - AI Assistant page (`/admin/ai-assistant?tab=admin`) active tab, provider chip fill, and the
   sidebar's active rail and icon (desktop width)
 

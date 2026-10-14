@@ -15,10 +15,10 @@ it("mounting the retired screen replaces its URL with the Webhooks tab and notif
   const subscriber = renderHook(() => useRouteLocation());
   expect(subscriber.result.current).toBe("/integrations");
   const { container, rerender } = render(<IntegrationsRedirect />);
-  expect(window.location.pathname).toBe("/admin/providers");
+  expect(window.location.pathname).toBe("/admin/addons/integrations");
   expect(window.location.search).toBe("?tab=webhooks");
   expect(window.history.length).toBe(historyLength);
-  expect(subscriber.result.current).toBe("/providers?tab=webhooks");
+  expect(subscriber.result.current).toBe("/addons/integrations?tab=webhooks");
   expect(container).toBeEmptyDOMElement();
 
   window.history.replaceState(null, "", "/admin/media");
@@ -31,7 +31,17 @@ it("the redirect hook replaces history when mounted independently", () => {
   window.history.replaceState(null, "", "/admin/integrations?tab=mcp-server");
   const historyLength = window.history.length;
   renderHook(() => useIntegrationsRedirect());
-  expect(window.location.pathname).toBe("/admin/providers");
+  expect(window.location.pathname).toBe("/admin/addons/integrations");
   expect(window.location.search).toBe("?tab=webhooks");
+  expect(window.history.length).toBe(historyLength);
+});
+
+it("uses the resolved destination and updates it when the same redirect component receives a new route", () => {
+  window.history.replaceState(null, "", "/admin/plugins?tab=add");
+  const historyLength = window.history.length;
+  const { rerender } = render(<IntegrationsRedirect routePath="/addons/plugins?tab=add" />);
+  expect(window.location.pathname + window.location.search).toBe("/admin/addons/plugins?tab=add");
+  rerender(<IntegrationsRedirect routePath="/addons/integrations/sub%2F1?cursor=a%2Bb" />);
+  expect(window.location.pathname + window.location.search).toBe("/admin/addons/integrations/sub%2F1?cursor=a%2Bb");
   expect(window.history.length).toBe(historyLength);
 });

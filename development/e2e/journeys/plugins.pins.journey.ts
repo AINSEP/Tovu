@@ -117,7 +117,7 @@ test.describe("isolated plugin installs", () => {
 
   test("UI drop ZIP → Preview → Install appears switched off", async ({ page, packages }) => {
     const fixture = await packages.packageFiles({ family: "site" });
-    await page.goto("/admin/plugins?tab=add");
+    await page.goto("/admin/addons/plugins?tab=add");
     await expect(handle({ page, name: "plugins-install-confirm" })).toHaveCount(0);
     await dropArchive({ page, zipPath: fixture.zipPath });
     await expect(page.locator(".install-tab-dropzone")).not.toContainText("0.0 MiB");
@@ -129,7 +129,7 @@ test.describe("isolated plugin installs", () => {
 
   test("UI Choose a folder uploads directory input files then previews and installs", async ({ page, packages }) => {
     const fixture = await packages.packageFiles({ family: "site" });
-    await page.goto("/admin/plugins?tab=add");
+    await page.goto("/admin/addons/plugins?tab=add");
     await expect(page.getByRole("button", { name: "Choose a folder", exact: true })).toBeVisible();
     await page.locator('input[webkitdirectory]').setInputFiles(fixture.directory);
     await expect(page.locator(".install-tab-dropzone-title")).toContainText(".zip");
@@ -140,7 +140,7 @@ test.describe("isolated plugin installs", () => {
   test("WebMCP fills plugins-install-folder then previews and confirms via document.modelContext", async ({ page, packages }) => {
     const fixture = await packages.packageFiles({ family: "site" });
     await installWebMcpHost({ page });
-    await page.goto("/admin/plugins?tab=add");
+    await page.goto("/admin/addons/plugins?tab=add");
     await expect.poll(() => page.evaluate(() => (document as unknown as { modelContext: { listTools: () => string[] } }).modelContext.listTools())).toContain("page.fill");
     // The server path is intentionally behind Advanced. Opening it only reveals the field; all
     // install actions below go through the registered page tools and their confirmation policy.
@@ -156,7 +156,7 @@ test.describe("isolated plugin installs", () => {
 
   test("Downloaded rows wrap at container width with a 380px chat dock", async ({ page, packages }) => {
     const fixture = await packages.packageFiles({ family: "site" });
-    await page.goto("/admin/plugins?tab=add");
+    await page.goto("/admin/addons/plugins?tab=add");
     await dropArchive({ page, zipPath: fixture.zipPath });
     await reviewAndInstall({ page });
     await handle({ page, name: "plugins-tab-downloaded" }).click();
@@ -192,7 +192,7 @@ test.describe("isolated plugin installs", () => {
       // with the tool's name when the catalog lacks it.
       const fixture = await packages.packageFiles({ family });
       // Keep a list mounted beside the chat: the test must prove the assistant refresh bridge.
-      await page.goto(family === "site" ? "/admin/plugins?tab=downloaded" : "/admin/agent-plugins?tab=installed");
+      await page.goto(family === "site" ? "/admin/addons/plugins?tab=downloaded" : "/admin/addons/agent-plugins?tab=installed");
       const chat = createAdminChatDriver({ page }, { answerTimeoutMs: 180_000 });
       await chat.open(); await chat.newConversation();
       await chat.attach({ files: [{ path: fixture.zipPath }] });
@@ -236,7 +236,7 @@ test.describe("isolated plugin installs", () => {
   test("agent plugin ZIP installs off and Replace upgrades 1.0.0 → 1.0.1", async ({ page, packages }) => {
     const first = await packages.packageFiles({ family: "agent" });
     const upgrade = await packages.packageFiles({ family: "agent", version: "1.0.1" });
-    await page.goto("/admin/agent-plugins?tab=add");
+    await page.goto("/admin/addons/agent-plugins?tab=add");
     await expect(page.locator(".install-tab-dropzone")).toBeVisible(); // Also exercises URL-tab wiring.
     await page.getByLabel("Upload a .zip", { exact: true }).setInputFiles(first.zipPath);
     await handle({ page, name: "agent-plugin-add-install" }).click();
@@ -259,7 +259,7 @@ test.describe("isolated plugin installs", () => {
     // Every pin cold-boots. Install our own packages so a pristine site cannot pass this check.
     for (const family of ["site", "agent"] as const) {
       const fixture = await packages.packageFiles({ family });
-      await page.goto(family === "site" ? "/admin/plugins?tab=add" : "/admin/agent-plugins?tab=add");
+      await page.goto(family === "site" ? "/admin/addons/plugins?tab=add" : "/admin/addons/agent-plugins?tab=add");
       if (family === "site") {
         await dropArchive({ page, zipPath: fixture.zipPath });
         await reviewAndInstall({ page });

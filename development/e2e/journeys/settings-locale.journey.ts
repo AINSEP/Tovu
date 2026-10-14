@@ -22,7 +22,7 @@ import { WS_API, expect, hasHorizontalScroll, narrowListForBaseline, stubPostsLi
  * label; the long-label tests expand it first through its persisted localStorage key.
  */
 const RAIL_KEY = "tovu-admin-sidebar-rail-collapsed";
-const KEY_SCREENS = ["/admin/", "/admin/posts", "/admin/pages", "/admin/media", "/admin/collections", "/admin/forms", "/admin/menus", "/admin/plugins", "/admin/settings"];
+const KEY_SCREENS = ["/admin/", "/admin/posts", "/admin/pages", "/admin/media", "/admin/collections", "/admin/forms", "/admin/menus", "/admin/addons/plugins", "/admin/settings"];
 
 async function setLocale(page: Page, locale: string): Promise<void> {
   const res = await page.request.put(`${WS_API}/settings/value`, {
@@ -146,7 +146,7 @@ test.describe("phone width (390 px)", () => {
     await expect(page.getByRole("textbox", { name: "Post title" })).toBeVisible();
     expect(await hasHorizontalScroll(page)).toBe(false);
     await expect(page).toHaveScreenshot("phone-post-editor.png", { mask: [page.getByLabel("URL slug")] });
-    await page.goto("/admin/plugins");
+    await page.goto("/admin/addons/plugins");
     await expect(page).toHaveScreenshot("phone-plugins.png");
     await page.goto("/admin/settings");
     // The CLI cards (and their count) are whatever this machine has installed, with live versions.

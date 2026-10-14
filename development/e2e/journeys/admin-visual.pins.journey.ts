@@ -5,6 +5,7 @@ import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtu
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { ADDONS_PANEL_PATHS } from "../../../apps/admin/src/lib/addons-routes.js";
 import { test as base } from "../support/bug-pin-fixtures.js";
 import { expect } from "../support/bug-pin-fixtures.js";
 import { type BrowserContext } from "../support/bug-pin-fixtures.js";
@@ -511,9 +512,9 @@ test.describe("admin index pages", () => {
     // Soon pages have a real declaration and are captured once in each project, including
     // previewable Comments/Authentication/Observability. No disabled nav link needs clicking.
     test(`${panel.id}: ${panel.label}${panel.soon ? " (soon)" : ""}`, async ({ page }) => {
-      await page.goto(`/admin/${panel.id}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`/admin${ADDONS_PANEL_PATHS[panel.id] ?? `/${panel.id}`}`, { waitUntil: "domcontentloaded" });
       if (panel.id === "workspace") await expect(page).toHaveURL(/\/admin\/settings\?tab=workspace$/);
-      if (panel.id === "integrations") await expect(page).toHaveURL(/\/admin\/providers\?tab=webhooks$/);
+      if (panel.id === "integrations") await expect(page).toHaveURL(/\/admin\/addons\/integrations\?tab=webhooks$/);
       await settle(page);
       await expect(page.locator("#main-content .page, #main-content .jini-page, #main-content .settings-ui-section").first()).toBeVisible();
       if (panel.id === "seo") await expect(page.getByRole("heading", { name: "SEO", exact: true })).toBeVisible();
@@ -524,8 +525,8 @@ test.describe("admin index pages", () => {
       await expect(page.locator(".admin-chat-dock")).toBeHidden();
       await capture(page, `admin-${panel.id}.png`);
       if (panel.id === "skills") {
-        await page.goto("/admin/skills?tab=add");
-        await expect(page).toHaveURL(/\/admin\/skills\?tab=add$/);
+        await page.goto("/admin/addons/skills?tab=add");
+        await expect(page).toHaveURL(/\/admin\/addons\/skills\?tab=add$/);
         await expect(page.getByRole("textbox", { name: "GitHub URL" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
         await expect(page.getByRole("button", { name: "Upload folder", exact: true })).toBeVisible();
@@ -561,7 +562,7 @@ test.describe("every admin page tab", () => {
             await route.fulfill({ response, json: { ...body, switchingEnabled: true, localManagementEnabled: true, trash: body.trash ?? [] } });
           });
         }
-        await page.goto(`/admin/${tabPage.route}${tabPage.clickOnly ? "" : `?tab=${queryId}`}`);
+        await page.goto(`/admin${ADDONS_PANEL_PATHS[tabPage.route] ?? `/${tabPage.route}`}${tabPage.clickOnly ? "" : `?tab=${queryId}`}`);
         await settle(page);
         if (tabPage.clickOnly) await selectShellTab(page, id);
         else if (tabPage.shell) await expect(page.getByTestId(`settings-dialog-nav-${id}`)).toHaveAttribute("aria-pressed", "true");
@@ -771,9 +772,9 @@ test.describe("assistant chat + Skills confirmation", () => {
   });
 
   test("Skills install-confirm dialog", async ({ page }) => {
-    await page.goto("/admin/skills");
+    await page.goto("/admin/addons/skills");
     await expect(page.getByRole("list", { name: "Installed skills" })).toContainText(SKILL_NAME);
-    await page.goto("/admin/skills?tab=add");
+    await page.goto("/admin/addons/skills?tab=add");
     await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
     // Real local-file proposal opens the dialog, without fetching GitHub or installing again.
     await page.getByLabel("Choose skill files", { exact: true }).setInputFiles({

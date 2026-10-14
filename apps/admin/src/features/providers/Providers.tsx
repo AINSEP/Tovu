@@ -16,7 +16,7 @@ import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
 
 /**
- * @file The Integrations page (`/admin/providers`) — every outside connection this install has,
+ * @file The Integrations page (`/admin/addons/integrations`) — every outside connection this install has,
  * in both directions, in one place.
  *
  * ## Why these belong together (owner call, 2026-09-10)
@@ -203,7 +203,7 @@ export function Providers(props: ProvidersProps) {
   ];
 
   function handleTabChange(nextTabId: string) {
-    navigate(`/providers?tab=${nextTabId}`, { replace: true });
+    navigate(`/addons/integrations?tab=${nextTabId}`, { replace: true });
   }
 
   return (

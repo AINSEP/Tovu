@@ -19,7 +19,7 @@ export const capabilityCard = {
     },
     {
       "label": "Plugins admin",
-      "href": "/admin/plugins",
+      "href": "/admin/addons/plugins",
       "permissions": [
         "admin.plugins.read"
       ]

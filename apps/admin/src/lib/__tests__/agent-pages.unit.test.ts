@@ -17,6 +17,15 @@ afterEach(() => {
 });
 
 describe("ADMIN_AGENT_PAGE_PATHS", () => {
+  it("keeps Add-ons page IDs while publishing their canonical paths", () => {
+    expect(ADMIN_AGENT_PAGE_PATHS).toMatchObject({
+      plugins: "/addons/plugins",
+      "agent-plugins": "/addons/agent-plugins",
+      skills: "/addons/skills",
+      providers: "/addons/integrations",
+      integrations: "/addons/integrations?tab=webhooks",
+    });
+  });
   it("is a non-empty map of page id -> route path, derived from ADMIN_PANELS", () => {
     const entries = Object.entries(ADMIN_AGENT_PAGE_PATHS);
     expect(entries.length).toBeGreaterThan(0);
