@@ -233,6 +233,10 @@ describe("OTHER_CREDENTIAL_STORES / otherCredentialStoreInfo", () => {
     expect(OTHER_CREDENTIAL_STORES.map((s) => s.id)).toEqual(["site-assistant", "admin-byok", "media-provider", "external-mcp"]);
   });
 
+  it("links media provider credentials to the Media screen's External Providers tab", () => {
+    expect(otherCredentialStoreInfo("media-provider").screenPath).toBe("/media?tab=external-providers");
+  });
+
   it("marks external-mcp as NOT supporting inline Replace", () => {
     expect(otherCredentialStoreInfo("external-mcp").supportsReplace).toBe(false);
   });

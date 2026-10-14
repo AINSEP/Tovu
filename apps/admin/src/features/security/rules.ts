@@ -968,7 +968,7 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     purposeLabel: "Media",
     supportsReplace: true,
     screenLabel: "Providers · Media",
-    screenPath: "/addons/integrations?tab=media",
+    screenPath: "/media?tab=external-providers",
   },
   {
     id: "external-mcp",
