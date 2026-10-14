@@ -6,6 +6,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
+import { useRecentActivityDisclosure } from "./hooks/use-recent-activity-disclosure.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
@@ -91,6 +92,48 @@ function RecentActivityBody(props: {
       {props.recent.slice(0, ACTIVITY_LIMIT).map((row) => (
         <ActivityRow row={row} key={row.id} t={t} />
       ))}
+    </div>
+  );
+}
+
+/** The "Recently updated" card as an accordion (owner 2026-10-13: the dashboard was "a bit too
+ *  busy"). Collapsed by default; the caret sits left of the title and points right when closed,
+ *  down when open. Open state and its localStorage persistence live in
+ *  `use-recent-activity-disclosure.hooks.ts`. The body stays mounted and is only `hidden`, so the
+ *  button's `aria-controls` always names an element that exists. */
+function RecentActivityPanel(props: {
+  recent: AdminPost[] | null;
+  postsError: string | null;
+  pagesError: string | null;
+  t: Translate;
+}) {
+  const { t } = props;
+  const { open, toggle, panelId } = useRecentActivityDisclosure();
+  return (
+    <div className={`dash-panel${open ? "" : " is-collapsed"}`}>
+      <div className="dash-panel-head">
+        <h2 className="dash-panel-title">
+          <button
+            type="button"
+            className="dash-panel-toggle"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={toggle}
+            {...agentHandle({ handle: "dashboard-recent-toggle" }, { role: "button", label: "Show or hide the recently updated list" })}
+          >
+            <span className="dash-panel-caret" aria-hidden="true">
+              <Icon name="chevron-right" size={14} />
+            </span>
+            {t("Recently updated")}
+          </button>
+        </h2>
+        <a href="/admin/posts" {...agentHandle({ handle: "dashboard-all-posts" }, { role: "link", label: "Go to the full posts list" })}>
+          {t("All posts")}
+        </a>
+      </div>
+      <div id={panelId} hidden={!open}>
+        <RecentActivityBody recent={props.recent} postsError={props.postsError} pagesError={props.pagesError} t={t} />
+      </div>
     </div>
   );
 }
@@ -263,15 +306,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
       </div>
 
       <div className="dash-panels">
-        <div className="dash-panel">
-          <div className="dash-panel-head">
-            <h2 className="dash-panel-title">{t("Recently updated")}</h2>
-            <a href="/admin/posts" {...agentHandle({ handle: "dashboard-all-posts" }, { role: "link", label: "Go to the full posts list" })}>
-              {t("All posts")}
-            </a>
-          </div>
-          <RecentActivityBody recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
-        </div>
+        <RecentActivityPanel recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
 
         <div className="dash-panel">
           <div className="dash-panel-head">

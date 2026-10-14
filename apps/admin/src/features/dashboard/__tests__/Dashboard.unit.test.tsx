@@ -351,6 +351,8 @@ describe("both posts and pages failing — the activity panel's own error state"
     const { container } = render(<Dashboard />);
 
     const panel = screen.getByText("Recently updated").closest(".dash-panel") as HTMLElement;
+    // The card is a collapsed-by-default accordion; its body (and the alert in it) is `hidden`.
+    await userEvent.click(within(panel).getByRole("button", { name: "Recently updated" }));
     const alert = await within(panel).findByRole("alert");
     expect(alert).toHaveTextContent("Could not load recent activity.");
     expect(alert).toHaveTextContent("posts failed");
@@ -478,4 +480,34 @@ it("shows no manual-send (publish backstop) section even when publish to live is
   await waitFor(() => expect(within(statCard(container, "Posts")).getByText("3")).toBeInTheDocument());
   expect(screen.queryByRole("button", { name: "Advanced: send by hand" })).not.toBeInTheDocument();
   expect(container.querySelector(".publish-backstop")).toBeNull();
+});
+
+describe("Recently updated accordion (owner 2026-10-13)", () => {
+  beforeEach(() => localStorage.removeItem("tovu.admin.dashboard.recent-activity.open"));
+
+  it("renders collapsed by default, expands on click, and keeps the All posts link", async () => {
+    fetchMock.mockImplementation(routeFetch(successRoutes()));
+    const { container } = render(<Dashboard />);
+
+    const toggle = screen.getByRole("button", { name: "Recently updated" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    const body = container.querySelector(`#${CSS.escape(toggle.getAttribute("aria-controls") ?? "")}`) as HTMLElement;
+    expect(body).not.toBeNull();
+    expect(body.hidden).toBe(true);
+    expect(toggle.closest(".dash-panel")).toHaveClass("is-collapsed");
+    expect(screen.getByRole("link", { name: "All posts" })).toHaveAttribute("href", "/admin/posts");
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(body.hidden).toBe(false);
+    await waitFor(() => expect(activityTitles(body)).toEqual(MERGED_TITLES));
+    expect(localStorage.getItem("tovu.admin.dashboard.recent-activity.open")).toBe("1");
+  });
+
+  it("opens expanded when the stored state says so", () => {
+    localStorage.setItem("tovu.admin.dashboard.recent-activity.open", "1");
+    fetchMock.mockImplementation(routeFetch(successRoutes()));
+    render(<Dashboard />);
+    expect(screen.getByRole("button", { name: "Recently updated" })).toHaveAttribute("aria-expanded", "true");
+  });
 });

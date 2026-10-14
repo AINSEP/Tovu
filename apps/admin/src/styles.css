@@ -2328,6 +2328,20 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .dash-panel-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); margin: 0; }
 .dash-panel-body { padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
 .dash-panel-body p { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+/* "Recently updated" accordion header (owner 2026-10-13). Resets the bare-`button` primary fill
+   so the title reads as a heading, not a CTA; the focus ring is the app-wide `:focus-visible` one.
+   Collapsed, the head's bottom border would double up against the card's own, so it drops. */
+.dash-panel-toggle {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit;
+}
+.dash-panel-toggle:hover { opacity: 1; color: var(--primary); }
+.dash-panel-caret { display: inline-flex; color: var(--muted); transition: transform 0.15s ease; }
+.dash-panel-toggle[aria-expanded="true"] .dash-panel-caret { transform: rotate(90deg); }
+.dash-panel.is-collapsed .dash-panel-head { border-bottom: none; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-panel-caret { transition: none; }
+}
 
 /* Activity rows. Grid rather than flex so the timestamp column is a fixed track and every row's
    time starts at the same x — with flex the times ragged-right against variable title lengths. */
