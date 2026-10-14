@@ -451,6 +451,23 @@ async function settle(page: Page): Promise<void> {
   // they are part of this boot's actual UI. The index tests separately require a rendered page.
 }
 
+/** Jini's `useActiveTabInView` scrolls a deep-linked phone tab strip once, on mount, sometimes before
+ * the web font has loaded, so the strip's offset varied by a few px between runs. Redo its rule with
+ * the final metrics: start-scrolled, then move just far enough to bring the selected tab in view. */
+async function realignDeepLinkedTabStrip(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    for (const strip of document.querySelectorAll<HTMLElement>("#main-content [role=tablist]")) {
+      const tab = strip.querySelector('[role="tab"][aria-selected="true"]');
+      if (!tab || strip.scrollWidth <= strip.clientWidth) continue;
+      strip.scrollLeft = 0;
+      const stripBox = strip.getBoundingClientRect();
+      const tabBox = tab.getBoundingClientRect();
+      const visibleRight = stripBox.right - (parseFloat(getComputedStyle(strip).paddingRight) || 0);
+      if (tabBox.right > visibleRight) strip.scrollLeft += tabBox.right - visibleRight;
+    }
+  });
+}
+
 async function capture(page: Page, filename: string): Promise<void> {
   await settle(page);
   // MASK INVENTORY (nothing else is masked):
@@ -580,6 +597,8 @@ test.describe("every admin page tab", () => {
           const tab = page.locator("#main-content .tab-bar").first().getByRole("tab").nth(index);
           await expect(tab).toHaveAttribute("aria-selected", "true");
         }
+        await settle(page);
+        await realignDeepLinkedTabStrip(page);
         await capture(page, `admin-${tabPage.route}-tab-${id}.png`);
       });
     }
