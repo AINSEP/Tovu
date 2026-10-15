@@ -12,6 +12,11 @@ export function createSitesWorkspace(_required: Record<string, never>, { homeDir
   ports?: import("@jini-ai/platform/fs").DurableJsonPorts;
   platform?: NodeJS.Platform; windowsDocuments?: () => string | undefined; readText?: (file: string) => string | undefined;
 } = {}) {
+  // Check ambient overrides before the shared resolver can read any settings/catalog files.
+  assertTestHomeIsolation({ homeDir }, { paths: [appDataDir, env.TOVU_DESKTOP_USER_DATA_DIR,
+    env.TOVU_SITES_HOME, env.APPDATA && path.join(env.APPDATA, "Tovu"),
+    env.XDG_DATA_HOME && path.join(env.XDG_DATA_HOME, "Tovu"), env.XDG_CONFIG_HOME && path.join(env.XDG_CONFIG_HOME, "Tovu"),
+    ...(env.TOVU_SITE_ROOTS?.split(",") ?? []), ...(sourceRoots ?? [])].filter((value): value is string => !!value?.trim()).map((value) => path.resolve(cwd, value.trim())) });
   const workspace = createNodeDirectoryWorkspace({ homeDir, defaultFolder: "Tovu", envName: "TOVU_SITES_HOME",
     settingsFile: path.join(homeDir, ".tovu", "sites-home.json"), registryName: "sites.json", runningName: ".tovu-running.json",
     ...(catalogRecovery ? { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } } : {}),
@@ -22,9 +27,31 @@ export function createSitesWorkspace(_required: Record<string, never>, { homeDir
       // Desktop's child CLI must share its parent's profile for settings, catalog and databases.
       appDataDir: appDataDir ?? (env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? (directoryOptions.platform === "win32" ? path.win32 : path).resolve(cwd, env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : undefined),
     });
-  return { ...workspace, ...nestedSitesCompat({ workspace }, { ports: directoryOptions.ports }), projectsPaths: desktopProjectPaths({ homeDir, env, platform: directoryOptions.platform ?? process.platform, appData: workspace.config({}).appData }) };
+  const config = workspace.config({});
+  assertTestHomeIsolation({ homeDir }, { paths: [config.appData, config.configPath, config.sitesHome, ...config.siteRoots] });
+  return { ...workspace, ...nestedSitesCompat({ workspace }, { ports: directoryOptions.ports }), projectsPaths: desktopProjectPaths({ homeDir, env, platform: directoryOptions.platform ?? process.platform, appData: config.appData }) };
 }
 export type SitesWorkspace = ReturnType<typeof createSitesWorkspace>;
+
+/** Refuse owner-home storage in node:test processes and their inherited children before I/O.
+ * userInfo ignores HOME; an isolated HOME must not hide an owner app-data/root override.
+ * Checkout source roots remain valid; the protected paths are the owner's Tovu storage roots.
+ * Real runs retain the ordinary OS-home default. O(n) time/space in paths.
+ */
+export function assertTestHomeIsolation({ homeDir }: { homeDir: string }, { paths = [] }: { paths?: readonly string[] } = {}): void {
+  if (!process.env.NODE_TEST_CONTEXT) return;
+  const realHome = path.resolve(os.userInfo().homedir);
+  const protectedRoots = [".tovu", "Documents/Tovu", "Tovu", "Tovu Sites", "Library/Application Support/Tovu",
+    "AppData/Roaming/Tovu", ".local/share/Tovu", ".config/Tovu"].map((root) => path.resolve(realHome, root));
+  const within = (root: string, target: string) => {
+    const relative = path.relative(root, path.resolve(target));
+    return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  };
+  if (path.resolve(homeDir) === realHome || [homeDir, ...paths].some((target) =>
+    path.resolve(target) === realHome || protectedRoots.some((root) => within(root, target)))) {
+    throw new Error("Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.");
+  }
+}
 
 /** The released 0.1.14 default nested sites in Documents/Tovu/sites; desktop startup moves them back up.
  * Explicit homes (saved setting or environment override) keep their contracts and never qualify.

@@ -133,6 +133,17 @@ async function main(): Promise<void> {
 }
 
 async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, directory: string): Promise<void> {
+  // withIsolatedSmokeTargets removes this profile with the copied app after all children stop.
+  const homeDir = path.join(directory, "home");
+  await mkdir(path.join(homeDir, "Documents"), { recursive: true });
+  const gateEnv: NodeJS.ProcessEnv = { ...process.env,
+    HOME: homeDir, USERPROFILE: homeDir,
+    APPDATA: path.join(homeDir, "AppData", "Roaming"),
+    XDG_DATA_HOME: path.join(homeDir, ".local", "share"),
+    XDG_CONFIG_HOME: path.join(homeDir, ".config"),
+    TOVU_DESKTOP_USER_DATA_DIR: path.join(homeDir, "desktop-profile"),
+    TOVU_SITES_HOME: path.join(homeDir, "Documents", "Tovu"), TOVU_SITE_ROOTS: "",
+  };
   let server: Awaited<ReturnType<typeof startTovuServer>>;
   let cookie = "";
   let requestSignal: AbortSignal = controller.signal;
@@ -189,7 +200,7 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
         JOIN ai_chat_messages m ON m.id = a.message_id WHERE m.run_id = ?\`).get(${JSON.stringify(runId)}) ?? null)); }
       finally { db.close(); }`;
     const result = spawnSync(targets.executablePath, ["-e", script], {
-      env: { ELECTRON_RUN_AS_NODE: "1", PATH: process.env.PATH, HOME: process.env.HOME },
+      env: { ...gateEnv, ELECTRON_RUN_AS_NODE: "1" },
       cwd: siteDir, encoding: "utf8", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 4 * 1024 * 1024,
     });
     if (result.error || result.status !== 0) throw new PackagedChatSmokeError("Unable to read chat.db with packaged SQLite.");
@@ -206,7 +217,7 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
         // serve's public contract rejects 0. Use the shell's existing free-port allocator.
         const port = await allocatePort();
         const plan = buildPackagedChatServerPlan({ ...targets, siteDir, port,
-          serveEnv: buildServeEnv({ repoRoot: payloadRoot, siteDir, baseEnv: process.env }, { warn() {} }) });
+          serveEnv: buildServeEnv({ repoRoot: payloadRoot, siteDir, baseEnv: gateEnv }, { warn() {} }) });
         let childPid: number | undefined;
         try {
           // serve validates a real site; an empty mkdtemp directory needs the shipped init first.

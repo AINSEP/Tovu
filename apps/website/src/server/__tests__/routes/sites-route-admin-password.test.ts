@@ -1,3 +1,4 @@
+import { isolatedCatalogHome } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -33,6 +34,8 @@ async function create(deps: AdminSitesDeps, body: unknown) {
 test("REGRESSION: admin create route under an inherited deployment password creates a site that logs in with tovu-dev", async () => {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-route-owner-"));
   fs.mkdirSync(path.join(base, "sites"));
+  // Shared-home creation replaced checkout-local creation in 1cffdf3cf; password rules did not change.
+  const sitesHome = path.join(isolatedCatalogHome, "Documents", "Tovu");
   const previous = process.env.TOVU_ADMIN_PASSWORD;
   const inherited = "route-inherited-deployment-password-fixture";
   process.env.TOVU_ADMIN_PASSWORD = inherited;
@@ -43,12 +46,12 @@ test("REGRESSION: admin create route under an inherited deployment password crea
       const capture = await create(routeDeps(base), custom ? { name, adminPassword } : { name });
       assert.equal(capture.statusCode, 201);
       assert.deepEqual(capture.jsonBody, {
-        site: { name, dir: path.join(base, "sites", name), siteId: (capture.jsonBody as { site: { siteId: string } }).site.siteId },
+        site: { name, dir: path.join(sitesHome, name), siteId: (capture.jsonBody as { site: { siteId: string } }).site.siteId },
         agentPluginTokens: { status: "none", pluginIds: [] },
       });
       const response = JSON.stringify(capture.jsonBody);
       assert.ok(!response.includes(inherited) && !response.includes(adminPassword));
-      await assertSiteOwnerLogin({ dir: path.join(base, "sites", name), password: custom ? adminPassword : "tovu-dev", rejectedPassword: inherited });
+      await assertSiteOwnerLogin({ dir: path.join(sitesHome, name), password: custom ? adminPassword : "tovu-dev", rejectedPassword: inherited });
     }
   } finally {
     if (previous === undefined) delete process.env.TOVU_ADMIN_PASSWORD;

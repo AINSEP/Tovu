@@ -85,6 +85,8 @@ export async function createIsolatedJourneySite(
   const packaged = resolvePackagedServer();
   if (packaged) ports = { ...ports, admin: ports.api };
   const runtimeDir = mkdtempSync(path.join(os.tmpdir(), `tovu-${suite}-`));
+  const homeDir = path.join(runtimeDir, "home");
+  mkdirSync(path.join(homeDir, "Documents"), { recursive: true });
   const siteDir = path.join(runtimeDir, "sites", "journey-site");
   // `tovu init` creates the packaged site dir itself.
   mkdirSync(packaged ? path.dirname(siteDir) : siteDir, { recursive: true });
@@ -99,6 +101,14 @@ export async function createIsolatedJourneySite(
     ...(packaged ? { packaged } : {}),
   };
   const env: Record<string, string> = {
+    // The existing runtime-dir cleanup owns the profile and all CLI/daemon descendant keys.
+    HOME: homeDir, USERPROFILE: homeDir,
+    APPDATA: path.join(homeDir, "AppData", "Roaming"),
+    XDG_DATA_HOME: path.join(homeDir, ".local", "share"),
+    XDG_CONFIG_HOME: path.join(homeDir, ".config"),
+    TOVU_DESKTOP_USER_DATA_DIR: path.join(homeDir, "desktop-profile"),
+    TOVU_SITES_HOME: path.join(homeDir, "Documents", "Tovu"),
+    TOVU_SITE_ROOTS: path.join(runtimeDir, "sites"),
     NODE_ENV: "development",
     PORT: String(ports.api),
     TOVU_HOST: "127.0.0.1",
@@ -158,21 +168,22 @@ export function isolatedJourneyWebServers(
 ): Array<Exclude<NonNullable<PlaywrightTestConfig["webServer"]>, unknown[]>> {
   const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
   const boot = `node --import tsx development/e2e/support/start-journey-site.mjs ${quote(site.manifestPath)}`;
+  const { env } = JSON.parse(readFileSync(site.manifestPath, "utf8")) as { env: Record<string, string> };
   if (site.packaged) {
     return [{
-      command: `${boot} packaged`, cwd: REPO_ROOT, url: `${site.adminURL}/admin/`,
+      command: `${boot} packaged`, cwd: REPO_ROOT, env, url: `${site.adminURL}/admin/`,
       timeout: 120_000, reuseExistingServer: false,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     }];
   }
   return [
     {
-      command: `${boot} ${buildSiteChat ? "api-with-site-chat" : "api"}`, cwd: REPO_ROOT, url: site.apiURL,
+      command: `${boot} ${buildSiteChat ? "api-with-site-chat" : "api"}`, cwd: REPO_ROOT, env, url: site.apiURL,
       timeout: 120_000, reuseExistingServer: false,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },
     {
-      command: `${boot} admin`, cwd: REPO_ROOT, url: `${site.adminURL}/admin/`,
+      command: `${boot} admin`, cwd: REPO_ROOT, env, url: `${site.adminURL}/admin/`,
       timeout: 120_000, reuseExistingServer: false,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },

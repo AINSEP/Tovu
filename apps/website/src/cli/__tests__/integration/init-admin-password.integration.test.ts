@@ -1,3 +1,4 @@
+import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -22,7 +23,7 @@ test("CLI init with and without --admin-password ignores the parent env and pers
       if (custom) args.push("--admin-password", password);
       const result = spawnSync(process.execPath, args, {
         encoding: "utf8",
-        env: { ...process.env, TOVU_ADMIN_USER: "admin", TOVU_ADMIN_PASSWORD: INHERITED_PASSWORD, TOVU_SITE_DIR: dir },
+        env: { ...childProcessCoverageEnv(path.join(parent, "child-v8-coverage")), TOVU_ADMIN_USER: "admin", TOVU_ADMIN_PASSWORD: INHERITED_PASSWORD, TOVU_SITE_DIR: dir },
       });
       assert.equal(result.status, 0);
       assert.ok(!result.stdout.includes(INHERITED_PASSWORD) && !result.stderr.includes(INHERITED_PASSWORD));

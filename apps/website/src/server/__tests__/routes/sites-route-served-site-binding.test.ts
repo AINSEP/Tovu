@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -65,15 +66,25 @@ function setupTrees(t: { after: (fn: () => void) => void }): Trees {
   fs.writeFileSync(path.join(served, ".env"), "TOVU_SITE=beta\n");
   fs.writeFileSync(path.join(wrong, ".env"), "TOVU_SITE=gamma\n");
 
-  const binding = describeSiteBinding({ cwd: served, env: { TOVU_SITE: "alpha" } });
-  assert.equal(binding.switcherCompatible, true, "precondition: a switcher-chosen boot");
-
+  // Shared catalog discovery (1cffdf3cf) needs an explicit fixture root; cwd alone is no longer
+  // a discovery source outside a real checkout. Keep the wrong cwd out of the catalog.
+  const previousRoots = process.env.TOVU_SITE_ROOTS;
+  const previousProfile = process.env.TOVU_DESKTOP_USER_DATA_DIR;
+  process.env.TOVU_SITE_ROOTS = path.join(served, "sites");
+  // Each tree gets its own registry too: repeated fixture IDs must not collide across tests.
+  process.env.TOVU_DESKTOP_USER_DATA_DIR = path.join(root, "desktop-profile");
   const previousCwd = process.cwd();
-  process.chdir(wrong);
   t.after(() => {
     process.chdir(previousCwd);
+    if (previousRoots === undefined) delete process.env.TOVU_SITE_ROOTS;
+    else process.env.TOVU_SITE_ROOTS = previousRoots;
+    if (previousProfile === undefined) delete process.env.TOVU_DESKTOP_USER_DATA_DIR;
+    else process.env.TOVU_DESKTOP_USER_DATA_DIR = previousProfile;
     fs.rmSync(root, { recursive: true, force: true });
   });
+  const binding = describeSiteBinding({ cwd: served, env: { TOVU_SITE: "alpha" } });
+  assert.equal(binding.switcherCompatible, true, "precondition: a switcher-chosen boot");
+  process.chdir(wrong);
   return { served, wrong, binding };
 }
 

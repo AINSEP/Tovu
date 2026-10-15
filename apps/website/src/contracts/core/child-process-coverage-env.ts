@@ -1,3 +1,6 @@
+// Test infrastructure only: reuse the process-owned temporary catalog and its exit cleanup.
+import { isolatedCatalogEnv } from "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+
 /**
  * @file Shared env-builder for any test that spawns a real Node child process while
  * `--experimental-test-coverage` is active in the parent.
@@ -27,7 +30,9 @@
 /**
  * Builds a child-process env that is a copy of the current process env with `NODE_V8_COVERAGE`
  * redirected to `coverageDir`, so a spawned Node child's own coverage profile lands there instead
- * of merging into the parent test runner's aggregation directory.
+ * of merging into the parent test runner's aggregation directory. HOME and catalog overrides
+ * are pinned to the existing isolated-catalog helper's temporary home, even if the caller has
+ * restored an ambient owner HOME. Importing this test helper also isolates in-process CLI calls.
  *
  * @param coverageDir - Directory the child's V8 coverage profile should be written to. Does not
  *   need to exist yet.
@@ -36,5 +41,5 @@
  * @complexity O(n) in the number of env vars on the current process — a single shallow copy.
  */
 export function childProcessCoverageEnv(coverageDir: string): NodeJS.ProcessEnv {
-  return { ...process.env, NODE_V8_COVERAGE: coverageDir };
+  return { ...process.env, ...isolatedCatalogEnv, NODE_V8_COVERAGE: coverageDir };
 }

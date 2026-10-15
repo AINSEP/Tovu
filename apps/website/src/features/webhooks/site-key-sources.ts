@@ -2,12 +2,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
+import { assertTestHomeIsolation } from "#src/platform/site-dir/sites-home";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md` §A.1/A.2) —
- * candidate source ORDER only. Pure: describes WHERE the site key could be found, never reads a
- * file or an env var itself, and never validates or mints anything (that is
+ * candidate source ORDER only: describes WHERE the site key could be found, never reads key
+ * material, and never validates or mints anything (that is
  * `site-key-ensure.ts`'s job).
+ * Under node:test, local paths also enforce the shared real-home isolation guard before I/O.
  *
  * Local mode checks, in order: this site's own key file, the env var, then the one legacy shared
  * file every install used before per-site keys existed. Production checks only the env var and the
@@ -67,6 +69,7 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
     return [envSource, { kind: "volume-file", path: join(input.cwd, "sites", ".tovu", "site-key.hex") }, { kind: "legacy-volume-file", path: legacyVolumeFilePath(input.cwd) }];
   }
 
+  assertTestHomeIsolation({ homeDir: input.home });
   const sources: SiteKeySource[] = [];
   if (input.siteKeyId && isSafeSiteKeyId(input.siteKeyId)) {
     sources.push({ kind: "per-site-file", path: perSiteFilePath(input.home, input.siteKeyId) });
