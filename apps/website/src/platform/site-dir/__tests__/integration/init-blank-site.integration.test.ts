@@ -1,3 +1,5 @@
+import "../helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,8 +21,9 @@ for (const kind of ["sqlite", "pglite"] as const) {
     const dir = path.join(parent, "blank");
     try {
       await initSite({ dir, storage: { kind } });
+      const paths = resolveSiteDatabasePaths({ dir });
       for (let boot = 0; boot < 2; boot += 1) {
-        const store = await openSiteStore({ storage: { kind }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" });
+        const store = await openSiteStore({ storage: { kind }, dbPath: paths.contentDbPath, chatDbPath: paths.chatDbPath, role: "owner" });
         try {
           assert.deepEqual(await store.content.run((db) => db.selectFrom("posts").selectAll().execute()), []);
           const workspaces = await store.content.run((db) => db.selectFrom("workspaces").select("id").execute());
@@ -39,7 +42,8 @@ for (const withSampleContent of [false, true]) {
     const dir = path.join(parent, "cli-site");
     try {
       await createProgram().parseAsync(["init", dir, ...(withSampleContent ? ["--with-sample-content"] : [])], { from: "user" });
-      const store = await openSiteStore({ storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" });
+      const paths = resolveSiteDatabasePaths({ dir });
+      const store = await openSiteStore({ storage: { kind: "sqlite" }, dbPath: paths.contentDbPath, chatDbPath: paths.chatDbPath, role: "owner" });
       try {
         const entries = await store.content.run((db) => db.selectFrom("posts").select(["title", "kind"]).execute());
         assert.deepEqual(entries.filter((entry) => entry.kind === "post").map((entry) => entry.title).sort(), withSampleContent ? sampleTitles : []);

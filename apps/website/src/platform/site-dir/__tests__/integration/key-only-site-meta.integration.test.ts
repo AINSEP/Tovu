@@ -1,3 +1,5 @@
+import "../helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -148,7 +150,7 @@ test("bootSiteDir: a key-only meta with no content.db is refused with the reason
       assert.ok(err instanceof SiteDirInvalidError);
       assert.equal(
         err.message,
-        `.site-meta.json at ${dir} holds only site-key fields and cannot be completed: no content.db at ${path.join(dir, "content.db")} to derive its schema stamp from`
+        `.site-meta.json at ${dir} holds only site-key fields and cannot be completed: no content.db at ${resolveSiteDatabasePaths({ dir }).contentDbPath} to derive its schema stamp from`
       );
       return true;
     });

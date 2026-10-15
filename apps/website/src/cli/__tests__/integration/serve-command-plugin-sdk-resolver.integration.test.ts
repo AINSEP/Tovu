@@ -1,6 +1,7 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { createHash } from "node:crypto";
+import { computePluginIntegrity } from "@jini-ai/plugins/host/node";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import net from "node:net";
@@ -162,7 +163,7 @@ function initFixture(name = "Serve Fixture"): { parent: string; dir: string } {
  * `plugin-sdk-resolver.integration.test.ts`'s own fixture uses, and the position Node's ESM bare-
  * specifier resolution reaches first once it walks up from the plugin's own entry file.
  */
-function buildSpoofPluginFixture(pluginsRoot: string): { markerPath: string } {
+async function buildSpoofPluginFixture(pluginsRoot: string): Promise<{ markerPath: string }> {
   const pluginRoot = path.join(pluginsRoot, "spoof-test-plugin", "1.0.0");
   const serverDir = path.join(pluginRoot, "server");
   fs.mkdirSync(serverDir, { recursive: true });
@@ -197,7 +198,9 @@ function buildSpoofPluginFixture(pluginsRoot: string): { markerPath: string } {
   );
   fs.writeFileSync(path.join(plantedSdkDir, "index.mjs"), "export const IS_PLANTED = true;\n", "utf8");
 
-  const entryHash = `sha256-${createHash("sha256").update(fs.readFileSync(entryPath)).digest("hex")}`;
+  // The runtime snapshots and verifies every retained byte, including the planted SDK.
+  // Seal that complete graph so the import reaches the resolver under test.
+  const integrity = await computePluginIntegrity({ sourceDir: pluginRoot });
   const manifest = {
     id: "spoof-test-plugin",
     name: "Spoof Test Plugin",
@@ -208,7 +211,7 @@ function buildSpoofPluginFixture(pluginsRoot: string): { markerPath: string } {
     capabilities: [],
     hooks: [],
     fields: [],
-    integrity: { "server/index.mjs": entryHash },
+    integrity,
   };
   fs.writeFileSync(path.join(pluginRoot, "tovu.plugin.json"), JSON.stringify(manifest), "utf8");
 
@@ -227,7 +230,7 @@ function sessionCookieFrom(setCookieHeader: string | null): string {
 test("CIC U-002 (ESCALATE_SECURITY): tovu serve must register the plugin SDK resolver hook before a site-installed plugin's import() can run — a plugin's bare '@tovu/sdk' import must resolve to the runtime's real SDK, never a planted local node_modules/@tovu/sdk sitting next to it", async () => {
   const { parent, dir } = initFixture();
   const pluginsRoot = path.join(dir, "plugins");
-  const { markerPath } = buildSpoofPluginFixture(pluginsRoot);
+  const { markerPath } = await buildSpoofPluginFixture(pluginsRoot);
 
   const port = await getFreePort();
   // TOVU_PLUGINS_DIR takes first precedence in `pluginsInstallDir()` (server/runtime/composition/

@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -95,12 +96,13 @@ test("resolveChatAttachmentUploadDirectory: TOVU_CHAT_ATTACHMENTS_DIR wins over 
   );
 });
 
+// 1cffdf3cf decouples database placement from the served site: uploads stay in the site.
 test("resolveSiteStoragePaths: reports the booted content DB and uploads root, and anchors chat attachments to that DB", () => {
   const dbPath = path.join(path.sep, "elsewhere", "site-a.db");
   assert.deepEqual(resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: SITE, uploadsDir: path.join(SITE, "media") }, { env: NO_ENV }), {
     contentDbPath: dbPath,
     mediaUploadsDir: path.join(SITE, "media"),
-    chatAttachmentsDir: path.join(path.sep, "elsewhere", "uploads", "chat-attachments"),
+    chatAttachmentsDir: path.join(SITE, "uploads", "chat-attachments"),
   });
 });
 

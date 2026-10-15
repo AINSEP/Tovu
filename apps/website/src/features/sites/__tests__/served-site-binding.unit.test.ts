@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { createSitesWorkspace, type SitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -6,7 +8,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
+import { describeSiteBinding, listSites, type SiteBinding, type ListSitesOptional } from "#src/platform/site-dir/index";
 
 import { buildRegistrations as buildSitesListRegistrations } from "../list-tool.js";
 import { buildSitesRegistrations } from "../tool-registrations.js";
@@ -45,14 +47,17 @@ function writeSite(dir: string, displayName: string): void {
 
 /** `<served>/sites/{alpha,beta}` is bound (to alpha); the process stands in `<wrong>` with
  *  `<wrong>/sites/gamma`. */
-function setupTrees(t: { after: (fn: () => void) => void }): { served: string; wrong: string; binding: SiteBinding } {
+function setupTrees(t: { after: (fn: () => void) => void }): { served: string; wrong: string; binding: SiteBinding; sitesWorkspace: SitesWorkspace; listFixtureSites: typeof listSites } {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-sites-tool-binding-")));
   const served = path.join(root, "served");
   const wrong = path.join(root, "wrong");
   writeSite(path.join(served, "sites", "alpha"), "alpha");
   writeSite(path.join(served, "sites", "beta"), "beta");
   writeSite(path.join(wrong, "sites", "gamma"), "gamma");
-  const binding = describeSiteBinding({ cwd: served, env: { TOVU_SITE: "alpha" } });
+  // Checkout roots are explicit discovery inputs; new copies belong in the shared home.
+  const sitesWorkspace = createSitesWorkspace({}, { homeDir: root, cwd: served, env: {} });
+  const listFixtureSites = (options: ListSitesOptional = {}) => listSites({ ...options, homeDir: root, env: { TOVU_SITE: "alpha", TOVU_SITE_ROOTS: path.join(options.cwd ?? process.cwd(), "sites") } });
+  const binding = describeSiteBinding({ cwd: served, homeDir: root, env: { TOVU_SITE: "alpha", TOVU_SITE_ROOTS: path.join(served, "sites") } });
   assert.equal(binding.switcherCompatible, true, "precondition: a switcher-chosen boot");
 
   const previousCwd = process.cwd();
@@ -61,7 +66,7 @@ function setupTrees(t: { after: (fn: () => void) => void }): { served: string; w
     process.chdir(previousCwd);
     fs.rmSync(root, { recursive: true, force: true });
   });
-  return { served, wrong, binding };
+  return { served, wrong, binding, sitesWorkspace, listFixtureSites };
 }
 
 function ctxFor(input: unknown): ToolExecutionContext {
@@ -80,12 +85,14 @@ function handlerFor(registrations: ToolRegistration[], id: string): ToolRegistra
   return found.handler;
 }
 
-function duplicateDeps(binding: SiteBinding, calls: Array<{ sourceDir: string; targetDir: string }>): SitesToolDeps {
+function duplicateDeps(fixture: ReturnType<typeof setupTrees>, calls: Array<{ sourceDir: string; targetDir: string }>): SitesToolDeps {
   return {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     isSiteSwitcherEnabled: () => true,
-    siteBinding: binding,
+    siteBinding: fixture.binding,
+    sitesWorkspace: fixture.sitesWorkspace,
+    listSites: fixture.listFixtureSites,
     duplicateSite: async (required) => {
       calls.push({ sourceDir: required.sourceDir, targetDir: required.targetDir });
       return { siteId: "dup-id", dir: required.targetDir };
@@ -94,20 +101,22 @@ function duplicateDeps(binding: SiteBinding, calls: Array<{ sourceDir: string; t
 }
 
 test("sites_duplicate_site: the source is found and the copy is made under the served tree's sites/", async (t) => {
-  const { served, binding } = setupTrees(t);
+  const fixture = setupTrees(t);
+  const { served } = fixture;
   const calls: Array<{ sourceDir: string; targetDir: string }> = [];
-  const handler = handlerFor(buildSitesRegistrations(duplicateDeps(binding, calls)), "sites_duplicate_site");
+  const handler = handlerFor(buildSitesRegistrations(duplicateDeps(fixture, calls)), "sites_duplicate_site");
 
   const result = await handler(ctxFor({ sourceName: "beta", targetName: "beta-copy" }));
 
-  assert.deepEqual(calls, [{ sourceDir: path.join(served, "sites", "beta"), targetDir: path.join(served, "sites", "beta-copy") }]);
-  assert.equal((result as { dir: string }).dir, path.join(served, "sites", "beta-copy"));
+  // Source discovery remains boot-bound; 1cffdf3cf puts every new copy in the shared home.
+  assert.deepEqual(calls, [{ sourceDir: path.join(served, "sites", "beta"), targetDir: path.join(fixture.sitesWorkspace.home({}), "beta-copy") }]);
+  assert.equal((result as { dir: string }).dir, path.join(fixture.sitesWorkspace.home({}), "beta-copy"));
 });
 
 test("sites_duplicate_site: a source that exists only under the cwd's sites/ is refused, and nothing is copied", async (t) => {
-  const { binding } = setupTrees(t);
+  const fixture = setupTrees(t);
   const calls: Array<{ sourceDir: string; targetDir: string }> = [];
-  const handler = handlerFor(buildSitesRegistrations(duplicateDeps(binding, calls)), "sites_duplicate_site");
+  const handler = handlerFor(buildSitesRegistrations(duplicateDeps(fixture, calls)), "sites_duplicate_site");
 
   await assert.rejects(
     () => handler(ctxFor({ sourceName: "gamma", targetName: "gamma-copy" })),
@@ -117,12 +126,14 @@ test("sites_duplicate_site: a source that exists only under the cwd's sites/ is 
 });
 
 test("sites_list: sites[] comes from the served tree, not the cwd's", async (t) => {
-  const { served, binding } = setupTrees(t);
+  const fixture = setupTrees(t);
+  const { served, binding } = fixture;
   const handler = handlerFor(
     buildSitesListRegistrations({
       workspaceId: WORKSPACE_ID,
       authorize: async () => ({ allowed: true, reason: "test" }),
       siteBinding: binding,
+      listSites: fixture.listFixtureSites,
       isSiteSwitcherEnabled: () => true,
       readPersistedActiveSite: () => null,
     }),

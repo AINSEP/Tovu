@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -70,7 +72,7 @@ async function withHydrationEnv<T>(vars: { siteDir: string; stockRoot: string },
   const originalContentDb = process.env.TOVU_CONTENT_DB;
   process.env.TOVU_SITE_DIR = vars.siteDir;
   process.env.TOVU_STOCK_CONTENT_SEED_DIR = vars.stockRoot;
-  // Must be unset: defaultContentDbPath() should fall through to join(siteDir(), "content.db"),
+  // Must be unset: defaultContentDbPath() should fall through to resolveSiteDatabasePaths({ dir: siteDir() }),
   // which is what a real deployed container relies on (TOVU_SITE_DIR alone, from fly.toml's mount).
   delete process.env.TOVU_CONTENT_DB;
   try {
@@ -89,7 +91,7 @@ test("first boot with no content.db hydrates it from the stock seed before openi
   const { siteDir, siteName, stockRoot } = makeIsolatedSite();
   const seedDbPath = path.join(stockRoot, siteName, "content.seed.db");
   buildStockSeedDb(seedDbPath);
-  const dbPath = path.join(siteDir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
 
   try {
     const deps = await withHydrationEnv({ siteDir, stockRoot }, () => createSiteRouteDeps());
@@ -110,7 +112,7 @@ test("REGRESSION: a second boot against an already-hydrated site never re-copies
   const { siteDir, siteName, stockRoot } = makeIsolatedSite();
   const seedDbPath = path.join(stockRoot, siteName, "content.seed.db");
   buildStockSeedDb(seedDbPath);
-  const dbPath = path.join(siteDir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
 
   try {
     // First boot: hydrates from the seed. Fully drained before touching the file again — see

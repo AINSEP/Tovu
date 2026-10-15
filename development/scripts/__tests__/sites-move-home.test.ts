@@ -1,3 +1,4 @@
+import "../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -146,15 +147,21 @@ test("dry run refuses a colliding site destination without overwriting it", () =
 
 for (const suffix of ["-wal", "-shm"]) test(`apply refuses surviving ${suffix} without changing either database`, async () => {
   const f = fixture();
+  const file = path.join(f.dir, "content.db");
+  const writer = new Database(file);
   try {
-    const file = path.join(f.dir, "content.db"); fs.writeFileSync(file + suffix, "uncheckpointed bytes");
+    // b693fbcf0 recovers a stopped database's leftover journals. A live writer must
+    // still be refused before its WAL/SHM or committed content can be changed.
+    writer.pragma("journal_mode = WAL");
+    writer.exec('INSERT INTO "quoted""name" VALUES (3); BEGIN IMMEDIATE');
+    assert.equal(fs.existsSync(file + suffix), true);
     const before = directoryFingerprint({ dir: f.dir });
     await assert.rejects(moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true }), {
-      message: `Database journal exists: ${file + suffix}. Stop the site and close/checkpoint its database before moving it.`,
+      message: `Database is open in another process: ${file}. Stop it before moving it.`,
     });
     assert.equal(directoryFingerprint({ dir: f.dir }), before);
     assert.equal(fs.existsSync(path.join(f.workspace.home({}), "alpha")), false);
-  } finally { f.cleanup(); }
+  } finally { writer.exec("ROLLBACK"); writer.close(); f.cleanup(); }
 });
 test("a released host with no lease but an exclusive SQLite transaction refuses the entire move", async () => {
   const f = fixture(), file = path.join(f.dir, "content.db"), writer = new Database(file);

@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
@@ -39,11 +41,12 @@ async function withComposedSite(
     process.env.ANALYTICS_ROOT_KEY_SEED = "12".repeat(32);
     process.env[SITE_KEY_ENV_VAR_NAME] = "34".repeat(32);
     delete process.env.TOVU_SITE_KEY;
-    const dbPath = path.join(root, "site", "content.db");
-    fs.mkdirSync(path.dirname(dbPath));
+    const siteDir = path.join(root, "site");
+    fs.mkdirSync(siteDir);
+    const dbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
     const open = async () => {
       assert.equal(closeStore, undefined, "close the previous composition before reopening");
-      const deps = await createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => { closeStore = () => store.close(); } });
+      const deps = await createSiteRouteDeps(dbPath, { siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, storeRole: "client", onStoreOpened: (store) => { closeStore = () => store.close(); } });
       await Promise.all(Object.values(deps).filter((value) => value instanceof Promise));
       // Drain the SQLite boot writers chained off the exposed readiness promises.
       await new Promise<void>((resolve) => setImmediate(resolve));

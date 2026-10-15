@@ -236,6 +236,14 @@ test("purgeSelected: removes the principal's identity rows across every table an
   const ownerRole = await f.identity.repos.roles.findByName({ workspaceId: WS, name: "owner" });
   assert.ok(ownerRole);
   await assignRole({ deps: f.identity, input: { workspaceId: WS, callerPrincipalId: f.ownerPrincipalId, principalId: targetId, roleId: ownerRole.id } });
+  // Personal execution credentials moved into the principal-bound vault in 9b20083b6.
+  f.db.insert(schema.secretsVault).values({
+    workspaceId: WS, id: "departing-credential", kind: "personal-execution", ownerKey: "tovu",
+    principalId: targetId, provider: "openai", label: "personal-execution", isDefault: true, revision: 1,
+    sealedKeyId: "key-1", sealedCiphertext: "ciphertext", sealedNonce: "nonce", sealedAlg: "aes-256-gcm",
+    meta: JSON.stringify({ protocol: "openai" }), createdAt: AT, updatedAt: AT,
+  }).run();
+  assert.equal((f.db.$client.prepare("SELECT COUNT(*) AS n FROM secrets_vault WHERE principal_id = ?").get(targetId) as { n: number }).n, 1);
   await f.trash.trash({
     workspaceId: WS,
     entityType: USER_ENTITY_TYPE,
@@ -253,7 +261,7 @@ test("purgeSelected: removes the principal's identity rows across every table an
   assert.equal(report.purged, 1);
   assert.equal(await f.identity.repos.principals.findById({ workspaceId: WS, id: targetId }), null);
   assert.equal(await f.identity.repos.users.findByUsername({ workspaceId: WS, username: "departing" }), null);
-  for (const table of ["principal_roles", "principal_policies", "sessions", "api_keys", "setting_values_user", "admin_execution_credentials"]) {
+  for (const table of ["principal_roles", "principal_policies", "sessions", "api_keys", "setting_values_user", "secrets_vault"]) {
     const n = (f.db.$client.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE principal_id = ?`).get(targetId) as { n: number }).n;
     assert.equal(n, 0, `${table} must have no rows left for the purged principal`);
   }

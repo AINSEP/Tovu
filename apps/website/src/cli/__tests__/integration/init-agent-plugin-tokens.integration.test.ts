@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -37,8 +38,10 @@ after(() => {
 
 function captureStdout(): void {
   stdout = [];
-  process.stdout.write = ((chunk: string) => {
-    stdout.push(String(chunk));
+  process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    // node:test writes binary protocol frames here too; they belong to the runner.
+    if (typeof chunk !== "string") return Reflect.apply(realWrite, process.stdout, [chunk, ...args]);
+    stdout.push(chunk);
     return true;
   }) as typeof process.stdout.write;
 }

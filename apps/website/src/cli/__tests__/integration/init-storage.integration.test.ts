@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -59,7 +61,7 @@ test("init without --storage still writes a SQLite site", async () => {
   const dir = path.join(parent, "sqlite-site");
   await runInitCommand({ dir });
   assert.deepEqual(readMeta(dir).storage, { kind: "sqlite" });
-  assert.ok(fs.existsSync(path.join(dir, "content.db")));
+  assert.ok(fs.existsSync(resolveSiteDatabasePaths({ dir }).contentDbPath));
   assert.equal(fs.existsSync(path.join(dir, PGLITE_DATA_DIR_NAME)), false);
 });
 

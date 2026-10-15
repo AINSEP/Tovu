@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -154,10 +155,12 @@ describe("a site composed with an explicit binding, while env/cwd name another s
 
   test("installed contribution registries keep the booted site after env drift and retain their trust gates", async () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-bound-contributions-"));
-    const pluginRoot = path.join(sourceRoot, "deploy");
+    // ccca921e7 retires deploy before seeding; use a current seeded-enabled plugin id
+    // so this fixture reaches the digest and activation gates it proves.
+    const pluginRoot = path.join(sourceRoot, "github");
     fs.mkdirSync(pluginRoot);
     const files = {
-      "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "deploy", version: "1.0.0" }),
+      "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "github", version: "1.0.0" }),
       "tovu-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
       "tovu-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
       "tovu-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
@@ -176,18 +179,18 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       for (const name of envNames) process.env[name] = path.join(sourceRoot, "other-site");
       const providers = await deps!.loadSourceControlProviders(workspaceId);
       assert.deepEqual(providers.refusals, []);
-      assert.equal(providers.get("bound-git")?.pluginId, "deploy");
+      assert.equal(providers.get("bound-git")?.pluginId, "github");
       assert.ok(providers.get("bound-git")!.module);
-      assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "deploy");
-      assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "deploy");
+      assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "github");
+      assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "github");
       assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound-mail"]);
       assert.deepEqual((await deps!.loadAuthSchemes({ workspaceId })).map(rule => rule.id), ["bound-scheme"]);
       assert.equal(fs.existsSync(path.join(sourceRoot, "other-site")), false);
 
-      await lifecycle.setAgentPluginActivation({ workspaceRoot: path.join(siteA, "agent-plugins", "ws", workspaceId), pluginId: "deploy", enabled: false, actor: "test" });
+      await lifecycle.setAgentPluginActivation({ workspaceRoot: path.join(siteA, "agent-plugins", "ws", workspaceId), pluginId: "github", enabled: false, actor: "test" });
       const disabled = await deps!.loadSourceControlProviders(workspaceId);
       assert.deepEqual(disabled.list(), []);
-      assert.equal(disabled.switchedOff?.get("bound-git"), "deploy");
+      assert.equal(disabled.switchedOff?.get("bound-git"), "github");
       assert.deepEqual((await deps!.loadDeployTargets(workspaceId)).list(), []);
       assert.deepEqual((await deps!.loadDeployOps({ workspaceId })).list(), []);
       assert.deepEqual((await loadMail()).list(), []);

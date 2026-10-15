@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -64,7 +66,7 @@ function readWorkspaceId(dbPath: string): string {
  *  `SqliteMigrationRunsRepo`), not hand-rolled SQL, so a schema drift here fails this test's OWN setup rather
  *  than silently proving nothing. */
 async function plantInterruptedMigration(installDir: string, siteId: string): Promise<void> {
-  const journalPath = path.join(installDir, "ops", "database-journal.db");
+  const journalPath = path.join(path.dirname(resolveSiteDatabasePaths({ dir: installDir }).contentDbPath), "ops", "database-journal.db");
   // `tovu init` never creates `ops/` (only the real composition root does, on first boot) — this
   // fixture plants the row BEFORE any boot has run, so it must create the directory itself.
   fs.mkdirSync(path.dirname(journalPath), { recursive: true });
@@ -90,7 +92,7 @@ test("tovu export refuses (EXPORT_BLOCKED_PENDING_RECOVERY, exit 7) when a crash
   const outDir = path.join(parent, "out");
 
   assert.equal(runCli(["init", installDir]).status, 0);
-  const siteId = readWorkspaceId(path.join(installDir, "content.db"));
+  const siteId = readWorkspaceId(resolveSiteDatabasePaths({ dir: installDir }).contentDbPath);
   await plantInterruptedMigration(installDir, siteId);
 
   const result = runCli(["export", installDir, "--out", outDir]);

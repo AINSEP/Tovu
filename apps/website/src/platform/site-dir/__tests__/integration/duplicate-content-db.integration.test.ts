@@ -1,3 +1,5 @@
+import "../helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -36,7 +38,7 @@ function mkTempParent(): string {
  *  Returns the site's `content.db` path. */
 async function buildSourceWithChatHistory(parent: string): Promise<string> {
   const { dir } = await initSite({ dir: path.join(parent, "source"), name: "Source Site" }, { withSampleContent: true });
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
 
   // A site's boot drops the ai_chats/ai_chat_messages/assistant_agent_sessions tables from
   // content.db while they are empty (migration step `0002_drop_empty_legacy_chat_tables`). Open the

@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import crypto from "node:crypto";
@@ -110,7 +112,8 @@ function listTree(dir: string): string[] {
  * still fails).
  */
 function treeIgnoringSqliteSidecars(dir: string): string[] {
-  return listTree(dir).filter((entry) => !entry.startsWith("content.db-"));
+  const database = path.relative(dir, resolveSiteDatabasePaths({ dir }).contentDbPath).replace(/\\/g, "/");
+  return listTree(dir).filter((entry) => entry !== `${database}-wal` && entry !== `${database}-shm`);
 }
 
 interface JournalEntry {
@@ -214,7 +217,7 @@ test("adopt DERIVES the schema stamp from the db's own applied migrations — a 
 
     // Rewind the db's RECORDED lineage to the second-newest bundled migration. An implementation
     // that stamps `runtimeSchemaVersion()` (the newest) instead of reading the db fails here.
-    const sqlite = new Database(path.join(dir, "content.db"));
+    const sqlite = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
     sqlite.prepare("DELETE FROM __drizzle_migrations WHERE created_at >= ?").run(newest.when);
     sqlite.close();
 
@@ -239,7 +242,7 @@ test("--dry-run prints the exact stamp it would write and writes NOTHING", () =>
     const target = entries[entries.length - 2];
     const newest = entries[entries.length - 1];
     assert.notEqual(target.idx, newest.idx, "fixture must be behind runtime");
-    const sqlite = new Database(path.join(dir, "content.db"));
+    const sqlite = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
     sqlite.prepare("DELETE FROM __drizzle_migrations WHERE created_at >= ?").run(newest.when);
     assert.equal(sqlite.prepare<[], { applied: number }>("SELECT MAX(created_at) AS applied FROM __drizzle_migrations").get()?.applied, target.when);
     sqlite.close();
@@ -263,10 +266,10 @@ test("--dry-run prints the exact stamp it would write and writes NOTHING", () =>
     // created them committed nothing through it.
     assert.deepEqual(
       listTree(dir).filter((entry) => !treeBefore.includes(entry)),
-      ["content.db-shm", "content.db-wal"],
+      ["-shm", "-wal"].map((suffix) => path.relative(dir, resolveSiteDatabasePaths({ dir }).contentDbPath + suffix).replace(/\\/g, "/")),
       "the ONLY entries --dry-run may add are SQLite's own read-only-open sidecars"
     );
-    assert.equal(fs.statSync(path.join(dir, "content.db-wal")).size, 0, "--dry-run must leave zero committed frames in the WAL");
+    assert.equal(fs.statSync(resolveSiteDatabasePaths({ dir }).contentDbPath + "-wal").size, 0, "--dry-run must leave zero committed frames in the WAL");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
@@ -293,14 +296,14 @@ test("adopt is reversible: deleting the two markers returns the directory to exa
   const { parent, dir } = markerlessFixture();
   try {
     const treeBefore = treeIgnoringSqliteSidecars(dir);
-    const dbBefore = sha256(path.join(dir, "content.db"));
+    const dbBefore = sha256(resolveSiteDatabasePaths({ dir }).contentDbPath);
 
     assert.equal(runCli(["adopt", dir]).status, 0);
     fs.rmSync(path.join(dir, "config.json"));
     fs.rmSync(path.join(dir, ".site-meta.json"));
 
     assert.deepEqual(treeIgnoringSqliteSidecars(dir), treeBefore, "removing the markers must restore the exact prior tree");
-    assert.equal(sha256(path.join(dir, "content.db")), dbBefore, "adopt must never modify content.db");
+    assert.equal(sha256(resolveSiteDatabasePaths({ dir }).contentDbPath), dbBefore, "adopt must never modify content.db");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
@@ -309,7 +312,7 @@ test("adopt is reversible: deleting the two markers returns the directory to exa
 test("adopt leaves content.db byte-identical — markers are written BESIDE the database, never into it", () => {
   const { parent, dir } = markerlessFixture();
   try {
-    const dbPath = path.join(dir, "content.db");
+    const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
     const before = sha256(dbPath);
 
     assert.equal(runCli(["adopt", dir]).status, 0);
@@ -319,7 +322,7 @@ test("adopt leaves content.db byte-identical — markers are written BESIDE the 
     // and `content.db-shm` to open a WAL-mode database even on a READ-ONLY connection, so adopt
     // does create them when they are missing. Verified directly. Neither carries site data (the
     // -wal is created empty), and the next read-write open deletes both on clean close.
-    assert.equal(fs.existsSync(path.join(dir, "content.db-wal")) ? fs.statSync(path.join(dir, "content.db-wal")).size : 0, 0, "adopt must never leave committed frames in the WAL — it only ever opens the db read-only");
+    assert.equal(fs.existsSync(resolveSiteDatabasePaths({ dir }).contentDbPath + "-wal") ? fs.statSync(resolveSiteDatabasePaths({ dir }).contentDbPath + "-wal").size : 0, 0, "adopt must never leave committed frames in the WAL — it only ever opens the db read-only");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });
   }
@@ -430,7 +433,7 @@ test("a content.db that has never been migrated is refused rather than stamped w
 test("a DIVERGENT schema lineage is refused with SITE_NEWER_THAN_RUNTIME (exit 4), not silently stamped — the case a wrong stamp would turn into data loss", () => {
   const { parent, dir } = markerlessFixture();
   try {
-    const sqlite = new Database(path.join(dir, "content.db"));
+    const sqlite = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
     sqlite.exec("INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('fabricated-hash', 9999999999999)");
     sqlite.close();
 

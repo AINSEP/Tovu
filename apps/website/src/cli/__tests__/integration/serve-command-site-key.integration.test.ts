@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { fingerprintSiteKeyHex } from "#src/features/webhooks/keyring.env";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
@@ -141,9 +143,9 @@ function readSiteId(dir: string): string {
 }
 
 /**
- * Same table `site-key-ensure.unit.test.ts`'s own `buildSealedCiphertextDb` helper targets
- * (`publish_credential_sets`, one of the tables `findKeyDependentData`'s `%sealed_ciphertext%` scan
- * matches) — but INSERTS into it rather than creating it: this suite runs against a REAL `tovu
+ * Same sealed-data precondition as `site-key-ensure.unit.test.ts`'s `buildSealedCiphertextDb`.
+ * Its former publish_credential_sets owner is now secrets_vault (9b20083b6), which the same
+ * `%sealed_ciphertext%` scan finds. INSERT rather than CREATE: this suite runs against a REAL `tovu
  * init`-seeded `content.db`, where that table already exists with its real schema (NOT NULL
  * columns, a `workspace_id` foreign key into `workspaces`), unlike the unit test's from-scratch,
  * schema-less fixture database.
@@ -157,10 +159,10 @@ function buildSealedCiphertextDb(dbPath: string): void {
     }
     const now = new Date().toISOString();
     db.prepare(
-      `INSERT INTO publish_credential_sets
-         (id, workspace_id, provider_id, label, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run("test-sealed-credential", workspace.id, "test-provider", "Test Credential", "v1", "cipher-bytes", "test-nonce", "aes-gcm", now, now);
+      `INSERT INTO secrets_vault
+         (id, workspace_id, kind, owner_key, label, is_default, revision, meta, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, created_at, updated_at)
+       VALUES (?, ?, 'custom', 'tovu', ?, 0, 1, '{}', ?, ?, ?, ?, ?, ?)`
+    ).run("test-sealed-credential", workspace.id, "Test Credential", "v1", "cipher-bytes", "test-nonce", "aes-gcm", now, now);
   } finally {
     db.close();
   }
@@ -210,7 +212,7 @@ test("site-key plan §A3a: a site with sealed key-dependent data and no key anyw
   const dir = initFixture(parent);
   const siteId = readSiteId(dir);
   const perSiteFilePath = path.join(tempHome, ".tovu", "site-keys", `${siteId}.hex`);
-  buildSealedCiphertextDb(path.join(dir, "content.db"));
+  buildSealedCiphertextDb(resolveSiteDatabasePaths({ dir }).contentDbPath);
 
   const port = await getFreePort();
   const child = spawnServe([dir, "--port", String(port)], isolatedEnv(tempHome));

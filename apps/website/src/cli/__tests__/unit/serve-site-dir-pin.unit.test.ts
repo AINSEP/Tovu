@@ -1,12 +1,12 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
 import { pinPlainHttpIntoEnv, pinServedSiteDirIntoEnv } from "../../commands/serve.js";
 import { resolveDevTls } from "../../../server/runtime/boot/dev-tls.js";
-import { resolveChatAttachmentUploadDirectory } from "../../../server/inbound/assistant/chat-attachment-directory.js";
 import { buildDaemonSpawnEnvOverrides } from "../../../server/runtime/lifecycle/daemon-supervisor.js";
-import { defaultContentDbPath } from "../../../server/runtime/composition/deps.js";
+import { defaultContentDbPath, resolveSiteStoragePaths } from "../../../server/runtime/composition/deps.js";
 import { resolveSiteRoot } from "../../../platform/site-dir/site-root.js";
 import { describeSiteBinding } from "../../../platform/site-dir/site-registry.js";
 import { resolveSitesDeps } from "../../../features/sites/deps.js";
@@ -76,13 +76,12 @@ test("pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the 
 test("tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory", () => {
   const apiEnv = bareServeEnv();
   pinServedSiteDirIntoEnv(TARGET, apiEnv);
-  // The API resolves it from the `content.db` `runServeCommand` opens (`<dir>/content.db`, into
-  // `RouteDeps.siteStoragePaths`); the daemon from the one ITS composition root opens,
-  // `defaultContentDbPath()` under the env it was spawned with.
-  const apiDirectory = resolveChatAttachmentUploadDirectory({ contentDbPath: path.join(TARGET, "content.db") }, { env: apiEnv });
+  // Both processes consume their composition root's siteStoragePaths: attachments stay
+  // under the served site even when content.db lives in data.nosync or app-data.
+  const apiDirectory = resolveSiteStoragePaths({ contentDbPath: withProcessEnv(apiEnv, defaultContentDbPath), siteDir: TARGET, uploadsDir: path.join(TARGET, "uploads") }, { env: apiEnv }).chatAttachmentsDir;
 
   const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
-  const daemonDirectory = withProcessEnv(childEnv, () => resolveChatAttachmentUploadDirectory({ contentDbPath: defaultContentDbPath() }, { env: childEnv }));
+  const daemonDirectory = withProcessEnv(childEnv, () => resolveSiteStoragePaths({ contentDbPath: defaultContentDbPath(), siteDir: TARGET, uploadsDir: path.join(TARGET, "uploads") }, { env: childEnv }).chatAttachmentsDir);
 
   assert.equal(
     apiDirectory,

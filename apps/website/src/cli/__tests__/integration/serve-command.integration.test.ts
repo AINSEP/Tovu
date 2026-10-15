@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -312,7 +314,7 @@ test("AC-06: serve against a site with a newer schemaVersion than the runtime ex
 test("AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT", () => {
   const { parent, dir } = initFixture();
   try {
-    const dbPath = path.join(dir, "content.db");
+    const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
     const db = new Database(dbPath);
     db.exec("DELETE FROM workspaces");
     db.close();
@@ -414,7 +416,7 @@ test("BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an expl
 
 test("B1: serve against a site whose content.db has 2 workspace rows succeeds (boots + responds), defaulting to the oldest — no more boot-bricking on a legitimately multi-workspace install", async () => {
   const { parent, dir } = initFixture();
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   const db = new Database(dbPath);
   db.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(
     "ws-added-later",
@@ -463,7 +465,7 @@ test("B1: serve against a site whose content.db has 2 workspace rows succeeds (b
 
 test("B1: --workspace <id> selects a non-default workspace explicitly", async () => {
   const { parent, dir } = initFixture();
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   const db = new Database(dbPath);
   db.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(
     "ws-second",
@@ -531,7 +533,7 @@ test("CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than
 test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end", async () => {
   const { parent, dir } = initFixture();
   const marker = `cli-content-body-${randomUUID()}`;
-  const db = new Database(path.join(dir, "content.db"));
+  const db = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
   const row = db.prepare("SELECT body_json FROM posts WHERE slug = ?").get("welcome") as { body_json: string };
   const document = JSON.parse(row.body_json);
   document.content.push({ type: "paragraph", content: [{ type: "text", text: marker }] });
@@ -591,7 +593,7 @@ async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: (
 
 test("an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content", async () => {
   const { parent, dir } = initFixture();
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   const identityEnv = { TOVU_ADMIN_USER: "reseed-owner", TOVU_ADMIN_PASSWORD: "reseed-test-password" };
 
   // First boot seeds identity fully (owner user + the 4 built-in roles/policies) and shuts down
@@ -666,7 +668,7 @@ test("an identity re-seed failure from a non-built-in owner role conflict must b
 test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span to the operator-configured OTLP collector", async () => {
   const { parent, dir } = initFixture();
   const requestPath = `/welcome-otlp-${randomUUID()}`;
-  const db = new Database(path.join(dir, "content.db"));
+  const db = new Database(resolveSiteDatabasePaths({ dir }).contentDbPath);
   assert.equal(db.prepare("UPDATE posts SET slug = ? WHERE slug = ?").run(requestPath.slice(1), "welcome").changes, 1);
   db.close();
   const port = await getFreePort();

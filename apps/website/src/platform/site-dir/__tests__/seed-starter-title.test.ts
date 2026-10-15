@@ -15,6 +15,7 @@ test("D-05: the creation name seeds public HTML and JSON, including the reset co
       writeFileSync(join(starter, "render", "pages", "index.html"), '<title>Your Site</title><h1>Your Site</h1><a title="Your Site">Home</a>');
       writeFileSync(join(starter, "manifest.webmanifest"), '{"name":"Your Site","short_name":"Your Site","start_url":"/"}');
     }
+    mkdirSync(join(root, "site"));
     const siteThemesDir = join(root, "site", "themes");
     const siteName = 'Hunt <Alpha> & "Beta" $& 日本語';
     assert.equal(seedSiteThemes({ stockDir, siteThemesDir }, { siteName }).status, "seeded");

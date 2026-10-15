@@ -1,3 +1,5 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import assert from "node:assert/strict";
 import { spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -222,7 +224,7 @@ test("tovu serve refuses to serve when a critical boot module genuinely rejects:
   // exact class of real corruption `settings`'s CRITICAL classification exists to catch (its own
   // `buildBootModules` comment: "their promises have no `.catch()` anywhere ... a failure here must
   // abort boot cleanly").
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   const sqlite = new Database(dbPath);
   sqlite.exec("DROP TABLE setting_definitions");
   sqlite.close();
