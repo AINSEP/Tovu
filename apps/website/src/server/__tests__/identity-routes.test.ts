@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import express from "express";
 import { currentCredential, registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import assert from "node:assert/strict";
