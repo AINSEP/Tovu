@@ -23,9 +23,9 @@
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
     "@jini-ai/agent-runtime": "^0.4.11",
-    "@jini-ai/chat": "^0.6.4",
+    "@jini-ai/chat": "^0.6.5",
     "@jini-ai/core": "^0.4.6",
-    "@jini-ai/daemon": "^0.6.6",
+    "@jini-ai/daemon": "^0.6.7",
     "@jini-ai/desktop-host": "^0.4.1",
     "@jini-ai/mcp": "^0.4.3",
     "@jini-ai/platform": "^0.5.8",
