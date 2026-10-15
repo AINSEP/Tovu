@@ -136,10 +136,11 @@ function fakeBridge(mode: "ok" | "bad-tool" | "silent" | "close" | "error" | "ma
 
 test("handshake sends initialize, initialized, tools/list in order and kills the child on success", async () => {
   const fake = fakeBridge("ok");
-  await smokeBridge({ entry, hostEnv: { PATH: "/bin", NODE_PATH: "/dev" } }, { spawnBridge: fake.spawnBridge });
+  await smokeBridge({ entry, hostEnv: { PATH: "/bin", NODE_PATH: "/dev" } }, { spawnBridge: fake.spawnBridge, cwd: "/isolated/gate" });
   assert.deepEqual(fake.sent.map(message => message.method), ["initialize", "notifications/initialized", "tools/list"]);
   assert.deepEqual(fake.signals, ["SIGKILL"]);
-  assert.deepEqual(fake.options(), { env: { PATH: "/bin", ELECTRON_RUN_AS_NODE: "1" }, stdio: ["pipe", "pipe", "pipe"] });
+  assert.deepEqual(fake.options(), { env: { PATH: "/bin", ELECTRON_RUN_AS_NODE: "1" },
+    stdio: ["pipe", "pipe", "pipe"], cwd: "/isolated/gate" });
 });
 
 test("failed roster, close, spawn, framing and watchdog all fail and kill the child", async () => {

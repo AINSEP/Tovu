@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /** Release gate: initialize + tools/list for all three shipped MCP bridges, without a daemon/model. */
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { resolveSmokeTargets } from "../src/smoke-native.ts";
+import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
 import { buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand, parseJiniEntries, smokeBridge } from "../src/smoke-bridge.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** --app supports the exact read-only mounted DMG app; --platform-dir reuses the native smoke layout. */
+/** --app copies the exact mounted DMG app; --platform-dir reuses the native smoke layout. */
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const appAt = argv.indexOf("--app");
@@ -31,21 +31,26 @@ async function main(): Promise<void> {
   if (!existsSync(targets.executablePath) || !existsSync(targets.nodeModulesDir)) {
     throw new Error("smoke-bridge: packaged executable or node_modules is missing");
   }
+  await withIsolatedSmokeTargets({ targets, run: runGate });
+}
+
+async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, directory: string): Promise<void> {
   const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
   const resolved = spawnSync(targets.executablePath, ["-e", buildJiniEntryScript({ resourcesDir, executablePath: targets.executablePath })], {
     env: buildBridgeEnv({ hostEnv: process.env, entryEnv: { ELECTRON_RUN_AS_NODE: "1" } }),
+    cwd: directory,
     encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL",
   });
   if (resolved.error || resolved.status !== 0) {
     throw new Error(`smoke-bridge: packaged resolver failed: ${resolved.error?.message ?? resolved.status}\n${resolved.stderr ?? ""}`);
   }
   const entries = parseJiniEntries({ stdout: resolved.stdout });
-  const userDataDir = mkdtempSync(path.join(tmpdir(), "tovu-release-smoke-"));
+  const userDataDir = mkdtempSync(path.join(directory, "tovu-release-smoke-"));
   try {
     const sites = buildSitesBridgeCommand({ executablePath: targets.executablePath, resourcesDir, userDataDir, platform: process.platform });
     if (sites.launcherScript !== undefined) writeFileSync(sites.launcherPath, sites.launcherScript, { mode: 0o700 });
     for (const entry of [...entries, sites.entry]) {
-      await smokeBridge({ entry, hostEnv: process.env });
+      await smokeBridge({ entry, hostEnv: process.env }, { cwd: directory });
       process.stdout.write(`smoke-bridge: OK — ${entry.label} initialize + tools/list\n`);
     }
   } finally {

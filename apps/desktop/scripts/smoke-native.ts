@@ -26,15 +26,15 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 import { buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "../src/smoke-native.ts";
+import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 type SmokeTargets = ReturnType<typeof resolveSmokeTargets>;
 
-/** Prints `message` to stderr and exits 1. */
+/** Throw so the isolated app is cleaned up before main reports exit 1. */
 function fail(message: string): never {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
+  throw new Error(message);
 }
 
 /** Resolves `--platform-dir` against the desktop root, or exits when it is missing. */
@@ -77,7 +77,8 @@ function spawnSmoke(targets: SmokeTargets): string {
   process.stdout.write(`smoke-native: running against ${targets.executablePath}\n`);
   const script = buildSmokeScript(targets.nodeModulesDir);
   const spawned = spawnSync(targets.executablePath, ["-e", script], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
+    cwd: path.dirname(targets.executablePath),
     encoding: "utf8",
   });
 
@@ -89,8 +90,7 @@ function spawnSmoke(targets: SmokeTargets): string {
   return spawned.stdout ?? "";
 }
 
-function main(): void {
-  const targets = locateTargets(platformDirFromArgv(process.argv.slice(2)));
+function runGate(targets: SmokeTargets): void {
   const stdout = spawnSmoke(targets);
 
   let result: ReturnType<typeof parseSmokeOutput>;
@@ -112,7 +112,8 @@ function main(): void {
 function checkEntryImports(targets: SmokeTargets): void {
   const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
   const spawned = spawnSync(targets.executablePath, ["-e", buildEntryLoadScript(resourcesDir)], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
+    cwd: path.dirname(targets.executablePath),
     encoding: "utf8",
   });
   if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
@@ -127,4 +128,13 @@ function checkEntryImports(targets: SmokeTargets): void {
   process.stdout.write("smoke-native: OK — every static import of the shell and server entries resolves\n");
 }
 
-main();
+async function main(): Promise<void> {
+  await withIsolatedSmokeTargets({
+    targets: locateTargets(platformDirFromArgv(process.argv.slice(2))), run: runGate,
+  });
+}
+
+main().catch(error => {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
+});

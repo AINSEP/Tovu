@@ -136,10 +136,10 @@ export function assertBridgeReplies(
  */
 export async function smokeBridge(
   { entry, hostEnv }: { entry: BridgeCommand; hostEnv: NodeJS.ProcessEnv },
-  { spawnBridge = spawn, watchdogMs = 30_000 }: { spawnBridge?: typeof spawn; watchdogMs?: number } = {},
+  { spawnBridge = spawn, watchdogMs = 30_000, cwd }: { spawnBridge?: typeof spawn; watchdogMs?: number; cwd?: string } = {},
 ): Promise<void> {
   const child = spawnBridge(entry.command, entry.args, {
-    env: buildBridgeEnv({ hostEnv, entryEnv: entry.env }), stdio: ["pipe", "pipe", "pipe"],
+    env: buildBridgeEnv({ hostEnv, entryEnv: entry.env }), stdio: ["pipe", "pipe", "pipe"], ...(cwd ? { cwd } : {}),
   });
   const closed = new Promise<void>(resolve => child.once("close", () => resolve()));
   let stderr = "";

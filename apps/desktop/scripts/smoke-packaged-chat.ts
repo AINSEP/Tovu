@@ -12,6 +12,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
 import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
 import { resolveSmokeTargets } from "../src/smoke-native.ts";
+import { PackagedGateIsolationError, withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
 import { allocatePort, buildServeEnv, startTovuServer } from "../src/tovu-server.ts";
 import { initSiteDir } from "../src/site-dir-store.ts";
 import { buildPackagedChatServerPlan, PackagedChatSmokeError,
@@ -128,6 +129,10 @@ async function main(): Promise<void> {
     targets = resolveSmokeTargets(platformDir, entries);
   }
 
+  await withIsolatedSmokeTargets({ targets, run: runGate });
+}
+
+async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, directory: string): Promise<void> {
   let server: Awaited<ReturnType<typeof startTovuServer>>;
   let cookie = "";
   let requestSignal: AbortSignal = controller.signal;
@@ -195,7 +200,7 @@ async function main(): Promise<void> {
   try {
     await runPackagedChatSmoke({ ports: {
       acquireLock,
-      createSite: () => mkdtemp(path.join(scratchRoot, "packaged-chat-")),
+      createSite: () => mkdtemp(path.join(directory, "packaged-chat-")),
       async start(siteDir) {
         const payloadRoot = path.dirname(targets.nodeModulesDir);
         // serve's public contract rejects 0. Use the shell's existing free-port allocator.
@@ -282,7 +287,7 @@ main().catch(error => {
   // Only our fixed diagnostics are safe to print. Upstream errors may contain raw child output.
   const errors: unknown[] = error instanceof AggregateError ? error.errors : [error];
   for (const item of errors) {
-    process.stderr.write(`smoke-packaged-chat: ${item instanceof PackagedChatSmokeError ? item.message : "Gate or teardown failed; no draft may be created."}\n`);
+    process.stderr.write(`smoke-packaged-chat: ${item instanceof PackagedChatSmokeError || item instanceof PackagedGateIsolationError ? item.message : "Gate or teardown failed; no draft may be created."}\n`);
   }
   process.exitCode = 1;
 }).finally(() => {
