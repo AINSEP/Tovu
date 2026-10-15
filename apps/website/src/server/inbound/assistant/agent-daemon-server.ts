@@ -74,7 +74,8 @@ import express from "express";
 
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
-import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, type MessageAttachmentImage } from "@jini-ai/daemon";
+import { buildMcpJsonServerEntry, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage } from "@jini-ai/daemon";
+import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -714,6 +715,9 @@ const assistantPromptAugmenter: PromptAugmenter = {
   },
 };
 
+// Each run's bridge gets its own credential, resolved back to that run's principal; see
+// `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
+const bridgeInjection = resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {}));
 const agentExecutor = createAgentExecutor({
   lifecycle,
 }, {
@@ -727,9 +731,7 @@ const agentExecutor = createAgentExecutor({
   hostEnv: assistantRuntime.hostEnv,
   codexDisablePlugins: assistantRuntime.codexDisablePlugins,
   piGracefulShutdownMs: assistantRuntime.piGracefulShutdownMs,
-  // Each run's bridge gets its own credential, resolved back to that run's principal; see
-  // `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
-  mcpJsonInjection: resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {})),
+  mcpJsonInjection: bridgeInjection,
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
   // see `CreateAgentExecutorOptions.claudeConfigDirIsolationEnabled`'s own doc (Jini) for the full
@@ -749,6 +751,13 @@ const agentExecutor = createAgentExecutor({
   // `true` once a host-provisioned `credentialEnv` exists for this runtime (outranks Keychain login
   // in Claude Code's own auth precedence, so an isolated child would still authenticate).
   claudeConfigDirIsolationEnabled: false,
+});
+
+// Initialize needs no callback credential; probe the real launch without minting a run token.
+void probeMcpBridge({ entry: buildMcpJsonServerEntry({ runId: "bridge-preflight", options: bridgeInjection }, {}) }, {}).then((result) => {
+  const line = formatBridgePreflightLogLine({ result });
+  if (result.ok) console.log(line);
+  else console.error(line);
 });
 
 /** Populated by `onStarted`, read by `resolveDelegatedPrincipal` — see module doc. Deleted on
@@ -967,6 +976,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const resolvedConversationId = conversationId;
     const resolvedAgentId = request.agentId ?? DEFAULT_AGENT_ID;
     void runLifecycle.stream({ runId: run.id, onEvent: (event) => {
+      if (event.kind === "error") {
+        console.error(formatRunErrorLogLine({ runId: run.id, payload: event.payload }));
+      }
       // Terminal-outcome log line (2026-09-06 chat-death investigation). This subscription already
       // exists, already sees every `end` event, and already has `run.id` in scope — so this is the
       // cheapest possible place to write down HOW a run ended. Until now nothing did: the daemon
@@ -977,9 +989,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // (`createInMemoryEventLog()` above), and the admin client discards the status — so without
       // this line the exit code exists nowhere durable and nowhere visible.
       if (event.kind === "end") {
-        const endPayload = event.payload as { status?: unknown; code?: unknown; signal?: unknown; resumable?: unknown };
-        const line = `[agent-daemon] run ${run.id} ended: ${String(endPayload.status ?? "unknown")} (code=${String(endPayload.code ?? "none")}, signal=${String(endPayload.signal ?? "none")}, resumable=${String(endPayload.resumable ?? false)}, agent=${resolvedAgentId}, conversation=${resolvedConversationId}, resumeAttempted=${attemptedResumeSessionId !== null})`;
-        if (endPayload.status === "succeeded") console.log(line);
+        const line = formatRunEndLogLine({ runId: run.id, payload: event.payload, agentId: resolvedAgentId, conversationId: resolvedConversationId, resumeAttempted: attemptedResumeSessionId !== null });
+        if (event.payload.status === "succeeded") console.log(line);
         else console.error(line);
       }
       // Status carries capture-style locators (Codex/opencode) before end. A killed process must

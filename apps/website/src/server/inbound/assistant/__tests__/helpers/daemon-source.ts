@@ -14,6 +14,7 @@ import { assemblePromptWithPluginPrefix } from "../../plugin-prompt-prefix.js";
 import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../../../../assistant/agent-session-preset.js";
 import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../../assistant/agent-session-preset.js";
+import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.js";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 
 export const daemonSource = ts.createSourceFile(
@@ -59,6 +60,7 @@ export async function captureDaemonRun(
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
+    formatRunEndLogLine, formatRunErrorLogLine,
     readAssistantSubagentsEnabled: async () => false,
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
