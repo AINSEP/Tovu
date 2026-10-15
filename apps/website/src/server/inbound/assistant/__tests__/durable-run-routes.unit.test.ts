@@ -35,13 +35,30 @@ test("the delegated route blocks an unknown identical mutation with exact struct
   }
 });
 
-test("a stale delegated attempt is fenced even for a read-only tool and even after its message binding disappears", async () => {
-  const h = router(); const out = response();
-  const durable = { find: async () => null } as unknown as DurableRunStore;
-  registerDurableToolGuard({ app: h.app, ledger: { durable } as ChatRunLedger, isReadOnly: () => true, messageIdForAttempt: async () => "deleted-answer" }, {});
-  h.routes.get("/api/delegated-tool-calls")!({ body: { runId: "old", toolId: "read_state" } } as Request, out.res, (() => assert.fail("stale attempt executed")) as NextFunction);
+test("a read-only gateway call is never ledgered: the daemon runs it read-only or refuses it unexecuted", async () => {
+  const h = router(); const out = response(); const ledgered: string[] = [];
+  const run = { message: { runStatus: "running" }, cancelReason: null } as DurableRun;
+  const durable = { find: async () => run,
+    guardTool: async () => { ledgered.push("tool_use"); return "allowed"; },
+    completeTool: async () => { ledgered.push("tool_result"); } } as unknown as DurableRunStore;
+  registerDurableToolGuard({ app: h.app, ledger: { durable } as ChatRunLedger, isReadOnly: () => false, messageIdForAttempt: async () => "answer" }, {});
+  const req = { body: { runId: "current", toolUseId: "u1", toolId: "content_read", input: { type: "menu" }, requireReadOnly: true } } as Request;
+  h.routes.get("/api/delegated-tool-calls")!(req, out.res, (() => { out.res.json({ result: { status: "completed", output: {} } }); }) as NextFunction);
   await out.done;
-  assert.deepEqual(out.sent, [{ status: 409, body: { error: { code: "STALE_RUN_ATTEMPT", message: "This execution attempt no longer owns the answer." } } }]);
+  // A ledgered call the daemon then refused stayed an orphan and turned the advised retry into a 409.
+  assert.deepEqual(ledgered, []);
+  assert.deepEqual(out.sent, [{ status: 200, body: { result: { status: "completed", output: {} } } }]);
+});
+
+test("a stale delegated attempt is fenced even for a read-only tool and even after its message binding disappears", async () => {
+  for (const requireReadOnly of [undefined, true]) {
+    const h = router(); const out = response();
+    const durable = { find: async () => null } as unknown as DurableRunStore;
+    registerDurableToolGuard({ app: h.app, ledger: { durable } as ChatRunLedger, isReadOnly: () => true, messageIdForAttempt: async () => "deleted-answer" }, {});
+    h.routes.get("/api/delegated-tool-calls")!({ body: { runId: "old", toolId: "read_state", requireReadOnly } } as Request, out.res, (() => assert.fail("stale attempt executed")) as NextFunction);
+    await out.done;
+    assert.deepEqual(out.sent, [{ status: 409, body: { error: { code: "STALE_RUN_ATTEMPT", message: "This execution attempt no longer owns the answer." } } }]);
+  }
 });
 
 test("the mutation response is withheld until its completed result is durably recorded", { timeout: 2000 }, async () => {

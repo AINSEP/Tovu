@@ -50,14 +50,17 @@ export function registerDurableToolGuard(
     messageIdForAttempt: (required: { runId: string }, optional: {}) => Promise<string | null> }, _optional = {},
 ): void {
   app.post("/api/delegated-tool-calls", (req, res, next) => {
-    const body = (req.body ?? {}) as { runId?: unknown; toolId?: unknown; input?: unknown; toolUseId?: string };
+    const body = (req.body ?? {}) as { runId?: unknown; toolId?: unknown; input?: unknown; toolUseId?: string; requireReadOnly?: unknown };
     if (typeof body.runId !== "string" || typeof body.toolId !== "string") { next(); return; }
     const { runId, toolId, input, toolUseId } = body;
     const store = ledger.durable;
     if (!store) { next(); return; }
+    // The daemon either verifies a constrained call is read-only or refuses it before execution.
+    // Ledgering a refusal would leave an orphan that blocks the advised unrestricted retry.
+    const readOnly = body.requireReadOnly === true || isReadOnly({ toolId }, {});
     void guard({ runId, toolId, input, toolUseId }, {}).then((outcome) => {
       if (outcome === "allowed") {
-        if (toolUseId && !isReadOnly({ toolId }, {})) captureCompletedToolResponse({ res, store, runId, toolUseId }, {});
+        if (toolUseId && !readOnly) captureCompletedToolResponse({ res, store, runId, toolUseId }, {});
         next(); return;
       }
       const unknown = outcome === "unknown";
@@ -71,7 +74,7 @@ export function registerDurableToolGuard(
         return await messageIdForAttempt({ runId: required.runId }, {}) ? "stale" : "allowed";
       }
       if (run.cancelReason || !["queued", "running"].includes(run.message.runStatus ?? "")) return "stale";
-      if (isReadOnly({ toolId: required.toolId }, {})) return "allowed";
+      if (readOnly) return "allowed";
       return store!.guardTool(required, {});
     }
   });
