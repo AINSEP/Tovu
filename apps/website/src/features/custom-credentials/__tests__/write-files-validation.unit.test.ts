@@ -38,6 +38,27 @@ test("rejects an invalid repo with the host's own text first", () => {
   assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: "has spaces" }, github), new CustomCredentialValidationError("invalid GitHub repo 'has spaces'"));
 });
 
+// Pins write-files-validation.ts:97 — repo must be a string before host validation.
+test("rejects a numeric repo with a typed validation error", () => {
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: 42 }, github), new CustomCredentialValidationError("invalid repo '42'"));
+});
+
+// Pins write-files-validation.ts:97 — arrays must not bypass repo validation through coercion.
+test("rejects an array repo even when its string form is a valid name", () => {
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ["demo"] }, github), new CustomCredentialValidationError("invalid repo 'demo'"));
+});
+
+// Pins write-files-validation.ts:97 — an absent repo must fail the string guard.
+test("rejects a missing repo with a typed validation error", () => {
+  const target = { owner: "octo" } as Parameters<typeof validateRepositoryTarget>[0];
+  assert.throws(() => validateRepositoryTarget(target, github), new CustomCredentialValidationError("invalid repo 'undefined'"));
+});
+
+// Pins write-files-validation.ts:97 — repo must be a string even without a host validator.
+test("rejects a numeric repo without a host validator", () => {
+  assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: 42 }), new CustomCredentialValidationError("invalid repo '42'"));
+});
+
 test("a host with no rules of its own still gets the generic one-path-segment rule", () => {
   assert.throws(() => validateRepositoryTarget({ owner: "a/b", repo: "demo" }), new CustomCredentialValidationError("invalid owner 'a/b'"));
   assert.throws(() => validateRepositoryTarget({ owner: "octo", repo: ".." }), new CustomCredentialValidationError("invalid repo '..'"));
