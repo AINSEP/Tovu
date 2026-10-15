@@ -70,6 +70,19 @@ describe("agent failure reasons", () => {
     expect(projected.some(event => event.kind === "status" && event.label === GENERIC_AGENT_FAILURE)).toBe(false);
   });
 
+  // A bridge that never reached "failed" (pending/missing) and left no stderr: the notice has no other error word.
+  it.each(["pending", "missing"])("shows a no-stderr MCP bridge notice for status %s, not the generic one", (status) => {
+    const notice = `The assistant's tools did not load (MCP bridge "jini" status: ${status}). The run was stopped instead of continuing without them.`;
+    const message: ChatMessage = { id: "bridge", role: "assistant", content: "", runStatus: "failed", events: [
+      { kind: "raw", line: `{"type":"system","subtype":"init","mcp_servers":[{"name":"jini","status":"${status}"}]}` },
+      { kind: "status", label: notice },
+      { kind: "status", label: "Run failed — the agent process exited without answering", detail: "exit code 143, signal none, resumable no." },
+    ] };
+    const projected = projectAgentFailureMessage({ message }, {}).events ?? [];
+    expect(projected.at(-1)).toMatchObject({ kind: "ext", name: AGENT_FAILURE_EVENT, data: { reason: notice } });
+    expect(projected.some(event => event.kind === "status" && event.label === GENERIC_AGENT_FAILURE)).toBe(false);
+  });
+
   it("projects only failed turns and keeps projection idempotent", () => {
     const message: ChatMessage = { id: "nine", role: "assistant", content: "saved work", agentId: "gemini", runStatus: "failed", events };
     const projected = projectAgentFailureMessage({ message }, {});

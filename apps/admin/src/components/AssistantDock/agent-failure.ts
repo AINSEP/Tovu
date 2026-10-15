@@ -41,7 +41,9 @@ export function redactAgentFailure({ text }: { text: string }, _optional = {}): 
 
 const NOISE = /^(?:Warning:.*(?:256-color|color support)|YOLO mode is enabled|Code discovery:|Hook system message:|Ripgrep is not available|An unexpected critical error occurred:\s*$|Traceback \(most recent call last\):|\s*at\s|\s*File ")/i;
 const STRUCTURE = /^(?:[{}\[\],]+|[a-z][\w]*:\s|\.\.\.)/;
-const ERROR_LINE = /\b(?:[\w]*error|failed|failure|invalid|not valid|unauthorized|unauthenticated|denied|refused|exhausted|could not|not logged in|not authenticated|authentication required|no longer supported|missing.*key)\b/i;
+// "did not load": the daemon's MCP-bridge notice ("The assistant's tools did not load (MCP bridge \"jini\"
+// status: pending)...") names no other error word when the bridge left no stderr.
+const ERROR_LINE = /\b(?:[\w]*error|failed|failure|invalid|not valid|unauthorized|unauthenticated|denied|refused|exhausted|could not|not logged in|not authenticated|authentication required|no longer supported|missing.*key|did not load)\b/i;
 const GENERIC = /^(?:Run failed — the agent process exited without answering|This turn failed\.?$|The assistant could not (?:continue|finish) this answer\. Saved work is above\.?$|Stopped\.?$)/i;
 
 /** The last error sentence wins over trailing informational lines or an exception object dump. */
