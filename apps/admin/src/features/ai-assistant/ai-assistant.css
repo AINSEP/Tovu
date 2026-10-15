@@ -122,23 +122,32 @@
   .assistant-toggle--switch input[role="switch"], .assistant-toggle--switch input[role="switch"]::after { transition: none; }
 }
 
-/* Phones: a slimmer rail. Buttons, selects and ⓘ already get a 40px floor from styles.css's phone
+/* Phones: a slimmer rail. Buttons, selects and ⓘ already get a 44px floor from styles.css's phone
    tap-target block; text inputs and the switch's label row need it here. That block also pins every
    checkbox to 20x20, which would crush the switch track into a dot, so the track is restated. */
 @media (max-width: 640px) {
   /* Keep this three-tab page on one row, including hosts using the general wrap preference. */
   .visitor-step { padding-left: 2rem; }
-  /* The 40px floor grows the head's ⓘ and select past the 1.5rem disc, which centred the title
+  /* The 44px floor grows the head's ⓘ and select past the 1.5rem disc, which centred the title
      ~8px under the disc's number (Chrome check, 2026-10-11). Negative block margins equal to that
-     slack keep the 40px hit area but take it out of the row, so the head stays disc-high. */
-  .visitor-step-head > :is(.info-tip, select) { margin-block: calc((1.5rem - 40px) / 2); }
+     slack keep the 44px hit area but take it out of the row, so the head stays disc-high. */
+  .visitor-step-head > :is(.info-tip, select) { margin-block: calc((1.5rem - 44px) / 2); }
   .visitor-assistant .jini-input,
   .visitor-assistant .jini-select-trigger { min-height: 40px; font-size: 16px; }
   .visitor-assistant .jini-select.jini-input { min-height: 0; }
-  .assistant-toggle-copy { min-height: 40px; line-height: 40px; }
-  .assistant-toggle-copy > label { display: inline; padding-block: 12px; }
+  /* A 20px line inside 10px padding keeps a one-line row 40px tall and a wrapped label tight; the
+     label's own padding still gives it a ~40px tap area. The 44px floor made the ⓘ wider than the
+     space left beside a long label, so at 375px it dropped onto a line of its own ("Enable the AI
+     assistant on the public site", ui-46 2026-10-15). Negative margins take that 44px hit area
+     back to the icon's size in the layout, and `nowrap` on the copy (re-opened on the label) makes
+     the label-to-ⓘ join unbreakable, so when the text wraps the ⓘ goes with its final word. */
+  .assistant-toggle-copy { box-sizing: border-box; min-height: 40px; padding-block: 10px; line-height: 20px; white-space: nowrap; }
+  .assistant-toggle-copy > label { display: inline; padding-block: 12px; white-space: normal; }
   .assistant-toggle-copy > .info-tip { margin-left: 0; }
+  .assistant-toggle-copy > .info-tip > .info-tip-icon { margin: calc((1.1rem - 44px) / 2); }
   .assistant-toggle-head > input { margin-top: 10px; }
+  /* The 22px switch, centred on the first line like the 20px checkbox above. */
+  .assistant-toggle--switch .assistant-toggle-head > input[role="switch"] { margin-top: 9px; }
   .visitor-step :is(.btn-primary, .jini-byok-test-btn, .jini-input-affix-btn) { min-height: 40px; }
   .visitor-assistant .assistant-toggle--switch input[role="switch"] { width: 38px; height: 22px; }
   .ai-assistant-page .jini-tabbed-dialog-nav-item strong { white-space: nowrap; }
