@@ -31,6 +31,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from
 import { spawnSync } from 'node:child_process';
 import { join, dirname, basename, extname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { classifyMutationTestResult } from './mutation-sweep-result.mjs';
 
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith('--')));
@@ -97,16 +98,7 @@ function runTests() {
         ...tests.map((t) => t.replace('apps/admin/', ''))],
         { encoding: 'utf8', timeout: TIMEOUT })
     : spawnSync('node', ['--import', 'tsx', '--test', ...tests], { encoding: 'utf8', timeout: TIMEOUT });
-  if (r.error && r.error.code === 'ETIMEDOUT') return { pass: false, why: 'timeout' };
-  if (r.status === 0) return { pass: true, why: 'pass' };
-
-  // A nonzero exit is NOT automatically proof that a test observed the guard. The mutation may
-  // simply not have compiled — the `??`-dropping regex can emit `a ?? new Foo()` -> `a Foo()` —
-  // and a transform error exits nonzero exactly like a real assertion failure. Scoring those as
-  // "killed" is how a sweep manufactures a clean result. Separate them.
-  const out = `${r.stdout || ''}${r.stderr || ''}`;
-  const invalid = /SyntaxError|Transform failed|Expected ["']|Unexpected (token|end of)|ERR_[A-Z_]*SYNTAX|esbuild|Parse error|Cannot find (name|module)|TS\d{4}:/i.test(out);
-  return { pass: false, why: invalid ? 'invalid-mutant' : 'fail' };
+  return classifyMutationTestResult(r);
 }
 
 /* ---------- generate mutants ---------- */
