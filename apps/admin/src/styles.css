@@ -3756,6 +3756,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .sitemap-modal .list-table td:first-child { padding-bottom: var(--space-1); }
   .sitemap-modal .list-table td + td { padding-top: 0; font-size: var(--text-xs); color: var(--muted); }
   .sitemap-modal .list-table tbody tr + tr { border-top: 1px solid var(--border); }
+  /* The URL link is text-height; an invisible area over its whole cell (at least 44px, reaching into
+     the date line under a one-line URL) makes it a phone-sized target without moving anything. */
+  .sitemap-modal .list-table td:first-child a { display: block; position: relative; }
+  .sitemap-modal .list-table td:first-child a::after {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--space-3));
+    left: calc(-1 * var(--space-4));
+    right: calc(-1 * var(--space-4));
+    height: calc(100% + var(--space-3) + var(--space-1));
+    min-height: 44px;
+  }
 }
 .sitemap-modal-raw {
   margin: 0; padding: var(--space-3); background: var(--surface-2); border: 1px solid var(--border);

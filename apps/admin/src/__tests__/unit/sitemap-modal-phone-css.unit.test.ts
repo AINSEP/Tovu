@@ -33,4 +33,17 @@ describe("sitemap modal on a phone", () => {
   it("lets a long URL wrap instead of widening the column", () => {
     expect(phoneDeclarations(".sitemap-modal .list-table td")).toMatchObject({ "overflow-wrap": "anywhere" });
   });
+
+  // Regression: each row's URL link was a text-height tap target (admin phone rule: >=44px).
+  it("gives each row's URL link an invisible tap area at least 44px tall over its cell", () => {
+    expect(phoneDeclarations(".sitemap-modal .list-table td:first-child a")).toEqual({ display: "block", position: "relative" });
+    expect(phoneDeclarations(".sitemap-modal .list-table td:first-child a::after")).toMatchObject({
+      content: '""',
+      position: "absolute",
+      top: "calc(-1 * var(--space-3))",
+      left: "calc(-1 * var(--space-4))",
+      right: "calc(-1 * var(--space-4))",
+      "min-height": "44px",
+    });
+  });
 });
