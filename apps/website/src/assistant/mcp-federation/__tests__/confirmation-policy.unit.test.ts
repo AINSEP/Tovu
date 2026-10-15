@@ -2,19 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryMcpSession } from "../adapter.memory.js";
 import { federateSession } from "../registrations.js";
+import type { ToolApprovalClass } from "../../../contracts/headless/assistant-tool-approval-policy.js";
 
 async function run(name: string, input: Record<string, unknown>, annotations?: Record<string, boolean>, allow = true) {
   const session = new InMemoryMcpSession({tools: [{name, inputSchema: {type: "object"}, ...(annotations ? {annotations} : {})}]});
   const cards: string[] = [];
   const destructive: boolean[] = [];
+  const approvalClasses: (ToolApprovalClass | undefined)[] = [];
   const {registrations} = await federateSession({session, nativeToolIds: new Set(), config: {
     connectionId: "service", label: "Service", allowedToolNames: [name], writeAllowedToolNames: [],
     maxTools: 5, maxResultBytes: 4096, connectTimeoutMs: 100, callTimeoutMs: 100,
   }, deps: {workspaceId: "workspace", authorize: async () => ({allowed: allow, reason: allow ? "matched" : "insufficient_permission"}),
-    confirmCall: async (_ctx, request) => {cards.push(request.remoteName); destructive.push(request.destructive); return {confirmed: false, result: {cancelled: true}};},
+    confirmCall: async (_ctx, request) => {cards.push(request.remoteName); destructive.push(request.destructive); approvalClasses.push(request.approvalClass); return {confirmed: false, result: {cancelled: true}};},
   }});
   const result = await registrations[0]!.handler({executionId: "execution", run: {id: "run"}, principal: {id: "owner"}, input, signal: new AbortController().signal});
-  return {session, cards, destructive, result};
+  return {session, cards, destructive, approvalClasses, result};
 }
 
 for (const [name, args, hints] of [
@@ -37,6 +39,16 @@ for (const [name, args] of [
   ["execute_sql", {query: "select 'drop table demo' as example"}],
 ] as const) test(`n06: ${name} destructive declaration stays gated: ${JSON.stringify(args)}`, async () => {
   const result = await run(name, args, {destructiveHint: true});
+  // 6d3998810 supersedes this legacy case's title: explicit reversible Trash runs directly.
+  if (name === "trash_item") {
+    assert.deepEqual(result.cards, []);
+    assert.deepEqual(result.destructive, []);
+    assert.deepEqual(result.session.calls, [{ name, arguments: args }]);
+    assert.deepEqual((result.result as { federated: unknown }).federated, {
+      connectionId: "service", tool: name, remoteReportedError: false,
+    });
+    return;
+  }
   assert.deepEqual(result.cards, [name]);
   assert.deepEqual(result.destructive, [true]);
   assert.deepEqual(result.session.calls, []);
@@ -89,12 +101,14 @@ for (const [name, args, expected] of [
   ["assistant_set_privacy", {privacy: "private"}, false],
   ["assistant_set_permissions", {permissions: []}, false],
   ["set_system_prompt", {prompt: "new prompt"}, false],
-  ["send_email", {to: "person@example.com"}, false],
+  // c20232846: this flag also prohibits remembered consent; approvalClass owns action wording.
+  ["send_email", {to: "person@example.com"}, true],
   ["delete_project", {}, true],
   ["execute_sql", {query: "drop table demo"}, true],
 ] as const) test(`n06: ${name} card marks permanent deletion accurately`, async () => {
   const result = await run(name, args);
   assert.deepEqual(result.cards, [name]);
   assert.deepEqual(result.destructive, [expected]);
+  if (name === "send_email") assert.deepEqual(result.approvalClasses, ["publish"]);
   assert.deepEqual(result.session.calls, []);
 });

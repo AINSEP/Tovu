@@ -323,7 +323,9 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
   });
 
   const registry = createToolRegistry({});
-  for (const registration of buildWebhooksRegistrations(deps, { surfaceExchanges })) {
+  for (const registration of buildWebhooksRegistrations(deps, { surfaceExchanges,
+    assertChatDeleteAllowed: async ({ toolId }) => { assert.equal(toolId, "webhooks_delete_subscription"); },
+  })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

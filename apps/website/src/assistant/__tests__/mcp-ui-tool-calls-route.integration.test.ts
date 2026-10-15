@@ -94,7 +94,9 @@ function buildRealWebhooksToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   } as unknown as IntegrationsToolDeps;
 
   const registry = createToolRegistry({});
-  for (const registration of buildWebhooksRegistrations(deps, { surfaceExchanges })) {
+  for (const registration of buildWebhooksRegistrations(deps, { surfaceExchanges,
+    assertChatDeleteAllowed: async ({ toolId }) => { assert.equal(toolId, TOOL_ID); },
+  })) {
     registry.register(registration);
   }
   // Same construction as `agent-daemon-server.ts`'s own `createToolExecutor({ registry })` call —

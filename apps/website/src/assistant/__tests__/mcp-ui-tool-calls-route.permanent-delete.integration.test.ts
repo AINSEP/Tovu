@@ -34,7 +34,9 @@ for (const spec of PERMANENT_DELETE_SPECS) {
     const registration = buildPermanentDeleteRegistrations({
       workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
       prepare: async () => ({ details: [{ label: "Item", value: "Review this item" }], execute: async () => { deletes++; return { removed: true, id: "target" }; } }),
-    }, { surfaceExchanges }).find(r => r.descriptor.id === spec.name)!;
+    }, { surfaceExchanges, assertChatDeleteAllowed: async ({ toolId }) => {
+      assert.equal(toolId, spec.name);
+    } }).find(r => r.descriptor.id === spec.name)!;
     const ctx: ToolExecutionContext = {
       executionId: "e", principal: { id: "owner" }, run: { id: "r" }, signal: new AbortController().signal,
       input: spec.key ? { [spec.key]: "target" } : {},

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import test from "node:test";
 
 import express from "express";
@@ -308,6 +309,9 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
 function fakeByokRouteDeps(): ByokToolSurfaceDeps {
   const deps = {
     workspaceId: WORKSPACE_ID,
+    settingsRepo: new InMemorySettingsRepo(),
+    settingsUiTabsReady: Promise.resolve(),
+    getEffective,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-16T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),

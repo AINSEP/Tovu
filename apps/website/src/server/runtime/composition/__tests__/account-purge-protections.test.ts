@@ -164,8 +164,19 @@ test("registered identity_user_delete admits admin ordinary target up to human c
     const registration = registrations.find(r => r.descriptor.id === "identity_user_delete");
     assert.ok(registration);
     const call = (principalId: string) => registration.handler({ principal: { id: caller }, input: { principalId }, signal: new AbortController().signal } as ToolExecutionContext);
-    await assert.rejects(call(ordinary), { name: "ToolInputError", message: "PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: identity_user_delete: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
+    await assert.rejects(call(ordinary), { name: "ToolInputError", message: "identity_user_delete: permanent deletes from chat are disabled. Open /admin/trash to delete it as a human. Nothing was deleted." });
     await assert.rejects(call(protectedTarget), { name: "ToolInputError", message: "identity_user_delete: permission denied for a selected Trash item. Nothing was deleted." });
+    // The owner opt-in still cannot replace either a human channel or the target guard.
+    const granted = buildPermanentDeleteRegistrations({ ...f.permanent, authorize: f.identity.authorize }, {
+      surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
+      assertChatDeleteAllowed: async ({ toolId }) => { assert.equal(toolId, "identity_user_delete"); },
+    }).find(r => r.descriptor.id === "identity_user_delete")!;
+    const grantedCall = (principalId: string) => granted.handler({ principal: { id: caller }, input: { principalId }, signal: new AbortController().signal } as ToolExecutionContext);
+    await assert.rejects(grantedCall(ordinary), { name: "ToolInputError", message: "PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: identity_user_delete: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
+    await assert.rejects(grantedCall(protectedTarget), { name: "ToolInputError", message: "identity_user_delete: permission denied for a selected Trash item. Nothing was deleted." });
     assert.ok(await f.identity.principalRepo.findById({ workspaceId: f.workspaceId, id: ordinary }));
+    assert.ok(await f.identity.principalRepo.findById({ workspaceId: f.workspaceId, id: protectedTarget }));
+    assert.ok(await f.trashRepo.findByEntity({ workspaceId: f.workspaceId, entityType: "user", entityId: ordinary }));
+    assert.ok(await f.trashRepo.findByEntity({ workspaceId: f.workspaceId, entityType: "user", entityId: protectedTarget }));
   } finally { f.db.$client.close(); }
 });

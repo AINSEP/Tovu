@@ -1,4 +1,5 @@
 import { createContributionRegistry } from "@jini-ai/core";
+import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -32,6 +33,9 @@ const RUN = { id: "run-site-capabilities" };
 function fakeRouteDeps(): ByokToolSurfaceDeps {
   const deps = {
     workspaceId: "ws-site-capabilities",
+    settingsRepo: new InMemorySettingsRepo(),
+    settingsUiTabsReady: Promise.resolve(),
+    getEffective,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-15T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
