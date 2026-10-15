@@ -1,11 +1,10 @@
 /* Jini owns the native modal lifecycle. These CMS dialogs keep their labelled
    domain actions, like Jini MediaPicker, so a second generic Close adds no action.
-   `.jini-domain-dialog` is the host-neutral name Jini admin dialogs use; Tovu's own dialogs
-   use it too (2026-10-14). The `.tovu-domain-dialog` alias stays only for @jini-ai/admin
-   0.4.11's built SitemapModal and FieldAttributesDialog, which still emit the old name: drop
-   it once a release carrying Jini 47b9fa4f is adopted. */
-:is(.tovu-domain-dialog, .jini-domain-dialog) > .jini-dialog-close { display: none; }
-.settings-dialog:is(.tovu-domain-dialog, .jini-domain-dialog) {
+   `.jini-domain-dialog` is the host-neutral name Jini admin dialogs use (Jini 47b9fa4f, shipped
+   in @jini-ai/admin 0.4.11); Tovu's own dialogs use it too. The old host-named alias was
+   dropped once nothing emitted it (2026-10-14). */
+.jini-domain-dialog > .jini-dialog-close { display: none; }
+.settings-dialog.jini-domain-dialog {
   border: 0; color: var(--fg); margin: auto;
   /* Native dialogs shrink to their content without an explicit width; the media
      instance editor's short labels used to squeeze its fields into 230px. */
@@ -13,32 +12,32 @@
   max-width: calc(100vw - 2rem);
   box-sizing: border-box;
 }
-:is(.tovu-domain-dialog, .jini-domain-dialog):not([open]) { display: none; }
-:is(.tovu-domain-dialog, .jini-domain-dialog)::backdrop { background: oklch(0% 0 0 / 0.45); }
+.jini-domain-dialog:not([open]) { display: none; }
+.jini-domain-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
 /* The native title sits outside each form; the form still owns submission and
    keeps the same vertical rhythm the former form-as-dialog root supplied. */
-:is(.tovu-domain-dialog, .jini-domain-dialog) > form { display: flex; flex-direction: column; gap: 0.9rem; }
+.jini-domain-dialog > form { display: flex; flex-direction: column; gap: 0.9rem; }
 
 /* Native Dialog owns modal focus/cancellation. Its body/footer composition keeps long forms
    scrollable while the title and actions stay available, without a second dialog lifecycle. */
-:is(.tovu-domain-dialog, .jini-domain-dialog)[open]:has(> form > .jini-dialog-body) {
+.jini-domain-dialog[open]:has(> form > .jini-dialog-body) {
   display: flex;
   flex-direction: column;
   max-height: min(85vh, calc(100dvh - var(--space-8)));
   overflow: hidden;
 }
-:is(.tovu-domain-dialog, .jini-domain-dialog):has(> form > .jini-dialog-body) > form {
+.jini-domain-dialog:has(> form > .jini-dialog-body) > form {
   min-height: 0;
   overflow: hidden;
 }
-:is(.tovu-domain-dialog, .jini-domain-dialog) .jini-dialog-body {
+.jini-domain-dialog .jini-dialog-body {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
   min-height: 0;
   overflow-y: auto;
 }
-:is(.tovu-domain-dialog, .jini-domain-dialog) .jini-dialog-footer {
+.jini-domain-dialog .jini-dialog-footer {
   display: flex;
   flex-shrink: 0;
   justify-content: flex-end;
@@ -46,7 +45,7 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
 }
-:is(.tovu-domain-dialog, .jini-domain-dialog) .jini-dialog-section-title {
+.jini-domain-dialog .jini-dialog-section-title {
   margin: 0 0 var(--space-3);
   font-family: var(--font-display);
   font-size: var(--text-md);
