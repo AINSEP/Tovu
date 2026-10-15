@@ -54,6 +54,22 @@ describe("agent failure reasons", () => {
       .toEqual([{ kind: "status", code: "run_terminal", label: "The assistant could not continue this answer. Saved work is above." }]);
   });
 
+  // Durable recovery finalizes a bridge failure with the daemon's own message (order-pinch chat.db shape).
+  const bridgeNotice = "The assistant's tools did not load (MCP bridge \"jini\" status: failed). The run was stopped instead of continuing without them.";
+  it.each([bridgeNotice, `${bridgeNotice} Bridge exited with code 1: Error: bridge entry point missing`])("shows a finalized MCP bridge notice verbatim, not the generic one: %s", (notice) => {
+    const message: ChatMessage = { id: "bridge", role: "assistant", content: "", runStatus: "failed", events: [
+      { kind: "status", label: "starting_model" },
+      { kind: "raw", line: `{"type":"system","subtype":"init","mcp_servers":[{"name":"jini","status":"failed"}]}` },
+      { kind: "status", label: "initializing" },
+      { kind: "status", label: notice },
+      { kind: "status", label: "Run failed — the agent process exited without answering", detail: "exit code 143, signal none, resumable no." },
+      { kind: "status", label: notice },
+    ] };
+    const projected = projectAgentFailureMessage({ message }, {}).events ?? [];
+    expect(projected.at(-1)).toMatchObject({ kind: "ext", name: AGENT_FAILURE_EVENT, data: { reason: notice } });
+    expect(projected.some(event => event.kind === "status" && event.label === GENERIC_AGENT_FAILURE)).toBe(false);
+  });
+
   it("projects only failed turns and keeps projection idempotent", () => {
     const message: ChatMessage = { id: "nine", role: "assistant", content: "saved work", agentId: "gemini", runStatus: "failed", events };
     const projected = projectAgentFailureMessage({ message }, {});
