@@ -245,7 +245,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
   // (`DEFAULT_ALLOWED_MIME_TYPES`, `@jini-ai/cms/media`'s `media-service.ts`) 2026-08-24 but never
   // mirrored into this upload `<input>`'s `accept` attribute or its handle label. Compare with the
   // server contract itself so future changes cannot silently drift again.
-  it("the file picker's accept list matches DEFAULT_ALLOWED_MIME_TYPES", async () => {
+  it("the file picker's accept list matches DEFAULT_ALLOWED_MIME_TYPES minus audio types", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen();
 
@@ -253,7 +253,9 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload");
     const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter(Boolean));
-    expect(accepted).toEqual(DEFAULT_ALLOWED_MIME_TYPES);
+    // audio excluded pending owner decision on audio uploads
+    const expected = new Set([...DEFAULT_ALLOWED_MIME_TYPES].filter((mimeType) => !mimeType.startsWith("audio/")));
+    expect(accepted).toEqual(expected);
   });
 });
 
