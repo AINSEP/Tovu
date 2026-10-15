@@ -17,7 +17,7 @@ export const toolMetadata = {
   },
   "agent_plugins_install": {
     search: {
-      keywords: "agent plugin plugins install add upload attachment zip folder package agent-plugins plugin.json upgrade replace version",
+      keywords: "agent plugin plugins install add upload attachment zip folder bundled bundledId ui-ux-design package agent-plugins plugin.json upgrade replace version",
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },

@@ -18,6 +18,7 @@
     "@ag-ui/client": "^0.0.58",
     "@ag-ui/core": "^0.0.58",
     "@jini-ai/admin": "^0.4.11",
+    "@jini-ai/agent-plugins": "^0.4.6",
     "@jini-ai/agent-runtime": "^0.4.11",
     "@jini-ai/agentic": "^0.4.4",
     "@jini-ai/chat": "^0.6.3",
