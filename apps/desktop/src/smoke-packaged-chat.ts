@@ -65,6 +65,16 @@ function eventsFrom(json: string): Record<string, unknown>[] {
   return value;
 }
 
+/** The packaged daemon writes daemon.log as JSONL (`{"seq":…,"message":"[agent-daemon] …"}`), so
+ *  an end-anchored match on the raw line never sees the message end; 0.1.18's first gate run failed
+ *  on exactly that while the preflight had passed. Plain lines are still accepted as they are. */
+function daemonLogMessages(daemonLog: string): string[] {
+  return daemonLog.split(/\r?\n/).map(line => {
+    try { const entry: unknown = JSON.parse(line); return record(entry) && typeof entry.message === "string" ? entry.message : line; }
+    catch { return line; }
+  });
+}
+
 function rawFrames(events: readonly Record<string, unknown>[]): Record<string, unknown>[] {
   return events.flatMap(event => {
     if (event.kind !== "raw") return [];
@@ -104,7 +114,7 @@ export function assertPackagedChatEvidence(
   const result = events.find(event => event.kind === "tool_result" && event.toolUseId === delegated.id);
   if (!result || result.isError !== false) throw new PackagedChatSmokeError("The delegated site_guide call did not return a successful result.");
   if (row.content.trim() !== "DONE") throw new PackagedChatSmokeError("The packaged chat reply was not exactly DONE.");
-  if (!/^.*\[agent-daemon\] jini bridge preflight ok \(\d+ms\)\s*$/m.test(daemonLog)) {
+  if (!daemonLogMessages(daemonLog).some(message => /^.*\[agent-daemon\] jini bridge preflight ok \(\d+ms\)\s*$/.test(message))) {
     throw new PackagedChatSmokeError("daemon.log has no successful jini bridge preflight.");
   }
 }

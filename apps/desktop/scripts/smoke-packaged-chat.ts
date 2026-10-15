@@ -48,8 +48,20 @@ function groupAlive(pid: number): boolean {
   try { process.kill(-pid, 0); return true; }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+    // macOS answers EPERM for a group whose members are all zombies (0.1.18's gate run hit it), so
+    // ask ps whether any live member is left instead of failing the teardown.
+    if ((error as NodeJS.ErrnoException).code === "EPERM") return liveGroupMember(pid);
     throw error;
   }
+}
+
+function liveGroupMember(pgid: number): boolean {
+  const ps = spawnSync("ps", ["-axo", "pgid=,stat="], { encoding: "utf8" });
+  if (ps.status !== 0) throw new PackagedChatSmokeError("Could not list processes to verify teardown.");
+  return ps.stdout.split("\n").some(line => {
+    const [group, stat] = line.trim().split(/\s+/);
+    return Number(group) === pgid && !stat?.startsWith("Z");
+  });
 }
 
 /** The daemon owns a separate process group. Its private scratch registry survives parent death. */
@@ -68,7 +80,7 @@ async function signalGroupUntilGone(pid: number): Promise<void> {
   for (const signal of ["SIGTERM", "SIGKILL"] as const) {
     if (!groupAlive(pid)) return;
     try { process.kill(-pid, signal); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+    catch (error) { if (!["ESRCH", "EPERM"].includes(String((error as NodeJS.ErrnoException).code))) throw error; }
     for (let attempt = 0; attempt < 50; attempt++) {
       if (!groupAlive(pid)) return;
       await delay(100);
@@ -255,7 +267,12 @@ async function main(): Promise<void> {
         }
         throw new PackagedChatSmokeError("The smoke run did not settle in chat.db.");
       },
-      removeSite: siteDir => rm(siteDir, { recursive: true, force: true }),
+      // The plugin package store writes read-only directories, which rm alone cannot empty.
+      async removeSite(siteDir) {
+        const chmod = spawnSync("chmod", ["-R", "u+w", siteDir], { encoding: "utf8" });
+        if (chmod.status !== 0) throw new PackagedChatSmokeError("Could not make the temporary site writable.");
+        await rm(siteDir, { recursive: true, force: true });
+      },
     } });
   } finally { clearTimeout(runTimer); }
   process.stdout.write("smoke-packaged-chat: PASS (jini connected, site_guide overview returned, DONE; teardown complete)\n");

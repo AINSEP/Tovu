@@ -89,9 +89,18 @@ test("rejects missing/wrong runs, failed status, malformed JSON, wrong reply and
     { ...evidence(), events_json: "{}" }, { ...evidence(), events_json: "[null]" }]) {
     assert.throws(() => assertPackagedChatEvidence({ row, runId: "smoke-run", daemonLog: preflight }), PackagedChatSmokeError);
   }
-  for (const daemonLog of ["", "jini bridge preflight FAILED", "[agent-daemon] jini bridge preflight okay (42ms)"]) {
+  for (const daemonLog of ["", "jini bridge preflight FAILED", "[agent-daemon] jini bridge preflight okay (42ms)",
+    JSON.stringify({ seq: 3, level: "error", message: "[agent-daemon] jini bridge preflight FAILED (exit=1, signal=null): ERR_MODULE_NOT_FOUND" })]) {
     assert.throws(() => assertPackagedChatEvidence({ row: evidence(), runId: "smoke-run", daemonLog }), PackagedChatSmokeError);
   }
+});
+
+test("accepts the preflight line inside the packaged daemon's JSONL log", () => {
+  const daemonLog = [
+    JSON.stringify({ seq: 2, level: "info", source: "daemon", message: "[agent-daemon] listening on http://127.0.0.1:57391" }),
+    JSON.stringify({ seq: 3, level: "info", source: "daemon", message: "[agent-daemon] jini bridge preflight ok (445ms)" }),
+  ].join("\n");
+  assert.doesNotThrow(() => assertPackagedChatEvidence({ row: evidence(), runId: "smoke-run", daemonLog }));
 });
 
 function fakePorts(failures: string[] = []): { ports: PackagedChatSmokePorts; calls: string[] } {
