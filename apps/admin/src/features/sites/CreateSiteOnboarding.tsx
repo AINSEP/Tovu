@@ -310,7 +310,7 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
       <div className="onboarding-card">
         <DetailsSection controller={controller} />
         <div className="onboarding-section">
-          <p className="field-hint">{controller.t("Admin login: admin / tovu-dev — change it later under Users")}</p>
+          <p className="field-hint">{controller.t("Admin login: admin / the default password — change it later under Users")}</p>
           <div className="field">
             <label className="field-label" htmlFor="site-admin-password">{controller.t("Set a different admin password")}</label>
             <input

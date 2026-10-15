@@ -44,13 +44,13 @@ import ts from "typescript";
  * against `SecretSealerPort` specifically. That is a deliberate simplicity/robustness trade-off, not
  * an oversight: a full `ts.Program` + checker resolution would be strictly more precise (it could
  * tell a `SecretSealerPort.seal()` call apart from an unrelated future `.seal()` method on some
- * other type), but building a type-checked program over this monorepo's workspace-linked
- * `@jini-ai/*` packages is slower and more failure-prone than this check needs to be, and — checked
- * at the time this was written (`grep -rn "seal(" apps/website/src`, cross-referenced against every
- * real call site) — `SecretSealerPort.seal` is the ONLY `.seal(` method call anywhere in
- * `apps/website/src` today. The failure direction if that ever stops being true is a FALSE POSITIVE
- * (an unrelated `.seal()` gets flagged and needs an explicit exemption), never a false negative on
- * an actual credential-sealing call — the safe direction for a security gate to fail in.
+ * other type), but building a type-checked program over this monorepo's `@jini-ai/*` packages is
+ * slower and more failure-prone than this check needs to be. Two unrelated methods now exist:
+ * `PluginSourcePort.seal()` and `createPluginContributionCapture()`'s `seal()`. The exclusions below
+ * pin each to its exact repo-relative file, receiver, method AND complete call text (apart from
+ * whitespace). They do not exempt either file or receiver generally: a credential seal added in
+ * either file, even on the same receiver name, still has its arguments checked. Unrecognized calls
+ * remain fail-closed; a changed non-secret call needs review rather than a broader exemption.
  *
  * ## What counts as a violation
  * A matched call whose single argument is an object literal with:
@@ -60,9 +60,10 @@ import ts from "typescript";
  * A matched call whose argument is NOT a single plain object literal — built via a spread, passed
  * as a pre-built variable, or anything else this scan can't statically see into — is fail-closed
  * reported as `"unresolved-argument-shape"` rather than silently treated as compliant. Every one of
- * the 11 real `.seal()` call sites in this codebase today passes a literal object inline, so this
- * fail-closed branch has zero real hits currently; a future call site would have to actively choose
- * a shape this scan can't see through, and gets flagged rather than waved past by default.
+ * the 11 credential `.seal()` call sites checked when this was written passed a literal object
+ * inline, so this fail-closed branch had zero real hits then; a future call site would have to
+ * actively choose a shape this scan can't see through, and gets flagged rather than waved past
+ * by default.
  *
  * `open()` is deliberately NOT covered here: its `aad` stays conditional on each row's own
  * `aadVersion`/`oauthAadVersion` field so legacy pre-migration rows (sealed before this codebase
@@ -71,12 +72,19 @@ import ts from "typescript";
  * path, not catch a bug.
  *
  * Usage: npx tsx apps/website/src/features/webhooks/seal-aad-invariant.ts
- * Exit codes: 0 = every `.seal()` call site under scope supplies `aad`. 1 = at least one does not,
- *             or has a shape this scan can't verify.
+ * Exit codes: 0 = every non-exempt `.seal()` call site under scope supplies `aad`.
+ *             1 = at least one does not, or has a shape this scan can't verify.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..");
 const DEFAULT_SCAN_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
+
+// These Jini plugin lifecycle calls seal source versions/contributions, never credentials.
+// Exact arguments also prevent a SecretSealerPort call on `port` or `capture` from being exempted.
+const NON_SECRET_SEAL_CALLS: Readonly<Record<string, string>> = {
+  "apps/website/src/features/plugin-runtime/source-tools.ts": "port.seal({ id: pluginId }, {})",
+  "apps/website/src/server/runtime/composition/plugin-runtime.ts": "capture.seal({ sdk: scopedSdk })",
+};
 
 function isTestFile(file: string): boolean {
   return /__tests__|\.test\.|\.spec\./.test(file);
@@ -169,6 +177,8 @@ function checkSealCallArguments(
 ): SealViolation | null {
   const line = lineOf(call.getStart(source));
   const text = call.getText(source).replace(/\s+/g, " ").trim();
+
+  if (NON_SECRET_SEAL_CALLS[displayPath] === text) return null;
 
   if (call.arguments.length !== 1 || !ts.isObjectLiteralExpression(call.arguments[0])) {
     return buildSealViolation("unresolved-argument-shape", displayPath, line, text);

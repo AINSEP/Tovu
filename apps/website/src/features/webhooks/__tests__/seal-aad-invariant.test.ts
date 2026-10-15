@@ -92,12 +92,43 @@ test("a pre-built variable argument is fail-closed as unresolved, not silently p
 test("an unrelated .seal( on some other object is still scanned (name-based, not type-resolved) — documented trade-off", () => {
   // Deliberately demonstrates the false-positive direction this scan accepts in exchange for not
   // needing a full type-checked ts.Program — see this file's own header for why that's the safe
-  // direction to fail in. No such call exists in apps/website/src today (verified by grep).
+  // direction to fail in. Only the two exact, documented non-secret calls are exempted.
   const src = `envelope.seal({ contents: x });`;
   const violations = findSealCallsInSource(src, "fixture.ts");
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "missing-aad");
 });
+
+for (const { file, receiver, call } of [
+  { file: "apps/website/src/features/plugin-runtime/source-tools.ts", receiver: "port", call: "port.seal({ id: pluginId }, {})" },
+  { file: "apps/website/src/server/runtime/composition/plugin-runtime.ts", receiver: "capture", call: "capture.seal({ sdk: scopedSdk })" },
+]) {
+  test(`the documented non-secret ${receiver}.seal call is exempt only in ${file}`, () => {
+    assert.deepEqual(findSealCallsInSource(`${call};`, file), []);
+    assert.deepEqual(findSealCallsInSource(`${call};`, "fixture.ts").map(({ text, reason }) => ({ text, reason })), [
+      { text: call, reason: receiver === "port" ? "unresolved-argument-shape" : "missing-aad" },
+    ]);
+    const otherReceiver = call.replace(receiver, "other");
+    assert.deepEqual(findSealCallsInSource(`${otherReceiver};`, file).map(({ text, reason }) => ({ text, reason })), [
+      { text: otherReceiver, reason: receiver === "port" ? "unresolved-argument-shape" : "missing-aad" },
+    ]);
+  });
+
+  test(`secret seals in ${file} still fail closed, including on receiver ${receiver}`, () => {
+    const src = `
+      import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+      declare const ${receiver}: SecretSealerPort;
+      ${receiver}.seal({ plaintext: token, key });
+      ${receiver}.seal(secretInput);
+      deps.sealer.seal({ plaintext: token, key });
+    `;
+    assert.deepEqual(findSealCallsInSource(src, file).map(({ text, reason }) => ({ text, reason })), [
+      { text: `${receiver}.seal({ plaintext: token, key })`, reason: "missing-aad" },
+      { text: `${receiver}.seal(secretInput)`, reason: "unresolved-argument-shape" },
+      { text: "deps.sealer.seal({ plaintext: token, key })", reason: "missing-aad" },
+    ]);
+  });
+}
 
 test("a .open( call is never flagged — this invariant only covers seal()", () => {
   const src = `deps.sealer.open({ sealed: record.sealed });`;

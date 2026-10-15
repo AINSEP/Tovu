@@ -87,7 +87,8 @@ describe("useSites create with tokens", () => {
     await act(async () => result.current.createSite());
 
     await waitFor(() => expect(result.current.createdName).toBe("gamma"));
-    expect(createSite).toHaveBeenCalledWith({ name: "gamma", adminPassword: "tovu-dev" });
+    expect(createSite).toHaveBeenCalledWith({ name: "gamma" });
+    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name"]);
     expect(result.current.createdTokens).toBeNull();
   });
 
@@ -104,7 +105,8 @@ describe("useSites create with tokens", () => {
     await act(async () => result.current.createSite());
 
     await waitFor(() => expect(result.current.createdName).toBe("gamma"));
-    expect(createSite).toHaveBeenCalledWith({ name: "gamma", adminPassword: "tovu-dev", agentPluginTokens: { supabase: "sbp_typed" } });
+    expect(createSite).toHaveBeenCalledWith({ name: "gamma", agentPluginTokens: { supabase: "sbp_typed" } });
+    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name", "agentPluginTokens"]);
     expect(result.current.createdTokens).toEqual({ names: ["Supabase"], note: "will connect when this site first starts." });
     expect(result.current.pluginTokens.fields[0]?.token).toBe("");
   });
@@ -273,7 +275,8 @@ describe("CreateSiteOnboarding inline database disclosures", () => {
     await user.click(screen.getByRole("radio", { name: nextRadio }));
     expect(screen.queryByLabelText("Paste an access token")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Create site" }));
-    await waitFor(() => expect(createSite).toHaveBeenCalledWith({ name: "gamma", adminPassword: "tovu-dev" }));
+    await waitFor(() => expect(createSite).toHaveBeenCalledWith({ name: "gamma" }));
+    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name"]);
     expect(createSite).toHaveBeenCalledTimes(1);
   });
 
@@ -291,7 +294,8 @@ describe("CreateSiteOnboarding inline database disclosures", () => {
     expect(input.value).toBe(" sbp_test_fixture ");
     expect(view.container.textContent).not.toContain("sbp_test_fixture");
     await user.click(screen.getByRole("button", { name: "Create site" }));
-    await waitFor(() => expect(createSite).toHaveBeenCalledWith({ name: "gamma", adminPassword: "tovu-dev", agentPluginTokens: { supabase: "sbp_test_fixture" } }));
+    await waitFor(() => expect(createSite).toHaveBeenCalledWith({ name: "gamma", agentPluginTokens: { supabase: "sbp_test_fixture" } }));
+    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name", "agentPluginTokens"]);
     await waitFor(() => expect(input.value).toBe(""));
     expect(view.container.textContent).not.toContain("sbp_test_fixture");
   });

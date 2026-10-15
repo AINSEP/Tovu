@@ -9,7 +9,7 @@ import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
 import type { SitesPort } from "../hooks/sites-port.hooks";
 
-const DEFAULT_LOGIN = "Admin login: admin / tovu-dev — change it later under Users";
+const DEFAULT_LOGIN = "Admin login: admin / the default password — change it later under Users";
 const CUSTOM_LOGIN = "Admin login: admin / the one you set — change it later under Users";
 const snapshot: AdminSitesSnapshot = {
   switchingEnabled: true, sites: [], persistedSiteName: null,
@@ -37,11 +37,12 @@ function setup() {
 }
 
 describe("new-site admin credentials", () => {
-  it("shows the default login and sends it explicitly, then repeats it in the created-site notice", async () => {
+  it("describes the default login without sending its password, then repeats the guidance in the created-site notice", async () => {
     const { requests, user } = setup();
     await waitFor(() => expect(screen.getByLabelText("Folder name")).toBeEnabled());
     expect(screen.getByText(DEFAULT_LOGIN)).toBeVisible();
     const password = screen.getByLabelText("Set a different admin password");
+    expect(password).toHaveValue("");
     expect(password).toHaveAttribute("type", "password");
     expect(password).toHaveAttribute("autocomplete", "new-password");
     expect(password).toHaveAttribute("minlength", "1");
@@ -49,7 +50,8 @@ describe("new-site admin credentials", () => {
     expect(password).not.toBeRequired();
     await user.type(screen.getByLabelText("Folder name"), "new-site");
     await user.click(screen.getByRole("button", { name: "Create site" }));
-    await waitFor(() => expect(requests).toEqual([{ name: "new-site", adminPassword: "tovu-dev" }]));
+    await waitFor(() => expect(requests).toEqual([{ name: "new-site" }]));
+    expect(Object.keys(requests[0]!)).toEqual(["name"]);
     await waitFor(() => expect(screen.getAllByText(DEFAULT_LOGIN)).toHaveLength(2));
     const notice = screen.getByText("new-site").closest("p")!;
     expect(notice.textContent).toContain(DEFAULT_LOGIN);

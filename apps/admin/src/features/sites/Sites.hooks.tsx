@@ -38,13 +38,13 @@ export function resolveCreateSubmitDisabled(args: {
   return args.creating || !args.switchingEnabled || args.createNameError !== null || args.createName.trim().length === 0;
 }
 
-/** Credential copy contains only the public default or a description, never a custom secret.
+/** Credential copy describes the chosen password without shipping a default or custom secret.
  * @complexity O(1).
  */
 export function resolveCreatedAdminLogin({ customPassword, t }: { customPassword: boolean; t: Translate }, _options: Record<string, never> = {}): string {
   return customPassword
     ? t("Admin login: admin / the one you set — change it later under Users")
-    : t("Admin login: admin / tovu-dev — change it later under Users");
+    : t("Admin login: admin / the default password — change it later under Users");
 }
 
 /** Mask/reveal presentation stays out of the form markup. @complexity O(1). */

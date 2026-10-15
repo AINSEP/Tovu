@@ -82,9 +82,10 @@ describe("useSites — create", () => {
     });
 
     await waitFor(() => expect(result.current.createdName).toBe("gamma"));
-    expect(createSite).toHaveBeenCalledWith({ name: "gamma", adminPassword: "tovu-dev" });
+    expect(createSite).toHaveBeenCalledWith({ name: "gamma" });
     // Hidden creation (R1f): the admin never sends a storage choice; only `tovu init --storage` sets one.
-    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name", "adminPassword"]);
+    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name"]);
+    expect(result.current.createdAdminLogin).toBe("Admin login: admin / the default password — change it later under Users");
     expect(result.current.createName).toBe("");
     await waitFor(() => expect(result.current.sites).toEqual([...snapshotFixture().sites, gamma]));
   });

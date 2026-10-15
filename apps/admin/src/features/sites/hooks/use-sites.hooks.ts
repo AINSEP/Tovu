@@ -128,7 +128,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const [createdTokens, setCreatedTokens] = useState<{ names: string[]; note: string } | null>(null);
 
   const createMutation = useFetchMutation({
-    run: ({ input }: { input: { name: string; adminPassword: string; agentPluginTokens?: Record<string, string> } }) => port.createSite(input),
+    run: ({ input }: { input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> } }) => port.createSite(input),
   }, {
     invalidates: [KEYS.list],
   });
@@ -193,13 +193,14 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     setCreatedTokens(null);
     setCreatedAdminLogin(null);
     const agentPluginTokens = pluginTokens.tokensForCreate();
-    const password = adminPassword === "" ? "tovu-dev" : adminPassword;
+    // An omitted password uses the server-owned default; never ship that credential in the bundle.
+    const passwordInput = adminPassword === "" ? {} : { adminPassword };
     const customPassword = adminPassword !== "";
     // `.catch` is required even though `mutate` itself never raises `unhandledrejection` (see
     // `MutationResult.mutate`'s own doc): `.then` above it produces a NEW promise, and that one
     // has no handler of its own. The failure is reported through `createMutation.error`.
     createMutation
-      .mutate({ input: agentPluginTokens ? { name, adminPassword: password, agentPluginTokens } : { name, adminPassword: password } })
+      .mutate({ input: agentPluginTokens ? { name, ...passwordInput, agentPluginTokens } : { name, ...passwordInput } })
       .then((result) => {
         setCreatedName(result.site.name);
         setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, t }));
