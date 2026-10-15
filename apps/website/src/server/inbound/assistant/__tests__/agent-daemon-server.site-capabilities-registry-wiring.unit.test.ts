@@ -8,6 +8,9 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
+import { ALL_CHAT_DELETE_TOOLS, createChatDeleteScope } from "#src/assistant/permanent-delete-tool-gate";
+import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
+import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -18,7 +21,8 @@ import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
 
 /**
  * @file Wiring proof that the agent daemon hands `site_describe_capabilities` a reader over its OWN
- * live `ToolRegistry` — the same `registry` its `search_tools`/`describe_tool` routes snapshot.
+ * live `ToolRegistry` through `visibleRegistry`, which hides ungranted permanent deletes before
+ * discovery, matching the policy applied to `search_tools`/`describe_tool`.
  *
  * Reads the SOURCE rather than importing the file, for the reason every sibling
  * `agent-daemon-server.*-wiring.unit.test.ts` gives: importing it opens a real database and binds a
@@ -47,8 +51,8 @@ describe("site_describe_capabilities registry wiring in the agent daemon", () =>
 
     assert.match(
       callBody,
-      /listCatalogTools\s*:\s*\(\)\s*=>\s*listToolCatalogEntries\(registry\)/,
-      "the daemon must pass listCatalogTools: () => listToolCatalogEntries(registry) — without it site_describe_capabilities reports tools 'not-wired'",
+      /listCatalogTools\s*:\s*\(\)\s*=>\s*listToolCatalogEntries\(visibleRegistry\)/,
+      "the daemon must pass listCatalogTools: () => listToolCatalogEntries(visibleRegistry) — without it site_describe_capabilities reports tools 'not-wired'",
     );
 
     const registryDeclaration = DAEMON_ENTRY_SOURCE.indexOf("const registry = createToolRegistry({});");
@@ -69,9 +73,15 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   await routeDeps.identityReady;
   const ownerId = await routeDeps.ownerPrincipalId;
   const registry = createToolRegistry({});
+  const deleteScope = evaluateDaemonExpression<ReturnType<typeof createChatDeleteScope>>(
+    daemonInitializer("deleteScope"), { routeDeps, createChatDeleteScope, readAssistantPermanentDeletesPolicy },
+  );
+  const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(
+    daemonInitializer("visibleRegistry"), { registry, deleteScope, isChatToolAllowed },
+  );
   const registrations = evaluateDaemonExpression<ReturnType<typeof buildAssistantToolRegistrations>>(
     daemonInitializer("assistantRegistrations"),
-    { routeDeps, registry, contributions, listToolCatalogEntries, buildAssistantToolRegistrations, createNativeApprovalMemory,
+    { routeDeps, registry, visibleRegistry, contributions, listToolCatalogEntries, buildAssistantToolRegistrations, createNativeApprovalMemory, ALL_CHAT_DELETE_TOOLS,
       liveRunTracker: createLiveRunTracker({}, {}),
       magicLinkPerEmailLimiter: {}, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   );
@@ -90,5 +100,9 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   assert.equal(tools.status, "ok");
   const ids = tools.data.domains.flatMap((domain) => domain.tools.map((tool) => tool.id));
   assert.ok(ids.includes("audit_distinctive_late_tool"));
-  assert.deepEqual([...ids].sort(), registry.list({}).map((tool) => tool.id).sort());
+  assert.deepEqual([...ids].sort(), visibleRegistry.list({}).map((tool) => tool.id).sort());
+  assert.ok(registry.has({ toolId: "trash_empty" }), "the inner registry must retain the permanent-delete handler");
+  for (const toolId of ALL_CHAT_DELETE_TOOLS.allowedToolIds) {
+    assert.equal(ids.includes(toolId), false, `${toolId} must stay hidden without a chat-delete grant`);
+  }
 });
