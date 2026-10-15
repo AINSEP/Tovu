@@ -6,6 +6,8 @@ argument-hint: "[new: theme id, tier static|templated|declarative, authored|comp
 
 # Tovu themes: make a new one, convert an existing static site, or match a reference site
 
+**Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
+
 This plugin covers three jobs that share one theme format:
 
 - **Job A — a new theme** (Part A below): by default a `theme_duplicate` copy of a working

@@ -12,7 +12,7 @@ test('asset-only refresh replaces stale plugin catalogs without invoking a compi
     mkdirSync(path.join(repoRoot, 'apps/website/src/platform/db/drizzle'), { recursive: true });
     mkdirSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site'), { recursive: true });
     writeFileSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site/plugin.json'), 'retired');
-    for (const id of ['site-import', 'tovu-theme', 'how-tovu-works']) {
+    for (const id of ['site-import', 'tovu-theme', 'how-tovu-works', 'ui-ux-design']) {
       mkdirSync(path.join(repoRoot, 'content/agent-plugins', id, 'skills', id), { recursive: true });
       writeFileSync(path.join(repoRoot, 'content/agent-plugins', id, 'plugin.json'), id);
       writeFileSync(path.join(repoRoot, 'content/agent-plugins', id, 'skills', id, 'SKILL.md'), `# ${id}`);
@@ -22,7 +22,7 @@ test('asset-only refresh replaces stale plugin catalogs without invoking a compi
     stageServerRuntimeAssets({ repoRoot });
     assert.equal(readFileSync(path.join(repoRoot, 'dist/content/plugins/charts-recharts/0.1.0/client/provider.js'), 'utf8'), 'reviewed provider');
     assert.equal(existsSync(path.join(repoRoot, 'dist/content/agent-plugins/tovuize-site')), false);
-    for (const id of ['site-import', 'tovu-theme', 'how-tovu-works']) {
+    for (const id of ['site-import', 'tovu-theme', 'how-tovu-works', 'ui-ux-design']) {
       assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins', id, 'plugin.json'), 'utf8'), id);
       assert.equal(readFileSync(path.join(repoRoot, 'dist/content/agent-plugins', id, 'skills', id, 'SKILL.md'), 'utf8'), `# ${id}`);
     }

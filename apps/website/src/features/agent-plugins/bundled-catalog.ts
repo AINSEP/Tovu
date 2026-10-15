@@ -21,8 +21,11 @@
  * `site-import` hands its theme step to this skill, so it must be on wherever `site-import` is; it
  * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
  * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
+ * `ui-ux-design` (owner, 2026-10-14): theme/page/import work must load the design skill first, so it
+ * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
+ * untouched disabled seed. An operator's explicit off decision still survives later boots.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a

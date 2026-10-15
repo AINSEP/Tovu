@@ -148,7 +148,7 @@
       "id": "how-tovu-works-themes",
       "title": "Themes",
       "summary": "Use the active theme contracts, layouts and markers.",
-      "explanation": "Themes present site content; they do not own form persistence, member authorization or content CRUD. Read installed/active theme facts and the current marker/layout registry. A single-quoted data-embed-config attribute carries JSON describing an existing content, form, widget, menu or partial target. Use only reported marker types. Duplicate the theme, inspect its actual files and preview changes before the owner approves activation. Ask the host for another plugin capability rather than importing another plugin.",
+      "explanation": "Themes present site content; they do not own form persistence, member authorization or content CRUD. Before creating pages or themes, load the ui-ux-design skill first with agent_plugin_ui_ux_design({\"skill\":\"ui-ux-design\"}) and follow its guidance. Read installed/active theme facts and the current marker/layout registry. A single-quoted data-embed-config attribute carries JSON describing an existing content, form, widget, menu or partial target. Use only reported marker types. Duplicate the theme, inspect its actual files and preview changes before the owner approves activation. Ask the host for another plugin capability rather than importing another plugin.",
       "permissions": [
         "theme.set"
       ],

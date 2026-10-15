@@ -61,6 +61,20 @@ function unknownToolIds(name: string, ids: Iterable<string>, declared: ReadonlyS
 
 const themeSkill = () => readFile(path.join(THEME_SKILL_DIR, "SKILL.md"), "utf8");
 
+test("tovu-theme and site-import load ui-ux-design before designing themes or writing page layouts", async () => {
+  for (const dir of [THEME_SKILL_DIR, IMPORT_SKILL_DIR]) {
+    const skill = await readFile(path.join(dir, "SKILL.md"), "utf8");
+    const instruction = '**Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})`';
+    const position = skill.indexOf(instruction);
+    assert.ok(position >= 0 && position < skill.indexOf("\n## "), `${dir}: load design before the procedure`);
+  }
+  const guide = await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "skills", "how-tovu-works", "SKILL.md"), "utf8");
+  assert.ok(guide.includes('Before creating pages or themes, load the design guidance first with `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})`'));
+  const topics = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8"));
+  assert.ok(topics.topics.find((topic: { id: string }) => topic.id === "how-tovu-works-themes")?.explanation
+    .includes('Before creating pages or themes, load the ui-ux-design skill first with agent_plugin_ui_ux_design({"skill":"ui-ux-design"})'));
+});
+
 test("Part C discovers the active theme through the site profile, rather than treating the theme list as an active id", async () => {
   const skill = await themeSkill();
   assert.ok(skill.slice(skill.indexOf('1. **Pick the source.**'), skill.indexOf('2. **Duplicate it:**')).includes('`site_get_profile { sections: ["theme"] }`'));
