@@ -39,4 +39,15 @@ describe("phone touch targets are 44px", () => {
     const selector = `${SCOPE} input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"])`;
     expect(phoneDeclarations(selector)).toEqual({ "min-height": "44px" });
   });
+
+  // Regression: the ring was `inset: -10px -4px`, which from the 36x20 / 34x20 padding boxes left
+  // both switches 40px tall (measured 38x22 visible track at 375px on Add-ons).
+  it("rings the pill switches with an invisible hit area at least 44px each way", () => {
+    const ring = phoneDeclarations(':is(.agent-plugin-switch, .theme-explore-switch)::before');
+    expect(ring).toEqual({ content: '""', position: "absolute", inset: "-12px -5px" });
+    const [block, inline] = ring.inset!.split(" ").map((value) => -Number.parseFloat(value));
+    // Smallest padding box the ring wraps: the theme-explore switch's 34x20.
+    expect(20 + 2 * block!).toBeGreaterThanOrEqual(44);
+    expect(34 + 2 * inline!).toBeGreaterThanOrEqual(44);
+  });
 });

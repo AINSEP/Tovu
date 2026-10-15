@@ -6688,8 +6688,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     display: inline-block; padding-block: 13px; margin-block: -13px;
   }
   /* The pill switches keep their drawn 38x22 / 34x20 track; an invisible ring around it takes
-     the tap (P-3 deliberately left `[role="switch"]` out of the min-height floor). */
-  :is(.agent-plugin-switch, .theme-explore-switch)::before { content: ""; position: absolute; inset: -10px -4px; }
+     the tap (P-3 deliberately left `[role="switch"]` out of the min-height floor). The ring is
+     measured from the padding box (36x20 inside the agent switch's 1px border), so -12px -5px
+     makes it 46x44 / 44x44; -10px -4px left both short of 44 tall. */
+  :is(.agent-plugin-switch, .theme-explore-switch)::before { content: ""; position: absolute; inset: -12px -5px; }
 
 }
 
