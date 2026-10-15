@@ -1225,6 +1225,25 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
     return { port, publish, sourceControl, custom };
   }
 
+  // Pins use-access-tokens.hooks.ts:746 — rows?.length ?? 0 while the initial lists are pending.
+  it("reports zero counts while loading, then counts both saved credentials after the lists resolve", async () => {
+    const initial = pendingInitialPort();
+    const { result } = renderHook(() => useAccessTokens(initial.port, T, "en"), { wrapper });
+
+    expect(result.current.groups).toBeUndefined();
+    expect(result.current.totalCount).toBe(0);
+    expect(result.current.matchCount).toBe(0);
+
+    await act(async () => {
+      initial.publish.resolve({ credentials: [publishCredential()], executionMode: "self-hosted-cli" });
+      initial.sourceControl.resolve({ credentials: [sourceControlCredential()] });
+      initial.custom.resolve({ credentials: [] });
+    });
+
+    await waitFor(() => expect(result.current.totalCount).toBe(2));
+    expect(result.current.matchCount).toBe(2);
+  });
+
   it("createToken evaluates the addForms-not-yet-created fallback and exits via readyToSave when nothing was ever typed", async () => {
     const create = vi.fn();
     const port = neverResolvingPort({ publish: { create } });
