@@ -41,9 +41,10 @@ describe("phone touch targets are 44px", () => {
   });
 
   // Regression: the ring was `inset: -10px -4px`, which from the 36x20 / 34x20 padding boxes left
-  // both switches 40px tall (measured 38x22 visible track at 375px on Add-ons).
+  // both switches 40px tall (measured 38x22 visible track at 375px on Add-ons). The AI Assistant
+  // visitor switch (also a 36x20 padding box) had no ring at all until it joined the same list.
   it("rings the pill switches with an invisible hit area at least 44px each way", () => {
-    const ring = phoneDeclarations(':is(.agent-plugin-switch, .theme-explore-switch)::before');
+    const ring = phoneDeclarations(':is(.agent-plugin-switch, .theme-explore-switch, .assistant-toggle--switch input[role="switch"])::before');
     expect(ring).toEqual({ content: '""', position: "absolute", inset: "-12px -5px" });
     const [block, inline] = ring.inset!.split(" ").map((value) => -Number.parseFloat(value));
     // Smallest padding box the ring wraps: the theme-explore switch's 34x20.
