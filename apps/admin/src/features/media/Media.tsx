@@ -1163,26 +1163,29 @@ function MediaLibraryPanel(
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
-      {/* Two entry points side by side (owner item #9, 2026-10-13); each button owns its dialog. */}
-      <div className="toolbar media-actions">
-        <MediaToolbar
-          fileInputRef={fileInputRef}
-          altDraft={altDraft}
-          setAltDraft={setAltDraft}
-          selectedFileName={selectedFileName}
-          onFileChange={onFileChange}
-          upload={upload}
-          uploading={uploading}
-          uploadOpen={uploadOpen}
-          openUpload={openUpload}
-          closeUpload={closeUpload}
-          uploadError={uploadError}
-          canUpload={canUpload}
-          t={t}
-        />
-        <RemoteImageImport t={t} />
+      {/* One row: "Order by" on the left, the two entry points (owner item #9, 2026-10-13) pushed to
+          the right edge. Each button owns its dialog. */}
+      <div className="toolbar media-order-row">
+        <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
+        <div className="media-actions">
+          <MediaToolbar
+            fileInputRef={fileInputRef}
+            altDraft={altDraft}
+            setAltDraft={setAltDraft}
+            selectedFileName={selectedFileName}
+            onFileChange={onFileChange}
+            upload={upload}
+            uploading={uploading}
+            uploadOpen={uploadOpen}
+            openUpload={openUpload}
+            closeUpload={closeUpload}
+            uploadError={uploadError}
+            canUpload={canUpload}
+            t={t}
+          />
+          <RemoteImageImport t={t} />
+        </div>
       </div>
-      <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
 
       {/* `key` on `EditMediaPanel` INSIDE `EditMediaModal` (2026-08-12 audit round 2, blocker F1 —
           domain 4, writing to the wrong record; the modal wrapper added 2026-09-07 does not change
