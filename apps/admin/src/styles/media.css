@@ -446,11 +446,13 @@
 .media-upload-dialog, .media-import-dialog { --admin-dialog-width: 30rem; }
 .media-file-field { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .media-file-name { color: var(--fg-2); font-size: var(--text-sm); overflow-wrap: anywhere; min-width: 0; }
-/* Phones (and a desktop pane squeezed by the nav + dock): the two buttons share the row equally,
-   each a full touch target; a long translated label wraps inside its button. */
+/* Phones (and a desktop pane squeezed by the nav + dock): the buttons keep the natural width they
+   have on desktop, NOT equal stretched halves of the row (owner, 2026-10-14: "the buttons should
+   not grow like this... they should stay this size"). They stay right-aligned (`margin-left: auto`
+   from the base rule) and wrap under "Order by" when the pane is too narrow for both; a label
+   wider than the pane wraps inside its button instead of overflowing (`max-width: 100%`). */
 @container admin-content (max-width: 620px) {
-  .media-actions { flex: 1 1 100%; margin-left: 0; }
-  .media-actions > button { flex: 1 1 0; min-width: 0; min-height: 44px; white-space: normal; }
+  .media-actions > button { min-height: 44px; max-width: 100%; white-space: normal; }
 }
 /* Phones: one card per row, full filename (owner, 2026-10-07). The two-column grid below 480px
    (ME-3, 2026-10-06, chosen to shorten the scroll) left ~160px cards: filenames cut to
