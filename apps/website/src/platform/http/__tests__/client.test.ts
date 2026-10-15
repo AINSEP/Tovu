@@ -87,13 +87,20 @@ for (const [target, sameOrigin] of [["https://example.com:8443/next", false], ["
       { status: 200, headers: {}, bodyText: "final" },
     ]);
     const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["https", "http"] }) });
-    const headers = { Authorization: "Bearer secret", Cookie: "session=secret", "X-Kept": "yes" };
+    const headers = {
+      Authorization: "Bearer secret", Cookie: "session=secret", "X-Kept": "yes", "X-Api-Key": "fixture-key",
+      Accept: "application/json", "accept-language": "en", "USER-AGENT": "RedirectTest/1.0",
+    };
     await client.send(makeRequest({ headers }));
     assert.equal(transport.calls.length, 2);
     const sent = transport.calls[1]!.req.headers;
     assert.equal(sent.Authorization, sameOrigin ? headers.Authorization : undefined);
     assert.equal(sent.Cookie, sameOrigin ? headers.Cookie : undefined);
-    assert.equal(sent["X-Kept"], "yes");
+    assert.equal(sent["X-Kept"], sameOrigin ? headers["X-Kept"] : undefined);
+    assert.equal(sent["X-Api-Key"], sameOrigin ? headers["X-Api-Key"] : undefined);
+    assert.deepEqual(sent, sameOrigin ? headers : {
+      Accept: headers.Accept, "accept-language": headers["accept-language"], "USER-AGENT": headers["USER-AGENT"],
+    });
   });
 }
 
@@ -464,7 +471,10 @@ test("a cross-origin redirect to an allowed host strips Authorization/Cookie bef
   const response = await client.send(
     makeRequest({
       url: "https://example.com/",
-      headers: { Authorization: "Bearer secret", AUTHORIZATION: "Bearer uppercase", Cookie: "session=secret", cookie: "other=secret", "X-Kept": "yes" },
+      headers: {
+        Authorization: "Bearer secret", AUTHORIZATION: "Bearer uppercase", Cookie: "session=secret", cookie: "other=secret",
+        "X-Kept": "yes", "x-api-key": "fixture-key", accept: "application/json", "Accept-Language": "en", "User-Agent": "RedirectTest/1.0",
+      },
     })
   );
 
@@ -474,7 +484,11 @@ test("a cross-origin redirect to an allowed host strips Authorization/Cookie bef
   assert.equal(transport.calls[1].req.headers.AUTHORIZATION, undefined);
   assert.equal(transport.calls[1].req.headers.Cookie, undefined);
   assert.equal(transport.calls[1].req.headers.cookie, undefined);
-  assert.equal(transport.calls[1].req.headers["X-Kept"], "yes");
+  assert.equal(transport.calls[1].req.headers["X-Kept"], undefined);
+  assert.equal(transport.calls[1].req.headers["x-api-key"], undefined);
+  assert.deepEqual(transport.calls[1].req.headers, {
+    accept: "application/json", "Accept-Language": "en", "User-Agent": "RedirectTest/1.0",
+  });
 });
 
 test("stops following redirects once maxRedirects is exhausted", async () => {

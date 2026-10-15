@@ -22,18 +22,20 @@ import { MCP_UI_SANDBOX_PROXY_PATH, registerMcpUiSandboxProxyRoute } from "../mc
  * `AssistantDock.tsx` USED TO name this route's path directly (`new URL("/mcp-ui/sandbox-proxy.html",
  * globalThis.location.origin)`), and an earlier version of this file pinned that hardcode by reading
  * `AssistantDock.tsx` off disk. The 2026-09-03 admin-origin-authority fix moved the admin dock onto
- * `buildAssistantMcpUiSandboxProxyUrl` (a `data:` URL) instead — see this route's own module doc's
- * "Superseded" section — so that pinning no longer applies to this route at all. The test below
+ * `buildAssistantMcpUiSandboxProxyUrl` (a `data:` URL) instead — see this route's own module doc —
+ * so that pinning no longer applies to this route at all. The test below
  * replaces it: it pins that `AssistantDock.tsx` does NOT reintroduce the same-origin hardcode, reading
  * `AssistantDock.tsx` off disk for the same reason the old pinning did (no shared module either side
- * can import a literal from).
+ * can import a literal from). Since 2bed72a13 the dock's owned renderer hook builds that URL;
+ * check the hook and its provider wiring too so moving registration cannot hide a regression.
  */
 
-/** The one place a same-origin hardcode of this route's path would reappear if the admin dock's fix
- *  ever regressed; there is no module `apps/website` can import from `apps/admin` to check this via
- *  types instead. */
+/** Website cannot import admin runtime modules; inspect the dock and its renderer owner directly. */
 const ASSISTANT_DOCK_PATH = fileURLToPath(
   new URL("../../../../../apps/admin/src/components/AssistantDock/AssistantDock.tsx", import.meta.url),
+);
+const ASSISTANT_DOCK_RENDERER_PATH = fileURLToPath(
+  new URL("../../../../../apps/admin/src/components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts", import.meta.url),
 );
 
 function buildApp(): express.Express {
@@ -48,18 +50,23 @@ test("MCP_UI_SANDBOX_PROXY_PATH is unchanged", () => {
 
 test("AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix", () => {
   const dockSource = readFileSync(ASSISTANT_DOCK_PATH, "utf8");
+  const rendererSource = readFileSync(ASSISTANT_DOCK_RENDERER_PATH, "utf8");
 
   assert.ok(
-    !/new URL\("([^"]+)", globalThis\.location\.origin\)/.test(dockSource),
+    !/new URL\("([^"]+)", globalThis\.location\.origin\)/.test(dockSource + rendererSource),
     "AssistantDock.tsx has reintroduced a same-origin sandboxProxyUrl hardcode — this is exactly the " +
       "admin-origin-authority gap the 2026-09-03 fix closed (see mcp-ui-sandbox-proxy-route.ts's " +
-      "module doc's Superseded section); it must build sandboxProxyUrl via " +
+      "module doc); it must build sandboxProxyUrl via " +
       "buildAssistantMcpUiSandboxProxyUrl (a data: URL) instead",
   );
   assert.ok(
-    dockSource.includes("buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin)"),
-    "AssistantDock.tsx must build sandboxProxyUrl via buildAssistantMcpUiSandboxProxyUrl",
+    rendererSource.includes("const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);"),
+    "the dock's renderer owner must build sandboxProxyUrl via buildAssistantMcpUiSandboxProxyUrl",
   );
+  assert.ok(rendererSource.includes("sandboxProxyUrl: assistantMcpUiSandboxProxyUrl,"));
+  assert.ok(dockSource.includes('import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";'));
+  assert.ok(dockSource.includes("const renderers = useDockRendererRegistry();"));
+  assert.ok(dockSource.includes("extEventRendererRegistry={renderers.registry}"));
 });
 
 test("GET returns 200, html content-type, and the exact SANDBOX_PROXY_HTML body", async (t) => {
@@ -133,6 +140,7 @@ test("executing the served sandbox script rejects foreign windows and origins an
   const scripts = [...body.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
   assert.ok(scripts.length > 0, "the served page must install its message listener");
   const listeners: Array<(event: { source: unknown; origin: string; data: unknown }) => void> = [];
+  const clickListeners: typeof listeners = [];
   const writes: string[] = [];
   const documentCalls: string[] = [];
   const notifications: Array<{ message: unknown; origin: string }> = [];
@@ -142,6 +150,8 @@ test("executing the served sandbox script rejects foreign windows and origins an
       parent: host,
       location: { origin: baseUrl },
       addEventListener: (type: string, listener: typeof listeners[number]) => {
+        // Jini 3ed61633 installs link forwarding after trusted HTML replaces the document.
+        if (type === "click") { clickListeners.push(listener); return; }
         assert.equal(type, "message");
         listeners.push(listener);
       },
@@ -165,7 +175,9 @@ test("executing the served sandbox script rejects foreign windows and origins an
   }
   assert.deepEqual(documentCalls, [], "untrusted messages must not open or write the document");
   assert.deepEqual(writes, []);
+  assert.equal(clickListeners.length, 0, "untrusted messages must not install guest link forwarding");
   for (const listener of listeners) listener({ source: host, origin: baseUrl, data });
   assert.deepEqual(documentCalls, ["open", "write", "close"]);
   assert.deepEqual(writes, ["<p>trusted resource</p>"]);
+  assert.equal(clickListeners.length, 1, "trusted content installs the guest link forwarder");
 });
