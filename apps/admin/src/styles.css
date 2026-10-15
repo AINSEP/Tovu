@@ -3746,6 +3746,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    fit dialog, growing content" problem. */
 .sitemap-modal-body { display: flex; flex-direction: column; gap: var(--space-3); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .sitemap-modal-filter { width: 100%; }
+/* Phone: the two columns cut "Last modified" off at the dialog's right edge (375px), so each row
+   stacks its date under its URL in one column and the header row goes. */
+@media (max-width: 640px) {
+  .sitemap-modal .list-table thead { display: none; }
+  .sitemap-modal .list-table tr,
+  .sitemap-modal .list-table td { display: block; }
+  .sitemap-modal .list-table td { border-bottom: none; overflow-wrap: anywhere; }
+  .sitemap-modal .list-table td:first-child { padding-bottom: var(--space-1); }
+  .sitemap-modal .list-table td + td { padding-top: 0; font-size: var(--text-xs); color: var(--muted); }
+  .sitemap-modal .list-table tbody tr + tr { border-top: 1px solid var(--border); }
+}
 .sitemap-modal-raw {
   margin: 0; padding: var(--space-3); background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--r-md); font-family: var(--font-mono, monospace); font-size: var(--text-xs);
