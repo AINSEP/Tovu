@@ -36,7 +36,8 @@ find the existing one first.
    `main` runs `fly-deploy.yml` and deploys tovu.dev, so push `main` first only when a site
    deploy is also authorized. Otherwise push only the tag; the draft step omits `--target` for
    an existing tag (d69e7eed4). If it still 403s ("Resource not accessible by integration"),
-   create the draft locally with `gh release create --draft` from the run's artifacts.
+   create the draft locally with `gh release create --draft` from the run's artifacts,
+   only after the local packaged-chat gate below passes.
 3. Wait for three green builds (one per platform target).
 4. Download the draft release's artifacts and smoke-test each one before publishing.
    Run the desktop journeys against the downloaded packaged app from the repo root:
@@ -95,6 +96,34 @@ installs when the LAST copy quits (installing replaces the app files the others 
 "Restart to update" with other copies open says so instead of restarting.
 7. Testers report problems as GitHub Issues on this repo. Point them at the exact asset name
    and version they installed.
+
+## Local release-chain smoke, before the draft
+
+After the local package and notarization steps, run the native/import and bridge handshake
+smokes (Layers 1 and 2), then this Layer 3 gate on the owner's Mac with its logged-in Claude CLI:
+
+```sh
+cd apps/desktop
+npm run smoke:packaged-chat -- --platform-dir release/mac-arm64
+```
+
+Choose the unpacked `mac*` directory for this machine's CPU (`release/mac` for the x64 layout).
+The script takes `ADS-memory/.local-artifacts/test-lock` itself; do not wrap it in another lock.
+It initializes a temporary site with the shipped CLI, launches the packaged server, redeems its
+boot token, and sends one real `/api/runs` chat request using Haiku from the live Claude picker.
+The server uses the shell's free-port allocator because the shipped CLI rejects `--port 0`.
+This costs one model-backed run. It verifies jini connected in the init frame, a successful
+delegated `site_guide` overview call, a `succeeded` durable run, the exact `DONE` reply, and
+`jini bridge preflight ok` in the site's daemon log. The SQL joins
+`assistant_run_attempts.attempt_base_json` (recovery baseline) with `ai_chat_messages.events_json`
+and `run_status` (this attempt's live projection); a first attempt's baseline is empty.
+
+The gate stops the server group and detached daemon/CLI descendants, verifies exit, removes the
+temporary site, and releases the lock, including on failure or Ctrl-C. It prints no credentials or
+transcript. Any nonzero exit blocks draft creation: **fail = no draft**. In the autonomous local
+release chain, this is the `smoke` step after package/notarize and before the draft-publish stop.
+Keep it local; CI runners have no logged-in Claude. This does not replace the artifact journeys
+or either earlier smoke layer.
 
 ## Corrupt-build warning
 

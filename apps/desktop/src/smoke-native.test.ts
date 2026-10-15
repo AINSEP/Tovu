@@ -205,6 +205,16 @@ test("the generated script is syntactically valid JavaScript (constructible, nev
 
 // --- buildEntryLoadScript / parseEntryLoadOutput: static import graph of the packaged entries ----
 
+test("the entry-load script names all five shipped process entries", () => {
+  const script = buildEntryLoadScript("/packaged/Resources");
+  assert.ok(script.includes('require(join(asar, "package.json")).main'));
+  assert.ok(script.includes('require(join(tovu, "dist", "runtime-manifest.json")).cliEntry'));
+  for (const root of ["tovu", "asar"]) {
+    assert.ok(script.includes(`join(dirname(createRequire(join(${root}, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js")`));
+  }
+  assert.ok(script.includes('join(asar, "bin", "mcp-bridge.ts")'));
+});
+
 test("the entry-load script reports every unresolvable static import without evaluating any module", () => {
   const resources = mkdtempSync(path.join(tmpdir(), "smoke-entry-"));
   const write = (file: string, content: string) => {
@@ -217,6 +227,12 @@ test("the entry-load script reports every unresolvable static import without eva
   write("app.asar/node_modules/present/index.js", `import "absent-peer"; export const value = 1;`);
   write("tovu/dist/runtime-manifest.json", JSON.stringify({ cliEntry: "dist/cli.mjs" }));
   write("tovu/dist/cli.mjs", `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(marker)}, "x");`);
+  for (const root of ["app.asar", "tovu"]) {
+    write(`${root}/node_modules/@jini-ai/mcp/package.json`, JSON.stringify({ name: "@jini-ai/mcp", type: "module", exports: "./dist/index.js" }));
+    write(`${root}/node_modules/@jini-ai/mcp/dist/index.js`, "export {};");
+    write(`${root}/node_modules/@jini-ai/mcp/dist/bin/serve.js`, "export {};");
+  }
+  write("app.asar/bin/mcp-bridge.ts", "export {};");
   const run = () => spawnSync(process.execPath, ["-e", buildEntryLoadScript(resources)], { cwd: resources, encoding: "utf8", timeout: 5000 });
   try {
     write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; export default [app, value];`);
@@ -231,6 +247,15 @@ test("the entry-load script reports every unresolvable static import without eva
     assert.equal(passing.status, 0, passing.stderr);
     assert.deepEqual(parseEntryLoadOutput(passing.stdout), { ok: true, unresolved: [] });
     assert.equal(existsSync(marker), false, "no entry body may run");
+    for (const root of ["app.asar", "tovu"]) {
+      const bridge = `${root}/node_modules/@jini-ai/mcp/dist/bin/serve.js`;
+      write(bridge, 'import "missing-bridge-peer";');
+      const brokenBridge = parseEntryLoadOutput(run().stdout);
+      assert.equal(brokenBridge.ok, false);
+      assert.equal(brokenBridge.unresolved.length, 1);
+      assert.match(brokenBridge.unresolved[0]!, /^missing-bridge-peer \(from file:.*serve\.js\): ERR_MODULE_NOT_FOUND$/);
+      write(bridge, "export {};");
+    }
     rmSync(path.join(resources, "tovu/dist/cli.mjs"));
     assert.match(parseEntryLoadOutput(run().stdout).unresolved.join("\n"), /cli\.mjs: nothing loaded/);
     rmSync(path.join(resources, "app.asar/package.json"));

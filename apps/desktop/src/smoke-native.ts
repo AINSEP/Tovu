@@ -189,9 +189,10 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
 }
 
 /**
- * Builds the inline script that proves every STATIC import reachable from the two packaged entry
+ * Builds the inline script that proves every STATIC import reachable from the packaged entry
  * points resolves inside the shipped tree: the shell's `app.asar` `main` and the staged server's
- * `cliEntry` (`tovu/dist/runtime-manifest.json`). 0.1.15 shipped a shell that died at launch with
+ * `cliEntry` (`tovu/dist/runtime-manifest.json`), both Jini bridges and the desktop sites bridge.
+ * 0.1.15 shipped a shell that died at launch with
  * ERR_MODULE_NOT_FOUND (`@jini-ai/agent-runtime` statically imported `@jini-ai/oauth`, an optional
  * peer nothing installed), and every byte/native check above passed, because a dev checkout's
  * upward `node_modules` walk always finds the package. Nothing is evaluated: a resolve hook records
@@ -208,14 +209,18 @@ export function buildEntryLoadScript(resourcesDir: string): string {
 (async () => {
   const unresolved = [];
   try {
-    const { registerHooks } = require("node:module");
+    const { registerHooks, createRequire } = require("node:module");
     const { pathToFileURL } = require("node:url");
-    const { join } = require("node:path");
+    const { join, dirname } = require("node:path");
     const asar = join(${JSON.stringify(resourcesDir)}, "app.asar");
     const tovu = join(${JSON.stringify(resourcesDir)}, "tovu");
     const entries = [
       join(asar, require(join(asar, "package.json")).main),
       join(tovu, require(join(tovu, "dist", "runtime-manifest.json")).cliEntry),
+      // Match mcp-injection.ts: the exports map exposes the root, not the bin subpath.
+      join(dirname(createRequire(join(tovu, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
+      join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
+      join(asar, "bin", "mcp-bridge.ts"),
     ];
     const loaded = new Set();
     registerHooks({
