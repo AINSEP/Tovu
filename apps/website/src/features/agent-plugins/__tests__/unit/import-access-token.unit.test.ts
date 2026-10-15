@@ -1,6 +1,6 @@
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import { rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test, { after } from "node:test";
 
@@ -10,7 +10,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 import { hasStoredAgentPluginCredential } from "../../connect-tool.js";
-import { BUNDLED_DIGESTS_FILENAME } from "../../lifecycle.js";
+import { BUNDLED_DIGESTS_FILENAME, listInstalledPlugins, readBundledAgentPluginDigests } from "../../lifecycle.js";
 import {
   importAgentPluginAccessToken,
   importAgentPluginAccessTokensFromEnv,
@@ -174,6 +174,93 @@ test("env import copies the declared env token once, logs once, and is silent on
   assert.deepEqual(logs.warn, []);
 });
 
+// Pins import-access-token.ts:70 — a missing row lookup falls back to the declared URL.
+test("env import uses the declared URL when its connection lookup returns no row", async (t) => {
+  const { deps, connected, readRow, logs, log } = await setup();
+  const repo = deps.externalMcpServerRepo;
+  const find = repo.findByServerId.bind(repo);
+  let reads = 0;
+  const lookup = t.mock.method(repo, "findByServerId", async (input: Parameters<typeof repo.findByServerId>[0]) => {
+    assert.deepEqual(input, { workspaceId: WORKSPACE, serverId: "supabase" });
+    // resolveTarget first checks provisioning. Simulate a transiently missing read at the URL
+    // guard; the save's fresh read still uses the real repository and finds the connection.
+    return ++reads === 2 ? null : find(input);
+  });
+  const writes = t.mock.method(repo, "upsert");
+
+  await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: TOKEN }, log);
+
+  assert.deepEqual(lookup.mock.calls[1]?.arguments, [{ workspaceId: WORKSPACE, serverId: "supabase" }]);
+  assert.equal(await lookup.mock.calls[1]?.result, null);
+  const row = await readRow();
+  assert.equal(row?.authMode, "static_env");
+  assert.equal(row?.enabled, true);
+  assert.equal((await openExternalMcpOAuthPayload(deps.siteAssistantSecretSealer, row)).staticAccessToken, TOKEN);
+  assert.deepEqual(writes.mock.calls.map(({ arguments: [record] }) => ({
+    workspaceId: record.workspaceId, serverId: record.serverId, url: record.url, authMode: record.authMode,
+  })), [
+    { workspaceId: WORKSPACE, serverId: "supabase", url: "https://mcp.supabase.com/mcp", authMode: "static_env" },
+    { workspaceId: WORKSPACE, serverId: "supabase", url: "https://mcp.supabase.com/mcp", authMode: "static_env" },
+  ]);
+  assert.deepEqual(connected, ["supabase"]);
+  assert.deepEqual(logs.info, [
+    "[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection and switched it on. The env var is no longer needed.",
+  ]);
+  assert.deepEqual(logs.warn, []);
+});
+
+// Pins import-access-token.ts:149 — retiredEnv may be absent without aborting later imports.
+test("env import saves a token without retiredEnv and continues to the next plugin", async (t) => {
+  const { deps, connected, pluginsSwitchedOn, readRow, logs, log } = await setup();
+  const firstAuth = {
+    helpUrl: "https://supabase.com/dashboard/account/tokens",
+    probeUrl: "https://api.supabase.com/v1/projects",
+    importFromEnv: "FIRST_TOKEN",
+  };
+  const firstServers: Readonly<Record<string, McpServerConfig>> = {
+    first: { type: "streamable-http", url: "https://mcp.supabase.com/mcp", tovuAuthMode: "oauth", tovuTokenAuth: firstAuth },
+  };
+  const resolveInstalledPlugin = t.mock.fn(async (pluginId: string) => {
+    if (pluginId === "first") return { servers: firstServers };
+    if (pluginId === "supabase") return { servers: SUPABASE_SERVERS };
+    return null;
+  });
+  const writes = t.mock.method(deps.externalMcpServerRepo, "upsert");
+  assert.equal(Object.hasOwn(firstAuth, "retiredEnv"), false);
+  assert.equal(await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE, serverId: "first" }), null);
+
+  await assert.doesNotReject(importAgentPluginAccessTokensFromEnv({
+    ...deps,
+    resolveInstalledPlugin,
+    listPlugins: async () => [
+      { pluginId: "first", servers: firstServers, bundled: true },
+      { pluginId: "supabase", servers: SUPABASE_SERVERS, bundled: true },
+    ],
+  }, { FIRST_TOKEN: "first_plugin_token", [ENV_VAR]: TOKEN }, log));
+
+  assert.deepEqual(resolveInstalledPlugin.mock.calls.map(({ arguments: args }) => args), [["first"], ["supabase"]]);
+  assert.deepEqual(writes.mock.calls.filter(({ arguments: [record] }) => record.authMode === "static_env" && !record.enabled)
+    .map(({ arguments: [record] }) => ({ workspaceId: record.workspaceId, serverId: record.serverId })), [
+    { workspaceId: WORKSPACE, serverId: "first" },
+    { workspaceId: WORKSPACE, serverId: "supabase" },
+  ]);
+  const first = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE, serverId: "first" });
+  const second = await readRow();
+  assert.equal(first?.authMode, "static_env");
+  assert.equal(first?.enabled, true);
+  assert.equal((await openExternalMcpOAuthPayload(deps.siteAssistantSecretSealer, first)).staticAccessToken, "first_plugin_token");
+  assert.equal(second?.authMode, "static_env");
+  assert.equal(second?.enabled, true);
+  assert.equal((await openExternalMcpOAuthPayload(deps.siteAssistantSecretSealer, second)).staticAccessToken, TOKEN);
+  assert.deepEqual(connected, ["first", "supabase"]);
+  assert.deepEqual(pluginsSwitchedOn, ["first", "supabase"]);
+  assert.deepEqual(logs.info, [
+    "[agent-plugins] copied FIRST_TOKEN onto the 'first' plugin's connection and switched it on. The env var is no longer needed.",
+    "[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection and switched it on. The env var is no longer needed.",
+  ]);
+  assert.deepEqual(logs.warn, []);
+});
+
 test("env import with no token set writes nothing", async () => {
   const { deps, connected, readRow, logs, log } = await setup();
   await importAgentPluginAccessTokensFromEnv(deps, { [ENV_VAR]: "   " }, log);
@@ -252,6 +339,32 @@ test("listInstalledAgentPluginServers marks a plugin bundled only when its diges
   } finally {
     await forceRemove(dir);
   }
+});
+
+// Pins import-access-token.ts:96 — duplicate installed digests still yield one entry per plugin id.
+test("listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests", async (t) => {
+  const fixture = createTempSiteLayoutFixture({});
+  t.after(() => forceRemove(fixture.siteDir));
+  const layout = fixture.deps.agentPluginLayout;
+  const workspace = layout.forWorkspace(WORKSPACE);
+  const digests = ["a".repeat(64), "b".repeat(64)];
+  // Publish both revisions directly: the current installer prunes older revisions on upgrade.
+  for (const [index, digest] of digests.entries()) {
+    const root = path.join(workspace.pluginPackagesDir({ pluginId: "duplicate-plugin" }), digest);
+    await mkdir(root, { recursive: true });
+    await writeFile(path.join(root, "plugin.json"), JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+      name: "duplicate-plugin", version: `1.0.${index}`,
+    }));
+    await writeFile(path.join(root, "mcp.json"), JSON.stringify({ $schema: MCP_SCHEMA, mcpServers: SUPABASE_SERVERS }));
+  }
+  assert.deepEqual([...(await readBundledAgentPluginDigests(workspace.root))], []);
+  assert.deepEqual((await listInstalledPlugins(workspace.root)).map(plugin => plugin.archiveDigest).sort(), digests);
+
+  const plugins = await listInstalledAgentPluginServers({ workspaceId: WORKSPACE, agentPluginLayout: layout });
+
+  assert.deepEqual(plugins.map(plugin => plugin.pluginId), ["duplicate-plugin"]);
+  assert.equal(plugins.find(plugin => plugin.pluginId === "duplicate-plugin")?.bundled, false);
 });
 
 test("env import never sends the token to a row pointed at a URL the bundled plugin does not declare", async () => {
