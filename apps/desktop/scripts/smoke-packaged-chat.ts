@@ -52,32 +52,41 @@ function groupAlive(pid: number): boolean {
   }
 }
 
-/** SIGTERM permits the server's own daemon/CLI drain; SIGKILL is a bounded final backstop. */
-async function stopGroup(pid: number, siteDir: string): Promise<void> {
-  const snapshots = await listProcessSnapshots();
-  const roots = [pid];
-  let registryFailed = false;
-  // The daemon owns a separate process group. Its private scratch registry survives parent death.
+/** The daemon owns a separate process group. Its private scratch registry survives parent death. */
+async function findDaemonRoot(snapshots: Awaited<ReturnType<typeof listProcessSnapshots>>, siteDir: string):
+  Promise<{ pid?: number; registryFailed: boolean }> {
   try {
     const registry = JSON.parse(await readFile(path.join(siteDir, "ops/assistant-daemon.json"), "utf8")) as { pid: number };
     const daemon = snapshots.find(item => item.pid === registry.pid);
-    if (daemon && /(?:^|[ /])agent-daemon-server\.js(?:\s|$)/.test(daemon.command)) roots.push(daemon.pid);
-  } catch (error) { registryFailed = (error as NodeJS.ErrnoException).code !== "ENOENT"; }
-  const pids = collectProcessTreePids(snapshots, roots);
-  try {
-    for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    const isDaemon = daemon && /(?:^|[ /])agent-daemon-server\.js(?:\s|$)/.test(daemon.command);
+    return { pid: isDaemon ? daemon.pid : undefined, registryFailed: false };
+  } catch (error) { return { registryFailed: (error as NodeJS.ErrnoException).code !== "ENOENT" }; }
+}
+
+/** SIGTERM, then SIGKILL, each followed by a bounded wait for the whole group to exit. */
+async function signalGroupUntilGone(pid: number): Promise<void> {
+  for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    if (!groupAlive(pid)) return;
+    try { process.kill(-pid, signal); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
+    for (let attempt = 0; attempt < 50; attempt++) {
       if (!groupAlive(pid)) return;
-      try { process.kill(-pid, signal); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error; }
-      for (let attempt = 0; attempt < 50; attempt++) {
-        if (!groupAlive(pid)) return;
-        await delay(100);
-      }
+      await delay(100);
     }
-    throw new PackagedChatSmokeError("Packaged server process group survived teardown.");
+  }
+  throw new PackagedChatSmokeError("Packaged server process group survived teardown.");
+}
+
+/** SIGTERM permits the server's own daemon/CLI drain; SIGKILL is a bounded final backstop. */
+async function stopGroup(pid: number, siteDir: string): Promise<void> {
+  const snapshots = await listProcessSnapshots();
+  const daemon = await findDaemonRoot(snapshots, siteDir);
+  const pids = collectProcessTreePids(snapshots, daemon.pid === undefined ? [pid] : [pid, daemon.pid]);
+  try {
+    await signalGroupUntilGone(pid);
   } finally {
     const stopped = await stopProcesses(pids);
-    if (registryFailed || stopped.remainingPids.length || !snapshots.some(item => item.pid === process.pid)) {
+    if (daemon.registryFailed || stopped.remainingPids.length || !snapshots.some(item => item.pid === process.pid)) {
       throw new PackagedChatSmokeError("Packaged process tree teardown could not be verified.");
     }
   }
@@ -124,6 +133,34 @@ async function main(): Promise<void> {
       throw new PackagedChatSmokeError(`Packaged chat HTTP ${response.status} at ${route.split("?")[0]}.`);
     }
     return response;
+  }
+
+  /** The boot line precedes daemon startup and its background CLI inventory discovery. */
+  async function waitForClaudeModel(): Promise<string | undefined> {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      requestSignal.throwIfAborted();
+      const response = await fetch(new URL("/api/agents", server.origin), {
+        headers: { cookie }, signal: AbortSignal.any([requestSignal, AbortSignal.timeout(15_000)]) });
+      if (response.ok) {
+        const inventory = await response.json() as Parameters<typeof selectPackagedChatModel>[0];
+        const claude = inventory.agents.find(agent => agent.id === "claude");
+        if (claude && !claude.discoveryPending) return selectPackagedChatModel(inventory);
+      } else {
+        await response.body?.cancel();
+        if (response.status !== 503) throw new PackagedChatSmokeError("Packaged agent inventory is unavailable.");
+      }
+      await delay(500, undefined, { signal: requestSignal });
+    }
+    return undefined;
+  }
+
+  async function waitForRunSuccess(runId: string): Promise<string> {
+    while (true) {
+      const status = await (await request(`/api/runs/${encodeURIComponent(runId)}`)).json() as { run: { state: string } };
+      if (status.run.state === "succeeded") return runId;
+      if (["failed", "cancelled"].includes(status.run.state)) throw new PackagedChatSmokeError("The packaged Claude run failed or was canceled.");
+      await delay(500, undefined, { signal: requestSignal });
+    }
   }
 
   /** Read with the shipped Electron ABI and shipped SQLite, never the checkout's native module. */
@@ -195,22 +232,7 @@ async function main(): Promise<void> {
         cookie = auth.headers.getSetCookie().map(item => item.split(";")[0]).join("; ");
         await auth.body?.cancel();
         if (!cookie) throw new PackagedChatSmokeError("Boot-session redemption set no session cookie.");
-        let model: string | undefined;
-        // The boot line precedes daemon startup and its background CLI inventory discovery.
-        for (let attempt = 0; attempt < 60; attempt++) {
-          requestSignal.throwIfAborted();
-          const response = await fetch(new URL("/api/agents", server.origin), {
-            headers: { cookie }, signal: AbortSignal.any([requestSignal, AbortSignal.timeout(15_000)]) });
-          if (response.ok) {
-            const inventory = await response.json() as Parameters<typeof selectPackagedChatModel>[0];
-            const claude = inventory.agents.find(agent => agent.id === "claude");
-            if (claude && !claude.discoveryPending) { model = selectPackagedChatModel(inventory); break; }
-          } else {
-            await response.body?.cancel();
-            if (response.status !== 503) throw new PackagedChatSmokeError("Packaged agent inventory is unavailable.");
-          }
-          await delay(500, undefined, { signal: requestSignal });
-        }
+        const model = await waitForClaudeModel();
         if (!model) throw new PackagedChatSmokeError("Packaged Claude discovery did not become ready.");
         const conversation = await (await request("/api/assistant/chats", { method: "POST", body: {}, expected: 201 })).json() as { conversation: { id: string } };
         const contextRef = JSON.stringify({ prompt: PACKAGED_CHAT_PROMPT, model,
@@ -218,13 +240,7 @@ async function main(): Promise<void> {
           userMessage: { id: randomUUID(), role: "user", content: PACKAGED_CHAT_PROMPT, createdAt: Date.now() } });
         const accepted = await (await request("/api/runs", { method: "POST", expected: 201,
           body: { agentId: "claude", contextRef } })).json() as { run: { id: string } };
-        const runId = accepted.run.id;
-        while (true) {
-          const status = await (await request(`/api/runs/${encodeURIComponent(runId)}`)).json() as { run: { state: string } };
-          if (status.run.state === "succeeded") return runId;
-          if (["failed", "cancelled"].includes(status.run.state)) throw new PackagedChatSmokeError("The packaged Claude run failed or was canceled.");
-          await delay(500, undefined, { signal: requestSignal });
-        }
+        return waitForRunSuccess(accepted.run.id);
       },
       async evidence(siteDir, runId) {
         // The durable finalizer settles asynchronously after the daemon publishes its terminal state.
