@@ -1139,14 +1139,23 @@ test.describe("Static Site tab — build export", () => {
 });
 
 test.describe("Static Site tab — provider split (GitHub Pages vs Vercel)", () => {
-  test("GitHub Pages is the default: shows its descriptor fields, no CLI detection, and no Vercel fields", async ({
+  test("Cloudflare Pages is the default; selecting GitHub Pages shows its descriptor fields, no CLI detection, and no Vercel fields", async ({
     page,
   }) => {
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");
+    // 0030358d7 orders providers by plugin id; the split makes Cloudflare Pages the first target.
+    await expect(page.getByRole("tab", { name: "Cloudflare Pages" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "false");
+    await expect(page.getByLabel("Project name", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Owner")).toHaveCount(0);
+    await expect(page.getByLabel("Repository")).toHaveCount(0);
+    await expect(page.getByLabel("Branch (optional)")).toHaveCount(0);
+    await expect(page.getByLabel(/Team ID/)).toHaveCount(0);
     // fe035388c removed CLI detection from Static Site; publishing uses saved credentials.
     await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
+    await page.getByRole("tab", { name: "GitHub Pages" }).click();
+    await expect(page.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByLabel("Owner")).toBeVisible();
     await expect(page.getByLabel("Repository")).toBeVisible();
     await expect(page.getByLabel("Branch (optional)")).toBeVisible();
@@ -1157,6 +1166,7 @@ test.describe("Static Site tab — provider split (GitHub Pages vs Vercel)", () 
     page,
   }) => {
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "GitHub Pages" }).click();
     await page.getByLabel("Owner").fill("octo");
     // fe035388c removed the CLI-first branch and its deployment-overview deployClis field.
     await expect(page.getByText(/^(?:Not )?Detected on this server$/i)).toHaveCount(0);
@@ -1185,6 +1195,7 @@ test.describe("Static Site tab — preview and publish, never touching the real 
     page,
   }) => {
     await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "GitHub Pages" }).click();
     await page.getByLabel("Owner").fill("octocat");
     await page.getByLabel("Repository").fill("demo-repo");
 

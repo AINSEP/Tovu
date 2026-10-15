@@ -57,12 +57,17 @@ class NeverCalledSmtpTransport implements SmtpTransport {
 
 /** Wraps a real repo but delays `listByWorkspace` (the one call `resolveCustomCredentialByLabel`
  *  awaits) so a test can call `mailer.send()` while the boot-time credential lookup is still
- *  in flight, reproducing the startup-race window this file's header documents. */
+ *  in flight, reproducing the startup-race window this file's header documents. The same vault
+ *  must remain available: credential resolution opens the selected row through that owner. */
 class DelayedListRepo implements CustomCredentialSetRepoPort {
+  readonly vault: NonNullable<CustomCredentialSetRepoPort["vault"]>;
   constructor(
     private readonly inner: CustomCredentialSetRepoPort,
-    private readonly delayMs: number
-  ) {}
+    private readonly released: Promise<void>
+  ) {
+    assert.ok(inner.vault, "the delayed fixture must preserve the credential vault");
+    this.vault = inner.vault;
+  }
   insert(record: CustomCredentialSetRecord): Promise<void> {
     return this.inner.insert(record);
   }
@@ -73,7 +78,7 @@ class DelayedListRepo implements CustomCredentialSetRepoPort {
     return this.inner.findById(input);
   }
   async listByWorkspace(input: { workspaceId: string }): Promise<CustomCredentialSetRecord[]> {
-    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    await this.released;
     return this.inner.listByWorkspace(input);
   }
   delete(input: { workspaceId: string; id: string }): Promise<void> {
@@ -358,7 +363,7 @@ test("mailer.send()/sendBatch() delegate through capabilities() consistently bef
   assert.equal(mailer.capabilities().driver, "console");
 });
 
-test("send() called during the boot-time credential-resolution window must not report success unless the message actually reached the resolved adapter", async () => {
+test("send() called during the boot-time credential-resolution window must not report success unless the message actually reached the resolved adapter", async (t) => {
   // A real, working hosted-API credential IS configured — but `listByWorkspace` (the read
   // `resolveCustomCredentialByLabel` awaits) is delayed, so `mailer.send()` below is called
   // while `current` is still the `ConsoleMailerAdapter` fallback. Before the fix, `send()`
@@ -375,9 +380,12 @@ test("send() called during the boot-time credential-resolution window must not r
   });
   const httpClient = new FakeHttpClient();
   const warnings: string[] = [];
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  t.after(() => release());
   const deps = makeResolveDeps(
     {
-      customCredentialRepo: new DelayedListRepo(credentialDeps.repo, 20),
+      customCredentialRepo: new DelayedListRepo(credentialDeps.repo, released),
       sealer: credentialDeps.sealer,
       httpClient,
     },
@@ -385,10 +393,16 @@ test("send() called during the boot-time credential-resolution window must not r
   );
   const { mailer, ready } = createResolvedMailer(deps);
 
-  const result = await mailer.send(
+  let settled = false;
+  const pending = mailer.send(
     { workspaceId: WORKSPACE, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" },
     { idempotencyKey: "k1", workspaceId: WORKSPACE, sourceContext: { module: "test" } }
-  );
+  ).then((result) => { settled = true; return result; });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(settled, false, "a send must wait while credential resolution is blocked");
+  assert.deepEqual<HttpRequest[]>(httpClient.calls, []);
+  release();
+  const result = await pending;
   await ready;
 
   assert.equal(result.ok, true);
@@ -397,6 +411,10 @@ test("send() called during the boot-time credential-resolution window must not r
     1,
     "the message must actually reach the resolved (real) adapter, not be swallowed by the Console fallback while still reporting success"
   );
+  assert.deepEqual(JSON.parse(httpClient.calls[0]!.body!), {
+    from: "b@example.com", to: "a@example.com", subject: "hi", text: "hi",
+  });
+  assert.deepEqual(warnings, []);
 });
 
 test("first boot after upgrade: the bundled plugin is not installed yet when the boot lookup runs, and the next send still goes through it", async () => {
