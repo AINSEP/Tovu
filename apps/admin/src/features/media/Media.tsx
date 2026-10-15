@@ -846,7 +846,7 @@ function MediaToolbar({
         {t("Upload image")}
       </button>
       <Dialog open={uploadOpen} title={t("Upload image")} pending={uploading} onClose={closeUpload}
-        className="settings-dialog tovu-domain-dialog media-upload-dialog">
+        className="settings-dialog jini-domain-dialog media-upload-dialog">
         <form
           onSubmit={upload}
           noValidate

@@ -16,7 +16,7 @@ export function RemoteImageImport(props: { t: (key: string) => string; dependenc
         {props.t("Import from URL")}
       </button>
       <Dialog open={controller.open} title={props.t("Import from URL")} pending={controller.pending} onClose={controller.close}
-        className="settings-dialog tovu-domain-dialog media-import-dialog">
+        className="settings-dialog jini-domain-dialog media-import-dialog">
         <form onSubmit={controller.submit} noValidate>
           <TextField label={props.t("Remote image URL")} type="url" placeholder="https://" value={controller.url} disabled={controller.pending}
             onValueChange={({ value }) => controller.setUrl(value)}

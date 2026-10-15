@@ -8,7 +8,7 @@ import "./post-url-dialog.css";
 export function PostUrlDialog({ dialog, t }: { dialog: PostUrlDialogController; t: Translate }) {
   if (!dialog.open) return null;
   return (
-    <Dialog open title={t(dialog.title)} pending={dialog.pending} onClose={dialog.cancel} className="settings-dialog tovu-domain-dialog post-url-dialog">
+    <Dialog open title={t(dialog.title)} pending={dialog.pending} onClose={dialog.cancel} className="settings-dialog jini-domain-dialog post-url-dialog">
       <form onSubmit={dialog.submit} noValidate>
         <TextField label={t("URL")} type="url" required placeholder="https://" value={dialog.url} onValueChange={dialog.changeUrl}
           attrs={{ "data-jini-autofocus": "", "aria-invalid": dialog.invalid, "aria-describedby": dialog.error ? dialog.errorId : undefined }} />

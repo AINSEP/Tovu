@@ -80,7 +80,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 
   return (
     <Dialog open title={t("Choose an image")} onClose={() => props.onCancel()}
-      className="settings-dialog tovu-domain-dialog media-picker-dialog">
+      className="settings-dialog jini-domain-dialog media-picker-dialog">
 
         <div className="media-picker-body">
           {error ? <div className="notice error">{error}</div> : null}

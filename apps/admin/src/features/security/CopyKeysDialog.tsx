@@ -8,7 +8,7 @@ import "./copy-keys-dialog.css";
 export function CopyKeysDialog({ dialog, t }: { dialog: CopyKeysController; t: Translate }) {
   if (!dialog.open) return null;
   return (
-    <Dialog open title={t("Copy keys from another project…")} pending={dialog.pending} onClose={dialog.cancel} className="settings-dialog tovu-domain-dialog copy-keys-dialog">
+    <Dialog open title={t("Copy keys from another project…")} pending={dialog.pending} onClose={dialog.cancel} className="settings-dialog jini-domain-dialog copy-keys-dialog">
       <form onSubmit={dialog.submit}>
         <div className="jini-dialog-body">
           <label className="copy-keys-source">{t("Source project")}

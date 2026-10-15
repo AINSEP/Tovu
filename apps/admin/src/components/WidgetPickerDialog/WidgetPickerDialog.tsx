@@ -188,7 +188,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
   if (props.presentation === "inline") return content;
   return (
     <Dialog open title={interpolate({ template: t("Place a {typeLabel} widget"), vars: { typeLabel } })}
-      onClose={() => props.onCancel()} className="settings-dialog tovu-domain-dialog widget-picker-dialog">
+      onClose={() => props.onCancel()} className="settings-dialog jini-domain-dialog widget-picker-dialog">
       {content}
     </Dialog>
   );
@@ -287,7 +287,7 @@ export function WidgetSelectionDialog({ useAddControl = useWiredWidgetAddControl
   const vm = useAddControl({ triggerLabel: "Insert widget", onResolved: props.onResolved, initialWidgetType: "text" });
   return (
     <Dialog open title={vm.t("Insert widget")} onClose={() => onCancel()}
-      className="settings-dialog tovu-domain-dialog widget-picker-dialog">
+      className="settings-dialog jini-domain-dialog widget-picker-dialog">
       <Select value={vm.selectedType}
         onChange={(value) => { vm.setSelectedType(value as AdminWidgetType); vm.setPickerType(value as AdminWidgetType); }}
         options={widgetTypeOptions({ locale: vm.locale })} aria-label={vm.t("Widget type")}

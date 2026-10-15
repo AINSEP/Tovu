@@ -168,7 +168,7 @@ export function NewContentTypeDialog({
 
   return (
     <Dialog open title={t("New content type")} onClose={() => cancel()} pending={saving}
-      className="settings-dialog tovu-domain-dialog collections-type-dialog">
+      className="settings-dialog jini-domain-dialog collections-type-dialog">
       <form
         onSubmit={submit}
         {...agentHandle({ handle: "new-content-type-dialog" }, {
@@ -290,7 +290,7 @@ export function EditFieldsDialog({
 
   return (
     <Dialog open title={`${t("Edit fields —")} ${contentType.label}`} onClose={() => cancel()} pending={saving}
-      className="settings-dialog tovu-domain-dialog collections-type-dialog">
+      className="settings-dialog jini-domain-dialog collections-type-dialog">
       <form
         onSubmit={submit}
         {...agentHandle({ handle: "edit-fields-dialog" }, {
@@ -382,7 +382,7 @@ export function LifecycleConfirmDialog({
   const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
 
   return (
-    <Dialog open title={copy.title} onClose={() => onCancel()} className="settings-dialog tovu-domain-dialog">
+    <Dialog open title={copy.title} onClose={() => onCancel()} className="settings-dialog jini-domain-dialog">
         <p>
           {copy.body} (<strong>{contentType.label}</strong>)
         </p>

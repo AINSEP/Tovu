@@ -314,7 +314,7 @@ function PickerThumb({ asset, vm }: { asset: AdminMedia; vm: MediaContentEditorC
  *  `MediaPickerDialog`, checkbox per asset since several can be added at once. */
 function LibraryPicker({ vm, t, base }: { vm: MediaContentEditorController; t: Translate; base: string | undefined }) {
   return (
-    <Dialog open onClose={vm.cancelPicker} title={t("Choose media")} className="settings-dialog tovu-domain-dialog media-picker-dialog">
+    <Dialog open onClose={vm.cancelPicker} title={t("Choose media")} className="settings-dialog jini-domain-dialog media-picker-dialog">
       <div className="media-picker-body">
         {vm.pickable === null ? <p className="notice">{t("Loading media…")}</p> : (
           <div className="media-picker-grid">

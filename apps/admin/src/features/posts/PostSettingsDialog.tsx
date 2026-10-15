@@ -42,7 +42,7 @@ export function PostSettingsDialog({ dialog, kindLabel, author, setAuthor, showA
       open
       title={t(kindLabel === "page" ? "Page settings" : "Post settings")}
       onClose={dialog.closeDialog}
-      className="settings-dialog tovu-domain-dialog post-settings-dialog"
+      className="settings-dialog jini-domain-dialog post-settings-dialog"
     >
       <div className="segmented post-settings-tabs" role="tablist" aria-label={t(kindLabel === "page" ? "Page settings" : "Post settings")} onKeyDown={onKeyDown}>
         {TABS.map((tab) => (

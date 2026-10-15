@@ -175,7 +175,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
 
   return (
     <Dialog open title={t(view.title)} onClose={() => view.onDismiss()} pending={!view.dismissible}
-      className={`settings-dialog tovu-domain-dialog${view.rows.length > 0 ? " publish-content-dialog" : ""}`}>
+      className={`settings-dialog jini-domain-dialog${view.rows.length > 0 ? " publish-content-dialog" : ""}`}>
         <p>{t(view.description)}</p>
         <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
 

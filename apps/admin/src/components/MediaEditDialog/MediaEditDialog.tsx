@@ -66,7 +66,7 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
 
   return (
     <Dialog open title={showAlt ? t("Edit this instance") : t("Style")} onClose={() => onCancel()}
-      className="settings-dialog tovu-domain-dialog media-node-edit-dialog">
+      className="settings-dialog jini-domain-dialog media-node-edit-dialog">
       {/* `media-node-edit-dialog`, NOT `media-edit-dialog` — that exact class name is already
           taken by `Media.tsx`'s unrelated native `<dialog>` asset-metadata editor
           (`styles/media.css`'s EDIT MODAL block), which sets its own `border`/`padding`/
