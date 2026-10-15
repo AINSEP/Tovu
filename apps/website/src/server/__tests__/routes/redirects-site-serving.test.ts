@@ -68,6 +68,66 @@ test("T041b: a path with no matching redirect rule still 404s through the normal
   assert.equal(visit.status, 404);
 });
 
+// Imported store URLs like /products/<handle> are nested; redirects must not stop at /:slug.
+test("nested redirect sources retain their status code and the existing trailing-slash/query normalization in both phases", async (t) => {
+  const { app } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
+
+  for (const rule of [
+    { fromPattern: "/products/blue-shirt", statusCode: 308, override: false },
+    { fromPattern: "/old/catalog/shirts/blue", statusCode: 301, override: true },
+  ]) {
+    const create = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ matchType: "exact", toTarget: "/new-shirt", ...rule }),
+    });
+    assert.equal(create.status, 201, await create.text());
+
+    for (const suffix of ["", "/", "?campaign=old", "/?campaign=old"]) {
+      const visit = await fetch(`${baseUrl}${rule.fromPattern}${suffix}`, { redirect: "manual" });
+      assert.equal(visit.status, rule.statusCode);
+      assert.equal(visit.headers.get("location"), "/new-shirt");
+      await visit.arrayBuffer();
+    }
+  }
+});
+
+test("a nested path with no redirect row still reaches the normal 404", async (t) => {
+  const { app } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const visit = await fetch(`${baseUrl}/products/missing-shirt`, { redirect: "manual" });
+  assert.equal(visit.status, 404);
+  assert.equal(visit.headers.get("location"), null);
+  await visit.arrayBuffer();
+});
+
+test("admin/API misses never consult a broad nested redirect; public nested misses do", async (t) => {
+  const { app } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
+  const create = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ matchType: "wildcard", fromPattern: "/*/*", toTarget: "/redirect-target", statusCode: 302, override: true }),
+  });
+  assert.equal(create.status, 201, await create.text());
+
+  for (const path of ["/admin/missing", "/api/missing"]) {
+    const visit = await fetch(`${baseUrl}${path}`, { redirect: "manual" });
+    assert.equal(visit.status, 404);
+    assert.equal(visit.headers.get("location"), null);
+    await visit.arrayBuffer();
+  }
+
+  const visit = await fetch(`${baseUrl}/guides/old`, { redirect: "manual" });
+  assert.equal(visit.status, 302);
+  assert.equal(visit.headers.get("location"), "/redirect-target");
+  await visit.arrayBuffer();
+});
+
 /**
  * Security characterization test — NOT a bug fix, NOT written to move a coverage number. Exists so
  * nobody deletes it later as "redundant": `phase-handler.oracle.test.ts` already certifies this

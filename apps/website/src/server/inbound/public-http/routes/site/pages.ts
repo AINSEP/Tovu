@@ -78,6 +78,7 @@ import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#
 import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/adapter";
+import { checkSiteRelativeTarget } from "#src/platform/routing/reserved-paths";
 import { type RouteTarget } from '@jini-ai/cms/routing';
 import { deriveExcerpt, resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { resolveMenuDoc } from "#src/features/navigation/index";
@@ -2547,8 +2548,8 @@ function listingBatchNotFound(req: Request, next: NextFunction): void {
 
 /**
  * Public site: server-rendered home and post pages through the active
- * declarative theme. Registered LAST — GET /:slug is a catch-all for
- * single-segment paths.
+ * declarative theme. Registered LAST — GET /:slug handles single-segment
+ * pages; unmatched nested public paths consult redirects before the normal 404.
  */
 export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
   // See-more batch URLs (`<page>/_more/<key>/<after>`): rewrite to the page itself so the `/` and
@@ -2784,6 +2785,19 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
       }
       reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
       res.status(500).type("html").send("<h1>Site error</h1>");
+    }
+  });
+
+  // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
+  // nested paths so single-segment slug eligibility stays unchanged; admin/API misses stay theirs.
+  app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
+    if (checkSiteRelativeTarget(req.path).kind !== "ok") return next();
+    try {
+      if (await tryRedirectPhase("pre_content", req.path, appDeps.workspaceId, res)) return;
+      if (await tryRedirectPhase("post_content", req.path, appDeps.workspaceId, res)) return;
+      next();
+    } catch (err) {
+      next(err);
     }
   });
 };
