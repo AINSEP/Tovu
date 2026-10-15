@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { appShellApiBody } from "../app-shell-api.fixture";
 import {
   resolveSiteSectionRouteGate,
   useSiteSectionAvailability,
@@ -17,10 +18,10 @@ import { api, ApiError, type AdminUser } from "../../lib/api";
  *
  * The owner's requirement: inside the Tovu desktop app the admin's own "Sites" nav row and page
  * must not be there at all — the Electron shell already switches sites with its own tabs and sites
- * home — while a developer running `npm run dev` keeps both. `TOVU_ENABLE_SITE_SWITCHER` already
- * draws exactly that line (`site-switcher-enabled.ts`: ON for local dev via `dev.mjs`, OFF for a
- * Runner/desktop host and for a hosted install, default OFF), and `GET .../system/sites` already
- * carries its value to this client as `switchingEnabled` — its own header says the value is there
+ * home — while a developer running `npm run dev` in a browser keeps both. The desktop shell wins
+ * even when it attaches to that same dev server: `isDesktopAdmin` detects its synchronous preload
+ * bridges. Outside the shell, `TOVU_ENABLE_SITE_SWITCHER` decides (default OFF), and
+ * `GET .../system/sites` carries its value to this client as `switchingEnabled` — its header says it is there
  * "so the UI can decide whether to render the 'Sites' nav item". This file covers the wiring that
  * finally reads it that way.
  *
@@ -66,10 +67,9 @@ function stubFetch(switchingEnabled: boolean): ReturnType<typeof vi.fn> {
       });
     }
     // Every other call this render pulls in (locale, assistant settings, the dashboard's own
-    // reads) — a benign superset, the same fallback the sibling App tests in this directory use.
-    // `posts`/`settings` are the two the Dashboard reads unguarded inside a `.then`, and the
-    // redirect cases below land on exactly that screen.
-    return new Response(JSON.stringify({ posts: [], settings: { activeThemeId: "t1" } }), {
+    // reads) — the same empty API shapes the sibling App tests use. The Dashboard reads those
+    // cached results during render, and the redirect cases below land on exactly that screen.
+    return new Response(JSON.stringify(appShellApiBody({ url: href })), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
@@ -77,6 +77,8 @@ function stubFetch(switchingEnabled: boolean): ReturnType<typeof vi.fn> {
 }
 
 beforeEach(() => {
+  vi.stubGlobal("tovuVoice", undefined);
+  vi.stubGlobal("tovuFiles", undefined);
   // jsdom has no `EventSource`; `useAdminSession`'s settings feed and `App`'s page-control bridge
   // both construct one in an effect, and an unstubbed throw tears the tree down — taking the
   // sidebar and `<main>` with it. Inert stub, same as every sibling App test here.
@@ -140,6 +142,20 @@ describe("the Sites nav row follows the deployment's site-switcher capability", 
 });
 
 describe("the /admin/sites route itself, not just its nav row", () => {
+  it.each(["tovuVoice", "tovuFiles"])("hides the Sites row and redirects inside the shell (%s) even when the server enables switching", async (marker) => {
+    vi.stubGlobal(marker, marker === "tovuFiles"
+      ? { getPathForFile: () => "" }
+      : { isAvailable: async () => ({ available: false }), transcribe: async () => ({ text: "", elapsedMs: 0 }) });
+    vi.stubGlobal("fetch", stubFetch(true));
+    const container = await renderAt("/admin/sites");
+
+    await waitFor(() => expect(window.location.pathname).toBe("/admin/"));
+    await waitFor(() => expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "dashboard"));
+    expect(container.querySelector('a[href="/admin/"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/admin/ai-assistant"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/admin/sites"]')).toBeNull();
+  });
+
   it("still renders Sites, and stays on the URL, when the switcher is on", async () => {
     vi.stubGlobal("fetch", stubFetch(true));
     const container = await renderAt("/admin/sites");
@@ -215,6 +231,44 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reje
 describe("useSiteSectionAvailability", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it.each([
+    { desktop: true, switchingEnabled: true, expected: "unavailable", gate: "redirect" },
+    { desktop: false, switchingEnabled: true, expected: "available", gate: "render" },
+    { desktop: false, switchingEnabled: false, expected: "unavailable", gate: "redirect" },
+  ] as const)("desktop=$desktop, switchingEnabled=$switchingEnabled → $expected", async ({ desktop, switchingEnabled, expected, gate }) => {
+    const user: AdminUser = { id: "u1", username: "admin" };
+    vi.spyOn(api, "listSites").mockResolvedValue(sitesSnapshot(switchingEnabled));
+    const { result } = renderHook(() => useSiteSectionAvailability(user, { desktop }));
+
+    await waitFor(() => expect(result.current).toBe(expected));
+    const nav = withoutSiteSection([{ items: [
+      { id: "dashboard", href: "/", label: "Overview" },
+      { id: "sites", href: "/sites", label: "Sites" },
+    ] }], result.current);
+    expect(nav[0]?.items.map((item) => item.id)).toEqual(expected === "available" ? ["dashboard", "sites"] : ["dashboard"]);
+    expect(resolveSiteSectionRouteGate("sites", result.current)).toBe(gate);
+  });
+
+  it("is unavailable from the first shell frame and never allows the Sites panel while the server is pending", async () => {
+    const user: AdminUser = { id: "u1", username: "admin" };
+    const pending = deferred<ReturnType<typeof sitesSnapshot>>();
+    const listSites = vi.spyOn(api, "listSites").mockReturnValue(pending.promise);
+    const frames: { availability: SiteSectionAvailability; gate: string }[] = [];
+    const { result, rerender } = renderHook(() => {
+      const availability = useSiteSectionAvailability(user, { desktop: true });
+      frames.push({ availability, gate: resolveSiteSectionRouteGate("sites", availability) });
+      return availability;
+    });
+
+    // Check the first render itself: an effect that hides Sites later must fail this assertion.
+    expect(frames[0]).toEqual({ availability: "unavailable", gate: "redirect" });
+    expect(result.current).toBe("unavailable");
+    await act(async () => { pending.resolve(sitesSnapshot(true)); });
+    rerender();
+    expect(frames.every((frame) => frame.availability === "unavailable" && frame.gate === "redirect")).toBe(true);
+    expect(listSites).not.toHaveBeenCalled();
   });
 
   it("forgets the previous session's answer at logout and while the next session's own read is in flight", async () => {

@@ -4,6 +4,7 @@ import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-a
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
+import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminPageApprovals } from "./features/webmcp/admin-page-approval.store";
 
@@ -340,29 +341,31 @@ export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
 export const SITES_PANEL_ID = "sites";
 
 /**
- * Whether this deployment has a Sites section at all.
+ * Whether this admin client has a Sites section at all.
  *
- * Three states, not a boolean, and the third one is the point: the answer comes from the server,
- * so "not answered yet" has to be distinguishable from "no". Collapsing `unknown` into `false`
- * would redirect a developer's own `/admin/sites` deep link to the dashboard in the window before
+ * Three states, not a boolean, and the third one is the point: outside the desktop shell the answer
+ * comes from the server, so "not answered yet" has to be distinguishable from "no". Collapsing
+ * `unknown` into `false` would redirect a developer's own `/admin/sites` deep link to the dashboard in the window before
  * the flag arrives; collapsing it into `true` would flash the Sites screen inside the desktop app,
  * which is the exact thing this gate exists to prevent.
  */
 export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
 
 /**
- * Reads the deployment's site-switcher capability flag and reports it as a section-visibility
- * answer.
+ * Resolves the desktop shell first, otherwise reads the deployment's site-switcher capability
+ * flag, and reports a section-visibility answer.
  *
  * ## Why this reuses `switchingEnabled` rather than introducing a second flag
  *
- * `TOVU_ENABLE_SITE_SWITCHER` (`apps/website/src/server/runtime/composition/site-switcher-enabled.ts`)
+ * `TOVU_ENABLE_SITE_SWITCHER` (`apps/website/src/platform/site-dir/site-switcher-enabled.ts`)
  * already exists, is already default-OFF, and its own header already enumerates exactly the three
  * deployments this section cares about: ON for local `npm run dev` (set by
  * `development/scripts/dev.mjs`), OFF for a Tovu-Runner/desktop host, OFF for a hosted install.
- * That is the owner's requirement verbatim — "sites page is for when a dev runs `npm run dev`
- * themselves" — with no new variable, and with nothing to set on the desktop side: the Electron
- * shell's `buildServeEnv` never sets this var, so every server it spawns already reports it off.
+ * That keeps the owner's browser requirement — "sites page is for when a dev runs `npm run dev`
+ * themselves" — with no new variable. The shell can also attach to an existing dev server whose
+ * flag is ON, so the server flag alone cannot distinguish the two clients. `isDesktopAdmin` already
+ * owns that check through the synchronous `tovuFiles`/`tovuVoice` preload bridges. The shell wins
+ * before the first paint and needs no server read: its own All tab already lists and switches sites.
  *
  * The flag also already reaches this client. `GET .../system/sites` is deliberately NOT gated on
  * it; the route carries its value instead, and that route's own header states the intended use in
@@ -373,10 +376,10 @@ export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
  * the first half.
  *
  * A plain `useState`/`useEffect` pair rather than `useFetchQuery`, matching
- * {@link useAdminAssistantAvailability} directly above it: this file's imports stop at `lib/`, and
- * reaching into `features/sites/rules.ts` for its cache key to share one request would invert that.
- * The cost is one extra `GET .../system/sites` on the Sites screen itself, where the screen's own
- * query runs anyway — a directory listing, on the one screen that was always going to make it.
+ * {@link useAdminAssistantAvailability} directly above it: the session-keyed visibility answer
+ * stays independent of the Sites screen's cached snapshot (`features/sites/rules.ts`). Outside the
+ * shell, the cost is one extra `GET .../system/sites` on the Sites screen itself, where the screen's
+ * own query runs anyway — a directory listing, on the one screen that was always going to make it.
  *
  * Fails CLOSED, the opposite of `useAdminAssistantAvailability`'s fail-open posture, because the
  * server's own default is the opposite: absent the var the capability is off, and
@@ -389,10 +392,15 @@ export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
  * plays no role before `App.tsx`'s `<Login>` gate clears.
  *
  * @param user - `useAdminSession()`'s current session, or `null` before login.
- * @returns `unknown` until the read settles, then `available` only if the server said the flag is on.
- * @complexity O(1) plus one server round trip per session.
+ * @param options.desktop - Injectable shell check; defaults to the existing preload-bridge detector.
+ * @returns `unavailable` synchronously in the shell; otherwise `unknown` until the read settles,
+ *   then `available` only if the server said the flag is on.
+ * @complexity O(1) plus one server round trip per browser session; no round trip in the shell.
  */
-export function useSiteSectionAvailability(user: AdminUser | null): SiteSectionAvailability {
+export function useSiteSectionAvailability(
+  user: AdminUser | null,
+  { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
+): SiteSectionAvailability {
   // Keyed to the SESSION OBJECT that asked, not a bare flag — an answer belongs to the `user` that
   // was current when its read settled. Logout, a 401, and a new login each set a NEW `user`
   // reference (`useAdminSession`; nothing re-creates the same one mid-session), so the derived
@@ -403,7 +411,7 @@ export function useSiteSectionAvailability(user: AdminUser | null): SiteSectionA
   const [answer, setAnswer] = useState<{ user: AdminUser; value: "available" | "unavailable" } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || desktop) return;
     let cancelled = false;
     api
       .listSites()
@@ -417,8 +425,9 @@ export function useSiteSectionAvailability(user: AdminUser | null): SiteSectionA
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, desktop]);
 
+  if (desktop) return "unavailable";
   return answer !== null && answer.user === user ? answer.value : "unknown";
 }
 
