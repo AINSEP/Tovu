@@ -2683,9 +2683,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .editor-toolbar > *, .editor-toolbar .grp > *, .embed-insert-menu > * { flex-shrink: 0; }
 }
 @media (max-width: 640px) {
-  .editor-toolbar .tb-btn { min-width: 40px; height: 40px; white-space: nowrap; }
-  .editor-toolbar .tb-color { width: 40px; height: 40px; }
-  .editor-toolbar .tb-select { height: 40px; min-height: 40px; }
+  .editor-toolbar .tb-btn { min-width: 44px; height: 44px; white-space: nowrap; }
+  .editor-toolbar .tb-color { width: 44px; height: 44px; }
+  .editor-toolbar .tb-select { height: 44px; min-height: 44px; }
 }
 /* Placeholder (`Toolbar`, 2026-08-11) — the extension's own default class/attribute names
    (`is-empty`, `data-placeholder`) kept as-is rather than renamed via `.configure()`, so this rule
@@ -6545,7 +6545,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   /* A select-all checkbox alone read as an empty grey bar (owner, Trash, 2026-10-07). Its label
      already carries the translated screen-reader text ("Select every item shown"); on a phone that
      text is shown beside the box, and the whole label is the tap target. */
-  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
   table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
     position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal;
     font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--muted);
@@ -6592,8 +6592,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
     float: left; width: var(--list-meta-label-w); margin: 0 0 0 calc(-1 * (var(--list-meta-label-w) + 12px)); line-height: 20px;
   }
-  /* A button value (Collections' "Copy embed code") is 40px tall on phones: centre the label on it. */
-  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 40px; }
+  /* A button value (Collections' "Copy embed code") is 44px tall on phones: centre the label on it. */
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 44px; }
 
   /* Editable rows (the form builder's field table, FO-3): a cell holding a text control gets its
      label ABOVE the control and a share of the line, so a field reads as a small labelled form —
@@ -6610,15 +6610,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    Phone tap targets (mobile catalog P-3, 2026-10-06). Measured at 375px: checkboxes 16x16, sort
    headers 13px tall, row ⋮ triggers 30x30, menu-item ↑/↓/× and chip buttons 24-26px, "Remove"
    26px tall — all well under the ~40px a fingertip needs. One floor for every button-like control
-   in the page body instead of per-screen patches. Not on `[role="switch"]`: the pill switches
+   in the page body instead of per-screen patches. Raised to 44px (2026-10-14): at 40 this floor
+   out-ranked the 44px touch targets (Media's action buttons) it was meant to back up. Modal
+   dialogs render in <body>, outside `.admin-content`, so `.jini-dialog` is named too: their
+   fields and Cancel/Save buttons measured 35-37px. Not on `[role="switch"]`: the pill switches
    draw their own fixed-size track.
    ------------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  .admin-content :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
-    min-height: 40px;
+  :is(.admin-content, .jini-dialog) :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
+    min-height: 44px;
   }
-  .admin-content :is(button, [role="button"]):not([role="switch"]) { min-width: 40px; }
-  .admin-content :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+  :is(.admin-content, .jini-dialog) :is(button, [role="button"]):not([role="switch"]) { min-width: 44px; }
+  :is(.admin-content, .jini-dialog) :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
 
   /* OB-1 (also Settings Privacy): a touch-synthesized hover must not leave an inactive tab
      looking pressed. The active underline and keyboard focus outline still convey state. */
@@ -6650,15 +6653,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
      itself, which is now container-based too (2026-10-11). */
 
   /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
-     37px against the 40px floor buttons and selects already get; one floor for every field. */
-  .admin-content input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
-    min-height: 40px;
+     37px against the floor buttons and selects already get; one floor for every field, the same
+     44px so a field and the button beside it stay one height. */
+  :is(.admin-content, .jini-dialog) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+    min-height: 44px;
   }
-  /* Standalone links that sit beside 40px buttons (a panel head's "All posts"/"Change", a
+  /* Standalone links that sit beside 44px buttons (a panel head's "All posts"/"Change", a
      toolbar's "View site ↗" or "Regions →", an editor's "view ↗") were 15-19px tall. Padding that
-     a matching negative margin cancels grows the hit area to ~40px without moving anything. */
+     a matching negative margin cancels grows the hit area to ~44px without moving anything. */
   .admin-content :is(.page-toolbar, .page-actions, .themes-header-side, .dash-panel-head, .editor-slug) > a:not([class*="btn"]) {
-    display: inline-block; padding-block: 11px; margin-block: -11px;
+    display: inline-block; padding-block: 13px; margin-block: -13px;
   }
   /* The pill switches keep their drawn 38x22 / 34x20 track; an invisible ring around it takes
      the tap (P-3 deliberately left `[role="switch"]` out of the min-height floor). */
@@ -6668,7 +6672,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 
 /* The layout half of the phone block above, keyed on the PANE (2026-10-11): the same rows were
    squeezed just as hard on desktop with the nav expanded and the dock open (~590px at 1280). The
-   touch half (40px floors, hit-area padding, switch rings) stays viewport-only above. */
+   touch half (44px floors, hit-area padding, switch rings) stays viewport-only above. */
 @container admin-content (max-width: 620px) {
   /* TR-2: bulk actions only take space once there is a selection; busy selected actions stay
      visible and disabled, so their progress does not cause the toolbar to jump. */
