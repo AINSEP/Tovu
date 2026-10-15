@@ -71,10 +71,9 @@ test("ROUTE: an unknown tool id (the executor throws) reaches the model as its r
 
   const result = await h.call("search_components");
 
-  assertDescribed(result, 'ToolExecutor: unknown tool "search_components"');
-  assert.equal(h.records.length, 1);
-  assert.equal(h.records[0]!.errorId, FIXED_ID);
-  assert.equal(h.records[0]!.toolId, "search_components");
+  // Caller input, not a server fault: a 400 with the executor's own text and no failure record.
+  assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: 'ToolExecutor: unknown tool "search_components"' } });
+  assert.equal(h.records.length, 0);
 });
 
 test("ROUTE: a tool that runs past its timeout says it timed out", async () => {
