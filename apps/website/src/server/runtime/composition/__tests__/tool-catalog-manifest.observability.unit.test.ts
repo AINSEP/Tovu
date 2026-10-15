@@ -56,9 +56,13 @@ test("installFirstPartyToolContributors builds every guarded HTTP client with th
 
   installFirstPartyToolContributors({ contributions: freshContributions() }, { observability, createHttpClient });
 
-  // 2026-10-08: `web_fetch_page` and `web_screenshot_page` each build their own guarded client.
-  assert.equal(built.length, 4);
-  assert.deepEqual(new Set(built.map((call) => call.policy)), new Set([DOMAIN_DNS_EGRESS_POLICY, LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY]));
+  // Site evidence and web screenshots use separate clients; rendered web fetch disables
+  // redirects so the browser guard checks each destination itself (9b20083b6).
+  assert.equal(built.length, 6);
+  assert.deepEqual(built.map(call => call.policy), [
+    DOMAIN_DNS_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY, LIVE_PAGE_EGRESS_POLICY,
+    { ...WEB_FETCH_EGRESS_POLICY, maxRedirects: 0 }, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY,
+  ]);
   for (const call of built) assert.equal((call.options as { observability: unknown }).observability, observability);
 });
 

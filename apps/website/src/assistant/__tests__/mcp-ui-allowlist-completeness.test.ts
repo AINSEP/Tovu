@@ -78,6 +78,16 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
 ]);
 
+// These open APIs operate on plugin sources or sealed credentials, never surface exchanges.
+// Match the complete reviewed call and file: a different argument or receiver still fails closed.
+const NON_EXCHANGE_OPEN_CALLS = new Map([
+  ["features/webhooks/secret-sealer.aesgcm.ts", "this.sealer.open(input, optional)"],
+  ["features/plugin-runtime/source-tools.ts", "port.open({ id: pluginId }, {})"],
+  ["features/vendor-credentials/vault-adapter.ts", "required.sealer.open(input, options)"],
+  ["server/runtime/composition/site-key-recovery.ts", "input.previous.open(required, options)"],
+  ["server/runtime/composition/vault-kinds.ts", "required.sealer.open(input, options)"],
+]);
+
 function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {
   const sources = texts.map(({ file, text }) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true));
   const constants = new Map<string, ts.Expression>();
@@ -135,12 +145,9 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
       if (ts.isCallExpression(node)) {
         const callee = node.expression;
         if (ts.isPropertyAccessExpression(callee) && callee.name.text === "open") {
-          // SecretSealer.open is the other .open API in this tree; its payload is not a binding.
-          // The AES-GCM host adapter forwards its typed input unchanged. Exempt only that exact
-          // delegation, not other unresolved calls in the file or a receiver named "sealer".
-          const isSealerDelegation = relative === "features/webhooks/secret-sealer.aesgcm.ts"
-            && node.getText(source) === "this.sealer.open(input, optional)";
-          if (!isSealerDelegation && !property(node.arguments[0], "sealed")) record(property(node.arguments[0], "binding") ?? node.arguments[0], node);
+          // Typed sealer delegations and source-folder openers have no exchange binding.
+          const isNonExchangeOpen = NON_EXCHANGE_OPEN_CALLS.get(relative) === node.getText(source);
+          if (!isNonExchangeOpen && !property(node.arguments[0], "sealed")) record(property(node.arguments[0], "binding") ?? node.arguments[0], node);
         } else if (ts.isIdentifier(callee) && callee.text === "requireHumanConfirm") {
           record(property(node.arguments[0], "spec") ?? node.arguments[2], node);
         } else if (ts.isIdentifier(callee) && callee.text === "defineSecretCardTool") {
@@ -215,6 +222,14 @@ test("the sealer adapter exemption leaves other unresolved open calls visible", 
     "features/webhooks/secret-sealer.aesgcm.ts:4: binding",
     "fixture.ts:2: input",
   ]);
+});
+
+test("reviewed non-exchange open calls do not hide new surface bindings in the same file", () => {
+  for (const [file, call] of NON_EXCHANGE_OPEN_CALLS) {
+    const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, file), text: `${call};\nstore.open({ binding: { toolId: unknownId } });` }]);
+    assert.deepEqual(fixture.toolIds.size, 0);
+    assert.deepEqual(fixture.unresolved, [`${file}:2: unknownId`]);
+  }
 });
 
 function missingFromAllowlist(openers: ReadonlySet<string>, allowlist: ReadonlySet<string>): string[] {

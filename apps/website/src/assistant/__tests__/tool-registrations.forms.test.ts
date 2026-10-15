@@ -201,7 +201,7 @@ test("requiresConfirmation is unset on every wired Forms tool — setting it wit
 test("a rejected fields payload returns the tool's own schema plus an explicit non-retryable instruction", async () => {
   const { deps } = fakeRouteDeps();
   const error = await wired("forms_create_definition", deps)
-    .handler(executionContext({ name: "Contact", slug: "contact", fields: [{ id: "when", label: "When", type: "date", required: false }] }))
+    .handler(executionContext({ name: "Contact", slug: "contact", fields: [{ id: "when", label: "When", type: "unsupported-field-type", required: false }] }))
     .then(() => null, (e: unknown) => e as Error);
 
   assert.ok(error, "an out-of-vocabulary field type must reject");

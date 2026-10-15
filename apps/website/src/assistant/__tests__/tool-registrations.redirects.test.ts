@@ -283,7 +283,7 @@ test("redirects_create: rejects matchType 'regex' the same way the chokepoint do
   const { deps } = fakeRouteDeps();
   await assert.rejects(
     () => wired(deps, "redirects_create").handler(executionContext({ matchType: "regex", fromPattern: "/a.*", toTarget: "/b", statusCode: 301 })),
-    /matchType 'regex' is not enabled in v1$/,
+    { message: "REDIRECTS_VALIDATION: matchType 'regex' is not enabled in v1 (REQ-22)" },
   );
 });
 
@@ -340,7 +340,7 @@ test("redirects_import: a per-rule failure (duplicate fromPattern) does NOT abor
   assert.deepEqual(result.created.map((r) => r.fromPattern).sort(), ["/ok-1", "/ok-2"]);
   assert.equal(result.failed.length, 2);
   assert.equal(result.failed[1]?.code, "REDIRECT_VALIDATION_ERROR");
-  assert.equal(result.failed[1]?.message, "matchType 'regex' is not enabled in v1");
+  assert.equal(result.failed[1]?.message, "matchType 'regex' is not enabled in v1 (REQ-22)");
   assert.deepEqual(result.failed.map((f) => f.index), [0, 2], "failure indices point back at the ORIGINAL batch position, not a compacted one");
   for (const failure of result.failed) {
     assert.equal(typeof failure.code, "string");

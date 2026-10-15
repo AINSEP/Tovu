@@ -173,8 +173,8 @@ test("page publish: wrong types, missing themes, non-static tiers, shells and tr
   await assert.rejects(call(r, { themeId: "plain", page: "", published: true }), { name: "ToolInputError", message: "page must be a non-empty string." });
   await assert.rejects(call(r, { themeId: "plain", page: "about", published: "true" }), { name: "ToolInputError", message: "published must be a boolean." });
   await assert.rejects(call(r, { themeId: "missing", page: "about", published: true }), { name: "ToolInputError", message: "theme 'missing' was not found. Use content_read.theme to find a theme id." });
-  for (const page of ["index", "404", "page-shell", "missing", "../outside"]) {
-    await assert.rejects(call(r, { themeId: "plain", page, published: true }), { name: "ToolInputError", message: `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a declared template shell` });
+  for (const page of ["index", "404", "admin", "api", "page-shell", "missing", "../outside"]) {
+    await assert.rejects(call(r, { themeId: "plain", page, published: true }), { name: "ToolInputError", message: `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a reserved route/a declared template shell` });
   }
   f.themes[0].manifest.tier = "liquid" as any;
   await assert.rejects(call(r, { themeId: "plain", page: "about", published: true }), { name: "ToolInputError", message: "theme 'plain' is tier 'liquid' — publish state only applies to static-tier themes" });
