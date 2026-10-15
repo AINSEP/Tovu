@@ -11,7 +11,7 @@ import { PUBLIC_URL, WS_API, expect, expectStatus, fetchPublic, hasHorizontalScr
  * iframe title "Page preview", "Saved" text after Save.
  *
  * Sandbox note: `PAGE_PREVIEW_IFRAME_SANDBOX` (`features/pages/rules.ts`) is
- * "allow-scripts allow-same-origin allow-forms allow-popups", i.e. no `allow-top-navigation`. These
+ * "allow-scripts allow-forms allow-popups", i.e. no `allow-top-navigation` or `allow-same-origin`. These
  * tests assert the behaviour (admin URL unchanged after a top-navigation attempt from inside the
  * preview), not the flag string, because the flags are expected to change once previews move to
  * their own origin (todos, 2026-10-04).
@@ -107,12 +107,11 @@ test.describe("page preview sandbox", () => {
     page.on("framenavigated", (frame) => { if (frame === page.mainFrame()) topNavigations.push(frame.url()); });
     const preview = page.frameLocator('iframe[title="Page preview"]');
     const go = preview.getByRole("button", { name: "Go" });
-    // First line of defence since 34311d276/5f237c87a: sanitizePageHtml (widgets/media-html.ts) strips
-    // script-bearing attributes from the rendered body, so the handler never reaches the frame.
-    // The sandbox (no allow-top-navigation) is the second; either way the admin must not move.
-    await expect(go).not.toHaveAttribute("onclick", /./);
+    // Since d4896ef3d, page HTML renders unmodified (`pages.edit_html` is theme-source trust).
+    // The iframe sandbox is the boundary: scripts run, but no allow-top-navigation or
+    // allow-same-origin means they cannot navigate the admin or remove their own sandbox.
     await go.click();
-    await expect(preview.locator("body[data-attempted='1']")).toHaveCount(0);
+    await expect(preview.locator("body[data-attempted='1']")).toHaveCount(1);
     await expect(page.getByRole("tab", { name: "HTML" })).toBeVisible();
     expect(page.url()).toBe(editorUrl);
     expect(topNavigations, "the admin's top frame must not navigate").toEqual([]);
