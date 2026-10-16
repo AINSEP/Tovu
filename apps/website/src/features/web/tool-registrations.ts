@@ -6,8 +6,9 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { createRateLimiter, type RateLimitProfile } from "../../contracts/core/rate-limit/rate-limit.js";
+import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "./agent-tools.js";
-import { fetchWebPage, readWebFetchInput, type WebFetchPorts } from "./web-page.js";
+import { fetchWebPage, MAX_MAX_CHARS, readWebFetchInput, type WebFetchPorts } from "./web-page.js";
 
 /**
  * @file Maps the `web` catalog onto {@link fetchWebPage}. Every catalog entry is wired, so a future
@@ -35,9 +36,15 @@ export interface WebToolDeps { workspaceId: string; authorize: AuthorizeFn }
 export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPorts): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     web_fetch_page: async ctx => {
-      const input = readWebFetchInput(requireInputRecord({ input: ctx.input }));
+      const raw = requireInputRecord({ input: ctx.input });
+      const input = readWebFetchInput(raw);
+      const { find } = readPageBodyOptions({ find: raw.find });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WEB_READ_PERMISSION }, { entityType: "web-page" });
-      const result = await fetchWebPage({ input, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
+      // Search beyond the output window, within the existing reader ceiling; maxChars bounds snippets.
+      const page = await fetchWebPage({ input: find === undefined ? input : { ...input, maxChars: MAX_MAX_CHARS }, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
+      const { content, ...pageFacts } = page;
+      const shaped = find === undefined ? undefined : shapePageBody(content, { find, maxBytes: input.maxChars });
+      const result = shaped ? { ...pageFacts, ...shaped, truncated: page.truncated || shaped.truncated } : page;
       if (!result.screenshot) return result;
       const { screenshot, ...facts } = result;
       return { content: [{ type: "text", text: JSON.stringify(facts) }, { type: "image", mimeType: screenshot.mimeType, data: screenshot.data }] };

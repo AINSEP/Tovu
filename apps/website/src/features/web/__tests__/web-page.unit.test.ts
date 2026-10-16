@@ -300,5 +300,5 @@ test("tool input validation names the exact constraint", () => {
     [{ url: "https://a.example/", maxChars: 200_001 }, "web_fetch_page: maxChars must be an integer from 1 to 200000."],
     [{ url: "https://a.example/", maxChars: 1.5 }, "web_fetch_page: maxChars must be an integer from 1 to 200000."],
   ] as const) assert.throws(() => readWebFetchInput(input), { constructor: ToolInputError, message });
-  assert.deepEqual(readWebFetchInput({ url: "https://a.example/" }), { url: "https://a.example/", format: "markdown", maxChars: 60_000 });
+  assert.deepEqual(readWebFetchInput({ url: "https://a.example/" }), { url: "https://a.example/", format: "markdown", maxChars: 20_000 });
 });
