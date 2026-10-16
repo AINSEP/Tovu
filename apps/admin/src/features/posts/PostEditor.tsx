@@ -22,7 +22,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
-import { usePostPreviewIframeEscape, usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
+import { usePostPreviewIframeEscape, usePostSettingsDialog, useToolbarOverflow } from "./hooks/use-post-editor-ui.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
@@ -222,14 +222,15 @@ function Toolbar({
   });
 
   const chain = () => editor.chain().focus();
+  const overflow = useToolbarOverflow();
 
   return (
-    <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
+    <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")} data-more-open={overflow.open}>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bold)} title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
-        <button className={toolbarBtnClass(s.italic)} title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
+        <button className={toolbarBtnClass(s.bold)} data-tb="primary" title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
+        <button className={toolbarBtnClass(s.italic)} data-tb="primary" title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
         <button className={toolbarBtnClass(s.strike)} title={t("Strikethrough")} aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
-        <button className={toolbarBtnClass(s.underline)} title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
+        <button className={toolbarBtnClass(s.underline)} data-tb="primary" title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
         <button className={toolbarBtnClass(s.highlight)} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
         <button className={toolbarBtnClass(s.subscript)} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
         <button className={toolbarBtnClass(s.superscript)} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
@@ -243,6 +244,7 @@ function Toolbar({
             requiring an exact selection. */}
         <button
           className={toolbarBtnClass(s.link)}
+          data-tb="primary"
           title={t("Link")}
           aria-pressed={s.link}
           onClick={urlDialog.openLink}
@@ -252,11 +254,11 @@ function Toolbar({
       </div>
       <div className="grp">
         <button className={toolbarBtnClass(s.h1)} title={t("Heading 1")} aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
-        <button className={toolbarBtnClass(s.h2)} title={t("Heading 2")} aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button className={toolbarBtnClass(s.h2)} data-tb="primary" title={t("Heading 2")} aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
         <button className={toolbarBtnClass(s.h3)} title={t("Heading 3")} aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
       </div>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bullet)} title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
+        <button className={toolbarBtnClass(s.bullet)} data-tb="primary" title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
         <button className={toolbarBtnClass(s.ordered)} title={t("Numbered list")} aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. {t("List")}</button>
         <button className={toolbarBtnClass(s.taskList)} title={t("Task list")} aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ {t("List")}</button>
         <button className={toolbarBtnClass(s.quote)} title={t("Quote")} aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; {t("Quote")}</button>
@@ -525,6 +527,20 @@ function Toolbar({
             ))}
         </select>
       </div>
+      {/* Phone overflow (owner, 2026-10-15: the wrapped toolbar was "so messed up, janky"). At phone
+          width only the `data-tb="primary"` controls show, in one row; this toggles the rest in
+          below them. Hidden by CSS on wider panes, where every control already shows. */}
+      <button
+        className="tb-btn tb-more"
+        title={t("More formatting")}
+        aria-label={t("More formatting")}
+        aria-expanded={overflow.open}
+        onClick={overflow.toggle}
+      >
+        <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
+          <circle cx="4" cy="9" r="1.4" /><circle cx="9" cy="9" r="1.4" /><circle cx="14" cy="9" r="1.4" />
+        </svg>
+      </button>
       {/* CharacterCount (owner, 2026-08-11: "anything and everything") — a plain readout, not a
           button: nothing to click, just the live count `editor.storage.characterCount` already
           tracks. Right-aligned via `margin-left: auto` (styles.css) so it reads as status text

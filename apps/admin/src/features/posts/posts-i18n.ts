@@ -2819,12 +2819,37 @@ const POST_SCHEDULE_TRANSLATIONS: Record<string, Record<string, string>> = {
   "zh-TW": { "Scheduled for {time} · version {version}": "已排定於 {time} 發布 · 版本 {version}" },
 };
 
+/** The formatting toolbar's phone "More" toggle (2026-10-15) — see `PostEditor.tsx`'s `Toolbar`. */
+const POST_TOOLBAR_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "More formatting": "Más formato" },
+  id: { "More formatting": "Format lainnya" },
+  de: { "More formatting": "Weitere Formatierung" },
+  ru: { "More formatting": "Другое форматирование" },
+  fa: { "More formatting": "قالب‌بندی بیشتر" },
+  ar: { "More formatting": "مزيد من التنسيق" },
+  ja: { "More formatting": "その他の書式" },
+  ko: { "More formatting": "추가 서식" },
+  pl: { "More formatting": "Więcej formatowania" },
+  hu: { "More formatting": "További formázás" },
+  fr: { "More formatting": "Plus de mise en forme" },
+  uk: { "More formatting": "Інше форматування" },
+  tr: { "More formatting": "Daha fazla biçimlendirme" },
+  th: { "More formatting": "การจัดรูปแบบเพิ่มเติม" },
+  it: { "More formatting": "Altra formattazione" },
+  hi: { "More formatting": "अधिक फ़ॉर्मैटिंग" },
+  ur: { "More formatting": "مزید فارمیٹنگ" },
+  bn: { "More formatting": "আরও ফরম্যাটিং" },
+  "pt-BR": { "More formatting": "Mais formatação" },
+  "zh-CN": { "More formatting": "更多格式" },
+  "zh-TW": { "More formatting": "更多格式" },
+};
+
 Object.assign(
   POSTS_DICT,
   Object.fromEntries(
     Object.entries(POSTS_DICT).map(([locale, dictionary]) => [
       locale,
-      { ...dictionary, ...POST_TEMPLATE_TRANSLATIONS[locale], ...POST_SCHEDULE_TRANSLATIONS[locale] },
+      { ...dictionary, ...POST_TEMPLATE_TRANSLATIONS[locale], ...POST_SCHEDULE_TRANSLATIONS[locale], ...POST_TOOLBAR_TRANSLATIONS[locale] },
     ]),
   ),
 );

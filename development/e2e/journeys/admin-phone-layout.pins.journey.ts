@@ -1,7 +1,7 @@
 import { test, expect } from "../support/bug-pin-fixtures.js";
 
 /**
- * Phone-layout fixes (site-key.css, editor.css at <=640px). Exercise the real seeded site and editor;
+ * Phone-layout fixes (site-key.css; styles.css's phone editor-toolbar rules). Exercise the real seeded site and editor;
  * assert painted bounds rather than CSS text (testing-mistakes F1.5/F2.4). The admin-visual baselines
  * mask the fingerprint and cannot prove keyboard reach, so these two checks stay as journeys.
  * Wider layouts are unchanged and covered by the tablet/desktop baselines.
@@ -39,7 +39,22 @@ test("post formatting controls stay visible and keyboard-reachable on a phone", 
   const toolbar = page.getByRole("toolbar", { name: "Formatting", exact: true });
   await expect(toolbar).toBeVisible();
 
-  // Restoring a single unwrapped group must fail even when the outer toolbar wraps.
+  // Collapsed, the phone toolbar is one row: the primary controls plus "More" (owner 2026-10-15:
+  // the fully wrapped toolbar was ~8 ragged rows). Every visible control shares one top edge.
+  const more = toolbar.getByRole("button", { name: "More formatting", exact: true });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await expect(toolbar.getByRole("button", { name: "YouTube", exact: true })).toBeHidden();
+  await expect.poll(() => toolbar.evaluate((element) => {
+    const tops = Array.from(element.querySelectorAll("button, select, input"))
+      .map((control) => control.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0)
+      .map((rect) => Math.round(rect.top));
+    return tops.length > 1 && new Set(tops).size === 1;
+  })).toBe(true);
+  await more.click();
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+
+  // Expanded, restoring a single unwrapped group must fail even when the outer toolbar wraps.
   await expect.poll(() => toolbar.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     const controls = Array.from(element.querySelectorAll("button, select, input"))

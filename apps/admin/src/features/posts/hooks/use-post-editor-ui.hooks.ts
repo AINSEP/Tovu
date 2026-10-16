@@ -104,6 +104,22 @@ export function usePostSettingsDialog(): PostSettingsDialogController {
   return { open, tab, setTab, openDialog: () => setOpen(true), closeDialog: () => setOpen(false) };
 }
 
+export interface ToolbarOverflowController {
+  open: boolean;
+  toggle: () => void;
+}
+
+/**
+ * Whether the formatting toolbar's "More" overflow is expanded. Only phone-width CSS reads it
+ * (`styles.css`, `.editor-toolbar[data-more-open]`); wider panes show every control regardless.
+ *
+ * @complexity O(1).
+ */
+export function useToolbarOverflow(): ToolbarOverflowController {
+  const [open, setOpen] = useState(false);
+  return { open, toggle: () => setOpen((current) => !current) };
+}
+
 /**
  * Escape in an iframe stays in its own document. Rebind after each preview navigation.
  * @complexity O(1) — listeners belong to a single preview frame.

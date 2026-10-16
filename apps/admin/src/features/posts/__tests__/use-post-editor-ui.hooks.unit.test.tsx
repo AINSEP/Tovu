@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { usePostEditorUi, usePostPreviewIframeEscape } from "../hooks/use-post-editor-ui.hooks";
+import { usePostEditorUi, usePostPreviewIframeEscape, useToolbarOverflow } from "../hooks/use-post-editor-ui.hooks";
 
 afterEach(() => { vi.restoreAllMocks(); document.querySelectorAll("iframe").forEach((node) => node.remove()); });
 
@@ -111,4 +111,14 @@ it("tolerates an inaccessible frame document and binds when a same-origin docume
   act(() => { frame.dispatchEvent(new Event("load")); });
   act(() => { doc.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
   expect(collapse.mock.calls).toEqual([[]]);
+});
+
+it("starts the toolbar overflow closed and toggles it open and closed again", () => {
+  // Reject: starts open (phones would show every control again) or toggle only ever opens.
+  const { result } = renderHook(() => useToolbarOverflow());
+  expect(result.current.open).toBe(false);
+  act(() => result.current.toggle());
+  expect(result.current.open).toBe(true);
+  act(() => result.current.toggle());
+  expect(result.current.open).toBe(false);
 });

@@ -2661,6 +2661,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   cursor: pointer; max-width: 9rem;
 }
 .tb-select:hover { background: var(--surface); border-color: var(--border); }
+/* Dark mode (2026-10-15): the app-wide dark select rule re-adds its chevron image with a higher
+   specificity than `.tb-select`, and `.tb-select`'s `background` shorthand had already reset the
+   repeat, so the chevron tiled across every toolbar select. Light shows no chevron; match it. */
+:root[data-theme="dark"] .tb-select { background-image: none; }
 /* Select label pairing (toolbar polish, 2026-08-11 — owner: three `<select>`s that all read
    "Default" gave no clue which was font/size/line-height without hovering the `title`). Metrics
    copied from `.field-label` (this file's existing small-caption convention: uppercase, letter-
@@ -2677,10 +2681,27 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    in it positions out of the row (the Embed menu expands inline), so the scroller clips nothing.
    Split 2026-10-11: the one-scrolling-row LAYOUT follows the pane (container — a desktop pane
    squeezed by the nav + dock wrapped and clipped the same way), while the 40px TOUCH sizes stay a
-   phone-only `@media` rule — a mouse on a narrow desktop pane does not need them. */
+   phone-only `@media` rule — a mouse on a narrow desktop pane does not need them.
+   Replaced 2026-10-15 (owner: "so messed up, janky"). The sideways row hid most controls off-screen,
+   and the 2026-10-13 wrap that followed it gave ~8 ragged rows (~530px) with separators dangling at
+   row ends. Now the groups dissolve into one flow (no separators), only the `data-tb="primary"`
+   controls show plus a "More" toggle, and More drops the rest in below a single rule, wrapped
+   tightly. `order` keeps More at the end of the first row in both states; the `::after` break
+   (a flex item too) is what forces the rest onto their own rows. Open, the toolbar stops being
+   sticky — a ~250px band pinned over a phone screen would leave no room to write. */
+.editor-toolbar .tb-more { display: none; }
 @container admin-content (max-width: 620px) {
-  .editor-toolbar { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
-  .editor-toolbar > *, .editor-toolbar .grp > *, .embed-insert-menu > * { flex-shrink: 0; }
+  .editor-toolbar { gap: 2px; }
+  .editor-toolbar .grp { display: contents; }
+  .editor-toolbar .grp > *, .editor-toolbar-count { order: 1; }
+  .editor-toolbar .grp > [data-tb="primary"] { order: 0; }
+  .editor-toolbar .tb-more { display: inline-grid; order: 0; margin-left: auto; }
+  .editor-toolbar .tb-btn { white-space: nowrap; }
+  .editor-toolbar:not([data-more-open="true"]) .grp > :not([data-tb="primary"]),
+  .editor-toolbar:not([data-more-open="true"]) .editor-toolbar-count { display: none; }
+  .editor-toolbar[data-more-open="true"] { position: static; }
+  .editor-toolbar[data-more-open="true"]::after { content: ""; order: 0; flex-basis: 100%; height: 0; margin-block: 2px; border-top: 1px solid var(--border); }
+  .editor-toolbar[data-more-open="true"] .tb-more { background: var(--surface); border-color: var(--border); }
 }
 @media (max-width: 640px) {
   .editor-toolbar .tb-btn { min-width: 44px; height: 44px; white-space: nowrap; }
