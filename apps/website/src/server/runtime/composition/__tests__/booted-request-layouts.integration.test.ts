@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, realpath, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -8,7 +8,7 @@ import express from "express";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
-import { installAgentPlugin } from "#src/features/agent-plugins/lifecycle";
+import { installAgentPlugin, removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates, createAgentPluginToolGate } from "#src/features/agent-plugins/tool-registrations";
 import { listInstalledAgentPluginServers } from "#src/features/agent-plugins/import-access-token";
 import { defaultResolveInstalledAgentPlugin } from "#src/features/agent-plugins/connect-tool";
@@ -47,7 +47,8 @@ async function withSites(work: (input: { siteA: string; siteB: string; agentPlug
     await work({ siteA, siteB, agentPluginLayout, skillLayout, siteBinding: { dir: siteA } });
   } finally {
     keys.forEach((key, index) => { if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index]; });
-    await rm(directory, { recursive: true, force: true });
+    // The lifecycle owner restores write permissions before removing immutable package trees.
+    await removeFrozenPackageTree({ root: directory });
   }
 }
 
@@ -115,7 +116,13 @@ test("admin memory and file handlers consume A's binding when env points at B", 
   await installSkill({ ...input, files: [{ path: "SKILL.md", contentBase64: Buffer.from(markdown).toString("base64") }] });
   const handlers = new Map<string, Function>();
   const app = express();
-  app.get = ((url: string, handler: Function) => { handlers.set(url, handler); return app; }) as typeof app.get;
+  const getSetting = app.get.bind(app);
+  app.get = ((url: string, ...routeHandlers: Function[]) => {
+    // app.put initializes Express's router, which reads settings through app.get(setting).
+    if (routeHandlers.length === 0) return getSetting(url);
+    handlers.set(url, routeHandlers.at(-1)!);
+    return app;
+  }) as typeof app.get;
   const deps = { ...input, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as RouteDeps;
   registerAgentPluginMemoryRoutes(app, deps); registerAgentPluginFilesRoute(app, deps); registerSkillFilesRoute(app, deps);
   for (const [url, handler] of handlers) {

@@ -1673,6 +1673,9 @@ function startModule(mod: ServerModuleHandle): void {
 /** Buses that already carry the handlers {@link subscribeSiteEventHandlersOnce} attaches. */
 const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
 
+/** The real composition's mutable collector; RouteDeps exposes the same set as read-only. */
+export const siteAppBootWorkByDeps = new WeakMap<RouteDeps, Set<Promise<void>>>();
+
 /**
  * Attaches the site's outbox event handlers to `routeDeps.bus`, once per bus (2026-09-14).
  *
@@ -2086,6 +2089,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
   const byokAssistantModule = createAssistantByokModule(routeDeps);
+  // Track serving apps too: they share the same store lifetime as export/inspection apps.
+  const bootWork = byokAssistantModule.toolSurface.ready;
+  const pendingBootWork = siteAppBootWorkByDeps.get(routeDeps);
+  pendingBootWork?.add(bootWork);
+  void bootWork.then(() => pendingBootWork?.delete(bootWork), () => pendingBootWork?.delete(bootWork));
   options.onBootWork?.(byokAssistantModule.toolSurface.ready);
 
   // Roster-change fan-out (S6, 2026-09-24): this web-server process holds two federation runtimes

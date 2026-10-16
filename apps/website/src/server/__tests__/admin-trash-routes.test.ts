@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -88,15 +89,23 @@ test("createApp() actually mounts all four trash routes, including the generic m
     results: [{ id: "no-such-row", outcome: "not-found" }],
   });
 
-  // This hermetic composition registers only term/taxonomy generic entries, so `form` remains
-  // unknown here. Its not-found/forbidden/success outcomes are proven below against real SQLite.
+  // Use an unsupported kind: forms now have a memory-backed registry entry too.
+  // Their not-found/forbidden/success outcomes are proven below against real SQLite.
   const itemsUnknownRes = await fetch(`${root}/items`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "unsupported-kind", id: "no-such-item" }),
+  });
+  assert.equal(itemsUnknownRes.status, 404);
+  assert.equal((await itemsUnknownRes.json() as { code: string }).code, "TRASH_UNKNOWN_TYPE");
+
+  const missingFormRes = await fetch(`${root}/items`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ type: "form", id: "no-such-form" }),
   });
-  assert.equal(itemsUnknownRes.status, 404);
-  assert.equal((await itemsUnknownRes.json() as { code: string }).code, "TRASH_UNKNOWN_TYPE");
+  assert.equal(missingFormRes.status, 404);
+  assert.equal((await missingFormRes.json() as { code: string }).code, "NOT_FOUND");
 });
 
 test("createApp() moves a term through the generic trash items route", async (t) => {

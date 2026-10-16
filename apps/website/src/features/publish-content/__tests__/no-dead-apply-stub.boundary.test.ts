@@ -1,9 +1,11 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -47,7 +49,7 @@ for (const root of ["memory", "sqlite"] as const) {
     let release: (() => Promise<void>) | undefined;
     t.after(async () => {
       try { await release?.(); }
-      finally { fs.rmSync(dir, { recursive: true, force: true }); }
+      finally { await removeFrozenPackageTree({ root: dir }); }
     });
     const siteDir = path.join(dir, "site");
     let deps;

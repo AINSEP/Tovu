@@ -2680,6 +2680,19 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     }
   });
 
+  // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
+  // nested paths so single-segment slug eligibility stays unchanged; admin/API misses stay theirs.
+  app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
+    if (checkSiteRelativeTarget(req.path).kind !== "ok") return next();
+    try {
+      if (await tryRedirectPhase("pre_content", req.path, appDeps.workspaceId, res)) return;
+      if (await tryRedirectPhase("post_content", req.path, appDeps.workspaceId, res)) return;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.get("/:slug", async (req, res, next) => {
     const deps = withListingBatch(appDeps, req);
     const slug = resolveRequestedSlug(req, next);
@@ -2785,19 +2798,6 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
       }
       reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
       res.status(500).type("html").send("<h1>Site error</h1>");
-    }
-  });
-
-  // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
-  // nested paths so single-segment slug eligibility stays unchanged; admin/API misses stay theirs.
-  app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
-    if (checkSiteRelativeTarget(req.path).kind !== "ok") return next();
-    try {
-      if (await tryRedirectPhase("pre_content", req.path, appDeps.workspaceId, res)) return;
-      if (await tryRedirectPhase("post_content", req.path, appDeps.workspaceId, res)) return;
-      next();
-    } catch (err) {
-      next(err);
     }
   });
 };

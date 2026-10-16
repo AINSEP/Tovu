@@ -69,6 +69,10 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
   const opened = new Error("store opened past a refusing guard");
   const boot = runInNewContext(`${compiled}\nmain()`, {
     useMemory: false,
+    pinDefaultSiteRoot: () => "/isolated",
+    reportSitesSyncWarning: () => {},
+    claimSiteRunning: () => ({ release: () => {} }),
+    devTls: { active: false },
     installServerLogCapture: () => {},
     serverLogFilePaths: () => ({ server: "/isolated/server.log", daemon: "/isolated/daemon.log" }),
     attachServerLogFile: () => {},
@@ -107,12 +111,12 @@ test("createSiteRouteDeps: storage choice, then hydration, then the store open (
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
 
   const opener = functionBody(readCode("server/runtime/composition/open-site-store.ts"), "export async function openSiteStore(");
-  assert.match(opener, /await openSiteContentDb\(required\.dbPath\)/);
+  assert.match(opener, /await openSiteContentDb\(\{ dbPath: required\.dbPath \}, sqliteOptions\)/);
 });
 
 test("openSiteContentDb: crash recovery runs on the fresh connection before the migrations, and the store is prepared after them", () => {
   const body = functionBody(readCode("server/runtime/composition/open-site-content-db.ts"), "export async function openSiteContentDb(");
-  const open = indexOfAnchor(body, "openSqliteContentConnection(dbPath)");
+  const open = indexOfAnchor(body, "openSqliteContentConnection({ filePath: dbPath }, options)");
   const recover = indexOfAnchor(body, "await recoverIncompleteDataModuleMigrations(");
   const migrate = indexOfAnchor(body, "await migrateSqliteContentFile(db, dbPath)");
   const prepare = indexOfAnchor(body, "await prepareContentStore(");
@@ -123,7 +127,7 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const deps = readCode("server/runtime/composition/deps.ts");
   const root = functionBody(deps, "export async function createSiteRouteDeps(");
   const openStore = indexOfAnchor(root, "await openCompositionStore(dbPath, overrides)");
-  const compose = indexOfAnchor(root, "await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose }, overrides)");
+  const compose = indexOfAnchor(root, "await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose }, overrides)");
   const release = indexOfAnchor(root, "await opened.release()");
   assert.ok(openStore < compose && compose < release, "the store opens first; a failed composition releases it");
   const body = functionBody(deps, "async function composeSiteRouteDeps(");
@@ -137,9 +141,15 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   assert.ok(workspace < denyStore, "the deny store is probed after the workspace resolves");
   assert.ok(denyStore < orphanCheck, "the orphaned-chat check runs after the deny store probe (chat.db opened with the store)");
   assert.ok(orphanCheck < firstBootPromise, "every prelude await must finish before the body starts a boot promise");
-  // Top-level (two-space indented) awaits only: nested async closures in the body may await freely.
-  const topLevelAwaits = body.slice(firstBootPromise).match(/^  (const [^=]+= )?await\b/gm) ?? [];
-  assert.equal(topLevelAwaits.length, 0, "the body after the prelude must not await at its top level");
+  // Vault consolidation (9b20083b6) adds one fenced await before credential consumers.
+  // The shared kernel lock serializes it with the background settings writers.
+  // Top-level (two-space indented) awaits only: nested async closures may await freely.
+  const topLevelAwaits = body.slice(firstBootPromise).match(/^  (?:const [^=]+= )?await[^\n]*/gm) ?? [];
+  assert.deepEqual(topLevelAwaits, ["  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {"], "only the fenced vault normalization may await after boot promises start");
+  const keyring = indexOfAnchor(body, "const siteAssistantSecretKeyring = new EnvOrFileKeyring(");
+  const normalize = indexOfAnchor(body, "await normalizeSiteVaultAtBoot(");
+  const credentials = indexOfAnchor(body, "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(");
+  assert.ok(keyring < normalize && normalize < credentials, "vault normalization must finish before credential consumers are constructed");
 });
 
 test("createSiteRouteDeps body: every repo is built from the kernels; the engine-bound rest comes from storeBoundServicesFor", () => {

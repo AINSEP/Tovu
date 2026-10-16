@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -7,6 +8,7 @@ import test, { type TestContext } from "node:test";
 
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -77,7 +79,7 @@ function makeRedirectRevision(record: RedirectRecord): RedirectRevision {
 interface BootedSite {
   deps: RouteDeps;
   /** Closes this site's database handle — what `tovu serve`'s shutdown and a test's own teardown do. */
-  close: () => void;
+  close: () => Promise<void>;
 }
 
 /** Every boot-readiness promise `cli/commands/serve.ts` settles before it considers the site up. */
@@ -98,31 +100,31 @@ async function drainBootReadiness(deps: RouteDeps): Promise<void> {
 /** A fresh site directory + the same SQLite composition root `tovu serve <dir>` builds for it. */
 async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "redirects-multi-site-"));
-  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const dir = path.join(parent, "site");
   await initSite({ dir, name });
 
   const boot = await bootSiteDir({ dir });
+  let composed: { close(): Promise<void> } | undefined;
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,
+    onStoreOpened: (store) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name, dirOverridden: true, switcherCompatible: false },
   });
 
-  let closed = false;
-  const close = (): void => {
-    if (closed) return;
-    closed = true;
-    void closeSiteDirBoot(boot);
-  };
+  let closing: Promise<void> | undefined;
+  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, composed);
   // Settle the boot chain BEFORE anything closes the handle those promises are still writing
   // through, then close on the way out whether or not the test closed it itself.
   await drainBootReadiness(deps);
   t.after(async () => {
-    await drainBootReadiness(deps);
-    close();
+    try {
+      await close();
+    } finally {
+      await removeFrozenPackageTree({ root: parent });
+    }
   });
   return { deps, close };
 }
@@ -175,7 +177,7 @@ test("a second site's request never runs the first site's phase handler, and the
 
   // The lifecycle event: the first site is finished and its database handle goes away, exactly as
   // `cli/commands/serve.ts`'s shutdown and every integration test's teardown do it.
-  first.close();
+  await first.close();
 
   // The regression itself. Before the fix, the first site's orphaned `SqliteRedirectRepo` threw
   // `TypeError: The database connection is not open` out of the phase and `pages.ts` turned that

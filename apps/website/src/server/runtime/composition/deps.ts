@@ -294,7 +294,7 @@ import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oa
 // routing, page-head and event-subscription registries — exports and site inspection served no
 // redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
 import { exportSite } from "#src/features/site-export/index";
-import { createApp } from "./app.js";
+import { createApp, siteAppBootWorkByDeps } from "./app.js";
 
 /**
  * The one site folder this process serves — the root every other runtime path below derives from.
@@ -859,8 +859,9 @@ type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
  * The API process (`owner`) also starts the hourly guest-chat expiry sweep here, on the chat kernel
  * of that store, plus daily form-submitter IP cleanup when the package/schema gates are ready;
  * the agent daemon (`client`) leaves retention to it. The returned store's `close()`
- * stops the sweep (waiting for a pass in flight) before closing the underlying store, so no pass
- * ever queries a closed store. `release` is what {@link createSiteRouteDeps} runs when the rest of
+ * drains boot work before disposing registrations, then stops the sweeps (waiting for a pass in
+ * flight) before closing the underlying store, so no pass ever queries a closed store.
+ * `release` is what {@link createSiteRouteDeps} runs when the rest of
  * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
  *
  * `onClose` collects the composition's registrations (a resolve-phase handler or slot bound to this
@@ -870,7 +871,7 @@ type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
 async function openCompositionStore(
   dbPath: string,
   overrides?: Partial<CreateSiteRouteDepsOverrides>
-): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (registration: StoreCloseRegistration) => void }> {
+): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (registration: StoreCloseRegistration) => void; beforeClose: (drain: () => Promise<void>) => void }> {
   const anchor = isInMemoryDbPath(dbPath) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides?.siteBinding?.dir });
   const storage = resolveSiteStorage(anchor);
   if (!isInMemoryDbPath(dbPath) && storage.kind === "sqlite" && !overrides?.db) mkdirSync(dirname(dbPath), { recursive: true });
@@ -888,7 +889,10 @@ async function openCompositionStore(
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
   const registrations: StoreCloseRegistration[] = [];
+  const bootDrains: Array<() => Promise<void>> = [];
   const stopStoreUsers = async (): Promise<void> => {
+    // Boot still uses the inventory, journal and repos that the disposers below release.
+    await Promise.all(bootDrains.map((drain) => drain()));
     await Promise.all(registrations.splice(0).map(async (registration) => (await registration)()));
     await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]);
   };
@@ -904,6 +908,7 @@ async function openCompositionStore(
     store,
     release: supplied === undefined ? store.close : stopStoreUsers,
     onClose: (registration) => { registrations.push(registration); },
+    beforeClose: (drain) => { bootDrains.push(drain); },
   };
 }
 
@@ -1023,7 +1028,7 @@ export async function createSiteRouteDeps(
   assertOverridesPairedOrAbsent(overrides);
   const opened = await openCompositionStore(dbPath, overrides);
   try {
-    return await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose }, overrides);
+    return await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose }, overrides);
   } catch (err) {
     await opened.release();
     throw err;
@@ -1037,7 +1042,7 @@ export async function createSiteRouteDeps(
  */
 async function composeSiteRouteDeps(
   dbPath: string,
-  opened: { store: SiteStore; onStoreClose: (registration: StoreCloseRegistration) => void },
+  opened: { store: SiteStore; onStoreClose: (registration: StoreCloseRegistration) => void; beforeStoreClose: (drain: () => Promise<void>) => void },
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
@@ -2045,7 +2050,7 @@ async function composeSiteRouteDeps(
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
   const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
-  // `createSiteApp()`'s unsettled boot passes (see `RouteDeps.siteAppBootWork`); each leaves once settled.
+  // Every app over this composition shares the store's lifetime; each boot pass leaves once settled.
   const siteAppBootWork = new Set<Promise<void>>();
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
@@ -2479,10 +2484,6 @@ async function composeSiteRouteDeps(
     createSiteApp: ({ themeId } = {}) =>
       createApp(routeDeps, {
         ...(themeId === undefined ? {} : { themeIdOverride: themeId }),
-        onBootWork: (work) => {
-          siteAppBootWork.add(work);
-          void work.then(() => siteAppBootWork.delete(work), () => siteAppBootWork.delete(work));
-        },
       }),
     siteAppBootWork,
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
@@ -2568,10 +2569,19 @@ async function composeSiteRouteDeps(
   // recurring copies would resurrect a credential deleted from the vault.
   routeDeps.legacyPublishCredentialsReady = widgetAdoptionReady;
 
+  siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   // Start re-attachment only after its SDK's host getter is safe. Earlier composition awaits
   // (including vault normalization) must never race this pass. Boot awaits this before serving.
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
+  opened.beforeStoreClose(async () => {
+    await Promise.allSettled([
+      routeDeps.pluginRuntimeReady, widgetAdoptionReady, blobHydrationReady,
+      adminPasswordResetReady, postSearchBackfillReady, originReady,
+    ]);
+    // A boot pass can start another app (for example during export); drain until none remain.
+    while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);
+  });
   return routeDeps;
 }
 

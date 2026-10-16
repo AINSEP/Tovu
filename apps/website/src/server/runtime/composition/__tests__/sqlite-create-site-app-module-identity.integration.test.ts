@@ -1,6 +1,7 @@
-// This file's first-party imports are deliberately deps-first (`#src/server/runtime/composition/deps`
+// This file's composition imports are deliberately deps-first (`#src/server/runtime/composition/deps`
 // before `#src/server/runtime/composition/app`), the same order every `tovu` CLI command loads the
 // graph in — see this test's own file header below for why that order is the point, not incidental.
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,6 +15,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
@@ -83,27 +85,30 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 }
 
 /** A fresh site directory + the same SQLite composition root `tovu serve <dir>` builds for it. */
-async function bootSqliteSite(t: TestContext): Promise<NewsletterRouteDeps> {
+async function bootSqliteSite(t: TestContext): Promise<{ deps: NewsletterRouteDeps; close: () => Promise<void> }> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "app-module-identity-"));
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Module Identity Site" });
 
   const boot = await bootSiteDir({ dir });
+  let composed: { close(): Promise<void> } | undefined;
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,
+    onStoreOpened: (store) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Module Identity Site", dirOverridden: true, switcherCompatible: false },
   });
 
   await drainBootReadiness(deps);
+  let closing: Promise<void> | undefined;
+  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, composed);
   t.after(async () => {
-    await drainBootReadiness(deps);
-    await closeSiteDirBoot(boot);
-    fs.rmSync(parent, { recursive: true, force: true });
+    try { await close(); }
+    finally { await removeFrozenPackageTree({ root: parent }); }
   });
-  return deps;
+  return { deps, close };
 }
 
 async function seedRedirect(deps: NewsletterRouteDeps, fromPattern: string, options: { override: boolean }): Promise<void> {
@@ -125,7 +130,7 @@ class SubscribeCountingBus extends InMemoryEventBus {
 }
 
 test("a SQLite composition's createSiteApp() serves the site's own redirect rule", async (t) => {
-  const deps = await bootSqliteSite(t);
+  const { deps } = await bootSqliteSite(t);
   await seedRedirect(deps, "/retired-page", { override: true });
 
   // Control: the rule resolves through THIS process's own routing registry (the one `deps.ts`
@@ -143,7 +148,7 @@ test("a SQLite composition's createSiteApp() serves the site's own redirect rule
 });
 
 test("createSiteApp() sees a phase handler registered through this process's ESM routing.ts (one instance)", async (t) => {
-  const deps = await bootSqliteSite(t);
+  const { deps } = await bootSqliteSite(t);
   const dispose = registerResolvePhase({ phase: "pre_content", resolver: async (p) =>
     p === "/one-instance-probe" ? { kind: "redirect", location: "/one-instance-target", statusCode: 302 } : null });
   t.after(dispose);
@@ -155,7 +160,7 @@ test("createSiteApp() sees a phase handler registered through this process's ESM
 });
 
 test("createSiteApp() on a SQLite composition adds no second copy of the serving app's event handlers", async (t) => {
-  const deps = await bootSqliteSite(t);
+  const { deps } = await bootSqliteSite(t);
   const bus = new SubscribeCountingBus();
   (deps as { bus: EventBusPort }).bus = bus;
 
@@ -200,7 +205,7 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
 });
 
 test("createSiteApp() exposes its BYOK boot pass on siteAppBootWork until it settles, so tovu export can await it", async (t) => {
-  const deps = await bootSqliteSite(t);
+  const { deps } = await bootSqliteSite(t);
   assert.equal(deps.siteAppBootWork?.size, 0);
   deps.createSiteApp();
   const pending = [...(deps.siteAppBootWork ?? [])];
@@ -209,3 +214,62 @@ test("createSiteApp() exposes its BYOK boot pass on siteAppBootWork until it set
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(deps.siteAppBootWork?.size, 0, "a settled pass leaves the set");
 });
+
+for (const entry of ["createSiteApp", "createApp"] as const) {
+  test(`${entry}: closing the site drains plugin initialization and BYOK before closing SQLite`, async (t) => {
+    const { deps, close } = await bootSqliteSite(t);
+    await deps.pluginRuntimeReady;
+    const getActivation = deps.pluginActivationRepo.getActivation.bind(deps.pluginActivationRepo);
+    let releaseByok!: () => void;
+    let enteredByok!: () => void;
+    let releasePlugins!: () => void;
+    const byokGate = new Promise<void>((resolve) => { releaseByok = resolve; });
+    const byokEntered = new Promise<void>((resolve) => { enteredByok = resolve; });
+    const pluginGate = new Promise<void>((resolve) => { releasePlugins = resolve; });
+    let byokReadFinished = false;
+    let pluginReadFinished = false;
+    // Hold the real SQL read at the injected repo boundary, after discovery has reached it.
+    deps.pluginActivationRepo.getActivation = async (input) => {
+      enteredByok();
+      await byokGate;
+      const activation = await getActivation(input);
+      byokReadFinished = true;
+      return activation;
+    };
+    // Model an initializer paused before its last SQL read, through the production readiness port.
+    deps.pluginRuntimeReady = pluginGate.then(async () => {
+      await getActivation({ workspaceId: deps.workspaceId, pluginId: "charts-recharts" });
+      pluginReadFinished = true;
+    });
+
+    let closed = false;
+    let closing: Promise<void> | undefined;
+    try {
+      if (entry === "createSiteApp") deps.createSiteApp();
+      else createApp(deps);
+      await byokEntered;
+      assert.equal(deps.siteAppBootWork?.size, 1);
+      closing = close().then(() => { closed = true; });
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(closed, false, "close must wait for plugin initialization");
+      assert.equal(pluginReadFinished, false);
+
+      releasePlugins();
+      await deps.pluginRuntimeReady;
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(pluginReadFinished, true, "the initializer's final SQL read used the open database");
+      assert.equal(closed, false, "close must also wait for the app's independent BYOK pass");
+      assert.equal(byokReadFinished, false);
+    } finally {
+      releasePlugins();
+      releaseByok();
+      await closing;
+    }
+    assert.equal(byokReadFinished, true, "BYOK's final SQL read used the open database");
+    assert.equal(closed, true);
+    assert.equal(deps.siteAppBootWork?.size, 0);
+    await assert.rejects(getActivation({ workspaceId: deps.workspaceId, pluginId: "charts-recharts" }), {
+      message: "The database connection is not open",
+    });
+  });
+}

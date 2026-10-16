@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,6 +15,7 @@ import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-conten
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
@@ -51,9 +53,17 @@ interface BootedSite {
   cookie: string;
 }
 
+const siteClosers = new WeakMap<TestContext, Array<() => Promise<void>>>();
+
 function tempSiteDir(t: TestContext): string {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "site-title-preservation-"));
-  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const closes = siteClosers.get(t) ?? [];
+  siteClosers.set(t, closes);
+  t.after(async () => {
+    // Close every boot (including duplicates/restarts) before removing the shared fixture tree.
+    try { await Promise.all(closes.splice(0).map((close) => close())); }
+    finally { await removeFrozenPackageTree({ root: parent }); }
+  });
   return path.join(parent, "site");
 }
 
@@ -146,16 +156,15 @@ async function bootSite(t: TestContext, dir: string, beforeBootChain?: (store: S
     beforeBootChain(store);
   }
   const boot = await bootSiteDir({ dir });
+  let composed: { close(): Promise<void> } | undefined;
+  siteClosers.get(t)!.push(() => closeSiteDirBoot(boot, composed));
   const deps = await createSiteRouteDeps(siteContentDbPath(dir), {
     db: boot.db,
     workspaceId: boot.workspaceId,
+    onStoreOpened: (store) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
-  });
-  t.after(async () => {
-    await drainBootReadiness(deps);
-    await closeSiteDirBoot(boot);
   });
   publishPricingPage(deps);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -529,15 +538,18 @@ test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWo
   const previousSiteDir = process.env.TOVU_SITE_DIR;
   process.env.TOVU_SITE_DIR = dir;
   let deps: RouteDeps | undefined;
+  let composed: { close(): Promise<void> } | undefined;
   try {
-    deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath: siteContentDbPath(dir) });
+    deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, {
+      dbPath: siteContentDbPath(dir), onStoreOpened: (store) => { composed = store; },
+    });
     await deps.siteTitleReady;
     assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");
 
     renameSiteConfig(dir, RENAMED_SITE_NAME);
     assert.equal(await resolveSiteTitleForRender(deps), RENAMED_SITE_NAME, "after the rename, same deps");
   } finally {
-    if (deps) await drainBootReadiness(deps);
+    await composed?.close();
     if (previousSiteDir === undefined) delete process.env.TOVU_SITE_DIR;
     else process.env.TOVU_SITE_DIR = previousSiteDir;
   }

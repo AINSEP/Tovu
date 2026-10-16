@@ -1,3 +1,4 @@
+import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -152,6 +153,8 @@ const CASES: readonly ModuleCase[] = [
     name: "plugins",
     create: () => createPluginsModule(noDeps),
     routes: [
+      `GET ${W}/chart-providers`,
+      `GET ${W}/chart-providers/assets/:pluginId/:version/:digest/:asset`,
       `GET ${W}/plugins`,
       `PATCH ${W}/plugins/:pluginId`,
       `DELETE ${W}/plugins/:pluginId`,
