@@ -499,9 +499,6 @@ export interface ParityDelta {
 
 type Row = Record<string, unknown>;
 const mapOk = (map: (value: Loose) => unknown) => (golden: Outcome): Outcome => "ok" in golden ? { ok: map(structuredClone(golden.ok)) } : golden;
-const legacyCopy: Row = { id: 'vault:["publish_credential_sets","collision"]:0', providerId: "legacy-host", vendorId: "vendor-test",
-  label: "Saved (legacy copy)", configured: true, isDefault: false, tokenTail: "oken", tokenHint: { length: 22, last4: "oken" },
-  accountLabel: "legacy-account", createdAt: stamp, updatedAt: stamp };
 const dropTokenHint = mapOk((value: Row | null) => { if (value) delete value.tokenHint; return value; });
 
 export const PARITY_DELTAS: readonly ParityDelta[] = [
@@ -510,11 +507,6 @@ export const PARITY_DELTAS: readonly ParityDelta[] = [
     apply: mapOk((rows: Row[]) => rows.map(row => row.id === "custom" ? { ...row, username: "login" } : row)) },
   { transcript: "write", keys: /^custom\.9\.list$/, before: "legacy login hidden", after: "username 'login'", reason: "same as H1 above",
     apply: mapOk((rows: Row[]) => rows.map(row => row.id === "custom" ? { ...row, username: "login" } : row)) },
-  { transcript: "read", keys: /^vendor\.list@ws$/, before: "publish_credential_sets row invisible until the old boot backfill", after: "non-default 'Saved (legacy copy)' row",
-    reason: "0012 folds publish_credential_sets into the vendor kind; a colliding label gets the copy label (rehearsal finding 1)",
-    apply: mapOk((rows: Row[]) => [...rows, legacyCopy]) },
-  { transcript: "write", keys: /^vendor\.(2|6|11)\.list$/, before: "no legacy copy", after: "legacy copy listed last (id order)", reason: "same as above",
-    apply: mapOk((rows: Row[]) => [...rows, legacyCopy]) },
   { transcript: "write", keys: /^vendor\.9\.resolve-promoted$/, before: "promotion picked the newest-created row", after: "updatedAt desc, then binary id desc",
     reason: "DBMERGE-PLAN §2b: deterministic promotion tie-break (equal updatedAt here, so the highest id wins)",
     apply: () => ({ ok: { id: "tie-b", label: "Tie B", connection: { token: "tie-b-token-1234567890", providerId: "tie-host" } } }) },

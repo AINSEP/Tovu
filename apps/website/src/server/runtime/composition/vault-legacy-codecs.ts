@@ -411,6 +411,22 @@ export function legacyVaultAad({ record, legacy }: { record: VaultRecord; legacy
   throw new VaultError({ code: "context" });
 }
 
+/** Resolve the target provider and legacy token field from the host catalog without crypto.
+ * Non-publish rows retain their provider; callers decide whether the row needs normalization.
+ * @throws Error("VAULT_CATALOG_UNAVAILABLE") when the legacy publish catalog has no spec.
+ * @complexity O(1) time/space plus one injected catalog lookup for publish rows; no I/O.
+ * @example const { provider } = legacyTargetProvider({ record, legacy, policy });
+ */
+export function legacyTargetProvider(
+  { record, legacy, policy }: { record: VaultRecord; legacy: VaultLegacyContext; policy: TovuVaultPolicy },
+  _options: VaultOptions = {},
+): { provider: string | null; tokenField?: string } {
+  if (legacy.table !== "publish_credential_sets") return { provider: record.provider };
+  const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider! });
+  if (!spec) throw new Error("VAULT_CATALOG_UNAVAILABLE");
+  return { provider: spec.vendorId, tokenField: spec.tokenField };
+}
+
 /** Host-specific historical payload shapes. Plain tokens become sealed JSON; secrets remain sealed.
  * Custom username is classified plain metadata; source-control's paired username stays sealed.
  * Targets no hosting plugin declares are blocked, as the former backfill did; never guess a vendor.
@@ -441,10 +457,9 @@ export function normalizeLegacyVaultPayload(
   }
   let tokenField = policy.tokenField({ kind: record.kind, provider });
   if (legacy.table === "publish_credential_sets") {
-    const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider! });
-    if (!spec) throw new Error("VAULT_CATALOG_UNAVAILABLE");
-    provider = spec.vendorId;
-    tokenField = spec.tokenField;
+    const target = legacyTargetProvider({ record, legacy, policy });
+    provider = target.provider;
+    tokenField = target.tokenField;
     delete payload.providerId;
     payload.vendorId = provider;
   }

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { sql } from "kysely";
 import { CURRENT_SRC, PARITY_DIALECTS, countingKernel, explainPlan, loadParityModules, migratedParityFixture, parityDeps,
   type ParityModules, type RecordedStatement } from "./parity-harness.js";
 
@@ -59,15 +58,33 @@ for (const dialect of PARITY_DIALECTS) {
     // so the lookup restates the group in those expressions with a literal is_default (Jini
     // repo.sql.ts findDefault, 2026-10-12). Before, SQLite searched secrets_vault_scope and Postgres
     // secrets_vault_group_label without the provider, filtering every vendor row in the workspace.
-    test("vendor default lookup: one LIMIT 1 read on the default index, no group scan", async () => {
+    test("vendor default lookup: one LIMIT 1 index read keyed on the exact group, no group scan", async () => {
       const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       assert.match(statements[0].sql, /limit/i);
-      // Unanalyzed, Postgres costs this index and secrets_vault_group_label (same exact-group
-      // condition, filtered on is_default) as a tie; with any statistics, as autovacuum keeps, the
-      // smaller partial index wins.
-      if (fixture.kernel.dialect === "postgres") await fixture.kernel.execute(sql`ANALYZE secrets_vault`);
-      await assertIndexed(fixture.kernel, statements, "secrets_vault_default");
+      assert.equal(statements[0].parameters.at(-1), 1, "the lookup limits the result to one row");
+      // Postgres/PGlite can cost secrets_vault_default and secrets_vault_group_label as a tie,
+      // even after ANALYZE on a tiny fixture. Either is valid only when the index condition
+      // includes the whole group, especially provider; a workspace-wide vendor scan is not.
+      if (fixture.kernel.dialect === "sqlite") {
+        await assertIndexed(fixture.kernel, statements, "secrets_vault_default");
+      } else {
+        const plan = await explainPlan(fixture.kernel, statements[0]);
+        const queryPlan = JSON.parse(plan)[0]["QUERY PLAN"];
+        const root = (typeof queryPlan === "string" ? JSON.parse(queryPlan) : queryPlan)[0].Plan;
+        assert.equal(root["Node Type"], "Limit", plan);
+        assert.equal(root.Plans.length, 1, plan);
+        const read = root.Plans[0];
+        assert.match(read["Node Type"], /^Index (Only )?Scan$/, plan);
+        assert.match(read["Index Name"], /^secrets_vault_(default|group_label)$/, plan);
+        const condition = read["Index Cond"];
+        assert.match(condition, /workspace_id = 'ws'::text/, plan);
+        assert.match(condition, /kind = 'vendor'::text/, plan);
+        assert.match(condition, /owner_key = 'tovu'::text/, plan);
+        assert.match(condition, /\(principal_id IS NULL\) = true/, plan);
+        assert.match(condition, /COALESCE\(principal_id, ''::text\) = ''::text/, plan);
+        assert.match(condition, /(?:COALESCE\(provider, ''::text\)|\bprovider) = 'vendor-tie'::text/, plan);
+      }
     });
 
     test("MCP server list: statement count does not grow with the number of servers", async () => {

@@ -9,19 +9,18 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { sql } from "kysely";
 import type { Clock } from "@jini-ai/core/primitives";
-import { deriveAvailableName } from "@jini-ai/core/naming";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { AesGcmSecretSealer, credentialTokenHint, type KeyringPort, type SiteKeyHandle, type SecretSealerPort } from "@jini-ai/platform/secrets";
-import { buildVaultAad, SecretsVaultService, VaultError, VAULT_KINDS, type VaultKind, type VaultMeta, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, VaultError, VAULT_KINDS, type VaultKind, type VaultMeta, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
-import { legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "./vault-legacy-codecs.js";
+import { legacyTargetProvider, legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "./vault-legacy-codecs.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
 type BlockReason = "missing-key" | "unopenable" | "invalid-meta" | "catalog-unavailable" | "conflict";
 export interface VaultKindCoverage {
-  rows: number; envelopes: number; attempted: number; succeeded: number; blocked: number;
+  rows: number; envelopes: number; attempted: number; succeeded: number; dropped: number; blocked: number;
   legacyRemaining: number; unopenable: number;
 }
 export interface VaultBootReport {
@@ -54,54 +53,41 @@ export function legacyContext({ record }: { record: VaultRecord }): VaultLegacyC
   return value as unknown as VaultLegacyContext;
 }
 
-/** Resolve a moved legacy group or repair its old machine label in the exact existing scope.
- * Preserve conflicting defaults; machine identity stays in migration provenance.
+/** Resolve a moved legacy row's exact target scope. A taken label means the moved row is a
+ * duplicate and is dropped; otherwise keep its label and preserve conflicting defaults.
  * @complexity O(group size) time/space; one metadata-only scope read, no ciphertext hydration.
  */
 async function targetGroup({ input, record, provider }: { input: VaultBootInput; record: VaultRecord; provider: string | null },
-  { preferred = record.label, legacyCopy = false }: { preferred?: string; legacyCopy?: boolean } = {},
-): Promise<{ label: string; isDefault: boolean }> {
-  if (provider === record.provider && !legacyCopy) return { label: record.label, isDefault: record.isDefault };
+  _options = {},
+): Promise<{ label: string; isDefault: boolean } | null> {
+  if (provider === record.provider) return { label: record.label, isDefault: record.isDefault };
   const rows = await input.kernel.query<{ id: string; label: string; is_default: boolean | number }>(sql`
     SELECT id,label,is_default FROM secrets_vault WHERE workspace_id=${record.workspaceId} AND kind=${record.kind}
       AND owner_key=${record.ownerKey}
       AND ${record.principalId === null ? sql`principal_id IS NULL` : sql`principal_id=${record.principalId}`}
       AND ${provider === null ? sql`provider IS NULL` : sql`provider=${provider}`} AND id<>${record.id}`);
-  const taken = new Set(rows.map(row => row.label));
-  if (legacyCopy) taken.add(preferred);
-  const label = await deriveAvailableName({ base: preferred,
-    isTaken: async ({ candidate }) => taken.has(candidate),
-    withSuffix: ({ base, suffix }) => `${base} (legacy copy${suffix === 2 ? "" : ` ${suffix - 1}`})`,
-    exhaustionMessage: () => "vault normalization: conflict",
-  }, { maxAttempts: taken.size + 1, onExhausted: () => { throw new RowBlocked("conflict"); } });
-  return { label, isDefault: record.isDefault && !rows.some(row => row.is_default === true || row.is_default === 1) };
+  if (rows.some(row => row.label === record.label)) return null;
+  return { label: record.label, isDefault: record.isDefault && !rows.some(row => row.is_default === true || row.is_default === 1) };
 }
 
-/** Repair previously persisted machine labels through Jini's revision CAS, with payload omitted.
- * Labels are outside buildVaultAad: no key read, open or seal; ciphertext and hints stay intact.
- * @throws VaultError on validation/CAS failure, or a host scope-read error.
- * @complexity O(group size + metadata size) time/space for affected rows; O(1) otherwise.
- */
-async function repairLegacyLabel({ input, record, vault }: {
-  input: VaultBootInput; record: VaultRecord; vault: SecretsVaultService;
-}, _options = {}): Promise<VaultRecord> {
-  const preferred = record.label.replace(/ \(legacy:.*:\d+\)$/, "");
-  if (preferred === record.label) return record;
-  assertCredentialFreeField({ value: preferred, field: "label" });
-  const { label } = await targetGroup({ input, record, provider: record.provider }, { preferred, legacyCopy: true });
-  const { configured: _configured, ...saved } = await vault.put({
-    workspaceId: record.workspaceId, id: record.id, kind: record.kind, ownerKey: record.ownerKey,
-    principalId: record.principalId, binding: record.binding, provider: record.provider,
-    label, isDefault: record.isDefault, expectedRevision: record.revision, meta: record.meta,
-  });
-  return { ...record, ...saved };
-}
-
-/** Open under precisely one historical AAD, normalize, validate, re-seal and reopen/compare.
+/** Return null for a moved duplicate before crypto; otherwise open under precisely one historical
+ * AAD, normalize, validate, re-seal and reopen/compare.
  * No failed row is written with new ciphertext. Metadata-only rows need no key.
- * @complexity O(payload + metadata + target group size), at most two opens and one seal.
+ * @complexity O(payload + metadata + target group size) time/space, at most two opens and one seal.
  */
-async function normalizedRecord({ input, record, legacy, previous = input.sealer }: { input: VaultBootInput; record: VaultRecord; legacy: VaultLegacyContext; previous?: Pick<SecretSealerPort, "open"> }): Promise<VaultRecord> {
+async function normalizedRecord({ input, record, legacy, previous = input.sealer }: { input: VaultBootInput; record: VaultRecord; legacy: VaultLegacyContext; previous?: Pick<SecretSealerPort, "open"> }): Promise<VaultRecord | null> {
+  let provider = record.provider;
+  if (record.sealed && legacy.table === "publish_credential_sets") {
+    // The catalog owns provider reassignment; detect duplicates without opening their ciphertext.
+    try {
+      legacyVaultAad({ record, legacy });
+      provider = legacyTargetProvider({ record, legacy, policy: input.registry.policy }).provider;
+    } catch (error) {
+      throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
+    }
+  }
+  const group = await targetGroup({ input, record, provider });
+  if (group === null) return null;
   let plaintext: string | null = null;
   let key: SiteKeyHandle | undefined;
   if (record.sealed) {
@@ -121,7 +107,6 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
   } catch (error) {
     throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
   }
-  const group = await targetGroup({ input, record, provider: normalized.provider });
   if (meta.migration !== null && typeof meta.migration === "object" && !Array.isArray(meta.migration)) {
     meta = { ...meta, migration: { ...meta.migration, mappedLabel: group.label, mappedProvider: normalized.provider } };
   }
@@ -144,11 +129,20 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
   return replacement;
 }
 
-/** CAS the whole normalization result. The raw host write permits legacy provider reassignment,
+/** CAS the whole normalization result, or delete a moved duplicate when after is null.
+ * The raw host write permits legacy provider reassignment,
  * which Jini's ordinary put correctly rejects as an immutable-identity change. Writers still
  * share the exact Jini workspace lock; no second vault repository or crypto implementation.
+ * @throws RowBlocked on revision conflict; propagates storage errors.
+ * @complexity O(payload + metadata) time/space; one guarded write, no crypto.
  */
-async function saveNormalized({ input, before, after }: { input: VaultBootInput; before: VaultRecord; after: VaultRecord }): Promise<void> {
+async function saveNormalized({ input, before, after }: { input: VaultBootInput; before: VaultRecord; after: VaultRecord | null }): Promise<void> {
+  if (after === null) {
+    const rows = await input.kernel.query<{ id: string }>(sql`DELETE FROM secrets_vault
+      WHERE workspace_id=${before.workspaceId} AND id=${before.id} AND revision=${before.revision} RETURNING id`);
+    if (rows.length !== 1) throw new RowBlocked("conflict");
+    return;
+  }
   const rows = await input.kernel.query<{ id: string }>(sql`UPDATE secrets_vault SET
     provider=${after.provider}, label=${after.label}, is_default=${input.kernel.dialect === "sqlite" ? Number(after.isDefault) : after.isDefault},
     sealed_key_id=${after.sealed?.keyId ?? null}, sealed_ciphertext=${after.sealed?.ciphertext ?? null},
@@ -168,10 +162,12 @@ async function flagRecord({ input, record, reason }: { input: VaultBootInput; re
 
 /** Boot runs before consumers are constructed. The shared operation lock is the first effect;
  * the transaction then locks `secrets_vault:<workspaceId>` exactly as ALL Jini SQL writers do.
- * Missing keys keep rows flagged, and normal envelopes are checked too: no false green report.
+ * Moved duplicates are counted and dropped; missing keys keep surviving rows flagged, and normal
+ * envelopes are checked too: no false green report.
  * @throws Lock denial, I/O errors or commit failure; row failures have safe flagged outcomes.
- * @complexity O(n) row reads/writes plus payload work; O(n) identities/report memory. This is a
- * one-time normalization pass, not a per-request inventory path. No old-process draining.
+ * @complexity O(n + sum of moved target group sizes + payload work) time; O(n + largest group +
+ * largest payload) space. One pass over n workspace rows, not a per-request inventory path.
+ * No old-process draining.
  */
 export async function normalizeVaultAtBoot(input: VaultBootInput,
   { report: observe = () => {} }: { report?: (input: VaultBootReport) => void } = {},
@@ -183,13 +179,8 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
     const report = await input.kernel.transaction(async () => {
       await input.kernel.lockKey(`secrets_vault:${input.workspaceId}`);
       const repo = new SqlSecretsVaultRepo({ kernel: input.kernel as StorageKernel<SecretsVaultDatabase> });
-      const vault = new SecretsVaultService({ repo, keyring: input.keyring, sealer: input.sealer,
-        metaParsers: input.registry.metaParsers, now: () => new Date(input.clock.nowMs()).toISOString(),
-        authorize: async ({ context }) => {
-          if (context.workspaceId !== input.workspaceId) throw new VaultError({ code: "context" });
-        }, newId: () => { throw new VaultError({ code: "invalid-record" }); } });
       const report: VaultBootReport = { green: false, flagged: [], kinds: Object.fromEntries(VAULT_KINDS.map(kind => [kind,
-        { rows: 0, envelopes: 0, attempted: 0, succeeded: 0, blocked: 0, legacyRemaining: 0, unopenable: 0 }])) as VaultBootReport["kinds"] };
+        { rows: 0, envelopes: 0, attempted: 0, succeeded: 0, dropped: 0, blocked: 0, legacyRemaining: 0, unopenable: 0 }])) as VaultBootReport["kinds"] };
       const identities = await input.kernel.query<{ id: string }>(sql`SELECT id FROM secrets_vault WHERE workspace_id=${input.workspaceId} ORDER BY id`);
       for (const { id } of identities) {
         let record = await repo.find({ workspaceId: input.workspaceId, id });
@@ -205,11 +196,10 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
           if (legacy) {
             const after = await normalizedRecord({ input, record, legacy });
             await saveNormalized({ input, before: record, after });
+            if (after === null) { coverage.dropped += 1; continue; }
             record = after;
-            record = await repairLegacyLabel({ input, record, vault });
             coverage.succeeded += 1;
           } else {
-            record = await repairLegacyLabel({ input, record, vault });
             // Ordinary feature reads have no legacy fallback; readiness proves that exact path.
             const { normalization: _flag, ...meta } = record.meta;
             try { input.registry.metaParsers[record.kind]({ meta }); } catch { throw new RowBlocked("invalid-meta"); }
@@ -296,8 +286,10 @@ export async function loadSiteVaultKinds(input: { workspaceId: string; siteDir?:
   return registry;
 }
 
-/** Recover a legacy envelope through the same validation, normalization and verifying seal as boot.
+/** Recover through boot's shared normalization: delete moved duplicates, otherwise validate and
+ * re-seal/reopen the legacy envelope.
  * Caller holds the Jini workspace writer lock; the original revision still guards the commit.
+ * @complexity O(payload + metadata + target group size) time/space; one CAS write, no crypto for drops.
  */
 export async function recoverLegacyVaultRecord(required: {
   input: VaultBootInput; record: VaultRecord; previous: Pick<SecretSealerPort, "open">;

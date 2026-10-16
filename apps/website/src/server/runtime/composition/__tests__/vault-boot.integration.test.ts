@@ -9,11 +9,12 @@ import { vaultFixture, vaultStep, stamp, insertFixture } from "#src/platform/db/
 import { describeCredential, resolveCustomCredentialByLabel, updateCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createTovuVaultKinds, type TovuVaultPolicy } from "#src/platform/secrets/vault-kinds";
-import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, type VaultBootInput } from "../vault-boot.js";
+import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, recoverLegacyVaultRecord, type VaultBootInput } from "../vault-boot.js";
 import { legacyVaultAad, buildPublishContentPeerAad, type VaultLegacyContext } from "../vault-legacy-codecs.js";
 
 /** S2: real GCM + SQLite/PGlite integration; ordinary Jini reads prove new AAD, not a legacy
- * fallback. Failure cases retain the original envelope and never report green coverage.
+ * fallback. Moved duplicates are dropped without crypto; blocked rows retain their original
+ * envelope and never report green coverage.
  */
 const clock = { nowMs: () => Date.parse(stamp) + 1000 };
 const policy: TovuVaultPolicy = {
@@ -43,7 +44,8 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.equal(isOperationInFlight({ siteId: input.siteId }), false);
       assert.equal(Object.values(report.kinds).reduce((n, kind) => n + kind.rows, 0), 12);
       assert.equal(Object.values(report.kinds).reduce((n, kind) => n + kind.envelopes, 0), 11);
-      assert.equal(Object.values(report.kinds).reduce((n, kind) => n + kind.succeeded, 0), 12);
+      assert.equal(Object.values(report.kinds).reduce((n, kind) => n + kind.succeeded, 0), 11);
+      assert.equal(report.kinds.vendor.dropped, 1);
       const service = new SecretsVaultService({ repo, keyring, sealer, metaParsers: registry.metaParsers,
         authorize: async () => {}, now: () => stamp, newId: () => "unused" });
       const identities = await kernel.query<{ id: string }>(sql`SELECT id FROM secrets_vault WHERE workspace_id='ws'`);
@@ -73,7 +75,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.deepEqual(plaintexts.get("custom"), { token: "long-token-1234567890" });
       assert.deepEqual(plaintexts.get("database-destination"), { connectionString: "postgres://writer:password@db.example.test/content" });
       assert.deepEqual(plaintexts.get("vendor_credential_sets"), { vendorId: "vendor-test", token: "long-token-1234567890" });
-      assert.deepEqual(plaintexts.get("publish_credential_sets"), { vendorId: "vendor-test", token: "different-legacy-token" });
+      assert.equal(plaintexts.has("publish_credential_sets"), false);
       assert.deepEqual(plaintexts.get("source-control"), { providerId: "source-test", token: "long-token-1234567890", username: "paired" });
       assert.deepEqual(plaintexts.get("mcp-env"), { NAME: "env-value" });
       assert.deepEqual(plaintexts.get("mcp-auth"), { schemaVersion: 1, clientSecret: "client-secret", tokens: { accessToken: "access-token" } });
@@ -83,9 +85,13 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.equal(media.tokenLength, 5);
       assert.equal(media.last4, null);
       const vendors = await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "vendor-test" });
-      assert.equal(vendors.length, 2);
-      assert.deepEqual(vendors.map(row => row.label).sort(), ["Saved", "Saved (legacy copy)"]);
-      assert.equal(vendors.filter(row => row.isDefault).length, 1);
+      assert.equal(vendors.length, 1);
+      assert.equal(vendors[0]!.label, "Saved");
+      assert.equal(vendors[0]!.id, "collision");
+      assert.equal(vendors[0]!.isDefault, true);
+      assert.deepEqual((await service.get(vendors[0]!))!.payload, { vendorId: "vendor-test", token: "long-token-1234567890" });
+      const labels = await kernel.query<{ label: string }>(sql`SELECT label FROM secrets_vault WHERE workspace_id='ws'`);
+      assert.ok(labels.every(row => !/legacy copy/i.test(row.label)));
       for (const row of vendors) assert.equal((row.meta.migration as VaultMeta).originalLabel, "Saved");
       for (const kind of ["database-destination", "mcp-env", "mcp-auth"] as VaultKind[]) {
         const row = (await repo.list({ workspaceId: "ws", kind, ownerKey: kind.startsWith("mcp-") ? "server" : "tovu", principalId: null }))[0];
@@ -94,8 +100,12 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       }
       const after = await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`);
       assert.notDeepEqual(after, original);
+      assert.equal(after.length, 11);
       const second = await normalizeVaultAtBoot(input);
       assert.equal(second.green, true);
+      assert.equal(second.kinds.vendor.dropped, 0);
+      assert.equal(Object.values(second.kinds).reduce((n, kind) => n + kind.rows, 0), 11);
+      assert.equal(Object.values(second.kinds).reduce((n, kind) => n + kind.envelopes, 0), 10);
       assert.equal(Object.values(second.kinds).reduce((n, kind) => n + kind.attempted, 0), 0);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`), after);
       const empty = await normalizeVaultAtBoot({ ...input, workspaceId: "ws-empty" });
@@ -147,105 +157,121 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     } finally { await kernel.close(); }
   });
 
-  test(`${dialect}: boot collisions skip an occupied first legacy copy label`, async () => {
+  test(`${dialect}: a moved legacy row whose label is already taken is dropped, never kept as a "(legacy copy)"`, async () => {
     const { kernel, input, repo } = await prepared(dialect);
     try {
-      const vault = new SecretsVaultService({ repo, keyring: input.keyring, sealer: input.sealer,
-        metaParsers: registry.metaParsers, authorize: async () => {}, now: () => stamp, newId: () => "occupied-copy" });
-      await vault.put({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null,
-        provider: "vendor-test", label: "Saved (legacy copy)", isDefault: false,
-        expectedRevision: null, meta: { accountLabel: null }, payload: null });
-      assert.equal((await normalizeVaultAtBoot(input)).green, true);
+      // Make the winning vendor row current before boot, so every stored byte must survive.
+      const winner = (await repo.find({ workspaceId: "ws", id: "collision" }))!;
+      await kernel.transaction(async () => {
+        await kernel.lockKey("secrets_vault:ws");
+        await recoverLegacyVaultRecord({ input, record: winner, previous: input.sealer });
+      });
+      const before = await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' AND id='collision'`);
+      const duplicate = (await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "legacy-host" }))[0]!;
+      let duplicateOpens = 0;
+      let duplicateSeals = 0;
+      const sealer = {
+        open: async (required: Parameters<typeof input.sealer.open>[0], options?: { aad?: string }) => {
+          if (required.sealed.ciphertext === duplicate.sealed!.ciphertext) duplicateOpens += 1;
+          return input.sealer.open(required, options);
+        },
+        seal: async (required: Parameters<typeof input.sealer.seal>[0]) => {
+          if (buildVaultAad(duplicate) === required.aad) duplicateSeals += 1;
+          return input.sealer.seal(required);
+        },
+      };
+      const report = await normalizeVaultAtBoot({ ...input, sealer });
+      assert.equal(report.green, true);
+      assert.deepEqual(report.flagged, []);
+      assert.equal(report.kinds.vendor.dropped, 1);
+      assert.equal(duplicateOpens, 0);
+      assert.equal(duplicateSeals, 0);
+      assert.equal(await repo.find({ workspaceId: "ws", id: duplicate.id }), null);
+      assert.deepEqual(await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' AND id='collision'`), before);
       const rows = await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "vendor-test" });
-      assert.deepEqual(rows.map(row => row.label).sort(), ["Saved", "Saved (legacy copy 2)", "Saved (legacy copy)"]);
+      assert.deepEqual(rows.map(row => row.label), ["Saved"]);
+      const labels = await kernel.query<{ label: string }>(sql`SELECT label FROM secrets_vault WHERE workspace_id='ws'`);
+      assert.ok(labels.every(row => !/legacy copy/i.test(row.label)));
       const after = await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`);
-      assert.equal((await normalizeVaultAtBoot(input)).green, true);
+      const second = await normalizeVaultAtBoot(input);
+      assert.equal(second.green, true);
+      assert.equal(second.kinds.vendor.dropped, 0);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`), after);
     } finally { await kernel.close(); }
   });
 
-  test(`${dialect}: old machine labels repair with CAS without resealing, including null providers and principal scopes`, async () => {
+  test(`${dialect}: an intervening revision prevents dropping a moved duplicate`, async () => {
     const { kernel, input, repo } = await prepared(dialect);
     try {
-      assert.equal((await normalizeVaultAtBoot(input)).green, true);
-      const vendors = await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "vendor-test" });
-      const damaged = [vendors.find(row => row.label === "Saved (legacy copy)")!,
-        (await repo.find({ workspaceId: "ws", id: "custom" }))!,
-        (await repo.list({ workspaceId: "ws", kind: "personal-execution", ownerKey: "tovu", principalId: "p" }))[0]!];
-      const originals: typeof damaged = [];
-      for (const row of damaged) {
-        originals.push(await repo.put({ expectedRevision: row.revision, record: { ...row,
-          label: `${row.kind === "vendor" ? "Saved" : row.label} (legacy:${row.id}:0)`, revision: row.revision + 1 } }));
-      }
-      // Occupy the first human suffix independently of the row being repaired.
-      const vendor = vendors.find(row => row.label === "Saved")!;
-      await repo.put({ expectedRevision: null, record: { ...vendor, id: "occupied-copy", label: "Saved (legacy copy)",
-        isDefault: false, revision: 1, sealed: null } });
-      const sealer = { open: input.sealer.open.bind(input.sealer), seal: async () => { throw new Error("label repair must never seal"); } };
-      assert.equal((await normalizeVaultAtBoot({ ...input, sealer })).green, true);
-      for (const before of originals) {
-        const after = (await repo.find({ workspaceId: "ws", id: before.id }))!;
-        const preferred = before.label.replace(/ \(legacy:.*:\d+\)$/, "");
-        assert.equal(after.label, `${preferred} (legacy copy${before.kind === "vendor" ? " 2" : ""})`);
-        assert.deepEqual(after, { ...before, label: after.label, revision: before.revision + 1,
-          updatedAt: new Date(clock.nowMs()).toISOString() });
-        assert.equal(buildVaultAad(after), buildVaultAad(before));
-      }
-      const after = await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`);
-      assert.equal((await normalizeVaultAtBoot({ ...input, sealer })).green, true);
-      assert.deepEqual(await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`), after);
-    } finally { await kernel.close(); }
-  });
-
-  test(`${dialect}: an intervening revision prevents stale label repair`, async () => {
-    const { kernel, input, repo } = await prepared(dialect);
-    try {
-      assert.equal((await normalizeVaultAtBoot(input)).green, true);
-      const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
-      const before = await repo.put({ expectedRevision: row.revision, record: { ...row,
-        label: "Custom (legacy:vault:custom:0)", revision: row.revision + 1 } });
-      await repo.put({ expectedRevision: null, record: { ...row, id: "other-custom", label: "Custom",
-        revision: 1, isDefault: false, sealed: null } });
+      const before = (await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "legacy-host" }))[0]!;
       const query = kernel.query.bind(kernel);
       let intervened = false;
       kernel.query = async <Row>(statement: import("kysely").RawBuilder<Row>): Promise<Row[]> => {
         const rows = await query(statement);
         if (!intervened && rows.some(row => row !== null && typeof row === "object" && "label" in row && "is_default" in row)) {
           intervened = true;
-          await kernel.execute(sql`UPDATE secrets_vault SET revision=revision+1 WHERE workspace_id='ws' AND id='custom'`);
+          await kernel.execute(sql`UPDATE secrets_vault SET revision=revision+1 WHERE workspace_id='ws' AND id=${before.id}`);
         }
         return rows;
       };
       const report = await normalizeVaultAtBoot(input);
       assert.equal(intervened, true);
       assert.equal(report.green, false);
-      assert.deepEqual(report.flagged, [{ id: "custom", kind: "custom", reason: "conflict" }]);
-      assert.deepEqual(await repo.find({ workspaceId: "ws", id: "custom" }), { ...before, revision: before.revision + 1 });
+      assert.equal(report.kinds.vendor.dropped, 0);
+      assert.equal(report.kinds.vendor.blocked, 1);
+      assert.equal(report.kinds.vendor.legacyRemaining, 1);
+      assert.deepEqual(report.flagged, [{ id: before.id, kind: "vendor", reason: "conflict" }]);
+      assert.deepEqual(await repo.find({ workspaceId: "ws", id: before.id }), { ...before, revision: before.revision + 1 });
       kernel.query = query;
-      assert.equal((await normalizeVaultAtBoot(input)).green, true);
-      assert.equal((await repo.find({ workspaceId: "ws", id: "custom" }))!.label, "Custom (legacy copy)");
+      const retry = await normalizeVaultAtBoot(input);
+      assert.equal(retry.green, true);
+      assert.equal(retry.kinds.vendor.dropped, 1);
+      assert.equal(await repo.find({ workspaceId: "ws", id: before.id }), null);
     } finally { await kernel.close(); }
   });
 
-  test(`${dialect}: metadata-only machine labels repair without a key or crypto`, async () => {
+  test(`${dialect}: legacy key recovery drops a moved duplicate without key or crypto calls`, async () => {
     const { kernel, input, repo } = await prepared(dialect);
     try {
-      const keyring = { activeKey: async () => { throw new Error("unexpected key read"); },
+      const duplicate = (await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "legacy-host" }))[0]!;
+      const before = await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' AND id='collision'`);
+      const noKey = { activeKey: async () => { throw new Error("unexpected key read"); },
         derive: async () => { throw new Error("unexpected derivation"); },
         deriveSigningSecret: async () => { throw new Error("unexpected signing key"); } };
-      const sealer = { seal: async () => { throw new Error("unexpected seal"); }, open: async () => { throw new Error("unexpected open"); } };
-      const emptyInput = { ...input, workspaceId: "ws-empty", keyring, sealer };
-      assert.equal((await normalizeVaultAtBoot(emptyInput)).green, true);
-      const row = (await repo.list({ workspaceId: "ws-empty", kind: "site-assistant", ownerKey: "tovu", principalId: null }))[0]!;
-      const before = await repo.put({ expectedRevision: row.revision, record: { ...row,
-        label: `Assistant (legacy:${row.id}:0)`, revision: row.revision + 1 } });
-      assert.equal((await normalizeVaultAtBoot(emptyInput)).green, true);
-      const after = (await repo.find({ workspaceId: "ws-empty", id: row.id }))!;
-      assert.deepEqual(after, { ...before, label: "Assistant (legacy copy)", revision: before.revision + 1,
-        updatedAt: new Date(clock.nowMs()).toISOString() });
-      assert.equal((await normalizeVaultAtBoot(emptyInput)).green, true);
-      assert.deepEqual(await repo.find({ workspaceId: "ws-empty", id: row.id }), after);
+      const noCrypto = { seal: async () => { throw new Error("unexpected seal"); }, open: async () => { throw new Error("unexpected open"); } };
+      await kernel.transaction(async () => {
+        await kernel.lockKey("secrets_vault:ws");
+        await recoverLegacyVaultRecord({ input: { ...input, keyring: noKey, sealer: noCrypto }, record: duplicate, previous: noCrypto });
+      });
+      assert.equal(await repo.find({ workspaceId: "ws", id: duplicate.id }), null);
+      assert.deepEqual(await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' AND id='collision'`), before);
+      assert.equal((await normalizeVaultAtBoot(input)).green, true);
     } finally { await kernel.close(); }
+  });
+
+  test(`${dialect}: moved rows with a free label keep it and respect the target default`, async () => {
+    for (const targetHasDefault of [true, false]) {
+      const { kernel, input, repo } = await prepared(dialect);
+      try {
+        const legacyRow = (await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "legacy-host" }))[0]!;
+        await repo.put({ expectedRevision: legacyRow.revision, record: { ...legacyRow, label: "Free label", revision: legacyRow.revision + 1 } });
+        if (!targetHasDefault) await kernel.execute(sql`UPDATE secrets_vault
+          SET is_default=${kernel.dialect === "sqlite" ? 0 : false} WHERE workspace_id='ws' AND id='collision'`);
+        const report = await normalizeVaultAtBoot(input);
+        assert.equal(report.green, true);
+        assert.equal(report.kinds.vendor.dropped, 0);
+        const moved = (await repo.find({ workspaceId: "ws", id: legacyRow.id }))!;
+        assert.equal(moved.label, "Free label");
+        assert.equal(moved.provider, "vendor-test");
+        assert.equal(moved.isDefault, !targetHasDefault);
+        assert.equal(moved.meta.legacyAad, undefined);
+        assert.deepEqual(JSON.parse(await input.sealer.open({ sealed: moved.sealed! }, { aad: buildVaultAad(moved) })),
+          { vendorId: "vendor-test", token: "different-legacy-token" });
+        const rows = await repo.list({ workspaceId: "ws", kind: "vendor", ownerKey: "tovu", principalId: null, provider: "vendor-test" });
+        assert.equal(rows.length, 2);
+        assert.equal(rows.filter(row => row.isDefault).length, 1);
+      } finally { await kernel.close(); }
+    }
   });
 
   test(`${dialect}: missing key flags each sealed legacy row, preserves bytes, retries safely, and never reports green`, async () => {
@@ -257,13 +283,19 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         derive: input.keyring.derive.bind(input.keyring), deriveSigningSecret: input.keyring.deriveSigningSecret.bind(input.keyring) };
       const report = await normalizeVaultAtBoot({ ...input, keyring: noKey });
       assert.equal(report.green, false);
-      assert.equal(report.flagged.length, 11);
+      assert.equal(report.flagged.length, 10);
       assert.ok(report.flagged.every(flag => flag.reason === "missing-key"));
       assert.equal(report.kinds["publish-peer"].succeeded, 1, "metadata-only peer needs no key");
-      assert.equal(Object.values(report.kinds).reduce((n, kind) => n + kind.legacyRemaining, 0), 11);
+      assert.equal(Object.values(report.kinds).reduce((n, kind) => n + kind.legacyRemaining, 0), 10);
+      assert.equal(report.kinds.vendor.dropped, 1);
       assert.equal(JSON.stringify(report).includes("sensitive"), false);
       for (const [id, original] of originals) {
-        const row = (await repo.find({ workspaceId: "ws", id }))!;
+        const row = await repo.find({ workspaceId: "ws", id });
+        if (original.kind === "vendor" && original.provider === "legacy-host") {
+          assert.equal(row, null, "a moved duplicate needs no key and is dropped");
+          continue;
+        }
+        assert.ok(row);
         assert.deepEqual(row.sealed, original.sealed);
         assert.deepEqual(row.meta.legacyAad, original.meta.legacyAad);
         assert.equal(row.meta.normalization, "missing-key");
@@ -393,7 +425,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         deriveSigningSecret: input.keyring.deriveSigningSecret.bind(input.keyring) };
       const report = await normalizeVaultAtBoot({ ...input, keyring: noKey });
       assert.equal(report.green, false);
-      assert.equal(report.flagged.length, 11);
+      assert.equal(report.flagged.length, 10);
       assert.equal(report.kinds.custom.legacyRemaining, 0);
       assert.equal(report.kinds.custom.unopenable, 1);
       const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
