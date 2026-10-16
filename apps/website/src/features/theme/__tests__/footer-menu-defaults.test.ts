@@ -12,7 +12,9 @@ for (const relative of [
   "sites/tovu-dev/themes/__original-themes__/static/tovu-theme/render/partials/footer.html",
 ]) {
   test(`footer defaults: ${relative} uses menus with no unconditional fallback links`, () => {
-    const footer = fs.readFileSync(path.join(root, relative), "utf8").replace(/<!--[\s\S]*?-->/g, "");
+    // The reference site is owner data now; keep its two footer contracts in a repo fixture.
+    const source = relative.replace(/^sites\/tovu-dev\//, "development/fixtures/tovu-dev/");
+    const footer = fs.readFileSync(path.join(root, source), "utf8").replace(/<!--[\s\S]*?-->/g, "");
     assert.match(footer, /"id":"footer-resources"/);
     assert.match(footer, /"id":"menu-footer-nav"/);
     assert.doesNotMatch(footer, /<a\b[^>]*\bhref=/i, "missing menus must render no guaranteed dead links");

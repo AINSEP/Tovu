@@ -5,7 +5,7 @@ import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtu
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { ADDONS_PANEL_PATHS } from "../../../apps/admin/src/lib/addons-routes.js";
+import { ADDONS_PANEL_PATHS } from "../support/addons-route-fixture.js";
 import { test as base } from "../support/bug-pin-fixtures.js";
 import { expect } from "../support/bug-pin-fixtures.js";
 import { type BrowserContext } from "../support/bug-pin-fixtures.js";

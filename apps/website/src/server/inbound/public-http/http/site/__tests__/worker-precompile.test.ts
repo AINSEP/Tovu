@@ -60,8 +60,11 @@ test("cold concurrent source renders compile both theme workers once and start p
     assert.deepEqual(readdirSync([...dirs][0]).filter((file) => file.endsWith(".js")).sort(), ["handlebars-worker.js", "liquid-worker.js"]);
     console.log("precompiled workers: cold race, reuse, root and plain JS verified");
   `;
+  const env = { ...process.env };
+  // The cold parent runs outside the repository; tsx still needs the runner's JSX config.
+  if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(import.meta.dirname, "../../../../../../../../..", env.TSX_TSCONFIG_PATH);
   const result = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "--eval", script], {
-    cwd, encoding: "utf8", timeout: 60_000,
+    cwd, env, encoding: "utf8", timeout: 60_000,
   });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr);

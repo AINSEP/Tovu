@@ -177,9 +177,12 @@ test("CLI selects changed routes, loads both LCOV tiers, and returns failure or 
   const route = "apps/website/src/server/inbound/admin-http/routes/example.ts";
   // No git writes: a strict executable boundary supplies controlled history and rejects wrong args.
   fs.writeFileSync(path.join(bin, "git"), `#!${process.execPath}\nconst args = process.argv.slice(2);\nconst merge = ["merge-base", "fixture-base", "HEAD"];\nconst diff = ["diff", "--name-only", "--diff-filter=ACMR", "fixture-merge", "HEAD", "--", "apps/website/src/server/routes/", "apps/website/src/server/inbound/admin-http/routes/", "apps/website/src/server/inbound/public-http/routes/"];\nif (JSON.stringify(args) === JSON.stringify(merge)) process.stdout.write("fixture-merge\\n");\nelse if (JSON.stringify(args) === JSON.stringify(diff)) process.stdout.write(${JSON.stringify(route + "\napps/website/src/server/inbound/admin-http/routes/__tests__/ignored.test.ts\nREADME.md\n")});\nelse { process.stderr.write("unexpected git arguments: " + JSON.stringify(args)); process.exitCode = 2; }\n`, { mode: 0o755 });
+  const env: NodeJS.ProcessEnv = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, ROUTE_COVERAGE_DIFF_BASE: "fixture-base" };
+  // Resolve the runner's config before changing cwd to the fixture repository.
+  if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(repoRoot, env.TSX_TSCONFIG_PATH);
   const run = () => spawnSync(process.execPath, ["--import", "tsx", path.join(scripts, "check-route-coverage-diff.ts")], {
     cwd: scratch, encoding: "utf8", timeout: 10_000,
-    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, ROUTE_COVERAGE_DIFF_BASE: "fixture-base" },
+    env,
   });
   const missing = run();
   assert.equal(missing.error, undefined);

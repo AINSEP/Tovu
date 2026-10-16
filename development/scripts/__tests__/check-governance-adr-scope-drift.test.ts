@@ -328,7 +328,10 @@ function fixtureChecker(t: test.TestContext) {
   fs.copyFileSync(path.join(REPO_ROOT, "development/scripts/check-governance-adr-scope-drift.ts"), script);
   fs.writeFileSync(path.join(scratch, "package.json"), '{"type":"module"}');
   fs.symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(scratch, "node_modules"), "dir");
-  return { scratch, run: () => spawnSync(process.execPath, ["--import", "tsx", script], { cwd: scratch, encoding: "utf8", timeout: 10_000 }) };
+  const env = { ...process.env };
+  // Resolve the runner's config before changing cwd to the fixture repository.
+  if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(REPO_ROOT, env.TSX_TSCONFIG_PATH);
+  return { scratch, run: () => spawnSync(process.execPath, ["--import", "tsx", script], { cwd: scratch, env, encoding: "utf8", timeout: 10_000 }) };
 }
 
 test("missing index CLI emits the unverified notice on stderr and exits zero", (t) => {

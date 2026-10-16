@@ -199,8 +199,11 @@ test("CLI extracts complexity maxima, excludes tests, counts history and reports
   const npx = `#!${process.execPath}\nconst assert = require("node:assert/strict"); assert.deepEqual(process.argv.slice(2), ${JSON.stringify(expectedNpxArgs)}); if (process.env.FIXTURE_TOOL_FAILURE === "yes") { console.error("fixture tooling failure"); process.exit(42); } console.log(${JSON.stringify(JSON.stringify(results))}); process.exit(1);\n`;
   const git = `#!${process.execPath}\nconst assert = require("node:assert/strict"); const args = process.argv.slice(2); assert.deepEqual(args.slice(0, 5), ["log", "--since=3 months ago", "--follow", "--format=%H", "--"]); assert.equal(args.length, 6); assert.ok(["src/hot.ts", "src/cold.ts"].includes(args[5]), "unexpected history query"); process.stdout.write(args[5] === "src/hot.ts" ? "commit-one\\ncommit-two\\n" : "");\n`;
   for (const [name, body] of [["npx", npx], ["git", git]]) fs.writeFileSync(path.join(bin, name), body, { mode: 0o755 });
+  const env: NodeJS.ProcessEnv = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+  // Resolve the runner's config before changing cwd to the fixture repository.
+  if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(repo, env.TSX_TSCONFIG_PATH);
   const run = (failure: boolean) => spawnSync(process.execPath, ["--import", "tsx", script, "--months=3", "--scope=src", "--json"], {
-    cwd: root, encoding: "utf8", env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, FIXTURE_TOOL_FAILURE: failure ? "yes" : "no" },
+    cwd: root, encoding: "utf8", env: { ...env, FIXTURE_TOOL_FAILURE: failure ? "yes" : "no" },
   });
   const result = run(false);
   assert.equal(result.status, 0, result.stderr);

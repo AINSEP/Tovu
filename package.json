@@ -97,7 +97,7 @@
     "e2e:desktop:app": "node development/e2e/support/run-packaged-desktop.mjs"
   },
   "overrides": {
-    "@jini-ai/chat@^0.5.8": {
+    "@jini-ai/chat@^0.6.5": {
       "@jini-ai/ui": "$@jini-ai/ui"
     },
     "@jini-ai/http-kit": {

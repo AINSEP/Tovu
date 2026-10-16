@@ -6,7 +6,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import postcss from "postcss";
 
-const theme = "sites/tovu-dev/themes/static/tovu-theme/css/theme.css";
+const theme = new URL("../../../../../../development/fixtures/tovu-dev/themes/static/tovu-theme/css/theme.css", import.meta.url);
 const selector = '.tv .deck-shell[data-od-id="proof-deck"]';
 function controlGrid() {
   const rules: postcss.Rule[] = [];

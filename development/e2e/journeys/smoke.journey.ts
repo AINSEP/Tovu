@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import { ADDONS_PANEL_PATHS } from "../../../apps/admin/src/lib/addons-routes.js";
+import { ADDONS_PANEL_PATHS } from "../support/addons-route-fixture.js";
 
 import { attemptLoginAsAdmin, logoutAsAdmin } from "../auth-fixtures.js";
 import { JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, PUBLIC_URL, expect, hasHorizontalScroll, test } from "./_fixtures.js";

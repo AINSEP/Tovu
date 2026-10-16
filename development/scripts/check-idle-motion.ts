@@ -50,6 +50,8 @@ export const INTERVAL_ALLOWLIST: Record<string, string> = {
   // 8ac88814c moved the main-process, unref'd 15-minute update tick into @jini-ai/desktop-host.
   "apps/desktop/src/renderer/visible-interval.ts": "the visibility-aware helper itself: stops while the window is hidden",
   "apps/admin/src/lib/visible-interval.ts": "the admin's copy of the same visibility-aware helper: stops while the window is hidden",
+  // 79de6eff7: an attached external server has no owned ChildProcess exit event to subscribe to.
+  "apps/desktop/src/shared-sites.ts": "main-process lease liveness check only while attached to an external server; unref'd 2s timer, removed on exit or detach; no renderer/GPU work",
 };
 
 const ROOTS = ["apps/desktop/main.ts", "apps/desktop/src", "apps/admin/src", "apps/site-chat/src", "content/themes/static"];

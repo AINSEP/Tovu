@@ -10,7 +10,8 @@ import { renderStaticPage, resolveTemplate } from "../static-render.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const STOCK_DIR = path.join(REPO_ROOT, "content/themes/static/tovu-theme");
-const REFERENCE_PATH = "sites/tovu-dev/themes/static/tovu-theme";
+// 948706418 preserved the tracked site in the shipped reset copy. The live site is now owner data.
+const REFERENCE_PATH = "content/themes/__original-themes__/static/tovu-theme";
 const REFERENCE_DIR = path.join(REPO_ROOT, REFERENCE_PATH);
 // Tracking a site draft later does not promote it into release stock. Keep the draft named
 // by the parity contract below site-only; every other tracked reference file must still match.
