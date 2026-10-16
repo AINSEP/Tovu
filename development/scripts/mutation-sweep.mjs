@@ -28,6 +28,7 @@
  *   --priority     spend a capped run on the riskiest guard sites first
  *   --json         emit machine-readable results
  *   --progress=<path>  append each result as JSONL (truncated when the sweep loop starts)
+ *   --preload=<module>  repeatable; node:test only (ignored by vitest), for setup such as test-home isolation
  */
 import { readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -55,6 +56,7 @@ const TIMEOUT = Number(opt('timeout', 120)) * 1000;
 const LIMIT = Number(opt('limit', Infinity));
 const JSON_OUT = flags.has('--json');
 const PROGRESS = opt('progress', null);
+const PRELOADS = argv.filter((a) => a.startsWith('--preload=')).map((a) => a.slice('--preload='.length));
 
 /* ---------- locate the test target ---------- */
 
@@ -107,7 +109,7 @@ function runTests() {
         ...tests.map((t) => t.replace('apps/admin/', ''))],
         { cwd: 'apps/admin', encoding: 'utf8', timeout: TIMEOUT })
     // Match npm test's module mocks support; one test worker bounds each lane's resource use.
-    : spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+    : spawnSync(process.execPath, ['--import', 'tsx', ...PRELOADS.flatMap((module) => ['--import', module]), '--test', '--test-concurrency=1',
         '--experimental-test-module-mocks', ...tests], { encoding: 'utf8', timeout: TIMEOUT });
   const tail = `${r.stdout || ''}${r.stderr || ''}`.trimEnd().split('\n').slice(-60).join('\n');
   // A signal killing the test child is not evidence a test caught the mutant.

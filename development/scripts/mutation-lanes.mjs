@@ -392,10 +392,15 @@ async function runSweep({ lane, row, tests }) {
   const stderr = openSync(err, 'w');
   const env = { ...process.env, TSX_TSCONFIG_PATH: 'apps/site-chat/tsconfig.json', GIT_CEILING_DIRECTORIES: join(config.out, 'lanes') };
   delete env.TOVU_ADMIN_PASSWORD;
+  // Lanes must never use the owner's real home; suites missing the isolation import would
+  // otherwise be BASELINE-RED and never swept. The helper only redirects HOME/app-data env
+  // to a temp dir; it does not change what any test asserts.
+  const preload = './apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts';
+  const preloads = existsSync(join(lane.repo, preload)) ? [`--preload=${preload}`] : [];
   let group;
   try {
     // Use current checkout tooling while source, tests and dependencies resolve inside the lane.
-    group = launch({ cmd: process.execPath, args: [join(REPO, 'development/scripts/mutation-sweep.mjs'), row.path, ...tests,
+    group = launch({ cmd: process.execPath, args: [join(REPO, 'development/scripts/mutation-sweep.mjs'), row.path, ...tests, ...preloads,
       '--json', '--priority', `--limit=${config.limit}`, `--timeout=${config['mutant-timeout']}`, `--progress=${progress}`],
     cwd: lane.repo, env, stdio: ['ignore', stdout, stderr] });
   } finally { closeSync(stdout); closeSync(stderr); }
