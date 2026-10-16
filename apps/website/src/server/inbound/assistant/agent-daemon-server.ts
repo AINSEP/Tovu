@@ -1332,6 +1332,7 @@ const delegatedToolRouteDeps = {
   ...delegatedToolErrorDisclosure({}, {}),
 };
 registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
+  isRegistered: ({ toolId }) => registry.has({ toolId }),
   isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
   async messageIdForAttempt({ runId }) {
     return durableMessageIdsByRunId.get(runId) ?? null;

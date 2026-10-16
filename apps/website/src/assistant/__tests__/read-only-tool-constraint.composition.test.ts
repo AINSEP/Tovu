@@ -354,7 +354,7 @@ test("FAIL CLOSED: an unregistered id is refused under a read-only execution —
   const result = await harness.executor.execute({ principal: READ_ONLY, run: RUN, toolId: "not_registered_anywhere", input: {} });
 
   assert.equal(result.status, "denied", "an unknown id must be refused, not thrown past the gate as a routing error");
-  assert.match(errorText(result), /"not_registered_anywhere" is not registered as read-only/);
+  assert.equal(errorText(result), 'no tool "not_registered_anywhere" is registered; use search_tools');
 });
 
 test("DEFECT CLASS: ANY decorator that dispatches an id the caller did not name is gated — not just the recovery loop", async () => {

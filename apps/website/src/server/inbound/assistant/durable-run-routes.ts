@@ -44,15 +44,19 @@ export function registerDurableRunStartRoute(
 }
 
 /** Only delegated mutations have this guarantee; runtimes' private shells do not pass through
- * this gateway. Unknown registrations fail closed as potentially mutating tools. */
+ * this gateway. Registered tools without read-only metadata fail closed as potentially mutating.
+ * Unregistered ids reach the daemon's not-found response without creating mutation orphans. */
 export function registerDurableToolGuard(
-  { app, ledger, isReadOnly, messageIdForAttempt }: { app: Express; ledger: ChatRunLedger; isReadOnly: (required: { toolId: string }, optional: {}) => boolean;
+  { app, ledger, isRegistered, isReadOnly, messageIdForAttempt }: { app: Express; ledger: ChatRunLedger;
+    isRegistered: (required: { toolId: string }, optional: {}) => boolean; isReadOnly: (required: { toolId: string }, optional: {}) => boolean;
     messageIdForAttempt: (required: { runId: string }, optional: {}) => Promise<string | null> }, _optional = {},
 ): void {
   app.post("/api/delegated-tool-calls", (req, res, next) => {
     const body = (req.body ?? {}) as { runId?: unknown; toolId?: unknown; input?: unknown; toolUseId?: string; requireReadOnly?: unknown };
     if (typeof body.runId !== "string" || typeof body.toolId !== "string") { next(); return; }
     const { runId, toolId, input, toolUseId } = body;
+    // An absent handler cannot mutate; ledgering it would turn a routing error into an unknown outcome.
+    if (!isRegistered({ toolId }, {})) { next(); return; }
     const store = ledger.durable;
     if (!store) { next(); return; }
     // The daemon either verifies a constrained call is read-only or refuses it before execution.

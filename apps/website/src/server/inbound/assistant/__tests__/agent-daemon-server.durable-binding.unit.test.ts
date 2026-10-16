@@ -37,10 +37,12 @@ test("the real durable guard binds live attempt message ids, fences deleted rows
     assert.equal(path, "/api/delegated-tool-calls"); route = handler;
   } } as unknown as Express;
   const deps = guardDependencies({ app, routeDeps: { chatRunLedger: ledger }, lifecycle, durableMessageIdsByRunId,
-    registry: {}, defaultDaemonMessages: { readOnly: {} },
+    registry: { has: ({ toolId }: { toolId: string }) => toolId !== "content_read" }, defaultDaemonMessages: { readOnly: {} },
     checkReadOnlyTool: ({ toolId }: { toolId: string }) => toolId === "read_state" ? null : "mutating",
   });
   registerDurableToolGuard(deps, {});
+  assert.equal(deps.isRegistered({ toolId: "content_read" }, {}), false);
+  assert.equal(deps.isRegistered({ toolId: "create_item" }, {}), true);
 
   const dispatch = (toolId: string): Promise<{ status: number; body?: unknown }> => new Promise((resolve, reject) => {
     let status = 200;
@@ -66,6 +68,8 @@ test("the real durable guard binds live attempt message ids, fences deleted rows
     assert.equal(await deps.messageIdForAttempt({ runId: "unbound" }, {}), null);
     assert.deepEqual(await dispatch("create_item"), { status: 200 });
     assert.equal(guarded, 1, "live mutations must reach the durable guard");
+    assert.deepEqual(await dispatch("content_read"), { status: 200 });
+    assert.equal(guarded, 1, "unregistered ids must reach daemon discovery without a durable orphan");
 
     // Deletion/attempt advancement removes the durable lookup while the old CLI is still live.
     // The actual start-time binding must distinguish that stale chat run from a non-chat client.

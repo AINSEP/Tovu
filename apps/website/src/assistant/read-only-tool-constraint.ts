@@ -55,6 +55,7 @@ import { randomUUID } from "node:crypto";
 import type { Principal, ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import {
+  defaultDaemonMessages,
   constrainPrincipalToReadOnlyTools as constrainDaemonPrincipal,
   refuseNonReadOnlyDispatch as refuseDaemonNonReadOnlyDispatch,
   readOnlyRemedyRefusalMessage as formatDaemonReadOnlyRemedyRefusal,
@@ -77,9 +78,8 @@ export function constrainPrincipalToReadOnlyTools(principal: Principal): ReturnT
 }
 
 /**
- * Refusal text for a read-only-constrained dispatch of a tool that is not registered read-only —
- * including one that is not registered at all, which is the same answer for the same reason
- * (nothing corroborates that it only reads). Deliberately worded like
+ * Refusal text for a read-only-constrained dispatch of a registered tool that lacks evidence it
+ * only reads. Unknown ids instead direct catalog discovery. Deliberately worded like
  * `@jini-ai/daemon/http`'s own `readOnlyRefusalMessage` so a caller refused at either layer reads the
  * same remedy.
  */
@@ -96,6 +96,7 @@ export const READ_ONLY_UNCHECKABLE_MESSAGE =
 export const tovuReadOnlyToolMessages: ReadOnlyToolMessages = {
   unverifiableMessage: READ_ONLY_UNCHECKABLE_MESSAGE,
   toolRefusalMessage: ({ toolId }) => readOnlyToolRefusalMessage(toolId),
+  unknownToolMessage: defaultDaemonMessages.readOnly.unknownToolMessage,
 };
 
 /**
