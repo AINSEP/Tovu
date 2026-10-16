@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -92,6 +93,31 @@ test("nested redirect sources retain their status code and the existing trailing
       await visit.arrayBuffer();
     }
   }
+});
+
+test("a nested override redirect wins pre_content before a more specific ordinary rule can win post_content", async (t) => {
+  const { app } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
+
+  // A lone override also matches post_content, so it cannot detect a missing pre_content call.
+  // The ordinary exact rule wins only if the override's earlier phase is bypassed.
+  for (const rule of [
+    { matchType: "exact", fromPattern: "/old/section", toTarget: "/ordinary-target", statusCode: 308, override: false },
+    { matchType: "wildcard", fromPattern: "/old/*", toTarget: "/override-target", statusCode: 301, override: true },
+  ]) {
+    const create = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify(rule),
+    });
+    assert.equal(create.status, 201, await create.text());
+  }
+
+  const visit = await fetch(`${baseUrl}/old/section`, { redirect: "manual" });
+  assert.equal(visit.status, 301);
+  assert.equal(visit.headers.get("location"), "/override-target");
+  await visit.arrayBuffer();
 });
 
 test("a nested path with no redirect row still reaches the normal 404", async (t) => {
