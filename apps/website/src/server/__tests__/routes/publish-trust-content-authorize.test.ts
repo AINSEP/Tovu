@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
+import type { GatewayDeps } from "#src/contracts/core/gated-mutations/gateway";
+import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 
 /**
  * @file Bounded publish-trust apply authorization.
@@ -26,6 +27,57 @@ function publishingResponse(entityTypes: readonly string[]) {
     },
   };
 }
+
+// Pins publish-trust-auth.ts:352 — human ceremony deps retain identity; publishing deps deny content.write.
+test("ceremony authorization preserves the human deps bag and replaces it only for a publishing context", async () => {
+  const ordinaryAuthorize: GatewayDeps["authorize"] = async ({ permission }) => {
+    assert.equal(permission, "content.write");
+    return { allowed: true, reason: "ordinary RBAC grant" };
+  };
+  const deps = { authorize: ordinaryAuthorize } as GatewayDeps;
+
+  const human = withPublishTrustAuthorize({ locals: {} } as never, deps);
+
+  assert.equal(human, deps);
+  assert.equal(human.authorize, ordinaryAuthorize);
+  assert.deepEqual(await human.authorize({ principalId: "human-owner", workspaceId: "workspace-local", permission: "content.write" }), {
+    allowed: true,
+    reason: "ordinary RBAC grant",
+  });
+
+  const publishing = withPublishTrustAuthorize(publishingResponse(["post"]) as never, deps);
+
+  assert.notEqual(publishing, deps);
+  assert.notEqual(publishing.authorize, ordinaryAuthorize);
+  assert.deepEqual(await publishing.authorize({ principalId: "pub:source-install", workspaceId: "workspace-local", permission: "content.write" }), {
+    allowed: false,
+    reason: "'content.write' is outside this publishing grant",
+  });
+  assert.equal(deps.authorize, ordinaryAuthorize);
+});
+
+// Pins publish-trust-auth.ts:399 — human APPLY deps and their authorize function retain identity.
+test("content authorization returns the identical human deps bag and original authorize function", async () => {
+  const ordinaryAuthorize: Authorize = async ({ permission, publishType }) => {
+    assert.equal(permission, "content.write");
+    assert.equal(publishType, "post");
+    return { allowed: true, reason: "ordinary RBAC grant" };
+  };
+  const deps = { authorize: ordinaryAuthorize };
+
+  const result = withPublishTrustContentAuthorize(
+    { locals: {} } as never,
+    deps,
+    new Map([["post", ["content.write"]]])
+  );
+
+  assert.equal(result, deps);
+  assert.equal(result.authorize, ordinaryAuthorize);
+  assert.deepEqual(await result.authorize({ permission: "content.write", publishType: "post" }), {
+    allowed: true,
+    reason: "ordinary RBAC grant",
+  });
+});
 
 test("a publishing grant authorizes only the registered entity types it names", async () => {
   const ordinaryAuthorize: Authorize = async () => ({

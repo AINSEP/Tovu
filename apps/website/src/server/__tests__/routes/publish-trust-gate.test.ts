@@ -1,15 +1,19 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { hkdfSync } from "node:crypto";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
+import type { NextFunction, Request, Response as ExpressResponse } from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
-import { PUBLISH_TRUST_GRANT_VERSION } from "#src/features/publish-trust/grant";
+import { PUBLISH_TRUST_GRANT_VERSION, type PublishingCapability } from "#src/features/publish-trust/grant";
 import { derivePublishSigningKey } from "#src/features/publish-trust/keys";
-import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/provisioning";
+import { PUBLISH_TRUST_ENV_VAR, parseGrantDocument, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
+import { mintPublishSession } from "#src/features/publish-trust/session";
+import { requirePublishTrust, type PublishTrustAuthDeps } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import { loginAsOwner } from "../helpers/http-test-server.js";
 
@@ -18,10 +22,11 @@ import { loginAsOwner } from "../helpers/http-test-server.js";
  *
  * `features/publish-trust/__tests__/handshake.test.ts` already proves the eight security
  * properties against the verifiers themselves. This file exists because a correct primitive with
- * an unwired call site is the failure mode that actually ships: every assertion below goes through
- * `createApp()`, so it fails if the middleware is not mounted, is mounted in the wrong order,
+ * an unwired call site is the failure mode that actually ships: the HTTP assertions go through
+ * `createApp()`, so they fail if the middleware is not mounted, is mounted in the wrong order,
  * answers authorization from RBAC instead of the grant, or lets a publishing token fall through to
- * whatever credential the request happens to carry.
+ * whatever credential the request happens to carry. Direct middleware cases also pin promise
+ * resolution and credential attachment without an Express 4 hang hiding a rejected promise.
  *
  * The source install is a FAKE with its own site key — which is the honest arrangement, since the
  * two installs have different site keys by design and the destination only ever sees a public key.
@@ -153,6 +158,155 @@ function probe(baseUrl: string, token: string | null): Promise<Response> {
     body: JSON.stringify({ shas: [A_SHA] }),
   });
 }
+
+/** Direct calls also catch async rejections that Express 4 would leave hanging. */
+async function directGateFixture(
+  { capabilities = CAPABILITIES }: { capabilities?: readonly PublishingCapability[] } = {},
+  _options: Record<string, never> = {}
+) {
+  const key = await sourceKey();
+  const parsed = parseGrantDocument(grantDocument(key.publicKeyB64u));
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) throw new Error(parsed.reason);
+  const resolution: PublishTrustResolution = { state: "configured", origin: "env", grants: parsed.grants, reason: null };
+  const deps: PublishTrustAuthDeps = {
+    keyring: testKeyring(ATTACKER_ROOT),
+    workspaceId: WORKSPACE,
+    clock: { nowIso: () => "2026-10-15T12:00:00.000Z" },
+    targetInstallationId: Promise.resolve("test-destination-install"),
+    grants: async () => resolution,
+    revocations: async () => ({ ok: true, revocations: [] }),
+  };
+  const { token } = await mintPublishSession(deps, {
+    sourceInstallationId: SOURCE_INSTALL,
+    targetInstallationId: await deps.targetInstallationId,
+    capabilities,
+    generation: 1,
+  });
+  return { deps, token, resolution };
+}
+
+function directGateRequest(
+  { headers }: { headers: Request["headers"] },
+  _options: Record<string, never> = {}
+) {
+  const statuses: number[] = [];
+  const bodies: unknown[] = [];
+  const nextCalls: unknown[][] = [];
+  const req = {
+    headers,
+    method: "POST",
+    originalUrl: `/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/probe`,
+  } as Request;
+  const res = {
+    locals: {},
+    status(code: number) { statuses.push(code); return this; },
+    json(body: unknown) { bodies.push(body); return this; },
+  } as unknown as ExpressResponse;
+  const next: NextFunction = (...args: unknown[]) => { nextCalls.push(args); };
+  return { req, res, next, statuses, bodies, nextCalls };
+}
+
+// Pins publish-trust-auth.ts:114 — an absent Authorization header must pass through without throwing.
+test("the publishing gate leaves a request without an Authorization header untouched", async () => {
+  const { deps } = await directGateFixture();
+  const call = directGateRequest({ headers: {} });
+
+  await assert.doesNotReject(requirePublishTrust(deps)(call.req, call.res, call.next));
+
+  assert.deepEqual(call.nextCalls, [[]]);
+  assert.equal(call.res.locals.principal, undefined);
+  assert.equal(call.res.locals.publishTrust, undefined);
+  assert.deepEqual(call.statuses, []);
+  assert.deepEqual(call.bodies, []);
+});
+
+// Pins publish-trust-auth.ts:249 — failed verification must pass API keys and tampered tokens through.
+test("the publishing gate passes ordinary API keys and tampered publishing tokens on untouched", async () => {
+  const { deps, token } = await directGateFixture();
+  const [payload, mac] = token.split(".");
+  const tampered = `${payload}.${mac[0] === "A" ? "B" : "A"}${mac.slice(1)}`;
+  for (const credential of ["some-ordinary-api-key", tampered]) {
+    const call = directGateRequest({ headers: { authorization: `Bearer ${credential}` } });
+
+    await assert.doesNotReject(requirePublishTrust(deps)(call.req, call.res, call.next));
+
+    assert.deepEqual(call.nextCalls, [[]]);
+    assert.equal(call.res.locals.principal, undefined);
+    assert.equal(call.res.locals.publishTrust, undefined);
+    assert.deepEqual(call.statuses, []);
+    assert.deepEqual(call.bodies, []);
+  }
+});
+
+// Pins publish-trust-auth.ts:296 — admission refusals must stop a still-valid token on the next request.
+test("the publishing gate refuses a disconnected source or a removed grant after admitting the same token", async () => {
+  const { deps, token, resolution } = await directGateFixture();
+  for (const refusal of ["disconnected", "grant-removed"] as const) {
+    let denied = false;
+    const middleware = requirePublishTrust({
+      ...deps,
+      grants: async () => denied && refusal === "grant-removed"
+        ? { ...resolution, grants: [] }
+        : resolution,
+      revocations: async () => ({
+        ok: true,
+        revocations: denied && refusal === "disconnected"
+          ? [{ sourceInstallationId: SOURCE_INSTALL, revokedAt: deps.clock.nowIso(), note: "lost device" }]
+          : [],
+      }),
+    });
+    const admitted = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+    await assert.doesNotReject(middleware(admitted.req, admitted.res, admitted.next));
+    assert.deepEqual(admitted.nextCalls, [[]]);
+    assert.deepEqual(admitted.statuses, []);
+    assert.deepEqual(admitted.bodies, []);
+    assert.equal(admitted.res.locals.principal.id, `pub:${SOURCE_INSTALL}`);
+    assert.deepEqual(admitted.res.locals.publishTrust, {
+      sourceInstallationId: SOURCE_INSTALL,
+      capabilities: [...CAPABILITIES],
+      entityTypes: ["post", "media"],
+      generation: 1,
+    });
+
+    denied = true;
+    const refused = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+    await assert.doesNotReject(middleware(refused.req, refused.res, refused.next));
+    assert.deepEqual(refused.statuses, [401], refusal);
+    assert.deepEqual(refused.bodies, [{ error: "unauthenticated", code: "UNAUTHENTICATED" }], refusal);
+    assert.deepEqual(refused.nextCalls, [], refusal);
+    assert.equal(refused.res.locals.principal, undefined);
+    assert.equal(refused.res.locals.publishTrust, undefined);
+  }
+});
+
+// Pins publish-trust-auth.ts:306 — an admitted grant with no remaining token capabilities is a flat 401.
+test("the publishing gate refuses a token after its only capability is removed from the current grant", async () => {
+  const { deps, token, resolution } = await directGateFixture({ capabilities: ["publish_content.apply"] });
+  const admitted = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+  await assert.doesNotReject(requirePublishTrust(deps)(admitted.req, admitted.res, admitted.next));
+  assert.deepEqual(admitted.nextCalls, [[]]);
+  assert.deepEqual(admitted.statuses, []);
+  assert.deepEqual(admitted.bodies, []);
+  assert.deepEqual(admitted.res.locals.publishTrust.capabilities, ["publish_content.apply"]);
+
+  const call = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+  const narrowed: PublishTrustAuthDeps = {
+    ...deps,
+    grants: async () => ({
+      ...resolution,
+      grants: resolution.grants.map(grant => ({ ...grant, capabilities: ["publish_content.read"] as const })),
+    }),
+  };
+
+  await assert.doesNotReject(requirePublishTrust(narrowed)(call.req, call.res, call.next));
+
+  assert.deepEqual(call.statuses, [401]);
+  assert.deepEqual(call.bodies, [{ error: "unauthenticated", code: "UNAUTHENTICATED" }]);
+  assert.deepEqual(call.nextCalls, []);
+  assert.equal(call.res.locals.principal, undefined);
+  assert.equal(call.res.locals.publishTrust, undefined);
+});
 
 test("the identity route states this install's identity and nothing about who may publish to it", async () => {
   const key = await sourceKey();
