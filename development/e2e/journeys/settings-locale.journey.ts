@@ -137,6 +137,13 @@ test.describe("phone width (390 px)", () => {
   });
 
   test("phone-width baselines for the busiest screens", { tag: ["@unrun"] }, async ({ page }) => {
+    // CLI sign-in warnings shift the layout outside the masked cards; pin detection before navigation.
+    await page.route((url) => url.pathname === `${WS_API}/assistant/execution/detect-agents`, (route) => route.fulfill({
+      json: { data: [
+        { id: "claude", label: "Claude Code", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "unknown", discoveryPending: false },
+        { id: "codex", label: "Codex", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "unknown", discoveryPending: false },
+      ] },
+    }));
     await stubPostsListForBaseline(page);
     await page.goto("/admin/posts");
     await expect(page.getByRole("button", { name: "New Post" })).toBeVisible();
