@@ -56,8 +56,12 @@
 .install-tab-success { color: var(--fg); background: var(--ok-bg); border: 1px solid color-mix(in srgb, var(--ok) 28%, transparent); }
 .install-tab-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
 /* Container (2026-10-11): the pane's width, so a desktop pane squeezed by the nav + dock stacks too.
-   536px ≈ the old 560px viewport minus a phone's page padding. */
+   536px ≈ the old 560px viewport minus a phone's page padding. The field stacks over its button;
+   buttons stay content-width like "Upload files" beside them (owner, 2026-10-15: a full-width
+   "Add from GitHub" / "Preview plugin" read as a banner, not a button). */
 @container admin-content (max-width: 536px) {
   .install-tab-field-controls { flex-direction: column; align-items: stretch; }
-  .install-tab-actions button { flex: 1 1 100%; }
+  .install-tab-field-controls button { align-self: flex-start; }
+  /* Left, in line with the stacked controls above, and clear of the chat button in the corner. */
+  .install-tab-actions { justify-content: flex-start; }
 }
