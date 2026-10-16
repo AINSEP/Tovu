@@ -83,15 +83,16 @@ describe("useAdminLocale — StrictMode effect replay", () => {
     const port = createFakeAdminLocalePort({ initialLocale: "fr" });
     const load = vi.spyOn(port, "loadLanguage");
     const { result } = renderHook(() => useAdminLocale(port), { reactStrictMode: true });
-    expect(load).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(result.current).toBe("fr"));
+    // StrictMode observers join the cache's single in-flight mount read.
+    expect(load).toHaveBeenCalledTimes(1);
 
     // If the effect's `cancelled` flag were declared outside the effect body (or otherwise failed
     // to reset on this second mount), this update would be silently dropped — the real bug shape
     // StrictMode's dev-only mount→unmount→mount would expose.
     act(() => port.publishLocaleChange("ja"));
     await waitFor(() => expect(result.current).toBe("ja"));
-    expect(load).toHaveBeenCalledTimes(3);
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -290,8 +290,7 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     });
     const { result } = renderHook(() => useExistingInstances("text", port));
 
-    await flush();
-    expect(result.current.instances).toEqual([widget({ id: "w-text", widgetType: "text" })]);
+    await waitFor(() => expect(result.current.instances).toEqual([widget({ id: "w-text", widgetType: "text" })]));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

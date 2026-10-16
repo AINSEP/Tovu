@@ -1029,5 +1029,5 @@ const MISSING_LAUNCHER_COPY: Record<string, Record<"Launcher missing", string>> 
 };
 
 for (const [locale, copy] of Object.entries(MISSING_LAUNCHER_COPY)) {
-  Object.assign(EXTERNAL_MCP_DICT[locale]!, copy);
+  Object.assign(Reflect.get(EXTERNAL_MCP_DICT, locale), copy);
 }

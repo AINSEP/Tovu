@@ -41,16 +41,17 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
   vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(function (this: HTMLFormElement) {
     submissions.push(this);
   });
-  const ui = render(
+  render(
     <FetchQueryProvider>
       <PageEditor slug="contact" usePageEditorHook={(slug) => usePageEditor(slug, deps)} />
     </FetchQueryProvider>,
   );
   await waitFor(() => expect(screen.getByTitle("Page preview")).toBeTruthy());
   fireEvent.click(screen.getByRole("tab", { name: "HTML" }));
-  const editor = ui.container.querySelector("textarea");
-  expect(editor).toBeTruthy();
-  fireEvent.change(editor!, { target: { value: "<h1>Unsaved exact HTML</h1>" } });
+  const editor = screen.getByRole("textbox", { name: "Page HTML" });
+  fireEvent.change(editor, { target: { value: "<h1>Unsaved exact HTML</h1>" } });
+  expect(editor).toHaveValue("<h1>Unsaved exact HTML</h1>");
+  expect(screen.getByRole("textbox", { name: "Page title" })).toHaveValue("Contact");
   fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
   const before = screen.getByTitle("Page preview");
   await waitFor(() =>

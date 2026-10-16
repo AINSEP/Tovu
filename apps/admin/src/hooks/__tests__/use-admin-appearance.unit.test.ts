@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it } from "vitest";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminAppearance, useSettingsAppearance } from "../use-admin-appearance.hooks";
-import { DEFAULT_APPEARANCE } from "../../lib/settings-tabs";
+import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE } from "../../lib/settings-tabs";
 
 const primary = () => document.documentElement.style.getPropertyValue("--jini-theme-light-primary");
 afterEach(() => document.documentElement.removeAttribute("style"));
@@ -21,7 +22,7 @@ it("applies the saved accent on load and follows settings refreshes", async () =
   expect(document.documentElement.style.getPropertyValue("--jini-theme-dark-primary")).toBe("#a855f7");
   accentColor = "#123456";
   await act(async () => refresh());
-  expect(primary()).toBe("#123456");
+  await waitFor(() => expect(primary()).toBe("#123456"));
   unmount();
 });
 
@@ -36,7 +37,7 @@ it("the unchosen ledger default leaves the stylesheet's brand mapping in charge,
   await waitFor(() => expect(primary()).toBe("#a855f7"));
   accentColor = DEFAULT_APPEARANCE.accentColor.toUpperCase();
   await act(async () => refresh());
-  expect(primary()).toBe("");
+  await waitFor(() => expect(primary()).toBe(""));
   expect(document.documentElement.style.getPropertyValue("--jini-theme-dark-primary")).toBe("");
 });
 
@@ -59,11 +60,15 @@ it("rejects an older settings read after a newer refresh and ignores unmounted r
     subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
   };
   const { unmount } = renderHook(() => useAdminAppearance({}, { port }));
+  await waitFor(() => expect(pending).toHaveLength(1));
   act(() => refresh());
+  await waitFor(() => expect(pending).toHaveLength(2));
   await act(async () => pending[1]({ ...DEFAULT_APPEARANCE, accentColor: "#123456" }));
+  await waitFor(() => expect(primary()).toBe("#123456"));
   await act(async () => pending[0]({ ...DEFAULT_APPEARANCE, accentColor: "#ffffff" }));
   expect(primary()).toBe("#123456");
   act(() => refresh());
+  await waitFor(() => expect(pending).toHaveLength(3));
   unmount();
   await act(async () => pending[2]({ ...DEFAULT_APPEARANCE, accentColor: "#ffffff" }));
   expect(primary()).toBe("#123456");
@@ -75,12 +80,16 @@ it("a pending shell read cannot repaint an accent the operator has just previewe
     loadAppearance: () => new Promise<typeof DEFAULT_APPEARANCE>((done) => { resolve = done; }),
     subscribeToSettingsRefresh: () => () => {},
   };
-  const { rerender } = renderHook(({ ready }) => {
+  const { result, rerender } = renderHook(({ ready }) => {
     useAdminAppearance({}, { port });
     useSettingsAppearance({ ready, accentColor: "#e11d48" }, {});
+    // Observe the same read reaching React before asserting that the preview survived it.
+    return useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE], fetch: port.loadAppearance }, { staleTime: 0 });
   }, { initialProps: { ready: false } });
+  await waitFor(() => expect(resolve).toBeTypeOf("function"));
   rerender({ ready: true });
   expect(primary()).toBe("#e11d48");
   await act(async () => resolve({ ...DEFAULT_APPEARANCE, accentColor: "#2563eb" }));
+  await waitFor(() => expect(result.current.data?.accentColor).toBe("#2563eb"));
   expect(primary()).toBe("#e11d48");
 });

@@ -78,7 +78,8 @@ const WIRED_HOOKS: readonly string[] = [
   "integrations/jini-admin/widgets-ports.ts",
   "features/integrations/hooks/use-integrations.hooks.ts",
   "features/recovery/hooks/use-recovery.hooks.ts",
-  "features/sites/hooks/use-sites.hooks.ts",
+  // Screen and sidebar share this read/subscription owner.
+  "features/sites/hooks/use-sites-snapshot.hooks.ts",
   "features/themes/hooks/use-theme-explore.hooks.ts",
   // Editors wired through `use-external-entry-refresh.hooks.ts` (2026-09-16) — see this file's own
   // header note above for why these belong here despite holding an unsaved working copy.

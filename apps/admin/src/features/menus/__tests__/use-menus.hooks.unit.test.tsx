@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
 import { api, ApiError, type AdminMenu } from "@/lib/api";
 import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";
@@ -67,6 +68,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
     expect(result.current.trashing).toBe(true);
     expect(result.current.pendingTrash).toEqual(MENU);
 
+    await waitFor(() => expect(rejectTrash).toBeTypeOf("function"));
     await act(async () => {
       rejectTrash(new Error("trash unavailable"));
       await confirmation;
@@ -237,35 +239,46 @@ describe("useMenus — overlapping list reads keep the newest", () => {
   it("an older list read settling after a newer one does not overwrite it", async () => {
     const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
     const releases = holdReadsAfterMount(port);
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => ({
+      ...useMenus({ port, t: (k) => k }),
+      listCache: useCachedLoader({ key: ["menus", "list"], fetch: async () => (await port.listMenus()).menus }),
+    }));
     await waitFor(() => expect(result.current.menus).toHaveLength(2));
     await trashAThenB(result, releases);
 
     await act(async () => {
       releases[3]!.resolve({ menus: [{ ...MENU_A, status: "trash" }, { ...MENU_B, status: "trash" }] });
     });
+    await waitFor(() => expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]));
     await act(async () => {
       releases[2]!.resolve({ menus: [{ ...MENU_A, status: "trash" }, MENU_B] });
     });
 
     expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]);
+    // Read the accepted cache value too: a queued observer update cannot hide a late overwrite.
+    expect(result.current.listCache.peek()?.map((m) => m.status)).toEqual(["trash", "trash"]);
   });
 
   it("an older list read failing after a newer one succeeded shows no load error", async () => {
     const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
     const releases = holdReadsAfterMount(port);
-    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
+    const { result } = renderHook(() => ({
+      ...useMenus({ port, t: (k) => k }),
+      listCache: useCachedLoader({ key: ["menus", "list"], fetch: async () => (await port.listMenus()).menus }),
+    }));
     await waitFor(() => expect(result.current.menus).toHaveLength(2));
     await trashAThenB(result, releases);
 
     await act(async () => {
       releases[3]!.resolve({ menus: [{ ...MENU_A, status: "trash" }, { ...MENU_B, status: "trash" }] });
     });
+    await waitFor(() => expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]));
     await act(async () => {
       releases[2]!.reject(new Error("stale read failed"));
     });
 
     expect(result.current.error).toBeNull();
     expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]);
+    expect(result.current.listCache.peek()?.map((m) => m.status)).toEqual(["trash", "trash"]);
   });
 });

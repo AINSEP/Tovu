@@ -75,7 +75,7 @@ describe('Jini widgets host switch', () => {
     render(node(<WidgetsLibrary />));
     const select = await screen.findByRole('combobox', { name: 'Tipo de widget a crear' });
     expect(within(select).getAllByRole('option').map(o => o.textContent)).toEqual([
-      'Texto', 'Enlaces sociales', 'Entradas recientes', 'Menú', 'Formulario de contacto',
+      'Multimedia', 'Galería', 'Texto', 'Enlaces sociales', 'Entradas recientes', 'Menú', 'Formulario de contacto',
     ]);
   });
 

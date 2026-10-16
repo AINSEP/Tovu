@@ -68,6 +68,7 @@ function collectingHandlers(): RunHandlers & { errors: Error[]; done: AgentEvent
 const HISTORY: ChatMessage[] = [{ id: "1", role: "user", content: "where do I write an article?" }];
 let savedMessage: ChatMessage;
 let recoverRequests: Array<{ url: string; messageId?: string }>;
+let checkpointRequests: string[];
 const subscriptions: AbortController[] = [];
 
 /** The finalizer uses this same translation before committing its projection. This fixture
@@ -91,6 +92,7 @@ beforeEach(() => {
   durableRunBindings.clear();
   savedMessage = { id: "answer", role: "assistant", content: "", runId: "run-1", runStatus: "running", events: [] };
   recoverRequests = [];
+  checkpointRequests = [];
   vi.stubGlobal("EventSource", FakeEventSource);
   vi.stubGlobal(
     "fetch",
@@ -102,6 +104,10 @@ beforeEach(() => {
       }
       if (url === "/api/runs/run-1/recover" && init?.method === "POST") {
         recoverRequests.push({ url, ...JSON.parse(init.body as string) });
+        return new Response(JSON.stringify({ message: savedMessage }));
+      }
+      if (url === `/api/runs/run-1/checkpoint?messageId=${encodeURIComponent(savedMessage.id)}` && init?.method === "GET") {
+        checkpointRequests.push(url);
         return new Response(JSON.stringify({ message: savedMessage }));
       }
       throw new Error(`Unexpected request: ${init?.method} ${url}`);
@@ -322,6 +328,8 @@ describe("what the server's saved outcome displays (real useConversation, no moc
     const assistant = result.current.messages.at(-1)!;
     expect(assistant.id).toBe(savedMessage.id);
     expect(assistant.runStatus).toBe("failed");
+    expect(checkpointRequests).toEqual([`/api/runs/run-1/checkpoint?messageId=${encodeURIComponent(savedMessage.id)}`]);
+    expect(recoverRequests).toHaveLength(1);
     expect(assistant.content).toBe("Saved partial answer");
     expect(assistant.events).toEqual(savedMessage.events);
     expect(result.current.isStreaming).toBe(false);

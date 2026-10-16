@@ -136,10 +136,10 @@ describe("useMembers — content refresh bus", () => {
     const { result } = renderHook(() => useMembers({ port }));
     await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
 
-    act(() => {
-      publishContentRefresh();
-      publishContentRefresh();
-    });
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveSecond).toBeTypeOf("function"));
 
     // The SECOND (more recent) request settles first, with the newer list.
     const disabled: AdminMember = { ...MEMBER, status: "disabled" };
@@ -185,9 +185,11 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
     act(() => {
       pA = result.current.onToggleDetail(MEMBER_A);
     });
+    await waitFor(() => expect(rejectA).toBeTypeOf("function"));
     act(() => {
       void result.current.onToggleDetail(MEMBER_B);
     });
+    await waitFor(() => expect(result.current.detailLoadingId).toBe(MEMBER_B.id));
 
     rejectA(new Error("boom-A"));
     await act(async () => {
@@ -246,6 +248,7 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
     act(() => {
       first = result.current.onToggleDetail(MEMBER);
     });
+    await waitFor(() => expect(rejectFirst).toBeTypeOf("function"));
     act(() => {
       void result.current.onToggleDetail(MEMBER);
     });
@@ -254,6 +257,7 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
       second = result.current.onToggleDetail(MEMBER);
     });
     expect(result.current.expandedId).toBe(MEMBER.id);
+    await waitFor(() => expect(resolveSecond).toBeTypeOf("function"));
 
     rejectFirst(new Error("boom-first"));
     await act(async () => {

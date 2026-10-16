@@ -43,12 +43,13 @@ describe('admin TanStack provider composition', () => {
       client: useQueryClient(),
     }), { wrapper });
     await waitFor(() => expect(result.current.query.data).toBe('value 1'));
-    expect(result.current.client.getQueryData(key)).toBe('value 1');
+    // TanStack stores Jini's arbitration envelope; consumers and loaders receive its value.
+    expect(result.current.client.getQueryData(key)).toEqual({ generation: 0, request: 1, value: 'value 1' });
     await expect(result.current.loader.load()).resolves.toBe('value 1');
     expect(version).toBe(1);
     await act(async () => { await result.current.write.mutate({ input: undefined }); });
     await waitFor(() => expect(result.current.query.data).toBe('value 2'));
-    expect(result.current.client.getQueryData(key)).toBe('value 2');
+    expect(result.current.client.getQueryData(key)).toEqual({ generation: 0, request: 2, value: 'value 2' });
   });
 
   it('scopes independent admin roots and puts tab descendants inside the client provider', async () => {

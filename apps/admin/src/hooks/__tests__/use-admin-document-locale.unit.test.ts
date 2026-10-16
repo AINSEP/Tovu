@@ -29,7 +29,7 @@ it("follows loaded locale and settings refreshes, including switching back from 
   expect(document.documentElement.dir).toBe("rtl");
   locale = "fr";
   await act(async () => refresh());
-  expect(document.documentElement.lang).toBe("fr");
+  await waitFor(() => expect(document.documentElement.lang).toBe("fr"));
   expect(document.documentElement.dir).toBe("ltr");
 });
 

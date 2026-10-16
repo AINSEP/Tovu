@@ -40,7 +40,11 @@ describe('Observability tools bundle isolation', () => {
     visit(entries[0]!.fileName);
     expect(chunks.filter(chunk => staticFiles.has(chunk.fileName)).flatMap(chunk => Object.keys(chunk.modules)).some(isVendor)).toBe(false);
     expect(chunks.flatMap(chunk => Object.keys(chunk.modules)).some(isVendor)).toBe(tooling);
-    expect(entries[0]!.dynamicImports.length > 0).toBe(tooling);
+    // Vite may place the lazy import in a shared static chunk rather than the entry facade.
+    const lazyFiles = chunks.filter(chunk => staticFiles.has(chunk.fileName)).flatMap(chunk => chunk.dynamicImports);
+    expect(lazyFiles.length > 0).toBe(tooling);
+    const lazyChunks = chunks.filter(chunk => lazyFiles.includes(chunk.fileName));
+    expect(lazyChunks.flatMap(chunk => Object.keys(chunk.modules)).some(isVendor)).toBe(tooling);
     if (tooling) expect(chunks.some(chunk => Object.keys(chunk.modules).some(id => id.endsWith('/ReactQueryDevtoolsPanel.js')))).toBe(true);
   });
 });

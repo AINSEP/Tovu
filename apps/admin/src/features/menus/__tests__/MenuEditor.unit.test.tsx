@@ -565,7 +565,8 @@ describe("injected hook seam (useMenuEditorHook)", () => {
     const controller = fakeController({ loading: false, saving: true, message: "Saved · version 2", error: "Save failed" });
     render(<MenuEditor menuId="m1" useMenuEditorHook={() => controller} />);
     expect(screen.getByText("Saved · version 2")).toHaveClass("save-ok");
-    expect(screen.getByText("Save failed")).toHaveClass("save-error");
+    expect(screen.getByRole("alert")).toHaveTextContent("Save failed");
+    expect(screen.getByRole("alert")).toHaveClass("notice", "error");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(controller.save).not.toHaveBeenCalled();
