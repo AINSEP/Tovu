@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -83,9 +84,13 @@ async function withAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function installReal(pluginId: string, archiveSeed: string) {
+async function installReal(
+  pluginId: string,
+  archiveSeed: string,
+  fields: Parameters<typeof manifestJson>[1] = { version: "1.0.0", description: `The ${pluginId} package.`, keywords: ["demo"] },
+) {
   const entries: AgentPluginArchiveEntry[] = [
-    fileEntry("plugin.json", manifestJson(pluginId, { version: "1.0.0", description: `The ${pluginId} package.`, keywords: ["demo"] })),
+    fileEntry("plugin.json", manifestJson(pluginId, fields)),
     fileEntry(`skills/${pluginId}/SKILL.md`, `---\nname: ${pluginId}\n---\n# ${pluginId}\nReal skill body.`),
   ];
   const archive = new Uint8Array(Buffer.from(archiveSeed));
@@ -103,7 +108,7 @@ async function installReal(pluginId: string, archiveSeed: string) {
  *  federation tests below read `baseDeps.externalMcpServerRepo` directly to assert on what the
  *  route actually wrote, the same way this file's other tests re-read `readAgentPluginActivations`
  *  rather than trusting the response body alone. */
-function buildTestApp(): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
+function buildTestApp(overrides: Pick<AgentPluginsRouteDeps, "setAgentPluginEnabled"> = {}): { app: express.Express; baseDeps: ReturnType<typeof createRouteDeps> } {
   // ONE `createRouteDeps()` call for both the auth stack and the route's deps — a second call
   // stands up a separate identity/policy store and the owner login would 403 against it. Same
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
@@ -115,6 +120,7 @@ function buildTestApp(): { app: express.Express; baseDeps: ReturnType<typeof cre
     externalMcpServerRepo: baseDeps.externalMcpServerRepo,
     siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
     siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
+    ...overrides,
   });
 
   const app = express();
@@ -172,6 +178,41 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
 
     const persisted = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(persisted.plugins["site-compliance"]?.enabled, true, "the decision survives on disk");
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: omitted version and description are returned as explicit nulls", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("minimal-metadata", "seed-minimal-metadata", {});
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const response = await patch(baseUrl, cookie, "minimal-metadata", { enabled: false });
+
+    assert.equal(response.status, 200);
+    const { agentPlugin } = await response.json();
+    assert.equal(agentPlugin.pluginId, "minimal-metadata");
+    assert.equal(agentPlugin.version, null);
+    assert.equal(agentPlugin.description, null);
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins["minimal-metadata"]?.enabled, false);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: an uninstalled plugin is 404 even when the activation service is unavailable", async (t) => {
+  await withAgentPluginsDir(async () => {
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const before = await readAgentPluginActivations({ workspaceRoot });
+    const { app } = buildTestApp({
+      setAgentPluginEnabled: async () => { throw new Error("activation service unavailable"); },
+    });
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const response = await patch(baseUrl, cookie, "never-installed", { enabled: false });
+
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), {
+      error: "agent plugin 'never-installed' is not installed in this workspace",
+      code: "AGENT_PLUGIN_NOT_FOUND",
+    });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), before);
   });
 });
 

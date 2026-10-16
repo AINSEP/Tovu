@@ -154,6 +154,49 @@ test("a revocation list that is not an array is refused", () => {
   assert.equal(parseRevocationDocument('{"sourceInstallationId":"laptop"}').ok, false);
 });
 
+test("a revocation document accepts 16384 bytes and refuses anything larger", () => {
+  const atLimit = JSON.stringify([REVOKED_LAPTOP]).padEnd(16_384, " ");
+  assert.deepEqual(parseRevocationDocument(atLimit), { ok: true, revocations: [REVOKED_LAPTOP] });
+  assert.deepEqual(parseRevocationDocument(`${atLimit} `), {
+    ok: false, reason: "revocation list exceeds 16384 bytes",
+  });
+});
+
+test("a stored revocation list refuses more than 64 records", () => {
+  const full = Array.from({ length: MAX_REVOCATIONS }, (_, i) => ({ ...REVOKED_LAPTOP, sourceInstallationId: `m${i}` }));
+  assert.deepEqual(parseRevocationDocument(JSON.stringify(full)), { ok: true, revocations: full });
+  assert.deepEqual(parseRevocationDocument(JSON.stringify([...full, REVOKED_LAPTOP])), {
+    ok: false, reason: "revocation list holds more than 64 records",
+  });
+});
+
+test("a revocation entry must be an object", () => {
+  for (const entry of [null, 7]) {
+    assert.deepEqual(parseRevocationDocument(JSON.stringify([entry])), {
+      ok: false, reason: "each revocation must be an object",
+    });
+  }
+});
+
+// F4.4: all other fields remain valid so another validation guard cannot mask an omission.
+test("a revocation needs a non-empty source installation id", () => {
+  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, sourceInstallationId: "" }])), {
+    ok: false, reason: "each revocation needs a 'sourceInstallationId'",
+  });
+});
+
+test("a revocation needs a parseable revocation date", () => {
+  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, revokedAt: "not-a-date" }])), {
+    ok: false, reason: "each revocation needs an ISO-8601 'revokedAt'",
+  });
+});
+
+test("a revocation note must be a non-empty string when present", () => {
+  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, note: 42 }])), {
+    ok: false, reason: "a revocation 'note' must be a non-empty string when present",
+  });
+});
+
 test("a missing revocation file is an empty list, which is the honest reading", async () => {
   const io = memoryIo();
   const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
@@ -166,6 +209,15 @@ test("a missing revocation file is an empty list, which is the honest reading", 
 // ---------------------------------------------------------------------------
 // The refusals a person actually reads
 // ---------------------------------------------------------------------------
+
+test("an unconfigured site explains that publishing has not been set up", () => {
+  const admission = ask({ grants: [], revocations: [] });
+  assert.deepEqual(admission, {
+    allowed: false,
+    refusal: "site-not-configured",
+    message: "tovu.com isn't set up to accept published changes yet.",
+  });
+});
 
 test("no refusal ever shows key vocabulary or an error code", () => {
   const admissions = [

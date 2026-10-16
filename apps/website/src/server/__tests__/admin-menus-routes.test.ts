@@ -2,7 +2,7 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler, startTestServer } from "./helpers/http-test-server.js";
 
 import express from "express";
 
@@ -893,6 +893,74 @@ test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/serv
       `${file} still references the deprecated 'navigation.manage' string literal`
     );
   }
+});
+
+test("assign-location refuses a different workspace without changing the menu or binding", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Workspace guard", slug: "workspace-guard" }),
+  });
+  assert.equal(created.status, 201);
+  const { menu } = await created.json() as { menu: { id: string } };
+  const before = await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menu.id });
+  assert.ok(before);
+  assert.equal(await deps.navLocationBindingRepo.findByLocation({ workspaceId: deps.workspaceId, locationKey: "primary" }), null);
+
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-workspace/menus/${menu.id}/locations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ locationKey: "primary" }),
+  });
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "workspace was not found" });
+  assert.deepEqual(await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menu.id }), before);
+  assert.equal(await deps.navLocationBindingRepo.findByLocation({ workspaceId: deps.workspaceId, locationKey: "primary" }), null);
+});
+
+test("assign-location refuses missing, null and blank location keys without changing the menu or bindings", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Location guard", slug: "location-guard" }),
+  });
+  assert.equal(created.status, 201);
+  const { menu } = await created.json() as { menu: { id: string } };
+  const before = await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menu.id });
+  assert.ok(before);
+  assert.deepEqual(await deps.navLocationBindingRepo.listByMenu({ workspaceId: deps.workspaceId, menuId: menu.id }), []);
+
+  for (const body of [{}, { locationKey: null }, { locationKey: "" }, { locationKey: " \t\n " }]) {
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/menus/${menu.id}/locations`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify(body),
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "locationKey is required" });
+    assert.deepEqual(await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menu.id }), before);
+    assert.deepEqual(await deps.navLocationBindingRepo.listByMenu({ workspaceId: deps.workspaceId, menuId: menu.id }), []);
+  }
+});
+
+test("assign-location returns 400 for an absent body when mounted without a body parser", async (t) => {
+  const { deps } = buildTestApp();
+  await deps.identityReady;
+  const app = express();
+  registerAdminMenuAssignLocationRoute(app, deps);
+  const baseUrl = await startTestServer(app, t);
+
+  // A parser failure occurs before the route's catch; bound the request if it never responds.
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/menus/menu-1/locations`, { method: "POST", signal: AbortSignal.timeout(5_000) });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "locationKey is required" });
 });
 
 test("assigning an occupied location displaces only the former menu and persists the replacement", async (t) => {

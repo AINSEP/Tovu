@@ -1,3 +1,4 @@
+import "../../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -14,6 +15,16 @@ describeEachDialect(
   "publish trust revocations",
   { tables: ["publish_trust_revocations"], make: publishTrustRevocationStoreFor },
   (make) => {
+    test("revoke without a note returns null in both the write result and the stored list", async () => {
+      const store = await make();
+      const revocations = [{ sourceInstallationId: "install-no-note", revokedAt: "2026-09-01T00:00:00.000Z", note: null }];
+
+      assert.deepEqual(await store.revoke({ sourceInstallationId: "install-no-note", nowIso: "2026-09-01T00:00:00.000Z" }), {
+        ok: true, changed: true, revocations,
+      });
+      assert.deepEqual(await store.list(), { ok: true, revocations });
+    });
+
     test("revoke is durable and idempotent, list is ordered, restore removes", async () => {
       const store = await make();
       assert.deepEqual(await store.list(), { ok: true, revocations: [] });

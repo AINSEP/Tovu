@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -150,6 +151,71 @@ test("an expired-token connection raises the re-auth surface, naming the server"
   });
 });
 
+test("an unanswered reconnect notice expires without claiming an acknowledgement", async (t) => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1_000 });
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+  const emitted: SurfaceEmission[] = [];
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-expired" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } }, { emitSurface: async (emission) => {
+    emitted.push(emission);
+  } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  assert.equal(surfaceExchanges.size(), 1);
+
+  t.mock.timers.tick(1_000);
+  const executed = await pending;
+
+  assert.equal(executed.status, "completed");
+  assert.deepEqual(executed.output, {
+    promptShown: true,
+    acknowledged: false,
+    reason: "expired",
+    serverId: SERVER_ID,
+    label: "Higgsfield (test)",
+    currentStatus: "needs_reauth",
+    note: 'The administrator did not respond to the reconnect notice for "Higgsfield (test)" before it expired.',
+  });
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("without a dialog channel, an unlabelled OAuth server returns reconnect instructions using its id", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER_ID });
+  assert.ok(record);
+  await repo.upsert({ ...record, label: null });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-headless" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } });
+
+  assert.equal(executed.status, "completed");
+  assert.deepEqual(executed.output, {
+    promptShown: false,
+    serverId: SERVER_ID,
+    label: SERVER_ID,
+    note: 'This execution context cannot show an interactive dialog. Tell the administrator directly: "higgsfield-test" needs to be reconnected — open Settings → External MCP and click Reconnect on higgsfield-test.',
+  });
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("an OAuth server without a provider or client identity refuses reauthentication", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER_ID });
+  assert.ok(record);
+  await repo.upsert({ ...record, oauthProviderId: null, oauthClientId: null });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+
+  const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-no-client" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } });
+
+  assert.equal(executed.status, "failed");
+  assert.match(executed.error ?? "", /is disconnected/);
+  assert.match(executed.error ?? "", /Do not retry this tool/);
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
 test("real round trip: an mcp-ui acknowledgement of external_mcp_reauth_prompt's dialog is redeemed, not refused as unallowlisted", async (t) => {
   const repo = await makeOAuthServerFixture("needs_reauth");
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -202,7 +268,7 @@ test("degrades to the existing terminal error when the connection is not OAuth-a
     {
       workspaceId: WORKSPACE,
       serverId: "static-server",
-      label: "Static server",
+      label: "",
       transport: "stdio",
       authMode: "static_env",
       enabled: true,
@@ -219,7 +285,7 @@ test("degrades to the existing terminal error when the connection is not OAuth-a
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: "static-server" } });
 
   assert.equal(executed.status, "failed");
-  assert.match(executed.error ?? "", /does not use OAuth authorization/);
+  assert.match(executed.error ?? "", /'static-server' does not use OAuth authorization/);
   assert.equal(surfaceExchanges.size(), 0, "no dialog, and therefore no exchange, may be left open for a connection with nothing to reconnect");
 });
 
@@ -352,4 +418,19 @@ test("external_mcp_reauth_prompt called with no 'id' fails with errorKind 'valid
   assert.equal(executed.status, "failed");
   assert.equal(executed.errorKind, "validation", `expected 'validation', got ${JSON.stringify(executed)}`);
   assert.match(executed.error ?? "", /'id' is required/);
+});
+
+test("nullish reauth input is rejected as a validation error", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+
+  for (const input of [null, undefined]) {
+    const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-nullish-input" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input });
+
+    assert.equal(executed.status, "failed");
+    assert.equal(executed.errorKind, "validation");
+    assert.match(executed.error ?? "", /'id' is required/);
+  }
+  assert.equal(surfaceExchanges.size(), 0);
 });

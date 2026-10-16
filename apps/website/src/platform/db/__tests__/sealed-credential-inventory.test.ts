@@ -1,3 +1,4 @@
+import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
@@ -40,6 +41,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
       assert.deepEqual(inventory.totals, { sealed: 1, opens: 0, doesNotOpen: 0, unknown: 1 });
       assert.equal(inventory.columns.find(column => column.table === "inventory_unknown")?.coverage, "no-descriptor");
       assert.equal(inventory.entries[0]?.unknownReason, "incomplete-sealed-row");
+      assert.equal(inventory.entries[0]?.workspaceId, null);
       assert.equal(inventory.entries[0]?.rowId, null);
     } finally { await fx.kernel.execute(sql`DROP TABLE inventory_unknown`); }
   });

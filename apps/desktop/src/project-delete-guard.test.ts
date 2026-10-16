@@ -57,6 +57,21 @@ test("resolveRealPath still normalizes a path that does not exist", () => {
   assert.equal(resolveRealPath(messy), path.join(base, "b"));
 });
 
+test("resolveRealPath returns the normalized path when even the filesystem root cannot resolve", (t) => {
+  const base = tempDir();
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const root = path.parse(base).root;
+  let rootAttempts = 0;
+  t.mock.method(fs.realpathSync, "native", (candidate: fs.PathLike) => {
+    // Bound a broken traversal: a repeated root resolves elsewhere, so it fails by value instead
+    // of hanging the test process. The fallback must return after the root's first failure.
+    if (candidate === root && rootAttempts++ > 0) return path.join(root, "unexpected-retry");
+    throw new Error("realpath unavailable");
+  });
+
+  assert.equal(resolveRealPath(path.join(base, "a", "..", "missing") + path.sep), path.join(base, "missing"));
+});
+
 test("isInsideDirectory is true for the container itself and for anything under it", () => {
   const repoRoot = tempDir();
   const nested = path.join(repoRoot, "sites", "tovu-com");
@@ -160,6 +175,16 @@ test("mayEraseSiteDirectory refuses a created row whose directory can no longer 
   fs.mkdirSync(corrupt);
   fs.writeFileSync(path.join(corrupt, ".site-meta.json"), "{ this is not json");
   assert.equal(mayEraseSiteDirectory(createdRow(corrupt, "site-a"), { repoRoot }), false, "unparseable .site-meta.json");
+});
+
+test("mayEraseSiteDirectory refuses a null recorded identity when the live metadata has no usable identity", (t) => {
+  const base = tempDir();
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const repoRoot = path.join(base, "repo");
+  fs.mkdirSync(repoRoot);
+  const outside = writeSiteMeta(path.join(base, "unidentified-site"), "");
+
+  assert.equal(mayEraseSiteDirectory({ ...row(outside, SITE_ORIGIN.created), siteId: null }, { repoRoot }), false);
 });
 
 test("readSiteIdentity returns a site's own stamped id, and null for anything it cannot read", () => {

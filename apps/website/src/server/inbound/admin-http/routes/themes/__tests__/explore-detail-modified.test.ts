@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
@@ -119,6 +120,39 @@ test("detail listing: same-size different bytes, a longer file, and CRLF-vs-LF a
 test("detail listing: a file with no catalog counterpart is not resettable, and modified is null", async (t) => {
   const files = await listing(await startApp(t), "moddy");
   assert.deepEqual(files.get("pages/mine.html"), { resettable: false, modified: null });
+});
+
+test("detail listing: a file replaced by an escaping symlink stays listed without a reset option", async (t) => {
+  const root = makeThemesRoot();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const baseUrl = await startApp(t, root);
+  const target = fs.realpathSync(path.join(root, "static", "moddy", "css", "styles.css"));
+  const outside = path.join(root, "outside.css");
+  fs.writeFileSync(outside, "outside the theme", "utf8");
+
+  // Another writer can replace a file after listing inspected it but before comparison resolves
+  // its path. Perform that swap at lstat's boundary so the real containment check sees the race.
+  const originalLstat = fs.lstatSync;
+  let replaced = false;
+  const injected = t.mock.method(fs, "lstatSync", (...args: Parameters<typeof fs.lstatSync>) => {
+    const stat = originalLstat(...args);
+    if (String(args[0]) === target && !replaced && stat?.isFile()) {
+      fs.unlinkSync(target);
+      fs.symlinkSync(outside, target);
+      replaced = true;
+    }
+    return stat;
+  });
+  syncBuiltinESMExports();
+  try {
+    const files = await listing(baseUrl, "moddy");
+    assert.equal(replaced, true, "the file must have changed after its listing stat");
+    assert.deepEqual(files.get("css/styles.css"), { resettable: false, modified: null });
+    assert.deepEqual(files.get("tokens.json"), { resettable: true, modified: false });
+  } finally {
+    injected.mock.restore();
+    syncBuiltinESMExports();
+  }
 });
 
 test("detail listing: a theme with no catalog directory reports every file resettable: false, modified: null", async (t) => {

@@ -1,9 +1,33 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
+
+test("permission removal refuses a different workspace without deleting the permission", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const ownerId = await deps.ownerPrincipalId;
+  const policy = { id: "workspace-guard-policy", workspaceId: deps.workspaceId, name: "Workspace guard", isBuiltin: false, isFrozen: false };
+  const permission = { id: "workspace-guard-permission", workspaceId: deps.workspaceId, policyId: policy.id, permission: "content.read", resourceType: null, constraintJson: null };
+  await deps.policyRepo.save(policy);
+  await deps.policyPermissionRepo.save(permission);
+  const app = express();
+  app.use((_req, res, next) => {
+    res.locals.principal = { id: ownerId };
+    next();
+  });
+  registerAdminPolicyPermissionRemoveRoute(app, deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-workspace/policies/${policy.id}/permissions/${permission.id}`, { method: "DELETE" });
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "workspace was not found" });
+  assert.deepEqual(await deps.policyPermissionRepo.listByPolicyId({ workspaceId: deps.workspaceId, policyId: policy.id }), [permission]);
+});
 
 // F6.2/F6.3/F7.6: leaking a delete failure or returning 204 without deleting on retry must fail.
 // The service/evaluator and repositories stay real; only the first delete is fault-injected.

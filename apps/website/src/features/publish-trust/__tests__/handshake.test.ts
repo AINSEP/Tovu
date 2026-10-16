@@ -1,5 +1,6 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
-import { hkdfSync } from "node:crypto";
+import { createHmac, hkdfSync } from "node:crypto";
 import test from "node:test";
 
 import type { KeyringPort } from "../../webhooks/index.js";
@@ -458,4 +459,72 @@ test("malformed session tokens are refused without throwing", async () => {
     const result = await verifyPublishSession(deps, { token: bad, expectedAudience: TARGET_INSTALL });
     assert.equal(result.ok, false, `'${bad}' must be refused`);
   }
+});
+
+test("missing and non-string session tokens are refused without throwing", async () => {
+  const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
+  for (const token of [undefined, null, 42, {}, ""]) {
+    assert.deepEqual(
+      await verifyPublishSession(deps, { token: token as string, expectedAudience: TARGET_INSTALL }),
+      { ok: false, reason: "no session token supplied" }
+    );
+  }
+});
+
+/** Sign malformed payloads with the fixture's real key derivation so MAC rejection cannot mask
+ * the payload validation being tested. */
+async function signedSessionPayload(payload: unknown): Promise<string> {
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const key = await testKeyring(DEST_ROOT).derive({
+    workspaceId: WORKSPACE as never,
+    purpose: "publish-trust-session-key",
+    info: "session-hmac",
+  });
+  return `${encoded}.${createHmac("sha256", key).update(encoded).digest("base64url")}`;
+}
+
+test("a signed null session payload is refused without throwing", async () => {
+  const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
+  assert.deepEqual(
+    await verifyPublishSession(deps, { token: await signedSessionPayload(null), expectedAudience: TARGET_INSTALL }),
+    { ok: false, reason: "session token payload is not an object" }
+  );
+});
+
+for (const scenario of [
+  { name: "a signed session with an unsupported version is refused", patch: { v: 2 }, reason: "unsupported session token version 2" },
+  { name: "a signed session for another workspace is refused", patch: { workspaceId: "another-workspace" }, reason: "session token was minted for another workspace" },
+]) {
+  test(scenario.name, async () => {
+    const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
+    const { payload } = await mintPublishSession(deps, {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: TARGET_INSTALL,
+      capabilities: CAPABILITIES,
+      generation: 1,
+    });
+    const token = await signedSessionPayload({ ...payload, ...scenario.patch });
+    assert.deepEqual(await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL }), { ok: false, reason: scenario.reason });
+  });
+}
+
+test("sessions with an unusable expiry or verification clock are refused", async () => {
+  const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
+  const { token, payload } = await mintPublishSession(deps, {
+    sourceInstallationId: SOURCE_INSTALL,
+    targetInstallationId: TARGET_INSTALL,
+    capabilities: CAPABILITIES,
+    generation: 1,
+  });
+  for (const expiresAtIso of [undefined, 123, "not-a-date"]) {
+    const malformed = await signedSessionPayload({ ...payload, expiresAtIso });
+    assert.deepEqual(
+      await verifyPublishSession(deps, { token: malformed, expectedAudience: TARGET_INSTALL }),
+      { ok: false, reason: "session token has no usable expiry" }
+    );
+  }
+  assert.deepEqual(
+    await verifyPublishSession({ ...deps, clock: { nowIso: () => "not-a-date" } }, { token, expectedAudience: TARGET_INSTALL }),
+    { ok: false, reason: "session token has no usable expiry" }
+  );
 });

@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,7 +31,7 @@ const PRINCIPAL = "22222222-2222-2222-2222-222222222222";
 const GOOGLE = "https://generativelanguage.googleapis.com";
 
 interface StoredRows {
-  admin?: { apiKey: string; baseUrl: string | null } | null;
+  admin?: { apiKey: string; baseUrl: string | null; principalId?: string } | null;
   site?: { apiKey: string; baseUrl: string | null } | null;
 }
 
@@ -38,6 +39,7 @@ interface StoredRows {
  * the plaintext sealer fixture now carries Jini's JSON payload rather than a legacy raw key. */
 function buildDeps(rows: StoredRows) {
   const counters = { adminReads: 0, siteReads: 0 };
+  const adminPrincipalId = rows.admin?.principalId ?? PRINCIPAL;
   const now = new Date().toISOString();
   function vaultFor(personal: boolean) {
     const vault = new InMemoryVaultRepo({});
@@ -46,11 +48,11 @@ function buildDeps(rows: StoredRows) {
       else counters.siteReads += 1;
       assert.equal(input.workspaceId, WORKSPACE);
       assert.equal(input.kind, personal ? "personal-execution" : "site-assistant");
-      assert.equal(input.principalId, personal ? PRINCIPAL : null, "the personal lookup uses the SESSION principal");
+      assert.equal(input.principalId, personal ? adminPrincipalId : null, "the personal lookup uses the SESSION principal");
       const row = personal ? rows.admin : rows.site;
       if (!row) return null;
       return { workspaceId: WORKSPACE, id: personal ? "admin" : "site", ownerKey: "tovu",
-        kind: personal ? "personal-execution" : "site-assistant", principalId: personal ? PRINCIPAL : null,
+        kind: personal ? "personal-execution" : "site-assistant", principalId: personal ? adminPrincipalId : null,
         binding: null, provider: personal ? "google-gemini" : "google", label: "", isDefault: true, revision: 1,
         meta: { baseUrl: row.baseUrl, model: null, ...(personal ? { protocol: "google", maxTokens: null } : {}) },
         sealed: { keyId: "v1", ciphertext: JSON.stringify({ apiKey: row.apiKey }), nonce: "fixture", alg: "aes-256-gcm" },
@@ -85,6 +87,23 @@ test("useAdminStoredCredential opens the CALLER'S OWN admin row and sends its st
   assert.equal(counters.adminReads, 1);
   // The boundary: the admin flag must never reach the SITE's visitor credential.
   assert.equal(counters.siteReads, 0, "the admin opt-in read the site credential — two keys must stay two keys");
+});
+
+test("an omitted principal cannot open a credential owned by the literal 'undefined' principal", async () => {
+  const { deps, counters } = buildDeps({
+    // String identifiers are opaque to the vault; absence must not become another owner's ID.
+    admin: { apiKey: "another-principals-secret", baseUrl: GOOGLE, principalId: "undefined" },
+  });
+
+  const result = await resolveProbeCredential(deps, {
+    requestedBaseUrl: GOOGLE,
+    typedKey: "",
+    useStoredCredential: false,
+    useAdminStoredCredential: true,
+  });
+
+  assert.deepEqual(result, { ok: true, apiKey: "", baseUrl: GOOGLE });
+  assert.deepEqual(counters, { adminReads: 0, siteReads: 0 });
 });
 
 test("useStoredCredential still opens the SITE row and never the admin's", async () => {

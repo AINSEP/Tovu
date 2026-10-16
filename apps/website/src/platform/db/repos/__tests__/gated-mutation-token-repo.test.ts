@@ -1,9 +1,12 @@
+import "../../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { sql } from "kysely";
 
-import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlTokenStore } from "../gated-mutation-token-repo.js";
 import { mintToken } from "#src/contracts/core/gated-mutations/token";
+import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 
 /**
  * @file SPEC-022 durability fix — `SqlTokenStore` coverage. Same lifecycle
@@ -11,6 +14,26 @@ import { mintToken } from "#src/contracts/core/gated-mutations/token";
  * `InMemoryTokenStore`, run here against the one Kysely body on a real, migrated content database
  * on every dialect (SQLite + PGlite): single-use redemption and expiry must hold on both.
  */
+
+test("tryRedeem() refuses redemption when the database skips the status update", async () => {
+  const kernel = freshSqliteContentKernel();
+  try {
+    const store = new SqlTokenStore(kernel);
+    const record = mintToken({ planId: "plan-1", planHash: "hash-1", scopeId: "scope-1", confirmerPrincipalId: "user-1", now: "2026-08-31T00:00:00.000Z" });
+    await store.save(record);
+    // A real skipped UPDATE exercises the defensive result check even while the token lock holds.
+    await kernel.execute(sql`CREATE TRIGGER skip_token_redemption BEFORE UPDATE ON gated_mutation_tokens BEGIN SELECT RAISE(IGNORE); END`);
+    const input = { token: record.confirmationToken, now: "2026-08-31T00:01:00.000Z" };
+
+    assert.deepEqual(await store.tryRedeem(input), { redeemed: false, record });
+    assert.deepEqual(await store.findByToken(record.confirmationToken), record);
+
+    await kernel.execute(sql`DROP TRIGGER skip_token_redemption`);
+    const redeemed = { ...record, status: "redeemed" as const };
+    assert.deepEqual(await store.tryRedeem(input), { redeemed: true, record: redeemed });
+    assert.deepEqual(await store.findByToken(record.confirmationToken), redeemed);
+  } finally { sqliteConnectionOf(kernel)?.close(); }
+});
 
 describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make: (kernel) => new SqlTokenStore(kernel) }, (makeStore) => {
   test("save() then findByToken() round-trips a minted record", async () => {

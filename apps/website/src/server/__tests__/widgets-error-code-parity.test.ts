@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -34,6 +35,18 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const WORKSPACE_ID = "ws-1";
 const NOW = "2026-09-15T00:00:00.000Z";
+
+test("WidgetForbiddenError: an unrecognized message keeps empty permission and reason details", () => {
+  const message = "widget access was refused";
+  assert.deepEqual(widgetErrorToResponse(new WidgetForbiddenError({ message })), {
+    status: 403,
+    body: {
+      error: message,
+      code: "WIDGETS_FORBIDDEN",
+      details: { permission: "", reason: "" },
+    },
+  });
+});
 
 function makeRouteDeps(entryRepo: WidgetsToolDeps["entryRepo"]): WidgetsToolDeps {
   let counter = 0;

@@ -226,6 +226,7 @@ test("listTokenSignInPlugins runs the CLI's list command and keeps only well-for
       return fakeChild(0, {
         stdout: `${JSON.stringify({
           plugins: [
+            null,
             { pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" },
             { pluginId: "evil", displayName: "Evil", helpUrl: "javascript:alert(1)" },
             { pluginId: "Bad Id", displayName: "x", helpUrl: "https://x" },

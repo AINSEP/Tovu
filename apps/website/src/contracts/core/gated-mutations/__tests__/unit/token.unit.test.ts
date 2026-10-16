@@ -1,3 +1,4 @@
+import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -210,4 +211,18 @@ test('expireToken persists expired for a minted token past its TTL', async () =>
   assert.ok(expired);
   assert.equal(expired.status, 'expired');
   assert.equal(isRedeemable({ record: expired, now: TEN_MIN_ONE_SEC_LATER }), false);
+});
+
+test('expireToken reports missing atomic expiry without changing the minted token', async () => {
+  const store = new InMemoryTokenStore();
+  const minted = mintToken(baseMintParams());
+  await store.save(minted);
+  // A legacy store can satisfy the other operations while lacking atomic expiry at runtime.
+  Object.defineProperty(store, "expire", { value: undefined });
+
+  await assert.rejects(expireToken({ store, token: minted.confirmationToken, now: NOW }), {
+    name: "Error",
+    message: "atomic confirmation-token expiry is not configured",
+  });
+  assert.deepEqual(await store.findByToken(minted.confirmationToken), minted);
 });

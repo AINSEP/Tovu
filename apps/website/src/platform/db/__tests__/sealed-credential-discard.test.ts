@@ -1,3 +1,4 @@
+import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
@@ -117,6 +118,26 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     assert.deepEqual(await fx.repo.find(stranded), stranded);
     const moved = await fx.repo.find({ workspaceId: WS, id: "move" });
     assert.equal(await fx.right.sealer.open({ sealed: moved!.sealed! }, { aad: buildVaultAad(moved!) }), JSON.stringify({ token: "LEAK-token-move" }));
+  });
+
+  test(`reseal refuses changed plaintext and preserves the original device credential [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    const device = createSqlDeviceAuthorizationStore({ kernel: fx.kernel, workspaceId: WS, ...fx.wrong,
+      clock: { nowMs: () => Date.parse(NOW) } });
+    const authorization = { deviceCode: "device-secret", userCode: "CODE", verificationUri: "https://auth.example.test",
+      verificationUriComplete: null, expiresAt: "2026-10-11T01:00:00.000Z", intervalSeconds: 5 };
+    await device.put("server", authorization);
+    const before = await fx.kernel.query(sql`SELECT * FROM oauth_device_authorizations`);
+    const sealer = {
+      open: fx.right.sealer.open.bind(fx.right.sealer),
+      seal: (input: Parameters<typeof fx.right.sealer.seal>[0]) => fx.right.sealer.seal({ ...input, plaintext: "changed-device-secret" }),
+    };
+    await assert.rejects(resealVaultCredentialsOpeningUnder({ kernel: fx.kernel, sealer,
+      key: await fx.right.keyring.activeKey(), previous: fx.wrong.sealer,
+      resealRecord: async () => assert.fail("device credentials do not use the vault record lifecycle"),
+    }), { message: "Credential recovery verification failed" });
+    assert.deepEqual(await fx.kernel.query(sql`SELECT * FROM oauth_device_authorizations`), before);
+    assert.deepEqual(await device.get("server"), authorization);
   });
 
   test(`a later reseal failure rolls back the earlier vault write [${each.name}]`, async () => {

@@ -218,6 +218,37 @@ test("a failing read is 'unavailable' with the error CLASS name only, and the ot
   assert.equal(result.sections.tools?.status, "ok");
 });
 
+// F7.1: hold the read and advance a controlled clock across the documented default deadline.
+test("omitting sectionTimeoutMs waits five seconds before reporting a held section as timed-out", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  t.mock.method(console, "error", () => {});
+  const deps = makeDeps();
+  let finish!: (rows: Awaited<ReturnType<SiteCapabilitiesDeps["listContentTypes"]>>) => void;
+  const work = new Promise<Awaited<ReturnType<SiteCapabilitiesDeps["listContentTypes"]>>>((resolve) => { finish = resolve; });
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  deps.listContentTypes = () => { entered(); return work; };
+  let settled = false;
+  const pending = buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID })
+    .then((result) => { settled = true; return result; });
+  try {
+    await started;
+    t.mock.timers.tick(4_999);
+    // Let the aggregate's promise chain settle if a missing default timed it out early.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false);
+    t.mock.timers.tick(1);
+    const result = await pending;
+    assert.deepEqual(result.sections.contentTypes, { status: "unavailable", reason: "timed-out" });
+    assert.equal(result.sections.tools?.status, "ok");
+    assert.equal(result.sections.adminScreens?.status, "ok");
+    assert.equal(result.completeness, "partial");
+  } finally {
+    finish([]);
+    await pending;
+  }
+});
+
 test("sections limits the call to the requested ones, in vocabulary order, reading nothing else", async () => {
   const logs: Logs = { permissions: [], reads: [] };
   const result = await buildSiteCapabilities(

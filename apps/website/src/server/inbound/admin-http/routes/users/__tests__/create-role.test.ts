@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -112,6 +113,23 @@ test("CREATE_ROLE route: 400 VALIDATION_ERROR when name is invalid or empty", as
   assert.equal(res.status, 400);
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("CREATE_ROLE route: omitted or null names are refused without creating a role", async (t) => {
+  const { app, deps } = await buildApp();
+  const before = await deps.roleRepo.list({ workspaceId: WORKSPACE_ID });
+  const baseUrl = await startTestServer(app, t);
+
+  for (const payload of [{}, { name: null }]) {
+    const res = await fetch(`${baseUrl}${URL_BASE}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), { code: "VALIDATION_ERROR", error: "role name is required" });
+    assert.deepEqual(await deps.roleRepo.list({ workspaceId: WORKSPACE_ID }), before);
+  }
 });
 
 test("CREATE_ROLE route: 403 FORBIDDEN when caller lacks permission", async (t) => {

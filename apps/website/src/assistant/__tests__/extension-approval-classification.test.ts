@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
@@ -25,6 +26,14 @@ test('generated guidance and memory tools carry explicit classification from the
 
 test('an unclassified registration cannot enter the host policy adapter',()=>{
  assert.throws(()=>toolApprovalPolicyFor({registration:{descriptor:{id:'new_dynamic_tool'},handler:async()=>({}),policy:{authorize:()=> 'allow'}}}),/new_dynamic_tool has no approval classification/);
+});
+
+test('extension registrations reject unclassified behavior families',()=>{
+ const registration:ToolRegistration={descriptor:{id:'new_dynamic_tool',inputSchema:{type:'object'}},handler:async()=>({}),policy:{authorize:()=> 'allow'}};
+ for(const family of ['new-unclassified-family','toString']) {
+  assert.throws(()=>withExtensionApprovalPolicy({registration,family:family as never}),
+   {message:'new_dynamic_tool has no approval classification'});
+ }
 });
 
 test('installed registration rejects a new unclassified family and admits explicit behavior metadata',async()=>{

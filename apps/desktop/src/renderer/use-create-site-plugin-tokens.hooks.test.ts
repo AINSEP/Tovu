@@ -8,18 +8,33 @@ import { readFileSync } from 'node:fs';
 
 import { createdTokensNote, tokensForCreate } from './use-create-site-plugin-tokens.hooks.js';
 import { hookHarness, sourceFunction } from './source-test-harness.js';
-import type { CreateSiteInput } from '../contracts/project.js';
+import type { CreateSiteInput, TokenSignInPlugin } from '../contracts/project.js';
 
-function tokenHook() {
+function tokenHook(listTokenSignInPlugins?: () => Promise<readonly TokenSignInPlugin[]>) {
   const harness = hookHarness();
   const inputs = { current: new Map<string, HTMLInputElement>() };
   const hook = sourceFunction(
     readFileSync(new URL('./use-create-site-plugin-tokens.hooks.ts', import.meta.url), 'utf8'),
     'useCreateSitePluginTokens',
-    { ...harness.bindings, useRef: () => inputs, tokensForCreate, runnerInventoryBridge: () => undefined },
+    { ...harness.bindings, useRef: () => inputs, tokensForCreate,
+      runnerInventoryBridge: () => listTokenSignInPlugins ? { listTokenSignInPlugins } : undefined },
   );
   return { harness, render: (enabled: boolean) => harness.render(() => hook({}, { enabled })) };
 }
+
+test('hidden services do not request token sign-in plugins until enabled', async () => {
+  const requests: unknown[][] = [];
+  const { harness, render } = tokenHook(async (...args: unknown[]) => { requests.push(args); return []; });
+  try {
+    render(false);
+    assert.deepEqual(requests, []);
+    render(true);
+    await Promise.resolve();
+    assert.deepEqual(requests, [[]]);
+    render(false);
+    assert.deepEqual(requests, [[]]);
+  } finally { harness.cleanup(); }
+});
 
 test('a create with no tokens reaches onCreate unchanged while services are hidden', async () => {
   const { harness, render } = tokenHook();

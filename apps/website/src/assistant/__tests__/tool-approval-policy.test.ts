@@ -6,6 +6,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { applyToolApprovalPolicy, approvalClassFor } from '../tool-approval-policy.js';
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { directPageAction } from '../../contracts/headless/assistant-tool-approval-policy.js';
 
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({executionId:'exec',principal:{id:'owner'},run:{id:'run'},input,signal:new AbortController().signal});
@@ -106,6 +107,17 @@ test('page verbs are classified, ordinary install controls are direct, opaque de
   assert.equal(approvalClassFor({toolId:'page.click',input:{handle:'trash-purge-confirm'}}),'delete');
   assert.equal(approvalClassFor({toolId:'page.fill',input:{handle:'title',text:'Hello'}}),'edit');
   assert.throws(()=>approvalClassFor({toolId:'toString',input:{}}),/has no approval classification/);
+});
+
+test('direct page actions reject unclassified capability ids',()=>{
+  for (const capabilityId of ['new_unclassified_tool','toString']) {
+    assert.throws(()=>directPageAction({capabilityId,input:{handle:'plugins-install-confirm'}}),
+      {message:`${capabilityId} has no approval classification`});
+  }
+});
+
+test('page fill runs directly without a reviewed click handle',()=>{
+  assert.equal(directPageAction({capabilityId:'page.fill',input:{handle:'title',text:'Hello'}}),true);
 });
 
 test('source-control export commits ask because they can remove stale exported paths; dry runs are direct',()=>{

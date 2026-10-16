@@ -14,8 +14,8 @@ import {
   resolveSiteAssistantApiKey,
   setSiteAssistantCredential,
 } from "../site-credential-store.js";
-import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
-import { assistantVaultContext } from "../assistant-vault.js";
+import { buildVaultAad, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "../assistant-vault.js";
 
 /**
  * @file `site-credential-store.ts` — ADR-058's write-only credential contract and the runtime
@@ -50,6 +50,45 @@ class BrokenKeyring implements KeyringPort {
     throw new Error("no site key");
   }
 }
+
+test("assistant repositories without singleton lookup are rejected as invalid records", () => {
+  for (const vault of [undefined, null, {}]) {
+    assert.throws(() => assistantVaultRepo({ repo: { vault } }), { name: "VaultError", code: "invalid-record" });
+  }
+});
+
+test("assistant vault creation refuses non-assistant credential kinds", () => {
+  const { repo } = makeDeps();
+  const context = { ...assistantVaultContext({ workspaceId: WORKSPACE, kind: "site-assistant" }), kind: "media-provider" as const };
+  assert.throws(() => createAssistantVault({ repo: repo.vault, context }), { name: "VaultError", code: "context" });
+});
+
+test("assistant snapshot reads require singleton lookup even when a record is supplied", async () => {
+  const { deps, repo } = makeDeps();
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, model: "saved-model" });
+  const context = assistantVaultContext({ workspaceId: WORKSPACE, kind: "site-assistant" });
+  const record = await repo.vault.findOne(context);
+  assert.ok(record);
+  const incompleteRepo = Object.create(repo.vault) as VaultRepoPort;
+  incompleteRepo.findOne = undefined;
+
+  await assert.rejects(readAssistantVault({ repo: incompleteRepo, context }, { record }), {
+    name: "VaultError", code: "invalid-record",
+  });
+});
+
+test("assistant settings refuse metadata returned from another workspace", async t => {
+  const { deps, repo } = makeDeps();
+  const otherWorkspace = "workspace-other";
+  await setSiteAssistantCredential(deps, { workspaceId: otherWorkspace, model: "other-workspace-model" });
+  const record = await repo.vault.findOne(assistantVaultContext({ workspaceId: otherWorkspace, kind: "site-assistant" }));
+  assert.ok(record);
+  t.mock.method(repo.vault, "findOne", async () => record);
+
+  await assert.rejects(getSiteAssistantCredential({ repo }, { workspaceId: WORKSPACE }), {
+    name: "VaultError", code: "context",
+  });
+});
 
 // ---------------------------------------------------------------------------
 // getSiteAssistantCredential

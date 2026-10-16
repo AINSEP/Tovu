@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -206,5 +207,25 @@ test("execution PUT accepts numeric maxTokens and explicitly clears providerId w
     workspaceId: "ws-7", principalId: "admin-9", protocol: "openai", providerId: null,
     baseUrl: "https://example.org/v1", model: "keep-model", maxTokens: 4096,
     sealed: null, masked: null, aadVersion: 0, createdAt: "2026-08-01T00:00:00Z", updatedAt: NOW,
+  });
+});
+
+test("execution PUT with a null body preserves the caller's saved settings", async () => {
+  const deps = depsForHandler();
+  const stored = {
+    workspaceId: "ws-7", principalId: "admin-9", protocol: "openai", providerId: "custom-provider",
+    baseUrl: "https://example.org/v1", model: "keep-model", maxTokens: 2048,
+    sealed: null, masked: null, aadVersion: 0,
+    createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
+  };
+  await deps.adminExecutionCredentialRepo.upsert(stored);
+  assert.deepEqual(await invoke(registerAdminAssistantPutExecutionCredentialRoute, deps, "put", "execution-credential", null), {
+    statusCode: 200, jsonBody: { data: {
+      isSet: false, masked: null, tokenHint: null, protocol: "openai", providerId: "custom-provider",
+      baseUrl: "https://example.org/v1", model: "keep-model", maxTokens: 2048, updatedAt: NOW,
+    } },
+  });
+  assert.deepEqual(await deps.adminExecutionCredentialRepo.findByWorkspaceAndPrincipal({ workspaceId: "ws-7", principalId: "admin-9" }), {
+    ...stored, updatedAt: NOW,
   });
 });

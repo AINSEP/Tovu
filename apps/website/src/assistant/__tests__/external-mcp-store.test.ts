@@ -1,5 +1,7 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { randomUUID } from "node:crypto";
-import { externalMcpVaultEnvelope, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope, externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -915,6 +917,32 @@ test("the vault refuses a non-object env payload before it can replace a server"
   const { sealer, keyring } = makeDeps();
   await assert.rejects(sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: { workspaceId: WORKSPACE, serverId: "weird-payload" },
     kind: "mcp-env", payload: ["not", "an", "object"] as unknown as Record<string, string> }));
+});
+
+test("an MCP vault row without ciphertext exposes no envelope", async () => {
+  const { sealer, keyring } = makeDeps();
+  const identity = { workspaceId: WORKSPACE, serverId: "empty-envelope" };
+  const sealed = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity, kind: "mcp-env", payload: { API_KEY: "secret" } });
+  const record = externalMcpVaultRecord({ sealed, identity, kind: "mcp-env" });
+
+  assert.equal(externalMcpVaultEnvelope({ record: { ...record, sealed: null } }), null);
+});
+
+test("MCP payload staging refuses a non-MCP vault kind", async () => {
+  const { sealer, keyring } = makeDeps();
+  await assert.rejects(sealExternalMcpVaultPayload({
+    deps: { sealer, keyring }, identity: { workspaceId: WORKSPACE, serverId: "wrong-kind" },
+    kind: "vendor" as Parameters<typeof sealExternalMcpVaultPayload>[0]["kind"], payload: { API_KEY: "secret" },
+  }), { name: "VaultError", code: "context" });
+});
+
+test("cleanup of an absent MCP vault pointer succeeds while persistence is unavailable", async t => {
+  const repo = new InMemoryVaultRepo({});
+  const unavailable = new Error("vault unavailable");
+  t.mock.method(repo, "find", async () => { throw unavailable; });
+
+  await assert.doesNotReject(deleteExternalMcpVaultEnvelope({ repo, workspaceId: WORKSPACE, id: null }));
+  await assert.rejects(deleteExternalMcpVaultEnvelope({ repo, workspaceId: WORKSPACE, id: "linked-payload" }), error => error === unavailable);
 });
 
 test("deleting a server removes it and reports whether anything was removed", async () => {

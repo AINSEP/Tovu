@@ -1,3 +1,4 @@
+import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ToolExecutionContext } from '@jini-ai/core';
@@ -23,4 +24,15 @@ test('unbound conversations and mismatched humans cannot persist a grant', async
   await assert.rejects(memory.grant({ ctx: ctx(), key: 'plugin', confirmer: { id: 'other', kind: 'user' } }), { message: 'NATIVE_APPROVAL_ACTOR_MISMATCH: The approval actor does not match this call. Nothing was changed.' });
   await assert.rejects(memory.grant({ ctx: ctx(), key: 'plugin', confirmer: { id: 'human', kind: 'user' } }), { message: 'NATIVE_APPROVAL_CONVERSATION_REQUIRED: The human approval could not be saved to this conversation. Nothing was changed.' });
   assert.equal(await memory.has({ ctx: ctx(), key: 'plugin' }), false);
+});
+
+test('native approval reuse reports unavailable when the store cannot look up identity grants', async () => {
+  const store = createInMemoryConversationToolApprovalStore();
+  delete store.hasIdentity;
+  const memory = createNativeApprovalMemory({ store, workspaceId: 'ws', clock: { nowMs: () => 0 }, conversationIdForRun: () => 'chat:run' });
+
+  await assert.rejects(memory.has({ ctx: ctx(), key: 'plugin' }), {
+    name: 'ToolInputError',
+    message: 'NATIVE_APPROVAL_MEMORY_UNAVAILABLE: The approval store cannot reuse identity grants. Nothing was changed.',
+  });
 });

@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -233,6 +234,35 @@ test("a Page-kind record (not just Post) is reported too, with kind: \"page\"", 
   const body = (await res.json()) as { files: FileEntry[] };
   const signin = body.files.find((f) => f.path === "pages/signin.html");
   assert.deepEqual(signin!.collidingContent, { id: "page-signin", slug: "signin", title: "Sign In", kind: "page" });
+});
+
+test("the 404 page never reports a collision with content at slug 404", async (t) => {
+  const themesDir = makeThemeWithCandidatePages();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(themesDir, "static", "collision-fixture", "pages", "404.html"), "<p>Not found</p>");
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
+  const { repo } = countingPostRepo([
+    seedPost({ id: "post-404", slug: "404", title: "Error guide" }),
+    seedPost({ id: "post-about", slug: "about", title: "About" }),
+  ]);
+  const deps = {
+    workspaceId: WORKSPACE_ID,
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+    themes,
+    themesDir,
+    postRepo: repo,
+  } as unknown as ContentRouteDeps;
+
+  const baseUrl = await startTestServer(buildTestApp(deps), t);
+  const res = await fetch(`${baseUrl}${BASE}`);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { files: FileEntry[] };
+  const notFound = body.files.find((file) => file.path === "pages/404.html");
+  assert.ok(notFound, "the error page must be present in the listing");
+  assert.equal(notFound.collidingContent, null, "404 has no standalone address for content to replace");
+  const about = body.files.find((file) => file.path === "pages/about.html");
+  assert.ok(about);
+  assert.deepEqual(about.collidingContent, { id: "post-about", slug: "about", title: "About", kind: "post" });
 });
 
 test("non-page files (e.g. a stylesheet) never report a collision even if their name matches a slug", async (t) => {

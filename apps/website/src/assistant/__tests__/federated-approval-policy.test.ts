@@ -1,6 +1,7 @@
+import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildFederatedMcpRegistrations } from '../mcp-federation/registrations.js';
+import { buildFederatedMcpRegistrations, type FederatedPolicyConfirmationRequest } from '../mcp-federation/registrations.js';
 import type { RemoteToolDescriptor, FederatedMcpConnectionConfig } from "@jini-ai/mcp/federation";
 import { createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
@@ -9,7 +10,7 @@ import { buildFederatedCallConfirmSpec } from '../external-mcp-call-confirmation
 const config: FederatedMcpConnectionConfig={connectionId:'test',label:'Test',allowedToolNames:['action'],writeAllowedToolNames:['action'],connectTimeoutMs:1000,callTimeoutMs:1000,maxResultBytes:4096,maxTools:5};
 const ctx=(input:Record<string,unknown>={}):ToolExecutionContext=>({executionId:'exec',principal:{id:'owner'},run:{id:'run'},input,signal:new AbortController().signal});
 function fixture(tool: Partial<RemoteToolDescriptor>, confirmed=false) {
-  let calls=0; const approvals:unknown[]=[];
+  let calls=0; const approvals:FederatedPolicyConfirmationRequest[]=[];
   const name = tool.name ?? 'action';
   const built=buildFederatedMcpRegistrations({tools:[{name,inputSchema:{type:'object'},...tool}],config:{...config,allowedToolNames:[name],writeAllowedToolNames:[name]},nativeToolIds:new Set(),session:{listTools:async()=>[],close:async()=>{},callTool:async()=>{calls++;return {content:[]};}},deps:{workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'}),confirmCall:async(_ctx,request)=>{approvals.push(request);return confirmed?{confirmed:true}:{confirmed:false,result:{cancelled:true}};}}});
   return {handler:built.registrations[0].handler,calls:()=>calls,approvals};
@@ -19,6 +20,21 @@ test('declared publish, unpublish and deploy are gated even with an opaque tool 
     const f=fixture({description,annotations:{readOnlyHint:false}});
     await f.handler(ctx()); assert.equal(f.approvals.length,1,description);assert.equal(f.calls(),0);
   }
+});
+test('deletion declared by an opaque remote tool requires approval before execution', async () => {
+  const f = fixture({ description: 'Deletes an item.' });
+  const result = await f.handler(ctx());
+  assert.deepEqual(result, { cancelled: true });
+  assert.equal(f.approvals.length, 1);
+  assert.equal(f.calls(), 0);
+});
+test('named permanent deletes retain their delete approval class', async () => {
+  const f = fixture({ name: 'delete_item' });
+  await f.handler(ctx());
+  assert.equal(f.approvals.length, 1);
+  // Jini also gates this name; approval presence alone cannot prove its action classification.
+  assert.equal(f.approvals[0].approvalClass, 'delete');
+  assert.equal(f.calls(), 0);
 });
 test('a selected destructive or publish action needs approval, ordinary edits do not',async()=>{
   for(const action of ['delete','publish','unpublish','deploy','send']) {

@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createEarlySessionCapture, sessionIdFromRunEvent } from "../early-run-session.js";
@@ -22,12 +23,40 @@ for (const [agentId, sessionId] of [["codex", "thread-123"], ["opencode", "sessi
 
 test("stale attempt session capture cannot overwrite the conversation's newer session", async () => {
   let writes = 0;
+  const captured: unknown[] = [];
+  const processReads: unknown[] = [];
   const sessions = { setSessionId: async () => { writes++; } } as unknown as AgentSessionStore;
-  const durable = { captureSession: async () => false } as unknown as DurableRunStore;
-  await createEarlySessionCapture({ sessions, durable, readStart: async () => null }, {})({ runId: "old", conversationId: "chat", agentId: "codex",
-    event: { kind: "agent", payload: { type: "status", sessionId: "stale" } },
+  const durable = { captureSession: async (value: unknown) => { captured.push(value); return false; } } as unknown as DurableRunStore;
+  await createEarlySessionCapture({ sessions, durable, readStart: async (value) => { processReads.push(value); return "child-start"; } }, {})({ runId: "old", conversationId: "chat", agentId: "codex",
+    event: { kind: "agent", payload: { type: "status", sessionId: "stale", childPid: 43 } },
   }, {});
   assert.equal(writes, 0);
+  assert.deepEqual(captured, [{ runId: "old", sessionId: "stale" }]);
+  assert.deepEqual(processReads, [], "a rejected attempt must not query its child process");
+});
+
+test("null and primitive event payloads yield no session locator", () => {
+  for (const kind of ["agent", "end"]) {
+    for (const payload of [null, undefined, "text", 43, false]) {
+      assert.equal(sessionIdFromRunEvent({ event: { kind, payload } }, {}), undefined);
+    }
+  }
+});
+
+test("session locators without a numeric child PID persist without process lookup", async () => {
+  for (const childPid of [undefined, "43"]) {
+    const captured: unknown[] = [];
+    const processReads: unknown[] = [];
+    const sessions = { setSessionId: async () => assert.fail("durable capture must own the locator") } as unknown as AgentSessionStore;
+    const durable = { captureSession: async (value: unknown) => { captured.push(value); return true; } } as unknown as DurableRunStore;
+    await createEarlySessionCapture({ sessions, durable,
+      readStart: async (value) => { processReads.push(value); return "child-start"; } }, {})({
+      runId: "run", conversationId: "chat", agentId: "codex",
+      event: { kind: "agent", payload: { type: "status", sessionId: "session", childPid } },
+    }, {});
+    assert.deepEqual(captured, [{ runId: "run", sessionId: "session" }]);
+    assert.deepEqual(processReads, []);
+  }
 });
 
 test("end remains compatible but non-status events never fabricate a session locator", () => {
@@ -45,10 +74,12 @@ test("native resume verifies OS start identity; daemon PID reuse is not evidence
 
 test("unbound legacy clients retain end-session persistence without weakening durable generation guards", async () => {
   const calls: unknown[] = [];
+  const processReads: unknown[] = [];
   const sessions = { setSessionId: async (required: unknown) => { calls.push(required); } } as unknown as AgentSessionStore;
   const durable = { captureSession: async () => assert.fail("unbound legacy client reached durable capture") } as unknown as DurableRunStore;
-  await createEarlySessionCapture({ sessions, durable, readStart: async () => null }, {})({ runId: "legacy", conversationId: "chat", agentId: "claude",
-    event: { kind: "end", payload: { sessionRef: "legacy-session" } },
+  await createEarlySessionCapture({ sessions, durable, readStart: async (value) => { processReads.push(value); return "child-start"; } }, {})({ runId: "legacy", conversationId: "chat", agentId: "claude",
+    event: { kind: "end", payload: { sessionRef: "legacy-session", childPid: 43 } },
   }, { durableBinding: false });
   assert.deepEqual(calls, [{ conversationId: "chat", agentId: "claude", sessionId: "legacy-session" }]);
+  assert.deepEqual(processReads, []);
 });

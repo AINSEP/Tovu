@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -275,6 +276,25 @@ test("RESET_USER_PASSWORD route: 400 VALIDATION_ERROR when password is missing",
   assert.equal(res.status, 400);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("RESET_USER_PASSWORD route: a nullish body returns 400 and preserves the target password", async () => {
+  const { app, deps, ownerId } = await buildApp();
+  const { principalId, originalHash } = await createTestUser(deps, ownerId, "resetnullishbody");
+  const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+
+  for (const body of [undefined, null]) {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: ownerId };
+    // A real target is required: a missing principal would mask body validation with a 404.
+    await handler({ params: { workspaceId: WORKSPACE_ID, principalId }, body }, res);
+
+    assert.equal(capture.statusCode, 400);
+    assert.deepEqual(capture.jsonBody, { error: "password is required", code: "VALIDATION_ERROR" });
+    const user = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId });
+    assert.ok(user);
+    assert.equal(user.passwordHash, originalHash);
+  }
 });
 
 test("RESET_USER_PASSWORD route: 404 RESOURCE_NOT_FOUND for a nonexistent principalId", async (t) => {

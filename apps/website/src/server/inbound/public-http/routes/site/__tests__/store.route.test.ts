@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -79,6 +80,37 @@ async function responsesNotMatching(
 test("GET /store/buy with no store plugin: every off-site returnTo falls back to /store", async (t) => {
   const buy = await bootStore(t, undefined);
   assert.deepEqual(await responsesNotMatching(buy, { status: 302, location: "/store" }), []);
+});
+
+test("GET /store without the plugin serves the disabled-store page", async (t) => {
+  const app = express();
+  registerStoreRoutes(app, {});
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/store`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/html\b/);
+  assert.equal(await res.text(), "<!doctype html><h1>Store</h1><p>Store plugin is not enabled in this runtime.</p>");
+});
+
+test("GET /store/buy without productId does not purchase the product named undefined", async (t) => {
+  const app = express();
+  registerStoreRoutes(app, { store: {
+    ...purchasingStore,
+    // The literal id is valid; omitting the parameter must not select it through String(undefined).
+    checkout: async (input) => input.productId === "undefined"
+      ? purchasingStore.checkout(input)
+      : { ok: false, reason: "not-found", retries: 0 },
+  } });
+  const baseUrl = await startTestServer(app, t);
+
+  const explicit = await fetch(`${baseUrl}/store/buy?productId=undefined`, { redirect: "manual" });
+  assert.equal(explicit.status, 302);
+  assert.equal(explicit.headers.get("location"), `/store?msg=${encodeURIComponent("Purchased — order order-1, 4 left.")}`);
+
+  const missing = await fetch(`${baseUrl}/store/buy`, { redirect: "manual" });
+  assert.equal(missing.status, 302);
+  assert.equal(missing.headers.get("location"), `/store?msg=${encodeURIComponent("Could not buy: not-found.")}`);
 });
 
 test("GET /store/buy after a purchase: every off-site returnTo falls back to /store with the flash message", async (t) => {

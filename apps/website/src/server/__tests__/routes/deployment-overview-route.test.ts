@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -181,6 +182,16 @@ async function fetchOverview(
   assert.equal(res.status, 200);
   return res.json();
 }
+
+test("deployment-overview: a missing owner credential reports no unsafe default password", async (t) => {
+  const deps = createRouteDeps();
+  const body = await fetchOverview(deps, t, async () => {
+    // Keep the authenticated principal/session; only the owner's credential row is absent.
+    t.mock.method(deps.userRepo, "findByPrincipalId", async () => null);
+  });
+
+  assert.equal(body.defaultOwnerPasswordUnsafe, false);
+});
 
 // LAN-bind review (2026-09-23): the desktop now puts a random TOVU_ADMIN_PASSWORD into every spawn,
 // but a site it created BEFORE that fix was seeded with the default and keeps it (seeding never

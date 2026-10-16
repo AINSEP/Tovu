@@ -179,6 +179,13 @@ test("default discovery uses its injected home for policy and never admits the u
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test("the selected local nested sites home permits scanning its Tovu parent", () => {
+  const homeDir = isolatedCatalogHome;
+  const root = path.join(homeDir, "Tovu");
+  assert.doesNotThrow(() => assertSpecificSiteRoot({ root }, { homeDir, sitesHome: path.join(root, "sites") }));
+  assert.throws(() => assertSpecificSiteRoot({ root }, { homeDir, sitesHome: path.join(homeDir, "Documents", "Tovu", "sites") }), /too broad/);
+});
+
 for (const oldOverride of ["documents", "local"]) test(`desktop retains sites when env selects the ${oldOverride} old home`, () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-override-")));
   try {

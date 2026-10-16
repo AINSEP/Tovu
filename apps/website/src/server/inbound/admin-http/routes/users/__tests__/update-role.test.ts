@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -103,6 +104,25 @@ test("UPDATE_ROLE route: direct invoke fallback for nullish params.roleId and nu
   await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
   assert.equal(capture.statusCode, 404);
   assert.equal((capture.jsonBody as { code?: string }).code, "RESOURCE_NOT_FOUND");
+  assert.equal((capture.jsonBody as { error: string }).error, "role '' was not found");
+});
+
+test("UPDATE_ROLE route: omitted or null names are refused without renaming the role", async (t) => {
+  const { app, deps, ownerId } = await buildApp();
+  const roleId = await createCustomRole(deps, ownerId, "keep-existing-name");
+  const before = await deps.roleRepo.findById({ workspaceId: WORKSPACE_ID, id: roleId });
+  const baseUrl = await startTestServer(app, t);
+
+  for (const payload of [{}, { name: null }]) {
+    const res = await fetch(`${baseUrl}${urlFor(roleId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), { code: "VALIDATION_ERROR", error: "role name is required" });
+    assert.deepEqual(await deps.roleRepo.findById({ workspaceId: WORKSPACE_ID, id: roleId }), before);
+  }
 });
 
 test("UPDATE_ROLE route: 200 on success renaming a non-built-in role", async (t) => {

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { once } from "node:events";
@@ -12,6 +13,7 @@ import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/f
 import { registerAdminFormsAuthoringRoute } from "../../inbound/admin-http/routes/forms/authoring.js";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createFormsAdminModule } from "../../runtime/composition/modules/forms-admin.js";
+import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 /** No route this file drives deletes a submission; reaching this is a contract change, not a pass. */
 const neverRemovesSubmissions: RemoveFormSubmissionFn = async () => {
@@ -70,6 +72,51 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
   await post("_hp=bot");
   const submissions = await formSubmissionRepo.listByDefinition({ workspaceId: "ws", formDefinitionId: form.id, limit: 10 });
   assert.deepEqual(submissions.items.map((submission) => submission.data), [{ email: "ada@example.com" }]);
+
+  await t.test("authoring PUT refuses another workspace without changing the form", async () => {
+    const before = structuredClone(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }));
+    const response = await fetch(`${base}/api/admin/v1/workspaces/other/forms/${form.id}/authoring`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Changed" }),
+    });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: "workspace was not found" });
+    assert.deepEqual(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }), before);
+  });
+
+  await t.test("authoring PUT returns the form-not-found error for an unknown form", async () => {
+    const response = await fetch(`${base}/api/admin/v1/workspaces/ws/forms/missing/authoring`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Changed" }),
+    });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), {
+      error: "form definition 'missing' was not found", code: "FORMS_DEFINITION_NOT_FOUND",
+    });
+  });
+
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring");
+  // Express supplies required params and normalizes absent JSON bodies. Invoke the real handler
+  // directly to exercise its defensive defaults without replacing the write service.
+  for (const body of [null, undefined]) {
+    await t.test(`authoring PUT preserves form content with a ${body} body`, async () => {
+      const before = structuredClone(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }));
+      const { res, capture } = createCapturingResponse();
+      res.locals.principal = { id: "owner", kind: "user" };
+      await handler({ params: { workspaceId: "ws", formId: form.id }, body, get: () => undefined }, res);
+      assert.equal(capture.statusCode, 200);
+      assert.deepEqual((capture.jsonBody as { data: { id: string } }).data.id, form.id);
+      assert.deepEqual(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }), before);
+    });
+  }
+
+  await t.test("authoring PUT reports an empty form id when the parameter is absent", async () => {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "owner", kind: "user" };
+    await handler({ params: { workspaceId: "ws" }, body: { name: "Changed" }, get: () => undefined }, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, {
+      error: "form definition '' was not found", code: "FORMS_DEFINITION_NOT_FOUND",
+    });
+  });
 });
 
 test("authoring PUT requires admin.forms.manage before any lookup, for existing and missing ids alike", async (t) => {

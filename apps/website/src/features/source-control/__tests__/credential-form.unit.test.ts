@@ -36,6 +36,33 @@ test("malformed blocks are refused with the exact reason", () => {
   for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm(value, "c"), reason);
 });
 
+test("non-object credential fields are refused with their field location", () => {
+  for (const field of [null, "token", []]) {
+    assert.equal(parseSourceControlCredentialForm({ fields: [field] }, "c"), "c.fields[0] must be an object");
+  }
+});
+
+test("non-boolean required flags are refused instead of silently becoming optional", () => {
+  assert.equal(parseSourceControlCredentialForm({ fields: [{ ...TOKEN, required: "true" }] }, "c"),
+    "c.fields[0].required must be a boolean");
+});
+
+test("non-boolean secret flags on non-token fields are refused", () => {
+  assert.equal(parseSourceControlCredentialForm({ fields: [TOKEN, { name: "username", label: "Username", secret: "true" }] }, "c"),
+    "c.fields[1].secret must be a boolean");
+});
+
+test("token page URLs must be strings of at most 500 characters", () => {
+  const url = "https://x.test/".padEnd(500, "a");
+  assert.deepEqual(parseSourceControlCredentialForm({ fields: [TOKEN], tokenPageUrl: url }, "c"), {
+    tokenPageUrl: url, tokenField: "token", fields: [TOKEN],
+  });
+  for (const tokenPageUrl of [url + "a", new URL("https://x.test/new")]) {
+    assert.equal(parseSourceControlCredentialForm({ fields: [TOKEN], tokenPageUrl }, "c"),
+      "c.tokenPageUrl must be an https URL");
+  }
+});
+
 
 test("a custom tokenField selects the declared alternate secret with all field flags preserved", () => {
   assert.deepEqual(parseSourceControlCredentialForm({

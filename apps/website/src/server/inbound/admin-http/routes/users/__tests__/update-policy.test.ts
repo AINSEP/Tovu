@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -93,6 +94,7 @@ test("UPDATE_POLICY route: direct invoke fallback for nullish params.policyId", 
   await handler({ params: { workspaceId: WORKSPACE_ID }, body: { name: "x" } }, res);
   assert.equal(capture.statusCode, 404);
   assert.equal((capture.jsonBody as { code?: string }).code, "RESOURCE_NOT_FOUND");
+  assert.equal((capture.jsonBody as { error: string }).error, "policy '' was not found");
 });
 
 test("UPDATE_POLICY route: direct invoke fallback for a nullish body (both fields undefined)", async () => {

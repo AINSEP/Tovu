@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -89,6 +90,7 @@ test("DELETE_ROLE route: direct invoke fallback for nullish params.roleId", asyn
   await handler({ params: { workspaceId: WORKSPACE_ID }, body: {} }, res);
   assert.equal(capture.statusCode, 404);
   assert.equal((capture.jsonBody as { code?: string }).code, "RESOURCE_NOT_FOUND");
+  assert.equal((capture.jsonBody as { error: string }).error, "role '' was not found");
 });
 
 test("DELETE_ROLE route: 204 deletes an unused custom role", async (t) => {
