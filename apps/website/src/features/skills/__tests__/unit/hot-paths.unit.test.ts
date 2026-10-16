@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -40,19 +41,21 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
   await upload(); await request();
   const result = await executor.execute({ principal, run, toolId: "skill_incident_response", input: {} });
   assert.equal(result.status, "completed");
-  assert.deepEqual(result.output, { skillName: "incident-response", guidance: MD, bundledFiles: [] });
+  assert.deepEqual(result.output, { skillName: "incident-response", guidance: MD, files: [".tovu-install.json"], bundledFiles: [] });
 }));
 
 test("BYOK meta-tools discover and execute a post-boot installation, then drop a disabled skill", () => fixture(async () => {
-  const deps = { ...ctx, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00Z") }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
-  const surface = createByokToolSurface(deps, { installExtensions: false });
-  await registerInstalledSkillTools(surface.registry, ctx);
+  const deps = { ...ctx, getEffective: async () => null, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00Z") }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
+  const surface = createByokToolSurface(deps, {
+    registerInstalledExtensions: (registry, extensionDeps) => registerInstalledSkillTools(registry, extensionDeps),
+  });
+  await surface.ready;
   await upload();
   const describe = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "skill_incident_response" } });
   assert.equal(describe.isError, undefined);
   assert.equal(JSON.parse(String(describe.content)).id, "skill_incident_response");
   const execute = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } });
-  assert.deepEqual(JSON.parse(String(execute.content)), { skillName: "incident-response", guidance: MD, bundledFiles: [] });
+  assert.deepEqual(JSON.parse(String(execute.content)), { skillName: "incident-response", guidance: MD, files: [".tovu-install.json"], bundledFiles: [] });
   await setSkillEnabled(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response", enabled: false }));
   const disabled = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "skill_incident_response" } });
   assert.equal(disabled.isError, true);

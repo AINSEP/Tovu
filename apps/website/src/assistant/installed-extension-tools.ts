@@ -100,10 +100,22 @@ export function attachAssistantToolExtensions(
 ): AssistantToolExtensions {
   // Extension ids come from installed data, so check the factory's explicit behavior metadata
   // at the registration boundary too. A new family cannot silently bypass the native guard.
-  const installed = deps.registerInstalled({ has: input => registry.has(input), list: input => registry.list(input), register(registration) {
-    toolApprovalPolicyFor({ registration });
-    registry.register(registration);
-  } }, { ...deps, executablePluginToolRegistry: registry }, log);
+  // Live skills replace discovery methods and attach a refresh hook. Forward those writes to
+  // the executor's registry so the guarded registration view cannot strand their lifecycle.
+  const liveRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
+  const installedRegistry = {
+    get has() { return registry.has; },
+    set has(value: ToolRegistry["has"]) { registry.has = value; },
+    get list() { return registry.list; },
+    set list(value: ToolRegistry["list"]) { registry.list = value; },
+    get refreshInstalledSkills() { return liveRegistry.refreshInstalledSkills; },
+    set refreshInstalledSkills(value: (() => Promise<boolean>) | undefined) { liveRegistry.refreshInstalledSkills = value; },
+    register(registration: ToolRegistration) {
+      toolApprovalPolicyFor({ registration });
+      registry.register(registration);
+    },
+  };
+  const installed = deps.registerInstalled(installedRegistry, { ...deps, executablePluginToolRegistry: registry }, log);
   const federation = createFederationRuntime({
     registry,
     presetRegistry: deps.federation.presetRegistry,

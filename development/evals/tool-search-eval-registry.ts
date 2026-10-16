@@ -20,7 +20,10 @@
  * loud-failure guard, so a future suite that copies this helper cannot reintroduce the silent-9-tool
  * failure mode: a catalog smaller than {@link MIN_EXPECTED_TOOL_COUNT} throws instead of scoring.
  */
+import "../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { testSiteLayoutContext } from "../../apps/website/src/__tests__/fixtures/site-layout-context.js";
 import { createContributionRegistry, createToolRegistry, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
+import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import {
   buildAssistantToolRegistrations,
   type AssistantSurfaceDeps,
@@ -44,11 +47,15 @@ export const MIN_EXPECTED_TOOL_COUNT = 100;
  * `toAssistantRegistryDeps`, as the production roots do) — a permissive fake sufficient to build
  * registrations without touching a real database. Suites that need additional fields can still build
  * their own and pass it to {@link buildEvalToolRegistry} directly; this export is a convenience, not
- * a required seam.
+ * a required seam. Shared site-layout ports keep installed-extension registration and refresh
+ * inside the isolated catalog home.
  */
 export function fakeEvalRouteDeps(): RegistryDepsWithoutLimiter {
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: "ws-eval",
+    settingsRepo: new InMemorySettingsRepo(),
+    settingsUiTabsReady: Promise.resolve(),
+    getEffective,
     clock: { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () => "2026-08-05T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -67,7 +74,7 @@ export function fakeEvalRouteDeps(): RegistryDepsWithoutLimiter {
     outbox: { enqueue: async () => {} },
     // SEO registrations bind the host dispatch port at construction, even for catalog-only discovery.
     seoDeps: { dispatch: async () => {} },
-  };
+  });
   return deps as unknown as RegistryDepsWithoutLimiter;
 }
 
