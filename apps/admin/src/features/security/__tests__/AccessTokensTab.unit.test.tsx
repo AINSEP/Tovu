@@ -146,7 +146,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
     await user.type(accountId, "acct-replacement");
     await user.type(screen.getByLabelText("API token", { exact: true }), "cf-replacement");
     expect(accountId).toHaveValue("acct-replacement");
-    await user.click(screen.getByRole("button", { name: "Save — Production", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Save — Production" }));
 
     expect(update).toHaveBeenCalledExactlyOnceWith("cf-1", {
       connection: { providerId: "cloudflare-pages", token: "cf-replacement", accountId: "acct-replacement" },
