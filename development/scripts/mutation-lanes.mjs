@@ -88,7 +88,13 @@ function targetRows(text) {
     if (!match) continue;
     const [, number, tier, path] = match;
     if (isAbsolute(path) || normalize(path).startsWith('..')) throw new Error(`Target must stay inside the copy: ${path}`);
-    rows.push({ row: Number(number), tier, path });
+    // Only backticked test paths in later cells override discovery; plain importing-test names do not.
+    const explicitTests = [...line.split('|').slice(4).join('|').matchAll(/`([^`]+\.test\.(?:ts|tsx|mjs))`/g)]
+      .map(([, test]) => test);
+    for (const test of explicitTests) {
+      if (isAbsolute(test) || normalize(test).startsWith('..')) throw new Error(`Test must stay inside the copy: ${test}`);
+    }
+    rows.push({ row: Number(number), tier, path, explicitTests });
   }
   return rows;
 }
@@ -134,7 +140,8 @@ function isFile(path) {
   catch (error) { if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false; throw error; }
 }
 
-function testsFor({ path, index }) {
+function testsFor({ path, explicitTests = [], index }) {
+  if (explicitTests.length) return explicitTests;
   const stem = basename(path).split('.')[0];
   // Stable sort and insertion-ordered deduplication match the Python runner's ordering.
   return [...new Set(index.get(path) || [])].sort((a, b) =>
@@ -461,7 +468,7 @@ function recordResult({ lane, row, tests, secs, note, data }) {
 
 async function sweepRow({ lane, row, index }) {
   const start = Date.now();
-  const tests = testsFor({ path: row.path, index });
+  const tests = testsFor({ path: row.path, explicitTests: row.explicitTests, index });
   let note = 'NO-TESTS';
   let data = null;
   writeFileSync(join(config.out, 'logs', `${row.row}.log`), '');
@@ -512,7 +519,7 @@ async function workLane({ lane, index }) {
       } catch (error) {
         if (stopping) throw error;
         const note = `ERROR ${String(error.message ?? error).slice(0, 120)}`;
-        recordResult({ lane, row, tests: testsFor({ path: row.path, index }),
+        recordResult({ lane, row, tests: testsFor({ path: row.path, explicitTests: row.explicitTests, index }),
           secs: Math.floor((Date.now() - start) / 1000), note, data: null });
         lane.sha = null;
         if (++consecutiveErrors >= 3) throw error;
