@@ -671,12 +671,15 @@
    plus a compact thumbnail preview. Same fixed-square-thumbnail idiom as `.media-picker-item img`
    just above, sized down for an inline field rather than a grid card. */
 :is(.jini-page, .jini-dialog) .jini-media-ref-field-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-:is(.jini-page, .jini-dialog) .jini-media-ref-field-row .jini-input { flex: 1 1 12rem; }
+:is(.jini-page, .jini-dialog) .jini-media-ref-field-row .jini-input { flex: 1 1 12rem; min-width: 0; }
+/* 2026-10-15 (owner: "repeated huge thumbnails"): the thumbnail now leads the row at the input's
+   own height instead of a 4rem square under it, and Choose/Remove sit in one non-wrapping group so
+   a narrow column moves the pair to the next line together rather than stranding Remove alone. */
 :is(.jini-page, .jini-dialog) .jini-media-ref-field-preview {
-  width: 4rem; height: 4rem; object-fit: cover;
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-  margin-top: var(--space-2); display: block;
+  flex: none; width: 2.3rem; height: 2.3rem; object-fit: cover;
+  border: 1px solid var(--border); border-radius: var(--r-sm); display: block;
 }
+:is(.jini-page, .jini-dialog) .jini-media-ref-field-actions { display: inline-flex; flex: none; gap: var(--space-2); }
 
 /* Row action menu (`RowMenu.tsx`) + confirm dialog (`ConfirmDialog.tsx`) — replaces the
    one-visible-button-per-row pattern and `window.confirm` respectively, wired into

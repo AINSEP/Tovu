@@ -177,8 +177,11 @@
   padding-block-start: var(--space-6);
 }
 
-/* Keep the established form layout when the shared markup uses Jini classes. */
-.jini-seo-entry-panel > label {
+/* Keep the established form layout when the shared markup uses Jini classes. Direct children only:
+   `MediaRefField`'s own `<label>` is a caption, and flexing it centred the "OG image" text. */
+.jini-seo-entry-panel > label,
+.jini-seo-entry-group > label,
+.jini-seo-entry-checks > label {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -224,13 +227,13 @@
   max-width: none;
 }
 
-/* The picker keeps its content width instead of stretching to that full measure. A 1300px select
-   over entry titles is not a wider control, it is 900px of empty chevron gap. `max-width` because
-   at 390 the widest option measures 381px against a 366px column and the page does not scroll
-   horizontally, so the overhang was simply unreachable; at 1440 it binds on nothing. */
-.jini-seo-entry-section .jini-seo-section-body select {
-  align-self: start;
-  max-width: 100%;
+/* The picker keeps a bounded width instead of stretching to that full measure. A 1300px control
+   over entry titles is not a wider control, it is 900px of empty chevron gap. Since 2026-10-15 it
+   is the shared searchable `Select` (trigger + portaled panel) rather than a native `<select>`;
+   the panel takes the trigger's width, so this one cap sizes both. */
+.jini-seo-entry-picker {
+  width: 100%;
+  max-width: 28rem;
 }
 
 /* Same stacking problem the section body has, from the same cause: `.seo-entry-panel` is a
@@ -307,4 +310,54 @@
   .jini-seo-actions {
     padding-inline-start: 0;
   }
+}
+
+/* --- Pages & posts, 2026-10-15 ------------------------------------------------
+ *
+ * Owner on `?tab=entries`: "the UI ... is horrible" — a loose paragraph, eleven full-width fields
+ * in one undifferentiated column, and Save lost under the last image. Now: the explanation is an
+ * ⓘ tip beside the heading; heading + Save share one row that stays pinned while the form scrolls
+ * (the post editor pins its action row the same way); fields sit in the two named groups the Site
+ * defaults tab already uses; and the column is capped, because a title or URL field does not get
+ * more usable past ~40rem — it only puts the Save button a screen-width away from it.
+ */
+.jini-seo-entry-panel {
+  max-width: 40rem;
+  gap: var(--space-6);
+}
+
+.jini-seo-entry-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+  background: var(--bg);
+}
+.jini-seo-entry-head > h3 { margin: 0; }
+.jini-seo-entry-head-actions { margin-left: auto; }
+
+.jini-seo-entry-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.jini-seo-entry-group > legend {
+  padding: 0;
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.jini-seo-entry-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
 }

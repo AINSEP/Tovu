@@ -6,6 +6,9 @@ import { MediaPickerDialog } from '../../components/MediaPickerDialog/MediaPicke
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
 import { siteUrl } from '../../lib/site-url';
 import { createSeoTranslator, describeSeoHostError } from './seo-ports';
+// The entry picker is the shared searchable Select; its sheet otherwise loads only with the
+// widget picker, which this route may never have imported.
+import '../../styles/select.css';
 
 /** Keep CMS slug hydration and the existing caller-specific handles with the host picker owner. */
 export function SeoMediaPickerSlot({ agentHandle, ...props }: SeoMediaPickerSlotProps, _optional: Record<string, never> = {}): ReactElement {

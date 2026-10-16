@@ -157,3 +157,18 @@
   background: color-mix(in oklab, var(--primary) 22%, var(--surface));
 }
 .select-option-check { flex-shrink: 0; width: 16px; height: 16px; color: var(--primary); }
+
+/* Grouped rows and state pills (SEO entry picker, 2026-10-15): a quiet heading per group, and a
+   muted pill only for the exceptional state, so a list of mostly-published entries reads clean. */
+.select-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-group-label {
+  padding: var(--space-2) 0.75rem var(--space-1);
+  font-size: var(--text-xs); font-weight: 600; color: var(--muted);
+}
+.select-group-label:not(:first-child) { margin-top: var(--space-1); border-top: 1px solid var(--border); }
+.select-option-badge {
+  flex: none; margin-left: auto; padding: 0 0.45rem; border-radius: 999px;
+  background: var(--surface-3); color: var(--muted);
+  font-size: var(--text-xs); font-weight: 500; line-height: 1.6;
+}
+.select-option-badge::first-letter { text-transform: uppercase; }
