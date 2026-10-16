@@ -15,7 +15,7 @@ import { secretsVaultStatements } from "#src/platform/db/migrations/0012_secrets
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { registerAdminCredentialCopyRoutes } from "#src/server/inbound/admin-http/routes/system/credential-copy";
-import { createTovuVaultKinds } from "../vault-kinds.js";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { createLocalCredentialCopy, LocalCredentialCopyError } from "../local-credential-copy.js";
 
 const stamp = "2026-10-11T12:00:00.000Z";

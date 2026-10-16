@@ -1,5 +1,5 @@
 import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import { byVaultLabel, parseTovuStoreMeta } from "../../server/runtime/composition/vault-kinds.js";
+import { byVaultLabel, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { CustomCredentialCategoryId, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
 export function customVaultScope({ workspaceId, id }: { workspaceId: string; id?: string }, _options = {}) {

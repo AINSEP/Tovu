@@ -3,7 +3,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort, SealedSecret } from "../webhooks/index.js";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
-import { createTovuVaultKinds } from "../../server/runtime/composition/vault-kinds.js";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
 type Record = SourceControlCredentialSetRecord | VendorCredentialSetRecord;
 type Kind = "vendor" | "source-control";
@@ -105,7 +105,7 @@ export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sea
       if (!required.keyring) throw required.storageError();
       return required.keyring.activeKey();
     }) } as KeyringPort,
-    sealer: { seal: input => protect(() => required.sealer.seal(input)), open: (input, options) => protect(() => required.sealer.open(input, options)) },
+    sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })), open: (input, options) => protect(() => required.sealer.open(input, options)) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
     newId: () => { if (!required.idGen) throw new VaultError({ code: "invalid-record" }); return required.idGen.newId(); },
   });

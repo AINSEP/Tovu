@@ -8,7 +8,7 @@ import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
 import { runMigrations } from "../../migrations/runner.js";
 import { seedParityRows, stamp, vaultFixture } from "../../migrations/__tests__/secrets-vault.fixture.js";
 import { normalizeVaultAtBoot } from "#src/server/runtime/composition/vault-boot";
-import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { CompiledQuery, sql, type KyselyPlugin, type RootOperationNode } from "kysely";

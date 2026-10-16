@@ -1,5 +1,5 @@
 import { VaultError, type VaultBatchOp, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import { parseTovuStoreMeta } from "../../server/runtime/composition/vault-kinds.js";
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-store.js";
 
 /** Expected nonpersonal ownership, plus an exact provider filter when selecting a singleton. */

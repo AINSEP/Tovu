@@ -5,7 +5,7 @@ import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primit
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
 import { type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import { createTovuStoreVault } from "../../server/runtime/composition/vault-kinds.js";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
 
 /**

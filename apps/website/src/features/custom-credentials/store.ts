@@ -3,7 +3,7 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { createTovuStoreVault } from "../../server/runtime/composition/vault-kinds.js";
+import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { customVaultRecord, customVaultScope } from "./vault-repo.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,

@@ -1,7 +1,7 @@
 import { normalizeCredentialToken, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { InMemoryKeyring } from "../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
 import type { TargetDescription } from "./postgres-target.js";

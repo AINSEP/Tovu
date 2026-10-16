@@ -2,7 +2,7 @@ import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialTokenHint } from "#src/contracts/core/credential-token";
-import { byVaultLabel, createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
 

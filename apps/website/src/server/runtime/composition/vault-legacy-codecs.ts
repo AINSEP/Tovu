@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
 import { VaultError, type VaultRecord, type VaultMeta, type VaultOptions } from "@jini-ai/platform/secrets/credential-sets";
-import type { TovuVaultPolicy } from "./vault-kinds.js";
+import type { TovuVaultPolicy } from "#src/platform/secrets/vault-kinds";
 
 /** Historical formats and their original rationale, copied verbatim for S2 recovery.
  * Feature reads must use Jini buildVaultAad, never these builders. */

@@ -85,7 +85,7 @@ const NON_EXCHANGE_OPEN_CALLS = new Map([
   ["features/plugin-runtime/source-tools.ts", "port.open({ id: pluginId }, {})"],
   ["features/vendor-credentials/vault-adapter.ts", "required.sealer.open(input, options)"],
   ["server/runtime/composition/site-key-recovery.ts", "input.previous.open(required, options)"],
-  ["server/runtime/composition/vault-kinds.ts", "required.sealer.open(input, options)"],
+  ["platform/secrets/vault-kinds.ts", "required.sealer.open(input, options)"],
 ]);
 
 function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {

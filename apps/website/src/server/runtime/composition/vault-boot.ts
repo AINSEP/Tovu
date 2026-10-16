@@ -17,7 +17,7 @@ import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "./vault-legacy-codecs.js";
-import { createTovuVaultKinds } from "./vault-kinds.js";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
 type BlockReason = "missing-key" | "unopenable" | "invalid-meta" | "catalog-unavailable" | "conflict";
 export interface VaultKindCoverage {

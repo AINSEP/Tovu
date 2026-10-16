@@ -21,7 +21,7 @@ import { EnvOrFileKeyring, inspectSiteKeyMaterial } from "#src/features/webhooks
 import { readSiteMetaJson, resolveSiteKeyFingerprint, siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
 import { bootLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { detectDeploymentSignals } from "../boot/boot-readiness-warnings.js";
-import type { createTovuVaultKinds } from "./vault-kinds.js";
+import type { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
 export class LocalCredentialCopyError extends Error {
   constructor({ reasonCode, message }: { reasonCode: string; message: string }, _options = {}) {

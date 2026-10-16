@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { verifySqliteIntegrity } from "@jini-ai/db/sqlite";
+import { checkpointStoppedSqliteWal } from "../db/kernel/checkpoint-stopped-wal.js";
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { withFileLock, moveDirectoryVerified } from "@jini-ai/platform/fs";
 import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
@@ -168,10 +169,7 @@ export function assertDatabaseStopped({ path: file }: { path: string }, _options
   try {
     // EXCLUSIVE locking mode keeps the lock until close and uses a heap wal-index, never the stale SHM.
     db.exec("PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; ROLLBACK;");
-    if (fs.existsSync(file + "-wal")) {
-      const [result] = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];
-      if (result?.busy || fs.statSync(file + "-wal").size !== 0) throw new Error(`Database journal could not be checkpointed: ${file}-wal. Open and stop the site, then retry.`);
-    }
+    checkpointStoppedSqliteWal({ db, path: file });
     fs.rmSync(file + "-shm", { force: true });
   } catch (error) {
     if ((error as { code?: string }).code?.startsWith("SQLITE_BUSY")) throw new Error(`Database is open in another process: ${file}. Stop it before moving it.`);

@@ -4,7 +4,7 @@ import { sql } from "kysely";
 import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { countVaultCredentialsOpening, discardVaultCredentialsNotOpening, resealVaultCredentialsOpeningUnder } from "../vault-credential-recovery.js";
 import { eachDialect } from "../kernel/__tests__/dialect-matrix.js";
-import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { recoveryAad } from "#src/server/runtime/composition/site-key-recovery";
 import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
 import { fixture, keyPair, WS, NOW } from "./vault-credential.fixture.js";

@@ -2,7 +2,7 @@ import { type Clock } from "@jini-ai/core/primitives";
 import { buildVaultAad, type SecretsVaultService, VaultError, type VaultContext, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
-import { createTovuStoreVault, parseTovuStoreMeta } from "../server/runtime/composition/vault-kinds.js";
+import { createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 
 export type AssistantVaultRepo = VaultRepoPort & { findOne: NonNullable<VaultRepoPort["findOne"]> };
 

@@ -8,7 +8,7 @@ import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { vaultFixture, vaultStep, stamp, insertFixture } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { describeCredential, resolveCustomCredentialByLabel, updateCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
-import { createTovuVaultKinds, type TovuVaultPolicy } from "../vault-kinds.js";
+import { createTovuVaultKinds, type TovuVaultPolicy } from "#src/platform/secrets/vault-kinds";
 import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, type VaultBootInput } from "../vault-boot.js";
 import { legacyVaultAad, buildPublishContentPeerAad, type VaultLegacyContext } from "../vault-legacy-codecs.js";
 

@@ -114,7 +114,7 @@ export function createTovuStoreVault(required: {
         return required.keyring.activeKey({});
       }),
     },
-    sealer: { seal: input => protect(() => required.sealer.seal(input)),
+    sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })),
       open: (input, options) => protect(() => required.sealer.open(input, options)) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
     newId: () => { if (required.newId) return required.newId({}); throw new VaultError({ code: "invalid-record" }); },

@@ -17,7 +17,7 @@ import type { SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { inventoryVaultCredentials } from "#src/platform/db/vault-credential-inventory";
 import { legacyVaultAad } from "./vault-legacy-codecs.js";
-import { createTovuVaultKinds } from "./vault-kinds.js";
+import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { legacyContext, loadSiteVaultKinds, recoverLegacyVaultRecord } from "./vault-boot.js";
 
 /**
@@ -163,7 +163,7 @@ async function resealRecord(input: {
       if (buildVaultAad({ ...context, id: input.record.id, binding: "binding" in context ? context.binding : input.record.binding }) !== buildVaultAad(input.record)) throw new VaultError({ code: "context" });
     },
     sealer: { open: (required, options) => input.previous.open(required, options), seal: async required => {
-      const sealed = await input.sealer.seal(required);
+      const sealed = await input.sealer.seal({ plaintext: required.plaintext, key: required.key, aad: required.aad });
       if (await input.sealer.open({ sealed }, { aad: required.aad }) !== required.plaintext) throw new VaultError({ code: "invalid-record" });
       return sealed;
     } },
