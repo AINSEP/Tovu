@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
+import type { ChangeEvent } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CopyKeysDialog } from "../CopyKeysDialog";
@@ -66,6 +67,22 @@ describe("CopyKeysDialog", () => {
     expect(screen.getByLabelText("Main · OpenAI · …1234")).not.toBeChecked();
   });
 
+  it("refuses form submission when no keys are selected", async () => {
+    const api = port();
+    await open(api);
+    // Submit the form directly so the disabled button cannot mask the controller's refusal.
+    const form = screen.getByRole("button", { name: "Copy" }).closest("form")!;
+    await act(async () => { fireEvent.submit(form); });
+    expect(api.copyCredentials).not.toHaveBeenCalled();
+  });
+
+  it("labels keys with their kind when the provider is absent", async () => {
+    await open(port([{ ...sources[0]!, keys: [
+      { kind: "custom", id: "one", label: "Main", provider: null, last4: "1234" },
+    ] }]));
+    expect(screen.getByLabelText("Main · custom · …1234")).toBeInTheDocument();
+  });
+
   it("renders only summaries, including skipped and failed reasons, and publishes inventory refresh", async () => {
     const api = port();
     vi.mocked(api.copyCredentials).mockResolvedValue({ results: [
@@ -109,6 +126,24 @@ describe("CopyKeysDialog", () => {
     await open(port([{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade" }]), vi.fn());
     expect(screen.queryByRole("button", { name: "Start project" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+  });
+
+  it("starts a project only once while its desktop start is in flight", async () => {
+    const api = port([{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade",
+      actionHint: { action: "start-site", siteId: "a", desktopSiteId: "/registered/alpha" } }]);
+    let finish!: () => void;
+    const started = new Promise<void>(resolve => { finish = resolve; });
+    const startSite = vi.fn(() => started);
+    const { result } = renderHook(() => useCopyKeys({ t }, { port: api, startSite }));
+    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
+    act(() => result.current.changeSource({ currentTarget: { value: "a" } } as ChangeEvent<HTMLSelectElement>));
+    expect(result.current.canStart).toBe(true);
+    const start = result.current.start;
+    let attempts!: Promise<void>[];
+    // Call the controller twice before completion; the dialog disables its button after one click.
+    act(() => { attempts = [start(), start()]; });
+    await act(async () => { finish(); await Promise.all(attempts); });
+    expect(startSite).toHaveBeenCalledExactlyOnceWith({ id: "/registered/alpha" });
   });
 
   it("locks source, keys, overwrite and cancellation while copying and suppresses repeat submission", async () => {

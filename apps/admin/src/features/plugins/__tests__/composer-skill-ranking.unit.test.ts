@@ -7,6 +7,33 @@ const row = (id: string, label: string, description = ""): TovuComposerCapabilit
 const ids = (groups: Awaited<ReturnType<typeof projectComposerCapabilities>>["groups"]) => groups.flatMap(g => g.items.map(i => i.id));
 
 describe("name-first discovery across every source", () => {
+  it("ranks an exact name before an unrelated skill with only a prefix match", async () => {
+    const skill = row("skill", "ui-helper");
+    const p = await projectComposerCapabilities([source([
+      { ...skill, item: { ...skill.item, kind: "skill" } }, row("exact", "ui"),
+    ])]);
+
+    expect(ids(rankComposerDiscoveryGroups(p.groups, "/ui"))).toEqual(["exact", "skill"]);
+  });
+  it("preserves discovery groups for drafts without a leading slash", async () => {
+    const p = await projectComposerCapabilities([source([row("b", "Beta"), row("a", "Alpha")])]);
+
+    for (const draft of ["", "write a post", "hello /ui"]) {
+      expect(rankComposerDiscoveryGroups(p.groups, draft)).toEqual([
+        { id: "b", label: "b", items: [{ id: "b", label: "Beta", description: "" }] },
+        { id: "a", label: "a", items: [{ id: "a", label: "Alpha", description: "" }] },
+      ]);
+    }
+
+    // A leading slash matches even with an empty query before whitespace.
+    for (const draft of ["/", "/ ui"]) {
+      expect(rankComposerDiscoveryGroups(p.groups, draft)).toEqual([
+        { id: "a:a", label: "a", items: [{ id: "a", label: "Alpha", description: "" }] },
+        { id: "b:b", label: "b", items: [{ id: "b", label: "Beta", description: "" }] },
+      ]);
+    }
+  });
+
   it.each(["ui", "sk"])("ranks /%s by exact, prefix, word-prefix, substring, then description/keywords", async query => {
     const projection = await projectComposerCapabilities([source([
       row("description", "Word Count", `Built-in ${query} helpers`),

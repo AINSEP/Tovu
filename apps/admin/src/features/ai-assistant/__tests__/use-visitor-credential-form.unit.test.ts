@@ -103,6 +103,38 @@ describe("useVisitorCredentialForm — initial config", () => {
 });
 
 describe("useVisitorCredentialForm — hydration", () => {
+  it("keeps the current saved settings when a cancelled hydration succeeds late", async () => {
+    let resolveOld!: (value: typeof NOT_STORED) => void;
+    const current = credential({ provider: "anthropic", model: "current-model" });
+    vi.spyOn(api, "getAssistantSiteCredential")
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValue({ data: current });
+    // StrictMode cleans up the first effect while keeping the live form observable.
+    const { result } = renderHook(() => useWiredVisitorCredentialForm(), { reactStrictMode: true });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.stored).toEqual(current);
+
+    await act(async () => { resolveOld({ data: credential({ model: "stale-model" }) }); });
+
+    expect(result.current.stored).toEqual(current);
+    expect(result.current.config.model).toBe("current-model");
+    expect(result.current.loadState).toEqual({ status: "ready" });
+  });
+
+  it("keeps saved settings ready when a cancelled hydration fails late", async () => {
+    let rejectOld!: (reason: Error) => void;
+    vi.spyOn(api, "getAssistantSiteCredential")
+      .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectOld = reject; }))
+      .mockResolvedValue(NOT_STORED);
+    const { result } = renderHook(() => useWiredVisitorCredentialForm(), { reactStrictMode: true });
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.loadState).toEqual({ status: "ready" });
+
+    await act(async () => { rejectOld(new Error("stale read failed")); });
+
+    expect(result.current.loadState).toEqual({ status: "ready" });
+  });
+
   it("stays loading until the saved settings read settles, then exposes the actual read error", async () => {
     const write = vi.spyOn(api, "setAssistantSiteCredential");
     let rejectRead!: (reason: Error) => void;
@@ -200,6 +232,30 @@ describe("useVisitorCredentialForm — hydration", () => {
 });
 
 describe("useVisitorCredentialForm — stored-key discovery (on load, empty field)", () => {
+  it("ignores stored-key models that arrive after switching providers", async () => {
+    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+      // Keep hydration on the default endpoint so the typed-key effect does not reset discovery.
+      data: credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }),
+    });
+    let resolveModels!: (value: { ok: boolean; models: string[] }) => void;
+    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise((resolve) => { resolveModels = resolve; }));
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => { await Promise.resolve(); });
+    expect(listExecutionModels).toHaveBeenCalledTimes(1);
+    expect(listExecutionModels).toHaveBeenCalledWith({
+      protocol: "anthropic", baseUrl: "https://api.anthropic.com", apiKey: "", useStoredCredential: true,
+    });
+    expect(result.current.discovery).toEqual({ status: "loading" });
+
+    const next = DEFAULT_PROVIDER_PRESETS.find((preset) => preset.id === "google-gemini")!;
+    act(() => result.current.selectPreset(next));
+    expect(result.current.discovery).toEqual({ status: "idle" });
+    await act(async () => { resolveModels({ ok: true, models: ["stale-anthropic-model"] }); });
+
+    expect(result.current.discovery).toEqual({ status: "idle" });
+    expect(result.current.config.providerId).toBe("google-gemini");
+  });
+
   it("fires one discovery pass when hydration reports a stored key and the field is empty", async () => {
     vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true }) });
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["model-a", "model-b"] });
@@ -322,6 +378,18 @@ describe("useVisitorCredentialForm — runKeyTest", () => {
 });
 
 describe("useVisitorCredentialForm — runTestConnection", () => {
+  it("reports a connection failure when the probe returns no result", async () => {
+    // Exercise the runtime boundary's absent-result fallback despite the transport's declared type.
+    // @ts-expect-error -- a malformed probe response can have no result at runtime.
+    vi.spyOn(api, "testExecutionConnection").mockResolvedValue(undefined);
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => { await Promise.resolve(); });
+
+    await act(async () => { await result.current.runTestConnection(); });
+
+    expect(result.current.connectionTest).toEqual({ status: "error", message: "Connection test failed" });
+  });
+
   it("on success, reports ok and quietly refreshes discovery when a key is present", async () => {
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["refreshed-model"] });
