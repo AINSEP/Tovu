@@ -19,7 +19,7 @@
  * real-tree lock and dirty/scope exclusions; the real-home guard is retained.
  */
 import {
-  appendFileSync, closeSync, existsSync, lstatSync, mkdirSync, openSync,
+  appendFileSync, closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync,
   readFileSync, readdirSync, readlinkSync, rmSync, statfsSync, statSync,
   symlinkSync, writeFileSync,
 } from 'node:fs';
@@ -29,6 +29,12 @@ import { homedir, loadavg } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// git archive omits gitignored build output that workspace main/exports point at;
+// real-tree tests run against these same built outputs.
+const BUILD_OUTPUTS = [
+  ...readdirSync(join(REPO, 'packages')).map((name) => join('packages', name, 'dist')),
+  'apps/site-chat/dist',
+];
 const MAX_TESTS = 6;
 const COLUMNS = ['row', 'file', 'mutants', 'killed', 'survived', 'inconclusive', 'noop', 'secs', 'note', 'tests', 'lane', 'sha'];
 const groups = new Set();
@@ -235,6 +241,11 @@ async function extractCopy({ repo, sha }) {
     if (result.error || result.code !== 0) throw result.error || new Error(`Copy extraction failed: ${result.stderr}`);
   }
   linkDependencies(repo);
+  for (const path of BUILD_OUTPUTS) {
+    const source = join(REPO, path);
+    const destination = join(repo, path);
+    if (existsSync(source) && !existsSync(destination)) cpSync(source, destination, { recursive: true });
+  }
 }
 
 function linkWorkspaceScope({ real, copy }) {
