@@ -25,9 +25,11 @@
  *   --optional     also mutate `a?.b` -> `a.b` (a crash counts as killed)
  *   --timeout=<s>  per-mutant timeout, default 120
  *   --limit=<n>    stop after n mutants
+ *   --priority     spend a capped run on the riskiest guard sites first
  *   --json         emit machine-readable results
+ *   --progress=<path>  append each result as JSONL (truncated when the sweep loop starts)
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname, basename, extname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -48,9 +50,11 @@ if (!SRC || !existsSync(SRC)) {
 }
 const ALL_IFS = flags.has('--all-ifs');
 const OPTIONAL = flags.has('--optional');
+const PRIORITY = flags.has('--priority');
 const TIMEOUT = Number(opt('timeout', 120)) * 1000;
 const LIMIT = Number(opt('limit', Infinity));
 const JSON_OUT = flags.has('--json');
+const PROGRESS = opt('progress', null);
 
 /* ---------- locate the test target ---------- */
 
@@ -86,19 +90,30 @@ if (tests.length === 0) {
 }
 
 const isAdmin = SRC.startsWith('apps/admin');
+const vitestPackage = isAdmin ? resolve('apps/admin/node_modules/vitest/package.json') : null;
+const vitestBin = isAdmin ? JSON.parse(readFileSync(vitestPackage, 'utf8')).bin : null;
+const vitestCLI = isAdmin ? resolve(dirname(vitestPackage), typeof vitestBin === 'string' ? vitestBin : vitestBin.vitest) : null;
 function runTests() {
   // Vitest defaults to a worker per core and boots a fresh jsdom in each. A sweep reboots the
   // whole pool once per mutant, so on a wide scope that is dozens of jsdom instances alive at
   // once — enough to exhaust memory on a laptop. One forked worker, no file parallelism.
   const r = isAdmin
-    ? spawnSync('npm', ['--prefix', 'apps/admin', 'run', 'test', '--',
+    // spawnSync's timeout kills only its direct child. Through npm, vitest's grandchild kept
+    // the pipe open and a "120 s" mutant ran for many minutes. Run the CLI directly instead.
+    ? spawnSync(process.execPath, [vitestCLI, 'run',
         // NOT `--poolOptions.forks.singleFork` — vitest 4 (apps/admin is on 4.1.10) rejects it
         // with `CACError: Unknown option`. `--no-file-parallelism` achieves the same serialisation.
-        '--pool=forks', '--no-file-parallelism',
+        '--pool=forks', '--no-file-parallelism', '--maxWorkers=1',
         ...tests.map((t) => t.replace('apps/admin/', ''))],
-        { encoding: 'utf8', timeout: TIMEOUT })
-    : spawnSync('node', ['--import', 'tsx', '--test', ...tests], { encoding: 'utf8', timeout: TIMEOUT });
-  return classifyMutationTestResult(r);
+        { cwd: 'apps/admin', encoding: 'utf8', timeout: TIMEOUT })
+    // Match npm test's module mocks support; one test worker bounds each lane's resource use.
+    : spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+        '--experimental-test-module-mocks', ...tests], { encoding: 'utf8', timeout: TIMEOUT });
+  const tail = `${r.stdout || ''}${r.stderr || ''}`.trimEnd().split('\n').slice(-60).join('\n');
+  // A signal killing the test child is not evidence a test caught the mutant.
+  // The synchronous loop must notice the interruption itself.
+  const interrupted = Boolean(r.signal) && r.error?.code !== 'ETIMEDOUT';
+  return { ...classifyMutationTestResult(r), tail, interrupted };
 }
 
 /* ---------- generate mutants ---------- */
@@ -119,19 +134,21 @@ function mutants(source) {
     // authorization check with no `!` or comparison in it, i.e. exactly what this hunts.
     const shortCircuits = ifm && /^\)\s*(return|continue|break|throw)/.test(ifm[3]);
     if (ifm && (ALL_IFS || shortCircuits || GUARDISH.test(ifm[2]))) {
-      out.push({ line: i + 1, op: 'guard-never-fires', before: trimmed,
+      out.push({ line: i + 1, op: 'guard-never-fires', before: trimmed, priority: shortCircuits ? 0 : 1,
         mutate: (ls) => { ls[i] = ifm[1] + 'false' + ifm[3]; } });
     }
 
     // 2. drop a nullish fallback: `a ?? b` -> `a`
     if (/\?\?/.test(line) && !/\?\?=/.test(line)) {
-      out.push({ line: i + 1, op: 'drop-nullish-default', before: trimmed,
+      const fallback = line.slice(line.indexOf('??') + 2);
+      const bareLiteral = /^\s*(?:\[\]|\{\}|''|""|``|null|undefined|0|false|true)\s*(?:\/\*.*?\*\/\s*)*(?=$|[;,)\]}]|\/\/)/.test(fallback);
+      out.push({ line: i + 1, op: 'drop-nullish-default', before: trimmed, priority: bareLiteral ? 3 : 2,
         mutate: (ls) => { ls[i] = line.replace(/\s*\?\?\s*(?:\[\]|\{\}|''|""|`.*?`|null|undefined|0|false|true|[\w.]+(?:\([^)]*\))?)/, ''); } });
     }
 
     // 3. remove optional chaining: `a?.b` -> `a.b` (throwing counts as killed)
     if (OPTIONAL && /\w\?\./.test(line)) {
-      out.push({ line: i + 1, op: 'drop-optional-chain', before: trimmed,
+      out.push({ line: i + 1, op: 'drop-optional-chain', before: trimmed, priority: 4,
         mutate: (ls) => { ls[i] = line.replace(/(\w)\?\./g, '$1.'); } });
     }
   });
@@ -170,7 +187,23 @@ if (existsSync(LOCK)) {
 writeFileSync(LOCK, String(process.pid));
 
 const original = readFileSync(SRC, 'utf8');
-const all = mutants(original).slice(0, LIMIT);
+const generated = mutants(original);
+if (PRIORITY) generated.sort((a, b) => a.priority - b.priority); // stable: retain source order within each class
+const all = generated.slice(0, LIMIT);
+
+const results = [];
+let survived = 0;
+let inconclusive = 0;
+let sweepStarted = false;
+let interrupted = false;
+
+/** Emit one JSON shape for both completed and interrupted sweeps. */
+function printJsonResults({ partial = false }, options = {}) {
+  const noop = results.filter((r) => r.verdict === 'no-op').length;
+  console.log(JSON.stringify(
+    { file: SRC, tests, total: all.length, survived, inconclusive, noop, results,
+      ...(partial ? { partial: true } : {}) }, null, 2));
+}
 
 // `finally` does NOT run when the process is signalled, and an abandoned sweep leaves the source
 // mutated on disk — a real incident this session: an agent was killed mid-mutant and left a
@@ -183,7 +216,11 @@ const restore = () => {
   try { unlinkSync(LOCK); } catch { /* already gone */ }
 };
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(sig, () => { restore(); process.exit(130); });
+  process.on(sig, () => {
+    restore();
+    if (JSON_OUT && sweepStarted) printJsonResults({ partial: true });
+    process.exit(130);
+  });
 }
 process.on('uncaughtException', (err) => { restore(); throw err; });
 process.on('exit', restore);
@@ -197,46 +234,64 @@ if (!JSON_OUT) {
 
 // Baseline first — a red suite makes every mutant look "killed".
 const base = runTests();
+if (base.interrupted) {
+  console.error('BASELINE INTERRUPTED');
+  process.exit(130);
+}
 if (!base.pass) {
   console.error(`BASELINE FAILS (${base.why}). Fix the suite before sweeping; otherwise every mutant reports killed.`);
+  console.error(base.tail);
   process.exit(4);
 }
 if (!JSON_OUT) console.log('baseline: green\n');
 
-const results = [];
-let survived = 0;
-let inconclusive = 0;
+sweepStarted = true;
 try {
+  if (PROGRESS) writeFileSync(PROGRESS, '');
   for (const [n, m] of all.entries()) {
     const ls = original.split('\n');
     m.mutate(ls);
     const mutated = ls.join('\n');
-    if (mutated === original) { results.push({ ...m, verdict: 'no-op', mutate: undefined }); continue; }
+    if (mutated === original) {
+      results.push({ ...m, verdict: 'no-op', mutate: undefined });
+      if (PROGRESS) appendFileSync(PROGRESS, `${JSON.stringify(results.at(-1))}\n`);
+      continue;
+    }
     writeFileSync(SRC, mutated);
     const r = runTests();
+    interrupted = r.interrupted;
+    const why = interrupted ? 'interrupted' : r.why;
     // Three outcomes, not two. INCONCLUSIVE means the run told us nothing about the guard:
-    // the mutant did not compile, or the suite hung. Neither is evidence that a test caught it.
-    const verdict = r.pass ? 'SURVIVED'
+    // the mutant did not compile, the suite hung, or it was interrupted. None proves a test caught it.
+    const verdict = interrupted ? 'INCONCLUSIVE'
+      : r.pass ? 'SURVIVED'
       : r.why === 'invalid-mutant' || r.why === 'timeout' ? 'INCONCLUSIVE'
       : 'killed';
-    if (r.pass) survived++;
+    if (verdict === 'SURVIVED') survived++;
     if (verdict === 'INCONCLUSIVE') inconclusive++;
-    results.push({ line: m.line, op: m.op, before: m.before, verdict, why: r.why });
+    results.push({ line: m.line, op: m.op, before: m.before, verdict, why });
+    if (PROGRESS) appendFileSync(PROGRESS, `${JSON.stringify(results.at(-1))}\n`);
     if (!JSON_OUT) {
       const tag = { SURVIVED: 'SURVIVED    ', INCONCLUSIVE: 'INCONCLUSIVE', killed: 'killed      ' }[verdict];
       console.log(`[${String(n + 1).padStart(3)}/${all.length}] ${tag} ${SRC}:${m.line}  (${m.op})`);
-      if (verdict !== 'killed') console.log(`             ${m.before}  ${verdict === 'INCONCLUSIVE' ? `[${r.why}]` : ''}`);
+      if (verdict !== 'killed') console.log(`             ${m.before}  ${verdict === 'INCONCLUSIVE' ? `[${why}]` : ''}`);
     }
+    if (interrupted) break;
   }
 } finally {
   restore(); // normal path; signals and uncaught throws are covered by the handlers above
 }
 
-const noop = results.filter((r) => r.verdict === 'no-op').length;
+if (interrupted) {
+  if (JSON_OUT) printJsonResults({ partial: true });
+  else console.log('Sweep interrupted.');
+  process.exit(130);
+}
+
 if (JSON_OUT) {
-  console.log(JSON.stringify(
-    { file: SRC, tests, total: all.length, survived, inconclusive, noop, results }, null, 2));
+  printJsonResults({});
 } else {
+  const noop = results.filter((r) => r.verdict === 'no-op').length;
   const ran = results.filter((r) => r.verdict !== 'no-op').length;
   console.log(`\n${survived}/${ran} SURVIVED — unproven, either dead code or untested.`);
   if (survived) {
