@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -19,6 +20,7 @@ import {
   type BlobStorePort,
 } from "../../media/index.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
+import { batchDescriptorFor } from "../../../assistant/batch-tool-inputs.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -218,9 +220,12 @@ test("both URL and local-file imports are wired in the media-import domain", () 
 test("media_import_from_url publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
   const registration = wired("media_import_from_url", deps);
+  const entry = catalogEntry("media_import_from_url");
+  // beed509d4 adds the shared batch contract after domain registration.
+  const expected = batchDescriptorFor({ descriptor: { id: entry.name, inputSchema: entry.inputSchema, description: entry.description }, tool: { toolId: entry.name } });
   assert.ok(registration.descriptor.inputSchema);
-  assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_import_from_url").inputSchema);
-  assert.equal(registration.descriptor.description, catalogEntry("media_import_from_url").description);
+  assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema);
+  assert.equal(registration.descriptor.description, expected.description);
 });
 
 test("the catalog's declared side effect and this wiring layer's own risk classification agree", () => {

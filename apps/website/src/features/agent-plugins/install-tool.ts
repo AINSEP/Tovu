@@ -37,7 +37,7 @@ export const catalog: AgentToolDefinition[] = [{
   inputSchema: { type: "object", additionalProperties: false, required: ["source"], properties: {
     source: { ...PLUGIN_INSTALL_SOURCE_SCHEMA,
       oneOf: [
-        { required: ["path"], properties: { kind: { enum: ["zip", "folder"] } }, not: { anyOf: [{ required: ["attachmentRef"] }, { required: ["bundledId"] }] } },
+        { required: ["path"], properties: { kind: { type: "string", enum: ["zip", "folder"] } }, not: { anyOf: [{ required: ["attachmentRef"] }, { required: ["bundledId"] }] } },
         { required: ["attachmentRef"], properties: { kind: { const: "zip" } }, not: { anyOf: [{ required: ["path"] }, { required: ["bundledId"] }] } },
         { required: ["bundledId"], properties: { kind: { const: "bundled" } }, not: { anyOf: [{ required: ["path"] }, { required: ["attachmentRef"] }] } },
       ],

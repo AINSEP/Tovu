@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

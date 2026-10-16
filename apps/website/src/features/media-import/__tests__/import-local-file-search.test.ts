@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -48,13 +49,13 @@ test("local file owner requests rank media_import_local_file in the top 3 of the
 });
 
 
-test("adding the local importer introduces no misses in the 126 operator requests", async (t) => {
+test("adding the local importer introduces no misses in the 138 operator requests", async (t) => {
   const { registry, catalog } = await realCatalog();
   const before = buildToolCatalogQuery({ list: () => registry.list({}).filter((descriptor) => descriptor.id !== "media_import_local_file") });
   const requests = JSON.parse(readFileSync(new URL("../../../assistant/__tests__/fixtures/tool-search-operator-requests.json", import.meta.url), "utf8")) as { id: string; query: string; expect: string[] }[];
-  // 126, not the original 127: th-06 ("install a new theme from the marketplace") went with the
-  // deleted theme marketplace and its tool (723700948, owner decision 2026-10-04).
-  assert.equal(requests.length, 126);
+  // 723700948 retired the marketplace request; 4c7d1ea20 added 12 owner-opt-in
+  // permanent-delete requests, bringing the reviewed corpus from 126 to 138.
+  assert.equal(requests.length, 138);
   const regressions: string[] = [];
   const existingMisses: string[] = [];
   let compared = 0;

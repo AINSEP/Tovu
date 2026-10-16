@@ -30,7 +30,7 @@ export const toolMetadata = {
   },
   "theme_edit_file": {
     search: {
-      keywords: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
+      keywords: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section footer copyright text font fonts typography color colors colour primary brand palette style styles look",
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },

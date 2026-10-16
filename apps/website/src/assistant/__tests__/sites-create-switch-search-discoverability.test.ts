@@ -3,6 +3,7 @@
  * for plain owner phrasings. In-sample discoverability checks (same shape as
  * `admin-parity-search-discoverability.test.ts`), not a blind eval.
  */
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";

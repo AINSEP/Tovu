@@ -11,10 +11,11 @@ export const toolMetadata = {
   // Create and activate sites from chat, matching the admin Sites screen.
   "sites_create_site": {
     search: {
-      keywords: "new site create site make site add site new website start blank empty another client folder init",
+      keywords: "create a new site create a new website make a new site add another site start a blank site empty client folder init",
       queries: [
+        "Create a new site.",
         "Make a new site for another client.",
-        "Create a blank website next to this one.",
+        "Create a new blank site.",
         "Start a fresh empty site called acme.",
         "Add a new site to my sites folder.",
       ],

@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { PERMANENT_DELETE_TOOLS } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

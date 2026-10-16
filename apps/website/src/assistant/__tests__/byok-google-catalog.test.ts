@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -22,6 +23,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
  * enforced — see `GOOGLE_SUPPORTED_SCHEMA_KEYS`' own doc in `byok-provider-turn.ts` for the
  * provenance of the supported-field list.
  */
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -142,31 +144,36 @@ function assertGeminiValid(descriptor: ToolDescriptor): number {
 }
 
 test("EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample", () => {
-  const descriptors = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions }).map((registration) => registration.descriptor);
+  const descriptors = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((registration) => registration.descriptor);
 
   // A guard on the guard: if the registry ever comes back empty (a deps-shape change silently
   // breaking the build above, say), every assertion below would vacuously pass and this file would
   // report green while validating nothing at all — the exact failure mode it exists to prevent.
   assert.ok(descriptors.length > 100, `expected the full wired catalog, got ${descriptors.length} descriptors`);
 
+  // Validate outbound bytes before the inventory pin so catalog growth cannot mask schema errors.
+  let nodeCount = 0;
+  for (const descriptor of descriptors) nodeCount += assertGeminiValid(descriptor);
+
   // Required first-party inventory, independent of the installer's returned list.
   assert.deepEqual(contributions.contributors.list({}).map(({ domain }) => domain).sort(), [
-    "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "change-sets", "comments",
-    "content-duplication", "content-stats", "content-types", "credential-save", "custom-credentials",
+    "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "assistant-history", "change-sets", "comments",
+    "content-duplication", "content-stats", "content-types", "credential-copy", "credential-save", "custom-credentials",
     "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "entries",
     "external-mcp", "external-mcp-operations", "forms", "fs-files", "identity",
     "identity-policy-list-permissions", "integrations", "media", "media-generation", "media-import",
     "media-providers", "media-video-view", "media-view", "members", "menus", "newsletter", "newsletter-delivery",
-    "pages", "permanent-delete", "plugins", "plugins-install", "post", "post-preview", "publish-content",
+    "pages", "permanent-delete", "plugin-source", "plugins", "plugins-install", "post", "post-preview", "publish-content",
     "publish-content-disconnect", "recovery", "redirects", "seo", "settings", "settings-ui-locales",
-    "site-backup", "site-evidence", "site-inspection", "sites", "sites-list", "skills-install", "source-control",
+    "site-backup", "site-evidence", "site-guide", "site-inspection", "sites", "sites-list", "skills-install", "source-control",
     "static-publish", "system-mail", "system-server-logs", "taxonomy", "theme-duplicate", "theme-import-file", "theme-set-active", "theme-set-page-published", "theme-trash",
     "themes", "trash", "web", "web-screenshot", "widgets", "workspace",
   ].sort());
   assert.deepEqual(contributions.derivedContributors.list({}).map(({ domain }) => domain), ["trash-item"]);
 
-  let nodeCount = 0;
-  for (const descriptor of descriptors) nodeCount += assertGeminiValid(descriptor);
+  for (const id of ALL_CHAT_DELETE_TOOLS.allowedToolIds) {
+    assert.ok(descriptors.some(tool => tool.id === id), `${id}: opted-in schemas must be validated too`);
+  }
 
   // Not an assertion, a receipt: the numbers this run actually covered, so a future reader can tell
   // whether coverage grew or quietly collapsed.
@@ -185,7 +192,7 @@ test("the meta-tool set is the payload reduction it claims to be, measured again
       "utf8",
     );
 
-  const full = wire(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions }).map((r) => r.descriptor));
+  const full = wire(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((r) => r.descriptor));
   const meta = wire(META_TOOL_DESCRIPTORS);
 
   // The claim this change was approved on was a ~134x reduction. Asserted as a floor with real

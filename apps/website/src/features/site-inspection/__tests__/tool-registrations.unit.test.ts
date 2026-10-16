@@ -1,5 +1,7 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import { sealExternalMcpVaultPayload } from "#src/assistant/external-mcp-vault";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -173,7 +175,14 @@ test("site_get_profile: a canary in a sealed credential store never appears in t
     writeGrantsUpdatedByPrincipalId: null,
     writeGrantsUpdatedAt: null,
     envNames: JSON.stringify([ENV_NAME_CANARY]),
-    sealedEnv: { keyId: "k", ciphertext: SEALED_CANARY, nonce: "n", alg: "aes-256-gcm" },
+    sealedEnv: await sealExternalMcpVaultPayload({
+      deps: { keyring: deps.siteAssistantSecretKeyring, sealer: {
+        seal: async () => ({ keyId: "k", ciphertext: SEALED_CANARY, nonce: "n", alg: "aes-256-gcm" }),
+        open: async () => { throw new Error("site inspection must never decrypt the canary"); },
+      } },
+      identity: { workspaceId: deps.workspaceId, serverId: "canary-mcp" }, kind: "mcp-env",
+      payload: { env: { [ENV_NAME_CANARY]: "canary-value" } },
+    }),
     oauthProviderId: null,
     oauthGrant: null,
     oauthClientId: null,

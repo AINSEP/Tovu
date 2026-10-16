@@ -5,7 +5,7 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 export const toolMetadata = {
   "content_post_create": {
     search: {
-      keywords: "post blog article write new create draft copy duplicate clone schedule featured image",
+      keywords: "post blog article page pages about us contact write new create draft copy duplicate clone schedule featured image",
       queries: [
         "Can you draft a new blog post for me?",
         "How do I create a new page on the site?",
@@ -93,7 +93,7 @@ export const toolMetadata = {
         "Can you change the title of this page?",
         "I need to fix a typo in the latest blog post title.",
         "How do I publish this post by updating its status?",
-        "Publish an existing draft blog post on this website.",
+        "Publish my existing draft post about this topic.",
         "Can you rewrite this page's body and slug at the same time?",
         "How do I take a live post back to draft?",
         "Can you unpublish this page for now and put it back in draft?",

@@ -84,7 +84,7 @@
     "identity_policy_update": "permission access rule edit change update rename re-describe",
     "identity_role_delete": "role access level delete remove",
     "identity_role_rename": "role access level rename edit change name",
-    "members_list": "members subscribers customers audience people registered signed up",
+    "members_list": "list all members member roster subscribers customers audience people registered signed up",
     "members_disable": "member block ban suspend revoke deactivate lock out",
     "members_request_magic_link": "login link sign in passwordless magic email member access send",
     "members_get_by_id": "member lookup find details profile",
@@ -151,7 +151,7 @@
     "widgets_reorder_embeds": "widget embed reorder rearrange change order position swap",
     "preview_reload": "preview reload refresh hard cache theme css stylesheet template navigate page changes saved",
     "theme_write_file": "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone font fonts typography color colors colour primary brand palette style styles look",
-    "theme_edit_file": "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
+    "theme_edit_file": "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section footer copyright text font fonts typography color colors colour primary brand palette style styles look",
     "theme_import_file_from_url": "theme import download fetch font fonts woff woff2 ttf otf typeface webfont self-host image logo icon favicon binary asset file from url into theme folder",
     "theme_read_file": "theme stylesheet css template view read design code file",
     "theme_list_files": "theme files templates stylesheets css list design",
@@ -181,11 +181,11 @@
     "database_get_restore_guidance": "database restore recover rollback revert snapshot earlier version how do i where do i go recovery guidance link help",
     "database_query_timeline": "database history log timeline events audit trail what happened ledger",
     "sites_duplicate_site": "site sites copy duplicate clone new client starting point template sample landing based on existing existing site spin up stand up set up create from a copy of same content",
-    "sites_create_site": "new site create site make site add site new website start blank empty another client folder init",
+    "sites_create_site": "create a new site create a new website make a new site add another site start a blank site empty client folder init",
     "sites_switch_site": "switch site change site activate site serve served serving which site use open work on another different client website restart dev server go to",
     "content_post_search": "post posts blog article articles find search title lookup copy duplicate clone",
     "content_post_list": "post posts blog articles list all recent copy duplicate clone",
-    "content_post_create": "post blog article write new create draft copy duplicate clone schedule featured image",
+    "content_post_create": "post blog article page pages about us contact write new create draft copy duplicate clone schedule featured image",
     "content_post_update": "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title",
     "content_post_delete": "post blog article delete remove trash",
     "content_post_get": "post page article lookup find fetch read single one by id details specific copy duplicate clone",
@@ -219,7 +219,7 @@
     "plugins_set_enabled": "plugin plugins agent plugin agent-plugin agent-plugins enable disable turn on off activate deactivate switch on switch off extension addon add-on skill skills capability use it install it already installed not active inactive",
     "plugins_list": "plugin plugins extensions installed available list have installed my",
     "plugins_uninstall": "plugin plugins uninstall remove delete trash extension get rid of agent plugin agent-plugin agent-plugins skill skills package packages permanently",
-    "agent_plugins_install": "agent plugin plugins install add upload attachment zip folder package agent-plugins plugin.json upgrade replace version",
+    "agent_plugins_install": "agent plugin plugins install add upload attachment zip folder bundled bundledId ui-ux-design package agent-plugins plugin.json upgrade replace version",
     "plugins_install": "plugin plugins install add new upload folder zip attachment local package upgrade replace version site plugin tovu-plugin extension addon add-on",
     "skills_install": "skill skills install add new github repo repository url agent skill SKILL.md from github",
     "search_agent_plugin_local": "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
@@ -398,6 +398,7 @@
       "Are my source control credentials ready?"
     ],
     "site_describe_capabilities": [
+      "What can this site do?",
       "What is this site capable of?",
       "What features and tools does this site have?",
       "What can I do with this site?",
@@ -430,8 +431,9 @@
       "Can I see the site registry when switching is disabled?"
     ],
     "sites_create_site": [
+      "Create a new site.",
       "Make a new site for another client.",
-      "Create a blank website next to this one.",
+      "Create a new blank site.",
       "Start a fresh empty site called acme.",
       "Add a new site to my sites folder."
     ],
@@ -774,7 +776,7 @@
       "Can you change the title of this page?",
       "I need to fix a typo in the latest blog post title.",
       "How do I publish this post by updating its status?",
-      "Publish an existing draft blog post on this website.",
+      "Publish my existing draft post about this topic.",
       "Can you rewrite this page's body and slug at the same time?",
       "How do I take a live post back to draft?",
       "Can you unpublish this page for now and put it back in draft?",
@@ -1688,7 +1690,7 @@
       "Use my saved deployment provider token to make an authenticated request to their API."
     ],
     "pages_read_html": [
-      "Read this page's stored HTML source.",
+      "What HTML is on this page right now?",
       "Show the current markup and body content for the page.",
       "List this page's editable regions.",
       "Read the section handles available in the page HTML.",
@@ -1705,15 +1707,15 @@
       "Just change the headline on our landing page, leave the rest alone.",
       "Update the pricing section of this page without touching anything else.",
       "Can you reword the call to action but keep the page as it is?",
-      "Edit one section of a page instead of rewriting the whole thing.",
+      "Edit one section of a page without rewriting it.",
       "I want to edit just the hero copy on this page and nothing more."
     ],
     "pages_move_region": [
       "Swap the order of two sections on our landing page.",
       "Move the testimonials above the pricing on this page.",
-      "Can you put the FAQ right after the hero instead of at the bottom?",
+      "Move the FAQ after the hero or before the footer.",
       "Rearrange the blocks on this page into a different order.",
-      "Shift the contact block up so it comes first."
+      "Move the contact block up to first position."
     ],
     "web_fetch_page": [
       "Fetch a web page.",
@@ -1758,6 +1760,7 @@
       "Can you change an admin's account name?"
     ],
     "deployment_execute_static_publish": [
+      "Publish the site.",
       "Publish the site to production hosting.",
       "Deploy this website and make it live."
     ],

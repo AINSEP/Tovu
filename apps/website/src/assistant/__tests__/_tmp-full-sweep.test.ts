@@ -1,12 +1,15 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { isChatToolAllowed } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { createByokToolSurface } from "../byok-tool-surface.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { sanitizeGoogleSchema } from "@jini-ai/agent-runtime/providers/tool-turn";
+import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
@@ -37,6 +40,7 @@ function walk(node: unknown, path: string, report: (msg: string) => void): void 
   }
   if (!isRec(node)) return;
   if (Array.isArray(node.type)) report(`${path}: type is still an array`);
+  if (node.type === "array" && (!isRec(node.items) || Array.isArray(node.items))) report(`${path}: array has no item schema`);
   if (!("type" in node) && !Array.isArray(node.anyOf)) report(`${path}: no type and no anyOf`);
   if (Array.isArray(node.enum)) {
     for (const m of node.enum) if (typeof m !== "string") report(`${path}: enum member ${JSON.stringify(m)} not a string`);
@@ -50,10 +54,15 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   const deps = createRouteDeps();
   await deps.identityReady;
   const surface = createByokToolSurface(deps as never, { contributions });
-  const tools = surface.registry.list({});
+  const tools = buildAssistantToolRegistrations(deps as never, undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map(registration => registration.descriptor);
   assert.ok(tools.length > 100, `expected ~130 tools, got ${tools.length}`);
 
   const ids = new Set(tools.map((tool) => tool.id));
+  const visibleIds = surface.registry.list({}).map(tool => tool.id);
+  for (const id of ALL_CHAT_DELETE_TOOLS.allowedToolIds) {
+    assert.ok(ids.has(id), `${id}: full schema inventory must include opted-in tools`);
+    assert.equal(visibleIds.includes(id), false, `${id}: default BYOK discovery must keep deletes hidden`);
+  }
   // Required first-party domains from today's composition contract, independent of the
   // resulting catalog size. The contributor builders supply every tool identity per domain.
   const requiredDomains = [
@@ -66,12 +75,12 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   ];
   const contributors = contributions.contributors.list({});
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
-  const rawIds = new Set(buildAssistantToolRegistrations(deps as never, surfaces, { ...( { includeContentReadCollapse: false }), contributions }).map((registration) => registration.descriptor.id));
-  assert.deepEqual([...ids].sort(), buildAssistantToolRegistrations(deps as never, surfaces, { contributions }).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
+  const rawIds = new Set(buildAssistantToolRegistrations(deps as never, surfaces, { ...( { includeContentReadCollapse: false }), contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((registration) => registration.descriptor.id));
+  assert.deepEqual(visibleIds.sort(), buildAssistantToolRegistrations(deps as never, surfaces, { contributions }).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
   for (const domain of requiredDomains) {
     const contributor = contributors.find((entry) => entry.domain === domain);
     assert.ok(contributor, `missing contributor ${domain}`);
-    const expected = contributor.build(deps as never, surfaces);
+    const expected = contributor.build(deps as never, surfaces).filter(registration => isChatToolAllowed({ toolId: registration.descriptor.id, policy: ALL_CHAT_DELETE_TOOLS }));
     assert.ok(expected.length > 0, `empty contributor ${domain}`);
     for (const registration of expected) assert.ok(rawIds.has(registration.descriptor.id), `${domain}: missing ${registration.descriptor.id}`);
   }
@@ -84,7 +93,7 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   let issues = 0;
   const perTool: Array<{ name: string; size: number }> = [];
   for (const tool of tools) {
-    const sanitized = sanitizeGoogleSchema({ schema: tool.inputSchema ?? { type: "object", properties: {} } });
+    const sanitized = googleParametersOf({ descriptor: tool });
     const serialized = JSON.stringify(sanitized);
     totalSize += serialized.length;
     perTool.push({ name: tool.id, size: serialized.length });

@@ -1,3 +1,5 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
@@ -85,7 +87,7 @@ function rankOf(hits: readonly { readonly id: string }[], c: RankingCase): numbe
  *  measure "before this file existed." Same registry, so the only variable between the two is
  *  whether `TOOL_SEARCH_KEYWORDS`/doc2query get folded into the indexed text. */
 async function buildBeforeAndAfterCatalogs() {
-  const { registry, catalog } = await realToolCatalog();
+  const { registry, catalog } = await realToolCatalog({}, { permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
   return {
     after: catalog,
     before: buildToolCatalogQuery(registry, { includeSearchKeywords: false }),

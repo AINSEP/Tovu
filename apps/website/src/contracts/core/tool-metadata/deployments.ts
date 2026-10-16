@@ -6,7 +6,7 @@ export const toolMetadata = {
   "deployment_execute_static_publish": {
     search: {
       keywords: "deploy push ship go live make it live publish the site hosting netlify vercel cloudflare",
-      queries: ["Publish the site to production hosting.", "Deploy this website and make it live."],
+      queries: ["Publish the site.", "Publish the site to production hosting.", "Deploy this website and make it live."],
     },
     approval: { class: 'publish', confirmation: 'policy' },
   },

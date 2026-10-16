@@ -10,9 +10,9 @@ export const toolMetadata = {
       queries: [
         "Swap the order of two sections on our landing page.",
         "Move the testimonials above the pricing on this page.",
-        "Can you put the FAQ right after the hero instead of at the bottom?",
+        "Move the FAQ after the hero or before the footer.",
         "Rearrange the blocks on this page into a different order.",
-        "Shift the contact block up so it comes first.",
+        "Move the contact block up to first position.",
       ],
     },
     approval: { class: 'edit', confirmation: 'direct' },
@@ -24,7 +24,7 @@ export const toolMetadata = {
       // Index the read result, not a later edit: prerequisite wording otherwise competes with writers.
       keywords: "page html source code view read existing content current markup body regions region handles sections what is on the page show current version",
       queries: [
-        "Read this page's stored HTML source.",
+        "What HTML is on this page right now?",
         "Show the current markup and body content for the page.",
         "List this page's editable regions.",
         "Read the section handles available in the page HTML.",
@@ -57,7 +57,7 @@ export const toolMetadata = {
         "Just change the headline on our landing page, leave the rest alone.",
         "Update the pricing section of this page without touching anything else.",
         "Can you reword the call to action but keep the page as it is?",
-        "Edit one section of a page instead of rewriting the whole thing.",
+        "Edit one section of a page without rewriting it.",
         "I want to edit just the hero copy on this page and nothing more.",
       ],
     },

@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -55,6 +56,7 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
       tearDownAllIndexesForContentType: async () => {},
     },
     outbox: { enqueue: async () => {} },
+    getEffective: async () => null,
     seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   } as unknown as ByokToolSurfaceDeps;
 }

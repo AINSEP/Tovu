@@ -41,7 +41,7 @@ export const toolMetadata = {
   // --- members ------------------------------------------------------------------------------
   "members_list": {
     search: {
-      keywords: "members subscribers customers audience people registered signed up",
+      keywords: "list all members member roster subscribers customers audience people registered signed up",
       queries: [
         "Who are our site members right now?",
         "Can you show me pending, active, and disabled members?",

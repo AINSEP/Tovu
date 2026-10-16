@@ -300,7 +300,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     name: "pages_move_region",
     description:
       "Moves one whole section (region) of a page to sit immediately before or after another section — " +
-      "reorder, swap, or rearrange the page's sections without rewriting the page. The section moves as one " +
+      "reorder, swap, or rearrange the page's sections in place. The section moves as one " +
       "piece: its tag, handle, contents and any regions nested inside it all travel together, and every other " +
       "byte of the page stays exactly as it was.\n\n" +
       "Address both sections by the handles in pages_read_html's 'regions' list (in page order). Send " +
