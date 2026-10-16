@@ -199,17 +199,18 @@ test("ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, projec
 });
 
 // With every settings layer off, the owner's search guard (~/.claude/hooks/no-system-search) is
-// handed back to assistant runs on its own through `--settings`, with its exact user-settings entry.
-test("resolveAssistantRunSettings: only the no-system-search PreToolUse hook, same matcher and timeout", () => {
+// handed back through `--settings` with its exact user-settings entry, alongside auto-memory off.
+test("resolveAssistantRunSettings: auto-memory is disabled alongside the no-system-search hook, same matcher and timeout", () => {
   const hook = "/home/op/.claude/hooks/no-system-search";
   const settings = resolveAssistantRunSettings("/home/op", (p) => p === hook);
-  assert.deepEqual(JSON.parse(settings!), {
+  assert.deepEqual(JSON.parse(settings), {
+    autoMemoryEnabled: false,
     hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [{ type: "command", command: hook, timeout: 5 }] }] },
   });
 });
 
-test("resolveAssistantRunSettings: no hook file on this machine -> no settings (the run still works)", () => {
-  assert.equal(resolveAssistantRunSettings("/home/op", () => false), undefined);
+test("resolveAssistantRunSettings: absent hook still disables auto-memory without adding hooks", () => {
+  assert.equal(resolveAssistantRunSettings("/home/op", () => false), '{"autoMemoryEnabled":false}');
 });
 
 test("published content guidance prioritizes the live URL and requires explicit overwrite", () => {

@@ -39,6 +39,7 @@ describe("Finding 2 wiring — the spawned assistant's tool grant is actually re
   test("agentExecutor.run() receives hook settings when the guard exists", async () => {
     const input = await captureDaemonRun({ prompt: "Search safely" }, { hookPresent: true });
     assert.deepEqual(JSON.parse(input.settings!), {
+      autoMemoryEnabled: false,
       hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [
         { type: "command", command: "/home/daemon-test/.claude/hooks/no-system-search", timeout: 5 },
       ] }] },
@@ -61,6 +62,7 @@ test("onStarted forwards the exact search hook settings through to Claude launch
   const input = await captureDaemonRun({ prompt: "Find a page" }, { hookPresent: true });
   assert.ok(input.settings);
   assert.deepEqual(JSON.parse(input.settings), {
+    autoMemoryEnabled: false,
     hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [
       { type: "command", command: "/home/daemon-test/.claude/hooks/no-system-search", timeout: 5 },
     ] }] },
@@ -73,9 +75,15 @@ test("onStarted forwards the exact search hook settings through to Claude launch
   assert.equal(args[settingsIndex + 1], input.settings);
 });
 
-test("onStarted omits hook settings when the hook file is absent", async () => {
+test("onStarted disables auto-memory through Claude launch settings even when the hook file is absent", async () => {
   const input = await captureDaemonRun({ prompt: "Find a page" });
-  assert.equal(Object.hasOwn(input, "settings"), false);
+  assert.equal(input.settings, '{"autoMemoryEnabled":false}');
+  const def = getAgentDef({ id: "claude" });
+  assert.ok(def);
+  const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { extraAllowedDirs: [], options: input });
+  const settingsIndex = args.indexOf("--settings");
+  assert.ok(settingsIndex >= 0);
+  assert.equal(args[settingsIndex + 1], input.settings);
 });
 
 test("the Claude setting allows Agent and Task; other runtimes and every other isolation keep their grant", async () => {

@@ -173,14 +173,18 @@ export const ASSISTANT_SETTING_SOURCES: readonly string[] = [];
  * `$HOME` and other whole-system roots). Returned as a `--settings` JSON string (forwarded through
  * `AgentExecutorRunInput.settings`), which the CLI applies even with every settings layer off —
  * verified on Claude Code 2.1.283: `find / -name x` was denied with the hook's "IRON RULE" message.
- * Matcher and timeout copied from that hook's own entry in ~/.claude/settings.json. `undefined` when
- * the hook file is absent, so a machine without it runs exactly as before.
+ * Matcher and timeout copied from that hook's own entry in ~/.claude/settings.json. Always disables
+ * CLI auto-memory (owner approved): its prompt otherwise asks the agent to save preferences
+ * with Write, which ASSISTANT_DISALLOWED_TOOLS correctly denies. Only the hooks block is omitted
+ * when the hook file is absent; autoMemoryEnabled is false on every machine.
  */
-export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: string) => boolean): string | undefined {
+export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: string) => boolean): string {
   const command = `${homeDir}/.claude/hooks/no-system-search`;
-  if (!fileExists(command)) return undefined;
   return JSON.stringify({
-    hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [{ type: "command", command, timeout: 5 }] }] },
+    autoMemoryEnabled: false,
+    ...(fileExists(command) ? {
+      hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [{ type: "command", command, timeout: 5 }] }] },
+    } : {}),
   });
 }
 
