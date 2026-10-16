@@ -425,6 +425,55 @@
   color: var(--fg);
 }
 
+/* Social preview (2026-10-15): the ⓘ sits on the legend's / section title's baseline, not on a
+   line of its own. */
+.jini-seo-entry-group > legend,
+.jini-seo-section-title:has(.info-tip) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* "Customize for X (optional)": X-only overrides tucked under the social preview. Same quiet
+   disclosure idiom as the menu editor's `.menu-item-advanced` — a muted, content-width summary with
+   a turning chevron — so it reads as optional, not as a fourth field group. */
+.jini-seo-x-disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted);
+}
+.jini-seo-x-disclosure > summary::-webkit-details-marker { display: none; }
+.jini-seo-x-disclosure > summary::before {
+  content: "";
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.jini-seo-x-disclosure[open] > summary::before { transform: rotate(45deg); }
+.jini-seo-x-disclosure > summary:hover { color: var(--fg); }
+.jini-seo-x-disclosure > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--r-sm); }
+.jini-seo-x-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.jini-seo-x-fields > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+@media (prefers-reduced-motion: reduce) { .jini-seo-x-disclosure > summary::before { transition: none; } }
+
 .jini-seo-entry-checks {
   display: flex;
   flex-wrap: wrap;

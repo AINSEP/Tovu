@@ -688,6 +688,9 @@
   font-size: var(--text-sm); font-weight: 500; color: var(--fg);
 }
 :is(.jini-page, .jini-dialog) .jini-media-ref-field-size { flex: none; font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+/* An empty field that inherits another field's image (the X image falls back to the social preview
+   image) says so in the file slot instead of looking unset. */
+:is(.jini-page, .jini-dialog) .jini-media-ref-field-empty { font-size: var(--text-sm); color: var(--muted); }
 /* Phones raise every control to the 44px touch floor (`styles.css`), so the 2.3rem thumbnail sat
    7px short of the input beside it; keep it the input's height there too. On a phone the file takes
    its own line and the buttons sit under it at their own width. */
