@@ -213,7 +213,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_create_definition",
     description:
-      "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards.",
+      "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards. To show this form in a post or other rich-text body, use widgets_create_instance to create a contact-form widget with config { formDefinitionId: <this form's id> }, then widgets_insert_embed it; HTML-format pages and theme templates can instead use a data-embed-config marker with {type:\"form\",id:<this form's id or slug>}.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.forms.manage" },
     inputSchema: {
