@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -282,12 +283,16 @@ test("publish-site: a concurrent second trigger gets 409 while the first provide
   // see `site-exporter.ts`) passes through to the real, original `fetch` unchanged. This is what
   // holds the provider response open until the competing caller has been refused, while the
   // real export and HTTP entry points still run. No provider request leaves this process.
+  // 616fde462 uploads files concurrently before creating ONE deployment. Accept uploads and hold
+  // creation, so the count measures publish runs rather than the files in a single run.
   const realFetch = globalThis.fetch;
   const barrier = providerBarrier();
   let vercelCallCount = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("https://api.vercel.com/")) {
+      if (new URL(url).pathname === "/v2/files") return new Response(null, { status: 200 });
+      assert.equal(new URL(url).pathname, "/v13/deployments");
       vercelCallCount += 1;
       barrier.enter();
       await barrier.held;
@@ -322,6 +327,8 @@ test("publish-site: a concurrent second trigger gets 409 while the first provide
     body: JSON.stringify({ target: "vercel", projectName: "demo" }),
   });
   assert.equal(second.status, 409);
+  assert.deepEqual(await second.json(), { error: "a publish is already running", run: triggerBody });
+  assert.equal(vercelCallCount, 1, "the refused trigger must not create a second deployment");
   barrier.release();
 
   let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
@@ -361,12 +368,15 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
 
   // Same interception technique as the sibling "concurrent second trigger" test above — only calls to
   // Vercel's real API host are faked; the real export's own real in-process HTTP calls pass through.
+  // Uploads succeed; the barrier and count apply to deployment creation, never individual files.
   const realFetch = globalThis.fetch;
   const barrier = providerBarrier();
   let vercelCallCount = 0;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("https://api.vercel.com/")) {
+      if (new URL(url).pathname === "/v2/files") return new Response(null, { status: 200 });
+      assert.equal(new URL(url).pathname, "/v13/deployments");
       vercelCallCount += 1;
       barrier.enter();
       await barrier.held;
@@ -432,6 +442,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     `expected the tool call to be refused while the HTTP route's own publish was still in flight, got: ${JSON.stringify(result)}`
   );
   assert.equal(emitted.length, 0, "a refused publish must not send an outcome card");
+  assert.equal(vercelCallCount, 1, "the refused assistant call must not create a second deployment");
   barrier.release();
 
   let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };

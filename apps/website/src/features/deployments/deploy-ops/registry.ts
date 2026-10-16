@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { resolveProductRoot } from "#src/platform/site-dir/index";
 import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
 import { ToolInputError } from "@jini-ai/core";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
@@ -105,16 +106,20 @@ export function readBundledDeployOpsDescriptors(required: { readonly sourceRoot:
  * @param ctx - Workspace whose installed packages and activation records are checked fresh.
  * @returns Loaded modules and refusals, including filesystem faults; no expected failure escapes.
  * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
- * @complexity Time: O(installed packages + platforms). Space: O(platforms + refusals).
+ * @complexity Time: O(bundled sources + installed packages + platforms). Space: O(packages + platforms + refusals).
  * @example await loadDeployOpsRegistry({ workspaceId }, { loadContributions: lifecycle.loadPluginContributions });
  */
 export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<DeployOpsRegistry> {
   try {
-    // `deploy` is retired (B7). An old `deploy` package that retirement still holds (a successor
-    // not yet usable) must not contribute: its fly/github-actions ids would duplicate the
-    // successors' and duplicates are dropped. `github` owns github-actions alongside source control.
+    // Only packages that ship this category in this build own it. The shared source selector
+    // excludes retired packages: an old package retained until its successors are usable must
+    // not contribute duplicate ids (duplicates are dropped). Installed activation and digest
+    // checks still run in the lifecycle loader; this source list never authorizes an import.
+    const owners = new Set(bundledContributionSources({
+      sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins"), filename: DEPLOY_OPS_FILENAME,
+    }).map(plugin => plugin.pluginId));
     const load = await required.loadContributions({ ...ctx, definition: opsContribution }, {
-      packageRefusal: ({ plugin }) => ["fly", "github"].includes(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled fly and github plugins may contribute`,
+      packageRefusal: ({ plugin }) => owners.has(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only bundled plugins shipping ${DEPLOY_OPS_FILENAME} may contribute`,
     });
     return buildRegistry(load.items, load.refusals);
   } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }
