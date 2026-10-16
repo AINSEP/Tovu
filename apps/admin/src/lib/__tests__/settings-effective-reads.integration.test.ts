@@ -111,6 +111,25 @@ describe("effective settings reads at the real API seam", () => {
     expect(calls.filter((call) => call.namespace === "core.execution")).toHaveLength(scope?.length ? 1 : 2);
   });
 
+  it("shares one replacement GET across unscoped refreshes in the same synchronous turn", async () => {
+    const calls = stubSettingsFetch();
+    const oldInterface = loadInterface();
+    const refreshed: ReturnType<typeof loadInterface>[] = [];
+    subscribeToSettingsRefresh(() => { refreshed.push(loadInterface()); });
+
+    publishSettingsRefresh();
+    // A second publish must preserve the replacement read the first publish's listener started.
+    publishSettingsRefresh();
+    calls[0].respond({ wrapTabs: false });
+    for (const call of calls.slice(1)) call.respond({ wrapTabs: true });
+
+    await expect(oldInterface).resolves.toEqual({ hideChatFabWhileOpen: true, wrapTabs: false });
+    await expect(Promise.all(refreshed)).resolves.toEqual(Array(2).fill({ hideChatFabWhileOpen: true, wrapTabs: true }));
+    expect(calls.map(({ namespace, method }) => [namespace, method])).toEqual([
+      ["core.interface", "GET"], ["core.interface", "GET"],
+    ]);
+  });
+
   it("shares language with direct loaders and preserves refresh-drop behavior", async () => {
     const calls = stubSettingsFetch();
     const oldReads = [loadLanguage(), defaultAdminLocalePort.loadLanguage()];

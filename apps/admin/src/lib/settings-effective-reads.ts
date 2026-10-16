@@ -47,7 +47,6 @@ export function dropInFlightSettingsReads(
 ): void {
   if (refreshAllDispatching) return;
   const affected = namespaces?.filter((namespace) => !refreshDispatching.has(namespace)) ?? null;
-  if (affected?.length === 0) return;
   if (affected === null) refreshAllDispatching = true;
   else for (const namespace of affected) refreshDispatching.add(namespace);
   for (const [path, pending] of readsInFlight) {
