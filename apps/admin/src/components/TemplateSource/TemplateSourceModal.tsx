@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
 import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
+import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 
 import type { ThemeTier } from "@/lib/api";
@@ -139,6 +140,7 @@ export function TemplateSourceModal({
   return (
     <PreviewModalShell
       className="template-source-modal"
+      icons={CODE_PREVIEW_MODAL_ICONS}
       title={templateFilename}
       subtitle={`Read-only — from the "${themeId}" theme. Not editable here.`}
       views={[{ id: "template-source", label: "Template source", custom: stageContent }]}

@@ -10,6 +10,7 @@ import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tr
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
 import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
 import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
+import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 
 /**
  * @file The read-only package-files browser BOTH plugin screens open — a VS Code-style file tree
@@ -236,6 +237,7 @@ export function PackageFilesModal({
   return (
     <PreviewModalShell
       className="agent-plugin-source-modal"
+      icons={CODE_PREVIEW_MODAL_ICONS}
       title={title}
       subtitle={subtitle}
       onView={onView}

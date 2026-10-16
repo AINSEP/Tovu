@@ -45,6 +45,16 @@ describe("PackageFilesModal", () => {
     expect(dialog.querySelector(".code-viewer")).toBeNull();
   });
 
+  it("swaps the expand toggle for a visible collapse arrow once expanded", async () => {
+    const file = { relativePath: "skills/site-import/SKILL.md", content: "# Site import" };
+    renderModal({ files: [file], selectedFile: file });
+
+    await userEvent.click(screen.getByRole("button", { name: "Fullscreen" }));
+
+    const exit = screen.getByRole("button", { name: "Exit fullscreen" });
+    expect(exit.querySelector(".ri-collapse-diagonal-line")).not.toBeNull();
+  });
+
   it("renders a load failure as an alert while no file is selected", () => {
     renderModal({ status: { text: "This plugin's id is invalid.", role: "alert" } });
     expect(screen.getByRole("alert")).toHaveTextContent("This plugin's id is invalid.");
