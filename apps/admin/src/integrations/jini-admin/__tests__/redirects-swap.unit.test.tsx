@@ -81,8 +81,8 @@ describe('Jini redirects host switch', () => {
     expect(hits).toHaveBeenCalledTimes(1);
     expect(list).toHaveBeenCalledTimes(1);
     const label = view.container.querySelector('label[for="redirects-import-json"]')!;
-    expect(label.textContent).toBe('Pega un arreglo JSON de objetos de regla {matchType, fromPattern, toTarget, statusCode, override?, priority?} (1-500 elementos)');
-    expect(label.querySelector('code')?.textContent).toBe('{matchType, fromPattern, toTarget, statusCode, override?, priority?}');
+    expect(label.textContent).toBe('Pega un arreglo JSON de reglas, hasta 500.ⓘ');
+    expect(within(label as HTMLElement).getByRole('button', { name: 'Campos: matchType, fromPattern, toTarget, statusCode. Opcionales: override, priority.' })).toBeInTheDocument();
     fireEvent.click(within(row).getByRole('button', { name: 'Acciones para la regla de redirección desde "/old/<script>"' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Eliminar' }));
     expect(await screen.findByText('¿Eliminar la regla de redirección desde "/old/<script>"?')).toBeInTheDocument();

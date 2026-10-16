@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { actionsForRedirectLabel, createdLabel, deleteRedirectBody, failedItemLabel, importResultSummary, importRulesLabel, t } from "../redirects-i18n";
 
@@ -25,16 +25,22 @@ it.each([
 });
 
 it.each([
-  ["es", "Pega un arreglo JSON de objetos de regla SHAPE (1-500 elementos)", '¿Eliminar la regla de redirección desde "/old/<script>"?'],
-  ["unlisted-locale", "Paste a JSON array of SHAPE rule objects (1-500 items)", 'Delete the redirect rule from "/old/<script>"?'],
-])("renders caller markup and treats the redirect pattern as text for %s", (locale, label, deletion) => {
-  // Reject: lose shapeCode or render the pattern as HTML.
+  ["es", "Pega un arreglo JSON de reglas, hasta 500.", "Campos: matchType, fromPattern, toTarget, statusCode. Opcionales: override, priority.", '¿Eliminar la regla de redirección desde "/old/<script>"?'],
+  ["unlisted-locale", "Paste a JSON array of rules, up to 500.", "Fields: matchType, fromPattern, toTarget, statusCode. Optional: override, priority.", 'Delete the redirect rule from "/old/<script>"?'],
+])("renders the one-line import hint with its fields tip, and treats the redirect pattern as text for %s", (locale, hint, fields, deletion) => {
+  // Reject: inline the rule shape back into the hint, or render the pattern as HTML.
   const { container } = render(<>
-    <label>{importRulesLabel(locale, <code>SHAPE</code>)}</label>
+    <label htmlFor="json">{importRulesLabel(locale, <code>SHAPE</code>)}</label>
+    <textarea id="json" />
     {deleteRedirectBody(locale, "/old/<script>")}
   </>);
-  expect(container.querySelector("label")?.textContent).toBe(label);
-  expect(screen.getByText("SHAPE").tagName).toBe("CODE");
+  const label = container.querySelector("label")!;
+  expect(label.firstChild?.textContent).toBe(hint);
+  expect(label.querySelector("code")).toBeNull();
+  const tip = screen.getByRole("button", { name: fields });
+  // A tap on the ⓘ must not also activate the label (focusing the textarea closes the tip).
+  expect(fireEvent.click(tip)).toBe(false);
+  expect(document.activeElement).not.toBe(container.querySelector("textarea"));
   expect(container.querySelector("p")?.textContent).toBe(deletion);
   expect(container.querySelector("script")).toBeNull();
 });

@@ -2,6 +2,7 @@ import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 /**
  * @file Spanish translation for the Redirects screen (`/admin/redirects`) — the create form, the
@@ -702,39 +703,49 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = Object.fromEntrie
  *  source string itself — never a raw dictionary-miss placeholder. */
 export const t = createDictionaryTranslator({ featureDictionary: REDIRECTS_DICT }, { commonDictionary: COMMON_I18N });
 
-const IMPORT_RULES_LABEL_FRAGMENTS: Record<string, { before: string; after: string }> = {
-  en: { before: "Paste a JSON array of ", after: " rule objects (1-500 items)" },
-  es: { before: "Pega un arreglo JSON de objetos de regla ", after: " (1-500 elementos)" },
-  id: { before: "Tempel array JSON dari ", after: " objek aturan (1-500 item)" },
-  de: { before: "Fügen Sie ein JSON-Array von ", after: " Regelobjekten (1-500 Elemente) ein" },
-  "zh-CN": { before: "粘贴一个 ", after: " 形式的规则对象 JSON 数组（1-500 项）" },
-  "zh-TW": { before: "貼上一個 ", after: " 形式的規則物件 JSON 陣列（1-500 項）" },
-  "pt-BR": { before: "Cole um array JSON de objetos de regra ", after: " (1-500 itens)" },
-  ru: { before: "Вставьте JSON-массив объектов правил ", after: " (1-500 элементов)" },
-  fa: { before: "آرایه JSON از اشیاء قانون ", after: " را جای‌گذاری کنید (1 تا 500 مورد)" },
-  ar: { before: "الصق مصفوفة JSON من كائنات القواعد ", after: " (1-500 عنصر)" },
-  ja: { before: "", after: " の形式のルールオブジェクトの JSON 配列を貼り付けてください（1〜500件）" },
-  ko: { before: "", after: " 형식의 규칙 개체 JSON 배열을 붙여넣으세요(1~500개)" },
-  pl: { before: "Wklej tablicę JSON obiektów reguł ", after: " (1-500 elementów)" },
-  hu: { before: "Illessze be a szabályobjektumok JSON tömbjét ", after: " (1-500 elem)" },
-  fr: { before: "Collez un tableau JSON d'objets de règle ", after: " (1 à 500 éléments)" },
-  uk: { before: "Вставте JSON-масив об'єктів правил ", after: " (1-500 елементів)" },
-  tr: { before: "", after: " biçimindeki kural nesnelerinin JSON dizisini yapıştırın (1-500 öğe)" },
-  th: { before: "วางอาร์เรย์ JSON ของ", after: " อ็อบเจ็กต์กฎ (1-500 รายการ)" },
-  it: { before: "Incolla un array JSON di oggetti regola ", after: " (1-500 elementi)" },
-  hi: { before: "", after: " के आकार वाले नियम ऑब्जेक्ट का एक JSON ऐरे पेस्ट करें (1-500 आइटम)" },
-  ur: { before: "", after: " کی شکل کے اصول آبجیکٹس کا ایک JSON اری پیسٹ کریں (1-500 آئٹمز)" },
-  bn: { before: "", after: " আকারের নিয়ম অবজেক্টের একটি JSON অ্যারে পেস্ট করুন (1-500 আইটেম)" },
+// 2026-10-16 (owner: "it looks bad"): the label was a sentence with the whole rule shape inline as
+// `<code>`, which read as body text mixed with monospace. Now a one-line hint, with the fields
+// behind an ⓘ (the admin's tooltip convention); the placeholder still shows a full example rule.
+const IMPORT_RULES_LABEL_COPY: Record<string, { hint: string; fields: string; optional: string }> = {
+  en: { hint: "Paste a JSON array of rules, up to 500.", fields: "Fields", optional: "Optional" },
+  es: { hint: "Pega un arreglo JSON de reglas, hasta 500.", fields: "Campos", optional: "Opcionales" },
+  id: { hint: "Tempel array JSON berisi aturan, maksimal 500.", fields: "Kolom", optional: "Opsional" },
+  de: { hint: "Fügen Sie ein JSON-Array mit Regeln ein, bis zu 500.", fields: "Felder", optional: "Optional" },
+  "zh-CN": { hint: "粘贴规则的 JSON 数组，最多 500 条。", fields: "字段", optional: "可选" },
+  "zh-TW": { hint: "貼上規則的 JSON 陣列，最多 500 條。", fields: "欄位", optional: "選用" },
+  "pt-BR": { hint: "Cole um array JSON de regras, até 500.", fields: "Campos", optional: "Opcionais" },
+  ru: { hint: "Вставьте JSON-массив правил, до 500.", fields: "Поля", optional: "Необязательные" },
+  fa: { hint: "آرایه JSON از قانون‌ها را جای‌گذاری کنید، حداکثر 500.", fields: "فیلدها", optional: "اختیاری" },
+  ar: { hint: "الصق مصفوفة JSON من القواعد، حتى 500.", fields: "الحقول", optional: "اختيارية" },
+  ja: { hint: "ルールの JSON 配列を貼り付けてください（最大 500 件）。", fields: "フィールド", optional: "任意" },
+  ko: { hint: "규칙의 JSON 배열을 붙여넣으세요(최대 500개).", fields: "필드", optional: "선택" },
+  pl: { hint: "Wklej tablicę JSON reguł, maks. 500.", fields: "Pola", optional: "Opcjonalne" },
+  hu: { hint: "Illessze be a szabályok JSON tömbjét, legfeljebb 500-at.", fields: "Mezők", optional: "Nem kötelező" },
+  fr: { hint: "Collez un tableau JSON de règles, jusqu'à 500.", fields: "Champs", optional: "Facultatifs" },
+  uk: { hint: "Вставте JSON-масив правил, до 500.", fields: "Поля", optional: "Необов'язкові" },
+  tr: { hint: "Kuralların JSON dizisini yapıştırın, en fazla 500.", fields: "Alanlar", optional: "İsteğe bağlı" },
+  th: { hint: "วางอาร์เรย์ JSON ของกฎ สูงสุด 500 รายการ", fields: "ฟิลด์", optional: "ไม่บังคับ" },
+  it: { hint: "Incolla un array JSON di regole, fino a 500.", fields: "Campi", optional: "Facoltativi" },
+  hi: { hint: "नियमों का JSON ऐरे पेस्ट करें, अधिकतम 500।", fields: "फ़ील्ड", optional: "वैकल्पिक" },
+  ur: { hint: "اصولوں کا JSON اری پیسٹ کریں، زیادہ سے زیادہ 500۔", fields: "فیلڈز", optional: "اختیاری" },
+  bn: { hint: "নিয়মগুলোর একটি JSON অ্যারে পেস্ট করুন, সর্বোচ্চ 500টি।", fields: "ফিল্ড", optional: "ঐচ্ছিক" },
 };
 
-/** The bulk-import label sentence embeds the rule-shape `<code>` block mid-sentence. */
-export function importRulesLabel(locale: string, shapeCode: ReactNode): ReactNode {
-  const f = localeEntry({ table: IMPORT_RULES_LABEL_FRAGMENTS, locale });
+/** The bulk-import label: a one-line hint plus an ⓘ naming the rule fields. The package's
+ *  `shapeCode` element is no longer rendered — the field names are the same literal keys here. */
+export function importRulesLabel(locale: string, _shapeCode?: ReactNode): ReactNode {
+  const c = localeEntry({ table: IMPORT_RULES_LABEL_COPY, locale });
   return (
     <>
-      {f.before}
-      {shapeCode}
-      {f.after}
+      {c.hint}
+      {/* The ⓘ sits inside the package's `<label for>`: without this, a tap on it also activates
+          the label, focusing the textarea, whose blur closes the tip the tap just opened. */}
+      <span onClick={(event) => event.preventDefault()}>
+        <InfoTip
+          label={`${c.fields}: matchType, fromPattern, toTarget, statusCode. ${c.optional}: override, priority.`}
+          agentHandle="redirects-import-fields-info"
+        />
+      </span>
     </>
   );
 }

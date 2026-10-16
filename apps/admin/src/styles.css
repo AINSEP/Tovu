@@ -2708,6 +2708,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .editor-toolbar[data-more-open="true"] { position: static; }
   .editor-toolbar[data-more-open="true"]::after { content: ""; order: 0; flex-basis: 100%; height: 0; margin-block: 2px; border-top: 1px solid var(--border); }
   .editor-toolbar[data-more-open="true"] .tb-more { background: var(--surface); border-color: var(--border); }
+  /* Open, the count wraps onto its own last row; pushed right there it sat under the floating chat
+     button (owner 2026-10-16: the FAB covered "910 characters"). Left, it starts the row instead. */
+  .editor-toolbar[data-more-open="true"] .editor-toolbar-count { margin-left: 0; }
 }
 @media (max-width: 640px) {
   .editor-toolbar .tb-btn { min-width: 44px; height: 44px; white-space: nowrap; }
@@ -3443,8 +3446,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    light and dark both follow this admin's theme (`--jini-text` too: Jini's own text token stays
    #202020 under this admin's dark root, which would be dark-on-dark once the panel follows it).
    Doubled class: Jini's `[data-color-scheme]` token scope is the same (0,1,0) and `<style>` order
-   is not reliable here (see `styles/select.css`). */
-.select-panel.select-panel {
+   is not reliable here (see `styles/select.css`). The trigger (`.select-trigger`, e.g. the SEO
+   "Choose an entry…" picker) paints with the same token and read faintly grey next to the white
+   inputs around it (owner 2026-10-16), so it shares the re-point. */
+.select-panel.select-panel,
+.select-trigger.select-trigger {
   --jini-bg-elevated: var(--surface);
   --jini-bg-subtle: var(--surface-2);
   --jini-text: var(--fg);
@@ -3481,11 +3487,46 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .taxonomy-namespace-group-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 
 /* Redirects — bulk-import affordance (SPEC-037 REQ-04) */
-.redirects-import { margin: 1rem 0; }
-.redirects-import summary { cursor: pointer; font-weight: 600; }
-.redirects-import form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.7rem; }
+/* 2026-10-16 (owner: "it looks bad"): the `.notice` frame now matches the add-rule `.card` above it,
+   and the summary uses the SEO "Customize for X/Twitter" caret idiom (`styles/seo.css`) instead of
+   the native ▼ marker. The summary was a full-width block, so its focus outline boxed the whole
+   row; content-width, it rings only the label, and only on keyboard focus. */
+.redirects-import { margin: 1rem 0; padding: var(--space-4) var(--space-6); border-color: var(--border); border-radius: var(--r-lg); }
+.redirects-import > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-2) + 0.375rem);
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+}
+.redirects-import > summary::-webkit-details-marker { display: none; }
+.redirects-import > summary::before {
+  content: "";
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.redirects-import[open] > summary::before { transform: rotate(45deg); }
+.redirects-import > summary:focus:not(:focus-visible) { outline: none; }
+.redirects-import > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--r-sm); }
+@media (prefers-reduced-motion: reduce) { .redirects-import > summary::before { transition: none; } }
+.redirects-import form { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); }
+/* The label is a one-line `.field-hint`; the rule fields sit behind its ⓘ (`importRulesLabel`). */
+.redirects-import form > label { font-size: var(--text-xs); color: var(--muted); }
 /* Same fold as `.settings-value-editor textarea` above — only monospace is this rule's own. */
-.redirects-import textarea { font-family: var(--font-mono); font-size: 0.82rem; }
+.redirects-import textarea { width: 100%; font-family: var(--font-mono); font-size: 0.82rem; }
+/* Content-width and left-aligned, like the add-rule form's `.form-actions` button above. */
+.redirects-import form > button { align-self: flex-start; margin-top: var(--space-1); }
+/* Phone: the 44px tap-target rule (`max-width: 640px` below) already pads the summary and the ⓘ,
+   so the desktop gap under the summary would double up. */
+@media (max-width: 640px) { .redirects-import form { margin-top: 0; gap: var(--space-1); } }
 .redirects-import-result ul { margin: 0.4rem 0; padding-left: 1.2rem; font-size: 0.85rem; }
 
 .storage-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
@@ -6510,6 +6551,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    own action ("Disable"/"Enable") already states on/off, so the glyph's border tint is redundant. */
 @container plugin-list (max-width: 480px) {
   .plugin-row-glyph { display: none; }
+  /* Downloaded's three actions (view, Enable, remove) still fit beside a 10rem summary at 390px,
+     which squeezed "Content Analyzer" onto two lines with its version and subline stacked under it
+     (owner 2026-10-16). Sized to its own one-line text instead, the summary keeps the actions beside
+     it only when name, version and subline fit unbroken; otherwise the actions wrap under it. */
+  .plugin-row-summary { flex-basis: auto; }
 }
 
 .site-card-actions .btn-secondary:disabled {
