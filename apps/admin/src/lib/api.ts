@@ -11,6 +11,7 @@ import type {
 
 import { isPageUnloading } from "./page-lifecycle";
 import { siteUrl } from "./site-url";
+import { shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
 
 export const WORKSPACE_ID = "workspace-local";
@@ -3343,7 +3344,10 @@ export const api = {
   getSettingsEffective: ({ namespace }: { namespace: string }, options: { principalId?: string } = {}) => {
     const params = new URLSearchParams({ namespace });
     if (options.principalId) params.set("principalId", options.principalId);
-    return authenticatedAdminRequest<{ data: SettingResolvedValue[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}` });
+    const path = `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}`;
+    return shareSettingsEffectiveRead({ namespace, path, port: {
+      read: () => authenticatedAdminRequest<{ data: SettingResolvedValue[] }>({ method: "GET", path }),
+    } }, {});
   },
   setSetting: (
     input: { namespace: string; key: string; scope: SettingScope; valueJson: unknown },

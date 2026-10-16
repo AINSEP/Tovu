@@ -1,3 +1,5 @@
+import { dropInFlightSettingsReads } from "./settings-effective-reads";
+
 /**
  * @file The seam between "a setting changed somewhere else" and "the mounted settings tabs re-read
  * it", so an operator sees a change they did not make in this component without reloading the page.
@@ -63,6 +65,7 @@ export function subscribeToSettingsRefresh(listener: Listener): () => void {
  */
 export function publishSettingsRefresh(namespaces?: readonly string[]): void {
   const scope: SettingsRefreshScope = namespaces && namespaces.length > 0 ? namespaces : null;
+  dropInFlightSettingsReads({ namespaces: scope }, {});
   for (const listener of [...listeners]) {
     try {
       listener(scope);

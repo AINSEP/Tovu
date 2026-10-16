@@ -25,45 +25,14 @@ export { DEFAULT_LOCALE };
 
 /** The live implementation, as a module-level singleton — matches `theme-pages-dependencies
  *  .hooks.ts`'s `defaultThemePagesPort`. */
-// A language refresh can supersede an in-flight read. The bus calls subscribers synchronously;
-// drop the shared read once per dispatch turn so later subscribers join the new request.
 export const defaultAdminLocalePort: AdminLocalePort = {
-  loadLanguage: loadLanguageShared,
+  loadLanguage,
   subscribeToSettingsRefresh: (listener) =>
     subscribeToSettingsRefresh((scope) => {
       if (!refreshApplies(scope)) return;
-      dropInFlightLanguageReadOnce();
       listener();
     }),
 };
-
-/**
- * Share one `loadLanguage()` request across direct port callers until it settles. About 100
- * hooks each call `useWiredAdminLocale()`, and their mount effects all run in the same commit, so
- * without this one admin page load sent ~100 identical `settings/effective?namespace=core.language`
- * GETs (2026-09-23). Only the in-flight request is shared, never a settled value, so a later mount
- * still reads the server's current locale. Hook observers additionally share their query cache.
- */
-let languageReadInFlight: Promise<string> | null = null;
-
-function loadLanguageShared(): Promise<string> {
-  if (languageReadInFlight) return languageReadInFlight;
-  const read = loadLanguage().finally(() => {
-    if (languageReadInFlight === read) languageReadInFlight = null;
-  });
-  languageReadInFlight = read;
-  return read;
-}
-
-/** The synchronous bus fan-out invalidates once while still notifying every listener. */
-let languageRefreshDispatching = false;
-
-function dropInFlightLanguageReadOnce(): void {
-  if (languageRefreshDispatching) return;
-  languageRefreshDispatching = true;
-  languageReadInFlight = null;
-  queueMicrotask(() => { languageRefreshDispatching = false; });
-}
 
 /** Seed state for {@link createFakeAdminLocalePort}. */
 export interface FakeAdminLocalePortOptions {
