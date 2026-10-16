@@ -2688,7 +2688,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    controls show plus a "More" toggle, and More drops the rest in below a single rule, wrapped
    tightly. `order` keeps More at the end of the first row in both states; the `::after` break
    (a flex item too) is what forces the rest onto their own rows. Open, the toolbar stops being
-   sticky — a ~250px band pinned over a phone screen would leave no room to write. */
+   sticky — a ~250px band pinned over a phone screen would leave no room to write.
+   2026-10-15 (owner: "move the 3 dots up to be flush with the top row"): at ~280px the six fixed
+   primaries filled the row and More wrapped under them. `useToolbarOverflow` now measures the row
+   and only marks as many ranked controls `primary` as fit beside More; the rest join the overflow.
+   The row's slack is spread between its items (auto margins resolve per flex line, so only the top
+   row spreads; the overflow rows stay packed left), keeping B flush left and More flush right. */
 .editor-toolbar .tb-more { display: none; }
 @container admin-content (max-width: 620px) {
   .editor-toolbar { gap: 2px; }
@@ -2696,6 +2701,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .editor-toolbar .grp > *, .editor-toolbar-count { order: 1; }
   .editor-toolbar .grp > [data-tb="primary"] { order: 0; }
   .editor-toolbar .tb-more { display: inline-grid; order: 0; margin-left: auto; }
+  .editor-toolbar .grp > [data-tb="primary"]:not([data-tb-rank="0"]) { margin-left: auto; }
   .editor-toolbar .tb-btn { white-space: nowrap; }
   .editor-toolbar:not([data-more-open="true"]) .grp > :not([data-tb="primary"]),
   .editor-toolbar:not([data-more-open="true"]) .editor-toolbar-count { display: none; }

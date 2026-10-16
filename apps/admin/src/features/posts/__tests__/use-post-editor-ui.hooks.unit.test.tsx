@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { usePostEditorUi, usePostPreviewIframeEscape, useToolbarOverflow } from "../hooks/use-post-editor-ui.hooks";
+import { primaryControlsThatFit, usePostEditorUi, usePostPreviewIframeEscape, useToolbarOverflow } from "../hooks/use-post-editor-ui.hooks";
 
 afterEach(() => { vi.restoreAllMocks(); document.querySelectorAll("iframe").forEach((node) => node.remove()); });
 
@@ -121,4 +121,53 @@ it("starts the toolbar overflow closed and toggles it open and closed again", ()
   expect(result.current.open).toBe(true);
   act(() => result.current.toggle());
   expect(result.current.open).toBe(false);
+});
+
+it("keeps More on the top row by moving the lowest-ranked controls into the overflow", () => {
+  // Reject: More's own width or the gaps are left out (More wraps), or controls drop from the front.
+  const widths = [44, 44, 44, 44, 44, 60];
+  expect(primaryControlsThatFit({ available: 263, widths, moreWidth: 44, gap: 2 })).toBe(4);
+  expect(primaryControlsThatFit({ available: 275, widths, moreWidth: 44, gap: 2 })).toBe(5);
+  expect(primaryControlsThatFit({ available: 335, widths, moreWidth: 44, gap: 2 })).toBe(5);
+  expect(primaryControlsThatFit({ available: 336, widths, moreWidth: 44, gap: 2 })).toBe(6);
+  expect(primaryControlsThatFit({ available: 40, widths, moreWidth: 44, gap: 2 })).toBe(0);
+});
+
+it("measures a narrow toolbar and marks only the controls that fit as primary", () => {
+  // Reject: the hook ignores the measured width (all six stay primary) or keeps a hidden control's 0 width.
+  let notify: () => void = () => {};
+  vi.stubGlobal("ResizeObserver", class { constructor(callback: () => void) { notify = callback; } observe() {} disconnect() {} });
+  const toolbar = document.createElement("div");
+  toolbar.style.paddingLeft = "8px";
+  toolbar.style.paddingRight = "8px";
+  toolbar.style.columnGap = "2px";
+  const sized = (element: HTMLElement, width: () => number) => Object.defineProperty(element, "offsetWidth", { configurable: true, get: width });
+  const ranked = [44, 44, 44, 44, 44, 60].map((width, rank) => {
+    const button = document.createElement("button");
+    button.dataset.tbRank = String(rank);
+    sized(button, () => (button.dataset.hidden ? 0 : width));
+    toolbar.append(button);
+    return button;
+  });
+  const more = document.createElement("button");
+  more.className = "tb-more";
+  sized(more, () => 44);
+  toolbar.append(more);
+  document.body.append(toolbar);
+  let clientWidth = 280;
+  Object.defineProperty(toolbar, "clientWidth", { configurable: true, get: () => clientWidth });
+
+  const { result } = renderHook(() => useToolbarOverflow());
+  act(() => result.current.toolbarRef(toolbar));
+  const primaries = () => ranked.map((_, rank) => result.current.slot(rank)["data-tb"] === "primary");
+  expect(primaries()).toEqual([true, true, true, true, false, false]);
+  expect(result.current.slot(4)).toEqual({ "data-tb-rank": 4, "data-tb": undefined });
+
+  // The demoted controls are now display:none (0 wide); widening uses their remembered widths.
+  ranked[4].dataset.hidden = ranked[5].dataset.hidden = "1";
+  clientWidth = 360;
+  act(() => notify());
+  expect(primaries()).toEqual([true, true, true, true, true, true]);
+  toolbar.remove();
+  vi.unstubAllGlobals();
 });

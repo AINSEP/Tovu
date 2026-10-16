@@ -225,12 +225,12 @@ function Toolbar({
   const overflow = useToolbarOverflow();
 
   return (
-    <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")} data-more-open={overflow.open}>
+    <div ref={overflow.toolbarRef} className="editor-toolbar" role="toolbar" aria-label={t("Formatting")} data-more-open={overflow.open}>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bold)} data-tb="primary" title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
-        <button className={toolbarBtnClass(s.italic)} data-tb="primary" title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
+        <button className={toolbarBtnClass(s.bold)} {...overflow.slot(0)} title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
+        <button className={toolbarBtnClass(s.italic)} {...overflow.slot(1)} title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
         <button className={toolbarBtnClass(s.strike)} title={t("Strikethrough")} aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
-        <button className={toolbarBtnClass(s.underline)} data-tb="primary" title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
+        <button className={toolbarBtnClass(s.underline)} {...overflow.slot(2)} title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
         <button className={toolbarBtnClass(s.highlight)} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
         <button className={toolbarBtnClass(s.subscript)} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
         <button className={toolbarBtnClass(s.superscript)} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
@@ -244,7 +244,7 @@ function Toolbar({
             requiring an exact selection. */}
         <button
           className={toolbarBtnClass(s.link)}
-          data-tb="primary"
+          {...overflow.slot(3)}
           title={t("Link")}
           aria-pressed={s.link}
           onClick={urlDialog.openLink}
@@ -254,11 +254,11 @@ function Toolbar({
       </div>
       <div className="grp">
         <button className={toolbarBtnClass(s.h1)} title={t("Heading 1")} aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
-        <button className={toolbarBtnClass(s.h2)} data-tb="primary" title={t("Heading 2")} aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button className={toolbarBtnClass(s.h2)} {...overflow.slot(4)} title={t("Heading 2")} aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
         <button className={toolbarBtnClass(s.h3)} title={t("Heading 3")} aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
       </div>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bullet)} data-tb="primary" title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
+        <button className={toolbarBtnClass(s.bullet)} {...overflow.slot(5)} title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
         <button className={toolbarBtnClass(s.ordered)} title={t("Numbered list")} aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. {t("List")}</button>
         <button className={toolbarBtnClass(s.taskList)} title={t("Task list")} aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ {t("List")}</button>
         <button className={toolbarBtnClass(s.quote)} title={t("Quote")} aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; {t("Quote")}</button>
@@ -529,7 +529,8 @@ function Toolbar({
       </div>
       {/* Phone overflow (owner, 2026-10-15: the wrapped toolbar was "so messed up, janky"). At phone
           width only the `data-tb="primary"` controls show, in one row; this toggles the rest in
-          below them. Hidden by CSS on wider panes, where every control already shows. */}
+          below them. Hidden by CSS on wider panes, where every control already shows. Which ranked
+          controls (`overflow.slot`) are primary is measured so this button never wraps (2026-10-15). */}
       <button
         className="tb-btn tb-more"
         title={t("More formatting")}

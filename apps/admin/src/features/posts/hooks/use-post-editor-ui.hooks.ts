@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
 
@@ -104,20 +104,101 @@ export function usePostSettingsDialog(): PostSettingsDialogController {
   return { open, tab, setTab, openDialog: () => setOpen(true), closeDialog: () => setOpen(false) };
 }
 
+/** How many controls the phone toolbar's top row can promote: B, I, U, Link, H2, • List, in that order. */
+export const TOOLBAR_PRIMARY_RANKS = 6;
+
+/** Attributes for a promotable toolbar control: its rank, plus `data-tb="primary"` while it fits. */
+export interface ToolbarSlotProps {
+  "data-tb-rank": number;
+  "data-tb": "primary" | undefined;
+}
+
 export interface ToolbarOverflowController {
   open: boolean;
   toggle: () => void;
+  /** Callback ref for the `.editor-toolbar` element the fit is measured against. */
+  toolbarRef: (element: HTMLElement | null) => void;
+  /** Spread onto the control of the given rank (0 = most important). */
+  slot: (rank: number) => ToolbarSlotProps;
 }
 
 /**
- * Whether the formatting toolbar's "More" overflow is expanded. Only phone-width CSS reads it
- * (`styles.css`, `.editor-toolbar[data-more-open]`); wider panes show every control regardless.
+ * How many ranked controls fit in one row beside "More", dropping from the end first.
+ * `widths` is in rank order; every item, More included, is separated by one `gap`.
  *
- * @complexity O(1).
+ * @complexity O(n) in the number of ranked controls.
+ */
+export function primaryControlsThatFit(
+  { available, widths, moreWidth, gap }: { available: number; widths: readonly number[]; moreWidth: number; gap: number },
+): number {
+  let used = moreWidth;
+  let count = 0;
+  for (const width of widths) {
+    if (used + gap + width > available) break;
+    used += gap + width;
+    count += 1;
+  }
+  return count;
+}
+
+/** Sub-pixel slack so rounding never pushes "More" onto a second row. */
+const FIT_SLACK_PX = 1;
+
+/**
+ * Measures the toolbar and returns how many ranked controls fit, reusing the last seen width for a
+ * control hidden in the overflow (display:none reports 0). `null` when "More" is hidden, i.e. the
+ * pane is wider than the phone breakpoint and every control already shows.
+ */
+function measurePrimaryFit(toolbar: HTMLElement, widthCache: number[]): number | null {
+  const more = toolbar.querySelector<HTMLElement>(".tb-more");
+  if (!more || more.offsetWidth === 0) return null;
+  toolbar.querySelectorAll<HTMLElement>("[data-tb-rank]").forEach((control) => {
+    if (control.offsetWidth > 0) widthCache[Number(control.dataset.tbRank)] = control.offsetWidth;
+  });
+  const style = getComputedStyle(toolbar);
+  const available = toolbar.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - FIT_SLACK_PX;
+  const widths = Array.from({ length: TOOLBAR_PRIMARY_RANKS }, (_, rank) => widthCache[rank] ?? 0);
+  return primaryControlsThatFit({ available, widths, moreWidth: more.offsetWidth, gap: parseFloat(style.columnGap) || 0 });
+}
+
+/**
+ * The formatting toolbar's phone overflow: whether "More" is expanded, and which ranked controls
+ * stay on the single top row. Only phone-width CSS reads either (`styles.css`,
+ * `.editor-toolbar[data-more-open]` / `[data-tb="primary"]`); wider panes show every control.
+ * Owner 2026-10-15: at ~280px the six fixed primaries filled the row and "More" wrapped under them,
+ * so the row is now measured (ResizeObserver on the toolbar and each ranked control) and the
+ * lowest-ranked controls move into More until the row, More included, fits.
+ *
+ * @complexity O(n) per resize notification, n = ranked controls.
  */
 export function useToolbarOverflow(): ToolbarOverflowController {
   const [open, setOpen] = useState(false);
-  return { open, toggle: () => setOpen((current) => !current) };
+  const [toolbar, setToolbar] = useState<HTMLElement | null>(null);
+  const [shown, setShown] = useState(TOOLBAR_PRIMARY_RANKS);
+  const widthCache = useRef<number[]>([]);
+
+  const remeasure = useCallback(() => {
+    if (!toolbar) return;
+    setShown(measurePrimaryFit(toolbar, widthCache.current) ?? TOOLBAR_PRIMARY_RANKS);
+  }, [toolbar]);
+
+  useEffect(() => {
+    if (!toolbar || typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(remeasure);
+    observer.observe(toolbar);
+    toolbar.querySelectorAll(".tb-more, [data-tb-rank]").forEach((control) => observer.observe(control));
+    return () => observer.disconnect();
+  }, [toolbar, remeasure]);
+
+  // A control that just became visible is measured now, so a stale cached width can't keep it.
+  useLayoutEffect(remeasure, [remeasure, shown, open]);
+
+  return {
+    open,
+    toggle: () => setOpen((current) => !current),
+    toolbarRef: setToolbar,
+    slot: (rank) => ({ "data-tb-rank": rank, "data-tb": rank < shown ? "primary" : undefined }),
+  };
 }
 
 /**

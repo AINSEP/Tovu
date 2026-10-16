@@ -40,17 +40,25 @@ test("post formatting controls stay visible and keyboard-reachable on a phone", 
   await expect(toolbar).toBeVisible();
 
   // Collapsed, the phone toolbar is one row: the primary controls plus "More" (owner 2026-10-15:
-  // the fully wrapped toolbar was ~8 ragged rows). Every visible control shares one top edge.
+  // the fully wrapped toolbar was ~8 ragged rows). Every visible control shares one top edge, and
+  // More is the last of them, flush right (owner 2026-10-15: at ~280px it wrapped under the row).
+  // 320px is the narrowest phone; 390px is the journey's default.
   const more = toolbar.getByRole("button", { name: "More formatting", exact: true });
   await expect(more).toHaveAttribute("aria-expanded", "false");
   await expect(toolbar.getByRole("button", { name: "YouTube", exact: true })).toBeHidden();
-  await expect.poll(() => toolbar.evaluate((element) => {
-    const tops = Array.from(element.querySelectorAll("button, select, input"))
-      .map((control) => control.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 && rect.height > 0)
-      .map((rect) => Math.round(rect.top));
-    return tops.length > 1 && new Set(tops).size === 1;
-  })).toBe(true);
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect.poll(() => toolbar.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const rects = Array.from(element.querySelectorAll("button, select, input"))
+        .map((control) => ({ more: control.classList.contains("tb-more"), rect: control.getBoundingClientRect() }))
+        .filter(({ rect }) => rect.width > 0 && rect.height > 0);
+      const last = rects.reduce((right, item) => (item.rect.right > right.rect.right ? item : right), rects[0]);
+      return rects.length > 1
+        && new Set(rects.map(({ rect }) => Math.round(rect.top))).size === 1
+        && last.more && last.rect.right <= bounds.right;
+    }), `one row ending in More at ${width}px`).toBe(true);
+  }
   await more.click();
   await expect(more).toHaveAttribute("aria-expanded", "true");
 
