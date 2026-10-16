@@ -132,9 +132,12 @@ test('t10 source form uses the provider declared masked field; submit saves a us
 
 // Demo dry run 2026-10-05: a Cancel came back identical to a failed save, so the reply guessed
 // "Either it was closed or the save failed". Each way of not saving now says which it was.
-test('t10 source cancellation returns saved false, cancelled true, with no credential', async () => {
-  const f = fixture(); const { pending } = await form(f); submit(f, { [SURFACE_DISMISSED_PARAM]: true, token: SECRET });
+// Pins credential-setup.ts:138: cancelled runs must not emit an outcome on the form URI.
+test('t10 source cancellation returns saved false, cancelled true, with no credential or outcome', async () => {
+  const f = fixture(); const { pending, emitted } = await form(f); submit(f, { [SURFACE_DISMISSED_PARAM]: true, token: SECRET });
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: true, message: PROPOSE_CREDENTIAL_CANCELLED });
+  assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
+    ['ui://tovu/secret-card/credential_save/source-exchange-t10']);
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
@@ -189,11 +192,14 @@ test('t10 source rejects unexpected model fields and unavailable hosts with exac
     { message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
 });
 
-test('t10 source missing channel and abort fail closed', async () => {
+// Pins credential-setup.ts:138's abandoned-run policy; the closed exchange also blocks sends.
+test('t10 source missing channel and abort fail closed without an outcome', async () => {
   const f = fixture();
   await assert.rejects(f.call({ provider: 'github' }), { message: 'source_control_propose_credential requires an interactive form channel. Nothing was saved.' });
-  const controller = new AbortController(); const { pending } = await form(f, { signal: controller.signal }); controller.abort();
+  const controller = new AbortController(); const { pending, emitted } = await form(f, { signal: controller.signal }); controller.abort();
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
+  assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
+    ['ui://tovu/secret-card/credential_save/source-exchange-t10']);
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
@@ -203,11 +209,19 @@ for (const token of ['', 42]) test(`t10 source malformed submitted token ${JSON.
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
 });
 
-test('t10 source raw save errors containing the secret never reach model or surface', async () => {
+// Contrast for credential-setup.ts:138: failed saves still render a failure outcome.
+test('t10 source raw save errors stay secret and render the exact failure outcome', async () => {
   const f = fixture(); f.repo.vault.put = async () => { throw new Error(`db echoed ${SECRET}`); };
   const { pending, emitted } = await form(f); submit(f, { label: 'New connection', token: SECRET });
   const result = await pending;
   assert.deepEqual(result, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_SAVE_FAILED });
+  assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
+    ['ui://tovu/secret-card/credential_save/source-exchange-t10', 'ui://tovu/secret-card/credential_save/source-exchange-t10']);
+  const outcome = (emitted[1]!.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+  assert.equal(outcome.match(/<h1[^>]*>([^<]*)<\/h1>/)?.[1], 'Credential not saved');
+  // The renderer maps the outcome's state "failure" to the status region's data-state "failed".
+  assert.deepEqual(outcome.match(/<p[^>]*role="status"[^>]*data-state="([^"]*)"[^>]*>([^<]*)<\/p>/)?.slice(1),
+    ['failed', PROPOSE_CREDENTIAL_SAVE_FAILED]);
   assertNoSecret(result); assertNoSecret(emitted); assert.equal(f.surfaces.size(), 0);
 });
 
@@ -219,10 +233,13 @@ test('t10 source commit without a credential names the setup tool', async () => 
     { committed: false, reason: 'no-credential', message: 'No GitHub source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.' });
 });
 
-test('t10 source expired form closes without saving', async t => {
+// Pins credential-setup.ts:138's expired-run policy; cancellation above detects guard removal.
+test('t10 source expired form closes without saving or an outcome', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const f = fixture(true, { idleTtlMs: 5 }); const { pending } = await form(f); t.mock.timers.tick(5);
+  const f = fixture(true, { idleTtlMs: 5 }); const { pending, emitted } = await form(f); t.mock.timers.tick(5);
   assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
+  assert.deepEqual(emitted.map(s => (s.payload as { resource: { resource: { uri: string } } }).resource.resource.uri),
+    ['ui://tovu/secret-card/credential_save/source-exchange-t10']);
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
