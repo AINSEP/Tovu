@@ -218,6 +218,8 @@ describe("useSites — activate does NOT switch anything", () => {
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(result.current.outlook).toEqual({ kind: "none" });
 
+    expect(result.current.restartInstructions).toBeNull();
+
     await act(async () => {
       result.current.activate("beta");
     });

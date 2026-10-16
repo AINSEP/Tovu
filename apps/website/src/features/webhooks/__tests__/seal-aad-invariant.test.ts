@@ -144,6 +144,42 @@ test("REGRESSION: every real SecretSealerPort.seal() call site under apps/websit
   );
 });
 
+test("filesystem scan ignores node_modules and dist but reports a violation outside them", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-seal-exclusions-"));
+  try {
+    for (const directory of ["node_modules", "dist"]) {
+      fs.mkdirSync(path.join(root, directory));
+      fs.writeFileSync(path.join(root, directory, "credential.ts"), "deps.sealer.seal({ plaintext });\n");
+    }
+    assert.deepEqual(findSealCallsWithoutAad(root), []);
+
+    const fixture = path.join(root, "credential.ts");
+    fs.writeFileSync(fixture, "deps.sealer.seal({ plaintext });\n");
+    const repoRoot = path.resolve(import.meta.dirname, "../../../../../..");
+    assert.deepEqual(findSealCallsWithoutAad(root), [{
+      file: path.relative(repoRoot, fixture),
+      line: 1,
+      reason: "missing-aad",
+      text: "deps.sealer.seal({ plaintext })",
+    }]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the CLI exits successfully and prints OK when the real repository has no seal violations", () => {
+  const cli = fileURLToPath(new URL("../seal-aad-invariant.ts", import.meta.url));
+  const result = spawnSync(process.execPath, ["--import", "tsx", cli], {
+    cwd: path.resolve(import.meta.dirname, "../../../../../.."),
+    encoding: "utf8",
+    timeout: 20_000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "check:seal-aad — OK: every SecretSealerPort.seal() call site under apps/website/src supplies aad.\n");
+  assert.equal(result.stderr, "");
+});
+
 test("filesystem scan and CLI report a known violating file with a nonzero exit", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-seal-scan-"));
   const fixture = "credential-violation.ts";
