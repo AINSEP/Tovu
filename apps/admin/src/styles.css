@@ -3435,6 +3435,20 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   padding: 6px 10px; border-radius: var(--r-sm); font-size: var(--text-sm); color: var(--fg); cursor: pointer;
 }
 .jini-suggest-input__option.is-active { background: var(--surface-2); }
+/* Jini `Select` (`@jini-ai/ui/admin-widgets`) portals `.select-panel` to `<body>` and paints it,
+   and its search box, with `--jini-bg-elevated`. This admin never maps Jini's surface tokens, so
+   that resolved to Jini's own grey default (#f5f5f5) under a white page (owner 2026-10-16: "It
+   should be white, right?"). Re-pointed here on the panel itself — every admin-widgets `Select`
+   shares this class — to the same `--surface`/`--surface-2`/`--fg` the dropdown above uses, so
+   light and dark both follow this admin's theme (`--jini-text` too: Jini's own text token stays
+   #202020 under this admin's dark root, which would be dark-on-dark once the panel follows it).
+   Doubled class: Jini's `[data-color-scheme]` token scope is the same (0,1,0) and `<style>` order
+   is not reliable here (see `styles/select.css`). */
+.select-panel.select-panel {
+  --jini-bg-elevated: var(--surface);
+  --jini-bg-subtle: var(--surface-2);
+  --jini-text: var(--fg);
+}
 /* Same `.editor-actions` flush-spacing fix as `FormEditor.tsx`'s `.form-actions` — see
    `features/taxonomy/TermPicker.tsx` for why this is scoped here rather than added to
    `.editor-actions` itself (that class is shared with ~30 other, structurally different callers
