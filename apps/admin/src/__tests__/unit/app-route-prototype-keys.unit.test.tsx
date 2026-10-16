@@ -5,6 +5,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { appShellApiBody } from "../app-shell-api.fixture";
 
 /**
  * @file A URL naming an `Object.prototype` member must not be treated as a section.
@@ -42,10 +43,10 @@ beforeEach(() => {
         headers: { "content-type": "application/json" },
       });
     }
-    // Every case here lands on the Dashboard, whose effects read `r.posts` and
-    // `r.settings.activeThemeId`. Returning a bare `{}` makes those throw — harmless to the
-    // assertions, but it fills the run with unhandled-error noise that obscures real failures.
-    return new Response(JSON.stringify({ posts: [], settings: { activeThemeId: "t1" } }), {
+    // Every case here lands on the Dashboard, whose cached results read posts, media, comments
+    // and presentation fields during render. Incomplete payloads tear down the shell instead of
+    // exercising the prototype-key fallback, so reuse the App fixture's real response shapes.
+    return new Response(JSON.stringify(appShellApiBody({ url: String(url) })), {
       status: 200,
       headers: { "content-type": "application/json" },
     });

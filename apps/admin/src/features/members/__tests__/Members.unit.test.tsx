@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Members } from "../MembersPanel";
+import { createFakeMembersPort } from "../hooks/members-dependencies.hooks";
 
 /**
  * @file `Members` — pins the `RowMenu` rollout (task: roll `RowMenu` out to `Users.tsx`/
@@ -100,9 +101,18 @@ describe("Disable — via RowMenu, confirm-gated", () => {
   it("opens a ConfirmDialog instead of acting immediately, and only disables on confirm", async () => {
     const user = userEvent.setup();
     const otherMember = { ...DISABLED_MEMBER, status: "active" as const };
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ members: [ACTIVE_MEMBER, otherMember] }))
-      .mockResolvedValueOnce(jsonResponse({ member: { ...ACTIVE_MEMBER, status: "disabled" } }));
+    const port = createFakeMembersPort({ members: [ACTIVE_MEMBER, otherMember] });
+    // Disable invalidates the cached roster. Serve its authoritative reread as well as the write;
+    // a two-response queue leaves that read undefined and replaces the table with a load error.
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === "/api/admin/v1/workspaces/workspace-local/members/m1/disable" && init?.method === "POST") {
+        return jsonResponse(await port.disableMember("m1"));
+      }
+      if (url === "/api/admin/v1/workspaces/workspace-local/members" && (init?.method ?? "GET") === "GET") {
+        return jsonResponse(await port.listMembers());
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
     render(<Members />);
 
     await screen.findByText("alice@example.com");
@@ -118,9 +128,9 @@ describe("Disable — via RowMenu, confirm-gated", () => {
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(true);
     expect(fetchMock.mock.calls[1][0]).toBe("/api/admin/v1/workspaces/workspace-local/members/m1/disable");
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
-    await screen.findByText("Disabled");
     const aliceRow = screen.getByText("alice@example.com").closest("tr")!;
     const bobRow = screen.getByText("bob@example.com").closest("tr")!;
+    await within(aliceRow).findByText("Disabled");
     expect(within(aliceRow).getByText("Disabled")).toBeInTheDocument();
     expect(within(bobRow).getByText("Active")).toBeInTheDocument();
     expect(dialog).not.toHaveAttribute("open");

@@ -139,9 +139,10 @@ describe("data-agent-page reports the published page id, not the sidebar row", (
        * not by an agent — and reporting where you are is not the same as advertising somewhere to
        * go.
        *
-       * What must hold is the round trip: if an agent CAN navigate somewhere, arriving has to report
-       * the id it asked for. Otherwise `page.navigate` returns an `after` contradicting its own
-       * `navigatedTo`, which is exactly the `widget-regions` bug.
+       * What must hold is the round trip for each current page. The retired `integrations` index
+       * is the one compatibility alias: 065c3d395 merged it into `providers`, and 951ef5a06 moved
+       * its destination under Add-ons while keeping the Webhooks tab. It must report the merged
+       * page's exact id; every other page keeps the id it asked for, including `widget-regions`.
        *
        * Asserted against the parser rather than by rendering, unlike the cases above. Rendering all
        * ~25 published screens would make this a test of every screen's data-fetching shape — one
@@ -150,7 +151,14 @@ describe("data-agent-page reports the published page id, not the sidebar row", (
        * more about routing. The rendered cases above already pin that `agentPageId` is what reaches
        * `data-agent-page`; this pins the mapping across every entry.
        */
-      expect(agentPageId(parseRoute(routePath))).toBe(pageId);
+      const route = parseRoute(routePath);
+      expect(agentPageId(route)).toBe(pageId === "integrations" ? "providers" : pageId);
+      if (pageId === "integrations") {
+        expect(routePath).toBe("/addons/integrations?tab=webhooks");
+        expect(route.panelId).toBe("providers");
+        expect(route.query.get("tab")).toBe("webhooks");
+        expect(route.redirectPath).toBeUndefined();
+      }
     },
   );
 });
