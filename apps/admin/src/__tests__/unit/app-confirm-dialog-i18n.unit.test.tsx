@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
+import { appShellApiBody } from "../app-shell-api.fixture";
 
 /**
  * @file Owner decision, 2026-09-21 (option A): Jini's shared `ConfirmDialog` hard-codes its Cancel
@@ -42,12 +43,12 @@ beforeEach(() => {
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input.toString();
     // Only the language namespace needs a non-empty answer — every other settings/session fetch
-    // this harness's mounted `App` triggers degrades harmlessly to an empty response, same as
+    // this harness's mounted `App` triggers gets its empty payload in the real API shape, same as
     // `app-logout-confirm.unit.test.tsx`'s blanket stub.
     if (url.includes("/settings/effective") && url.includes("namespace=core.language")) {
       return settingsEffectiveResponse([{ key: "locale", value: "de" }]);
     }
-    return new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(appShellApiBody({ url })), { status: 200, headers: { "content-type": "application/json" } });
   });
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal(
@@ -76,7 +77,9 @@ function fakeSession(): UseAdminSession {
 
 it("translates the logout confirm's Cancel button under a non-English locale", async () => {
   const user = userEvent.setup();
-  render(<App useSession={() => fakeSession()} />);
+  // Availability reads belong to a stable session object, just like useAdminSession's result.
+  const session = fakeSession();
+  render(<App useSession={() => session} />);
 
   // `navLocale` starts at `DEFAULT_LOCALE` and updates once the stubbed fetch above resolves — see
   // `useAdminLocale`'s own doc comment. Waiting on the translated nav label (already covered

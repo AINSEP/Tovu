@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
+import { appShellApiBody } from "../app-shell-api.fixture";
 
 /**
  * @file Owner-requested (2026-08-31): "people may click [Log out] by accident, so it should ask
@@ -29,7 +30,7 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn(
-    async () => new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } }),
+    async (url: string) => new Response(JSON.stringify(appShellApiBody({ url: String(url) })), { status: 200, headers: { "content-type": "application/json" } }),
   );
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal(
@@ -63,7 +64,8 @@ function getLogoutDialog(): HTMLElement {
 it("clicking the sidebar's Log out opens the confirmation dialog without logging out", async () => {
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
-  render(<App useSession={() => fakeSession(logout)} />);
+  const session = fakeSession(logout);
+  render(<App useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
 
@@ -74,7 +76,8 @@ it("clicking the sidebar's Log out opens the confirmation dialog without logging
 it("Cancel closes the dialog and never calls the real logout", async () => {
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
-  render(<App useSession={() => fakeSession(logout)} />);
+  const session = fakeSession(logout);
+  render(<App useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
@@ -91,7 +94,8 @@ it("Cancel closes the dialog and never calls the real logout", async () => {
 it("the native cancel event (what a real browser fires on Escape) closes the dialog without logging out", async () => {
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
-  render(<App useSession={() => fakeSession(logout)} />);
+  const session = fakeSession(logout);
+  render(<App useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
@@ -105,7 +109,8 @@ it("the native cancel event (what a real browser fires on Escape) closes the dia
 it("Confirm — the only path that logs out — calls the real logout", async () => {
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
-  render(<App useSession={() => fakeSession(logout)} />);
+  const session = fakeSession(logout);
+  render(<App useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
@@ -119,7 +124,8 @@ it("Confirm — the only path that logs out — calls the real logout", async ()
 it("the confirm action is not the default-focused element — focus opens on Cancel", async () => {
   const logout = vi.fn(async () => {});
   const user = userEvent.setup();
-  render(<App useSession={() => fakeSession(logout)} />);
+  const session = fakeSession(logout);
+  render(<App useSession={() => session} />);
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
   const dialog = getLogoutDialog();
