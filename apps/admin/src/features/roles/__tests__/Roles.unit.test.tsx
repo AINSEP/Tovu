@@ -272,6 +272,26 @@ describe("inline role rename", () => {
   });
 });
 
+describe("inline policy rename", () => {
+  it("offers Save and Cancel instead of the policy menu while renaming", async () => {
+    const user = userEvent.setup();
+    const controller = renderRoles({
+      editingPolicyId: CUSTOM_POLICY.id,
+      editingPolicyName: "Renamed Policy",
+      editingPolicyDescription: "Updated description",
+    }, POLICIES_TAB);
+
+    expect(screen.getByDisplayValue("Renamed Policy")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Updated description")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /actions for policy/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(controller.onSavePolicy).toHaveBeenCalledWith(CUSTOM_POLICY.id);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(controller.setEditingPolicyId).toHaveBeenCalledWith(null);
+    expect(controller.onSavePolicy).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("inline permission form", () => {
   it("renders the Permission/resource-type inputs only for the policy whose id matches permissionPolicyId", () => {
     const otherPolicy: AdminPolicy = { ...CUSTOM_POLICY, id: "p-other", name: "Other Policy" };

@@ -38,6 +38,7 @@ describe("useSiteKey", () => {
     const port = makePort();
     const { result, rerender } = await mount(port);
     expect(port.status).toHaveBeenCalledTimes(1);
+    expect(result.current.loadError).toBeNull();
     expect(result.current.revealedHex).toBeNull();
     expect(port.reveal).not.toHaveBeenCalled();
     rerender();

@@ -35,6 +35,20 @@ async function open(api: CopyKeysPort, startSite?: (input: { id: string }) => Pr
 afterEach(() => vi.restoreAllMocks());
 
 describe("CopyKeysDialog", () => {
+  it("stays hidden until opened and closes when cancelled", async () => {
+    const api = port();
+    const user = userEvent.setup();
+    render(<Harness api={api} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await screen.findByRole("option", { name: "Alpha" });
+    expect(screen.getByRole("dialog", { name: "Copy keys from another project…" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("clears selected keys and results when the source changes; overwrite starts unchecked", async () => {
     const api = port();
     const { user } = await open(api);

@@ -468,6 +468,20 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     expect(port.policies).toEqual([POLICY]);
   });
 
+  it("opens a policy without a description with an empty description draft", async () => {
+    const { description: _description, ...fields } = POLICY;
+    const policy = { ...fields, id: "p2", name: "No description" };
+    const port = createFakeRolesPort({ policies: [POLICY, policy] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).not.toBeNull());
+    act(() => result.current.startEditPolicy(POLICY));
+    expect(result.current.editingPolicyDescription).toBe("d");
+
+    act(() => result.current.startEditPolicy(policy));
+
+    expect(result.current.editingPolicyDescription).toBe("");
+  });
+
   it("onSavePolicy persists both edited fields, closes the edit row, and reloads", async () => {
     const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useRoles({ port }), { wrapper });
@@ -800,6 +814,32 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     expect(result.current.permissionPolicyId).toBe(otherPolicy.id);
     expect(result.current.permissionRows).toHaveLength(1);
     expect(result.current.permissionRows[0]!.policyId).toBe(otherPolicy.id);
+  });
+
+  it("keeps the current panel's permissions and error state when a stale load fails", async () => {
+    const otherPolicy = { ...POLICY, id: "p2", name: "Other" };
+    const rows: AdminPolicyPermission[] = [{
+      id: "other-perm", workspaceId: "w1", policyId: otherPolicy.id,
+      permission: "other.read", resourceType: null, constraintJson: null,
+    }];
+    const port = createFakeRolesPort({ policies: [POLICY, otherPolicy], initialPolicyPermissions: rows });
+    const listPermissions = port.listPolicyPermissions.bind(port);
+    let rejectOld!: (reason: Error) => void;
+    port.listPolicyPermissions = (policyId) => policyId === POLICY.id
+      ? new Promise((_resolve, reject) => { rejectOld = reject; })
+      : listPermissions(policyId);
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).not.toBeNull());
+    act(() => result.current.togglePermissionForm(POLICY.id));
+    await act(async () => result.current.togglePermissionForm(otherPolicy.id));
+    expect(result.current.permissionRows).toEqual(rows);
+
+    await act(async () => { rejectOld(new Error("stale permission load failed")); });
+
+    expect(result.current.permissionPolicyId).toBe(otherPolicy.id);
+    expect(result.current.permissionRows).toEqual(rows);
+    expect(result.current.rowError).toBeNull();
+    expect(result.current.permissionsLoading).toBe(false);
   });
 
   // `onSaveRole` had no guard against its settle-time `editingRoleId`/`rowSavingId` writes closing a

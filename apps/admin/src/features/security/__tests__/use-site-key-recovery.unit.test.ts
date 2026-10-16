@@ -88,6 +88,23 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
 });
 
 describe("useSiteKeyRecovery — Start fresh", () => {
+  it("reports completion without receiver-update instructions when no webhooks were affected", async () => {
+    const port = makePort({
+      previewStartFresh: vi.fn(async () => ({ ...PREVIEW, affectedWebhooks: [], detail: "2 saved credentials can't be unlocked and will be removed." })),
+      startFresh: vi.fn(async () => ({
+        outcome: "started-fresh" as const, fingerprint: "fp2", keyFilePath: "/k", discarded: 2, kept: 0, restorePointId: "rp-1",
+        affectedWebhooks: [], runtimeMode: "local" as const,
+      })),
+    });
+    const { result } = renderHook(() => useSiteKeyRecovery(port, t, vi.fn()));
+
+    await act(async () => result.current.openStartFresh());
+    act(() => result.current.setConfirmText("START FRESH"));
+    await act(async () => result.current.startFresh());
+
+    expect(result.current.resultMessage).toBe("Done. Re-enter any credentials that were removed.");
+  });
+
   it("loads the preview first, confirms only on the exact phrase, then names the affected webhooks", async () => {
     const port = makePort();
     const onRecovered = vi.fn(async () => {});

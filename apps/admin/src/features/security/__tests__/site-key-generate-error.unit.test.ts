@@ -43,4 +43,8 @@ describe("classifySiteKeyGenerateError", () => {
   it("a non-ApiError → 'generic'", () => {
     expect(classifySiteKeyGenerateError(new Error("boom"), t)).toEqual({ kind: "generic", detail: "boom" });
   });
+
+  it("classifies a null rejection as a generic failure with the unknown-error fallback", () => {
+    expect(classifySiteKeyGenerateError(null, t)).toEqual({ kind: "generic", detail: "unknown error" });
+  });
 });

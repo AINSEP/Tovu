@@ -96,6 +96,13 @@ describe("SiteKeyTab — 'no key yet' copy is terse and true (site-key plan item
     expect(screen.queryByText(/Generating one saves it to/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No key has been created yet\./)).not.toBeInTheDocument();
   });
+
+  it("does not offer Reveal when no key is active", () => {
+    renderTab(NO_KEY_STATUS);
+
+    expect(screen.getByRole("heading", { name: "Site key" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reveal" })).not.toBeInTheDocument();
+  });
 });
 
 /** sol packet-3 finding 3-1: the Generate button used to show whenever `!status.active`, which
@@ -128,6 +135,12 @@ describe("SiteKeyTab — Generate gating (sol finding 3-1)", () => {
     runtimeMode: "production",
     state: "invalid",
   };
+
+  it("marks an invalid key as a warning", () => {
+    renderTab(INVALID_FILE_STATUS);
+
+    expect(screen.getByText("None")).toHaveClass("status-warning");
+  });
 
   it("hides Generate even when there is no key at all — site-key plan §A.6: kept but hidden by default", () => {
     renderTab(NO_KEY_STATUS);
