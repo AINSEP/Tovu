@@ -173,3 +173,8 @@
   font-size: var(--text-xs); font-weight: 500; line-height: 1.6;
 }
 .select-option-badge::first-letter { text-transform: uppercase; }
+/* Secondary text after a label — e.g. the slug that tells two same-titled entries apart. */
+.select-option-detail {
+  min-width: 0; margin-right: auto; color: var(--muted); font-size: var(--text-xs); font-weight: 400;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

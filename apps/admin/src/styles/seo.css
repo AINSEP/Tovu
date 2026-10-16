@@ -261,7 +261,8 @@
    like a separate screen. Same face as the rail titles, one step down (0.95rem), so the three tiers
    on this tab now descend: page title 26.4px -> section 16.8px -> subsection 15.2px. */
 .jini-seo-entry-panel > h3,
-.jini-seo-analyze-panel > h3 {
+.jini-seo-entry-head-bar > h3,
+.jini-seo-analyze-head > h3 {
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
@@ -293,6 +294,40 @@
 .jini-seo-analyze-panel .jini-status-failure { background: var(--danger-bg); color: var(--danger); }
 .jini-seo-analyze-panel .jini-status-unavailable { background: var(--surface-3); color: var(--muted); }
 .jini-seo-analyze-panel .jini-status-success { background: var(--ok-bg); color: var(--ok); }
+.jini-seo-analyze-panel .jini-status-warning { background: var(--warning-bg); color: var(--warning); }
+
+/* 2026-10-15 (owner: "Score: 100 / No issues." was unstyled text): heading and score pill share
+   one line, issues sit in a short list, and the all-clear is one muted line. */
+.jini-seo-analyze-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.jini-seo-analyze-head > h3 { margin: 0; }
+.jini-seo-analyze-panel .jini-seo-score { font-weight: 500; }
+.jini-seo-analyze-panel .jini-seo-score strong { font-weight: 700; }
+.jini-seo-analyze-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.jini-seo-issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jini-seo-issue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+.jini-seo-issue > .jini-status { flex: none; }
 
 /* One label style across the defaults and entry forms also preserves the literal %s token. */
 .jini-seo-page .jini-field-label,
@@ -342,6 +377,11 @@
      the post editor's action row does the same (`top: calc(-1 * var(--space-4))`). */
   top: -2rem;
   z-index: 3;
+  /* Lets the bar below know when this row is pinned (`scroll-state(stuck: top)`); a browser
+     without it simply never paints the pinned edge. */
+  container-type: scroll-state;
+}
+.jini-seo-entry-head-bar {
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -349,8 +389,23 @@
   /* The pane behind it is `.admin-layout`'s `--jini-bg`, not `--bg` — the two differ in dark mode
      and `--bg` painted a darker strip across the page. */
   background: var(--jini-bg);
+  /* Transparent at rest so pinning adds no height and nothing shifts. */
+  border-bottom: 1px solid transparent;
 }
-.jini-seo-entry-head > h3 { margin: 0; }
+/* Pinned: fields scrolling under the row read as sliced labels with no edge between them (owner,
+   2026-10-15). A hairline plus a short shadow says "this row floats over the form" — only while
+   stuck, so at rest the heading sits in the page like every other section heading. */
+@container scroll-state(stuck: top) {
+  .jini-seo-entry-head-bar {
+    border-bottom-color: var(--border);
+    box-shadow: 0 6px 8px -6px rgb(0 0 0 / 0.14);
+  }
+}
+.jini-seo-entry-head-bar > h3 { margin: 0; }
+/* At 375px the heading and the button each wrapped to two lines; both stay on one line, and the
+   heading gives way (ellipsis) before the button does. */
+.jini-seo-entry-head-bar > h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jini-seo-entry-head-actions .jini-btn { white-space: nowrap; }
 .jini-seo-entry-head-actions { margin-left: auto; }
 
 .jini-seo-entry-group {
