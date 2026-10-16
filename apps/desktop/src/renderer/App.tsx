@@ -3,7 +3,7 @@ import { useTabStrip } from './use-tab-strip.hooks.js';
 import { ConversationList } from '@jini-ai/chat/react';
 import { ChatPane } from '@jini-ai/chat/react/chat-pane';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
-import { GearIcon, NavIcon, SectionIcon } from './icons.js';
+import { GearIcon, MenuIcon, NavIcon, SectionIcon } from './icons.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
   appPresentation,
@@ -13,6 +13,7 @@ import {
   settingsControlHandlers,
   startThenNotify,
   useDismissibleDropdown,
+  useMenuKeyboard,
   useExpandedMode,
   useProjectMutations,
   useSiteStart,
@@ -398,8 +399,9 @@ function NavLink({
   );
 }
 
-/** Gear icon that opens a small dropdown holding appearance (Light/System/Dark) — the one
- *  setting Runner has today. Closes on selection or on a click/tap outside the dropdown. */
+/** Gear icon that opens the Settings menu: two rows that open a screen (Sites settings…, Appearance)
+ *  and an inline Theme switch, the one setting worth changing without leaving the menu. Closes on
+ *  selection or on a click/tap outside the dropdown; arrow keys move between entries. */
 function SettingsControl({
   theme,
   onThemeChange,
@@ -410,6 +412,7 @@ function SettingsControl({
   onOpenAppearance: () => void;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
+  const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
   const sitesSettings = useSiteStorageSettings({});
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
@@ -425,6 +428,7 @@ function SettingsControl({
     <>
     <div className="settings" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={`topnav__link ${open ? 'is-active' : ''} ${disabled ? 'topnav__link--disabled' : ''}`}
         onClick={toggleOpen}
@@ -438,25 +442,25 @@ function SettingsControl({
         <GearIcon />
       </button>
       {open && (
-        <div className="settings__dropdown" role="menu">
-          <button type="button" role="menuitem" onClick={() => { setOpen(false); sitesSettings.show(); }}>Sites settings</button>
-          <ThemeControl
-            value={theme}
-            onChange={chooseTheme}
-          />
-          {/* The quick pills above change the setting inline; this opens the real page for it —
+        <div className="settings__dropdown" role="menu" aria-label="Settings" ref={menuRef} onKeyDown={onMenuKeyDown}>
+          <button type="button" role="menuitem" className="settings__item" onClick={() => { setOpen(false); sitesSettings.show(); }}>
+            <MenuIcon kind="folder" />
+            <span className="settings__label">Sites settings…</span>
+          </button>
+          {/* The Theme switch below changes the setting inline; this opens the real page for it —
               same relationship a form field has to "Advanced settings" elsewhere in the app. */}
-          <button
-            type="button"
-            role="menuitem"
-            className="settings__pagelink"
-            onClick={openAppearancePage}
-          >
-            Appearance
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <button type="button" role="menuitem" className="settings__item" onClick={openAppearancePage}>
+            <MenuIcon kind="appearance" />
+            <span className="settings__label">Appearance</span>
+            <svg className="settings__chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+          <div className="settings__sep" role="separator" />
+          <div className="settings__row">
+            <span className="settings__label" id="settings-theme-label">Theme</span>
+            <ThemeControl value={theme} onChange={chooseTheme} />
+          </div>
         </div>
       )}
     </div>
@@ -1230,19 +1234,27 @@ function ThemeControl({
   value: ThemePreference;
   onChange: (next: ThemePreference) => void;
 }) {
+  // Icon-only segments inside the Settings menu: menu radios, so the arrow keys reach them like the
+  // rows above, with the name in `aria-label` and the visible `data-tip`.
   return (
-    <div className="themer" role="group" aria-label="Appearance">
-      {THEMES.map((option) => (
-        <button
-          type="button"
-          key={option}
-          className={`themer__opt ${option === value ? 'is-on' : ''}`}
-          onClick={() => onChange(option)}
-          aria-pressed={option === value}
-        >
-          {option === 'light' ? 'Light' : option === 'system' ? 'System' : 'Dark'}
-        </button>
-      ))}
+    <div className="themer" role="group" aria-labelledby="settings-theme-label">
+      {THEMES.map((option) => {
+        const label = option === 'light' ? 'Light' : option === 'system' ? 'System' : 'Dark';
+        return (
+          <button
+            type="button"
+            key={option}
+            role="menuitemradio"
+            className={`themer__opt ${option === value ? 'is-on' : ''}`}
+            onClick={() => onChange(option)}
+            aria-checked={option === value}
+            aria-label={label}
+            data-tip={label}
+          >
+            <MenuIcon kind={option} />
+          </button>
+        );
+      })}
     </div>
   );
 }

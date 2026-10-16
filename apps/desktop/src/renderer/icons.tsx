@@ -200,3 +200,48 @@ export function NavIcon({ kind }: { kind: NavIconKind }) {
     </svg>
   );
 }
+
+export type MenuIconKind = 'folder' | 'appearance' | 'light' | 'system' | 'dark';
+
+/** The Settings menu's glyphs: a leading icon per row, and the three theme choices. Same 20-unit
+ *  frame and stroke as the nav, so the menu reads as part of the bar that opened it. */
+const menuPaths: Record<MenuIconKind, JSX.Element> = {
+  folder: <path d="M2.8 6.2a1.4 1.4 0 0 1 1.4-1.4h3.4l1.6 1.8h6.6a1.4 1.4 0 0 1 1.4 1.4v6.8a1.4 1.4 0 0 1-1.4 1.4H4.2a1.4 1.4 0 0 1-1.4-1.4z" />,
+  // Half-filled disc: "how it looks", the usual contrast/appearance mark.
+  appearance: (
+    <>
+      <circle cx="10" cy="10" r="6.6" />
+      <path d="M10 3.4a6.6 6.6 0 0 1 0 13.2z" fill="currentColor" />
+    </>
+  ),
+  light: (
+    <>
+      <circle cx="10" cy="10" r="3.2" />
+      <path d="M10 2.6v1.6M10 15.8v1.6M2.6 10h1.6M15.8 10h1.6M4.8 4.8l1.1 1.1M14.1 14.1l1.1 1.1M4.8 15.2l1.1-1.1M14.1 5.9l1.1-1.1" />
+    </>
+  ),
+  system: (
+    <>
+      <rect x="2.8" y="3.8" width="14.4" height="9.6" rx="1.4" />
+      <path d="M7.2 16.6h5.6M10 13.4v3.2" />
+    </>
+  ),
+  dark: <path d="M16.2 12.2A6.6 6.6 0 0 1 7.8 3.8a6.6 6.6 0 1 0 8.4 8.4z" />,
+};
+
+export function MenuIcon({ kind }: { kind: MenuIconKind }) {
+  return (
+    <svg
+      className="icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {menuPaths[kind]}
+    </svg>
+  );
+}

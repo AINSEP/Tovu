@@ -203,12 +203,14 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
     useDismissibleDropdown: () => ({ open: menuOpen, setOpen: (value: boolean) => { menuOpen = value; }, containerRef: {} }),
     useSiteStorageSettings: () => settings, navAvailability: () => ({}),
     settingsControlHandlers: () => ({ toggleOpen() {}, chooseTheme() {}, openAppearancePage() {} }),
-    GearIcon: () => null, ThemeControl: () => null,
+    GearIcon: () => null, ThemeControl: () => null, MenuIcon: () => null,
+    useMenuKeyboard: () => ({ menuRef: {}, triggerRef: {}, onMenuKeyDown() {} }),
     SitesFoldersDialog: ({ settings: state }: any) => state.open ? createElement('div', { role: 'dialog', 'data-placement': state.databases }) : null,
   });
   const props = { theme: 'system', onThemeChange() {}, onOpenAppearance() {} };
   const initial = elements(component(props));
-  initial.find((node) => node.props.role === 'menuitem' && node.props.children === 'Sites settings').props.onClick();
+  const label = (node: any) => [node.props.children].flat().find((child: any) => child?.props?.className === 'settings__label')?.props.children;
+  initial.find((node) => node.props.role === 'menuitem' && label(node) === 'Sites settings…').props.onClick();
   assert.equal(menuOpen, false);
   const next = elements(component(props));
   assert.equal(next.some((node) => node.props.role === 'menu'), false);

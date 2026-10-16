@@ -30,6 +30,7 @@ import {
   appPresentation,
   computeCanCreate,
   countRunningSites,
+  menuFocusIndex,
   navLinkClick,
   performSiteStart,
   settingsControlHandlers,
@@ -87,6 +88,69 @@ test("the dropdown effect closes on outside pointerdown, preserves inside clicks
     assert.equal(handlers.get("pointerdown")?.size, 1);
   } finally { harness.cleanup(); }
   assert.equal(handlers.get("pointerdown")?.size, 0);
+});
+
+test("menu arrow keys wrap at both ends, Home/End jump, and other keys are left alone", () => {
+  const at = (key: string, current: number) => menuFocusIndex({ key, current, count: 5 });
+  assert.equal(at("ArrowDown", -1), 0);
+  assert.equal(at("ArrowDown", 1), 2);
+  assert.equal(at("ArrowDown", 4), 0);
+  assert.equal(at("ArrowUp", 0), 4);
+  assert.equal(at("ArrowUp", -1), 4);
+  assert.equal(at("ArrowUp", 3), 2);
+  assert.equal(at("Home", 3), 0);
+  assert.equal(at("End", 0), 4);
+  assert.equal(at("Enter", 2), null);
+  assert.equal(at("Tab", 2), null);
+  assert.equal(menuFocusIndex({ key: "ArrowDown", current: -1, count: 0 }), null);
+});
+
+test("the Settings menu focuses its first entry on open, moves with the arrows, and hands focus back on close", () => {
+  const harness = hookHarness();
+  const focused: string[] = [];
+  const entry = (name: string) => ({ name, focus() { focused.push(name); document.activeElement = this; } });
+  const entries = [entry("sites"), entry("appearance"), entry("light")];
+  const body = { name: "body" };
+  const document: { body: unknown; activeElement: unknown } = { body, activeElement: body };
+  const menu = {
+    querySelector: () => entries[0],
+    querySelectorAll: () => entries,
+    contains: (node: unknown) => entries.includes(node as never),
+  };
+  const trigger = { focus() { focused.push("trigger"); document.activeElement = trigger; } };
+  const menuRef = { current: menu as unknown };
+  const refs = [menuRef, { current: trigger }];
+  let refCall = 0;
+  const hook = sourceFunction(readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8"), "useMenuKeyboard", {
+    ...harness.bindings, useRef: () => refs[refCall++ % 2], document, menuFocusIndex, MENU_ENTRIES: "[role]",
+  });
+  const render = (open: boolean) => harness.render(() => hook({ open }));
+  try {
+    render(false);
+    assert.deepEqual(focused, []);
+    const { onMenuKeyDown } = render(true);
+    assert.deepEqual(focused, ["sites"]);
+    let prevented = 0;
+    const key = (k: string) => onMenuKeyDown({ key: k, preventDefault() { prevented++; } });
+    key("ArrowUp");
+    key("ArrowDown");
+    key("Enter");
+    assert.deepEqual(focused, ["sites", "light", "sites"]);
+    assert.equal(prevented, 2);
+    // Choosing an entry unmounts it, so focus has fallen to <body>: it goes back to the gear.
+    document.activeElement = body;
+    menuRef.current = null;
+    render(false);
+    assert.equal(focused.at(-1), "trigger");
+    // A click on something else moved focus on purpose; closing must not steal it back.
+    menuRef.current = menu;
+    render(true);
+    const elsewhere = {};
+    document.activeElement = elsewhere;
+    menuRef.current = null;
+    render(false);
+    assert.equal(document.activeElement, elsewhere);
+  } finally { harness.cleanup(); }
 });
 
 test("siteSlug keeps its existing behaviour for plain ASCII names", () => {
