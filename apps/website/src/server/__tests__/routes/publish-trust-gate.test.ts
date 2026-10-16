@@ -167,7 +167,6 @@ async function directGateFixture(
   const key = await sourceKey();
   const parsed = parseGrantDocument(grantDocument(key.publicKeyB64u));
   assert.equal(parsed.ok, true);
-  if (!parsed.ok) throw new Error(parsed.reason);
   const resolution: PublishTrustResolution = { state: "configured", origin: "env", grants: parsed.grants, reason: null };
   const deps: PublishTrustAuthDeps = {
     keyring: testKeyring(ATTACKER_ROOT),

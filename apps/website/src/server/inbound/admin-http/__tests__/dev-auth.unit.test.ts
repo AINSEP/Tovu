@@ -29,7 +29,7 @@ test("getAuthedPrincipal throws the wiring error when absent and returns the att
     status: "active",
     createdAt: "2026-10-15T12:00:00.000Z",
   };
-  assert.strictEqual(getAuthedPrincipal({ locals: { principal } } as Response), principal);
+  assert.strictEqual(getAuthedPrincipal({ locals: { principal } } as unknown as Response), principal);
 });
 
 // Pins dev-auth.ts:326 — a missing credential kind is a route-wiring error.
@@ -37,7 +37,7 @@ test("getAuthedCredentialKind throws the wiring error when absent and returns th
   assert.throws(() => getAuthedCredentialKind({ locals: {} } as Response), {
     message: "getAuthedCredentialKind: no credential kind on res.locals — requireAdminSession must run before this route",
   });
-  assert.equal(getAuthedCredentialKind({ locals: { authCredentialKind: "api_key" } } as Response), "api_key");
+  assert.equal(getAuthedCredentialKind({ locals: { authCredentialKind: "api_key" } } as unknown as Response), "api_key");
 });
 
 // Pins dev-auth.ts:273 — absent/non-key Authorization must stop before API-key parsing.
