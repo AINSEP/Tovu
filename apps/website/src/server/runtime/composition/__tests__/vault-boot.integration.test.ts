@@ -249,6 +249,57 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     } finally { await kernel.close(); }
   });
 
+  test(`${dialect}: a row deleted after the identities query aborts boot with a conflict`, async () => {
+    const { kernel, input, repo } = await prepared(dialect);
+    const query = kernel.query.bind(kernel);
+    try {
+      const original = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      let intervened = false;
+      kernel.query = async <Row>(statement: import("kysely").RawBuilder<Row>): Promise<Row[]> => {
+        const rows = await query(statement);
+        if (!intervened) {
+          intervened = true;
+          // The first query lists identities; delete before the repository hydrates them.
+          await kernel.execute(sql`DELETE FROM secrets_vault WHERE workspace_id='ws' AND id='custom'`);
+        }
+        return rows;
+      };
+      const reports: unknown[] = [];
+      await assert.rejects(normalizeVaultAtBoot(input, { report: report => reports.push(report) }),
+        { message: "vault normalization: conflict" });
+      assert.equal(intervened, true);
+      assert.deepEqual(reports, [], "an aborted transaction must not emit a green report");
+      assert.deepEqual(await repo.find({ workspaceId: "ws", id: "custom" }), original, "the deletion is rolled back");
+      assert.equal(isOperationInFlight({ siteId: input.siteId }), false);
+    } finally { kernel.query = query; await kernel.close(); }
+  });
+
+  test(`${dialect}: an unexpected row-level storage error propagates and rolls back boot`, async () => {
+    const { kernel, input } = await prepared(dialect);
+    const query = kernel.query.bind(kernel);
+    try {
+      const original = await query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`);
+      const failure = new Error("unexpected storage failure");
+      let intervened = false;
+      kernel.query = async <Row>(statement: import("kysely").RawBuilder<Row>): Promise<Row[]> => {
+        const rows = await query(statement);
+        // A single ID is the normalization CAS result, not the initial identity list.
+        if (rows.length === 1 && rows.some(row => row !== null && typeof row === "object" &&
+          "id" in row && row.id === "custom" && Object.keys(row).length === 1)) {
+          intervened = true;
+          throw failure;
+        }
+        return rows;
+      };
+      const reports: unknown[] = [];
+      await assert.rejects(normalizeVaultAtBoot(input, { report: report => reports.push(report) }), error => error === failure);
+      assert.equal(intervened, true);
+      assert.deepEqual(reports, []);
+      assert.deepEqual(await query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`), original);
+      assert.equal(isOperationInFlight({ siteId: input.siteId }), false);
+    } finally { kernel.query = query; await kernel.close(); }
+  });
+
   test(`${dialect}: moved rows with a free label keep it and respect the target default`, async () => {
     for (const targetHasDefault of [true, false]) {
       const { kernel, input, repo } = await prepared(dialect);
@@ -263,6 +314,8 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         const moved = (await repo.find({ workspaceId: "ws", id: legacyRow.id }))!;
         assert.equal(moved.label, "Free label");
         assert.equal(moved.provider, "vendor-test");
+        assert.equal((moved.meta.migration as VaultMeta).mappedProvider, "vendor-test");
+        assert.equal((moved.meta.migration as VaultMeta).mappedLabel, "Free label");
         assert.equal(moved.isDefault, !targetHasDefault);
         assert.equal(moved.meta.legacyAad, undefined);
         assert.deepEqual(JSON.parse(await input.sealer.open({ sealed: moved.sealed! }, { aad: buildVaultAad(moved) })),
@@ -435,6 +488,46 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.equal((await repo.find({ workspaceId: "ws", id: "custom" }))!.meta.normalization, undefined);
     } finally { await kernel.close(); }
   });
+
+  test(`${dialect}: a current envelope containing a JSON array is flagged unopenable and retained`, async () => {
+    const { kernel, input, repo, keyring, sealer } = await prepared(dialect);
+    try {
+      assert.equal((await normalizeVaultAtBoot(input)).green, true);
+      const original = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      const sealed = await sealer.seal({ plaintext: "[]", key: await keyring.activeKey({}), aad: buildVaultAad(original) });
+      const invalid = await repo.put({ expectedRevision: original.revision,
+        record: { ...original, sealed, revision: original.revision + 1 } });
+      const report = await normalizeVaultAtBoot(input);
+      assert.equal(report.green, false);
+      assert.deepEqual(report.flagged, [{ id: "custom", kind: "custom", reason: "unopenable" }]);
+      assert.equal(report.kinds.custom.blocked, 1);
+      assert.equal(report.kinds.custom.unopenable, 1);
+      assert.equal(report.kinds.custom.legacyRemaining, 0);
+      const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      assert.equal(row.meta.normalization, "unopenable");
+      assert.deepEqual(row.sealed, invalid.sealed);
+    } finally { await kernel.close(); }
+  });
+
+  test(`${dialect}: a legacy JSON array is flagged invalid-meta and keeps its original envelope`, async () => {
+    const { kernel, input, repo, keyring, sealer } = await prepared(dialect);
+    try {
+      const original = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      const legacy = original.meta.legacyAad as unknown as VaultLegacyContext;
+      const sealed = await sealer.seal({ plaintext: "[]", key: await keyring.activeKey({}), aad: legacyVaultAad({ record: original, legacy })! });
+      const invalid = await repo.put({ expectedRevision: original.revision,
+        record: { ...original, sealed, revision: original.revision + 1 } });
+      const report = await normalizeVaultAtBoot(input);
+      assert.equal(report.green, false);
+      assert.deepEqual(report.flagged, [{ id: "custom", kind: "custom", reason: "invalid-meta" }]);
+      assert.equal(report.kinds.custom.blocked, 1);
+      assert.equal(report.kinds.custom.legacyRemaining, 1);
+      const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
+      assert.equal(row.meta.normalization, "invalid-meta");
+      assert.deepEqual(row.sealed, invalid.sealed);
+      assert.deepEqual(row.meta.legacyAad, original.meta.legacyAad);
+    } finally { await kernel.close(); }
+  });
 }
 
 test("Tovu parsers call injected policy on reads/complete patches, retain provenance, and reject unsafe metadata", () => {
@@ -452,6 +545,7 @@ test("Tovu parsers call injected policy on reads/complete patches, retain proven
 });
 
 test("legacy codec checks versions, personal/MCP identity and exact peer version format", () => {
+  assert.equal(buildPublishContentPeerAad({ workspaceId: "ws", id: "peer" }), "publish-content-peer:v1:ws:peer");
   assert.equal(buildPublishContentPeerAad({ workspaceId: "ws", id: "peer", aadVersion: 2 }), "publish-content-peer:v2:ws:peer");
   const record = { workspaceId: "ws", kind: "personal-execution", principalId: "p", provider: "provider", ownerKey: "tovu" } as Parameters<typeof legacyVaultAad>[0]["record"];
   const legacy: VaultLegacyContext = { table: "admin_execution_credentials", workspaceId: "ws", id: "ws", principalId: "p", provider: "provider", serverId: null, aadVersion: 1 };

@@ -89,7 +89,7 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
   const group = await targetGroup({ input, record, provider });
   if (group === null) return null;
   let plaintext: string | null = null;
-  let key: SiteKeyHandle | undefined;
+  let key!: SiteKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
   if (record.sealed) {
     try { key = await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
     try { plaintext = await previous.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, legacy }) }); }
@@ -113,7 +113,6 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
   const replacement: VaultRecord = { ...record, ...group, provider: normalized.provider, meta,
     revision: record.revision + 1, updatedAt: new Date(input.clock.nowMs()).toISOString(), last4: null, tokenLength: null };
   if (normalized.payload !== null) {
-    if (!key) throw new RowBlocked("missing-key");
     const payloadText = JSON.stringify(normalized.payload);
     const aad = buildVaultAad(replacement);
     try {
@@ -186,7 +185,6 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
         let record = await repo.find({ workspaceId: input.workspaceId, id });
         if (!record) throw new RowBlocked("conflict");
         const coverage = report.kinds[record.kind];
-        if (!coverage) throw new RowBlocked("invalid-meta");
         coverage.rows += 1;
         if (record.sealed) coverage.envelopes += 1;
         const hasLegacy = record.meta.legacyAad !== undefined;

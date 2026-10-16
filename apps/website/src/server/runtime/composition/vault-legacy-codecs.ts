@@ -412,7 +412,7 @@ export function legacyVaultAad({ record, legacy }: { record: VaultRecord; legacy
 }
 
 /** Resolve the target provider and legacy token field from the host catalog without crypto.
- * Non-publish rows retain their provider; callers decide whether the row needs normalization.
+ * Callers pass publish_credential_sets rows only.
  * @throws Error("VAULT_CATALOG_UNAVAILABLE") when the legacy publish catalog has no spec.
  * @complexity O(1) time/space plus one injected catalog lookup for publish rows; no I/O.
  * @example const { provider } = legacyTargetProvider({ record, legacy, policy });
@@ -421,7 +421,6 @@ export function legacyTargetProvider(
   { record, legacy, policy }: { record: VaultRecord; legacy: VaultLegacyContext; policy: TovuVaultPolicy },
   _options: VaultOptions = {},
 ): { provider: string | null; tokenField?: string } {
-  if (legacy.table !== "publish_credential_sets") return { provider: record.provider };
   const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider! });
   if (!spec) throw new Error("VAULT_CATALOG_UNAVAILABLE");
   return { provider: spec.vendorId, tokenField: spec.tokenField };
