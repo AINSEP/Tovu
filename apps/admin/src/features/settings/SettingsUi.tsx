@@ -375,7 +375,7 @@ export function SettingsUi(props: SettingsUiProps) {
       panel: (
         <>
           <AdminByokMigrationPrompt controller={adminCredential} />
-          {agentPresentation.warning && <p className="jini-field-hint is-error" role="status" aria-live="polite">{agentPresentation.warning}</p>}
+          {agentPresentation.warning && <p className="notice warning" role="status" aria-live="polite">{agentPresentation.warning}</p>}
           {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
           <ExecutionTab
             config={executionPolicy.config}

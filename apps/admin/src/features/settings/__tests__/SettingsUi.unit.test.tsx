@@ -594,7 +594,8 @@ describe('D-21 selected CLI warning', () => {
       },
     });
     render(<SettingsUi useSettingsUiHook={() => controller} useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()} />);
-    expect(await screen.findByText('Claude Code: Authentication required. Sign in before sending.')).toBeInTheDocument();
+    // The admin's own warning notice, not a bare red hint line (owner 2026-10-16).
+    expect(await screen.findByText('Claude Code: Authentication required. Sign in before sending.')).toHaveClass('notice', 'warning');
     expect(screen.getByTestId('settings-dialog-nav-execution').textContent).toContain('AI agent');
     expect(screen.getByRole('tablist', { name: 'AI agent' })).toBeInTheDocument();
   });
