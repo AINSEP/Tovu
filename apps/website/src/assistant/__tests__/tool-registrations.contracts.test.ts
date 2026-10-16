@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
