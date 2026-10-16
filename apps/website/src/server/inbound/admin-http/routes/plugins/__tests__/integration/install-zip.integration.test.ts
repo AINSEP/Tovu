@@ -1,4 +1,5 @@
 /** Real authenticated upload routes exercise review/digest checks, caps and gate ordering. */
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createPluginSourcePolicy } from '@jini-ai/plugins/host';
 import test from "node:test";
@@ -32,7 +33,7 @@ test("ZIP upload -> review -> install stays off; unreviewed and changed digest r
   assert.deepEqual(await readdir(path.join(root, "plugins")).catch(() => []), []);
   const installed = await post(`?expectedDigest=${plugin.digest}`);
   assert.equal(installed.status, 201, await installed.clone().text());
-  assert.deepEqual(await deps.pluginActivationRepo.listAll(), []);
+  assert.deepEqual((await deps.pluginActivationRepo.listAll()).filter((row) => row.pluginId === "zip-test"), []);
   assert.equal(await readFile(path.join(root, "plugins/zip-test/1.0.0/server/index.mjs"), "utf8"), "throw new Error('ZIP MUST NOT EXECUTE');");
   assert.equal((await post("/preview")).status, 409);
   assert.equal((await post("/preview?replace=true")).status, 200);

@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -30,7 +31,7 @@ test("the composed skills module installs, lists, loads, disables and removes an
     const expected = { toolId: "skill_uploaded_check", name: "uploaded-check", description: "Check before changing state.", enabled: true, source: "uploaded" };
     assert.deepEqual(await created.json(), { skill: expected });
     assert.deepEqual(await (await fetch(base, { headers })).json(), { skills: [expected] });
-    assert.deepEqual(await (await fetch(`${base}/skill_uploaded_check/guidance`, { headers })).json(), { skillName: "uploaded-check", guidance: markdown, bundledFiles: [] });
+    assert.deepEqual(await (await fetch(`${base}/skill_uploaded_check/guidance`, { headers })).json(), { skillName: "uploaded-check", guidance: markdown, files: [".tovu-install.json"], bundledFiles: [] });
     assert.deepEqual(await (await fetch(`${base}/skill_uploaded_check`, { method: "PATCH", headers, body: JSON.stringify({ enabled: false }) })).json(), { updated: true });
     assert.deepEqual(await (await fetch(base, { headers })).json(), { skills: [{ ...expected, enabled: false }] });
     const disabled = await fetch(`${base}/skill_uploaded_check/guidance`, { headers });

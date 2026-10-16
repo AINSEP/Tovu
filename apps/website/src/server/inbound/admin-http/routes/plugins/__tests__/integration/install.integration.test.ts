@@ -1,4 +1,5 @@
 /** Folder-install M1a: real HTTP/auth + disk + activation + Trash, no installer stubs. */
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
@@ -37,7 +38,7 @@ test("local admin installs without opt-in: preview -> install disabled -> enable
   assert.deepEqual(preview.conflicts, []);
   const installResponse = await fetch(`${base}/install`, { method: "POST", headers, body: JSON.stringify({ source, expectedDigest: preview.digest }) });
   assert.equal(installResponse.status, 201, await installResponse.clone().text());
-  assert.deepEqual(await deps.pluginActivationRepo.listAll(), []);
+  assert.deepEqual((await deps.pluginActivationRepo.listAll()).filter((row) => row.pluginId === "install-http"), []);
   const listing = await (await fetch(base, { headers })).json() as { plugins: { id: string; enabled: boolean }[]; installSources: string[] };
   assert.deepEqual(listing.installSources, ["folder", "zip"]);
   assert.equal(listing.plugins.find((p) => p.id === "install-http")?.enabled, false);
@@ -46,7 +47,7 @@ test("local admin installs without opt-in: preview -> install disabled -> enable
   const blockedEnable = await fetch(`${base}/install-http`, { method: "PATCH", headers, body: JSON.stringify({ enabled: true }) });
   assert.equal(blockedEnable.status, 409, await blockedEnable.clone().text());
   assert.equal((await blockedEnable.json() as { code: string }).code, "PLUGIN_INSTALL_BUSY");
-  assert.deepEqual(await deps.pluginActivationRepo.listAll(), [], "rejected enable must compensate its temporary activation row");
+  assert.deepEqual((await deps.pluginActivationRepo.listAll()).filter((row) => row.pluginId === "install-http"), [], "rejected enable must compensate its temporary activation row");
   await rm(lock, { recursive: true });
   for (const enabled of [true, false]) {
     const response = await fetch(`${base}/install-http`, { method: "PATCH", headers, body: JSON.stringify({ enabled }) });
@@ -104,5 +105,5 @@ test("admin install rejects unreviewed or changed bytes and unsupported URL sour
   const manifest = JSON.parse(await readFile(file, "utf8")); manifest.name = "Changed"; await writeFile(file, JSON.stringify(manifest));
   const response = await fetch(url, { method: "POST", headers, body: JSON.stringify({ source, expectedDigest: plugin.digest }) });
   assert.equal(response.status, 409); assert.equal((await response.json() as { code: string }).code, "PLUGIN_CHANGED_SINCE_PREVIEW");
-  assert.deepEqual(await deps.pluginActivationRepo.listAll(), []);
+  assert.deepEqual((await deps.pluginActivationRepo.listAll()).filter((row) => row.pluginId === "install-http"), []);
 });

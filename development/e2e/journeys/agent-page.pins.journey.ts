@@ -101,6 +101,10 @@ test.describe.serial("Agent page-control — live verification", () => {
     await loginAsAdmin(page);
     await page.goto(STATIC_SITE_TAB_PATH, { waitUntil: "domcontentloaded" });
 
+    // Host descriptors choose the default target; this probe specifically exercises GitHub.
+    await page.getByRole("tab", { name: "GitHub Pages", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "GitHub Pages", exact: true })).toHaveAttribute("aria-selected", "true");
+
     // ---- Existence + role/label, on the real hydrated DOM. ----
     const section = page.locator(`[data-agent-element="${CREDENTIALS_SECTION_HANDLE}"]`);
     await expect(section, "the restored credentials-section region tag must render on a real client-rendered page").toBeVisible();

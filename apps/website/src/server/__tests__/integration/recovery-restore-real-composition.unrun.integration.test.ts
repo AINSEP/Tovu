@@ -1,10 +1,11 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
-import path from "node:path";
 import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { bootSite, expectJson, send, type BootedSite } from "../helpers/unrun-site-boot.js";
 
 /**
@@ -34,7 +35,7 @@ async function createPost(site: BootedSite, title: string): Promise<string> {
 
 /** Post ids read through a NEW connection to the file on disk, not the process's open handle. */
 function postIdsOnDisk(site: BootedSite): string[] {
-  const db = new Database(path.join(site.siteDir, "content.db"), { fileMustExist: true });
+  const db = new Database(resolveSiteDatabasePaths({ dir: site.siteDir }).contentDbPath, { fileMustExist: true });
   try {
     return (db.prepare("SELECT id FROM posts").all() as Array<{ id: string }>).map((row) => row.id);
   } finally {

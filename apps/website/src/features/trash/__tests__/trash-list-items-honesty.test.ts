@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { buildTrashAgentToolCatalog } from "../agent-tools.js";
 
-const TRASH_PURGE_HINT = "Use trash_empty to empty the Trash or trash_purge_item to permanently delete one item; both wait for a human confirmation card. Items here are removed automatically on the date shown.";
+const TRASH_PURGE_HINT = "Use trash_purge_item or trash_empty for permanent deletion if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen. Items here are removed automatically on the date shown.";
 
 test("trash_list_items ends with the exact confirmed-purge and automatic-removal guidance", () => {
   const catalog = buildTrashAgentToolCatalog(["post", "menu"]);

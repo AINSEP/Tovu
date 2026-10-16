@@ -1,4 +1,5 @@
 // @unrun: authored 2026-10-05 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -162,6 +163,7 @@ for (const dialect of SITE_DIALECTS) {
     assert.deepEqual(listFiles(cwd).filter((file) => file.endsWith(".html") || file.endsWith(".xml")), [], "nothing was exported under the process cwd");
   });
 
+  // 7d7e89d4f supersedes the original non-empty-directory refusal: preserve unrelated files, replace export files.
   test(`[unrun] site export [${dialect}]: a non-boolean clean is 400 and starts nothing; a non-empty export dir errors without clean and is wiped with clean: true`, async (t) => {
     isolateExportRoot(t);
     const site = await bootSite(t, dialect);
@@ -176,16 +178,24 @@ for (const dialect of SITE_DIALECTS) {
     fs.writeFileSync(stale, "left by an earlier export");
 
     await triggerExport(site, {});
-    const refused = await waitForSettled(site);
+    const preserved = await waitForSettled(site);
     assert.deepEqual(
-      { status: refused.status, outputDir: refused.outputDir, error: refused.error },
+      { status: preserved.status, outputDir: preserved.outputDir, error: preserved.error },
       {
-        status: "errored",
+        status: "completed",
         outputDir,
-        error: `export output directory '${outputDir}' is not empty (1 existing entry) — pass --clean to remove its contents first, or point --out at an empty/new directory`,
+        error: undefined,
       }
     );
-    assert.deepEqual(listFiles(outputDir), ["stale.txt"], "a refused export writes nothing and removes nothing");
+    assert.equal(fs.readFileSync(stale, "utf8"), "left by an earlier export", "an ordinary export preserves unrelated files byte for byte");
+    assert.ok(listFiles(outputDir).includes("index.html"), "the bundle is exported alongside the unrelated file");
+    const firstIndex = fs.readFileSync(path.join(outputDir, "index.html"), "utf8");
+    fs.writeFileSync(path.join(outputDir, "index.html"), "obsolete exported page");
+    await triggerExport(site, {});
+    const repeated = await waitForSettled(site);
+    assert.equal(repeated.status, "completed", JSON.stringify(repeated));
+    assert.equal(fs.readFileSync(path.join(outputDir, "index.html"), "utf8"), firstIndex, "a repeated export replaces its own old files");
+    assert.equal(fs.readFileSync(stale, "utf8"), "left by an earlier export");
 
     await triggerExport(site, { clean: true });
     const cleaned = await waitForSettled(site);

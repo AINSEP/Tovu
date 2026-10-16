@@ -1,9 +1,11 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
 import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
+import { externalMcpVaultEnvelope } from "#src/assistant/external-mcp-vault";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteDeps } from "../../routes/types.js";
 
@@ -71,7 +73,12 @@ async function seedHoneytokens(deps: RouteDeps): Promise<void> {
     writeGrantsUpdatedByPrincipalId: null,
     writeGrantsUpdatedAt: null,
     envNames: JSON.stringify([ENV_NAME_CANARY]),
-    sealedEnv: sealed,
+    sealedEnv: externalMcpVaultEnvelope({ record: {
+      workspaceId: deps.workspaceId, id: "canary-mcp-env", kind: "mcp-env",
+      ownerKey: "canary-mcp", principalId: null, binding: null, provider: null,
+      label: "Canary MCP environment", sealed, meta: {}, last4: null, tokenLength: null,
+      isDefault: false, revision: 1, createdAt: now, updatedAt: now,
+    } }, { staged: true }),
     oauthProviderId: null,
     oauthGrant: null,
     oauthClientId: null,

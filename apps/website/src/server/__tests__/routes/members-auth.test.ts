@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -389,7 +390,11 @@ test("owner disable persists the disabled member and revokes an existing session
   assert.equal(persisted?.version, member.version + 1);
   const revoked = await deps.memberSessionRepo.findByTokenHash({ workspaceId: deps.workspaceId, tokenHash: session.tokenHash });
   assert.ok(revoked?.revokedAt, "the previously live session must be revoked");
-  assert.deepEqual(await res.json(), { member: persisted });
+  assert.equal(persisted?.credentialsRevokedAt, revoked.revokedAt);
+  assert.deepEqual(await res.json(), { member: {
+    id: member.id, workspaceId: deps.workspaceId, email: member.email, status: "disabled",
+    createdAt: member.createdAt, updatedAt: persisted?.updatedAt, version: member.version + 1,
+  } });
 });
 
 test("blank admin magic-link emails remain validation errors after authorization without consuming budget", async (t) => {

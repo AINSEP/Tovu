@@ -1,4 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -62,7 +63,7 @@ async function listedUser(site: BootedSite, principalId: string): Promise<AdminU
 for (const dialect of SITE_DIALECTS) {
   test(`[unrun] users [${dialect}]: a created user persists and lists; a duplicate username is 409; PATCH changes the email and an omitted email is kept`, async (t) => {
     const site = await bootSite(t, dialect);
-    const { user } = await createUser(site, "unrunalice", { email: "alice@example.test" });
+    const { user, password } = await createUser(site, "unrunalice", { email: "alice@example.test" });
     assert.deepEqual(
       { username: user.username, email: user.email, status: user.status, roleIds: user.roleIds, policyIds: user.policyIds, workspaceId: user.workspaceId },
       { username: "unrunalice", email: "alice@example.test", status: "active", roleIds: [], policyIds: [], workspaceId: site.deps.workspaceId }
@@ -82,15 +83,21 @@ for (const dialect of SITE_DIALECTS) {
     const patched = await expectJson<{ user: AdminUser }>(await send(site, "PATCH", `${site.ws}/users/${user.principalId}`, { email: "alice2@example.test" }), 200);
     assert.equal(patched.user.email, "alice2@example.test");
     const untouched = await expectJson<{ user: AdminUser }>(
-      await send(site, "PATCH", `${site.ws}/users/${user.principalId}`, { username: "renamed-ignored" }),
+      await send(site, "PATCH", `${site.ws}/users/${user.principalId}`, { username: "renamed-alice" }),
       200
     );
     assert.deepEqual(
       { username: untouched.user.username, email: untouched.user.email },
-      { username: "unrunalice", email: "alice2@example.test" },
-      "AC-28: username is ignored; an omitted email is retained, not cleared"
+      { username: "renamed-alice", email: "alice2@example.test" },
+      "username is renamed; an omitted email is retained, not cleared"
     );
-    assert.equal((await listedUser(site, user.principalId))?.email, "alice2@example.test");
+    const renamed = await listedUser(site, user.principalId);
+    assert.deepEqual(
+      { username: renamed?.username, email: renamed?.email },
+      { username: "renamed-alice", email: "alice2@example.test" }
+    );
+    assert.equal((await login(site, "unrunalice", password)).status, 401);
+    assert.equal((await login(site, "renamed-alice", password)).status, 200);
   });
 
   test(`[unrun] users [${dialect}]: assigning the built-in editor role to a signed-in user changes what their SAME session may do; the role shows on the user row`, async (t) => {

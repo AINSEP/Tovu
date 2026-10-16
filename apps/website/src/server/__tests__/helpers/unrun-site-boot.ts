@@ -10,6 +10,7 @@ import { PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, type SiteStore } from "#src/server
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { bootAuthenticated } from "./http-test-server.js";
 
 /**
@@ -90,7 +91,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   // Background passes `createApp` starts and returns before they finish (`onBootWork`); teardown
   // awaits them so the store does not close under their reads.
   const appBootWork: Promise<void>[] = [];
-  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+  const deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, {
     db: boot.db,
     store: boot.store,
     workspaceId: boot.workspaceId,

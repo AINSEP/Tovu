@@ -52,7 +52,7 @@ test("approved dev.tovu.memory namespace retains package guidance while each sit
     const parsed = parseAgentPluginManifest({ value: JSON.parse(await fs.readFile(path.join(installed.packageRoot, "plugin.json"), "utf8")) });
     if (!parsed.ok) assert.fail(parsed.errors.join("; "));
     assert.deepEqual(parsed.manifest.extensions?.["dev.tovu.memory"], { usesMemory: true });
-    assert.deepEqual(parsed.warnings, []);
+    assert.deepEqual(parsed.warnings, ["Plugin 'example' has no publisher-qualified id; using 'unknown/example'."]);
     assert.match(await fs.readFile(path.join(installed.packageRoot, "dev.tovu.memory", "README.md"), "utf8"), /Author guidance/);
     assert.deepEqual(await firstSite.memory().list({ kind: "learned" }), []);
     assert.deepEqual(await firstSite.memory().list({ kind: "notes" }), []);
@@ -87,7 +87,10 @@ test("Layout B isolates two packages and keeps mutable state outside the indexed
     assert.equal(await f.memory().read({ kind: "notes", entryPath: "project.md" }), "User’s brand rule");
     assert.equal(await f.memory().learned.read({ entryPath: "account.json" }), '{"model":"observed"}');
     assert.deepEqual(await fs.readFile(path.join(f.workspace.pluginDataDir("example"), "cache.bin")), Buffer.from([0, 1, 2]));
-    assert.deepEqual((await listInstalledPlugins(f.workspace.root)).map(p => p.pluginId).sort(), ["example", "example", "second"]);
+    const installed = await listInstalledPlugins(f.workspace.root);
+    assert.deepEqual(installed.map(p => p.pluginId).sort(), ["example", "second"]);
+    assert.equal(installed.find(p => p.pluginId === "example")?.archiveDigest, updated.archiveDigest);
+    await assert.rejects(fs.stat(first.packageRoot), { code: "ENOENT" });
     const indexed = await indexInstalledRoot(updated.packageRoot, updated.archiveDigest);
     // The approved dev.tovu.memory namespace contains immutable package guidance; only
     // actual memory/ or data/ path components represent mutable state excluded from this index.

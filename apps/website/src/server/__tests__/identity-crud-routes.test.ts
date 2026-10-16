@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -106,6 +107,7 @@ test("AC-27: ENABLE_PRINCIPAL route re-activates a disabled user", async (t) => 
   assert.equal((await loginAs(baseUrl, "enableme", "enableme-p4ssw0rd!")).res.status, 200);
 });
 
+// Username renaming supersedes AC-28's original ignored-field rule (0521daaf3); password stays ignored.
 test("AC-28: UPDATE_USER route sets email, ignores username/password fields in the body", async (t) => {
   const deps = createRouteDeps();
   const { server, baseUrl } = await bootServer(deps);
@@ -117,18 +119,20 @@ test("AC-28: UPDATE_USER route sets email, ignores username/password fields in t
   const updated = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users/${targetId}`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ email: "new@example.com", username: "should-be-ignored", password: "should-also-be-ignored" }),
+    body: JSON.stringify({ email: "new@example.com", username: "renamed-user", password: "should-also-be-ignored" }),
   });
   assert.equal(updated.status, 200);
   const body = (await updated.json()) as { user: { email?: string; username: string } };
   assert.equal(body.user.email, "new@example.com");
-  assert.equal(body.user.username, "updateme", "username unchanged");
+  assert.equal(body.user.username, "renamed-user");
   const reread = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users`, { headers: { cookie } });
   assert.equal(reread.status, 200);
-  const roster = await reread.json() as { users: Array<{ principalId: string; email?: string }> };
+  const roster = await reread.json() as { users: Array<{ principalId: string; email?: string; username: string }> };
   assert.equal(roster.users.find((user) => user.principalId === targetId)?.email, "new@example.com");
-  assert.equal((await loginAs(baseUrl, "updateme", "updateme-p4ssw0rd!")).res.status, 200);
-  assert.equal((await loginAs(baseUrl, "updateme", "should-also-be-ignored")).res.status, 401);
+  assert.equal(roster.users.find((user) => user.principalId === targetId)?.username, "renamed-user");
+  assert.equal((await loginAs(baseUrl, "updateme", "updateme-p4ssw0rd!")).res.status, 401);
+  assert.equal((await loginAs(baseUrl, "renamed-user", "updateme-p4ssw0rd!")).res.status, 200);
+  assert.equal((await loginAs(baseUrl, "renamed-user", "should-also-be-ignored")).res.status, 401);
 });
 
 test("AC-29: RESET_USER_PASSWORD route returns 204 and the new password authenticates a fresh login", async (t) => {

@@ -116,12 +116,16 @@ test("a DERIVED slug takes the base a trashed row held instead of suffixing past
 test("a DERIVED slug still suffixes past a LIVE holder, and takes a trashed holder's slug further down the chain", async () => {
   const repo = new InMemoryPostRepo([
     buildPostRecord({ id: "live", workspaceId: WS, slug: "hello-world" }),
-    trashed({ id: "old", slug: "hello-world-2" }),
+    trashed({ id: "old", slug: "hello-world-1" }),
   ]);
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
 
-  assert.equal(post.slug, "hello-world-2");
+  assert.equal(post.slug, "hello-world-1");
+  const moved = await repo.findById({ workspaceId: WS, id: "old" });
+  assert.equal(moved?.slug, "hello-world-1-trashed");
+  assert.equal(moved?.deletedAt, "2026-10-01T00:00:00.000Z");
+  assert.equal(moved?.version, 4);
   assert.equal((await repo.findById({ workspaceId: WS, id: "live" }))?.slug, "hello-world", "a live row is never moved");
 });
 

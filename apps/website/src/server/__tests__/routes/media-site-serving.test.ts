@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -164,12 +165,14 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
   });
   const { post } = (await createRes.json()) as { post: { id: string } };
 
-  await fetch(`${baseUrl}${BASE}/posts/${post.id}`, {
+  const publishRes = await fetch(`${baseUrl}${BASE}/posts/${post.id}`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
       title: "Sized image post",
       slug: "sized-image-post",
+      // Cover fallback now hides the selected body image unless the author opts in.
+      hideCoverImageInBody: false,
       status: "published",
       version: 1,
       bodyJson: {
@@ -178,6 +181,8 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
       },
     }),
   });
+
+  assert.equal(publishRes.status, 200, await publishRes.text());
 
   const siteRes = await fetch(`${baseUrl}/sized-image-post`);
   assert.equal(siteRes.status, 200);
@@ -221,7 +226,7 @@ test("ADR-027 §4: a published post with a legacy hostile-scheme-src image node 
   // "restore Img by URL" decision; see render.ts's `case "image"` doc). This row proves the OTHER
   // half of that contract: a scheme the allowlist rejects still degrades to the placeholder,
   // end-to-end through the real HTTP path.
-  await fetch(`${baseUrl}${BASE}/posts/${post.id}`, {
+  const publishRes = await fetch(`${baseUrl}${BASE}/posts/${post.id}`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({

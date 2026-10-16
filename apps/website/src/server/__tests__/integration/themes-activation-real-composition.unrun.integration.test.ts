@@ -1,4 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -17,8 +18,8 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * as `/theme-assets/<themeId>/...` (`features/theme/static-asset-contract.ts`), so the active theme
  * id is visible in the served HTML (same marker `development/e2e/journeys/themes.journey.ts` uses).
  *
- * Themes are seeded into `<site>/themes` by `initSite` and discovered at boot, so the target is read
- * from `GET .../presentation` rather than hard-coded. Every test ends with the original theme active.
+ * Only `tovu-starter` is seeded by `initSite`. Duplicate that discovered theme through the real
+ * admin route to create an inactive target. Every test ends with the original theme active.
  */
 
 interface ThemeSummary {
@@ -70,7 +71,13 @@ for (const dialect of SITE_DIALECTS) {
       // Safety net only: the site folder is deleted at teardown anyway, but the rule is "leave the original active".
       await send(site, "PATCH", `${site.ws}/presentation`, { activeThemeId: original }).catch(() => undefined);
     });
-    const target = pickStaticTarget(before);
+    const copied = await expectJson<{ theme: { id: string; name: string; tier: string; status: string; errors: string[] } }>(
+      await send(site, "POST", `${site.ws}/themes/${original}/duplicate`, { newName: "Activation fixture", newId: "unrun-activation" }),
+      201
+    );
+    assert.deepEqual(copied.theme, { id: "unrun-activation", name: "Activation fixture", tier: "static", status: "valid", errors: [] });
+    const target = pickStaticTarget(await readPresentation(site));
+    assert.equal(target.id, copied.theme.id);
     const marker = `/theme-assets/${target.id}/`;
     assert.ok(!(await home(site)).includes(marker), "the target theme is not what the home renders yet");
     assert.deepEqual(await activeInList(site), [original]);

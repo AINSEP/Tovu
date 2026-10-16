@@ -59,7 +59,7 @@ test("colliding derived slugs keep room for their numeric suffix and never excee
   assert.equal(new Set(slugs).size, 12);
   assert.deepEqual(slugs.filter((s) => s.length > MAX_SLUG_LENGTH), []);
   assert.ok(!slugs[0].endsWith("-"), "a truncated base never ends in a dash");
-  assert.equal(slugs[11], `${slugs[0]}-12`);
+  assert.deepEqual(slugs, [slugs[0], ...Array.from({ length: 11 }, (_, i) => `${slugs[0]}-${i + 1}`)]);
 });
 
 test("updatePost lets an unchanged over-limit legacy slug and title through a body-only edit", async () => {
