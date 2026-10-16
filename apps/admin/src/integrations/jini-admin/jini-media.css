@@ -680,6 +680,11 @@
   border: 1px solid var(--border); border-radius: var(--r-sm); display: block;
 }
 :is(.jini-page, .jini-dialog) .jini-media-ref-field-actions { display: inline-flex; flex: none; gap: var(--space-2); }
+/* Phones raise every control to the 44px touch floor (`styles.css`), so the 2.3rem thumbnail sat
+   7px short of the input beside it; keep it the input's height there too. */
+@media (max-width: 640px) {
+  :is(.jini-page, .jini-dialog) .jini-media-ref-field-preview { width: 44px; height: 44px; }
+}
 
 /* Row action menu (`RowMenu.tsx`) + confirm dialog (`ConfirmDialog.tsx`) — replaces the
    one-visible-button-per-row pattern and `window.confirm` respectively, wired into

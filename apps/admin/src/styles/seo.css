@@ -222,9 +222,17 @@
 /* Full width means full width — the measure cap that keeps the defaults form's seven controls
    readable is the opposite of what this tab asked for, and unlike that form this one is mostly
    URLs and media refs (Canonical URL, OG image, Twitter image) that were being truncated inside
-   672px. The one field this trades away is Description, whose textarea now runs the page width. */
+   672px. The one field this trades away is Description, whose textarea now runs the page width.
+   2026-10-15: superseded by the Pages & posts redesign below — the per-entry form is capped at
+   40rem, and "every tab reads like Pages & posts" (2026-09-13) means the defaults and sitemap
+   columns take the same measure; at 76rem a one-line handle field was ~1200px wide. */
 .jini-seo-panel--full .jini-seo-section-body {
-  max-width: none;
+  max-width: 40rem;
+}
+
+/* Loading / error state of the entry picker takes the picker's own width, not the column's. */
+.jini-seo-entry-section .jini-seo-section-body > .jini-notice {
+  max-width: 28rem;
 }
 
 /* The picker keeps a bounded width instead of stretching to that full measure. A 1300px control
@@ -328,13 +336,19 @@
 
 .jini-seo-entry-head {
   position: sticky;
-  top: 0;
+  /* Sticky offsets count from inside the scroller's PADDING, so `top: 0` pinned the row 2rem below
+     `.admin-content`'s top edge with the form scrolling visibly through that gap (seen live
+     2026-10-15). Pull it up by the same padding `styles.css` gives that box at each breakpoint —
+     the post editor's action row does the same (`top: calc(-1 * var(--space-4))`). */
+  top: -2rem;
   z-index: 3;
   display: flex;
   align-items: center;
   gap: var(--space-1);
   padding-block: var(--space-2);
-  background: var(--bg);
+  /* The pane behind it is `.admin-layout`'s `--jini-bg`, not `--bg` — the two differ in dark mode
+     and `--bg` painted a darker strip across the page. */
+  background: var(--jini-bg);
 }
 .jini-seo-entry-head > h3 { margin: 0; }
 .jini-seo-entry-head-actions { margin-left: auto; }
@@ -361,3 +375,5 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-6);
 }
+@media (max-width: 900px) { .jini-seo-entry-head { top: calc(-1 * var(--space-5)); } }
+@media (max-width: 640px) { .jini-seo-entry-head { top: calc(-1 * var(--space-4)); } }
