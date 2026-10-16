@@ -691,6 +691,9 @@
 /* An empty field that inherits another field's image (the X image falls back to the social preview
    image) says so in the file slot instead of looking unset. */
 :is(.jini-page, .jini-dialog) .jini-media-ref-field-empty { font-size: var(--text-sm); color: var(--muted); }
+/* Only the site default image, not the entry's own (owner, 2026-10-15): muted name, faded thumbnail. */
+:is(.jini-page, .jini-dialog) .jini-media-ref-field-file-inherited .jini-media-ref-field-name { font-weight: 400; color: var(--muted); }
+:is(.jini-page, .jini-dialog) .jini-media-ref-field-file-inherited .jini-media-ref-field-preview { opacity: 0.6; }
 /* Phones raise every control to the 44px touch floor (`styles.css`), so the 2.3rem thumbnail sat
    7px short of the input beside it; keep it the input's height there too. On a phone the file takes
    its own line and the buttons sit under it at their own width. */

@@ -434,13 +434,13 @@
   gap: var(--space-1);
 }
 
-/* "Customize for X (optional)": X-only overrides tucked under the social preview. Same quiet
+/* "Customize for X/Twitter (optional)": X-only overrides tucked under the social preview. Same quiet
    disclosure idiom as the menu editor's `.menu-item-advanced` — a muted, content-width summary with
    a turning chevron — so it reads as optional, not as a fourth field group. */
 .jini-seo-x-disclosure > summary {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: calc(var(--space-2) + 0.375rem); /* 14px: the rotated caret reads tight at 8px (owner, 2026-10-15) */
   width: fit-content;
   cursor: pointer;
   list-style: none;
