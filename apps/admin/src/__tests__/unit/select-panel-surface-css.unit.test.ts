@@ -14,8 +14,8 @@ import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
 describe("Select panel surface tokens", () => {
-  it("re-points the panel's Jini surface and text tokens at the admin's own", () => {
-    const declarations = effectiveDeclarationsFor(stylesheet, ".select-panel.select-panel");
+  it.each([".select-panel.select-panel", ".select-trigger.select-trigger"])("re-points %s's Jini surface and text tokens at the admin's own", (selector) => {
+    const declarations = effectiveDeclarationsFor(stylesheet, selector);
     expect(declarations).toContain("--jini-bg-elevated: var(--surface);");
     expect(declarations).toContain("--jini-bg-subtle: var(--surface-2);");
     expect(declarations).toContain("--jini-text: var(--fg);");
