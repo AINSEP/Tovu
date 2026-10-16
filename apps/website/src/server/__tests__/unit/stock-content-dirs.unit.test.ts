@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -121,6 +122,8 @@ test("stock resolvers work from a dist/src module layout independently of cwd", 
   const compiled = ts.transpileModule(resolverSource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   writeFileSync(worker, `import { join } from "node:path"; const { resolveProductRoot } = await import(${JSON.stringify(moduleUrl)});\n${compiled}\nconsole.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));`);
   const env = { ...process.env };
+  // Resolve the runner's config before changing cwd to the fixture directory.
+  if (env.TSX_TSCONFIG_PATH) env.TSX_TSCONFIG_PATH = path.resolve(REPO_ROOT, env.TSX_TSCONFIG_PATH);
   delete env.TOVU_STOCK_THEMES_DIR;
   delete env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
   const result = spawnSync(process.execPath, [
@@ -171,7 +174,7 @@ async function stageBuildAssets(t: import("node:test").TestContext): Promise<str
   const { buildServer } = await import(pathToFileURL(path.join(REPO_ROOT, "development/scripts/build-server.mjs")).href);
   const fixture = mkdtempSync(path.join(tmpdir(), "tovu-asset-copy-"));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/plugins", "content/public", "src/platform/db/drizzle"]) {
     const source = relative.startsWith("src/") ? path.join(fixture, "apps/website", relative) : path.join(fixture, relative);
     const destination = path.join(fixture, "dist", relative);
     mkdirSync(source, { recursive: true });
@@ -187,7 +190,7 @@ async function stageBuildAssets(t: import("node:test").TestContext): Promise<str
 
 test("the build script copies stock data to dist/content, not dist/src", async (t) => {
   const fixture = await stageBuildAssets(t);
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/plugins", "content/public"]) {
     assert.equal(readFileSync(path.join(fixture, "dist", relative, ".current"), "utf8"), relative);
     assert.equal(existsSync(path.join(fixture, "dist/src", relative.slice("content/".length))), false);
   }
@@ -195,7 +198,7 @@ test("the build script copies stock data to dist/content, not dist/src", async (
 
 test("every asset copy in the build script cleans its destination first", async (t) => {
   const fixture = await stageBuildAssets(t);
-  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/plugins", "content/public", "src/platform/db/drizzle"]) {
     // An ancestor clean counts: cleaning dist/content also cleans dist/content/themes. The
     // observable contract is that deleted source files cannot survive, whatever the command syntax.
     assert.equal(existsSync(path.join(fixture, "dist", relative, "stale.txt")), false, `${relative} retained stale data`);

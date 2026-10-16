@@ -1,3 +1,4 @@
+import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -26,7 +27,7 @@ import { listSites } from "../../site-registry.js";
  */
 
 function mkTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-repair-site-"));
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-repair-site-")));
 }
 
 /** A real, fully-migrated content.db — the happy-path fixture. `openContentDb` on a fresh tmp path
@@ -88,7 +89,7 @@ test("repairSite(): a repaired site is indistinguishable from a freshly-initSite
 
   await repairSite({ dir: siteDir, name: "My Repaired Site" });
 
-  const sites = listSites({ cwd: parent, env: {} });
+  const sites = listSites({ cwd: parent, homeDir: parent, env: { TOVU_SITE_ROOTS: sitesRoot } });
   assert.equal(sites.length, 1, "listSites must recognize the repaired directory as a real site");
   assert.equal(sites[0].name, "my-repaired-site");
   assert.equal(sites[0].dir, siteDir);
