@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -46,7 +47,7 @@ test("update-tree: a trashed menu is refused with 409 ENTITY_IN_TRASH", async (t
 });
 
 
-test("update-tree persists changed live metadata and ordered items; stale and denied writes preserve it", async (t) => {
+test("update-tree persists changed live metadata and ordered items; missing-version, stale and denied writes preserve it", async (t) => {
   const menuRepo = new InMemoryMenuRepo({});
   const initial = { id: "m-live", workspaceId: "ws-1", title: "Original", slug: "original", status: "published" as const,
     version: 1, doc: { type: "menu" as const, version: 1, items: [] }, locations: [], updatedAt: "2026-09-24T00:00:00.000Z" };
@@ -72,6 +73,12 @@ test("update-tree persists changed live metadata and ordered items; stale and de
   assert.deepEqual(persisted, { ...initial, title: "Changed title", slug: "changed-slug", version: 2,
     updatedAt: "2026-09-25T00:00:00.000Z", doc: { type: "menu", version: 1, items: items.map((item) => ({ ...item, children: undefined })) } });
   const expected = structuredClone(persisted);
+  const missingVersion = await update({ title: "Missing version", items: [] });
+  assert.equal(missingVersion.status, 409);
+  assert.deepEqual(await missingVersion.json(), {
+    error: "menu 'm-live' was modified concurrently (expected version 0, found 2)", code: "VERSION_CONFLICT",
+  });
+  assert.deepEqual(await menuRepo.findById(target), expected);
   const stale = await update({ expectedVersion: 1, title: "Stale", slug: "stale", items: [] });
   assert.equal(stale.status, 409);
   assert.deepEqual(await menuRepo.findById(target), expected);

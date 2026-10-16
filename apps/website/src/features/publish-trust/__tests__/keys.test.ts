@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { hkdfSync } from "node:crypto";
 import test from "node:test";
@@ -130,6 +131,20 @@ test("malformed key material is refused, not thrown on — no 500-vs-401 oracle"
   }
   for (const badSig of ["", "!!!", good.slice(0, 20), `${good}AA`]) {
     assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: badSig }), false);
+  }
+});
+
+test("non-string publishing keys and signatures are refused without throwing", async () => {
+  const key = await derivePublishSigningKey(keyInput());
+  const message = "challenge:nonce-1";
+  const signatureB64u = key.sign(message);
+
+  // Raw bytes would decode to valid material if the string-only boundary were bypassed.
+  for (const value of [undefined, null, 42, Buffer.from(key.publicKeyB64u, "base64url")]) {
+    assert.equal(verifyPublishSignature({ publicKeyB64u: value as unknown as string, message, signatureB64u }), false);
+  }
+  for (const value of [undefined, null, 42, Buffer.from(signatureB64u, "base64url")]) {
+    assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: value as unknown as string }), false);
   }
 });
 

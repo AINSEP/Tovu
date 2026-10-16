@@ -1,7 +1,8 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 import express from "express";
 
@@ -31,6 +32,75 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminFormsUpdateRoute(app, deps);
   return { app, deps };
 }
+
+test("admin forms PUT refuses a different workspace without changing the definition", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/forms`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Protected form", slug: "protected-form", fields: [
+      { id: "name", label: "Name", type: "text", required: true },
+    ] }),
+  });
+  assert.equal(response.status, 201);
+  const { data } = await response.json() as { data: { id: string } };
+  const target = { workspaceId: deps.workspaceId, id: data.id };
+  const before = structuredClone(await deps.formDefinitionRepo.findById(target));
+  assert.ok(before);
+
+  const refused = await fetch(`${baseUrl}/api/admin/v1/workspaces/other-workspace/forms/${data.id}`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Cross-workspace change" }),
+  });
+
+  assert.equal(refused.status, 404);
+  assert.deepEqual(await refused.json(), { error: "workspace was not found" });
+  assert.deepEqual(await deps.formDefinitionRepo.findById(target), before);
+});
+
+test("admin forms PUT treats a nullish body as a no-op and preserves the definition", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/forms`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Unchanged form", slug: "unchanged-form", fields: [
+      { id: "name", label: "Name", type: "text", required: true },
+    ] }),
+  });
+  assert.equal(response.status, 201);
+  const created = await response.json() as { data: { id: string } };
+  const target = { workspaceId: deps.workspaceId, id: created.data.id };
+  const before = structuredClone(await deps.formDefinitionRepo.findById(target));
+  assert.ok(before);
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/forms/:formId");
+  // express.json() supplies {} for a bodyless HTTP request; the existing direct-handler
+  // helper lets the route's nullish-body contract be exercised without that substitution.
+  for (const body of [undefined, null]) {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: await deps.ownerPrincipalId };
+    await handler({ params: { workspaceId: deps.workspaceId, formId: target.id }, body }, res);
+
+    assert.equal(capture.statusCode, 200);
+    assert.deepEqual(JSON.parse(JSON.stringify(capture.jsonBody)), created);
+    assert.deepEqual(await deps.formDefinitionRepo.findById(target), before);
+  }
+});
+
+test("admin forms PUT reports an empty missing form id in its not-found response", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/forms/:formId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: await deps.ownerPrincipalId };
+  // Required Express params are populated over HTTP; use the shared direct-call seam for
+  // the missing-id error contract, as the neighbouring get-by-id edge-case suite does.
+  await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, {
+    error: "form definition '' was not found", code: "FORMS_DEFINITION_NOT_FOUND",
+  });
+});
 
 test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-02)", async (t) => {
   const { app } = buildTestApp();

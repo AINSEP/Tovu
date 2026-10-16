@@ -1,3 +1,4 @@
+import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createToolRegistry, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
@@ -99,6 +100,13 @@ test('every supported locale translates the exact approval text and choices', as
     if(locale.code!=='en')assert.notEqual(approvalText({locale:locale.code,key}),key);
   }
 });
+test('unsupported approval locales fall back to English for every label', async()=>{
+  const { approvalText }=await import('../../contracts/core/approval-i18n.js');
+  for(const locale of ['unsupported-locale',''])for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input'] as const) {
+    assert.equal(approvalText({locale,key}),key);
+  }
+});
+
 test('page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask',async()=>{
   const {PAGE_CAPABILITIES}=await import('@jini-ai/agentic');
   const { TOOL_APPROVAL_POLICY }=await import('../../contracts/headless/assistant-tool-approval-policy.js');

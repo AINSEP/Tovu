@@ -74,6 +74,15 @@ test("renderBareEntryDocument: when extraHead already carries its own <title> (t
   assert.match(html, /<title>SEO Title<\/title>/);
 });
 
+test("renderBareEntryDocument: an omitted extraHead renders a clean document head", () => {
+  const html = renderBareEntryDocument({ post: htmlPage(), siteTitle: "Acme" });
+
+  assert.equal(html,
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"/>' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1"/><title>Bare Page — Acme</title>' +
+    '</head><body><p>hello</p></body></html>');
+});
+
 test("renderBareEntryDocument: no theme CSS/JS, no data-theme, no site header/footer, no site-assistant widget", () => {
   const post = fakePost();
   const html = renderBareEntryDocument({ post, siteTitle: "Acme" });
@@ -146,6 +155,15 @@ test("renderBareEntryDocument: an embed marker inside a full document still reso
 // ---------------------------------------------------------------------------
 // Fragment (non-full-document) embed resolution + doc-format body
 // ---------------------------------------------------------------------------
+
+test("renderBareEntryDocument: an html-format page with a null HTML body renders an empty body", () => {
+  const html = renderBareEntryDocument({ post: htmlPage({ bodyHtml: null }), siteTitle: "Acme", extraHead: "" });
+
+  assert.equal(html,
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"/>' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1"/><title>Bare Page — Acme</title>' +
+    '</head><body></body></html>');
+});
 
 test("renderBareEntryDocument: an embed marker in a fragment 'html'-format body resolves before wrapping", () => {
   const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });

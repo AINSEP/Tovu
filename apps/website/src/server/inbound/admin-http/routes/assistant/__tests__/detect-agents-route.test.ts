@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -6,7 +7,8 @@ import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credent
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
-import { createAssistantAgentInventory } from "#src/assistant/agents";
+import { createAssistantAgentInventory, listAssistantAgents, setAgentModelProberForTesting } from "#src/assistant/agents";
+import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 // Detection is the external PATH/process boundary. Keep route registration and projection real.
@@ -24,7 +26,7 @@ const agents = [{
 const { registerAdminAssistantDetectAgentsRoute } = await import("../detect-agents.js");
 const routePath = "/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents";
 
-function handler(allowed: boolean) {
+function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps> = {}) {
   const app = express();
   registerAdminAssistantDetectAgentsRoute(app, {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
@@ -35,9 +37,29 @@ function handler(allowed: boolean) {
       assert.deepEqual(params, { principalId: "principal-test", permission: "admin.assistant.manage", workspaceId: "workspace-test", entityType: "assistant-execution" });
       return { allowed, reason: allowed ? "granted" : "no_grant" };
     },
+    ...options,
   });
   return extractRouteHandler(app, "post", routePath);
 }
+
+test("detect-agents returns the default catalog and discovery status without an injected inventory", async () => {
+  // Reuse the compatibility inventory's model-probe seam so discovery never spawns real CLIs.
+  setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  try {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "principal-test" };
+    await handler(true, { detectAgents: undefined })({ params: { workspaceId: "workspace-test" } }, res);
+    assert.equal(capture.statusCode, 200);
+    const { data } = capture.jsonBody as { data: { id: string; label: string; discoveryPending: boolean }[] };
+    const codex = data.find(agent => agent.id === "codex");
+    assert.ok(codex);
+    assert.equal(codex.label, "Codex CLI");
+    assert.equal(codex.discoveryPending, true);
+  } finally {
+    await listAssistantAgents({}, { waitForProbe: true });
+    setAgentModelProberForTesting(null);
+  }
+});
 
 test("detect-agents handler returns the complete projected catalog", async () => {
   calls = 0;

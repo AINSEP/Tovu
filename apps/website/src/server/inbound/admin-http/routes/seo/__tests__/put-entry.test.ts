@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
@@ -112,6 +113,23 @@ test("put-entry: an unknown entry id 404s (SEO_ENTRY_NOT_FOUND)", async (t) => {
   const { status, json } = await put(t, app, { title: "x" }, `/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/does-not-exist`);
   assert.equal(status, 404);
   assert.equal((json as { code?: string }).code, "SEO_ENTRY_NOT_FOUND");
+});
+
+test("put-entry: a trashed entry returns 409 ENTITY_IN_TRASH without changing its SEO", async (t) => {
+  const post = buildPostRecord({
+    id: ENTRY_ID, workspaceId: WORKSPACE_ID, deletedAt: "2026-10-16T00:00:00.000Z",
+    seoExtJson: JSON.stringify({ title: "Before trash" }), version: 4,
+  });
+  const before = structuredClone(post);
+  const postRepo = new InMemoryPostRepo([post]);
+  const { status, json } = await put(t, buildApp({ postRepo }), { title: "Refused title" });
+
+  assert.equal(status, 409);
+  assert.deepEqual(json, {
+    error: `ENTITY_IN_TRASH: post '${ENTRY_ID}' is in the Trash. Restore it from the Trash before changing it.`,
+    code: "ENTITY_IN_TRASH",
+  });
+  assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
 });
 
 test("put-entry: a valid patch succeeds (200) and the meta reflects it", async (t) => {

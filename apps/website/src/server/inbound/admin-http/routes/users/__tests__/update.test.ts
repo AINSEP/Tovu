@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -100,14 +101,14 @@ test("UPDATE_USER route: direct invoke fallback for nullish params.workspaceId",
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
-test("UPDATE_USER route: direct invoke fallback for nullish params.principalId", async () => {
+test("UPDATE_USER route: a missing principalId reports an empty user id as not found", async () => {
   const { app, ownerId } = await buildApp();
   const handler = extractRouteHandler(app, "patch", ROUTE_PATH);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: ownerId };
   await handler({ params: { workspaceId: WORKSPACE_ID }, body: { email: "x@example.com" } }, res);
   assert.equal(capture.statusCode, 404);
-  assert.equal((capture.jsonBody as { code?: string }).code, "RESOURCE_NOT_FOUND");
+  assert.deepEqual(capture.jsonBody, { code: "RESOURCE_NOT_FOUND", error: "user '' was not found" });
 });
 
 test("UPDATE_USER route: direct invoke fallback for a nullish body (`rawBody ?? {}`)", async () => {
@@ -187,6 +188,20 @@ test("UPDATE_USER route: 404 RESOURCE_NOT_FOUND for a nonexistent principalId", 
   assert.equal(res.status, 404);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "RESOURCE_NOT_FOUND");
+});
+
+test("UPDATE_USER route: a non-string username is rejected before looking up the target user", async (t) => {
+  const { app } = await buildApp();
+  const baseUrl = await startTestServer(app, t);
+
+  // An existing user would also be rejected by Jini's later username validation.
+  const response = await fetch(`${baseUrl}${urlFor("does-not-exist")}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: null }),
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { code: "VALIDATION_ERROR", error: "username must be a string" });
 });
 
 /**

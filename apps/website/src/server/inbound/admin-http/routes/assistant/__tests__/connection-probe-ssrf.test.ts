@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express } from "express";
@@ -46,18 +47,21 @@ const deps: AssistantExecutionRouteDeps = {
   },
 };
 
-async function probe(registrar: (typeof registrars)[number], baseUrl: string, options: Partial<AssistantExecutionRouteDeps> = {}) {
+async function probe(
+  registrar: (typeof registrars)[number], baseUrl: string, options: Partial<AssistantExecutionRouteDeps> = {},
+  request?: { body: unknown; expectedStatus: number },
+) {
   // Only the members the handler actually reads are modelled; the registrar's `app` stub captures it
   // under this narrow signature so no partial Request/Response needs a cast.
   type ProbeHandler = (
-    req: { params: { workspaceId: string }; body: Record<string, string> },
+    req: { params: { workspaceId: string }; body: unknown },
     res: unknown,
     next: (error?: unknown) => void,
   ) => unknown;
   let handler: ProbeHandler | undefined;
   registrar({ post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, { ...deps, ...options });
   let status = 200;
-  let body: { ok: boolean; message: string; models?: string[] } | undefined;
+  let body: { ok?: boolean; message?: string; models?: string[]; error?: string; code?: string } | undefined;
   const response = {
     locals: { principal: { id: "admin" } },
     status: (value: number) => { status = value; return response; },
@@ -66,12 +70,30 @@ async function probe(registrar: (typeof registrars)[number], baseUrl: string, op
   assert.ok(handler);
   await handler({
     params: { workspaceId: "workspace-local" },
-    body: { protocol: "openai", baseUrl, apiKey: "sk-fake", model: "guard-model" },
+    body: request ? request.body : { protocol: "openai", baseUrl, apiKey: "sk-fake", model: "guard-model" },
   }, response, (error) => { throw error; });
-  assert.equal(status, 200);
+  assert.equal(status, request?.expectedStatus ?? 200);
   assert.ok(body);
   return body;
 }
+
+test("list-models rejects an empty or whitespace-only baseUrl with 400", async () => {
+  for (const baseUrl of ["", " \t "]) {
+    const body = await probe(registerAdminAssistantListModelsRoute, baseUrl, {}, {
+      body: { protocol: "openai", baseUrl, apiKey: "sk-fake" }, expectedStatus: 400,
+    });
+    assert.deepEqual(body, { error: "baseUrl is required", code: "VALIDATION_ERROR" });
+  }
+});
+
+test("list-models rejects a missing or null body with a validation error", async () => {
+  for (const body of [undefined, null]) {
+    const response = await probe(registerAdminAssistantListModelsRoute, "", {}, { body, expectedStatus: 400 });
+    assert.deepEqual(response, {
+      error: "protocol must be one of anthropic|openai|azure|google", code: "VALIDATION_ERROR",
+    });
+  }
+});
 
 for (const registrar of registrars) {
   test(`${registrar.name}: rejects private and mixed DNS answers through the real route`, async () => {

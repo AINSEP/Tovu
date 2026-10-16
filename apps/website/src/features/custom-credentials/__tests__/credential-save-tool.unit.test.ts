@@ -70,6 +70,23 @@ test('unknown kinds, cross-kind fields, secret arguments and target replacement 
   assert.deepEqual(f.calls, []);
 });
 
+test('unknown credential kinds explain the supported kinds without calling an owner', async () => {
+  const f = fixture();
+  await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'unsupported' } }), {
+    name: 'ToolInputError',
+    message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host or agent-plugin-token.',
+  });
+  assert.deepEqual(f.calls, []);
+});
+
+test('plugin token saves refuse pluginId metadata even when target is valid', async () => {
+  const f = fixture();
+  await assert.rejects(f.registrations[0]!.handler({ ...f.context,
+    input: { kind: 'agent-plugin-token', target: 'supabase', pluginId: 'other-plugin' },
+  }), { name: 'ToolInputError', message: 'Use target for the installed plugin id.' });
+  assert.deepEqual(f.calls, []);
+});
+
 test('domain authorization and errors propagate without replacing their identity or text', async () => {
   const f = fixture();
   const error = new ToolInputError({ message: 'Domain permission denied' });

@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile } from "node:fs/promises";
@@ -24,7 +25,7 @@ import { registerAgentPluginInstallRoute } from "../../install.js";
 const WORKSPACE = "workspace-local";
 const PLUGIN_ID = "note-taker";
 
-const manifest = (version: string) =>
+const manifest = (version?: string) =>
   JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN_ID, version });
 const skill = `---\nname: ${PLUGIN_ID}\ndescription: Takes notes.\n---\n# Notes\nTake notes.`;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -101,6 +102,38 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a different package under an installed name is r
   });
 });
 
+test("AGENT_PLUGIN_INSTALL_ZIP: omitted display metadata is returned as explicit nulls", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const archive = await buildZipFixture([
+      { path: "plugin.json", content: manifest() },
+    ]);
+
+    const response = await upload(baseUrl, cookie, archive);
+    assert.equal(response.status, 201);
+    const { agentPlugin } = await response.json();
+    assert.equal(agentPlugin.pluginId, PLUGIN_ID);
+    assert.equal(agentPlugin.displayName, null);
+    assert.equal(agentPlugin.summary, null);
+    assert.equal(agentPlugin.version, null);
+    assert.equal(agentPlugin.description, null);
+  });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: an invalid replace value refuses an otherwise valid upload", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(archive)}&replace=yes`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/zip" },
+      body: Uint8Array.from(archive),
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { code: "VALIDATION_ERROR", error: "replace must be true or false." });
+  });
+});
+
 test("AGENT_PLUGIN_INSTALL_ZIP: bad uploads are refused in plain words and install nothing", async (t) => {
   await withTempPluginsDir(async () => {
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
@@ -145,7 +178,13 @@ test("AGENT_PLUGIN_INSTALL_ZIP: input checks, auth, and permission", async (t) =
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
     const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
 
-    assert.equal((await upload(baseUrl, cookie, archive, "not-a-digest")).status, 400);
+    const badDigest = await upload(baseUrl, cookie, archive, "not-a-digest");
+    assert.equal(badDigest.status, 400);
+    // A status-only check also passes when the installer's digest refusal masks missing validation.
+    assert.deepEqual(await badDigest.json(), {
+      code: "VALIDATION_ERROR",
+      error: "expectedSha256 must be the file's lowercase hex SHA-256.",
+    });
     const notZip = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(archive)}`, {
       method: "POST",
       headers: { cookie, "content-type": "application/json" },

@@ -160,6 +160,46 @@ test("a valid signature under an expired grant is refused", async () => {
   assert.deepEqual(result, { ok: false, reason: "the publishing grant has expired or been revoked" });
 });
 
+test("missing, empty and non-string challenge nonces are refused without throwing", async () => {
+  const clock = movableClock();
+  const { store, grant, response } = await handshake({ clock });
+  for (const nonce of [undefined, null, "", 42]) {
+    assert.deepEqual(
+      await verifyChallengeResponse({ store, clock }, {
+        grant, targetInstallationId: TARGET_INSTALL,
+        response: { ...response, nonce: nonce as unknown as string },
+      }),
+      { ok: false, reason: "no nonce supplied" }
+    );
+  }
+});
+
+test("a valid signature claiming another source installation is refused", async () => {
+  const clock = movableClock();
+  const { store, grant, response } = await handshake({ clock });
+  const key = await sourceKey();
+  const claimed = { ...response, sourceInstallationId: "another-source-install" };
+  // Sign the claimed identity so signature verification cannot mask a missing grant binding.
+  claimed.signatureB64u = key.sign(buildChallengeMessage({ ...claimed, targetInstallationId: TARGET_INSTALL }));
+  assert.deepEqual(
+    await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response: claimed }),
+    { ok: false, reason: "the response names an installation this grant is not for" }
+  );
+});
+
+test("a validly signed challenge requesting no capabilities is refused", async () => {
+  const clock = movableClock();
+  const { store, grant, response } = await handshake({ clock });
+  const key = await sourceKey();
+  const empty = { ...response, capabilities: [] };
+  // An empty list is signed correctly and passes the per-capability loop vacuously.
+  empty.signatureB64u = key.sign(buildChallengeMessage({ ...empty, targetInstallationId: TARGET_INSTALL }));
+  assert.deepEqual(
+    await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response: empty }),
+    { ok: false, reason: "no capabilities requested" }
+  );
+});
+
 test("changing a signed read request to apply invalidates the signature", async () => {
   const clock = movableClock();
   const key = await sourceKey();
@@ -345,12 +385,16 @@ test("PROOF 6 — a valid publish token still cannot reach an ordinary content.w
 test("a nonce issued by another destination is refused", async () => {
   const clock = movableClock();
   const { store, grant, response } = await handshake({ clock });
+  const key = await sourceKey();
+  const targetInstallationId = "someone-elses-install";
+  // The signature is valid for the receiving destination; only the nonce's issuance binding differs.
+  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId }));
 
   const result = await verifyChallengeResponse(
     { store, clock },
-    { grant, targetInstallationId: "someone-elses-install", response }
+    { grant, targetInstallationId, response }
   );
-  assert.equal(result.ok, false);
+  assert.deepEqual(result, { ok: false, reason: "nonce was issued for another destination" });
 });
 
 test("a capability the grant does not hold is refused, not narrowed", async () => {

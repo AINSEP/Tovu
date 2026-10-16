@@ -737,7 +737,7 @@ test("update menu tree: `parseMenuTreeRequestBody`'s `(rawBody ?? {})` fallback,
   assert.equal((capture.jsonBody as { error: string }).error, "items must be an array");
 });
 
-test("update menu tree: `req.params.menuId ?? \"\"` fallback, forced via a direct handler call past auth with a real seeded principal", async () => {
+test("update-tree returns the empty-id not-found response for a missing menu id", async () => {
   const { app, deps } = buildTestApp();
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -754,6 +754,7 @@ test("update menu tree: `req.params.menuId ?? \"\"` fallback, forced via a direc
   // An empty menuId resolves nothing -- the ordinary not-found mapping, proof the `?? ""` fallback
   // produced a real (if unmatched) lookup key rather than throwing.
   assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "menu '' was not found" });
 });
 
 /**
@@ -831,10 +832,11 @@ test("update-tree: a menu item with a missing or null target is a 400 with a spe
   }
 });
 
-test("update-tree: the catch-all 500 branch logs the unmapped error server-side instead of discarding it", async () => {
+test("update-tree logs the original error with or without a stack and returns an opaque 500", async () => {
+  const failure = new Error("boom: repo exploded");
   const throwingMenuRepo: MenuRepoPort = {
     findById: async () => {
-      throw new Error("boom: repo exploded");
+      throw failure;
     },
     findBySlug: async () => null,
     list: async () => [],
@@ -857,27 +859,31 @@ test("update-tree: the catch-all 500 branch logs the unmapped error server-side 
   assert.ok(ownerPrincipal, "expected the seeded admin principal");
 
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
-  const { res, capture } = createCapturingResponse();
-  res.locals.principal = ownerPrincipal;
 
   const logged: string[] = [];
   const realError = console.error;
   console.error = (...args: unknown[]) => void logged.push(args.map(String).join(" "));
   try {
-    await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
+    for (const hasStack of [true, false]) {
+      if (!hasStack) delete failure.stack;
+      const { res, capture } = createCapturingResponse();
+      res.locals.principal = ownerPrincipal;
+      await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
+
+      // The wire response is deliberately unchanged -- the fix is the diagnostic, not the envelope.
+      assert.equal(capture.statusCode, 500);
+      assert.deepEqual(capture.jsonBody, { error: "internal error" });
+    }
   } finally {
     console.error = realError;
   }
 
-  // The wire response is deliberately unchanged -- the fix is the diagnostic, not the envelope.
-  assert.equal(capture.statusCode, 500);
-  assert.deepEqual(capture.jsonBody, { error: "internal error" });
-
-  assert.equal(logged.length, 1, "expected exactly one server-side log for the unmapped error");
+  assert.equal(logged.length, 2, "expected one server-side log per unmapped error");
   // Assert the ORIGINAL error text reached the log. Asserting only that console.error fired would
   // pass under a log that printed "internal error" and threw the real cause away -- which is the
   // exact defect being fixed.
   assert.match(logged[0]!, /boom: repo exploded/);
+  assert.equal(logged[1], "admin menu update-tree route failed: boom: repo exploded");
 });
 
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {

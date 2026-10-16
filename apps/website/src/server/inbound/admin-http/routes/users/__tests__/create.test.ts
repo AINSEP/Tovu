@@ -183,6 +183,25 @@ test("CREATE_USER route: 400 VALIDATION_ERROR when username is missing (real HTT
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("CREATE_USER route: rejects missing or null passwords without creating an account", async (t) => {
+  const { app, deps } = await buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const principalsBefore = await deps.principalRepo.list({ workspaceId: WORKSPACE_ID });
+
+  for (const password of [undefined, null]) {
+    const username = password === null ? "null-password" : "missing-password";
+    const res = await fetch(`${baseUrl}${URL_BASE}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), { error: "username and password are required", code: "VALIDATION_ERROR" });
+    assert.equal(await deps.userRepo.findByUsername({ workspaceId: WORKSPACE_ID, username }), null);
+  }
+  assert.deepEqual(await deps.principalRepo.list({ workspaceId: WORKSPACE_ID }), principalsBefore);
+});
+
 test("CREATE_USER route: 409 RESOURCE_CONFLICT when username is already in use", async (t) => {
   const { app } = await buildApp();
   const baseUrl = await startTestServer(app, t);
@@ -204,6 +223,37 @@ test("CREATE_USER route: 409 RESOURCE_CONFLICT when username is already in use",
   const body = (await second.json()) as { code: string; details: { field: string } };
   assert.equal(body.code, "RESOURCE_CONFLICT");
   assert.equal(body.details.field, "username");
+});
+
+test("CREATE_USER route: preserves the conflict response when the username is renamed before the Trash recheck", async (t) => {
+  const { app, deps, ownerId } = await buildApp();
+  const { user } = await createUser({
+    deps: identityServiceDepsFrom(deps),
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "renamed-conflict", password: "p4ssw0rd!" },
+  });
+  const findByUsername = deps.userRepo.findByUsername.bind(deps.userRepo);
+  // Capture the duplicate row, then release its username before the route's second lookup.
+  // This makes the concurrent rename deterministic without replacing createUser's conflict check.
+  t.mock.method(deps.userRepo, "findByUsername", async (input: Parameters<typeof findByUsername>[0]) => {
+    const found = await findByUsername(input);
+    if (found?.principalId === user.principalId) {
+      await deps.userRepo.save({ ...found, username: "renamed-away" });
+    }
+    return found;
+  });
+
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: ownerId };
+  await extractRouteHandler(app, "post", ROUTE_PATH)({
+    params: { workspaceId: WORKSPACE_ID },
+    body: { username: user.username, password: "p4ssw0rd!" },
+  }, res);
+
+  assert.equal(capture.statusCode, 409);
+  assert.deepEqual(capture.jsonBody, {
+    error: "username 'renamed-conflict' is already in use", code: "RESOURCE_CONFLICT", details: { field: "username" },
+  });
+  assert.equal(await findByUsername({ workspaceId: WORKSPACE_ID, username: user.username }), null);
 });
 
 test("CREATE_USER route: 403 FORBIDDEN when caller lacks user.manage", async (t) => {
