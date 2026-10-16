@@ -432,6 +432,10 @@ function success(outcome: GenerateOutcome, fingerprint: string, keyFilePath: str
 async function generateSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): Promise<GenerateResult> {
   const hasData = (): Promise<boolean> => siteHasKeyDependentData(deps);
   const mode = resolveRuntimeMode();
+  // Refuse before the shared writer derives metadata, which re-reads an existing corrupt file.
+  if (mode !== "production" && existsSync(join(deps.siteBinding.dir, ".site-meta.json")) && readSiteMetaJson(deps.siteBinding.dir) === undefined) {
+    return refusal("SITE_META_UNREADABLE");
+  }
   const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
   if (mode === "production" || ensured?.action === "production-noop") return generateProductionSiteKey(deps, hasData);
   if (ensured === undefined) return refusal("SITE_META_UNREADABLE");

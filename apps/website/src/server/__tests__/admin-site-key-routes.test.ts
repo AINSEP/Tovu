@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -325,10 +326,12 @@ test("GET status: state is 'missing-with-data' when nothing resolves but this si
   assert.equal(statusBody.state, "missing-with-data");
 });
 
-test("GET status: state is 'missing-with-data' for a Postgres site whose connection string is sealed with the missing key (.storage-secret.json, no content.db)", async (t) => {
+test("GET status: a sealed Postgres connection is 'missing-with-data' even when the open store is empty", async (t) => {
   isolateHomeDir(t);
   isolateSiteDir(t);
-  const deps = createRouteDeps();
+  const kernel = openPgliteKernel<ContentDatabase>();
+  t.after(() => kernel.close());
+  const deps = { ...createRouteDeps(), contentKernel: kernel };
   assertSiteDirIsolated(deps);
   writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ storage: { kind: "postgres", secretRef: "site" } }));
   writeFileSync(path.join(deps.siteBinding.dir, ".storage-secret.json"), JSON.stringify({ version: 1, sealed: { ciphertext: "c", nonce: "n" } }));
@@ -336,7 +339,9 @@ test("GET status: state is 'missing-with-data' for a Postgres site whose connect
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const statusBody = (await (await fetch(`${baseUrl}${BASE}`, { headers: { cookie } })).json()) as { state: string };
+  const status = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  assert.equal(status.status, 200);
+  const statusBody = (await status.json()) as { state: string };
   assert.equal(statusBody.state, "missing-with-data");
 });
 
@@ -672,6 +677,47 @@ test("all six endpoints stay 401 anonymously and 403 for a content.read-only ses
   assert.equal(readFileSync(metaPath, "utf8"), metadata);
   assert.equal(readFileSync(perSiteKeyPath("restricted-token-site"), "utf8"), hex);
   assert.deepEqual(readFileSync(dbPath), dbBefore);
+});
+
+test("generate refuses unreadable site metadata without writing a key", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  const metadata = "{ malformed";
+  writeFileSync(metaPath, metadata);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const response = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(response.status, 409);
+  assert.equal((await response.json() as { error: string }).error, "SITE_META_UNREADABLE");
+  assert.equal(readFileSync(metaPath, "utf8"), metadata);
+  assert.equal(existsSync(path.join(process.env.HOME!, ".tovu", "site-keys")), false);
+  assert.equal(existsSync(path.join(process.env.HOME!, ".tovu", LEGACY_SITE_KEY_FILENAME)), false);
+});
+
+test("production generate creates a durable key without fabricating missing site metadata", async (t) => {
+  isolateHomeDir(t);
+  isolateSiteDir(t);
+  const deps = createRouteDeps();
+  assertSiteDirIsolated(deps);
+  const app = createApp(deps);
+  t.mock.method(process, "cwd", () => deps.siteBinding.dir);
+  process.env.TOVU_RUNTIME_MODE = "production";
+  const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
+  assert.equal(existsSync(metaPath), false);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const response = await fetch(`${baseUrl}${BASE}/generate`, { method: "POST", headers: { cookie } });
+
+  assert.equal(response.status, 201);
+  const body = await response.json() as { outcome: string; fingerprint: string; keyFilePath: string };
+  assert.equal(body.outcome, "created");
+  assert.equal(body.keyFilePath, path.join(deps.siteBinding.dir, "sites", ".tovu", "site-key.hex"));
+  assert.equal(fingerprintSiteKeyHex(readFileSync(body.keyFilePath, "utf8")), body.fingerprint);
+  assert.equal(existsSync(metaPath), false, "a key write must not fabricate a site commit marker");
 });
 
 test("production generate creates and stamps the durable key, preserves it, and refuses invalid keys or sealed data", async (t) => {
