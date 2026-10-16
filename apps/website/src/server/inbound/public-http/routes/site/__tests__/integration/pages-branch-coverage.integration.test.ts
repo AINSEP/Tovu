@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -191,6 +192,7 @@ class UnresolvableCanonicalPostRepo extends InMemoryPostRepo {
 test("integration: GET /:slug a normal published post renders through the generic (non-template) path, with both a real and a legacy image node in its body", async (t) => {
   const post: PostRecord = {
     id: "post-generic-int",
+    ext: { "post-presentation": { hideCoverImageInBody: false } },
     workspaceId: WORKSPACE_ID,
     title: "A generic post",
     slug: "a-generic-post-int",
@@ -203,6 +205,8 @@ test("integration: GET /:slug a normal published post renders through the generi
         { type: "image", attrs: { assetId: "asset-int-1", transformName: "public", alt: "Authored asset" } },
         // A legacy src-only image node (no assetId) — exercises the same chain's false arm.
         { type: "image", attrs: { src: "legacy.jpg" } },
+        // The authenticated editor preview remains unsafe even when relative URLs are allowed.
+        { type: "image", attrs: { src: "/api/admin/v1/workspaces/workspace-local/media/asset-int-1/original" } },
       ],
     },
     bodyFormat: "doc",
@@ -232,10 +236,11 @@ test("integration: GET /:slug a normal published post renders through the generi
   const html = await res.text();
   assert.match(html, /<p>hello<\/p>/);
   assert.ok(html.includes('<img src="/m/integration-asset/public.v7/image.jpg" alt="Authored asset" width="640" height="480" class="integration-image" loading="lazy">'));
-  // A relative `src` fails safeImageSrc's http(s) allowlist, so the legacy node degrades to the
-  // placeholder rather than emitting the author's URL.
+  // Since 5f237c87aa, a relative `src` is allowed. The authenticated admin-preview node still
+  // degrades to the placeholder rather than emitting a URL public visitors cannot load.
+  assert.ok(html.includes('<img src="legacy.jpg" alt="" loading="lazy" />'));
   assert.ok(html.includes('<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Image</span></figure>'));
-  assert.ok(!html.includes("legacy.jpg"));
+  assert.ok(!html.includes("/api/admin/v1/workspaces/workspace-local/media/asset-int-1/original"));
 });
 
 test("integration: GET /:slug a static theme with an empty templateChoice renders the missing-template diagnostic page", async (t) => {

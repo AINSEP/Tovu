@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -188,12 +189,18 @@ test("GET .../publish-content/export streams registered post/page entities for a
     assert.ok(entity);
     assert.equal(entity.state.title, title);
     assert.equal(entity.state.slug, row.slug);
+    // Only posts/create supplies authorAccounts; this page has no editable byline. The transport
+    // omits null author and false showAuthor (79de6eff7), including from the content-hash input.
+    const isPage = row.id === page.id;
+    assert.equal(entity.state.author, isPage ? undefined : "admin");
+    assert.equal(Object.hasOwn(entity.state, "author"), !isPage);
+    assert.equal(Object.hasOwn(entity.state, "showAuthor"), false);
     assert.deepEqual(entity.state.bodyJson, { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] });
     assert.equal(entity.contentHash, contentHash(entity.entityType, {
-      title, slug: row.slug, kind: row.id === page.id ? "page" : "post", status: "draft",
+      title, slug: row.slug, kind: isPage ? "page" : "post", status: "draft",
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] },
       bodyFormat: "doc", bodyHtml: null, seoExtJson: null, templateChoice: null,
-      overridesThemePage: null, memberAccessJson: null,
+      overridesThemePage: null, memberAccessJson: null, ...(!isPage ? { author: "admin" } : {}),
     }));
   }
   assert.notEqual(byId.get(post.id)?.contentHash, byId.get(page.id)?.contentHash);

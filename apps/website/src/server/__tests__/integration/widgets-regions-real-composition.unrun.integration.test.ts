@@ -1,4 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -217,16 +218,16 @@ for (const dialect of SITE_DIALECTS) {
       await send(site, "POST", `${site.ws}/themes/rescan`),
       200
     );
-    assert.deepEqual(rescan.added, ["unrun-regions"]);
+    // The request middleware already discovers disk changes before the explicit rescan.
+    assert.deepEqual(rescan.added, []);
+    assert.deepEqual(rescan.duplicateIds, []);
     assert.ok(rescan.availableThemeIds.includes("unrun-regions"), "the copied theme loads as valid");
     await expectJson(await send(site, "PATCH", `${site.ws}/presentation`, { activeThemeId: "unrun-regions" }), 200);
 
-    // The seeded Page claiming "/" wins over a theme's home template. Trash it through the real
-    // route so this fixture exercises the declared region, as widgets-site-serving.test.ts does.
+    // Since 6f664cd19, initSite starts without authored pages: no root Page claims "/", so the
+    // theme's home template exercises the declared region without trashing a seeded placeholder.
     const pages = await expectJson<{ posts: Array<{ post: { id: string; slug: string } }> }>(await send(site, "GET", `${site.ws}/pages`), 200);
-    const rootPage = pages.posts.find(({ post }) => post.slug === "/");
-    assert.ok(rootPage, "fixture: initSite seeds the Page claiming the root slug");
-    await expectJson(await send(site, "DELETE", `${site.ws}/pages/${rootPage.post.id}`), 200);
+    assert.deepEqual(pages.posts, [], "fixture: initSite seeds no authored pages");
 
     const first = await createTextWidget(site, "Unrun First", "Unrun first widget");
     const second = await createTextWidget(site, "Unrun Second", "Unrun second widget");
