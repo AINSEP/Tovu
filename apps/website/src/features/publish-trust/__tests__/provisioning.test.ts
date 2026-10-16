@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -141,6 +142,17 @@ test("an install that has never been published to says so in a sentence", () => 
   assert.deepEqual(res.grants, []);
   assert.match(describePublishTrustState(res), /^No computer is connected to this site for publishing yet\./);
   assert.doesNotMatch(describePublishTrustState(res), /[A-Z_]{6,}/, "the empty state must not surface an error code");
+});
+
+test("an empty committed trust file is absent rather than revoked", () => {
+  for (const fileContents of ["", " \t\n"]) {
+    assert.deepEqual(resolvePublishTrust({ envValue: undefined, fileContents }), {
+      state: "absent",
+      origin: "file",
+      grants: [],
+      reason: null,
+    });
+  }
 });
 
 test("a malformed grant document disables publishing without pretending to be configured", () => {

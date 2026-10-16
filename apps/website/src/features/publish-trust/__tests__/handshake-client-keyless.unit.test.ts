@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -38,6 +39,27 @@ test("identity decoding returns the destination's workspace and origin", async (
     return { status: 200, headers: {}, bodyText: JSON.stringify(identity) };
   } } }, { baseUrl: "https://dest.example" }), identity);
   assert.deepEqual(requests, [{ method: "GET", url: "https://dest.example/api/publish-trust/v1/identity", headers: {}, timeoutMs: 15000 }]);
+});
+
+test("a null identity response is reported as a non-Tovu destination", async () => {
+  await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => ({
+    status: 200, headers: {}, bodyText: "null",
+  }) } }, { baseUrl: "https://dest.example" }),
+  (err: unknown) => err instanceof PublishTrustHandshakeError && err.failure === "not-a-tovu-site" &&
+    err.message === "dest.example answered, but it does not look like a Tovu site.");
+});
+
+test("identity responses require nonempty installation and workspace ids", async () => {
+  for (const field of ["installationId", "workspaceId"]) {
+    for (const value of [undefined, "", 42]) {
+      const body = { installationId: "dest-install", workspaceId: "dest-ws", [field]: value };
+      await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => ({
+        status: 200, headers: {}, bodyText: JSON.stringify(body),
+      }) } }, { baseUrl: "https://dest.example" }),
+      (err: unknown) => err instanceof PublishTrustHandshakeError && err.failure === "not-a-tovu-site" &&
+        err.message === "dest.example answered, but it does not look like a Tovu site.");
+    }
+  }
 });
 
 for (const [status, failure] of [[404, "not-a-tovu-site"], [401, "not-connected"], [500, "refused"]] as const) {
@@ -97,3 +119,37 @@ test("openPublishSession signs the challenge and returns the minted session", as
   assert.equal(verify(null, Buffer.from(`tovu-publish-challenge-v1\nnonce-under-test\ndest-install\n${sourceId}\n2\npublish_content.apply,publish_content.read`), publicKey, Buffer.from(signed.signatureB64u, "base64url")), true);
   assert.equal(keyRequests.length, 2);
 });
+
+for (const [leg, fields] of [
+  ["challenge", ["nonce", "targetInstallationId"]],
+  ["session", ["token"]],
+] as const) {
+  test(`openPublishSession refuses ${leg} responses with missing, empty or non-string fields`, async () => {
+    for (const field of fields) {
+      for (const value of [undefined, "", 42]) {
+        const responses: Record<string, unknown> = {
+          identity: { installationId: "dest-install", workspaceId: "dest-ws" },
+          challenge: { nonce: "n", targetInstallationId: "dest-install" },
+          session: { token: "session-token" },
+        };
+        responses[leg] = { ...(responses[leg] as Record<string, unknown>), [field]: value };
+        await assert.rejects(openPublishSession({
+          keyring: {
+            activeKey: async () => assert.fail("the handshake never reads the active key"),
+            deriveSigningSecret: async () => assert.fail("the handshake never derives a webhook signing secret"),
+            derive: async () => new Uint8Array(32).fill(7),
+          },
+          httpClient: { send: async request => {
+            const path = new URL(request.url).pathname.split("/").at(-1)!;
+            assert.ok(Object.hasOwn(responses, path), `unexpected handshake path: ${request.url}`);
+            assert.equal(request.url, `https://dest.example/api/publish-trust/v1/${path}`);
+            assert.equal(request.method, path === "identity" ? "GET" : "POST");
+            return { status: 200, headers: {}, bodyText: JSON.stringify(responses[path]) };
+          } },
+        }, { baseUrl: "https://dest.example", workspaceId: "source-ws", generation: 2 }),
+        (err: unknown) => err instanceof PublishTrustHandshakeError && err.failure === "not-a-tovu-site" &&
+          err.message === "dest.example answered, but it does not look like a Tovu site.");
+      }
+    }
+  });
+}

@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -120,6 +121,45 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   assert.equal(sent.status, 500);
   assert.deepEqual(sent.body, { error: "the publishing handshake failed", code: "INTERNAL_ERROR" });
   assert.equal(logged.length, 1);
+});
+
+for (const [field, value] of [
+  ["nonce", 42],
+  ["sourceInstallationId", 42],
+  ["generation", 1.5],
+  ["capabilities", [1]],
+  ["signatureB64u", 42],
+] as const) {
+  test(`POST /session refuses malformed ${field} even when the grant store is unavailable`, async (t) => {
+    t.mock.method(console, "error", () => undefined);
+    const handlers = routes({
+      targetInstallationId: Promise.resolve("dest-1"),
+      grants: async () => { throw new Error("grant store unavailable"); },
+    });
+    // Keep every other field well-typed: a later shape check must not mask this one.
+    const body = { nonce: "n", sourceInstallationId: "src-1", generation: 1,
+      capabilities: ["publish_content.apply"], signatureB64u: "s", [field]: value };
+    const { res, sent } = fakeRes();
+    await handlers.get("POST /api/publish-trust/v1/session")!(fakeReq(body), res);
+    assert.equal(sent.status, 401);
+    assert.deepEqual(sent.body, { error: "the publishing handshake was refused", code: "UNAUTHENTICATED" });
+  });
+}
+
+test("POST /session rate limits repeated refused handshakes from the same IP", async () => {
+  const handler = routes().get("POST /api/publish-trust/v1/session")!;
+  for (let i = 0; i < 40; i++) {
+    const { res, sent } = fakeRes();
+    await handler(fakeReq(null), res);
+    assert.equal(sent.status, 401);
+  }
+  const { res, sent } = fakeRes();
+  const headers: Record<string, unknown> = {};
+  res.setHeader = (name: string, value: unknown) => { headers[name] = value; return res; };
+  await handler(fakeReq(null), res);
+  assert.equal(sent.status, 429);
+  assert.deepEqual(sent.body, { error: "too many publishing handshake attempts", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
+  assert.equal(headers["Retry-After"], "60");
 });
 
 test("a keyed instance refuses malformed responses and expired grants with the fixed envelope", async () => {

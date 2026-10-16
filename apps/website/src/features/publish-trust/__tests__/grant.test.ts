@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -79,6 +80,53 @@ test("a grant with no public keys is refused", () => {
   assert.equal(parsePublishTrustGrant(validGrantDoc({ publicKeys: "AAAA" })).ok, false);
 });
 
+test("a grant accepts four public keys but refuses a fifth", () => {
+  const publicKeys = Array.from({ length: 5 }, (_, generation) => ({ publicKeyB64u: "AAAA", generation }));
+  assert.equal(parseOrThrow(validGrantDoc({ publicKeys: publicKeys.slice(0, 4) })).publicKeys.length, 4);
+  assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ publicKeys })), {
+    ok: false,
+    reason: "'publicKeys' must hold at most 4 keys",
+  });
+});
+
+test("a grant refuses non-object public key entries without throwing", () => {
+  for (const entry of [null, 42, "AAAA"]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ publicKeys: [entry] })), {
+      ok: false,
+      reason: "each 'publicKeys' entry must be an object",
+    });
+  }
+});
+
+test("a grant requires a bounded non-empty public key string", () => {
+  for (const publicKeyB64u of [undefined, null, 42, "", "x".repeat(513)]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ publicKeys: [{ publicKeyB64u, generation: 1 }] })), {
+      ok: false,
+      reason: "each 'publicKeys' entry needs a 'publicKeyB64u' string",
+    });
+  }
+});
+
+test("a grant requires a non-empty capabilities array", () => {
+  for (const capabilities of [[], undefined, null, {}, "publish_content.read"]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ capabilities })), {
+      ok: false,
+      reason: "'capabilities' must be a non-empty array",
+    });
+  }
+});
+
+for (const field of ["sourceInstallationId", "workspaceId"]) {
+  test(`a grant requires a bounded non-empty ${field}`, () => {
+    for (const value of [undefined, null, 42, "", "x".repeat(513)]) {
+      assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ [field]: value })), {
+        ok: false,
+        reason: `'${field}' must be a non-empty string`,
+      });
+    }
+  });
+}
+
 test("two public keys claiming the same generation are refused, not de-duplicated", () => {
   const result = parsePublishTrustGrant(
     validGrantDoc({
@@ -106,6 +154,33 @@ test("a rotation overlap — two keys, two generations — is accepted", () => {
 
 test("entityTypes may not use a wildcard", () => {
   assert.equal(parsePublishTrustGrant(validGrantDoc({ entityTypes: ["*"] })).ok, false);
+});
+
+test("a grant requires an entityTypes array", () => {
+  for (const entityTypes of [undefined, null, {}, "post"]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ entityTypes })), {
+      ok: false,
+      reason: "'entityTypes' must be an array",
+    });
+  }
+});
+
+test("a grant accepts 64 entity types but refuses a 65th", () => {
+  const entityTypes = Array.from({ length: 65 }, (_, i) => `type-${i}`);
+  assert.deepEqual(parseOrThrow(validGrantDoc({ entityTypes: entityTypes.slice(0, 64) })).entityTypes, entityTypes.slice(0, 64));
+  assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ entityTypes })), {
+    ok: false,
+    reason: "'entityTypes' must hold at most 64 types",
+  });
+});
+
+test("a grant requires bounded non-empty entity type strings", () => {
+  for (const entry of [undefined, null, 42, "", "x".repeat(513)]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ entityTypes: [entry] })), {
+      ok: false,
+      reason: "each 'entityTypes' entry must be a non-empty string",
+    });
+  }
 });
 
 test("an empty entityTypes list grants NOTHING — silence is not 'all'", () => {
