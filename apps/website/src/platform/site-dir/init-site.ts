@@ -4,6 +4,7 @@ import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-re
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
 
 import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection, openPostgresKernel, sqliteKernel } from "../db/kernel/index.js";
@@ -186,6 +187,8 @@ export function validateInitTarget(target: string): void {
  *   U-004) into the single `target` every write below derives from.
  * @param required.name - site display name; defaults to the target directory's basename (BR-03).
  * @param options.withSampleContent - Explicit demo/fixture opt-in; default creation has no entries.
+ * @param options.workspace - Site catalog and database placement; defaults to the host workspace.
+ * @param options.filesystem - Atomic filesystem port for config and metadata writes; defaults to Node.
  * @returns `{ siteId, dir }` — `dir` is the RESOLVED target path.
  * @throws {ValidationError} an invalid `--name` (EC-06, behavior.spec.md §4) — nothing created.
  * @throws {InitDirNotEmptyError} the target is occupied (file or non-empty dir, AC-04/EC-01/EC-02)
@@ -198,7 +201,7 @@ export function validateInitTarget(target: string): void {
  *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
-export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional & { workspace?: SitesWorkspace } = {}): Promise<InitSiteResult> {
+export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional & { workspace?: SitesWorkspace; filesystem?: AtomicFilesystemPort } = {}): Promise<InitSiteResult> {
   const { dir, name } = required;
   const adminPassword = resolveNewSiteAdminPassword(required);
   const target = resolveInstallDirTarget(dir);
@@ -239,7 +242,7 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
 
     // Step 5: config.json write.
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
-    writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
+    writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, { filesystem: options.filesystem });
 
     // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
     // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
@@ -287,7 +290,7 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
       // Written explicitly (absent also means SQLite) so the choice is visible in the file.
       storage,
     };
-    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: meta }, {});
+    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: meta }, { filesystem: options.filesystem });
 
     return { siteId, dir: target };
   } catch (err) {
