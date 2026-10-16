@@ -1,10 +1,14 @@
-import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
+import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
+import type { MediaRecord } from "#src/features/media/index";
+import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -126,6 +130,55 @@ test("put-entry: a valid patch succeeds (200) and the meta reflects it", async (
   assert.deepEqual(JSON.parse(saved.seoExtJson!), { title: "New SEO Title", noindex: true });
   assert.equal(saved.title, before.title);
 });
+
+for (const source of ["library", "external"] as const) {
+  test(`put-entry: a title-only patch returns the ${source} content image without saving an image override`, async (t) => {
+    const base = createRouteDeps();
+    await base.siteTitleReady;
+    const now = "2026-10-16T00:00:00.000Z";
+    const external = "https://external.example/body.jpg";
+    const post = buildPostRecord({
+      id: ENTRY_ID, workspaceId: WORKSPACE_ID, title: "Landing", slug: ROOT_SLUG, kind: "page",
+      featuredMediaId: null, seoExtJson: null,
+      bodyJson: { type: "doc", content: [source === "library"
+        ? { type: "media", attrs: { assetId: "body" } }
+        : { type: "image", attrs: { src: external } }] },
+    });
+    const postRepo = new InMemoryPostRepo([post]);
+    const before = structuredClone(post);
+    const asset: MediaRecord = {
+      id: "body", workspaceId: WORKSPACE_ID, title: "Body", slug: "body", alt: "", caption: "", credit: "",
+      source: { sha256: "body-sha" }, status: "active", createdAt: now, updatedAt: now,
+      version: 1, width: 1400, height: 800, cssClass: null, htmlAttributes: null,
+    };
+    await base.mediaRepo.save(asset);
+    await base.mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: "body-sha", contentType: "image/png" });
+    const seoDeps = createSeoDeps({ deps: { ...base, postRepo } });
+    const getSettings = seoDeps.settings.getSeoSettings;
+    seoDeps.settings = { ...seoDeps.settings, getSeoSettings: async (input) => ({
+      ...await getSettings(input), defaultOgImage: "https://seo.example.com/tovu-share-card.png",
+    }) };
+    seoDeps.originRegistry = { ...base.originRegistry, canonicalOrigin: async () => ({
+      scheme: "https", host: "seo.example.com", source: "workspace-setting", verifiedAt: now,
+    } satisfies VerifiedOrigin) };
+    seoDeps.media.transformDefinitionRepo = { listByName: async ({ name, workspaceId }) => [{
+      id: name, workspaceId, name, version: 1, params: { format: "jpeg", width: 1200, height: 630, fit: "cover" }, owner: "core", createdAt: now,
+    }] };
+    const { status, json } = await put(t, buildApp({ postRepo, seoDeps }), { title: "New SEO Title" });
+    assert.equal(status, 200, JSON.stringify(json));
+    const meta = (json as { data: SeoMeta }).data;
+    assert.equal(meta.title, "New SEO Title");
+    assert.equal(meta.openGraph.imageRef, source === "library" ? "body:public" : external);
+    assert.equal(meta.openGraph.image, source === "library" ? "https://seo.example.com/m/body/og.v1/image.jpg" : external);
+    assert.equal(meta.openGraph.imageSource, "content");
+    assert.equal("imageOverridden" in meta.openGraph, false);
+    const saved = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+    assert.ok(saved);
+    assert.deepEqual(JSON.parse(saved.seoExtJson!), { title: "New SEO Title" });
+    assert.equal(saved.featuredMediaId, before.featuredMediaId);
+    assert.deepEqual(saved.bodyJson, before.bodyJson);
+  });
+}
 
 test("put-entry: a request with no body at all still succeeds as a real empty patch (express.json() itself always defaults req.body to {}, confirmed by direct check -- see the type-bypass test below for the `req.body ?? {}` branch this does NOT reach)", async (t) => {
   const app = buildApp();

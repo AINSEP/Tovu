@@ -155,11 +155,12 @@ describe('Jini SEO host switch', () => {
     const fetch = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ media: [{ ...selected, slug: 'cover-slug', status: 'active' }] }), { headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetch);
     render(node());
-    const input = await screen.findByLabelText('Default Open Graph / Twitter image');
+    const row = await screen.findByRole('group', { name: 'Default preview image' });
     // Await a browser-style gesture so effect-owned picker state is attached before use.
-    await user.click(screen.getByRole('button', { name: 'Choose image' }));
-    await waitFor(() => expect(input).toHaveValue('Selected image'));
-    expect(new FormData(input.closest('form')!).getAll('defaultOgImage')).toEqual(['cover-slug:public']);
+    await user.click(within(row).getByRole('button', { name: 'Choose image' }));
+    // The memory SEO API has no media list, so the file name falls back to the hydrated slug.
+    expect(await within(row).findByText('cover-slug', { selector: '.jini-media-ref-field-name' })).toBeInTheDocument();
+    expect(new FormData(row.closest('form')!).getAll('defaultOgImage')).toEqual(['cover-slug:public']);
     expect(pick).toHaveBeenCalledWith({ accept: ['image/*'] }, { signal: expect.any(AbortSignal) });
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/workspaces/workspace-local/media'))).toBe(true);
   });

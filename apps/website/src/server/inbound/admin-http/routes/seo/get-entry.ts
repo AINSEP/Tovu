@@ -1,5 +1,6 @@
 import { getEntryMeta, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/cover-image";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /**
@@ -32,11 +33,13 @@ export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = (app, deps) => {
         return;
       }
 
+      const entryId = String(req.params.entryId ?? "");
+      const read = await withCoverReadDeps({ deps: deps.seoDeps, workspaceId: deps.workspaceId, entryId });
       const meta = await getEntryMeta({
-        deps: deps.seoDeps,
-        input: { workspaceId: deps.workspaceId, entryId: String(req.params.entryId ?? "") },
+        deps: read.deps,
+        input: { workspaceId: deps.workspaceId, entryId },
       }, {});
-      res.json({ data: meta });
+      res.json({ data: withContentImageSource({ meta, rawPost: read.rawPost }) });
     } catch (err) {
       if (err instanceof SeoEntryNotFoundError) {
         res.status(404).json({ error: err.message, code: "SEO_ENTRY_NOT_FOUND" });

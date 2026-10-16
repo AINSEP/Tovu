@@ -1,4 +1,4 @@
-import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,7 +6,9 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
+import type { MediaRecord } from "#src/features/media/index";
 import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import { setSeoSettings } from "#src/features/seo/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
@@ -136,6 +138,51 @@ test("get-entry: unexpected repo error returns 500 (INTERNAL_ERROR)", async (t) 
   assert.equal(status, 500);
   assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
 });
+
+for (const source of ["library", "external", "override"] as const) {
+  test(`get-entry: ${source} body cover reports its effective source without changing storage`, async (t) => {
+    const base = createRouteDeps();
+    await base.siteTitleReady;
+    const now = "2026-10-16T00:00:00.000Z";
+    const external = "https://external.example/body.jpg";
+    const override = "https://external.example/override.jpg";
+    const post = buildPostRecord({
+      id: ENTRY_ID, workspaceId: WORKSPACE_ID, title: "Landing", slug: ROOT_SLUG, kind: "page",
+      featuredMediaId: null, seoExtJson: source === "override" ? JSON.stringify({ ogImage: override }) : null,
+      bodyJson: { type: "doc", content: [source === "library"
+        ? { type: "media", attrs: { assetId: "body" } }
+        : { type: "image", attrs: { src: external } }] },
+    });
+    const postRepo = new InMemoryPostRepo([post]);
+    const before = structuredClone(post);
+    const asset: MediaRecord = {
+      id: "body", workspaceId: WORKSPACE_ID, title: "Body", slug: "body", alt: "", caption: "", credit: "",
+      source: { sha256: "body-sha" }, status: "active", createdAt: now, updatedAt: now,
+      version: 1, width: 1400, height: 800, cssClass: null, htmlAttributes: null,
+    };
+    await base.mediaRepo.save(asset);
+    await base.mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: "body-sha", contentType: "image/png" });
+    const seoDeps = createSeoDeps({ deps: { ...base, postRepo } });
+    const getSettings = seoDeps.settings.getSeoSettings;
+    seoDeps.settings = { ...seoDeps.settings, getSeoSettings: async (input) => ({
+      ...await getSettings(input), defaultOgImage: "https://seo.example.com/tovu-share-card.png",
+    }) };
+    seoDeps.originRegistry = { ...base.originRegistry, canonicalOrigin: async () => ({
+      scheme: "https", host: "seo.example.com", source: "workspace-setting", verifiedAt: now,
+    } satisfies VerifiedOrigin) };
+    seoDeps.media.transformDefinitionRepo = { listByName: async ({ name, workspaceId }) => [{
+      id: name, workspaceId, name, version: 1, params: { format: "jpeg", width: 1200, height: 630, fit: "cover" }, owner: "core", createdAt: now,
+    }] };
+    const { status, json } = await get(t, buildApp({ postRepo, seoDeps }));
+    assert.equal(status, 200, JSON.stringify(json));
+    const meta = (json as { data: SeoMeta }).data;
+    assert.equal(meta.openGraph.imageRef, source === "library" ? "body:public" : source === "override" ? override : external);
+    assert.equal(meta.openGraph.image, source === "library" ? "https://seo.example.com/m/body/og.v1/image.jpg" : source === "override" ? override : external);
+    assert.equal(meta.openGraph.imageSource, source === "override" ? "override" : "content");
+    assert.equal("imageOverridden" in meta.openGraph, source === "override");
+    assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+  });
+}
 
 test("get-entry: workspaceId and entryId undefined fallbacks via direct handler execution", async () => {
   const app = buildApp();

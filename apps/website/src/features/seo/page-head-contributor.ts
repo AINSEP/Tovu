@@ -1,5 +1,5 @@
 import { buildHeadElements, type GetEntryMetaDeps, type PageHeadHook } from "@jini-ai/cms/seo";
-import { resolveSeoCoverImage, withCoverSeoDefaults } from "./cover-image.js";
+import { withCoverReadDeps } from "./cover-image.js";
 
 /**
  * @file SEO's host PageHeadHook (ADR-PIPE-008 Decision, C-003). Ordered descriptor production
@@ -28,17 +28,7 @@ export function createSeoPageHeadHook(
     priority: optional.priority ?? DEFAULT_CONTRIBUTOR_PRIORITY,
     handle: async (ctx) => {
       if (!ctx.entry) return buildHeadElements({ ...required, ctx }, {});
-      const post = await required.deps.postRepo.findById({ workspaceId: ctx.workspaceId, id: ctx.entry.id });
-      if (!post) return buildHeadElements({ ...required, ctx }, {});
-      const cover = await resolveSeoCoverImage({ deps: required.deps, post });
-      const projected = withCoverSeoDefaults({ post, cover });
-      // Bind only the read port passed to the producer. A transient default must never reach a
-      // write service, admin DTO or the shared seoDeps object used elsewhere in this process.
-      const deps = { ...required.deps, postRepo: {
-        findById: async () => projected,
-        extractPlainText: required.deps.postRepo.extractPlainText.bind(required.deps.postRepo),
-        isTrashed: required.deps.postRepo.isTrashed.bind(required.deps.postRepo),
-      } };
+      const { deps, cover } = await withCoverReadDeps({ deps: required.deps, workspaceId: ctx.workspaceId, entryId: ctx.entry.id });
       const elements = await buildHeadElements({ ...required, deps, ctx }, {});
       const ogImage = elements.find((element) => element.kind === "og" && element.property === "og:image");
       if (ogImage?.kind !== "og") return elements;

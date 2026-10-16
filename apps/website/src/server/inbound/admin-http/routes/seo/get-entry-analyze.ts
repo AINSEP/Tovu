@@ -1,5 +1,6 @@
 import { analyzeEntry, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { withCoverReadDeps } from "#src/features/seo/cover-image";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /** GET SEO score+issues for an entry (SPEC-008 api.spec.md `SEO_GET_ENTRY_ANALYZE`, tasks.md T047). */
@@ -30,8 +31,9 @@ export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = (app, dep
         return;
       }
 
+      const read = await withCoverReadDeps({ deps: deps.seoDeps, workspaceId: deps.workspaceId, entryId });
       const analysis = await analyzeEntry({
-        deps: deps.seoDeps,
+        deps: read.deps,
         input: { workspaceId: deps.workspaceId, entryId },
       }, {});
       res.json({ data: analysis });

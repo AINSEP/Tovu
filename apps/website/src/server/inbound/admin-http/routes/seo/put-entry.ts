@@ -8,6 +8,7 @@ import {
 } from "@jini-ai/cms/seo";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/cover-image";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import type { SeoRouteRegistrar } from "./deps.js";
 
@@ -76,11 +77,12 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
         },
       }, {});
 
+      const read = await withCoverReadDeps({ deps: deps.seoDeps, workspaceId: deps.workspaceId, entryId });
       const meta = await getEntryMeta({
-        deps: deps.seoDeps,
+        deps: read.deps,
         input: { workspaceId: deps.workspaceId, entryId },
       }, {});
-      res.json({ data: meta });
+      res.json({ data: withContentImageSource({ meta, rawPost: read.rawPost }) });
     } catch (err) {
       const { status, body } = seoPutEntryErrorResponse(err);
       res.status(status).json(body);

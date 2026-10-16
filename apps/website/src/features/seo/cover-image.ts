@@ -1,5 +1,5 @@
-/** @file Public head adapter for the shared cover policy; no persisted SEO or post writes. */
-import type { GetEntryMetaDeps, SeoPostRecord } from "@jini-ai/cms/seo";
+/** @file Read adapter for the shared cover policy; no persisted SEO or post writes. */
+import type { GetEntryMetaDeps, SeoMeta, SeoPostRecord } from "@jini-ai/cms/seo";
 import { collectCoverMediaRefs, resolveCoverImage, type CoverImage, type CoverMedia } from "../post/cover-image.js";
 
 /** Use the existing media/image owners to populate the selector's synchronous metadata port.
@@ -23,7 +23,7 @@ export async function resolveSeoCoverImage(
 }
 
 /** Offer a body cover to the existing SEO evaluator below explicit overrides and above defaults.
- * This detached projection is confined to public rendering; stored featuredMediaId stays untouched.
+ * This detached projection is confined to SEO reads; stored featuredMediaId stays untouched.
  * A library ref uses the evaluator's existing featured/default chain, including transform misses.
  * External body URLs populate OG only, never Twitter's fallback.
  * @complexity O(s) for the existing SEO JSON; no effects.
@@ -46,4 +46,41 @@ export function withCoverSeoDefaults(
       ogImage: overrides.ogImage || cover.url,
     }),
   };
+}
+
+/** Project the shared cover into one entry's SEO read port; missing entries keep the evaluator's
+ * not-found behavior. Returns the raw row for admin provenance and cover for public JSON-LD.
+ * @complexity O(n + a) shared body traversal/media reads; no persisted writes.
+ */
+export async function withCoverReadDeps(
+  { deps, workspaceId, entryId }: { deps: GetEntryMetaDeps; workspaceId: string; entryId: string },
+  _optional: Record<string, never> = {},
+): Promise<{ deps: GetEntryMetaDeps; cover: CoverImage | null; rawPost: SeoPostRecord | null }> {
+  const rawPost = await deps.postRepo.findById({ workspaceId, id: entryId });
+  if (!rawPost) return { deps, cover: null, rawPost: null };
+  const cover = await resolveSeoCoverImage({ deps, post: rawPost });
+  const projected = withCoverSeoDefaults({ post: rawPost, cover });
+  // Bind only the read port passed to the evaluator. A transient default must never reach a
+  // write service or the shared seoDeps object used elsewhere in this process.
+  return { deps: { ...deps, postRepo: {
+    findById: async () => projected,
+    extractPlainText: deps.postRepo.extractPlainText.bind(deps.postRepo),
+    isTrashed: deps.postRepo.isTrashed.bind(deps.postRepo),
+  } }, cover, rawPost };
+}
+
+/** Mark an external body URL as content in admin meta: its transient ogImage is not a stored
+ * override. Keep actual stored overrides authoritative, including ones equal to the body URL.
+ * @complexity O(s) stored SEO JSON parsing; pure, with malformed JSON treated as no override.
+ */
+export function withContentImageSource(
+  { meta, rawPost }: { meta: SeoMeta; rawPost: SeoPostRecord | null },
+  _optional: Record<string, never> = {},
+): SeoMeta {
+  if (!rawPost || meta.openGraph.imageSource !== "override") return meta;
+  try {
+    if (JSON.parse(rawPost.seoExtJson ?? "{}")?.ogImage) return meta;
+  } catch { /* Match the existing SEO evaluator's malformed-JSON fallback. */ }
+  const { imageOverridden: _overridden, ...openGraph } = meta.openGraph;
+  return { ...meta, openGraph: { ...openGraph, imageSource: "content" } };
 }
