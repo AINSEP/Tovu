@@ -66,7 +66,7 @@ test("theme_list_files called with a wrong parameter name ('theme_id' instead of
 
   assert.deepEqual(result, {
     ok: false,
-    error: { code: "BAD_REQUEST", message: "'themeId' (non-empty string) is required" },
+    error: { code: "BAD_REQUEST", message: "'themeId' (non-empty string) is required; received: theme_id" },
   });
 });
 
@@ -152,7 +152,9 @@ test("the mounted HTTP adapter serializes malformed, missing and unknown theme i
       const parsed = JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)) as { error: { code: string; message: string } };
       assert.equal(parsed.error.code, "BAD_REQUEST");
       if ("themeId" in input) assert.match(parsed.error.message, /theme 'nope' was not found/);
-      else assert.equal(parsed.error.message, "'themeId' (non-empty string) is required");
+      else assert.equal(parsed.error.message, "theme_id" in input
+        ? "'themeId' (non-empty string) is required; received: theme_id"
+        : "'themeId' (non-empty string) is required");
     } finally {
       socket.destroy();
     }

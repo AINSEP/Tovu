@@ -108,6 +108,6 @@ test("a missing entityId is refused before the port is called", async () => {
     called = true;
     return { noop: false };
   });
-  await assert.rejects(call(trashItem, { entityType: "user" }), { message: "'entityId' (non-empty string) is required" });
+  await assert.rejects(call(trashItem, { entityType: "user" }), { message: "'entityId' (non-empty string) is required; received: entityType" });
   assert.equal(called, false);
 });

@@ -95,7 +95,7 @@ test("widgets_create_instance: an unregistered widgetType is a shape rejection â
       // isWidgetsShapeRejection decorates this one (WidgetTypeUnregisteredError) â€” the decorated
       // message is a plain `Error`, so `.name` is NOT preserved; only the message text is.
       assert.ok(
-        error.message.startsWith("widget type 'carousel' is not registered (REQ-03). Fix the input and retry"),
+        error.message.startsWith("widget type 'carousel' is not registered. Fix the input and retry"),
         `expected the decorated WidgetTypeUnregisteredError message, got: ${error.message}`
       );
       assert.match(error.message, /Schema for 'widgets_create_instance':/);
@@ -126,7 +126,7 @@ test("widgets_create_instance: a config missing a required field is a shape reje
     (error: unknown) => {
       assert.ok(error instanceof Error);
       assert.ok(
-        error.message.startsWith("config for widget type 'text' failed schema validation (REQ-02). Fix the input and retry"),
+        error.message.startsWith("config for widget type 'text' failed schema validation: config.body: required field is missing. Expected config keys: body (required). Fix the input and retry"),
         `expected the decorated WidgetConfigValidationError message, got: ${error.message}`
       );
       assert.match(error.message, /Schema for 'widgets_create_instance':/);

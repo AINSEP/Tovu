@@ -150,7 +150,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
     );
     assert.equal(res.statusCode, 400);
     assert.deepEqual(res.body, {
-      error: "config for widget type 'text' failed schema validation (REQ-02)", code: "WIDGETS_CONFIG_VALIDATION_ERROR",
+      error: "config for widget type 'text' failed schema validation: config.body: required field is missing. Expected config keys: body (required)", code: "WIDGETS_CONFIG_VALIDATION_ERROR",
       details: { fieldErrors: [{ field: "config.body", reason: "required field is missing" }] },
     });
     assert.deepEqual(await entryRepo.findById({ workspaceId: "ws-1", id: "w-1" }), before);

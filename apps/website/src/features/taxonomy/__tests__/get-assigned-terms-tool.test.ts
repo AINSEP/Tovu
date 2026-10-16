@@ -57,8 +57,8 @@ test("unknown content type refuses with the assign tool's exact validation text"
 
 test("input strings match assign validation and the descriptor remains readOnly", async () => {
   const { deps, call } = await harness();
-  await assert.rejects(() => call("taxonomy_get_assigned_terms", { contentType: "post" }), { name: "ToolInputError", message: "'contentId' (non-empty string) is required" });
-  await assert.rejects(() => call("taxonomy_assign_terms", { contentType: "post", termIds: [] }), { name: "ToolInputError", message: "'contentId' (non-empty string) is required" });
+  await assert.rejects(() => call("taxonomy_get_assigned_terms", { contentType: "post" }), { name: "ToolInputError", message: "'contentId' (non-empty string) is required; received: contentType" });
+  await assert.rejects(() => call("taxonomy_assign_terms", { contentType: "post", termIds: [] }), { name: "ToolInputError", message: "'contentId' (non-empty string) is required; received: contentType, termIds" });
   const tool = buildTaxonomyRegistrations(deps).find((r) => r.descriptor.id === "taxonomy_get_assigned_terms");
   assert.ok(tool, "expected 'taxonomy_get_assigned_terms' to be wired");
   assert.equal(isReadOnlyTool({ descriptor: tool.descriptor }), true);

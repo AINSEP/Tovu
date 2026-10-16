@@ -75,7 +75,7 @@ test("widget create normalizes absent, null and scalar config to an empty object
   for (const config of [undefined, null, "wrong shape"]) {
     const capture = await invoke("post", { widgetType: "text", title: "Valid title", config });
     assert.deepEqual(capture, { statusCode: 400, jsonBody: {
-      error: "config for widget type 'text' failed schema validation (REQ-02)", code: "WIDGETS_CONFIG_VALIDATION_ERROR",
+      error: "config for widget type 'text' failed schema validation: config.body: required field is missing. Expected config keys: body (required)", code: "WIDGETS_CONFIG_VALIDATION_ERROR",
       details: { fieldErrors: [{ field: "config.body", reason: "required field is missing" }] },
     } });
     assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: WS }), []);
