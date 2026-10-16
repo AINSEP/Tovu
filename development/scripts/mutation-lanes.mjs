@@ -102,7 +102,7 @@ function readResults(path) {
 
 function completed(record) {
   return record.mutants !== undefined && record.mutants.trim() !== ''
-    && !/SKIPPED-|BASELINE-RED|NO-JSON|STOPPED|TIMEOUT(?!-PARTIAL\b)/.test(record.note || '');
+    && !/ERROR|SKIPPED-|BASELINE-RED|NO-JSON|STOPPED|TIMEOUT(?!-PARTIAL\b)/.test(record.note || '');
 }
 
 /** Port the relative-import index once, using tracked tests and real-tree source resolution. */
@@ -217,6 +217,7 @@ function fail(error) {
 /* ---------- isolated committed copies ---------- */
 
 async function removeCopy(repo) {
+  rmSync(join(dirname(repo), 'copy.tar'), { force: true });
   if (!existsSync(repo)) return;
   if (!lstatSync(repo).isSymbolicLink()) {
     await command({ cmd: 'chmod', args: ['-R', 'u+w', repo], duringCleanup: true });
@@ -229,17 +230,11 @@ async function extractCopy({ repo, sha }) {
   await removeCopy(repo);
   if (stopNow) throw new Error('Runner is stopping immediately');
   mkdirSync(repo, { recursive: true });
-  const archive = launch({ cmd: 'git', args: ['archive', sha], captureStdout: false });
-  const tar = launch({ cmd: 'tar', args: ['-x', '-C', repo], stdio: ['pipe', 'ignore', 'pipe'] });
-  // Handle a broken pipe as an extraction failure, without an unhandled stream error.
-  archive.child.stdout.on('error', fail);
-  tar.child.stdin.on('error', fail);
-  archive.child.stdout.pipe(tar.child.stdin);
-  const results = await Promise.all([archive.closed, tar.closed]);
-  await Promise.all([stopGroup(archive), stopGroup(tar)]);
-  for (const result of results) {
-    if (result.error || result.code !== 0) throw result.error || new Error(`Copy extraction failed: ${result.stderr}`);
-  }
+  const archive = join(dirname(repo), 'copy.tar');
+  // bsdtar can exit at end-of-archive before git writes trailing padding, causing EPIPE on a pipe.
+  await command({ cmd: 'git', args: ['archive', '--format=tar', '-o', archive, sha] });
+  await command({ cmd: 'tar', args: ['-xf', archive, '-C', repo] });
+  rmSync(archive, { force: true });
   linkDependencies(repo);
   for (const path of BUILD_OUTPUTS) {
     const source = join(REPO, path);
@@ -482,7 +477,8 @@ async function sweepRow({ lane, row, index }) {
     }
   } finally {
     // Check even when setup/execution fails; publishing a row must not bypass the guard.
-    checkHome(row);
+    try { checkHome(row); }
+    catch (error) { fail(error); throw error; } // Guard failures are runner failures, not row errors.
   }
   recordResult({ lane, row, tests, secs: Math.floor((Date.now() - start) / 1000), note, data });
 }
@@ -499,11 +495,23 @@ function createLane(index) {
 }
 
 async function workLane({ lane, index }) {
+  let consecutiveErrors = 0;
   try {
     for (let row = await claim(lane); row; row = await claim(lane)) {
       Object.assign(lane, { state: 'running', row: row.row, path: row.path, startedAt: new Date().toISOString() });
       writeStatus();
-      await sweepRow({ lane, row, index });
+      const start = Date.now();
+      try {
+        await sweepRow({ lane, row, index });
+        consecutiveErrors = 0;
+      } catch (error) {
+        if (stopping) throw error;
+        const note = `ERROR ${String(error.message ?? error).slice(0, 120)}`;
+        recordResult({ lane, row, tests: testsFor({ path: row.path, index }),
+          secs: Math.floor((Date.now() - start) / 1000), note, data: null });
+        lane.sha = null;
+        if (++consecutiveErrors >= 3) throw error;
+      }
       Object.assign(lane, { state: 'idle', row: null, path: null, startedAt: null });
       writeStatus();
     }
