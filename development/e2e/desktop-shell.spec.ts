@@ -28,6 +28,11 @@ const desktopRequire = createRequire(path.join(DESKTOP_DIR, "package.json"));
 const ELECTRON_BIN: string = desktopRequire("electron");
 let fixtureRoot: string;
 
+// Source of truth: ./desktop/_fixtures.ts siteContentDb; importing it also resolves packaged apps.
+function siteContentDb(dir: string): string {
+  return path.join(dir, "data.nosync", "content.db");
+}
+
 /**
  * A scratch `HOME` per launch. **This alone does not isolate Electron's on-disk state** — kept
  * only because it still isolates anything that genuinely honors `HOME`. The isolation that
@@ -113,7 +118,7 @@ test.describe("apps/desktop shell", () => {
       fs.mkdirSync(dir);
       await initSiteDir({ repoRoot: REPO_ROOT, dir, name, cliMode: "source", baseEnv: { ...process.env, TOVU_SITE_DIR: dir } });
       expect(fs.existsSync(path.join(dir, "config.json"))).toBe(true);
-      expect(fs.existsSync(path.join(dir, "content.db"))).toBe(true);
+      expect(fs.existsSync(siteContentDb(dir))).toBe(true);
     }
   });
   test.afterAll(() => {
@@ -321,7 +326,7 @@ test.describe("apps/desktop shell", () => {
 
       // `tovu init` must have written the site's own marker files into the chosen folder.
       expect(fs.existsSync(path.join(target, "config.json"))).toBe(true);
-      expect(fs.existsSync(path.join(target, "content.db"))).toBe(true);
+      expect(fs.existsSync(siteContentDb(target))).toBe(true);
 
       const opened = app.windows().find((w) => w !== first);
       if (!opened) throw new Error("no second window");
