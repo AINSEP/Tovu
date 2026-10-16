@@ -578,7 +578,7 @@ function controlledReport(outputDir: string, label = "canary"): ExportReport {
     outputDir,
     routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: `<html>${label} é</html>` }], failed: [] },
     assets: { succeeded: [{ url: "/theme-assets/fixture/image.png", outputFile: path.join("theme-assets", "fixture", "image.png"), data: Buffer.from([0, 128, 255]) }], failed: [] },
-    skippedManifestEntries: [], unreferencedThemeFiles: [],
+    skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
   };
 }
 

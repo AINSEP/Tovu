@@ -65,6 +65,9 @@ function printExportReport(report: ExportReport): void {
   for (const skip of report.skippedManifestEntries) {
     process.stderr.write(`tovu export: skipped (${skip.reason}): ${skip.detail}\n`);
   }
+  for (const reference of report.droppedReferences ?? []) {
+    process.stderr.write(`tovu export: warning: dropped ${reference.attribute} on ${reference.page}: ${reference.url} (${reference.reason})\n`);
+  }
   for (const failure of report.routes.failed) {
     process.stderr.write(`tovu export: FAILED route ${failure.path} (${failure.kind}): ${failure.reason}\n`);
   }

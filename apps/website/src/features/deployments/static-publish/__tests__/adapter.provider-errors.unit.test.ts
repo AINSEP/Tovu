@@ -44,7 +44,7 @@ for (const errorKind of ["Error", "DeployError"] as const) {
       exportSiteBound: async () => ({
         outputDir: root, basePath: "/", startedAt: "2026-10-03T00:00:00.000Z", finishedAt: "2026-10-03T00:00:00.000Z",
         routes: { succeeded: [{ path: "/", kind: "page", outputFile: "index.html", data: "<p>Site</p>", contentType: "text/html" }], failed: [] },
-        assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [],
+        assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
       }),
     });
     // F6.3: exact public response, including all occurrences and no raw provider details.

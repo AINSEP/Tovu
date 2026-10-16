@@ -11,6 +11,11 @@ export const capabilityCard = {
   ],
   "pointers": [
     {
+      "label": "Diagnose static export before publishing",
+      "tool": "deployment_diagnose_static_export",
+      "permissions": ["system.read"]
+    },
+    {
       "label": "Inspect deploy",
       "tool": "deployment_get_export_status",
       "permissions": [

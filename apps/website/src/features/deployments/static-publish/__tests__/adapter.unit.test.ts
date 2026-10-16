@@ -300,6 +300,11 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   // 2026-08-20 pass 2, `createSiteApp` ITSELF is also closure-bound (not just `exportSiteBound`) —
   // one more reason this must stay a mutation.
   deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/tovu-starter/css/theme.css", deps);
+  const exportSiteBound = deps.exportSiteBound;
+  deps.exportSiteBound = async input => ({
+    ...await exportSiteBound(input),
+    droppedReferences: [{ page: "/", url: "/submit", attribute: "action", reason: "needs-server" }],
+  });
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
@@ -320,9 +325,10 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "EXPORT_FAILED");
+  assert.equal("droppedReferences" in result, false);
   assert.equal(
     result.message,
-    "refused to publish: 1 asset(s) failed to export (first: '/theme-assets/tovu-starter/css/theme.css' — GET /theme-assets/tovu-starter/css/theme.css -> 500)"
+    "refused to publish: 1 asset(s) failed to export (first: '/theme-assets/tovu-starter/css/theme.css' — GET /theme-assets/tovu-starter/css/theme.css -> 500). Call deployment_diagnose_static_export for the full list."
   );
 });
 
@@ -827,7 +833,7 @@ test("concurrent publishes preserve each run's route and asset bytes and clean b
       return {
         outputDir, routes: { succeeded: [{ path: "/", kind: "page", outputFile: "index.html", data: `<p>${marker}</p>`, contentType: "text/html" }], failed: [] },
         assets: { succeeded: [{ url: "/assets/site.css", outputFile: "assets/site.css", data: Buffer.from(`body{--run:${marker}}`), contentType: "text/css" }, { url: "/assets/hero.png", outputFile: "assets/hero.png", data: Buffer.from([index, 2, 3]), contentType: "image/png" }], failed: [] },
-        skippedManifestEntries: [], unreferencedThemeFiles: [],
+        skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
       };
     },
   })));

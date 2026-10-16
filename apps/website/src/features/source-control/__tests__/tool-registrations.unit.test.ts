@@ -57,7 +57,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
 
   const deps: SourceControlToolDeps = {
     ...base,
-    exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: []})),
+    exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []})),
     sourceControlExportRootDir: exportDir,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -417,7 +417,7 @@ test("confirm: a successful commit reports committed:true with every field from 
     exportSiteBound: async ({ outputDir }) => ({ outputDir,
       routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<html>commit canary</html>" }], failed: [] },
       assets: { succeeded: [{ url: "/image.png", outputFile: "image.png", data: Buffer.from([0, 128, 255]) }], failed: [] },
-      skippedManifestEntries: [], unreferencedThemeFiles: [],
+      skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
     }),
   });
   await seedGithubCredential(deps);

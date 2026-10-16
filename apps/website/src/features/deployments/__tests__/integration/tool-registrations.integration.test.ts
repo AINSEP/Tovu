@@ -69,10 +69,11 @@ function grantingDeps(): DeploymentsToolDeps {
   return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir, authorize: async () => ({ allowed: true, reason: "test-always-allow" }) };
 }
 
-test("all 4 deployments tools are registered with input schemas the model needs", () => {
+test("all 5 deployments tools are registered with input schemas the model needs", () => {
   const registrations = buildDeploymentsRegistrations(grantingDeps());
   const ids = registrations.map((r) => r.descriptor.id).sort();
   assert.deepEqual(ids, [
+    "deployment_diagnose_static_export",
     "deployment_get_dockerfile",
     "deployment_get_export_status",
     "deployment_set_dockerfile",
@@ -299,7 +300,7 @@ test("two triggers held in authorization start exactly one export when both gran
     assert.match(String(refused.reason), /an export is already running/);
   } finally {
     releaseAuthorization();
-    releaseExport({ routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [] } as Awaited<ReturnType<DeploymentsToolDeps["exportSiteBound"]>>);
+    releaseExport({ routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] } as Awaited<ReturnType<DeploymentsToolDeps["exportSiteBound"]>>);
     await settled;
     await new Promise(resolve => setImmediate(resolve));
   }

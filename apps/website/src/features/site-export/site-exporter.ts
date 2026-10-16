@@ -35,7 +35,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  *
  * Assets (theme CSS/JS/images, `/agent-icons/*`, and uploads served through the `/m/` media
  * rendition route) are NOT copied from disk or read out of the DB — they are discovered by
- * crawling each successfully-rendered page's own HTML for `href`/`src`/`srcset` references under the known
+ * crawling each successfully-rendered page's own HTML for `href`/`src`/`srcset`/`poster` references under the known
  * public asset prefixes, then fetched the identical real-HTTP way. Three reasons, not one:
  * (a) uploads have no "the uploads folder" to copy — `/m/{assetId}/{transform}.v{version}/{file}`
  *     is a rendition pipeline over DB rows, not a static-file mount, so crawling the real emitted
@@ -170,7 +170,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
    *  Pass `true` to remove the directory's existing contents before writing. */
 /**
    * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
-   * exporter writes — HTML `href`/`src`/`srcset`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
+   * exporter writes — HTML `href`/`src`/`srcset`/`poster`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
    * redirect stub's target — is rewritten to carry this prefix. Omitted/empty (the default) leaves
    * every byte this exporter writes IDENTICAL to a pre-`--base-path` export — proven by
    * `site-exporter.test.ts`'s own "unset is inert" regression test, not just asserted in this
@@ -286,7 +286,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * shared `resolvePathWithin` — the same check `theme-static-assets.ts`'s `resolveThemeDir` applies
  * to a theme id. A URL extracted from rendered HTML is still, transitively, request-shaped input,
  * not a trusted literal, and the refusal is genuinely reachable: `extractAssetUrls` is a raw
- * `href`/`src`/`srcset` scan with NO URL normalization, so a rendered page that literally embeds a
+ * `href`/`src`/`srcset`/`poster` scan with NO URL normalization, so a rendered page that literally embeds a
  * `../`-laden value under an asset prefix passes its filter unchanged and reaches this function —
  * see `resolvePathWithin`'s own doc for the two escapes it refuses.
  */
@@ -486,7 +486,7 @@ export interface ExportSiteOptions {
   clean?: boolean;
   /**
    * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
-   * exporter writes — HTML `href`/`src`/`srcset`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
+   * exporter writes — HTML `href`/`src`/`srcset`/`poster`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
    * redirect stub's target — is rewritten to carry this prefix. Omitted/empty (the default) leaves
    * every byte this exporter writes IDENTICAL to a pre-`--base-path` export — proven by
    * `site-exporter.test.ts`'s own "unset is inert" regression test, not just asserted in this

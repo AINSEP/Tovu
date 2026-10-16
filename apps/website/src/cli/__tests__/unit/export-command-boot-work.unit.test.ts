@@ -63,3 +63,32 @@ test("export: a failed export closes the store only after the legacy tail and cr
   assert.deepEqual(order.slice(-1), ["close"]);
   assert.deepEqual(new Set(order.slice(0, 2)), new Set(["legacy-settled", "byok-settled"]));
 });
+
+
+test("export: dropped references are printed as warnings without failing a completed export", async (t) => {
+  const warnings: string[] = [];
+  t.mock.method(process.stderr, "write", (chunk: unknown) => { warnings.push(String(chunk)); return true; });
+  t.mock.method(process.stdout, "write", () => true);
+  const routeDeps = { workspaceId: "ws", exportOutputRootDir: "/tmp/export-warning-fixture" };
+  let closed = false;
+  await runExportCommand({ dir: "/tmp/export-warning-fixture" }, {
+    bootSiteDir: async () => ({ workspaceId: "ws", config: {}, db: {} }) as unknown as BootSiteDirResult,
+    closeSiteDirBoot: async () => { closed = true; },
+    createSiteRouteDeps: async () => routeDeps as unknown as ExportRouteDeps,
+    registerPluginSdkResolver: () => {},
+    reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
+    exportSite: async () => ({ outputDir: routeDeps.exportOutputRootDir,
+      routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] },
+      skippedManifestEntries: [], unreferencedThemeFiles: [],
+      droppedReferences: [
+        { page: "/", url: "/missing", attribute: "href", reason: "not-exported" },
+        { page: "/contact", url: "/api/contact", attribute: "action", reason: "needs-server" },
+      ],
+    }),
+  });
+  assert.equal(closed, true);
+  assert.deepEqual(warnings, [
+    "tovu export: warning: dropped href on /: /missing (not-exported)\n",
+    "tovu export: warning: dropped action on /contact: /api/contact (needs-server)\n",
+  ]);
+});

@@ -11,12 +11,12 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
-import { getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
+import { assertExportNotRunning, diagnoseStaticExport, getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
 
 /**
  * @file The Deployments domain's half of the agent-tool wiring split — maps
- * `agent-tools.ts`'s four catalog entries onto the same domain logic the admin HTTP routes already
- * use, as `ToolRegistration`s. All four are wired; none is excluded (see `agent-tools.ts`'s file
+ * `agent-tools.ts`'s five catalog entries onto the same domain logic the admin HTTP routes already
+ * use, as `ToolRegistration`s. All five are wired; none is excluded (see `agent-tools.ts`'s file
  * header for why this domain, unlike Recovery/Database, has no token-gated/human-only entry).
  *
  * Authorization shape: none of `startExportRun`/`getExportRunSnapshot`/`readDockerfileSource`/
@@ -73,6 +73,8 @@ export const deploymentsDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   ["deployment_trigger_export", "mutates-durable-state"],
   // -> getExportRunSnapshot(): reads a process-local in-memory variable. No I/O of any kind.
   ["deployment_get_export_status", "none"],
+  // -> disposable export: no persistent artifacts, credentials or publish calls.
+  ["deployment_diagnose_static_export", "none"],
   // -> readDockerfileSource (dockerfile.ts): one existence check, one file read. No write.
   ["deployment_get_dockerfile", "none"],
   // -> writeDockerfileSource (dockerfile.ts): one file write to the repo-root Dockerfile.
@@ -80,6 +82,15 @@ export const deploymentsDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
 ]);
 
 export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): ToolRegistration[] {
+  // Explicit destructuring, not `(opts) => routeDeps.exportSiteBound(opts)` — `ExportEngine`'s
+  // own options object always carries a `routeDeps` field (`export-run.ts`), and forwarding it
+  // wholesale would let that narrow `DeploymentsToolDeps` value reach `exportSiteBound` under a
+  // `routeDeps` key nobody asked for (its own type has no such parameter, so `tsc` would not
+  // catch the excess property on this non-literal argument). Picking only the three fields
+  // `exportSiteBound` actually declares means the narrow deps here never travel at all — see
+  // `DeploymentsToolDeps`'s own doc above and this file's regression test.
+  const engine: ExportEngine<DeploymentsToolDeps> = ({ outputDir, clean, basePath }) =>
+    routeDeps.exportSiteBound({ outputDir, ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) });
   const handlers: Record<string, ToolHandler> = {
     deployment_trigger_export: async (ctx) => {
       const candidate = { value: ctx.input };
@@ -91,22 +102,17 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
       // "no await between check and set" atomicity comment exactly, so a tool call and a concurrent
       // HTTP trigger in this SAME process can never both observe "not running" (see `export-run.ts`'s
       // file header for the one case where this process is not the same one: the standalone daemon).
-      if (getExportRunSnapshot().status === "running") {
-        throw new Error("an export is already running — call deployment_get_export_status to see its progress, this will not resolve on retry");
-      }
+      assertExportNotRunning({});
 
       const clean = optionalBoolean({ input: input, key: "clean" }) ?? false;
       const basePath = optionalString({ input: input, key: "basePath" });
-      // Explicit destructuring, not `(opts) => routeDeps.exportSiteBound(opts)` — `ExportEngine`'s
-      // own options object always carries a `routeDeps` field (`export-run.ts`), and forwarding it
-      // wholesale would let that narrow `DeploymentsToolDeps` value reach `exportSiteBound` under a
-      // `routeDeps` key nobody asked for (its own type has no such parameter, so `tsc` would not
-      // catch the excess property on this non-literal argument). Picking only the three fields
-      // `exportSiteBound` actually declares means the narrow deps here never travel at all — see
-      // `DeploymentsToolDeps`'s own doc above and this file's regression test.
-      const engine: ExportEngine<DeploymentsToolDeps> = ({ outputDir, clean: runClean, basePath: runBasePath }) =>
-        routeDeps.exportSiteBound({ outputDir, ...(runClean !== undefined ? { clean: runClean } : {}), ...(runBasePath !== undefined ? { basePath: runBasePath } : {}) });
       return startExportRun({ routeDeps, runExportSite: engine, clean }, { basePath });
+    },
+
+    deployment_diagnose_static_export: async (ctx) => {
+      requireNoInput({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "site-export" });
+      return diagnoseStaticExport({ routeDeps, runExportSite: engine });
     },
 
     deployment_get_export_status: async (ctx) => {

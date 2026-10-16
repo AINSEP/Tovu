@@ -53,7 +53,7 @@ function fakeExportSiteBound(captured: { outputDir: string | null }): ExportSite
       routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<html>home</html>" }], failed: [] },
       assets: { succeeded: [{ url: "/style.css", outputFile: "style.css", data: Buffer.from("body{}") }], failed: [] },
       skippedManifestEntries: [],
-      unreferencedThemeFiles: [],
+      unreferencedThemeFiles: [], droppedReferences: [],
     };
     return report;
   };

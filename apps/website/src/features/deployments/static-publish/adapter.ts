@@ -352,7 +352,7 @@ async function runExportForPublish(
       outcome: {
         ok: false,
         code: "EXPORT_FAILED",
-        message: `refused to publish: ${failure.count} ${failure.kind}(s) failed to export (first: '${failure.identifier}' — ${failure.reason})`,
+        message: `refused to publish: ${failure.count} ${failure.kind}(s) failed to export (first: '${failure.identifier}' — ${failure.reason}). Call deployment_diagnose_static_export for the full list.`,
       },
     };
   }

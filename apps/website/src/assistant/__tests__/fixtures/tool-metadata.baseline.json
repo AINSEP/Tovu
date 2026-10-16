@@ -235,6 +235,7 @@
     "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting netlify vercel cloudflare",
     "deployment_generate_bucket_hosting_setup": "instructions steps how to setup guide public website cloud storage host",
     "deployment_trigger_export": "build generate export files download self host static site",
+    "deployment_diagnose_static_export": "diagnose static export dropped references missing pages assets forms failures before publish refused deployment",
     "deployment_get_export_status": "progress done finished check static site build",
     "deployment_get_dockerfile": "docker container read view current build file",
     "deployment_set_dockerfile": "docker container write edit update change build file",
@@ -290,6 +291,10 @@
     "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite"
   },
   "queries": {
+    "deployment_diagnose_static_export": [
+      "What would a static export drop?",
+      "Why was my static publish refused?"
+    ],
     "assistant_chats_list": [
       "I had to start a new chat. Can you find what we were doing?",
       "Find my previous conversation."
@@ -2240,6 +2245,10 @@
       "confirmation": "direct"
     },
     "deployment_get_dockerfile": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_diagnose_static_export": {
       "class": "read",
       "confirmation": "direct"
     },

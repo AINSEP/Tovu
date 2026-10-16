@@ -67,7 +67,7 @@ function fakeDeps(
 
   const deps: FakeStaticPublishToolDeps = {
     ...base,
-    exportSiteBound: async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: []}),
+    exportSiteBound: async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []}),
     publishOutputRootDir: publishOutputDir,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);

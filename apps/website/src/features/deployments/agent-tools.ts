@@ -6,7 +6,7 @@
  *
  * Purpose:
  * A static catalog describing every agent-callable tool this domain exposes and the permission each
- * one carries. All four entries here are wired (`tool-registrations.ts` in this directory) — unlike
+ * one carries. All five entries here are wired (`tool-registrations.ts` in this directory) — unlike
  * `features/recovery/agent-tools.ts` or `features/database/agent-tools.ts`, this catalog has no
  * excluded, token-gated, or otherwise-dangerous entry: an export writes a static COPY (never touches
  * the running site's own database or content), and a Dockerfile edit writes one build file that
@@ -112,6 +112,14 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: "mutates-durable-state",
     authorization: { permission: "system.export" },
     inputSchema: TRIGGER_EXPORT_SCHEMA,
+  },
+  {
+    name: "deployment_diagnose_static_export",
+    description:
+      "Reports what a static export/publish of this site would drop or fail, without publishing. Call before deployment_execute_static_publish or when a publish was refused; returns counts and full failure/drop diagnostics, or ALREADY_RUNNING while another export is running.",
+    sideEffects: "none",
+    authorization: { permission: "system.read" },
+    inputSchema: NO_INPUT_SCHEMA,
   },
   {
     name: "deployment_get_export_status",

@@ -22,6 +22,13 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  "deployment_diagnose_static_export": {
+    search: {
+      keywords: "diagnose static export dropped references missing pages assets forms failures before publish refused deployment",
+      queries: ["What would a static export drop?", "Why was my static publish refused?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   "deployment_get_export_status": {
     search: {
       keywords: "progress done finished check static site build",

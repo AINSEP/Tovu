@@ -883,6 +883,43 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
 });
 
+test("exportSite: multi-segment exact active redirect rules are exported as static meta-refresh stubs", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const redirects = [
+    { from: "/pages/contact", to: "/contact" },
+    { from: "/policies/refund-policy", to: "/refund-policy" },
+  ];
+  for (const { from, to } of redirects) {
+    const rule: RedirectRecord = {
+      id: `redir-export-${from}`, workspaceId: base.workspaceId, matchType: "exact",
+      fromPattern: from, toTarget: to, statusCode: 301, status: "active", override: false,
+      priority: 0, source: "manual", createdByPrincipal: "system", createdAt: now, updatedAt: now, version: 1,
+    };
+    // Save into the EXISTING repo: the app's redirect resolver already holds this exact object.
+    await base.redirectRepo.save({
+      record: rule,
+      revision: { redirectId: rule.id, workspaceId: rule.workspaceId, seq: 1, state: rule,
+        tombstoned: false, actorId: "system", recordedAt: now },
+    });
+  }
+  const report = await exportSite({ routeDeps: base, outputDir });
+  for (const { from, to } of redirects) {
+    assert.equal(report.routes.failed.find(route => route.path === from), undefined);
+    const succeeded = report.routes.succeeded.find(route => route.path === from);
+    assert.ok(succeeded, `expected ${from} in routes.succeeded`);
+    assert.equal(succeeded.kind, "redirect");
+    assert.equal(succeeded.outputFile, path.join(from.slice(1), "index.html"));
+    const stub = readFileSync(path.join(outputDir, from.slice(1), "index.html"), "utf8");
+    assert.equal(stub, succeeded.data);
+    assert.ok(stub.includes(`<meta http-equiv="refresh" content="0; url=${to}">`));
+    assert.ok(stub.includes(`<link rel="canonical" href="${to}">`));
+  }
+});
+
+
 /**
  * Regression for the disclosed-but-unfixed `renderRedirectStub` XSS gap
  * (`ADS-memory/reports/2026-09-01-to-03-review-bugs.md` Finding 2): the same
@@ -1277,7 +1314,7 @@ function makeEmptyReport(): ExportReport {
     routes: { succeeded: [], failed: [] },
     assets: { succeeded: [], failed: [] },
     skippedManifestEntries: [],
-    unreferencedThemeFiles: [],
+    unreferencedThemeFiles: [], droppedReferences: [],
   };
 }
 

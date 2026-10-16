@@ -1,8 +1,12 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 /**
  * @file The static-site export run's process-local single-flight state, extracted out of
  * `server/routes/admin/system/export-site.ts` (2026-08-15) so a SECOND caller — the
- * `deployment_trigger_export`/`deployment_get_export_status` agent tools
+ * `deployment_trigger_export`/`deployment_get_export_status` agent tools and the read-only
+ * `deployment_diagnose_static_export` (which reserves the same slot for a disposable export)
  * (`tool-registrations.ts` in this same directory) — can trigger and poll the exact same run the
  * admin UI's Deployment panel already does, instead of reimplementing it against a second,
  * independent `currentRun` slot.
@@ -92,6 +96,7 @@ export interface ExportRunSnapshot {
   failedAssets?: { url: string; reason: string }[];
   skippedManifestEntries?: { reason: string; detail: string }[];
   unreferencedThemeFiles?: string[];
+  droppedReferences?: { page: string; url: string; attribute: string; reason: "not-exported" | "needs-server" }[];
   basePathRewriteWarning?: string;
   /** Present only when `status` is `"errored"` — always a message, never the raw error object. */
   error?: string;
@@ -109,6 +114,8 @@ export interface ExportRunReportLike {
   assets: { succeeded: unknown[]; failed: { url: string; reason: string }[] };
   skippedManifestEntries: { reason: string; detail: string }[];
   unreferencedThemeFiles: string[];
+  /** Bounded by the export engine to at most 200 entries. */
+  droppedReferences: { page: string; url: string; attribute: string; reason: "not-exported" | "needs-server" }[];
   basePath?: string;
   basePathRewriteWarning?: string;
 }
@@ -135,7 +142,7 @@ let currentRun: ExportRunSnapshot = IDLE_RUN;
  *  from `export-site.ts`. */
 function summarizeCompletedReport(report: ExportRunReportLike): Pick<
   ExportRunSnapshot,
-  "basePath" | "ok" | "counts" | "failedRoutes" | "failedAssets" | "skippedManifestEntries" | "unreferencedThemeFiles" | "basePathRewriteWarning"
+  "basePath" | "ok" | "counts" | "failedRoutes" | "failedAssets" | "skippedManifestEntries" | "unreferencedThemeFiles" | "droppedReferences" | "basePathRewriteWarning"
 > {
   return {
     ...(report.basePath !== undefined ? { basePath: report.basePath } : {}),
@@ -150,6 +157,7 @@ function summarizeCompletedReport(report: ExportRunReportLike): Pick<
     failedAssets: report.assets.failed.map((f) => ({ url: f.url, reason: f.reason })),
     skippedManifestEntries: report.skippedManifestEntries,
     unreferencedThemeFiles: report.unreferencedThemeFiles,
+    droppedReferences: report.droppedReferences,
     ...(report.basePathRewriteWarning !== undefined ? { basePathRewriteWarning: report.basePathRewriteWarning } : {}),
   };
 }
@@ -227,4 +235,35 @@ export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRo
     });
 
   return currentRun;
+}
+
+/** Refuse a concurrent trigger or diagnostic using the process-local owner of export state. */
+export function assertExportNotRunning(_required: Record<string, never>, _optional: Record<string, never> = {}): void {
+  if (currentRun.status === "running") {
+    throw Object.assign(new Error("an export is already running — call deployment_get_export_status to see its progress, this will not resolve on retry"), { code: "ALREADY_RUNNING" });
+  }
+}
+
+/** Run the injected engine in disposable storage and return only report diagnostics.
+ * Reserves currentRun before the first await; restores the previous status after cleanup.
+ * Engine/storage errors propagate, and the slot is released even if cleanup fails.
+ * @complexity One export pass plus removal of its temporary output files.
+ */
+export async function diagnoseStaticExport<TRouteDeps extends { clock: Clock }>(
+  required: { routeDeps: TRouteDeps; runExportSite: ExportEngine<TRouteDeps> },
+  _optional: Record<string, never> = {},
+): Promise<ReturnType<typeof summarizeCompletedReport>> {
+  assertExportNotRunning({});
+  const previous = currentRun;
+  currentRun = { status: "running", startedAtIso: nowIso({ clock: required.routeDeps.clock }), finishedAtIso: null, outputDir: null };
+  let outputDir: string | undefined;
+  try {
+    outputDir = await mkdtemp(path.join(tmpdir(), "static-export-diagnostics-"));
+    currentRun = { ...currentRun, outputDir };
+    const report = await required.runExportSite({ routeDeps: required.routeDeps, outputDir, clean: false });
+    return summarizeCompletedReport(report);
+  } finally {
+    try { if (outputDir !== undefined) await rm(outputDir, { recursive: true, force: true }); }
+    finally { currentRun = previous; }
+  }
 }
