@@ -261,6 +261,31 @@ test("a request authenticates with Authorization: Bearer <raw-key> and performs 
   assert.equal(viaApiKeyScheme.status, 200);
 });
 
+// Pins dev-auth.ts:668 — an API-key principal without a user row uses displayName as its username.
+test("AUTH_ME returns the API-key principal's displayName as username when no user row exists", async (t) => {
+  const deps = createRouteDeps();
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  const principalId = await mintPrincipal(baseUrl, cookie, "Display Name Fallback Probe");
+  const editorPolicyId = await builtinPolicyId(baseUrl, cookie, "editor-builtin-policy");
+  const key = await issuedKey(baseUrl, cookie, {
+    principalId,
+    label: "display-name-fallback-key",
+    policyIds: [editorPolicyId],
+  });
+  assert.strictEqual(await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE, principalId }), null);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/auth/me`, {
+    headers: { authorization: `Bearer ${key.rawKey}` },
+  });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { user: { id: string; username: string } };
+  assert.deepEqual(body.user, { id: principalId, username: "Display Name Fallback Probe" });
+});
+
 test("APIKEY_REVOKE is 204 and the revoked key is rejected on the very next request", async (t) => {
   const deps = createRouteDeps();
   const { server, baseUrl } = await bootServer(deps);

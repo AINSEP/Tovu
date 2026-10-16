@@ -82,6 +82,33 @@ test("boot-session: a freshly minted token mints a real, authenticating session"
   assert.equal(((await me.json()) as { user: { id: string } }).user.id, ownerId);
 });
 
+// Pins dev-auth.ts:489 — do not set a cookie if the freshly minted session fails library validation.
+test("boot-session: an unreadable freshly minted session gets the exact 500 and no cookie", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerId = await deps.ownerPrincipalId;
+  const findByTokenHash = deps.sessionRepo.findByTokenHash;
+  t.after(() => { deps.sessionRepo.findByTokenHash = findByTokenHash; });
+  deps.sessionRepo.findByTokenHash = async (required) => {
+    assert.equal(required.workspaceId, deps.workspaceId);
+    const stored = await findByTokenHash.call(deps.sessionRepo, required);
+    assert.equal(stored?.principalId, ownerId, "validation must look up the real session just written for the owner");
+    return null;
+  };
+  const baseUrl = await startTestServer(app, t);
+  const token = mintBootSessionToken();
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/auth/boot-session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+  assert.equal(res.headers.has("set-cookie"), false);
+});
+
 test("boot-session: single-use survives the ROUTE, not just the token store — a replay gets the same 401", async (t) => {
   const { app } = buildTestApp();
   const baseUrl = await startTestServer(app, t);
