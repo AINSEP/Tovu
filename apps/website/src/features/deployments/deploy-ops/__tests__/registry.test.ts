@@ -29,6 +29,49 @@ test("parser refuses duplicate platforms, empty hosts and escaping paths", () =>
   assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, hosts: [] }] })), { ok: false, reason: "platforms[0].hosts must be a non-empty array of HTTPS hostnames" });
   assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, module: "../evil.mjs" }] })), { ok: false, reason: "platforms[0].module must be a contained relative .mjs path" });
 });
+test("invalid descriptor fields return exact refusals and load no platforms", async t => {
+  const entry = { id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] };
+  for (const [name, platforms, reason] of [
+    ["more than 32 platforms", Array.from({ length: 33 }, (_, i) => ({ ...entry, id: `example-${i}` })), "platforms must be an array of at most 32 entries"],
+    ["non-object entry", [42], "platforms[0] must be an object"],
+    ["invalid id", [{ ...entry, id: "Example" }], "platforms[0].id must be a lowercase hyphenated id"],
+    ["blank label", [{ ...entry, label: "   " }], "platforms[0].label must be a non-empty string"],
+  ] as const) {
+    await t.test(name, async () => {
+      const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-invalid-descriptor-"));
+      try {
+        const raw = JSON.stringify({ schemaVersion: 1, platforms });
+        assert.deepEqual(parseDeployOpsFile(raw), { ok: false, reason });
+        await writeFile(path.join(root, "tovu-deploy-ops.json"), raw);
+        await writeFile(path.join(root, "ops.mjs"), "export default { status() {}, logs() {} };\n");
+        const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
+        assert.deepEqual(registry.refusals, [`deploy ops from 'deploy' were not loaded: tovu-deploy-ops.json is invalid: ${reason}`]);
+        assert.deepEqual(registry.list(), []);
+      } finally { await forceRemove(root); }
+    });
+  }
+});
+
+test("invalid module and secrets-adapter shapes return exact refusals and are not registered", async t => {
+  for (const [name, body, reason] of [
+    ["partial secrets adapter", 'export default { status() {}, logs() {}, listSecrets() {}, setSecret() {}, secretCapabilities: { appliesOn: "next-deploy", supportsStaging: false } };', "a secrets adapter must export listSecrets(), setSecret() and unsetSecret() together"],
+    ["missing secret capabilities", "export default { status() {}, logs() {}, listSecrets() {}, setSecret() {}, unsetSecret() {} };", "secretCapabilities must declare appliesOn and supportsStaging"],
+    ["non-function status", "export default { status: true, logs() {} };", "module must export status() and logs()"],
+  ] as const) {
+    await t.test(name, async () => {
+      const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-invalid-module-"));
+      try {
+        await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+        await writeFile(path.join(root, "ops.mjs"), body);
+        const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
+        assert.deepEqual(registry.refusals, [`deploy ops platform 'example' was not loaded: ${reason}`]);
+        assert.deepEqual(registry.list(), []);
+        assert.equal(registry.get("example"), undefined);
+      } finally { await forceRemove(root); }
+    });
+  }
+});
+
 for (const [pluginId, moduleName] of [["fly", "fly"], ["github", "github-actions"]] as const) {
   test(`installed ${pluginId} package must be active and match the bundled digest`, async () => {
     const { createHash } = await import("node:crypto");
