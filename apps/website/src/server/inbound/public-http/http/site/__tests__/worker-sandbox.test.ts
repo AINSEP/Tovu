@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -11,6 +12,37 @@ import { build } from "esbuild";
 
 import type { SiteRenderContext } from "../render.js";
 import { renderInWorkerSandbox } from "../worker-sandbox.js";
+
+test("source worker setup preserves stdin stat failures other than EBADF", () => {
+  // A fresh process keeps the cached source-worker build and builtin mocks local to this case.
+  const script = `
+    import assert from "node:assert/strict";
+    import fs from "node:fs";
+    import { syncBuiltinESMExports } from "node:module";
+    import { renderInWorkerSandbox } from ${JSON.stringify(new URL("../worker-sandbox.ts", import.meta.url).href)};
+    const failure = Object.assign(new Error("stdin stat failed"), { code: "EIO" });
+    const fstatSync = fs.fstatSync;
+    const openSync = fs.openSync;
+    fs.fstatSync = (...args) => {
+      if (args[0] === 0) throw failure;
+      return fstatSync(...args);
+    };
+    fs.openSync = (...args) => {
+      if (args[0] === "/dev/null") throw new Error("unexpected stdin replacement");
+      return openSync(...args);
+    };
+    syncBuiltinESMExports();
+    await assert.rejects(
+      renderInWorkerSandbox("handlebars-worker", "Handlebars", { source: "", ctx: {} }),
+      error => error === failure,
+    );
+  `;
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], {
+    cwd: path.resolve(import.meta.dirname, "../../../../../../../../.."), encoding: "utf8", timeout: 30_000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+});
 
 test("compiled JavaScript runs both real template workers and reports missing-entry and silent-exit failures without a TS loader", async () => {
   const root = mkdtempSync(path.join(tmpdir(), "tovu-compiled-sandbox-"));

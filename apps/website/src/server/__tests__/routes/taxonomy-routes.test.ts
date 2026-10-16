@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -584,6 +585,37 @@ test("taxonomy routes: assigned-terms and unassign-terms validate their input", 
     body: JSON.stringify({ contentType: "recipe" }),
   });
   assert.equal(write.status, 400);
+});
+
+test("taxonomy routes: an assignment without a body returns only the validation response", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/taxonomy/assign-terms");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "direct-invoke-principal" };
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 400);
+  assert.deepEqual(capture.jsonBody, {
+    error: "'contentType', 'contentId' (strings), and 'termIds' (array) are required",
+    code: "VALIDATION_ERROR",
+  });
+});
+
+test("taxonomy routes: reading assigned terms requires admin.taxonomy.manage even with content edit permission", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const authorize = deps.authorize;
+  deps.authorize = async (params) => params.permission === "admin.taxonomy.manage"
+    ? { allowed: false, reason: "test_denied" }
+    : authorize(params);
+
+  const res = await contentTerms(baseUrl, cookie, "post", "post-1");
+
+  assert.equal(res.status, 403);
+  const body = await res.json() as { code: string; error: string };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /'admin\.taxonomy\.manage'/);
 });
 
 // ---------------------------------------------------------------------------

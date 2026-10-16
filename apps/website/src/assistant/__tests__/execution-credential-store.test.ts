@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -140,6 +141,21 @@ test("a non-positive maxTokens is rejected before any write", async () => {
   }
 });
 
+test("a non-string providerId is rejected before creating a credential", async () => {
+  const { deps, repo } = makeDeps();
+  const scope = { workspaceId: WORKSPACE, principalId: ADMIN_A };
+
+  await assert.rejects(
+    setExecutionCredential(deps, { ...scope, providerId: 12345 as unknown as string }),
+    (error: unknown) => {
+      assert.ok(error instanceof ExecutionCredentialValidationError);
+      assert.equal(error.message, "providerId must be a string or null");
+      return true;
+    },
+  );
+  assert.equal(await repo.findByWorkspaceAndPrincipal(scope), null);
+});
+
 test("omitting apiKey leaves the previously-stored key untouched — only model changes", async () => {
   const { deps } = makeDeps();
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "first-key-0000" });
@@ -268,6 +284,20 @@ test("resolveExecutionCredential returns null when no row exists", async () => {
   const { repo, sealer } = makeDeps();
   const resolved = await resolveExecutionCredential({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(resolved, null);
+});
+
+test("resolveExecutionCredential refuses a decrypted payload with a non-string apiKey", async () => {
+  const { deps, repo, keyring, sealer } = makeDeps();
+  const scope = { workspaceId: WORKSPACE, principalId: ADMIN_A };
+  await setExecutionCredential(deps, { ...scope, apiKey: "valid-original-key" });
+  const record = await repo.vault.findOne(assistantVaultContext({ ...scope, kind: "personal-execution" }));
+  assert.ok(record);
+  const sealed = await sealer.seal({
+    plaintext: JSON.stringify({ apiKey: 12345 }), key: await keyring.activeKey(), aad: buildVaultAad(record),
+  });
+  await repo.vault.put({ record: { ...record, sealed, revision: record.revision + 1 }, expectedRevision: record.revision });
+
+  assert.equal(await resolveExecutionCredential(deps, scope), null);
 });
 
 test("resolveExecutionCredential returns null (not a throw) when the sealed row cannot be opened", async () => {

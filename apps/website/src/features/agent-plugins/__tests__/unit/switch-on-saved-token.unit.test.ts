@@ -1,12 +1,15 @@
-
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
 const { readAgentPluginActivations, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
+import fs from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { ACTIVATIONS_LOCK_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 
 import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -84,6 +87,33 @@ test("an operator's own 'off' is kept and reported", async () => {
     const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "plugin-off-by-operator" });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins[PLUGIN]?.enabled, false);
+  });
+});
+
+test("an operator disable during connection setup is reported even when activations become read-only", async (t) => {
+  await withAgentPluginsDir(async (workspaceRoot) => {
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN });
+    const deps = await operatorEnabledRow();
+    const lockPath = path.join(workspaceRoot, ACTIVATIONS_LOCK_FILENAME);
+    const open = fs.open;
+    let restoreOpen = () => {};
+    try {
+      const outcome = await switchOnSavedTokenConnection({ ...deps, onConnected: async () => {
+        await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "owner" });
+        // Reads remain available; a write lock must not be needed just to report the operator's off.
+        const openMock = t.mock.method(fs, "open", async (...args: Parameters<typeof fs.open>) => {
+          if (args[0] === lockPath && args[1] === "wx") throw Object.assign(new Error("read-only activations"), { code: "EROFS" });
+          return open(...args);
+        });
+        restoreOpen = () => { openMock.mock.restore(); syncBuiltinESMExports(); };
+        syncBuiltinESMExports();
+      } }, { pluginId: PLUGIN, connectionId: "remote" });
+
+      assert.deepEqual(outcome, { state: "plugin-off-by-operator" });
+      assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN]?.enabled, false);
+    } finally {
+      restoreOpen();
+    }
   });
 });
 

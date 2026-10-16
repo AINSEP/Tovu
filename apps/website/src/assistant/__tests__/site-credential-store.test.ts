@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -225,6 +226,19 @@ test("resolveSiteAssistantApiKey returns null when no row exists", async () => {
   const { repo, sealer } = makeDeps();
   const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
   assert.equal(resolved, null);
+});
+
+test("resolveSiteAssistantApiKey refuses a decrypted payload with a non-string apiKey", async () => {
+  const { deps, repo, keyring, sealer } = makeDeps();
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "valid-original-key" });
+  const record = await repo.vault.findOne(assistantVaultContext({ workspaceId: WORKSPACE, kind: "site-assistant" }));
+  assert.ok(record);
+  const sealed = await sealer.seal({
+    plaintext: JSON.stringify({ apiKey: 12345 }), key: await keyring.activeKey(), aad: buildVaultAad(record),
+  });
+  await repo.vault.put({ record: { ...record, sealed, revision: record.revision + 1 }, expectedRevision: record.revision });
+
+  assert.equal(await resolveSiteAssistantApiKey(deps, { workspaceId: WORKSPACE }), null);
 });
 
 test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row cannot be opened", async () => {

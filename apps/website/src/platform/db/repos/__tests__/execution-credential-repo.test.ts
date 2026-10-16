@@ -1,3 +1,4 @@
+import "../../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,7 +9,9 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { openContentDb } from "../../sqlite/content-db.js";
 import { SqlAdminExecutionCredentialRepo } from "../execution-credential-repo.js";
 import { principals, workspaces } from "../../schema.sqlite.js";
-import type { AdminExecutionCredentialRecord } from "#src/assistant/execution-credential-store";
+import { setExecutionCredential, type AdminExecutionCredentialRecord } from "#src/assistant/execution-credential-store";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 /** Existing adapter characterization on the Jini vault: envelope/settings round trips,
  * singleton scope, clears, replacement, SQL constraints and principal isolation on both dialects.
@@ -76,6 +79,19 @@ describeEachDialect("AdminExecutionCredentialRepoPort", { tables: ["workspaces"]
   test("findByWorkspaceAndPrincipal returns null when no row exists", async () => {
     const repo = await makeRepo();
     assert.equal(await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+  });
+
+  test("the first execution credential save persists settings in SQL", async () => {
+    const repo = await makeRepo();
+    const keyring = new InMemoryKeyring();
+    const scope = { workspaceId: WORKSPACE, principalId: ADMIN_A };
+
+    await setExecutionCredential({ repo, keyring, sealer: new AesGcmSecretSealer(keyring), clock: { nowMs: () => Date.parse(NOW) } },
+      { ...scope, protocol: "openai", providerId: "first-provider", model: "first-model" });
+
+    assert.deepEqual(await repo.findByWorkspaceAndPrincipal(scope), makeRecord({
+      protocol: "openai", providerId: "first-provider", model: "first-model",
+    }));
   });
 
   test("upsert then findByWorkspaceAndPrincipal round-trips a sealed record exactly", async () => {

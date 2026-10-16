@@ -47,6 +47,16 @@ test("a missing preload path throws rather than silently producing a guest with 
   assert.throws(() => applyGuestWebPreferences({}, { preloadPath: "" }), /preloadPath is required/);
 });
 
+test("missing guest policy options report the required preload without changing preferences", () => {
+  const webPreferences = { preload: "/page-chosen.js", nodeIntegration: true, contextIsolation: false };
+  assert.throws(
+    // @ts-expect-error -- Electron's runtime callback must also reject an absent options object.
+    () => applyGuestWebPreferences(webPreferences, undefined),
+    /preloadPath is required/,
+  );
+  assert.deepEqual(webPreferences, { preload: "/page-chosen.js", nodeIntegration: true, contextIsolation: false });
+});
+
 test("main.ts routes will-attach-webview through this policy, with the speech preload", () => {
   // Source text: `main.ts` requires "electron" at module scope and cannot be required under plain
   // node --test (see `main-speech-wiring.test.ts`). Without this, the policy above could be correct
