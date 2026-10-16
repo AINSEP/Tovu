@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import test from "node:test";
@@ -143,6 +144,19 @@ test("DELETE_USER route: direct invoke fallback for nullish params.workspaceId",
   await handler({ params: {}, body: {} }, res);
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+test("DELETE_USER route: an omitted principalId reports an empty missing target", async (t) => {
+  const { app, db, ownerId } = await buildApp();
+  t.after(() => db.$client.close());
+  const handler = extractRouteHandler(app, "delete", ROUTE_PATH);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: ownerId };
+
+  await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "principal '' was not found", code: "RESOURCE_NOT_FOUND" });
 });
 
 test("DELETE_USER route: 204 trashes an existing user", async (t) => {

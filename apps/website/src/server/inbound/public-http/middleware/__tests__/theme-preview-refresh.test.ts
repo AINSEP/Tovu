@@ -1,7 +1,9 @@
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
+import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { createThemePreviewMiddleware, freshThemePreviewHtml } from "../theme-preview-refresh.js";
 
 test("preview assets get a unique directory, preserving relative imports and existing queries", () => {
@@ -189,14 +191,44 @@ async function bootServerRoster(t: import("node:test").TestContext) {
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "tovu-starter"), "tovu-starter");
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
   let middleware: Function = () => assert.fail("middleware not registered");
-  const app = { use: (handler: Function) => { middleware = handler; }, post: () => {} };
-  registerThemePreviewRefresh({ app: app as never, deps: { themes, themesDir, workspaceId: "ws", authorize: async () => ({ allowed: true }) } as never });
+  let reload: Function = () => assert.fail("reload route not registered");
+  const app = {
+    use: (handler: Function) => { middleware = handler; },
+    post: (_route: string, _authenticate: unknown, handler: Function) => { reload = handler; },
+  };
+  const deps = { themes, themesDir, workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) };
+  registerThemePreviewRefresh({ app: app as never, deps: deps as never });
   const request = (requestPath: string, method = "GET") =>
     new Promise<void>((resolve, reject) =>
       middleware({ query: {}, path: requestPath, method }, { locals: {} }, (error?: unknown) => (error ? reject(error) : resolve())),
     );
-  return { fs, path, themesDir, themes, request };
+  return { fs, path, themesDir, themes, request, reload, deps };
 }
+
+test("preview reload refuses another workspace without writing a refresh marker", async (t) => {
+  const { fs, path, themesDir, reload } = await bootServerRoster(t);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "owner" };
+
+  await reload({ params: { workspaceId: "other-workspace" } }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  assert.equal(fs.existsSync(path.join(themesDir, ".preview-refresh.json")), false);
+});
+
+test("preview reload refuses a principal without theme.set without writing a refresh marker", async (t) => {
+  const { fs, path, themesDir, reload, deps } = await bootServerRoster(t);
+  deps.authorize = async () => ({ allowed: false, reason: "no_grant" });
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "unprivileged" };
+
+  await reload({ params: { workspaceId: "ws" } }, res);
+
+  assert.equal(capture.statusCode, 403);
+  assert.deepEqual(capture.jsonBody, { error: "not authorized for 'theme.set'" });
+  assert.equal(fs.existsSync(path.join(themesDir, ".preview-refresh.json")), false);
+});
 
 test("cross-process: a theme another process created resolves on the server's next public request (no fallback)", async (t) => {
   const { resolveActiveTheme, requestThemePreviewRefresh } = await import("#src/features/theme/index");

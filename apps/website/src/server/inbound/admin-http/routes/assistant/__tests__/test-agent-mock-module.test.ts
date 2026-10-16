@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,6 +6,7 @@ import express from "express";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
+import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 /**
  * @file Exercises the real route with an injected detector, without a host-dependent CLI probe
@@ -127,6 +129,34 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   // configuration -- the explicit Test forces discovery through Jini's optional object.
   assert.equal(detectAgents.mock.callCount(), 1);
   assert.deepEqual(detectAgents.mock.calls[0]?.arguments, [{}, { force: true }]);
+
+  // Omitted models check CLI readiness without a model mismatch. Keep these requests in the
+  // parent's sequence, before its shared detector state changes to unavailable below.
+  for (const model of [undefined, null]) {
+    const callsBefore = detectAgents.mock.callCount();
+    const response = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli", model });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      ok: true,
+      message: "Mocked CLI 3.1.4 is installed and authenticated.",
+    });
+    assert.equal(detectAgents.mock.callCount(), callsBefore + 1);
+    assert.deepEqual(detectAgents.mock.calls[callsBefore]?.arguments, [{}, { force: true }]);
+  }
+
+  await t.test("test-agent: a missing body returns the agentId validation error", async () => {
+    const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent");
+    const callsBefore = detectAgents.mock.callCount();
+    // Exercise absent bodies at the handler seam; express.json() supplies an empty object.
+    for (const body of [undefined, null]) {
+      const { res, capture } = createCapturingResponse();
+      res.locals.principal = { id: "principal-1" };
+      await handler({ params: { workspaceId: WORKSPACE_ID }, body }, res);
+      assert.equal(capture.statusCode, 400);
+      assert.deepEqual(capture.jsonBody, { error: "'agentId' is required", code: "BAD_REQUEST" });
+    }
+    assert.equal(detectAgents.mock.callCount(), callsBefore);
+  });
 
   available = false;
   const unavailable = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli", model: "model-a" });

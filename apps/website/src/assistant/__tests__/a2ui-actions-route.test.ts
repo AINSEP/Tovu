@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +6,7 @@ import express from "express";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
-import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
+import { A2UI_ACTIONS_PATH, readA2uiAction, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -75,6 +76,26 @@ test("rejects a missing or empty exchangeId — 400", async (t) => {
 
   assert.equal(missing.status, 400);
   assert.equal(empty.status, 400);
+});
+
+test("rejects an invalid exchangeId even when a valid functionResponse has no surfaceId", () => {
+  // A surface-scoped action would let the later surfaceId cross-check mask a missing ID guard.
+  const message = { version: "v1.0", functionResponse: { functionCallId: "call-1", call: "greetUser", value: "hi" } };
+  for (const exchangeId of [undefined, null, "", 42]) {
+    assert.deepEqual(readA2uiAction({ exchangeId, message }), {
+      ok: false,
+      error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" },
+    });
+  }
+});
+
+test("rejects a null or absent A2UI body with a validation error", () => {
+  for (const body of [null, undefined]) {
+    assert.deepEqual(readA2uiAction(body), {
+      ok: false,
+      error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" },
+    });
+  }
 });
 
 test("rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason", async (t) => {

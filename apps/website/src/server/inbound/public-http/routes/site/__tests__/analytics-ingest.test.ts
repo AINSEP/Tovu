@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import http from "node:http";
 import test from "node:test";
@@ -449,14 +450,41 @@ test("analytics-ingest: an unresolved workspace never loads policy or records a 
 });
 
 
-async function invokeBeacon(app: express.Express, body: unknown): Promise<number | undefined> {
+async function invokeBeacon(
+  app: express.Express,
+  body: unknown,
+  requestOverrides: { ip?: string; socket?: { remoteAddress?: string } } = {},
+): Promise<number | undefined> {
   let status: number | undefined;
   const res = { status(code: number) { status = code; return res; }, end() { return res; } };
   await extractHandler(app, "/_analytics/e")({
     body, hostname: "example.com", ip: "127.0.0.1", socket: { remoteAddress: "127.0.0.1" }, get: () => undefined,
+    ...requestOverrides,
   }, res);
   return status;
 }
+
+test("analytics-ingest: socket IP exclusions apply when req.ip is unavailable", async () => {
+  const base = createRouteDeps();
+  const { app, sink } = buildApp(undefined, {
+    config: { get: async (input) => ({
+      ...await base.analyticsConfig.get(input),
+      enabled: true,
+      excludedPaths: [],
+      excludedIpRanges: ["203.0.113.10"],
+    }) },
+  });
+  // Direct invocation reaches the socket fallback that Express's populated req.ip normally hides.
+  assert.equal(await invokeBeacon(app, { host: "example.com", path: "/excluded" }, {
+    ip: undefined, socket: { remoteAddress: "203.0.113.10" },
+  }), 204);
+  assert.deepEqual(sink.all(), []);
+
+  assert.equal(await invokeBeacon(app, { host: "example.com", path: "/allowed" }, {
+    ip: undefined, socket: { remoteAddress: "203.0.113.11" },
+  }), 204);
+  assert.deepEqual(sink.all().map((hit) => hit.path), ["/allowed"]);
+});
 
 
 test("analytics-ingest: boundary clipping retains exact host, path, event name and referrer prefixes", async () => {

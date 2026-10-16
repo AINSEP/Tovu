@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -90,7 +91,7 @@ test("ENABLE_PRINCIPAL route: direct invoke fallback for nullish params.workspac
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
-test("ENABLE_PRINCIPAL route: direct invoke fallback for nullish params.principalId", async () => {
+test("ENABLE_PRINCIPAL route: an omitted principalId reports an empty missing target", async () => {
   const { app, ownerId } = await buildApp();
   const handler = extractRouteHandler(app, "post", ROUTE_PATH);
   const { res, capture } = createCapturingResponse();
@@ -98,7 +99,7 @@ test("ENABLE_PRINCIPAL route: direct invoke fallback for nullish params.principa
   await handler({ params: { workspaceId: WORKSPACE_ID }, body: {} }, res);
   // An empty-string principalId cannot be found, so the domain layer 404s.
   assert.equal(capture.statusCode, 404);
-  assert.equal((capture.jsonBody as { code?: string }).code, "RESOURCE_NOT_FOUND");
+  assert.deepEqual(capture.jsonBody, { error: "principal '' was not found", code: "RESOURCE_NOT_FOUND" });
 });
 
 test("ENABLE_PRINCIPAL route: 200 re-activates a disabled user and reports its role/policy grants", async (t) => {

@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -185,6 +186,23 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     assert.equal(denial.agentPlugins, undefined);
     assert.ok(!JSON.stringify(denial).includes("site-compliance"));
 
+  });
+});
+
+test("AGENT_PLUGINS_LIST: absent version and description are explicit nulls", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal(WORKSPACE_A, "minimal-plugin", { "plugin.json": manifestJson("minimal-plugin") }, "seed-minimal-plugin");
+    const { app } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
+
+    assert.equal(response.status, 200);
+    const { agentPlugins } = await response.json() as { agentPlugins: Array<{ pluginId: string; version: string | null; description: string | null }> };
+    const plugin = agentPlugins.find(({ pluginId }) => pluginId === "minimal-plugin");
+    assert.ok(plugin, "the installed plugin must be listed");
+    assert.equal(plugin.version, null);
+    assert.equal(plugin.description, null);
   });
 });
 

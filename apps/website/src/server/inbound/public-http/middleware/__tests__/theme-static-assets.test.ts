@@ -1,3 +1,4 @@
+import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
@@ -213,6 +214,9 @@ test("registerThemeStaticAssets: resolveThemeDir is actually WIRED to the shared
     // not environment-dependent. Encoded so Express's router treats the whole value as one
     // :themeId segment rather than splitting the path.
     const payload = encodeURIComponent("foo/../../outside-secret");
+    // Node 24 deprecates existsSync(null), but warns only once per process: an earlier
+    // traversal can hide that warning. With no injected existence check, the mutant that
+    // skips the null-candidate guard is equivalent for this HTTP contract (still 404).
     const res = await fetch(`${baseUrl}/theme-assets/${payload}/marker.txt`);
     assert.equal(res.status, 404, `expected the containment check to refuse the traversal, got ${res.status}`);
   }, [rootA]);
