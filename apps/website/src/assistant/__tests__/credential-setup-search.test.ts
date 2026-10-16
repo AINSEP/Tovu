@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { readFileSync } from "node:fs";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
