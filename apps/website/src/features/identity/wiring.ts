@@ -164,11 +164,13 @@ export interface IdentityRouteDepsSlice {
  * `identityReady` below (`migrateDeprecatedPermissionGrants` + `applyBuiltinRoleGrants`) — see
  * their call site's own comment for why a caller holding a genuinely read-only connection MUST
  * pass `false` rather than relying on there being nothing left to reconcile.
+ * A read-only host also supplies `readOnlyOwnerPrincipalId` from its verified owner SELECT:
+ * that bypasses seeding entirely, including its repair paths and username-based lookup.
  */
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials }
+  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID }
 ): IdentityRouteDepsSlice {
   assertOwnerCredentials(required.ownerCredentials);
   const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
@@ -176,7 +178,14 @@ function buildIdentityRouteDeps(
   const hostClock = required.clock;
   const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
 
-  const seedResult = seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
+  // Peer composition has already SELECTed the single owner. Never run seeding, even its
+  // idempotent lookup path, against that connection: a missing username could trigger writes.
+  if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !== false) {
+    throw new TypeError("A read-only owner requires reconcileGrantsOnBoot: false");
+  }
+  const seedResult = required.readOnlyOwnerPrincipalId !== undefined
+    ? Promise.resolve({ ownerPrincipalId: required.readOnlyOwnerPrincipalId })
+    : seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
       // with no default: a library fallback would mean every host that forgot to pass one shipped
       // the same owner credential. The env mapping (with its unchanged defaults) now lives in
       // `resolveOwnerCredentials`, called only by composition roots — see its doc.
@@ -334,8 +343,16 @@ export function createSqliteIdentityRouteDeps(
      *  a real `.save()` against it and throws, instead of the intended no-op. Omit (default `true`)
      *  for a writable connection to keep today's behavior. */
     reconcileGrantsOnBoot?: boolean;
+    /** Verified by the read-only host's single-owner SELECT. With reconciliation disabled,
+     * bypasses ALL seed/repair paths; credentials are then shape-only and never used.
+     * @example { reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }
+     */
+    readOnlyOwnerPrincipalId?: UUID;
   },
-  _optional: Record<string, never> = {},
+  { apiKeyRepo = new SqliteApiKeyRepo(required.db) }: {
+    /** Peer hosts inject a refusal port instead of constructing a credential repository. */
+    apiKeyRepo?: ApiKeyRepoPort;
+  } = {},
 ): IdentityRouteDepsSlice {
   const { db, ...seedRequired } = required;
   const kernel = contentKernel(db);
@@ -351,5 +368,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return buildIdentityRouteDeps(repos, new SqliteApiKeyRepo(db), seedRequired);
+  return buildIdentityRouteDeps(repos, apiKeyRepo, seedRequired);
 }

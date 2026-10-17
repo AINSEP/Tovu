@@ -152,7 +152,7 @@ export const sitesAgentToolCatalog: readonly AgentToolDefinition[] = [
 /** Catalog for the admin service exposed through this standalone contributor. */
 export const sitesReadAgentToolCatalog: AgentToolDefinition[] = [{
   name: "sites_list",
-  description: "Lists local client sites on this computer and the site currently serving. Call before sites_duplicate_site to find a source name, or to distinguish the running site from a queued switch for next restart. Returns {sites, currentSite, persistedSiteName, switchingEnabled}; includes the served directory even when unregistered. Read-only and available when site switching is disabled. Does not create, switch or duplicate sites.",
+  description: "Lists local client sites on this computer and the site currently serving. Call before sites_duplicate_site to find a source name, or to distinguish the running site from a queued switch for next restart. Returns {sites, currentSite, persistedSiteName, switchingEnabled}; includes the served directory even when unregistered. Read-only and available when site switching is disabled. Does not create, switch or duplicate sites. Pass a site's name as `site` to any read tool to read that site.",
   sideEffects: "none",
   authorization: { permission: "system.read" },
   inputSchema: { type: "object", additionalProperties: false, properties: {} },

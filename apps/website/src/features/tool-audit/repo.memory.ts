@@ -28,8 +28,9 @@ export function createInMemoryToolAttemptAuditSink(): InMemoryToolAttemptAuditSi
   const events: ToolAttemptEvent[] = [];
   return {
     events,
-    append: async (event: ToolAttemptEvent) => {
-      events.push(event);
+    append: async (event: ToolAttemptEvent, optional: Pick<ToolAttemptEvent, "detail"> = {}) => {
+      // Match the durable adapter's released daemon contract without losing legacy event detail.
+      events.push(optional.detail === undefined ? event : { ...event, detail: optional.detail });
     },
   };
 }

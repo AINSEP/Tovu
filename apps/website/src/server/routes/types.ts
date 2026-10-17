@@ -10,7 +10,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 import type { ExportReport } from "#src/features/site-export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { SiteChatHistory } from "#src/server/runtime/composition/site-chat-history";
+import type { PeerSiteReads } from "#src/server/runtime/composition/peer-site-reads";
 import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-credential-copy";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -974,8 +974,8 @@ export interface DatabaseOpsDeps {
   contentKernel?: ContentKernel;
   /** Local source reader/transfer; absent in the hermetic root, which has no target content DB. */
   localCredentialCopy?: LocalCredentialCopy;
-  /** Owner-only read-only history for other registered local sites; absent in the hermetic root. */
-  siteChatHistory?: SiteChatHistory;
+  /** Owner-only reads of other local SQLite sites; absent in hermetic/deployed roots. */
+  peerSiteReads?: PeerSiteReads;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
    * `server/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
    * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,

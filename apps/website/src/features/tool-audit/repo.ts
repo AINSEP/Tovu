@@ -72,13 +72,14 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
    * Appends one phase row, then prunes the workspace's oldest rows if the cap is exceeded.
    *
    * @param event - The phase to record. `detail` must already be redacted by the caller.
+   * @param optional - Daemon append options; an explicit detail overrides the legacy event field.
    * @returns Resolves once the row is written, or once the failure has been reported — never rejects.
    * @complexity O(1) for the insert. The prune runs at most once per
    * {@link PRUNE_CHECK_INTERVAL} appends and is O(log n) per deleted row via the
    * `(workspace_id, id)` index.
    * @overallScore 100
    */
-  async append(event: ToolAttemptEvent): Promise<void> {
+  async append(event: ToolAttemptEvent, optional: Pick<ToolAttemptEvent, "detail"> = {}): Promise<void> {
     try {
       await this.kernel.run((db) =>
         db
@@ -92,7 +93,8 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
             principal_id: event.principalId,
             phase: event.phase,
             at: event.at,
-            detail: event.detail ?? null,
+            // Released daemon callers pass detail in options; retain older event-shaped callers.
+            detail: optional.detail === undefined ? event.detail ?? null : optional.detail,
           })
           .execute()
       );

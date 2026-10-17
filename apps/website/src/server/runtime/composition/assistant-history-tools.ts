@@ -3,12 +3,12 @@ import { buildAssistantHistoryRegistrations, assistantHistoryDerivedRisk } from 
 import type { ToolContributor } from '#src/assistant/index';
 import type { RouteDeps } from '#src/server/routes/types';
 
-export type AssistantHistoryHostDeps = Pick<RouteDeps, 'workspaceId' | 'authorize' | 'chatHistory' | 'ownerPrincipalId' | 'siteChatHistory'>;
+export type AssistantHistoryHostDeps = Pick<RouteDeps, 'workspaceId' | 'authorize' | 'chatHistory'>;
 
-/** Bind execution identity to local history and owner-only registered-site history.
- * @returns Jini registrations; site authorization always precedes registry access.
- * @throws ToolInputError for denied assistant use or cross-site reads by a non-owner.
- * @complexity O(1) wiring; registry discovery and scoped reads belong to the host port.
+/** Bind history to the execution principal in the supplied site's dependencies.
+ * @returns Jini registrations; generic target scoping supplies peer deps/principals.
+ * @throws ToolInputError for denied assistant use.
+ * @complexity O(1) wiring; scoped reads belong to the supplied store factory.
  */
 export function buildAssistantHistoryTools({ deps }: { deps: AssistantHistoryHostDeps }, {
   buildRegistrations = buildAssistantHistoryRegistrations,
@@ -23,29 +23,7 @@ export function buildAssistantHistoryTools({ deps }: { deps: AssistantHistoryHos
     await authorize({ principalId }, {});
     return deps.chatHistory({ kind: 'user', workspaceId: deps.workspaceId, userId: principalId });
   };
-  /** Require the seeded installation owner, never an admin role or model identity. @throws ToolInputError on refusal. @complexity O(1). */
-  const authorizeSiteHistory = async ({ principalId }: { principalId: string }, _optional = {}) => {
-    await authorize({ principalId }, {});
-    if (principalId !== await deps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites' chats." });
-  };
-  const host = deps.siteChatHistory;
-  const siteHistory = {
-    /** Authorize before discovering names. @throws ToolInputError on refusal. @complexity O(n) host registry discovery. */
-    listSiteNames: async ({ principalId }: { principalId: string }, _optional = {}) => {
-      await authorizeSiteHistory({ principalId }, {});
-      return host!.listSiteNames({ principalId }, {});
-    },
-    /** Authorize before any registry/disk read; a current-site name retains local scope/lifetime.
-     * @throws ToolInputError on refusal. @complexity O(n) host name resolution plus scoped reads.
-     */
-    openStore: async ({ principalId, siteName }: { principalId: string; siteName: string }, _optional = {}) => {
-      await authorizeSiteHistory({ principalId }, {});
-      if (host!.isCurrentSite({ siteName }, {})) return { store: await getStore({ principalId }, {}), close: () => {} };
-      return host!.openStore({ principalId, siteName }, {});
-    },
-  };
-  const ports = { getStore, ...(deps.siteChatHistory ? { siteHistory } : {}) };
-  return buildRegistrations({ ports }, {});
+  return buildRegistrations({ ports: { getStore } }, {});
 }
 
 /** Both daemon and BYOK install the same contribution via the first-party manifest. */

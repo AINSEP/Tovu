@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlToolAttemptAuditSink } from "../repo.js";
+import { createInMemoryToolAttemptAuditSink } from "../repo.memory.js";
 import type { ToolAttemptEvent } from "../types.js";
 
 /** @file The tool-attempt audit sink's one Kysely body on SQLite and PGlite (storage plan §4). */
@@ -28,6 +29,12 @@ async function rows(kernel: ContentKernel, workspaceId: string) {
 }
 
 describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], make: (kernel) => kernel }, (makeKernel) => {
+  test("daemon options preserve cross-site detail and explicit null clears legacy detail", async () => {
+    const kernel = makeKernel(), sink = new SqlToolAttemptAuditSink(kernel);
+    await sink.append(event(), { detail: "cross-site read: B (B)" });
+    await sink.append(event({ attemptId: "cleared" }), { detail: null });
+    assert.deepEqual((await rows(kernel, "ws-1")).map(row => row.detail), ["cross-site read: B (B)", null]);
+  });
   test("append writes every column, scoped by workspace", async () => {
     const kernel = makeKernel();
     const sink = new SqlToolAttemptAuditSink(kernel);
@@ -84,4 +91,12 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
     await assert.doesNotReject(() => new SqlToolAttemptAuditSink(broken, { onError: (e) => errors.push(e) }).append(event()));
     assert.equal(errors.length, 1);
   });
+});
+
+test("memory sink honors daemon options while retaining legacy event detail", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  await sink.append(event());
+  await sink.append(event(), { detail: "cross-site read: B (B)" });
+  await sink.append(event(), { detail: null });
+  assert.deepEqual(sink.events.map(event => event.detail), ["keys: fields[1], key, label", "cross-site read: B (B)", null]);
 });

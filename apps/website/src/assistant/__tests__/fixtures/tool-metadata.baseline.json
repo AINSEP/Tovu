@@ -1,4 +1,11 @@
 {
+  "crossSiteReads": {
+    "sitesListDescription": "Lists local client sites on this computer and the site currently serving. Call before sites_duplicate_site to find a source name, or to distinguish the running site from a queued switch for next restart. Returns {sites, currentSite, persistedSiteName, switchingEnabled}; includes the served directory even when unregistered. Read-only and available when site switching is disabled. Does not create, switch or duplicate sites. Pass a site's name as `site` to any read tool to read that site.",
+    "siteInput": {
+      "type": "string",
+      "description": "Optional. Another local site's name from sites_list; reads that site instead of this one."
+    }
+  },
   "keywords": {
     "assistant_chats_list": "previous earlier interrupted chat conversation history search resume continue what we were doing",
     "assistant_chat_read": "read previous chat transcript history tail messages resume interrupted continue conversation",

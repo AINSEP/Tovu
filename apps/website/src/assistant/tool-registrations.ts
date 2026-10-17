@@ -89,8 +89,10 @@ import type { RedirectsToolDeps } from "../features/redirects/tool-registrations
 import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
-import { assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import type { PeerSiteReads } from "../server/runtime/composition/peer-site-reads.js";
+import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import { createSystemClock, createRandomUuidGenerator, nowIso } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -110,6 +112,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
 export type AssistantToolRegistryDeps = import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+  { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink } &
   import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
@@ -298,6 +301,8 @@ export function buildAssistantToolRegistrations(
     readonly batchableTools?: readonly BatchableTool[];
     /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
     readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;
+    /** Disable only when rebuilding handlers over the host's read-only peer dependencies. */
+    readonly targetScope?: "on" | "off";
   } = {},
 ): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
@@ -305,11 +310,16 @@ export function buildAssistantToolRegistrations(
 
   // Enriches (never mutates) the caller's own `routeDeps` with the site-switcher flag `sites` needs
   // and cannot import for itself. `routeDeps.isSiteSwitcherEnabled ??` preserves a test's own fake.
-  const enrichedRouteDeps: AssistantToolRegistryDeps = {
+  const enrichment = {
     ...routeDeps,
     isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
     devRestart: routeDeps.devRestart === undefined ? devRestartPortFromEnv() : routeDeps.devRestart,
   };
+  // Keep peer composition's fail-closed missing-field behavior through this enrichment.
+  const enrichedRouteDeps: AssistantToolRegistryDeps = new Proxy(enrichment, {
+    get: (target, key, receiver) => key === "isSiteSwitcherEnabled" || key === "devRestart"
+      ? Reflect.get(target, key, receiver) : Reflect.get(routeDeps, key),
+  });
 
   const assertChatDeleteAllowed = async ({ toolId }: { toolId: string }) => {
     const policy = await readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady });
@@ -374,9 +384,43 @@ export function buildAssistantToolRegistrations(
       return typeof setting?.value === "string" ? setting.value : "en";
     },
   }));
+  const peer = routeDeps.peerSiteReads;
+  const scopedRegistrations = options.targetScope !== "off" && peer ? applyTargetScope({
+    registrations: approvedRegistrations,
+    isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
+    resolveTarget: async ({ target, toolId, principal }) => {
+      // Installation ownership is checked BEFORE registry discovery or opening another site's files.
+      if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
+      const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
+        buildRegistrations: peerDeps => buildAssistantToolRegistrations(peerDeps, surfaces, {
+          ...options, targetScope: "off", includeContentReadCollapse: false,
+          // Excluded builders may touch credentials/live hosts during construction. Never run
+          // them over a peer bag, even if their registrations would be discarded afterwards.
+          contributions: options.contributions ? {
+            contributors: { ...options.contributions.contributors, list: required => options.contributions!.contributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
+            derivedContributors: { ...options.contributions.derivedContributors, list: required => options.contributions!.derivedContributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
+          } : undefined,
+        }).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? '')),
+      });
+      if (resolved === "current") return resolved;
+      return { principal: resolved.principal, handler: async (ctx: import("@jini-ai/core").ToolExecutionContext, optional?: import("@jini-ai/core").ToolExecutionOptions) => {
+        // The extra row belongs to the ACTIVE site. Input-key-only executor telemetry cannot
+        // identify the selected registry name; no audit sink is constructed on the target.
+        await routeDeps.toolAttemptAuditSink.append({
+          attemptId: routeDeps.idGen.newId(), executionId: ctx.executionId, workspaceId: routeDeps.workspaceId,
+          runId: ctx.run.id, toolId, principalId: principal.id, phase: "requested", at: nowIso({ clock: routeDeps.clock }),
+        }, { detail: `cross-site read: ${resolved.site.name} (${resolved.site.siteId})` });
+        return resolved.handler(ctx, optional);
+      } };
+    },
+  }, {
+    param: "site", describeParam: "Optional. Another local site's name from sites_list; reads that site instead of this one.",
+    refuseMessage: "Writes run only on the active site. Switch with sites_switch_site first.",
+    scoped: ({ registration }) => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? ''),
+  }) : approvedRegistrations;
   // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
   // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
-  const batchedRegistrations = applyBatchInputs({ registrations: approvedRegistrations }, { tools: options.batchableTools });
+  const batchedRegistrations = applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools });
   if (options.includeContentReadCollapse === false) return batchedRegistrations;
   const finalRegistrations = deriveContentReadRegistrations(batchedRegistrations);
   // A new collapsed card is a new registered tool too: never exempt it from the guard.

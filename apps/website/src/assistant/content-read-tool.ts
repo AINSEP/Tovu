@@ -433,11 +433,15 @@ function unionInputSchema(
       }
     : {};
 
+  const properties = { ...listProps, ...getProps, ...idPropertyEntry };
+  // A merged card may advertise peer reads only when either dispatch branch can honor them.
+  if (!Object.hasOwn(listProps, "site") || !Object.hasOwn(getProps, "site")) delete properties.site;
+
   return {
     type: "object",
     additionalProperties: false,
     required,
-    properties: { ...listProps, ...getProps, ...idPropertyEntry },
+    properties,
   };
 }
 
