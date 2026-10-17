@@ -14,6 +14,7 @@ import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/core";
 import { pagesAgentToolCatalog } from "./agent-tools.js";
 import { describeScriptRevealedContent } from "./hidden-until-script.js";
+import { NO_THEME_ID, resolveActiveTheme, syncThemeRoster, type DiscoveredTheme } from "../theme/index.js";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,
@@ -358,6 +359,29 @@ export interface PagesToolDeps {
   authorize: AuthorizeFn;
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
   postRepo: PostRepoPort;
+  /** The host's render-time theme inputs; absent only in standalone page-store consumers. */
+  themes?: DiscoveredTheme[];
+  themesDir?: string;
+  resolveActiveThemeId?: () => Promise<string>;
+}
+
+/**
+ * Give page authors the vocabulary the public renderer actually uses, including fallback themes.
+ * No token names are invented for an unstyled site or a standalone page-store consumer.
+ * @param required.deps The host's current theme roster and active-theme resolver.
+ * @returns The resolved theme's default tokens and light overrides, or null without a theme.
+ * @throws Propagates host settings/discovery failures rather than advertising stale token names.
+ * @complexity O(t) in installed themes, plus the existing roster sync when disk state changed.
+ */
+async function readPageTheme(
+  { deps }: { deps: PagesToolDeps },
+  _options: Record<string, never> = {},
+) {
+  if (!deps.themes || !deps.resolveActiveThemeId) return null;
+  if (deps.themesDir) syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+  const theme = resolveActiveTheme({ themes: deps.themes }, await deps.resolveActiveThemeId());
+  if (theme === null || theme === NO_THEME_ID) return null;
+  return { id: theme.manifest.id, tokens: theme.tokens, tokensLight: theme.tokensLight };
 }
 
 export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
@@ -374,7 +398,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         // `version` is the basis a writer states back as `expectedVersion` — see
         // `PagesHtmlDocumentStorePort.capturedVersion` for why it comes off the store rather than off
         // a second row read.
-        return { id, html, regions: regionHandlesIn(html), version: requireCapturedVersion(store) };
+        return { id, html, regions: regionHandlesIn(html), version: requireCapturedVersion(store), theme: await readPageTheme({ deps: routeDeps }) };
       } catch (err) {
         if (err instanceof PageNotFoundError) {
           // A page that exists but has never been given HTML is the common case on a brand-new
@@ -397,6 +421,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
               bodyFormat: row.bodyFormat,
               version: row.version,
               hasDocContent,
+              theme: await readPageTheme({ deps: routeDeps }),
               ...(hasDocContent
                 ? {
                     note:
@@ -597,9 +622,9 @@ export { pagesDerivedRisk };
  * `pagesDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2). Safe: the only
  * importer of `features/pages/tool-registrations` (relative or `#src/*` subpath) is
  * `assistant/tool-registrations.ts` itself, every other importer of `features/pages` at large is
- * `server/*` (never reachable from `assistant`), and this file's own cross-domain imports
- * (`../post`, `../../core/commands`) are both `import type` only — erased at compile time, so
- * neither creates a runtime edge back toward `assistant`.
+ * `server/*` (never reachable from `assistant`). Domain behavior is reached through the Post and
+ * Theme public APIs; active-theme settings are host-injected. `ToolContributor` stays type-only,
+ * so contributing these tools creates no runtime edge back toward `assistant`.
  */
 export function contributePagesTools(): ToolContributor {
   return { domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk };

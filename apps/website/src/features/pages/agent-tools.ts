@@ -95,19 +95,19 @@ export const PAGE_HTML_CONTRACT =
   "- INNER CONTENT ONLY. Never emit <html>, <head>, <body>, <nav>, or a site footer — the active " +
   "theme's template owns all page chrome and wraps whatever you write. Emitting them produces a " +
   "broken, doubled page.\n" +
-  // Names the real tokens on purpose (demo video V1, 2026-10-05): "style with theme tokens" alone left
+  // Supplies the real tokens on purpose (demo video V1, 2026-10-05): "style with theme tokens" alone left
   // the model guessing `--text`, which no theme defines, so its light-mode fallback painted a dark-gray
   // heading on the dark theme. The theme's own `body`/heading rules already colour text for both modes,
-  // so inheriting is the default; `features/theme/token-aliases.ts` is the render-side backstop.
+  // so inheriting is the default. Read the active vocabulary rather than assuming every theme uses
+  // --fg: templated themes use --ink/--line. `features/theme/token-aliases.ts` is the render-side backstop.
   "- COLOURS FOLLOW THE THEME, in light AND dark mode. Let text inherit its colour: do not set `color` " +
   "on headings, paragraphs or lists, and do not give a section a `background` unless the design needs " +
   "one — the theme already colours them for both modes. When you do need a colour, font or border, " +
-  "use ONLY these theme tokens, each with a literal fallback: `var(--fg, #111)` text, " +
-  "`var(--muted, #666)` secondary text, `var(--bg, #fff)` page background, `var(--surface, #f5f5f5)` " +
-  "and `var(--surface-2, #eee)` panels, `var(--border, #ddd)` lines, `var(--accent, #8a4b2a)` with " +
-  "`var(--accent-fg, #fff)` for buttons, `var(--font-display, inherit)` and `var(--font-body, inherit)` " +
-  "fonts. Never a bare hex and never a bare `var(--accent)`. Do not guess other names (`--text`, " +
-  "`--text-strong`, `--surface-muted`...): a token the theme lacks silently uses its fallback, and a " +
+  "call pages_read_html FIRST, even for a new page: its `theme` contains the active theme's actual " +
+  "`tokens` and `tokensLight` overrides. Use ONLY names present in `theme.tokens`, each with a literal " +
+  "fallback; inspect `theme.tokensLight` for light-mode values. If `theme` is null, inherit colours " +
+  "and fonts without assuming any token vocabulary. Never a bare hex and never a bare var() without " +
+  "a fallback. Do not guess names: a token the theme lacks silently uses its fallback, and a " +
   "literal fallback is right in only ONE mode — dark text vanishes on the dark theme. A <style> " +
   "block inside the content is fine and is the expected way to style a bespoke page.\n" +
   // Same page, same cause: every section got its own max-width + `padding: 3rem` wrapper inside the
@@ -194,8 +194,9 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     name: "pages_read_html",
     description:
       "Reads the full bespoke HTML body of a page, plus the list of editable region handles currently " +
-      "present in it and the page's current version. Call this before editing a page you did not just " +
-      "write, so the edit is based on what is actually there rather than a guess.\n\n" +
+      "present in it, the page's current version, and `theme`: the resolved active theme's id, tokens " +
+      "and tokensLight overrides (null when unstyled). Call this before authoring ANY page, including " +
+      "a new empty page, to get the site's actual token vocabulary instead of guessing names.\n\n" +
       "The 'regions' it returns are the addresses pages_write_region takes: if the section you need to " +
       "change is listed there, edit THAT region rather than rewriting the whole page with " +
       "pages_write_html. Pass the returned 'version' back as expectedVersion on whichever write you " +

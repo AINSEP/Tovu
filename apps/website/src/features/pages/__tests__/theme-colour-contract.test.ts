@@ -28,25 +28,17 @@ function sharedThemeTokens(): Set<string> {
   return new Set([...sets[0]].filter((name) => sets.every((set) => set.has(name))));
 }
 
-const COLOUR_RULE =
-  "- COLOURS FOLLOW THE THEME, in light AND dark mode. Let text inherit its colour: do not set `color` " +
-  "on headings, paragraphs or lists, and do not give a section a `background` unless the design needs " +
-  "one — the theme already colours them for both modes. When you do need a colour, font or border, " +
-  "use ONLY these theme tokens, each with a literal fallback: `var(--fg, #111)` text, " +
-  "`var(--muted, #666)` secondary text, `var(--bg, #fff)` page background, `var(--surface, #f5f5f5)` " +
-  "and `var(--surface-2, #eee)` panels, `var(--border, #ddd)` lines, `var(--accent, #8a4b2a)` with " +
-  "`var(--accent-fg, #fff)` for buttons, `var(--font-display, inherit)` and `var(--font-body, inherit)` " +
-  "fonts. Never a bare hex and never a bare `var(--accent)`. Do not guess other names (`--text`, " +
-  "`--text-strong`, `--surface-muted`...): a token the theme lacks silently uses its fallback, and a " +
-  "literal fallback is right in only ONE mode — dark text vanishes on the dark theme. A <style> " +
-  "block inside the content is fine and is the expected way to style a bespoke page.\n";
-
 for (const toolName of ["pages_write_html", "pages_write_region"]) {
-  test(`${toolName}: the contract names the theme's real colour tokens and tells the model to inherit text colour`, () => {
+  test(`${toolName}: the colour contract uses the active theme vocabulary returned by a page read`, () => {
     const tool = pagesAgentToolCatalog.find((entry) => entry.name === toolName);
     assert.ok(tool, `${toolName} must exist`);
-    assert.ok(tool.description.includes(COLOUR_RULE), `${toolName}'s description must carry the colour rule verbatim`);
-    assert.ok(!tool.description.includes("STYLE WITH THEME TOKENS"), "the old unnamed-token rule must be gone");
+    assert.match(tool.description, /COLOURS FOLLOW THE THEME, in light AND dark mode/);
+    assert.match(tool.description, /Let text inherit its colour/);
+    assert.match(tool.description, /call pages_read_html FIRST, even for a new page/);
+    assert.match(tool.description, /ONLY names present in `theme.tokens`/);
+    assert.match(tool.description, /theme.tokensLight/);
+    assert.match(tool.description, /If `theme` is null, inherit colours/);
+    assert.doesNotMatch(tool.description, /use ONLY these theme tokens/);
   });
 }
 
@@ -66,17 +58,6 @@ for (const toolName of ["pages_write_html", "pages_write_region"]) {
     assert.ok(tool?.description.includes(LAYOUT_RULE), `${toolName}'s description must carry the layout rule verbatim`);
   });
 }
-
-test("every token the colour rule names is one the shipped themes actually define, in both modes", () => {
-  const shared = sharedThemeTokens();
-  const named = [...COLOUR_RULE.matchAll(/`var\((--[a-z0-9-]+),/g)].map((match) => match[1]);
-  assert.deepEqual(
-    named.filter((name) => !shared.has(name)),
-    [],
-    "a token the contract tells the model to use must exist in every theme it is checked against"
-  );
-  assert.equal(named.length, 10);
-});
 
 test("the starter skeleton only uses token names the shipped themes define, and sets no text colour of its own", () => {
   const shared = sharedThemeTokens();

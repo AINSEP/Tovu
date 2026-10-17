@@ -9,6 +9,7 @@ import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subsc
 import { useDirtyGuard, type DirtyGuard, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { homeFallbackPublishReason } from "../../pages/lib/theme-page-publish-state";
 import { THEME_FILES_RESOURCE } from "../rules";
+import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
 import type {
@@ -39,10 +40,9 @@ import {
  * message passes through untranslated, apart from the reset refusals {@link resetErrorMessage} has copy for.
  *
  * Content refresh bus (2026-09-14, o24 review F2): an assistant run can write theme files while this
- * screen is open, and the finished run's `publishContentRefresh()` is the only signal that reaches it.
- * A {@link THEME_FILES_RESOURCE} notification re-reads every file's `modified`/`resettable`, so the
- * modified dot and Reset follow the write, and, when nothing is unsaved, the open file's text. The file
- * list's shape is not refreshed: a file an agent adds or removes still needs a reload to appear or go.
+ * screen is open. Both the finished run's `publishContentRefresh()` and the theme preview feed
+ * refresh the file list and, when nothing is unsaved, the open file's text. The list follows added,
+ * removed and renamed files; a dirty buffer survives even if its file was removed externally.
  */
 
 export type ThemeExploreView = "preview" | "html";
@@ -1136,6 +1136,8 @@ export function useThemeExplore(
   // have their detail reads land out of order, and the older read must not overwrite the newer one.
   // Dropping it loses nothing, since the newer read carries every file's state.
   const modifiedRefreshSettlement = useSettlementGeneration();
+  // Successful file-list mutations invalidate older notification reads before their own refetch.
+  // Failed mutations leave those reads valid: an external change still needs to reach the editor.
 
   /**
    * Re-read every file's `modified`/`resettable` after a Save or Reset changed a file's bytes, or a
@@ -1145,23 +1147,52 @@ export function useThemeExplore(
    * through {@link withServerModifiedState}. A failed read is its own error: the save or reset already
    * succeeded and stays reported as done. A read for a theme that is no longer open is dropped, or its
    * flags would merge into the new theme's files wherever the two share a path (`theme.json`).
+   * Notifications also reconcile the list's shape. A removed clean file opens the ordinary default;
+   * a removed dirty file keeps its buffer and leave guard, but Save cannot recreate it by accident.
+   * @complexity O(f) in listed files after one detail request; buffer comparisons are O(s) in text.
    */
-  const refreshModifiedState = useCallback(async () => {
+  const refreshModifiedState = useCallback(async (
+    { reconcileFiles = false }: { reconcileFiles?: boolean } = {},
+  ): Promise<ThemeExploreFile[] | null> => {
     const generation = modifiedRefreshSettlement.next();
     const stillCurrent = () => modifiedRefreshSettlement.isCurrent({ generation }) && openFileRef.current.themeId === themeId;
     try {
-      const { files: serverFiles } = await listingLoader.load();
-      if (!stillCurrent()) return;
-      setFiles((prev) => withServerModifiedState(prev, serverFiles));
+      const { detail: nextDetail, files: serverFiles } = await listingLoader.load();
+      if (!stillCurrent()) return null;
+      if (!reconcileFiles) {
+        setFiles((prev) => withServerModifiedState(prev, serverFiles));
+        return serverFiles;
+      }
+      setDetail(nextDetail);
+      setFiles(serverFiles);
+      const open = openFileRef.current;
+      const selectedStillExists = serverFiles.some((file) => file.path === open.selected);
+      const hasUnsavedText = isOpenFileLoaded(open.loadedFile, themeId, open.selected) && open.source !== open.savedSource;
+      if (!selectedStillExists && !hasUnsavedText) {
+        const path = defaultSelectedPath(serverFiles, nextDetail.apiVersion);
+        setPendingSelection(null);
+        setSelected(path);
+        setLoadedFile(null);
+        setSource("");
+        setSavedSource("");
+        const file = serverFiles.find((entry) => entry.path === path);
+        if (file) writeThemeExploreSelectionToUrl(file);
+      }
+      return serverFiles;
     } catch (e) {
-      if (!stillCurrent()) return;
+      if (!stillCurrent()) return null;
       setError(e instanceof Error ? e.message : tRef.current("failed to refresh file list"));
+      return null;
     }
   }, [themeId, port, modifiedRefreshSettlement]);
 
   // Its own generation rather than `modifiedRefreshSettlement`, so a Save's or Reset's detail read never
   // cancels a text read. `shouldAdoptRefreshedText` already drops a read one of those overtook.
   const openFileTextSettlement = useSettlementGeneration();
+  useEffect(() => () => {
+    modifiedRefreshSettlement.next();
+    openFileTextSettlement.next();
+  }, [modifiedRefreshSettlement, openFileTextSettlement]);
 
   /**
    * After a content refresh, re-read the open file and adopt its text when an assistant run changed it.
@@ -1188,20 +1219,23 @@ export function useThemeExplore(
     }
   }, [port, openFileTextSettlement]);
 
-  /** A content-refresh notification: every file's modified state, and the open file's text. */
+  /** List first: never request text for a file the external writer just removed. */
   const refreshFromContentBus = useCallback(() => {
-    void refreshModifiedState();
-    void refreshOpenFileText();
+    void refreshModifiedState({ reconcileFiles: true }).then((serverFiles) => {
+      if (serverFiles?.some((file) => file.path === openFileRef.current.selected)) void refreshOpenFileText();
+    });
   }, [refreshModifiedState, refreshOpenFileText]);
   useContentRefreshSubscription(THEME_FILES_RESOURCE, refreshFromContentBus);
+  useEffect(() => subscribeThemePreviewRefresh({ listener: refreshFromContentBus }), [refreshFromContentBus]);
 
   const save = useCallback(async () => {
     // Nothing is written unless `source` is the open file's own text. A read that is in flight or
     // failed, or a reset that returned no text, leaves some other buffer there (see `sourceLoaded`).
-    // `selectedReadable === false` is checked too, as defence in depth: it is the same condition
+    // A listed, readable file is required too, as defence in depth: it is the same condition
     // `sourceLoaded` is supposed to already rule out, but a save must never depend on the file-read
     // effect's `loadedFile` clear being the only thing standing between a stale buffer and the server.
-    if (selected === null || !sourceLoaded || selectedReadable === false) return;
+    // An externally deleted file may deliberately still have an unsaved buffer open.
+    if (selected === null || !sourceLoaded || selectedReadable !== true) return;
     setSaving(true);
     setError(null);
     try {
@@ -1270,6 +1304,7 @@ export function useThemeExplore(
     setError(null);
     try {
       await write.mutate({ input: () => port.saveThemeOriginal(themeId) }) as Awaited<ReturnType<typeof port.saveThemeOriginal>>;
+      modifiedRefreshSettlement.next();
       setNotice(tRef.current("Saved as this theme's original"));
       const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
       if (!refetched.ok) {
@@ -1284,7 +1319,7 @@ export function useThemeExplore(
       setSavingOriginal(false);
       savingOriginalRef.current = false;
     }
-  }, [themeId, port]);
+  }, [themeId, port, modifiedRefreshSettlement]);
 
   /**
    * Actually perform a rename against the server and reconcile local state — the one place both the
@@ -1306,6 +1341,7 @@ export function useThemeExplore(
       setError(null);
       try {
         const r = await write.mutate({ input: () => port.renameThemeFile(themeId, sourcePath, name) }) as Awaited<ReturnType<typeof port.renameThemeFile>>;
+        modifiedRefreshSettlement.next();
         const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
         // Superseded by a newer rename call started after this one — that later call owns
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
@@ -1340,7 +1376,7 @@ export function useThemeExplore(
         setRenameDraft("");
       }
     },
-    [themeId, port, renameSettlement]
+    [themeId, port, renameSettlement, modifiedRefreshSettlement]
   );
 
   const startRename = useCallback(
@@ -1421,6 +1457,7 @@ export function useThemeExplore(
       setError(null);
       try {
         const r = await write.mutate({ input: () => port.copyThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.copyThemeFile>>;
+        modifiedRefreshSettlement.next();
         // The copy is done whatever the re-read says — see `refetchAfterMutation`. Selecting the new
         // file waits for a list that has it.
         setNotice(translateWith(tRef.current, "Copied to {file}", "file", r.path));
@@ -1440,7 +1477,7 @@ export function useThemeExplore(
         copyingRef.current = false;
       }
     },
-    [themeId, port]
+    [themeId, port, modifiedRefreshSettlement]
   );
 
   /**
@@ -1483,6 +1520,7 @@ export function useThemeExplore(
     setError(null);
     try {
       await write.mutate({ input: () => port.deleteThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.deleteThemeFile>>;
+      modifiedRefreshSettlement.next();
       // The file is gone from here on, whatever the re-read says — see `refetchAfterMutation`. The
       // dialog closes and the notice says so; a failed re-read drops the file from the list locally
       // (the one change a delete makes to it) and is reported as its own error.
@@ -1500,7 +1538,7 @@ export function useThemeExplore(
     } finally {
       setDeleting(false);
     }
-  }, [themeId, deleteTarget, port, detail, files]);
+  }, [themeId, deleteTarget, port, detail, files, modifiedRefreshSettlement]);
 
   // Unsaved-changes guard for the open file's buffer — `current` is `source`, `original` is
   // `savedSource` while it is actually the loaded file's own text (`null` otherwise, matching the

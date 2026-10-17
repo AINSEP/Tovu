@@ -30,6 +30,7 @@ import {
   type ThemeExploreFile,
 } from "../hooks/use-theme-explore.hooks";
 import { THEME_FILES_RESOURCE } from "../rules";
+import { publishThemePreviewRefresh, resetThemePreviewRefresh } from "../theme-preview-refresh";
 
 /**
  * @file `useThemeExplore` driven against the injected `ThemeExplorePort`, no `fetch` stub and no
@@ -4125,5 +4126,104 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
 
     expect(result.current.notice).toBe("Saved as this theme's original");
     expect(result.current.error).toBe("network down");
+  });
+});
+
+
+describe("useThemeExplore — external file list changes (todos 323)", () => {
+  const INDEX = "pages/index.html";
+  const ABOUT = "pages/about.html";
+  const STYLE = "css/theme.css";
+  const file = (path: string, group: "page" | "style") => ({ path, group, readable: true, editable: true, resettable: true });
+  const fixture = () => createFakeThemeExplorePort({
+    files: [file(INDEX, "page"), file(ABOUT, "page"), file(STYLE, "style")],
+    contents: { [INDEX]: "Home", [ABOUT]: "About", [STYLE]: "body{}" },
+  });
+  afterEach(() => { resetContentRefreshBus(); resetThemePreviewRefresh(); });
+
+  it("adds and removes externally changed files without moving an existing selection", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    await port.copyThemeFile("basic", ABOUT);
+    await port.deleteThemeFile("basic", STYLE);
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    await waitFor(() => expect(result.current.files.map(entry => entry.path)).toEqual([INDEX, ABOUT, "pages/about-1.html"]));
+    expect(result.current.selected).toBe(INDEX);
+    expect(result.current.source).toBe("Home");
+  });
+
+  it("uses the same refresh path for the existing durable theme feed", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    await port.copyThemeFile("basic", ABOUT);
+    act(() => publishThemePreviewRefresh({ revision: "external-theme-file-change" }));
+    await waitFor(() => expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true));
+  });
+
+  it("opens the default file when an external writer removes the clean open file", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    act(() => result.current.select(STYLE));
+    await waitFor(() => expect(result.current.source).toBe("body{}"));
+    await port.deleteThemeFile("basic", STYLE);
+    const reads = vi.spyOn(port, "getThemeFile");
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    expect(result.current.selected).toBe(INDEX);
+    expect(result.current.error).toBeNull();
+    expect(reads.mock.calls.every(([, path]) => path !== STYLE)).toBe(true);
+  });
+
+  it("keeps a removed file's unsaved buffer and refuses to recreate it through Save", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    act(() => result.current.select(STYLE));
+    await waitFor(() => expect(result.current.source).toBe("body{}"));
+    act(() => result.current.setSource("body{color:red}"));
+    await port.deleteThemeFile("basic", STYLE);
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    await waitFor(() => expect(result.current.files.some(entry => entry.path === STYLE)).toBe(false));
+    expect(result.current.source).toBe("body{color:red}");
+    expect(result.current.selected).toBe(STYLE);
+    expect(result.current.dirty).toBe(true);
+    const writes = vi.spyOn(port, "putThemeFile");
+    await act(async () => { await result.current.save(); });
+    expect(writes).not.toHaveBeenCalled();
+  });
+
+  it("does not let a stale notification undo a local copy", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    const read = port.getThemeDetail;
+    let releaseOld: (() => void) | undefined;
+    let held = false;
+    port.getThemeDetail = async id => {
+      const snapshot = await read(id);
+      if (held) return snapshot;
+      held = true;
+      return new Promise(resolve => { releaseOld = () => resolve(snapshot); });
+    };
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    await waitFor(() => expect(releaseOld).toBeDefined());
+    await act(async () => { await result.current.copyFile(ABOUT); });
+    expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true);
+    await act(async () => { releaseOld!(); });
+    expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true);
+    expect(result.current.selected).toBe("pages/about-1.html");
+  });
+
+  it("unsubscribes from the theme feed on unmount", async () => {
+    const port = fixture();
+    const { result, unmount } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    const reads = vi.spyOn(port, "getThemeDetail");
+    unmount();
+    act(() => publishThemePreviewRefresh({ revision: "after-explore-unmount" }));
+    expect(reads).not.toHaveBeenCalled();
   });
 });

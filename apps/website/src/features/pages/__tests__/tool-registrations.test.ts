@@ -5,7 +5,8 @@ import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } 
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { buildPagesRegistrations } from "../tool-registrations.js";
+import type { DiscoveredTheme } from "../../theme/index.js";
+import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
 
 /**
  * @file The Pages agent tools — the surface the assistant actually authors pages through.
@@ -20,9 +21,10 @@ import { buildPagesRegistrations } from "../tool-registrations.js";
 const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z") };
 const WS = "ws-1";
 
-function harness() {
+function harness(themeDeps: Pick<PagesToolDeps, "themes" | "resolveActiveThemeId"> = {}) {
   const repo = new InMemoryPostRepo([]);
   const registrations = buildPagesRegistrations({
+    ...themeDeps,
     workspaceId: WS,
     // Permission checks are exercised by the domain's own route tests; this harness grants, so the
     // assertions below are about the tools' behavior rather than about authz plumbing.
@@ -319,4 +321,50 @@ test("a page id that does not exist reaches the model as PAGES_NOT_FOUND input, 
   // redacts, so the model never learns the id was simply wrong.
   await assert.rejects(() => call("pages_read_html", { id: "no-such-page" }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
   await assert.rejects(() => call("pages_write_html", { id: "no-such-page", html }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
+});
+
+// todos 281: observe the tool output, including empty pages, mode overrides and runtime theme switches.
+test("pages_read_html supplies the resolved theme vocabulary on both empty and authored pages", async () => {
+  const theme = (id: string, tokens: Record<string, string>, tokensLight = {}): DiscoveredTheme => ({
+    manifest: { id }, status: "valid", tokens, tokensLight,
+  } as DiscoveredTheme);
+  const ink = theme("fashion", { "--ink": "#eee", "--line": "#444" }, { "--ink": "#111" });
+  const fg = theme("classic", { "--fg": "#eee", "--border": "#444" });
+  let activeId = "fashion";
+  const { repo, call } = harness({ themes: [ink, fg], resolveActiveThemeId: async () => activeId });
+  await seedPage(repo, "themed-page", "Landing");
+  const read = () => call("pages_read_html", { id: "themed-page" }) as Promise<{ theme: unknown }>;
+  assert.deepEqual((await read()).theme, { id: "fashion", tokens: ink.tokens, tokensLight: ink.tokensLight });
+  await call("pages_write_html", { id: "themed-page", html: '<section data-agent-element="hero" data-agent-role="region">Hello</section>' });
+  activeId = "classic";
+  assert.deepEqual((await read()).theme, { id: "classic", tokens: fg.tokens, tokensLight: {} });
+  activeId = "none";
+  assert.equal((await read()).theme, null);
+});
+
+test("page token vocabulary follows the renderer fallback when the configured theme is missing", async () => {
+  const fallback = { manifest: { id: "tovu-theme" }, status: "valid", tokens: { "--fg": "#fff" }, tokensLight: {} } as DiscoveredTheme;
+  const { repo, call } = harness({ themes: [fallback], resolveActiveThemeId: async () => "removed" });
+  await seedPage(repo, "fallback-page", "Landing");
+  const result = await call("pages_read_html", { id: "fallback-page" }) as { theme: { id: string; tokens: unknown } };
+  assert.equal(result.theme.id, "tovu-theme");
+  assert.deepEqual(result.theme.tokens, fallback.tokens);
+});
+
+test("standalone page reads have no fabricated theme vocabulary", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "unstyled-page", "Landing");
+  assert.equal((await call("pages_read_html", { id: "unstyled-page" }) as { theme: unknown }).theme, null);
+});
+
+test("a failed theme lookup is reported instead of returning invented styling guidance", async () => {
+  const { repo, call } = harness({ themes: [], resolveActiveThemeId: async () => { throw new Error("theme settings unavailable"); } });
+  await seedPage(repo, "lookup-failed", "Landing");
+  await assert.rejects(() => call("pages_read_html", { id: "lookup-failed" }), { message: "theme settings unavailable" });
+});
+
+test("a site with no installed theme returns no token vocabulary", async () => {
+  const { repo, call } = harness({ themes: [], resolveActiveThemeId: async () => "missing" });
+  await seedPage(repo, "no-theme-installed", "Landing");
+  assert.equal((await call("pages_read_html", { id: "no-theme-installed" }) as { theme: unknown }).theme, null);
 });
