@@ -24,7 +24,7 @@
     "@cfworker/json-schema": "^4.1.1",
     "@jini-ai/agent-runtime": "^0.4.11",
     "@jini-ai/chat": "^0.6.6",
-    "@jini-ai/core": "^0.4.7",
+    "@jini-ai/core": "^0.4.8",
     "@jini-ai/daemon": "^0.6.8",
     "@jini-ai/desktop-host": "^0.4.1",
     "@jini-ai/mcp": "^0.4.3",
@@ -71,6 +71,6 @@
     "vite": "^8.2.0"
   },
   "overrides": {
-    "@jini-ai/core": "^0.4.7"
+    "@jini-ai/core": "^0.4.8"
   }
 }
