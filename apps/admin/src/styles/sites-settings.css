@@ -85,7 +85,13 @@
      sat over the database hint at phone heights, cutting it under its top line. */
   .sites-settings-footer {
     position: sticky; bottom: 0; z-index: 1; background: var(--jini-bg-elevated);
-    padding-bottom: var(--space-3); gap: var(--space-3);
+    padding-bottom: var(--space-4); gap: var(--space-3);
+  }
+  /* Sticky bottom:0 stops at the scroller's padding edge, so on short screens (2026-10-17) scrolled
+     fields showed through the content's bottom padding under Save. The footer's own padding replaces it.
+     Outranks Jini's phone `.jini-tabbed-dialog:not(--inline) .jini-tabbed-dialog-content` padding. */
+  .jini-tabbed-dialog.sites-settings-dialog:not(.jini-tabbed-dialog--inline) .jini-tabbed-dialog-content {
+    padding-bottom: 0;
   }
   .sites-settings-footer > button { min-height: 40px; }
 }
