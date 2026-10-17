@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -191,4 +192,47 @@ test("every .git path segment is reserved, including nested Windows spellings", 
   }
   assert.equal(normalizeWriteFilePath("a/.github/config"), "a/.github/config");
   assert.equal(normalizeWriteFilePath("a/.gitignore"), "a/.gitignore");
+});
+
+for (const branch of [null, undefined, 42, false, ["main"], { name: "main" }]) {
+  test(`rejects a non-string branch ${JSON.stringify(branch)} before validating files`, () => {
+    assert.throws(() => validateWriteFilesInput({ ...VALID, branch }),
+      new CustomCredentialValidationError(`invalid branch name '${String(branch)}'`));
+  });
+}
+
+for (const commitMessage of [null, undefined, 42, ["deploy"]]) {
+  test(`rejects a non-string commit message ${JSON.stringify(commitMessage)}`, () => {
+    assert.throws(() => validateWriteFilesInput({ ...VALID, commitMessage }),
+      new CustomCredentialValidationError("commitMessage must be 1-500 characters"));
+  });
+}
+
+test("accepts a maximum-length branch and commit message without trimming their content", () => {
+  const branch = "b".repeat(250), commitMessage = ` ${"m".repeat(498)} `;
+  assert.deepEqual(validateWriteFilesInput({ ...VALID, branch, commitMessage }), { ...VALID, branch, commitMessage });
+  assert.throws(() => validateWriteFilesInput({ ...VALID, branch: "b".repeat(251) }),
+    new CustomCredentialValidationError(`invalid branch name '${"b".repeat(60)}'`));
+});
+
+for (const files of [null, undefined, {}, "file.txt"]) {
+  test(`rejects non-array files ${JSON.stringify(files)}`, () => {
+    assert.throws(() => validateWriteFilesInput({ ...VALID, files }),
+      new CustomCredentialValidationError("'files' must be a non-empty array of {path, content} objects"));
+  });
+}
+
+for (const file of [null, undefined, [], {}, { path: 42, content: "text" }, { content: "text" }]) {
+  test(`rejects an entry without a string path ${JSON.stringify(file)}`, () => {
+    assert.throws(() => validateWriteFilesInput({ ...VALID, files: [file] }),
+      new CustomCredentialValidationError("each entry in 'files' must be an object with a string 'path' and a string 'content'"));
+  });
+}
+
+test("counts UTF-8 bytes rather than code units at the per-file boundary", () => {
+  const content = "é".repeat(524_288);
+  assert.deepEqual(validateWriteFilesInput({ ...VALID, files: [{ path: "unicode.txt", content }] }).files,
+    [{ path: "unicode.txt", content }]);
+  assert.throws(() => validateWriteFilesInput({ ...VALID, files: [{ path: "unicode.txt", content: `${content}é` }] }),
+    new CustomCredentialValidationError("file 'unicode.txt' is 1048578 bytes, over the 1048576-byte per-file cap"));
 });

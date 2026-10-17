@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -236,4 +237,36 @@ test("registries are independent — a grant registered on one is never listed b
 
   assert.deepEqual(second.list({}), []);
   assert.deepEqual(createBuiltinRoleGrantRegistry({}, { grants: first.list({}) }).list({}), first.list({}));
+});
+
+test("an empty registry created with default arguments reconciles without altering existing permissions", async () => {
+  const registry = createBuiltinRoleGrantRegistry();
+  const fixture = newFixture();
+  const role = await seedRoleWithPolicy(fixture, { role: "empty", permissions: ["content.read"] });
+  assert.deepEqual(registry.list({}), []);
+  assert.deepEqual(await apply(fixture, "empty", registry), { grantedCount: 0 });
+  assert.deepEqual(await permissionsOf(fixture, role.policyId), ["content.read"]);
+});
+
+test("a dangling policy binding is skipped while a valid built-in binding still receives its grant", async () => {
+  const fixture = newFixture();
+  const role = await seedRoleWithPolicy(fixture, { role: "dangling" });
+  await fixture.rolePolicies.save({ id: "dangling-binding", workspaceId: WORKSPACE,
+    roleId: role.roleId, policyId: "deleted-policy" });
+  const registry = createBuiltinRoleGrantRegistry({}, { grants: [
+    { role: "dangling", permission: "test.dangling", reason: "skip a removed policy" },
+  ] });
+  assert.deepEqual(await apply(fixture, "grant", registry), { grantedCount: 1 });
+  assert.deepEqual(await permissionsOf(fixture, role.policyId), ["test.dangling"]);
+  assert.deepEqual(await permissionsOf(fixture, "deleted-policy"), []);
+});
+
+test("a built-in role with no policy bindings receives no permission rows", async () => {
+  const fixture = newFixture();
+  await fixture.roles.save({ id: "unbound", workspaceId: WORKSPACE, name: "unbound", isBuiltin: true });
+  const registry = createBuiltinRoleGrantRegistry({}, { grants: [
+    { role: "unbound", permission: "test.unbound", reason: "no implicit policy creation" },
+  ] });
+  assert.deepEqual(await apply(fixture, "grant", registry), { grantedCount: 0 });
+  assert.deepEqual(await fixture.rolePolicies.listByRoleId({ workspaceId: WORKSPACE, roleId: "unbound" }), []);
 });

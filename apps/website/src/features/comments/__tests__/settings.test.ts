@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -133,4 +134,20 @@ test("comments.configure alone permits settings writes; denied writes leave the 
   await assert.rejects(() => setCommentsSettings({ ...deps, authorize }, { workspaceId: WORKSPACE, callerPrincipalId: "denied", patch: { requireModeration: true, maxDepth: 9 } }));
   assert.deepEqual(await getCommentsSettings({ settingsRepo }, { workspaceId: WORKSPACE }), beforeDenied);
   assert.deepEqual(seen, ["comments.configure", "comments.configure", "comments.configure"]);
+});
+
+test("ISO-only clocks register definitions and timestamp persisted settings without a nowMs adapter", async () => {
+  const { deps } = makeDeps();
+  const isoClock = { nowIso: () => "2026-10-16T12:34:56.000Z" };
+  const input = { workspaceId: WORKSPACE, systemPrincipalId: "system-comments-settings" };
+  await ensureCommentsSettingDefinitions({ ...deps, clock: isoClock }, input);
+  const patch = { enabled: false, requireModeration: false, closeAfterDays: 7 };
+  const result = await setCommentsSettings({ ...deps, clock: isoClock }, {
+    workspaceId: WORKSPACE, callerPrincipalId: "principal-1", patch,
+  });
+  assert.deepEqual(result, { ...patch, maxDepth: 5, spamAutoRejectScore: 0.5, maxPerIpPerHour: 20 });
+  assert.deepEqual(await getCommentsSettings(deps, { workspaceId: WORKSPACE }), result);
+  const definitions = await deps.settingsRepo.listActiveDefinitions({ workspaceId: WORKSPACE });
+  assert.equal(definitions.length, 6);
+  for (const definition of definitions) assert.equal(definition.createdAt, isoClock.nowIso());
 });

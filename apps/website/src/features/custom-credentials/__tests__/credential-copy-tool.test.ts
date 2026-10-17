@@ -1,4 +1,5 @@
 /** C3 / copyplan-REVIEW: principal-bound copy cards call C2, never handle secret values. */
+import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { SurfaceEmission } from '@jini-ai/core';
@@ -162,4 +163,149 @@ test('C3: abort before discovery, inventory exceptions and failed emission do no
     input: {}, signal: emission.controller.signal }, { emitSurface: async () => { throw new Error('disconnected'); } }), /disconnected/);
   assert.equal(emission.surfaceExchanges.size(), 0);
   assert.deepEqual(emission.calls, []);
+});
+
+test('C3: null and primitive model inputs are refused before inventory discovery', async () => {
+  const f = fixture();
+  let discoveries = 0;
+  f.deps.localCredentialCopy!.list = async () => { discoveries++; return []; };
+  for (const input of [null, false, 1, 'source']) await assert.rejects(f.run(input), /model input must be \{\}/);
+  await assert.rejects(f.tool.handler({ executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' },
+    input: {}, signal: f.controller.signal }), /interactive card/);
+  assert.equal(discoveries, 0);
+  assert.equal(f.surfaceExchanges.size(), 0);
+});
+
+test('C3: an absent local capability refuses discovery', async () => {
+  const f = fixture();
+  const { localCredentialCopy: _localCredentialCopy, ...deps } = f.deps;
+  const tool = buildCredentialCopyRegistrations({ deps, surfaces: { surfaceExchanges: f.surfaceExchanges } })[0]!;
+  await assert.rejects(tool.handler({ executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' },
+    input: {}, signal: f.controller.signal }, { emitSurface: async emission => { f.emitted.push(emission); } }), /Copy keys on a local Tovu host/);
+  assert.deepEqual(f.emitted, []);
+  assert.deepEqual(f.calls, []);
+});
+
+test('C3: an installation without an instance authorizer still requires workspace admission', async () => {
+  const f = fixture();
+  delete f.deps.gatedMutations.gatewayDeps.authorizeInstance;
+  const pending = f.run(); await keys(f);
+  f.answer({ ids: ['two'], overwrite: false });
+  await pending;
+  assert.deepEqual(f.calls, [{ sourceSiteId: 'source', ids: ['two'], overwrite: false, actorId: 'owner' }]);
+  assert.deepEqual(f.permissions, ['system.write', 'system.write', 'system.write']);
+});
+
+test('C3: cancellation during inventory discovery emits no card', async () => {
+  const f = fixture();
+  f.deps.localCredentialCopy!.list = async () => { f.controller.abort(); return f.sources; };
+  assert.deepEqual(await f.run(), { results: [], reasonCode: 'abandoned' });
+  assert.deepEqual(f.emitted, []);
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.surfaceExchanges.size(), 0);
+});
+
+test('C3: cancellation while the exchange opens is observed before its first question', async () => {
+  const f = fixture();
+  const store = { ...f.surfaceExchanges, open: (required: Parameters<typeof f.surfaceExchanges.open>[0]) => {
+    const exchange = f.surfaceExchanges.open(required);
+    f.controller.abort();
+    return exchange;
+  } };
+  const tool = buildCredentialCopyRegistrations({ deps: f.deps, surfaces: { surfaceExchanges: store } })[0]!;
+  const result = await tool.handler({ executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' },
+    input: {}, signal: f.controller.signal }, { emitSurface: async emission => { f.emitted.push(emission); } });
+  assert.deepEqual(result, { results: [], reasonCode: 'abandoned' });
+  assert.deepEqual(f.emitted, []);
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.surfaceExchanges.size(), 0);
+});
+
+test('C3: cancellation during the final permission check prevents a copy', async () => {
+  const f = fixture();
+  let admissions = 0;
+  const deps = { ...f.deps, authorize: async () => {
+    if (++admissions === 3) f.controller.abort();
+    return { allowed: true, reason: 'matched' };
+  } };
+  const tool = buildCredentialCopyRegistrations({ deps, surfaces: { surfaceExchanges: f.surfaceExchanges } })[0]!;
+  const pending = tool.handler({ executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' },
+    input: {}, signal: f.controller.signal }, { emitSurface: async emission => { f.emitted.push(emission); } });
+  await keys(f); f.answer({ ids: ['one'], overwrite: false });
+  assert.deepEqual(await pending, { results: [], reasonCode: 'abandoned' });
+  assert.equal(admissions, 3);
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.surfaceExchanges.size(), 0);
+});
+
+test('C3: an extra source-card field refuses the entire selection', async () => {
+  const f = fixture(); const pending = f.run(); await turn();
+  f.answer({ sourceSiteId: 'source', overwrite: true });
+  assert.deepEqual(await pending, { results: [], reasonCode: 'invalid-selection' });
+  assert.deepEqual(f.calls, []);
+  assert.match(f.resource().text, /Choose an available source and its keys/);
+});
+
+for (const ids of [undefined, 'one', [1]]) {
+  test(`C3: malformed key IDs ${JSON.stringify(ids)} are refused without copying`, async () => {
+    const f = fixture(); const pending = f.run(); await keys(f);
+    f.answer({ ids, overwrite: false });
+    assert.deepEqual(await pending, { results: [], reasonCode: 'invalid-selection' });
+    assert.deepEqual(f.calls, []);
+  });
+}
+
+for (const [reasonCode, message] of [
+  ['source-busy', 'The source is busy. Try again.'],
+  ['unrecognized-source-state', 'Copying keys failed. Try again.'],
+] as const) {
+  test(`C3: inventory refusal ${reasonCode} uses fixed safe copy`, async () => {
+    const f = fixture();
+    f.deps.localCredentialCopy!.list = async () => [{ siteId: 'source', name: 'Source', keys: [], reasonCode, message: 'secret-canary' }];
+    const pending = f.run(); await turn(); f.answer({ sourceSiteId: 'source' });
+    assert.deepEqual(await pending, { results: [], reasonCode });
+    assert.ok(f.resource().text.includes(message));
+    assert.doesNotMatch(f.resource().text, /secret-canary/);
+    assert.deepEqual(f.calls, []);
+  });
+}
+
+test('C3: a source that needs upgrading during copy shows the reviewed instruction', async () => {
+  const f = fixture();
+  f.deps.localCredentialCopy!.copy = async () => { throw Object.assign(new Error('secret-canary'), { reasonCode: 'source-needs-upgrade' }); };
+  const pending = f.run(); await keys(f); f.answer({ ids: ['one'], overwrite: false });
+  assert.deepEqual(await pending, { results: [], reasonCode: 'source-needs-upgrade' });
+  assert.match(f.resource().text, /Start Source once in Tovu to upgrade it, then copy\./);
+  assert.doesNotMatch(f.resource().text, /secret-canary/);
+});
+
+for (const failure of [null, 'secret-canary', new Error('secret-canary'), { reasonCode: 42 }, { reasonCode: 'unknown-code' }]) {
+  test(`C3: unexpected copy failure ${String(failure)} is reduced to fixed failure text`, async () => {
+    const f = fixture(); f.deps.localCredentialCopy!.copy = async () => { throw failure; };
+    const pending = f.run(); await keys(f); f.answer({ ids: ['one'], overwrite: false });
+    assert.deepEqual(await pending, { results: [], reasonCode: 'copy-failed' });
+    assert.match(f.resource().text, /Copying keys failed\. Try again\./);
+    assert.doesNotMatch(f.resource().text, /secret-canary|unknown-code/);
+    assert.equal(f.surfaceExchanges.size(), 0);
+  });
+}
+
+test('C3: mixed outcomes preserve safe summaries, truncate tails, and display missing metadata safely', async () => {
+  const f = fixture();
+  f.deps.localCredentialCopy!.copy = async () => [
+    { kind: 'vendor', id: 'one', status: 'copied', last4: 'private-prefixABCD' },
+    { kind: 'custom', id: 'two', status: 'copied' },
+    { kind: 'custom', id: 'no-longer-listed', status: 'failed' },
+  ];
+  const pending = f.run(); await keys(f); f.answer({ ids: ['one', 'two'], overwrite: false });
+  assert.deepEqual(await pending, { results: [
+    { kind: 'vendor', id: 'one', status: 'copied', last4: 'ABCD' },
+    { kind: 'custom', id: 'two', status: 'copied' },
+    { kind: 'custom', id: 'no-longer-listed', status: 'failed' },
+  ] });
+  assert.match(f.resource().text, /not copied — copy-failed/);
+  assert.match(f.resource().text, /data-state="partial"/);
+  assert.match(f.resource().text, /DNS/);
+  assert.doesNotMatch(JSON.stringify(f.emitted), /private-prefix/);
+  assert.equal(f.surfaceExchanges.size(), 0);
 });

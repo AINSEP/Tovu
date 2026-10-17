@@ -6,7 +6,7 @@ import { captureSkillDrop } from "../skill-drop";
 afterEach(() => vi.unstubAllGlobals());
 const md = (new NativeFile(["---\nname: dropped-skill\ndescription: Drop test.\n---\nUse me."], "SKILL.md") as unknown as File);
 function entry(file: File, fullPath: string) { return { name: file.name, fullPath, isFile: true, isDirectory: false, file: (resolve: (file: File) => void) => resolve(file) }; }
-function directory(files: ReturnType<typeof entry>[]) { return { name: "skill", fullPath: "/skill", isDirectory: true, isFile: false, createReader: () => { let read = false; return { readEntries: (resolve: Function) => { resolve(read ? [] : files); read = true; } }; } }; }
+function directory(files: unknown[]) { return { name: "skill", fullPath: "/skill", isDirectory: true, isFile: false, createReader: () => { let read = false; return { readEntries: (resolve: Function) => { resolve(read ? [] : files); read = true; } }; } }; }
 it("a chat folder drop preserves references, asks before installing and uses the common API", async () => {
   const requests: unknown[] = [];
   vi.stubGlobal("fetch", vi.fn(async (url, init) => { expect(url).toBe("/api/admin/v1/workspaces/workspace-local/skills"); expect(init.method).toBe("POST"); requests.push(JSON.parse(init.body)); return Response.json({ skill: {} }); }));
@@ -59,4 +59,104 @@ it.each(["site.zip", "agent.zip", "skill.zip", "SKILL.md"])("file-only %s drops 
   expect(captureSkillDrop({ event: event as never, proposeFiles: propose, fallback: vi.fn() })).toBe(false);
   expect(propose).not.toHaveBeenCalled();
   expect(event.preventDefault).not.toHaveBeenCalled();
+});
+
+function dropEvent(root: unknown) {
+  return { dataTransfer: { items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => root }] },
+    preventDefault: vi.fn(), stopPropagation: vi.fn() };
+}
+
+it("snapshots a non-skill folder before forwarding it to the attachment handler", async () => {
+  const file = new NativeFile(["notes"], "notes.md") as unknown as File;
+  const root = directory([entry(file, "/folder/notes.md")]);
+  const event = dropEvent(root);
+  const fallback = vi.fn(saved => {
+    expect(saved.dataTransfer.files).toEqual([]);
+    expect(saved.dataTransfer.types).toEqual([]);
+    expect(saved.dataTransfer.items[0].getAsFile()).toBeNull();
+    expect(saved.dataTransfer.items[0].webkitGetAsEntry()).toBe(root);
+    saved.preventDefault(); saved.stopPropagation();
+  });
+  await act(async () => { captureSkillDrop({ event: event as never, proposeFiles: vi.fn(), fallback }); });
+  await waitFor(() => expect(fallback).toHaveBeenCalledTimes(1));
+  expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  expect(event.stopPropagation).toHaveBeenCalledTimes(1);
+});
+
+it("ignores text items, missing entries, and legacy drops without native item lists", () => {
+  const proposeFiles = vi.fn(), fallback = vi.fn();
+  for (const dataTransfer of [{}, { items: [
+    { kind: "string", getAsFile: () => { throw new Error("not a file"); } },
+    { kind: "file", getAsFile: () => md },
+    { kind: "file", getAsFile: () => null, webkitGetAsEntry: () => null },
+  ] }]) {
+    const event = { dataTransfer, preventDefault: vi.fn(), stopPropagation: vi.fn() };
+    expect(captureSkillDrop({ event: event as never, proposeFiles, fallback })).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  }
+  expect(proposeFiles).not.toHaveBeenCalled();
+  expect(fallback).not.toHaveBeenCalled();
+});
+
+it("walks nested batches, ignores unsupported entries, and strips leading path slashes", async () => {
+  const nested = directory([entry(md, "///skill/nested/SKILL.md")]);
+  const ignored = { name: "other", fullPath: "/other", isFile: false, isDirectory: false };
+  const root = { ...directory([]), createReader: () => {
+    const batches = [[ignored], [nested], []];
+    return { readEntries: (resolve: (entries: unknown[]) => void) => resolve(batches.shift()!) };
+  } };
+  const proposeFiles = vi.fn(async () => {}), fallback = vi.fn();
+  await act(async () => { captureSkillDrop({ event: dropEvent(root) as never, proposeFiles, fallback }); });
+  await waitFor(() => expect(proposeFiles).toHaveBeenCalledExactlyOnceWith([md], ["skill/nested/SKILL.md"]));
+  expect(fallback).not.toHaveBeenCalled();
+});
+
+it.each([
+  [new Error("directory unreadable"), "directory unreadable"],
+  ["private driver payload", "Could not read skill folder."],
+])("reports a safe folder-read failure for %s", async (failure, message) => {
+  const root = { ...directory([]), createReader: () => ({
+    readEntries: (_resolve: Function, reject: (error: unknown) => void) => reject(failure),
+  }) };
+  const onError = vi.fn(), proposeFiles = vi.fn(), fallback = vi.fn();
+  await act(async () => { captureSkillDrop({ event: dropEvent(root) as never, proposeFiles, fallback }, { onError }); });
+  await waitFor(() => expect(onError).toHaveBeenCalledExactlyOnceWith(message));
+  expect(proposeFiles).not.toHaveBeenCalled();
+  expect(fallback).not.toHaveBeenCalled();
+});
+
+it("consumes a folder-read rejection when no error presenter is installed", async () => {
+  const root = directory([{ ...entry(md, "/skill/SKILL.md"),
+    file: (_resolve: Function, reject: (error: Error) => void) => reject(new Error("unreadable file")),
+  }]);
+  const proposeFiles = vi.fn(), fallback = vi.fn();
+  await act(async () => { captureSkillDrop({ event: dropEvent(root) as never, proposeFiles, fallback }); });
+  expect(proposeFiles).not.toHaveBeenCalled();
+  expect(fallback).not.toHaveBeenCalled();
+});
+
+it.each(["entries", "depth", "files", "bytes"])("refuses folders exceeding the %s limit without forwarding a partial proposal", async limit => {
+  let root: unknown;
+  if (limit === "entries") root = directory(Array.from({ length: 512 }, () => ({ isFile: false, isDirectory: false })));
+  if (limit === "depth") {
+    root = directory([]);
+    for (let depth = 0; depth < 17; depth++) root = directory([root]);
+  }
+  if (limit === "files") root = directory(Array.from({ length: 257 }, () => entry(md, "/skill/SKILL.md")));
+  if (limit === "bytes") root = directory([entry(md, "/skill/SKILL.md"),
+    entry(new NativeFile([new Uint8Array(8 * 1024 * 1024)], "big.bin") as unknown as File, "/skill/big.bin")]);
+  const onError = vi.fn(), proposeFiles = vi.fn(), fallback = vi.fn();
+  await act(async () => { captureSkillDrop({ event: dropEvent(root) as never, proposeFiles, fallback }, { onError }); });
+  await waitFor(() => expect(onError).toHaveBeenCalledExactlyOnceWith(
+    limit === "entries" || limit === "depth" ? "Skill folder has too many entries or is too deep." : "Choose up to 256 files, 8 MiB total."));
+  expect(proposeFiles).not.toHaveBeenCalled();
+  expect(fallback).not.toHaveBeenCalled();
+});
+
+it("reports installation proposal failures through the same error presenter", async () => {
+  const onError = vi.fn(), fallback = vi.fn();
+  await act(async () => { captureSkillDrop({ event: dropEvent(directory([entry(md, "/skill/SKILL.md")])) as never,
+    proposeFiles: async () => { throw new Error("proposal refused"); }, fallback }, { onError }); });
+  await waitFor(() => expect(onError).toHaveBeenCalledExactlyOnceWith("proposal refused"));
+  expect(fallback).not.toHaveBeenCalled();
 });

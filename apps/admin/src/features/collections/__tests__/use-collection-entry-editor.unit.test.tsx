@@ -756,3 +756,68 @@ describe("stale-response race (2026-08-12 regression test)", () => {
     expect(result.current.title).toBe("Entry Two");
   });
 });
+
+describe("collection editor fake port contract", () => {
+  it("starts empty without seed options and lists every type when no filter is supplied", async () => {
+    const empty = createFakeCollectionEntryEditorPort();
+    expect(await empty.listContentTypes()).toEqual({ items: [] });
+    expect(await empty.listEntries({})).toEqual({ items: [] });
+    const other = { ...ENTRY, id: "other", type: "note" };
+    const seed = [ENTRY, other];
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: seed });
+    expect(await port.listEntries({})).toEqual({ items: [ENTRY, other] });
+    expect(await port.listEntries({ type: "note" })).toEqual({ items: [other] });
+    expect(await port.listEntries({ type: "missing" })).toEqual({ items: [] });
+    await port.createEntry({ type: "recipe", slug: "new", title: "New" }, {});
+    expect(seed).toEqual([ENTRY, other]);
+  });
+
+  it("creates deterministic defaults and preserves supplied body and fields", async () => {
+    const port = createFakeCollectionEntryEditorPort();
+    const input = { type: "recipe", slug: "new", title: "New" };
+    const first = await port.createEntry(input, {});
+    expect(first.entry).toEqual({
+      id: "fake-entry-1", workspaceId: "fake-ws", ...input, status: "draft",
+      bodyJson: null, fieldsJson: { ext: { site: {} } }, publishedAt: null,
+      createdAt: "1970-01-01T00:00:00.000Z", updatedAt: "1970-01-01T00:00:00.000Z", version: 1,
+    });
+    const second = await port.createEntry({ ...input, title: "Second" }, {
+      bodyJson: ENTRY_WITH_BODY.bodyJson, fieldsJson: ENTRY.fieldsJson,
+    });
+    expect(second.entry.id).toBe("fake-entry-2");
+    expect(second.entry.bodyJson).toEqual(ENTRY_WITH_BODY.bodyJson);
+    expect(second.entry.fieldsJson).toEqual(ENTRY.fieldsJson);
+    expect((await port.listEntries({})).items).toEqual([first.entry, second.entry]);
+  });
+
+  it("rejects load and create failures with their messages and no partial entry", async () => {
+    const port = createFakeCollectionEntryEditorPort({
+      listContentTypesError: new Error("types unavailable"), saveError: new Error("write refused"),
+    });
+    await expect(port.listContentTypes()).rejects.toThrow("types unavailable");
+    await expect(port.createEntry({ type: "recipe", slug: "new", title: "New" }, {})).rejects.toThrow("write refused");
+    expect((await port.listEntries({})).items).toEqual([]);
+  });
+
+  it("refuses updates and lifecycle changes for an unknown ID without changing existing entries", async () => {
+    const port = createFakeCollectionEntryEditorPort({ entries: [ENTRY] });
+    await expect(port.updateEntry({ id: "missing", expectedVersion: 2 }, { title: "Lost" })).rejects.toThrow("fake entry not found: missing");
+    await expect(port.entryLifecycle({ id: "missing", op: "publish", expectedVersion: 2 })).rejects.toThrow("fake entry not found: missing");
+    expect((await port.listEntries({})).items).toEqual([ENTRY]);
+  });
+
+  it("leaves the store unchanged when lifecycle persistence rejects", async () => {
+    const port = createFakeCollectionEntryEditorPort({ entries: [ENTRY], lifecycleError: new Error("lifecycle refused") });
+    await expect(port.entryLifecycle({ id: ENTRY.id, op: "publish", expectedVersion: 2 })).rejects.toThrow("lifecycle refused");
+    expect((await port.listEntries({})).items).toEqual([ENTRY]);
+  });
+
+  it("publishes and unpublishes only the requested entry and advances its version", async () => {
+    const sibling = { ...ENTRY, id: "sibling" };
+    const port = createFakeCollectionEntryEditorPort({ entries: [sibling, ENTRY] });
+    await port.entryLifecycle({ id: ENTRY.id, op: "publish", expectedVersion: 2 });
+    expect((await port.listEntries({})).items).toEqual([sibling, { ...ENTRY, status: "published", version: 3 }]);
+    await port.entryLifecycle({ id: ENTRY.id, op: "unpublish", expectedVersion: 3 });
+    expect((await port.listEntries({})).items).toEqual([sibling, { ...ENTRY, status: "unpublished", version: 4 }]);
+  });
+});
