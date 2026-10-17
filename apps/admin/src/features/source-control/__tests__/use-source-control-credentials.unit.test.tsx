@@ -3,7 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useSourceControlCredentials, useWiredSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
 import { SOURCE_CONTROL_PROVIDERS_SNAPSHOT } from "./source-control-providers.fixture";
@@ -40,6 +41,99 @@ function githubCredential(overrides: Partial<AdminSourceControlCredentialSummary
 }
 
 describe("useSourceControlCredentials", () => {
+  it("does not overwrite a confirmed replacement when the initial-read query refreshes later", async () => {
+    let listed = githubCredential();
+    const updated = githubCredential({ updatedAt: "2026-10-17T12:00:00.000Z" });
+    const port = fakePort({ listCredentials: async () => ({ credentials: [listed] }), updateCredential: async () => updated });
+    const { result } = renderHook(() => {
+      const controller = useSourceControlCredentials(port, T, "en");
+      const query = useFetchQuery({ key: ["source-control", "credentials"], fetch: () => port.listCredentials() });
+      return { controller, query, invalidate: useInvalidate() };
+    }, { wrapper });
+    await waitFor(() => expect(result.current.controller.rows).toBeDefined());
+    act(() => result.current.controller.setToken("github", "replacement"));
+    await act(() => result.current.controller.save("github"));
+    expect(result.current.controller.rows!.find(row => row.providerId === "github")!.saved).toEqual(updated);
+    listed = githubCredential({ label: "Stale background copy" });
+    act(() => result.current.invalidate({ key: ["source-control", "credentials"] }));
+    await waitFor(() => expect(result.current.query.data?.credentials).toEqual([listed]));
+    expect(result.current.controller.rows!.find(row => row.providerId === "github")!.saved).toEqual(updated);
+  });
+
+  it("does not save a provider absent from both the catalog and saved connections", async () => {
+    const createCredential = vi.fn();
+    const updateCredential = vi.fn();
+    const port = fakePort({ createCredential, updateCredential });
+    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+    act(() => result.current.setToken("missing", "valid-token"));
+    await act(() => result.current.save("missing"));
+    expect(result.current.rows!.map(row => row.providerId)).toEqual(["github", "forge"]);
+    expect(createCredential).not.toHaveBeenCalled();
+    expect(updateCredential).not.toHaveBeenCalled();
+  });
+
+  it("replacing the default leaves another provider's saved credential intact", async () => {
+    const other = githubCredential({ id: "forge-1", providerId: "forge" });
+    const updated = githubCredential({ updatedAt: "2026-10-17T12:00:00.000Z" });
+    const port = fakePort({
+      listCredentials: async () => ({ credentials: [githubCredential(), other] }),
+      updateCredential: async () => updated,
+    });
+    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+    act(() => result.current.setToken("github", "replacement"));
+    await act(() => result.current.save("github"));
+    expect(result.current.rows!.find(row => row.providerId === "github")!.saved).toEqual(updated);
+    expect(result.current.rows!.find(row => row.providerId === "forge")!.saved).toEqual(other);
+  });
+
+  it("can save a listed provider while the initial credential list is still pending", async () => {
+    let resolveList!: (value: { credentials: AdminSourceControlCredentialSummary[] }) => void;
+    const initial = new Promise<{ credentials: AdminSourceControlCredentialSummary[] }>(resolve => { resolveList = resolve; });
+    const saved = githubCredential();
+    const createCredential = vi.fn(async () => saved);
+    const port = fakePort({
+      listCredentials: () => initial,
+      createCredential,
+    });
+    const { result } = renderHook(() => {
+      const controller = useSourceControlCredentials(port, T, "en");
+      const catalog = useFetchQuery({ key: ["source-control", "providers"], fetch: () => port.listProviders() });
+      return { controller, catalog: catalog.data };
+    }, { wrapper });
+    await waitFor(() => expect(result.current.catalog).toEqual(SOURCE_CONTROL_PROVIDERS_SNAPSHOT));
+    act(() => result.current.controller.setToken("github", "new-token"));
+    await act(() => result.current.controller.save("github"));
+    expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "github", token: "new-token" } });
+    await waitFor(() => expect(result.current.controller.rows?.find(row => row.providerId === "github")?.saved).toEqual(saved));
+    expect(result.current.controller.rows!.find(row => row.providerId === "github")!.token).toBe("");
+    await act(async () => { resolveList({ credentials: [saved] }); });
+    expect(result.current.controller.rows!.find(row => row.providerId === "github")!.saved).toEqual(saved);
+  });
+
+  it("wires the real credential and provider clients and binds the resolved locale", async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://tovu.test");
+      let body: unknown;
+      if (url.pathname === "/api/admin/v1/workspaces/workspace-local/system/source-control/credentials") body = { credentials: [githubCredential()] };
+      else if (url.pathname === "/api/admin/v1/workspaces/workspace-local/system/source-control/providers") body = SOURCE_CONTROL_PROVIDERS_SNAPSHOT;
+      else if (url.pathname === "/api/admin/v1/workspaces/workspace-local/settings/effective" && url.searchParams.get("namespace") === "core.language") body = { data: [{ key: "locale", value: "es" }] };
+      else throw new Error(`Unexpected request: ${url.pathname}${url.search}`);
+      return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetch);
+    const view = renderHook(() => useWiredSourceControlCredentials(), { wrapper });
+    try {
+      await waitFor(() => expect(view.result.current.rows?.find(row => row.providerId === "github")?.saved).toEqual(githubCredential()));
+      await waitFor(() => expect(view.result.current.t("Source Control")).toBe("Control de código fuente"));
+      expect(view.result.current.loadError).toBeNull();
+    } finally {
+      view.unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("starts with rows undefined, then resolves one row per listed host once both lists load", async () => {
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });

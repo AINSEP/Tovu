@@ -81,6 +81,14 @@ function rawSummary(overrides: Partial<RawCredentialSummary> = {}): RawCredentia
 }
 
 describe("accessTokenProviders", () => {
+  it("leaves the generic token label to the view when a host declares only non-token fields", () => {
+    const target = { ...PUBLISH_TARGETS[0]!, credential: { tokenField: "token", fields: [{ name: "accountId", label: "Account ID" }] } };
+    const [info] = accessTokenProviders([target]);
+    expect(info!.tokenLabel).toBeUndefined();
+    expect(info!.extraFields).toEqual([{ name: "accountId", label: "Account ID" }]);
+    expect(extraFieldsAroundToken(info!)).toEqual({ before: [], after: [{ name: "accountId", label: "Account ID" }] });
+  });
+
   it("lists every deploy host that takes a credential, in registry order, then the listed source-control hosts", () => {
     expect(PROVIDERS.map((p) => `${p.kind}:${p.providerId}`)).toEqual([
       "publish:github-pages",
@@ -164,6 +172,15 @@ describe("accessTokenProviders", () => {
 });
 
 describe("buildAccessTokenRows", () => {
+  it.each(["publish", "source-control"] as const)("preserves server token metadata for a %s row without changing its identity", (kind) => {
+    const hint = { length: 20, last4: "a9F2" };
+    const [row] = buildAccessTokenRows(kind, [rawSummary({ label: "Production", tokenHint: hint })], PROVIDERS);
+    expect(row).toEqual({
+      kind, providerId: "github-pages", id: "cred-1", name: "Production", rawLabel: "Production",
+      isDefault: true, createdAt: "2026-08-15T10:00:00.000Z", updatedAt: "2026-08-15T10:00:00.000Z", tokenHint: hint,
+    });
+  });
+
   it("uses the saved label verbatim as the display name when it is not the legacy sentinel", () => {
     const rows = buildAccessTokenRows("publish", [rawSummary({ label: "Production" })], PROVIDERS);
     expect(rows[0]!.name).toBe("Production");
@@ -532,6 +549,12 @@ describe("accessTokenReplaceReadyToSave (Replace flow)", () => {
 });
 
 describe("buildAccessTokenConnectionInput", () => {
+  it("uses the default token field for a publish provider with no credential spec", () => {
+    const ref = { kind: "publish" as const, providerId: "unlisted-host" };
+    const info = accessTokenProviderInfo([], ref);
+    expect(buildAccessTokenConnectionInput(blankFields({ ref, name: "Backup", token: "exact-token" }), info)).toEqual({ providerId: "unlisted-host", token: "exact-token" });
+  });
+
   it("dispatches to the publish builder for a publish ref", () => {
     const input = buildAccessTokenConnectionInput(blankFields({ name: "x", token: " ghp_abc " }), GITHUB_PAGES_INFO);
     expect(input).toEqual({ providerId: "github-pages", token: " ghp_abc " });
@@ -562,6 +585,14 @@ describe("buildAccessTokenUpdatePatch", () => {
 });
 
 describe("classifyAccessTokenSubmitError", () => {
+  it("recognizes a legacy duplicate marker in the message when the code is absent", () => {
+    expect(classifyAccessTokenSubmitError(new ApiError("DUPLICATE_LABEL", 409))).toEqual({ kind: "duplicate-label" });
+  });
+
+  it.each([undefined, {}, { detail: 42 }])("uses the validation message when no string detail exists in %j", (body) => {
+    expect(classifyAccessTokenSubmitError(new ApiError("Token rejected", 400, "VALIDATION", body))).toEqual({ kind: "validation", detail: "Token rejected" });
+  });
+
   it("classifies a DUPLICATE_LABEL ApiError", () => {
     expect(classifyAccessTokenSubmitError(new ApiError("dup", 409, "DUPLICATE_LABEL"))).toEqual({ kind: "duplicate-label" });
   });
@@ -623,6 +654,15 @@ describe("accessTokenCategoryLabel", () => {
 });
 
 describe("buildCustomCredentialRows", () => {
+  it("preserves a short-token hint without adding a username or exposing token bytes", () => {
+    const [row] = buildCustomCredentialRows([rawCustomSummary({ tokenHint: { length: 4, last4: null } })]);
+    expect(row).toEqual({
+      kind: "custom", providerId: "custom-1", id: "custom-1", name: "name.com", rawLabel: "name.com", isDefault: false,
+      category: "general", baseUrl: "https://api.name.com", createdAt: "2026-08-17T10:00:00.000Z", updatedAt: "2026-08-17T10:00:00.000Z",
+      tokenHint: { length: 4, last4: null },
+    });
+  });
+
   it("maps a raw summary onto an AccessTokenRow with kind 'custom' and no default", () => {
     const rows = buildCustomCredentialRows([rawCustomSummary()]);
     expect(rows).toEqual([
@@ -648,6 +688,14 @@ describe("buildCustomCredentialRows", () => {
 });
 
 describe("accessTokenRowProviderInfo", () => {
+  it("uses General and no token-page URL for a custom row without optional category or URL metadata", () => {
+    const row: AccessTokenRow = { kind: "custom", providerId: "custom-1", id: "custom-1", name: "Legacy provider", rawLabel: "Legacy provider", isDefault: false, createdAt: "", updatedAt: "" };
+    expect(accessTokenRowProviderInfo(PROVIDERS, row)).toEqual({
+      kind: "custom", providerId: "custom-1", label: "Legacy provider", vendorLabel: "Legacy provider", purposeLabel: "General", category: "general",
+      tokenPageUrl: "", scopeGuidanceKey: "Paste the access token this provider issued from its own dashboard.", extraFields: [], username: "optional",
+    });
+  });
+
   it("delegates straight through for a catalog kind", () => {
     const row: AccessTokenRow = {
       kind: "publish",

@@ -6,7 +6,7 @@ import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import { useLocalSites } from "../hooks/use-local-sites.hooks";
 import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import { ApiError, type AdminSitesSnapshot } from "@/lib/api";
 import type { IntervalTimers, VisibilitySource } from "@/lib/visible-interval";
 import { KEYS } from "../rules";
 
@@ -37,6 +37,91 @@ function pollingFakes() {
 }
 
 describe("local site card controller", () => {
+  it.each([
+    { failure: new ApiError("host refused", 409, "SITE_RUNNING"), message: "translated:Stop this site before moving it to Trash." },
+    { failure: new Error("host offline"), message: "host offline" },
+    { failure: "opaque failure", message: "Request failed" },
+  ])("reports $message and releases busy state so an action can be retried", async ({ failure, message }) => {
+    const snapshot = fixture();
+    const polling = pollingFakes();
+    const writes: unknown[] = [];
+    let fail = true;
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => {
+      writes.push(input);
+      if (fail) throw failure;
+      return {};
+    } });
+    const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t: (key) => `translated:${key}` }, polling), { wrapper });
+    await act(async () => { await result.current.run("alpha", "start"); });
+    expect(result.current.error).toBe(message);
+    expect(result.current.busyName).toBeNull();
+    fail = false;
+    await act(async () => { await result.current.run("alpha", "start"); });
+    expect(writes).toEqual([
+      { name: "alpha", action: "start", confirmed: true, checked: false },
+      { name: "alpha", action: "start", confirmed: true, checked: false },
+    ]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.busyName).toBeNull();
+    unmount();
+    expect(polling.active.size).toBe(0);
+  });
+
+  it("ignores actions before a snapshot exists and when the local-management port is absent", async () => {
+    const polling = pollingFakes();
+    const writes: unknown[] = [];
+    const snapshot = fixture();
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return {}; } });
+    const { result, rerender, unmount } = renderHook(({ snapshot }: { snapshot: AdminSitesSnapshot | undefined }) =>
+      useLocalSites({ port, snapshot, t }, polling), { wrapper, initialProps: { snapshot: undefined } });
+    await act(async () => {
+      await result.current.run("alpha", "switch");
+      await result.current.run("alpha", "start");
+    });
+    expect(writes).toEqual([]);
+    expect(polling.active.size).toBe(0);
+    delete port.manageLocalSite;
+    rerender({ snapshot });
+    await act(async () => { await result.current.run("alpha", "start"); });
+    expect(writes).toEqual([]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.busyName).toBeNull();
+    unmount();
+  });
+
+  it("uses the browser confirmation by default and warns when switching returns no restart result", async () => {
+    const snapshot = fixture();
+    const writes: unknown[] = [];
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return undefined; } });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }), { wrapper });
+    try {
+      await act(async () => { await result.current.run("alpha", "switch"); });
+      expect(confirm).toHaveBeenCalledExactlyOnceWith("Switch now? Unsaved changes will be lost.");
+      expect(writes).toEqual([{ name: "alpha", action: "switch", confirmed: true, checked: false }]);
+      expect(result.current.error).toBe("This host could not switch now. The default is saved for the next launch.");
+      expect(result.current.busyName).toBeNull();
+    } finally { unmount(); confirm.mockRestore(); }
+  });
+
+  it("polls an accepted switch on a host without local management until the live site changes", async () => {
+    const snapshot = { ...fixture(), localManagementEnabled: false };
+    const polling = pollingFakes();
+    const writes: unknown[] = [];
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return { restarting: true }; } });
+    const { result, rerender, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: () => true }), { wrapper });
+    expect(polling.active.size).toBe(0);
+    await act(async () => { await result.current.run("alpha", "switch"); });
+    expect(writes).toEqual([{ name: "alpha", action: "switch", confirmed: true, checked: false }]);
+    expect([...polling.active.values()]).toEqual([300]);
+    snapshot.currentSite = { ...snapshot.currentSite, name: "alpha" };
+    rerender();
+    expect(result.current.error).toBeNull();
+    expect(polling.active.size).toBe(0);
+    expect(polling.listeners.size).toBe(0);
+    unmount();
+  });
+
   it("polls only while a local-management host is visible and releases timers and listeners", () => {
     const snapshot = fixture();
     const listeners = new Set<() => void>();

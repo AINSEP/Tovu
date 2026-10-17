@@ -385,6 +385,38 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
 });
 
 describe("injected port (2026-08-14, Orc-BASH pass)", () => {
+  it("completes the ceremony with an unseeded fake's default disclosure, plan, token and result", async () => {
+    const port = createFakeRestoreFlowPort();
+    const { result } = renderHook(() => useRestoreFlow({ point: POINT }, port));
+    await waitFor(() => expect(result.current.disclosure).toEqual({ partial: true, watermarkBaselineAvailable: true, counts: {} }));
+    await act(() => result.current.startPlan());
+    expect(result.current.plan).toEqual({ planId: "fake-plan-1", planHash: "fake-hash-1" });
+    await act(() => result.current.doConfirm());
+    expect(result.current.confirmationToken).toBe("fake-token-1");
+    await act(() => result.current.doExecute());
+    expect(result.current.result).toEqual({ restoreRunId: "fake-run-1", state: "succeeded" });
+    expect(result.current.step).toBe("done");
+    expect(result.current.busy).toBe(false);
+    expect(result.current.ceremonyError).toBeNull();
+  });
+
+  it.each([
+    ["planError", "idle"],
+    ["confirmError", "planned"],
+    ["executeError", "confirmed"],
+  ] as const)("a fake's %s reports its message and retains the last successful ceremony step", async (failure, step) => {
+    const port = createFakeRestoreFlowPort({ [failure]: new Error("restore storage unavailable") });
+    const { result } = renderHook(() => useRestoreFlow({ point: POINT }, port));
+    await waitFor(() => expect(result.current.disclosure).not.toBeNull());
+    await act(() => result.current.startPlan());
+    if (failure !== "planError") await act(() => result.current.doConfirm());
+    if (failure === "executeError") await act(() => result.current.doExecute());
+    expect(result.current.ceremonyError).toBe("restore storage unavailable");
+    expect(result.current.step).toBe(step);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.result).toBeNull();
+  });
+
   /** Drives the pure hook directly against `createFakeRestoreFlowPort` — `fetchMock` (the real
    *  network `useWiredRestoreFlow` above goes through) is asserted NEVER called for the ceremony
    *  itself; only this file's own `beforeEach` locale-settings shim still uses real `fetch`, since

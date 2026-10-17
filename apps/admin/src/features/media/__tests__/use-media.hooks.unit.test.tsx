@@ -54,6 +54,105 @@ describe("media error presentation", () => {
 });
 
 describe("useMedia — injected port (no fetch stub)", () => {
+  it("closing the upload dialog preserves the chosen file and alt for reopening", async () => {
+    const port = createFakeMediaPort();
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const input = document.createElement("input");
+    Object.defineProperty(input, "files", { value: [new File(["pixel"], "chosen.png", { type: "image/png" })] });
+    result.current.fileInputRef.current = input;
+    const opener = document.createElement("button");
+    act(() => {
+      result.current.onFileChange({ currentTarget: input } as React.ChangeEvent<HTMLInputElement>);
+      result.current.setAltDraft("Keep my description");
+      result.current.openUpload({ currentTarget: opener });
+    });
+    expect(result.current.uploadOpen).toBe(true);
+    expect(result.current.canUpload).toBe(true);
+    act(() => result.current.closeUpload());
+    expect(result.current.uploadOpen).toBe(false);
+    expect(result.current.selectedFileName).toBe("chosen.png");
+    expect(result.current.altDraft).toBe("Keep my description");
+    act(() => result.current.openUpload({ currentTarget: opener }));
+    expect(result.current.uploadOpen).toBe(true);
+    expect(result.current.selectedFileName).toBe("chosen.png");
+    expect(result.current.altDraft).toBe("Keep my description");
+  });
+
+  it("clears a previous filename when the chooser supplies no files or an empty list", async () => {
+    const port = createFakeMediaPort();
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const chosen = document.createElement("input");
+    Object.defineProperty(chosen, "files", { value: [new File(["pixel"], "chosen.png")] });
+    const empty = document.createElement("input");
+    empty.type = "file";
+    const absent = document.createElement("input");
+    for (const cleared of [empty, absent]) {
+      act(() => result.current.onFileChange({ currentTarget: chosen } as React.ChangeEvent<HTMLInputElement>));
+      expect(result.current.canUpload).toBe(true);
+      act(() => result.current.onFileChange({ currentTarget: cleared } as React.ChangeEvent<HTMLInputElement>));
+      expect(result.current.selectedFileName).toBe("");
+      expect(result.current.canUpload).toBe(false);
+    }
+  });
+
+  it("prevents form submission but sends no upload when the input or chosen file is missing", async () => {
+    const port = createFakeMediaPort();
+    const upload = vi.spyOn(port, "uploadMedia");
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const preventDefault = vi.fn();
+    await act(async () => { await result.current.upload({ preventDefault }); });
+    const input = document.createElement("input");
+    result.current.fileInputRef.current = input;
+    await act(async () => { await result.current.upload(); });
+    input.type = "file";
+    await act(async () => { await result.current.upload(); });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(upload).not.toHaveBeenCalled();
+    expect(port.items).toEqual([]);
+    expect(result.current.uploading).toBe(false);
+    expect(result.current.uploadError).toBeNull();
+  });
+
+  it("finishes a successful upload even if its file input was removed while the request was pending", async () => {
+    const port = createFakeMediaPort();
+    const uploadFile = port.uploadMedia;
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    let received = false;
+    port.uploadMedia = async (input, options) => { received = true; await pending; return uploadFile(input, options); };
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const input = document.createElement("input");
+    Object.defineProperty(input, "files", { value: [new File(["pixel"], "chosen.png", { type: "image/png" })] });
+    result.current.fileInputRef.current = input;
+    act(() => result.current.onFileChange({ currentTarget: input } as React.ChangeEvent<HTMLInputElement>));
+    let uploading!: Promise<void>;
+    act(() => { uploading = result.current.upload(); });
+    await waitFor(() => expect(received).toBe(true));
+    expect(result.current.uploading).toBe(true);
+    expect(result.current.canUpload).toBe(false);
+    result.current.fileInputRef.current = null;
+    await act(async () => { release(); await uploading; });
+    await waitFor(() => expect(result.current.media?.map(item => item.title)).toEqual(["chosen.png"]));
+    expect(result.current.selectedFileName).toBe("");
+    expect(result.current.uploading).toBe(false);
+    expect(result.current.uploadError).toBeNull();
+  });
+
+  it("ignores purge when no item is selected for confirmation", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia()] });
+    const remove = vi.spyOn(port, "deleteMedia");
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(1));
+    await act(async () => { await result.current.purge(); });
+    expect(remove).not.toHaveBeenCalled();
+    expect(result.current.rowSavingId).toBeNull();
+    expect(port.items).toEqual([fakeMedia()]);
+  });
+
   it("guards Upload before file reading and while the POST is pending, then allows another upload", async () => {
     const port = createFakeMediaPort();
     const uploadFile = port.uploadMedia;
@@ -230,6 +329,42 @@ describe("useMedia — injected port (no fetch stub)", () => {
  * Escape/backdrop dismissal for a destructive delete that has not actually settled yet.
  */
 describe("useMedia — trash/purge shared rowSavingId race safety", () => {
+  it.each(["replacement", "dismissed"] as const)("a finished purge preserves a newer row action and a %s confirmation", async (confirmation) => {
+    const trashed = fakeMedia({ id: "old-purge", status: "trashed" });
+    const active = fakeMedia({ id: "new-trash" });
+    const replacement = fakeMedia({ id: "next-purge", status: "trashed" });
+    const port = createFakeMediaPort({ media: [trashed, active, replacement] });
+    const deleteMedia = port.deleteMedia;
+    const trashMedia = port.trashMedia;
+    let releasePurge!: () => void;
+    let releaseTrash!: () => void;
+    const deleting = new Promise<void>(resolve => { releasePurge = resolve; });
+    const trashing = new Promise<void>(resolve => { releaseTrash = resolve; });
+    let purgeStarted = false;
+    let trashStarted = false;
+    port.deleteMedia = async id => { purgeStarted = true; await deleting; return deleteMedia(id); };
+    port.trashMedia = async id => { trashStarted = true; await trashing; return trashMedia(id); };
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: k => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(3));
+    act(() => result.current.setPendingPurge(trashed));
+    let purging!: Promise<void>;
+    let movingToTrash!: Promise<void>;
+    act(() => { purging = result.current.purge(); });
+    await waitFor(() => expect(purgeStarted).toBe(true));
+    act(() => { movingToTrash = result.current.trash(active); });
+    await waitFor(() => expect(trashStarted).toBe(true));
+    const nextConfirmation = confirmation === "replacement" ? replacement : null;
+    act(() => result.current.setPendingPurge(nextConfirmation));
+    await act(async () => { releasePurge(); await purging; });
+    expect(result.current.rowSavingId).toBe("new-trash");
+    expect(result.current.pendingPurge).toEqual(nextConfirmation);
+    expect(port.items.map(item => item.id)).toEqual(["new-trash", "next-purge"]);
+    await act(async () => { releaseTrash(); await movingToTrash; });
+    await waitFor(() => expect(result.current.media?.find(item => item.id === "new-trash")?.status).toBe("trashed"));
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.pendingPurge).toEqual(nextConfirmation);
+  });
+
   it("an unrelated trash settling mid-flight must not clear rowSavingId for an in-flight purge on a different item", async () => {
     const ITEM_B = fakeMedia({ id: "mB", title: "B", status: "active" });
     const ITEM_C = fakeMedia({ id: "mC", title: "C", status: "trashed" });

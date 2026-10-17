@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { InterfaceConfig } from "../../lib/settings-tabs";
+import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
 import {
   resolveAdminLayoutClassName,
   useInterfacePreferences,
@@ -16,6 +17,7 @@ import {
 
 const SHOW_FAB: InterfaceConfig = { hideChatFabWhileOpen: false, wrapTabs: false };
 const HIDE_FAB: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false };
+afterEach(() => vi.unstubAllGlobals());
 
 function createFakePort(initial: InterfaceConfig | Error) {
   let stored = initial;
@@ -38,6 +40,31 @@ function createFakePort(initial: InterfaceConfig | Error) {
 }
 
 describe("useInterfacePreferences", () => {
+  it("the live port follows interface and unscoped refreshes while ignoring unrelated settings", async () => {
+    let stored = { hideChatFabWhileOpen: false, wrapTabs: true };
+    const fetch = vi.fn(async (url: string) => {
+      expect(url).toBe("/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.interface");
+      return new Response(JSON.stringify({ data: Object.entries(stored).map(([key, value]) => ({ key, value })) }));
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { result, unmount } = renderHook(() => useInterfacePreferences());
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true }));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    stored = { hideChatFabWhileOpen: true, wrapTabs: false };
+    await act(async () => publishSettingsRefresh(["core.execution"]));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true });
+    await act(async () => publishSettingsRefresh(["core.interface"]));
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false }));
+    stored = { hideChatFabWhileOpen: false, wrapTabs: false };
+    await act(async () => publishSettingsRefresh());
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: false }));
+    expect(fetch).toHaveBeenCalledTimes(3);
+    unmount();
+    await act(async () => publishSettingsRefresh(["core.interface"]));
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
   it("hides the FAB and scrolls tabs by default before the stored values arrive", () => {
     const fake = createFakePort({ hideChatFabWhileOpen: false, wrapTabs: true });
     const { result } = renderHook(() => useInterfacePreferences(fake.port));

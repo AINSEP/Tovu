@@ -88,6 +88,95 @@ function findGroup(groups: readonly OtherCredentialGroupState[] | undefined, sto
 }
 
 describe("useOtherCredentials — reading all four stores", () => {
+  it("recreates a media provider removed elsewhere using its new key without stale settings", async () => {
+    let stored: AdminMediaProviderMap = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", baseUrl: "https://old.example" } };
+    let submitted: AdminMediaProviderMap | undefined;
+    const port = createFakeOtherCredentialsPort({
+      getMediaProviders: async () => structuredClone(stored),
+      saveMediaProviders: async map => {
+        submitted = map;
+        stored = { cloudinary: { apiKeyConfigured: true, apiKeyTail: "-key" } };
+        return stored;
+      },
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const row = findGroup(result.current.groups, "media-provider")!.rows[0]!;
+    stored = {};
+    act(() => result.current.setDraftToken(row.key, "replacement-key"));
+    await act(() => result.current.replace(row));
+    expect(submitted).toEqual({ cloudinary: { apiKey: "replacement-key" } });
+    expect(stored).toEqual({ cloudinary: { apiKeyConfigured: true, apiKeyTail: "-key" } });
+    expect(findGroup(result.current.groups, "media-provider")!.rows[0]).toMatchObject({ valueFact: "••••-key", token: "", saving: false, error: null });
+  });
+
+  it("prefers media token metadata to a legacy mask and still shows a configured key with no metadata", async () => {
+    const port = createFakeOtherCredentialsPort({
+      getMediaProviders: async () => ({
+        cloudinary: { apiKeyConfigured: true, apiKeyTail: "old4", apiKeyHint: { length: 18, last4: "new4" } },
+        grok: { apiKeyConfigured: true },
+      }),
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const rows = findGroup(result.current.groups, "media-provider")!.rows;
+    expect(rows.find(row => row.itemId === "cloudinary")!.valueFact).toBe("…new4, 18 chars");
+    expect(rows.find(row => row.itemId === "grok")!.valueFact).toBe("••••");
+    expect(result.current.totalCount).toBe(2);
+  });
+
+  it("omits built-in MCP servers and chooses access-token, environment-token, then environment-name facts", async () => {
+    const port = createFakeOtherCredentialsPort({
+      listExternalMcpServers: async () => ({ servers: [
+        fakeExternalMcpServer({ serverId: "internal", builtIn: true }),
+        fakeExternalMcpServer({ serverId: "access", accessTokenHint: { length: 16, last4: "abcd" }, envTokenHints: { KEY: { length: 4, last4: null } } }),
+        fakeExternalMcpServer({ serverId: "environment", envTokenHints: { KEY: { length: 4, last4: null } } }),
+        fakeExternalMcpServer({ serverId: "names", label: "", envNames: ["KEY"] }),
+      ] }),
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const rows = findGroup(result.current.groups, "external-mcp")!.rows;
+    expect(rows.map(row => row.itemId)).toEqual(["access", "environment", "names"]);
+    expect(rows.find(row => row.itemId === "access")!.valueFact).toBe("…abcd, 16 chars");
+    expect(rows.find(row => row.itemId === "environment")!.valueFact).toBe("KEY: 4 chars");
+    expect(rows.find(row => row.itemId === "names")).toMatchObject({ name: "names", valueFact: "1 environment variable set" });
+  });
+
+  it("rejects an invalid replacement token and clears the error when the draft is corrected", async () => {
+    const setSiteAssistantCredential = vi.fn();
+    const port = createFakeOtherCredentialsPort({
+      getSiteAssistantCredential: async () => ({ data: { isSet: true, masked: "••••kept", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
+      setSiteAssistantCredential,
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const row = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
+    act(() => result.current.setDraftToken(row.key, "bad token"));
+    await act(() => result.current.replace(row));
+    expect(findGroup(result.current.groups, "site-assistant")!.rows[0]).toMatchObject({
+      token: "bad token", valueFact: "••••kept", saving: false,
+      error: "Hosted tokens must use visible ASCII characters (0x21–0x7E).",
+    });
+    expect(setSiteAssistantCredential).not.toHaveBeenCalled();
+    act(() => result.current.setDraftToken(row.key, "corrected-token"));
+    expect(findGroup(result.current.groups, "site-assistant")!.rows[0]).toMatchObject({ token: "corrected-token", saving: false, error: null, valueFact: "••••kept" });
+  });
+
+  it("shows a failed remove on a row with no draft using a blank token", async () => {
+    const port = createFakeOtherCredentialsPort({
+      getSiteAssistantCredential: async () => ({ data: { isSet: true, masked: "••••kept", provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
+      deleteSiteAssistantCredential: async () => { throw new Error("permission denied"); },
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    await act(() => result.current.remove(findGroup(result.current.groups, "site-assistant")!.rows[0]!));
+    expect(findGroup(result.current.groups, "site-assistant")!.rows[0]).toMatchObject({
+      token: "", saving: false, valueFact: "••••kept", error: "Couldn't save this token: permission denied",
+    });
+    expect(result.current.totalCount).toBe(1);
+  });
+
   it("uses the same localized server hint for both BYOK stores without adding mask bullets", async () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "••••a9F2", tokenHint: { length: 18, last4: "a9F2" }, provider: "openai", baseUrl: null, model: null, updatedAt: null } }),

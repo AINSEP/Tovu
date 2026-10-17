@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { ApiError, type AdminCustomCredentialSummary, type AdminPublishCredentialSummary, type AdminSourceControlCredentialSummary } from "@/lib/api";
 import { useAccessTokens, useWiredAccessTokens } from "../use-access-tokens.hooks";
@@ -118,6 +119,93 @@ function findGroup(groups: readonly AccessTokenProviderGroupState[] | undefined,
 }
 
 describe("useAccessTokens: setExistingField", () => {
+  it("retains all three confirmed store inventories when their seed queries refresh later", async () => {
+    let publish = publishCredential();
+    let sourceControl = sourceControlCredential();
+    let custom = customCredential();
+    const port = fakePort({
+      publish: { list: async () => ({ credentials: [publish], executionMode: "self-hosted-cli" }) },
+      sourceControl: { list: async () => ({ credentials: [sourceControl] }) },
+      custom: { list: async () => ({ credentials: [custom] }) },
+    });
+    const { result } = renderHook(() => {
+      const controller = useAccessTokens(port, T, "en");
+      const publishQuery = useFetchQuery({ key: ["security", "publish-credentials"], fetch: () => port.publish.list() });
+      const sourceControlQuery = useFetchQuery({ key: ["security", "source-control-credentials"], fetch: () => port.sourceControl.list() });
+      const customQuery = useFetchQuery({ key: ["security", "custom-credentials"], fetch: () => port.custom.list() });
+      return { controller, publishQuery, sourceControlQuery, customQuery, invalidate: useInvalidate() };
+    }, { wrapper });
+    await waitFor(() => expect(result.current.controller.totalCount).toBe(3));
+    publish = publishCredential({ label: "New publish read" });
+    sourceControl = sourceControlCredential({ label: "New source-control read" });
+    custom = customCredential({ label: "New custom read" });
+    act(() => result.current.invalidate({ key: ["security"] }));
+    await waitFor(() => {
+      expect(result.current.publishQuery.data?.credentials).toEqual([publish]);
+      expect(result.current.sourceControlQuery.data?.credentials).toEqual([sourceControl]);
+      expect(result.current.customQuery.data?.credentials).toEqual([custom]);
+    });
+    expect(findRow(result.current.controller.groups, "cred-1")?.name).toBe("Production");
+    expect(findRow(result.current.controller.groups, "sc-1")?.name).toBe("Main");
+    expect(findRow(result.current.controller.groups, "custom-1")?.name).toBe("fly.io deploy");
+  });
+
+  it.each(["publish", "custom"] as const)("rejects an invalid %s replacement and clears the error when its draft is corrected", async (kind) => {
+    const update = vi.fn();
+    const saved = kind === "publish" ? publishCredential() : customCredential();
+    const port = fakePort({
+      publish: { list: async () => ({ credentials: kind === "publish" ? [publishCredential()] : [], executionMode: "self-hosted-cli" }), update },
+      custom: { list: async () => ({ credentials: kind === "custom" ? [customCredential()] : [] }), update },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(findRow(result.current.groups, saved.id)).toBeDefined());
+    const row = findRow(result.current.groups, saved.id)!.row;
+    act(() => result.current.setExistingField(saved.id, { token: "bad token" }));
+    await act(() => result.current.replaceToken(row));
+    expect(findRow(result.current.groups, saved.id)).toMatchObject({
+      token: "bad token", name: saved.label, saving: false,
+      error: "Hosted tokens must use visible ASCII characters (0x21–0x7E).",
+      row,
+    });
+    expect(update).not.toHaveBeenCalled();
+    act(() => result.current.setExistingField(saved.id, { token: "corrected-token" }));
+    expect(findRow(result.current.groups, saved.id)).toMatchObject({ token: "corrected-token", saving: false, error: null, row });
+  });
+
+  it("rejects an invalid token in the provider add form before creating a credential", async () => {
+    const create = vi.fn();
+    const port = fakePort({ publish: { create } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const ref = { kind: "publish" as const, providerId: "netlify" };
+    act(() => result.current.setAddField(ref, { name: "Production", token: "bad token" }));
+    act(() => result.current.openAddForm(ref));
+    expect(findGroup(result.current.groups, "publish", "netlify")!.addForm).toMatchObject({ visible: true, name: "Production", token: "bad token" });
+    await act(() => result.current.createToken(ref));
+    expect(findGroup(result.current.groups, "publish", "netlify")!.addForm).toMatchObject({
+      saving: false, error: "Hosted tokens must use visible ASCII characters (0x21–0x7E).", name: "Production", token: "bad token",
+    });
+    expect(result.current.totalCount).toBe(0);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid custom-provider token without clearing the dialog's draft", async () => {
+    const create = vi.fn();
+    const port = fakePort({ custom: { create } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    act(() => result.current.setCustomAddField({ name: "Example", baseUrl: "https://api.example.com", token: "bad token" }));
+    let saved: boolean | undefined;
+    await act(async () => { saved = await result.current.createCustomCredential(); });
+    expect(saved).toBe(false);
+    expect(result.current.customAddForm).toMatchObject({
+      name: "Example", baseUrl: "https://api.example.com", token: "bad token", saving: false,
+      error: "Hosted tokens must use visible ASCII characters (0x21–0x7E).",
+    });
+    expect(result.current.totalCount).toBe(0);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("typing into Token before Name does not clear the saved Name", async () => {
     const port = fakePort({
       publish: { list: () => Promise.resolve({ credentials: [publishCredential()], executionMode: "self-hosted-cli" }) },
@@ -1224,6 +1312,41 @@ describe("useAccessTokens: actions called before the initial load resolves (defe
     });
     return { port, publish, sourceControl, custom };
   }
+
+  it.each(["publish", "source-control"] as const)("can promote a %s credential before its initial inventory has settled", async (kind) => {
+    const saved = kind === "publish" ? publishCredential({ isDefault: false }) : sourceControlCredential({ isDefault: false });
+    const promoted = { ...saved, isDefault: true };
+    const update = vi.fn().mockResolvedValue(promoted);
+    const initial = pendingInitialPort(kind === "publish" ? { publish: { update } } : { sourceControl: { update } });
+    let requested = false;
+    const listPublish = initial.port.publish.list;
+    const listSourceControl = initial.port.sourceControl.list;
+    initial.port.publish.list = () => { if (kind === "publish") requested = true; return listPublish(); };
+    initial.port.sourceControl.list = () => { if (kind === "source-control") requested = true; return listSourceControl(); };
+    const { result } = renderHook(() => useAccessTokens(initial.port, T, "en"), { wrapper });
+    await waitFor(() => expect(requested).toBe(true));
+    const row: AccessTokenRow = {
+      kind, providerId: saved.providerId, id: saved.id, name: saved.label, rawLabel: saved.label,
+      isDefault: false, createdAt: saved.createdAt, updatedAt: saved.updatedAt,
+    };
+    // The initial requests remain pending; the reconciliation reads the confirmed server state.
+    if (kind === "publish") initial.port.publish.list = async () => ({ credentials: [promoted as AdminPublishCredentialSummary], executionMode: "self-hosted-cli" });
+    else initial.port.sourceControl.list = async () => ({ credentials: [promoted] });
+    await act(() => result.current.makeDefault(row));
+    expect(update).toHaveBeenCalledWith(saved.id, { isDefault: true, connection: undefined });
+    await act(async () => {
+      initial.custom.resolve({ credentials: [] });
+      if (kind === "publish") initial.sourceControl.resolve({ credentials: [] });
+      else initial.publish.resolve({ credentials: [], executionMode: "self-hosted-cli" });
+    });
+    await waitFor(() => expect(findRow(result.current.groups, saved.id)?.row.isDefault).toBe(true));
+    expect(findRow(result.current.groups, saved.id)).toMatchObject({ saving: false, error: null });
+    await act(async () => {
+      if (kind === "publish") initial.publish.resolve({ credentials: [promoted as AdminPublishCredentialSummary], executionMode: "self-hosted-cli" });
+      else initial.sourceControl.resolve({ credentials: [promoted] });
+    });
+    expect(findRow(result.current.groups, saved.id)?.row.isDefault).toBe(true);
+  });
 
   // Pins use-access-tokens.hooks.ts:746 — rows?.length ?? 0 while the initial lists are pending.
   it("reports zero counts while loading, then counts both saved credentials after the lists resolve", async () => {

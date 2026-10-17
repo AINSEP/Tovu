@@ -344,6 +344,69 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {
+  it("uses the create fallback for a non-Error rejection and preserves the list and route", async () => {
+    const fake = createFakePostsListPort({ posts: [POST] });
+    const port = { ...fake, createPost: async () => { throw "offline"; } };
+    const navigate = vi.fn();
+    const { result } = renderHook(() => usePosts({ port, navigate }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+    await act(() => result.current.createPost());
+    expect(result.current.error).toBe("failed to create post");
+    expect(result.current.creating).toBe(false);
+    expect(result.current.posts).toEqual([POST]);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["draft", "failed to publish post"],
+    ["published", "failed to unpublish post"],
+  ] as const)("keeps a %s row when its publish toggle rejects without an Error", async (status, message) => {
+    const post = { ...POST, status };
+    const fake = createFakePostsListPort({ posts: [post] });
+    const port = { ...fake, updatePost: async () => { throw null; } };
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([post]));
+    await act(() => result.current.togglePostPublish(post));
+    expect(result.current.error).toBe(message);
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.posts).toEqual([post]);
+    expect(fake.posts).toEqual([post]);
+  });
+
+  it("uses the delete fallback for a non-Error rejection and closes the confirmation without removing the row", async () => {
+    const fake = createFakePostsListPort({ posts: [POST] });
+    const port = { ...fake, deletePost: async () => { throw undefined; } };
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+    act(() => result.current.setPendingDelete(POST));
+    await act(() => result.current.removePost());
+    expect(result.current.error).toBe("failed to delete post");
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.pendingDelete).toBeNull();
+    expect(result.current.posts).toEqual([POST]);
+    expect(fake.posts).toEqual([POST]);
+  });
+
+  it.each(["toggle", "delete"] as const)("a successful %s before the initial list settles keeps the list loading until the read arrives", async (action) => {
+    const fake = createFakePostsListPort({ posts: [POST] });
+    let resolveList!: (value: Awaited<ReturnType<typeof fake.listPosts>>) => void;
+    const pendingList = new Promise<Awaited<ReturnType<typeof fake.listPosts>>>((resolve) => { resolveList = resolve; });
+    const port = { ...fake, listPosts: () => pendingList };
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    expect(result.current.posts).toBeNull();
+    if (action === "toggle") await act(() => result.current.togglePostPublish(POST));
+    else {
+      act(() => result.current.setPendingDelete(POST));
+      await act(() => result.current.removePost());
+    }
+    expect(fake.posts).toEqual(action === "toggle" ? [{ ...POST, status: "draft", version: 2 }] : []);
+    expect(result.current.posts).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+    await act(async () => { resolveList(await fake.listPosts()); });
+    await waitFor(() => expect(result.current.posts).toEqual(fake.posts));
+  });
+
   it("loads posts through the injected port and navigates on create, without touching fetch", async () => {
     const port = createFakePostsListPort({ posts: [POST] });
     const navigate = vi.fn();

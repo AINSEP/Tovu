@@ -1714,3 +1714,107 @@ it("postpolish: a settling Save preserves a later cover toggle and manual slug e
   expect(result.current.slug).toBe("pending-manual-url");
   expect(result.current.dirty).toBe(true);
 });
+
+
+describe("usePostEditor coverage boundaries", () => {
+  it("preserves the working copy when overwriting cannot re-read the current version, then allows retry", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    act(() => result.current.setTitle("Keep my work"));
+    act(() => port.simulateConcurrentSave("Their work"));
+    await act(async () => { await result.current.save("published"); });
+    const conflict = result.current.saveConflict;
+    expect(conflict).toEqual({ expectedVersion: 3, currentVersion: 4, attemptedStatus: "published" });
+    const getPost = port.getPost.bind(port);
+    port.getPost = async () => { throw new Error("offline"); };
+    await act(async () => { await result.current.saveOverwritingConflict(); });
+    expect(result.current.error).toBe("could not re-read the current version — your changes are still here, try again");
+    expect(result.current.saveConflict).toEqual(conflict);
+    expect(result.current.title).toBe("Keep my work");
+    expect(result.current.dirty).toBe(true);
+    expect(port.post.title).toBe("Their work");
+    expect(port.updatePostCalls).toHaveLength(1);
+    port.getPost = getPost;
+    await act(async () => { await result.current.saveOverwritingConflict(); });
+    expect(port.post.title).toBe("Keep my work");
+    expect(port.post.status).toBe("published");
+    expect(result.current.error).toBeNull();
+  });
+
+  for (const operation of ["save", "publish", "delete"] as const) {
+    it(`reports the ${operation} fallback for a non-Error rejection`, async () => {
+      const port = createFakePostEditorPort({ post: POST });
+      const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await waitFor(() => expect(result.current.post).not.toBeNull());
+      await waitFor(() => expect(result.current.editor).not.toBeNull());
+      const before = structuredClone(port.post);
+      if (operation === "delete") port.deletePost = async () => { throw "offline"; };
+      else port.updatePost = async () => { throw "offline"; };
+      await act(async () => {
+        if (operation === "delete") await result.current.remove();
+        else await result.current.save(operation === "publish" ? "published" : undefined);
+      });
+      expect(result.current.error).toBe(operation === "publish" ? "publish failed" : `${operation} failed`);
+      expect(result.current.saving).toBe(false);
+      expect(result.current.deleting).toBe(false);
+      expect(port.post).toEqual(before);
+    });
+  }
+
+  it("reports a non-Error load rejection and ignores deletion before a row loads", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    port.getPost = async () => { throw "offline"; };
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate, t: fakeT }));
+    await waitFor(() => expect(result.current.error).toBe("failed to load post"));
+    await act(async () => { await result.current.remove(); });
+    expect(result.current.post).toBeNull();
+    expect(result.current.deleting).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  for (const action of ["onDrop", "onPaste"] as const) {
+    it(`the configured FileHandler ${action} uploads into the real editor`, async () => {
+      const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
+      const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+      await waitFor(() => expect(result.current.post).not.toBeNull());
+      await waitFor(() => expect(result.current.editor).not.toBeNull());
+      const editor = result.current.editor!;
+      const extension = editor.extensionManager.extensions.find(item => item.name === "fileHandler");
+      expect(extension).toBeDefined();
+      const file = new File(["bytes"], `${action}.png`, { type: "image/png" });
+      act(() => extension!.options[action](editor, [file], editor.state.doc.content.size));
+      await waitFor(() => expect(editor.getJSON().content?.find(node => node.type === "media")?.attrs).toMatchObject({
+        assetId: "asset-99", transformName: "public", alt: `${action}.png`,
+      }));
+      expect(JSON.stringify(editor.getJSON())).not.toContain("data:");
+    });
+  }
+
+  it("the configured editor drop handler leaves an internal move to ProseMirror", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    const editor = result.current.editor!;
+    const before = editor.getJSON();
+    const handleDrop = editor.options.editorProps.handleDrop!;
+    expect(handleDrop.call(editor.view, editor.view, new Event("drop") as DragEvent, editor.state.doc.slice(0), true)).toBe(false);
+    expect(editor.getJSON()).toEqual(before);
+  });
+});
+
+
+it("restoring without a recoverable draft leaves the loaded working copy unchanged", async () => {
+  const port = createFakePostEditorPort({ post: POST });
+  const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+  await waitFor(() => expect(result.current.post).not.toBeNull());
+  await waitFor(() => expect(result.current.editor).not.toBeNull());
+  const before = result.current.editor!.getJSON();
+  act(() => result.current.restoreRecoveredDraft());
+  expect(result.current.title).toBe(POST.title);
+  expect(result.current.editor!.getJSON()).toEqual(before);
+  expect(result.current.recoverableDraft).toBeNull();
+  expect(port.updatePostCalls).toEqual([]);
+});

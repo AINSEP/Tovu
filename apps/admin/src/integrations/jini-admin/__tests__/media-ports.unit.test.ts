@@ -5,6 +5,71 @@ import { MEDIA_PROVIDER_CATALOG } from '../../../features/media/media-provider-c
 import { ApiError } from '../../../lib/api';
 afterEach(() => vi.unstubAllGlobals());
 describe('host media ports', () => {
+  it.each([null, {}, { results: null }, { results: {} }, { results: [
+    { entityType: 'post', entityId: 'm1', outcome: 'restored' },
+    { entityType: 'media', entityId: 'other', outcome: 'restored' },
+  ] }])('refuses malformed or unrelated restore results: %j', async result => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify(result)));
+    vi.stubGlobal('fetch', fetch);
+    await expect(mediaApi.restore!({ id: 'm1' })).rejects.toThrow('Media restore failed: missing item result');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('does not request restoration after cancellation', async () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    const controller = new AbortController(); controller.abort(new Error('restore cancelled'));
+    await expect(mediaApi.restore!({ id: 'm1' }, { signal: controller.signal })).rejects.toThrow('restore cancelled');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('propagates an aborted provider read instead of reporting unknown provider state', async () => {
+    const controller = new AbortController();
+    const error = new DOMException('provider read cancelled', 'AbortError');
+    controller.abort(error);
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      expect(init.signal).toBe(controller.signal);
+      init.signal!.throwIfAborted();
+      throw new Error('expected an aborted request');
+    }));
+    await expect(createMediaProvidersPort({}).list({}, { signal: controller.signal })).rejects.toBe(error);
+  });
+  it('rejects unknown providers without writing and still accepts the next queued edit', async () => {
+    const id = MEDIA_PROVIDER_CATALOG[0]!.id;
+    let saved = {};
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      if (init.method === 'PUT') saved = JSON.parse(String(init.body));
+      return new Response(JSON.stringify(saved));
+    });
+    vi.stubGlobal('fetch', fetch);
+    const port = createMediaProvidersPort({});
+    await expect(port.saveCredential({ id: 'unknown', credential: 'secret' })).rejects.toThrow('Unknown media provider');
+    expect(saved).toEqual({});
+    const signal = new AbortController().signal;
+    await port.saveSettings!({ id, baseUrl: 'https://media.example.test', model: 'model-a' }, { signal });
+    expect(saved).toEqual({ [id]: { baseUrl: 'https://media.example.test', model: 'model-a' } });
+    await port.removeCredential({ id }, { signal });
+    expect(saved).toEqual({});
+  });
+  it('keeps a tail-only saved credential marker during a whole-catalog save', async () => {
+    const id = MEDIA_PROVIDER_CATALOG[0]!.id;
+    let saved: Record<string, unknown> = {};
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      if (init.method === 'PUT') saved = JSON.parse(String(init.body));
+      return new Response(JSON.stringify(saved));
+    }));
+    const port = createMediaProvidersPort({}, {});
+    const rows = await port.saveChanges!({ providers: { [id]: { apiKeyTail: 'tail' } } }, { signal: new AbortController().signal });
+    expect(saved).toEqual({ [id]: {} });
+    expect(rows.find(row => row.id === id)).toEqual({ id, label: MEDIA_PROVIDER_CATALOG[0]!.label, configured: false });
+  });
+  it('does not write a cancelled whole-catalog save and recovers for the next save', async () => {
+    const fetch = vi.fn(async () => new Response('{}'));
+    vi.stubGlobal('fetch', fetch);
+    const port = createMediaProvidersPort({});
+    const controller = new AbortController(); controller.abort(new Error('save cancelled'));
+    await expect(port.saveChanges!({ providers: {} }, { signal: controller.signal })).rejects.toThrow('save cancelled');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await port.saveChanges!({ providers: {} })).toHaveLength(MEDIA_PROVIDER_CATALOG.length);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
   it('omits an unconfigured provider when its last settings are cleared, preserving siblings', async () => {
     const id = MEDIA_PROVIDER_CATALOG[0]!.id;
     let saved: Record<string, any> = { [id]: { model: 'custom', apiKeyConfigured: false }, sibling: { model: 'keep' } };

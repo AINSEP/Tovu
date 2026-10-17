@@ -169,6 +169,18 @@ describe("siteNameErrorKey", () => {
 });
 
 describe("siteWriteErrorKey", () => {
+  it.each([
+    ["SITE_LIMIT", "Stop a site before starting another."],
+    ["SITE_RUNNING", "Stop this site before moving it to Trash."],
+    ["SITE_SERVING", "The serving site cannot be stopped or moved to Trash."],
+    ["SITE_STOP_FAILED", "The site could not be fully stopped. Try Stop again."],
+    ["SITE_START_FAILED", "The site could not start."],
+    ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],
+    ["AGENT_PLUGIN_TOKEN_UNSUPPORTED", "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created."],
+  ])("explains %s with its own recovery guidance", (code, expected) => {
+    expect(siteWriteErrorKey(new ApiError("write refused", 409, code))).toBe(expected);
+  });
+
   it("translates the capability refusal and the occupied-folder conflict", () => {
     expect(siteWriteErrorKey(new ApiError("nope", 403, "SITE_SWITCHING_DISABLED"))).toBe(
       "Site switching is turned off on this deployment.",

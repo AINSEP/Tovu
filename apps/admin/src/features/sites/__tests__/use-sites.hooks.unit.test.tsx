@@ -5,7 +5,7 @@ import { ApiError, type AdminSiteActivation, type AdminSitesSnapshot } from "@/l
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
+import { createFakeSitesPort, defaultSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
 
 /**
@@ -21,6 +21,39 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 const fakeT = (key: string): string => key;
+
+describe("Sites port contracts", () => {
+  it("unconfigured fake writes reject explicitly and leave the snapshot intact", async () => {
+    const snapshot = snapshotFixture();
+    const port = createFakeSitesPort(snapshot);
+    await expect(port.manageLocalSite!({ name: "alpha", action: "switch" })).rejects.toThrow("manageLocalSite was not expected");
+    await expect(port.createSite({ name: "gamma" })).rejects.toThrow("createSite was not expected");
+    await expect(port.activateSite("beta")).rejects.toThrow("activateSite was not expected");
+    await expect(port.listSites()).resolves.toEqual(snapshot);
+    await expect(port.listTokenSignInPlugins()).resolves.toEqual({ plugins: [] });
+  });
+
+  const base = "/api/admin/v1/workspaces/workspace-local/system/sites";
+  it.each([
+    { name: "listSites", run: () => defaultSitesPort.listSites(), path: "", method: "GET", body: undefined, response: snapshotFixture() },
+    { name: "createSite", run: () => defaultSitesPort.createSite({ name: "gamma", adminPassword: "fixture-password" }), path: "", method: "POST", body: { name: "gamma", adminPassword: "fixture-password" }, response: { site: { name: "gamma", dir: "/sites/gamma", siteId: "gamma-id" } } },
+    { name: "listTokenSignInPlugins", run: () => defaultSitesPort.listTokenSignInPlugins(), path: "/token-sign-in-plugins", method: "GET", body: undefined, response: { plugins: [{ pluginId: "example", displayName: "Example", helpUrl: "https://example.com/token" }] } },
+    { name: "activateSite", run: () => defaultSitesPort.activateSite("beta"), path: "/beta/activate", method: "POST", body: undefined, response: { ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart the server." } },
+    { name: "manageLocalSite", run: () => defaultSitesPort.manageLocalSite!({ name: "alpha", action: "trash", confirmed: true, checked: true }), path: "/alpha/trash", method: "POST", body: { confirmed: true, checked: true }, response: { trashed: true } },
+  ])("the live $name binding preserves the API request and response contract", async ({ run, path, method, body, response }) => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      expect(url).toBe(`${base}${path}`);
+      expect(init?.method ?? "GET").toBe(method);
+      requests.push({ url, method: init?.method ?? "GET", body: init?.body === undefined ? undefined : JSON.parse(String(init.body)) });
+      return Response.json(response);
+    });
+    try {
+      await expect(run()).resolves.toEqual(response);
+      expect(requests).toEqual([{ url: `${base}${path}`, method, body }]);
+    } finally { vi.unstubAllGlobals(); }
+  });
+});
 
 function snapshotFixture(overrides: Partial<AdminSitesSnapshot> = {}): AdminSitesSnapshot {
   return {

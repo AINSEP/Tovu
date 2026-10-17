@@ -195,6 +195,118 @@ describe("defaultMenusPort", () => {
   });
 });
 
+describe("createFakeMenusPort contracts", () => {
+  it("resolves a menu by slug", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    expect(await port.getMenu(MENU.slug)).toEqual({ menu: MENU });
+  });
+
+  it.each(["read", "update", "trash"])("rejects a missing %s target without changing the store", async (operation) => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const pending = operation === "read" ? port.getMenu("missing")
+      : operation === "update" ? port.updateMenuTree({ id: "missing", expectedVersion: 1, items: [] }, {})
+        : port.trash({ id: "missing" });
+    await expect(pending).rejects.toThrow("fake menu not found: missing");
+    expect((await port.listMenus()).menus).toEqual([MENU]);
+  });
+
+  it("defaults omitted items and preserves HTML authoring on an items-only update", async () => {
+    const port = createFakeMenusPort({});
+    const { menu } = await port.createMenu({ title: "Footer", slug: "footer" }, { mode: "html", html: "<a>Footer</a>" });
+    expect(menu.items).toEqual([]);
+    const items: AdminMenu["items"] = [{ id: "contact", label: "Contact", target: { kind: "url", href: "/contact" } }];
+    const expected = { ...menu, items, version: 2 };
+    expect(await port.updateMenuTree({ id: menu.id, expectedVersion: 1, items }, {})).toEqual({ menu: expected });
+    expect(await port.getMenu(menu.id)).toEqual({ menu: expected });
+  });
+
+  it("applies explicit title and slug updates while accepting an empty HTML document", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const expected = { ...MENU, title: "Footer", slug: "footer", mode: "html", html: "", version: 2 };
+    expect(await port.updateMenuTree({ id: MENU.id, expectedVersion: 1, items: [] }, {
+      title: "Footer", slug: "footer", mode: "html", html: "",
+    })).toEqual({ menu: expected });
+    expect(await port.getMenu("footer")).toEqual({ menu: expected });
+  });
+});
+
+describe("useMenus error and confirmation edges", () => {
+  it("uses the load fallback for a non-Error rejection", async () => {
+    const port = createFakeMenusPort();
+    port.listMenus = async () => { throw "offline"; };
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.error).toBe("failed to load menus"));
+    expect(result.current.menus).toBeNull();
+  });
+
+  it.each([
+    { failure: "offline", message: "delete failed" },
+    { failure: new ApiError("permission denied", 403, "FORBIDDEN"), message: "permission denied" },
+  ])("shows $message for an unclassified trash rejection", async ({ failure, message }) => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.trash = async () => { throw failure; };
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+    act(() => result.current.requestTrash(MENU));
+    await act(async () => { await result.current.confirmTrash(); });
+    expect(result.current.error).toBe(message);
+    expect(result.current.pendingTrash).toBeNull();
+    expect(result.current.trashing).toBe(false);
+    expect((await port.listMenus()).menus).toEqual([MENU]);
+  });
+
+  it("confirming without a pending menu performs no trash write", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const writes: string[] = [];
+    port.trash = async ({ id }) => { writes.push(id); return { ok: true, version: 1 }; };
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+    await act(async () => { await result.current.confirmTrash(); });
+    expect(writes).toEqual([]);
+    expect(result.current.pendingTrash).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("settling an older trash preserves a newer pending confirmation and its busy state", async () => {
+    const other = { ...MENU, id: "m2", slug: "footer" };
+    const port = createFakeMenusPort({ menus: [MENU, other] });
+    const releases = new Map<string, () => void>();
+    port.trash = ({ id }) => new Promise((resolve) => { releases.set(id, () => resolve({ ok: true, version: 1 })); });
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU, other]));
+    act(() => result.current.requestTrash(MENU));
+    let first!: Promise<void>;
+    act(() => { first = result.current.confirmTrash(); });
+    await waitFor(() => expect(releases.has(MENU.id)).toBe(true));
+    act(() => result.current.requestTrash(other));
+    let second!: Promise<void>;
+    act(() => { second = result.current.confirmTrash(); });
+    await waitFor(() => expect(releases.has(other.id)).toBe(true));
+    await act(async () => { releases.get(MENU.id)!(); await first; });
+    expect(result.current.pendingTrash).toEqual(other);
+    expect(result.current.trashing).toBe(true);
+    await act(async () => { releases.get(other.id)!(); await second; });
+    expect(result.current.pendingTrash).toBeNull();
+    expect(result.current.trashing).toBe(false);
+  });
+
+  it("settling a trash after cancel keeps its confirmation closed", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    let release!: () => void;
+    port.trash = () => new Promise((resolve) => { release = () => resolve({ ok: true, version: 1 }); });
+    const { result } = renderHook(() => useMenus({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.menus).toEqual([MENU]));
+    act(() => result.current.requestTrash(MENU));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.confirmTrash(); });
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    act(() => result.current.cancelTrash());
+    await act(async () => { release(); await pending; });
+    expect(result.current.pendingTrash).toBeNull();
+    expect(result.current.trashing).toBe(false);
+  });
+});
+
 /**
  * a3-review-6 (2026-09-21), sink of c77af7f1e: `load()` had no latest-wins guard, the same shape
  * `use-widgets-library.hooks.ts` just fixed. Trashing menu A, then menu B, fires two independent

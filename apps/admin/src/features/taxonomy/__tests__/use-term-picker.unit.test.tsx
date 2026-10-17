@@ -435,6 +435,70 @@ describe("adding a term by name", () => {
   });
 });
 
+describe("term input edge cases", () => {
+  it("keeps an unmatched suggestion as editable text without selecting or creating a term", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    act(() => result.current.pickSuggestion("tax1", "Not in the suggestions"));
+    expect(result.current.newTermName("tax1")).toBe("Not in the suggestions");
+    expect(result.current.selected).toEqual(new Set());
+    expect(result.current.dirty).toBe(false);
+    expect(port.created).toEqual([]);
+  });
+
+  it("treats a removed taxonomy as having no input, trigger, suggestions or creatable term", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    await waitFor(() => expect(result.current.canCreate).toBe(true));
+    expect(result.current.showAddInput("removed")).toBe(false);
+    expect(result.current.showAddTrigger("removed")).toBe(false);
+    expect(result.current.suggestions("removed")).toEqual([]);
+    act(() => result.current.pickSuggestion("removed", "Orphaned suggestion"));
+    await act(async () => { await result.current.addTerm("removed"); await result.current.addTerm("tax1"); });
+    expect(result.current.newTermName("removed")).toBe("Orphaned suggestion");
+    expect(result.current.selected).toEqual(new Set());
+    expect(port.created).toEqual([]);
+    const comma = key(",");
+    act(() => result.current.onNewTermKeyDown("removed", comma));
+    expect(comma.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it.each(["Enter", ","])("leaves an IME %s to the input method, then adds after composition ends", async (pressed) => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE] });
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "Mystery"));
+    const composing = { ...key(pressed), nativeEvent: { isComposing: true } };
+    act(() => result.current.onNewTermKeyDown("tax1", composing));
+    expect(composing.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.newTermName("tax1")).toBe("Mystery");
+    expect(port.created).toEqual([]);
+    expect(result.current.selected).toEqual(new Set());
+    const finished = { ...key(pressed), nativeEvent: { isComposing: false } };
+    await act(async () => { result.current.onNewTermKeyDown("tax1", finished); });
+    await waitFor(() => expect(result.current.selected).toEqual(new Set(["fake-1"])));
+    expect(finished.preventDefault).toHaveBeenCalledTimes(1);
+    expect(port.created).toEqual([{ taxonomyId: "tax1", name: "Mystery", parentId: undefined }]);
+  });
+
+  it("marks only the taxonomy with a pending create as busy and clears it after creation", async () => {
+    const port = createFakeTermPickerPort({ taxonomies: [GENRE, TOPIC] });
+    const create = port.createTerm;
+    const pending = deferred<void>();
+    port.createTerm = async (input, options) => { await pending.promise; return create(input, options); };
+    const { result } = await mountWith(port);
+    act(() => result.current.setNewTermName("tax1", "Mystery"));
+    let adding!: Promise<void>;
+    act(() => { adding = result.current.addTerm("tax1"); });
+    await waitFor(() => expect(result.current.creating("tax1")).toBe(true));
+    expect(result.current.creating("tax2")).toBe(false);
+    expect(result.current.createError("tax1")).toBeNull();
+    await act(async () => { pending.resolve(); await adding; });
+    expect(result.current.creating("tax1")).toBe(false);
+    expect(result.current.selected).toEqual(new Set(["fake-1"]));
+    expect(result.current.newTermName("tax1")).toBe("");
+  });
+});
+
 describe("useWiredTermPicker (real client)", () => {
   let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 

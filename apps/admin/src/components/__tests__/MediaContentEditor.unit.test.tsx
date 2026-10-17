@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import type { AdminMedia } from "../../lib/api";
 import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../WidgetConfigFields/MediaContentEditor";
+import { useMediaContentEditor } from "../WidgetConfigFields/MediaContentEditor.hooks";
 import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
@@ -186,4 +187,125 @@ describe("MediaContentEditor", () => {
     render(<WidgetConfigFields widgetType="gallery" config={defaultWidgetConfig("gallery")} onChange={() => {}} />);
     expect(within(screen.getByRole("tablist")).getAllByRole("tab")).toHaveLength(2);
   });
+});
+
+
+function useControlledMedia(initial: Record<string, unknown>) {
+  const [config, setConfig] = useState(initial);
+  const [emissions, setEmissions] = useState<Record<string, unknown>[]>([]);
+  const controller = useMediaContentEditor({ config, widgetType: "media", onChange: next => {
+    setConfig(next);
+    setEmissions(current => [...current, next]);
+  } }, { port });
+  return { controller, config, emissions };
+}
+
+describe("MediaContentEditor controller boundaries", () => {
+  it("distinguishes invalid, duplicate, known and unknown rows after the library loads", async () => {
+    const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [
+      { slug: "bad/slug" }, { slug: "sl-a" }, { slug: "sl-a" }, { slug: "missing" },
+    ] }));
+    await waitFor(() => expect(result.current.controller.library).toEqual(LIBRARY));
+    expect(result.current.controller.rows.map(row => [row.item.slug, row.problem, row.kind])).toEqual([
+      ["bad/slug", "invalid", "unknown"], ["sl-a", null, "image"], ["sl-a", "duplicate", "image"], ["missing", "unknown", "unknown"],
+    ]);
+    expect(result.current.controller.mediaUrl(LIBRARY[0])).toBe("/m/id-a/original");
+  });
+
+  it("clamps numeric columns and removes an invalid column setting", () => {
+    const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [], layout: "grid", columns: 3 }));
+    act(() => result.current.controller.setColumns("0"));
+    expect(result.current.config.columns).toBe(1);
+    act(() => result.current.controller.setColumns("9"));
+    expect(result.current.config.columns).toBe(6);
+    act(() => result.current.controller.setColumns("invalid"));
+    expect(result.current.config).not.toHaveProperty("columns");
+  });
+
+  it("persists aspect ratio and CSS class through the same replacement config", () => {
+    const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [], layout: "single" }));
+    act(() => result.current.controller.setAspectRatio("16/9"));
+    act(() => result.current.controller.setCssClass("hero-media"));
+    expect(result.current.config).toEqual({ mode: "media", items: [], layout: "single", aspectRatio: "16/9", cssClass: "hero-media" });
+  });
+
+  it("does not emit for the active tab or an out-of-bounds move", () => {
+    const initial = { mode: "media", items: [{ slug: "sl-a" }], layout: "single" };
+    const { result } = renderHook(() => useControlledMedia(initial));
+    act(() => result.current.controller.setMode("media"));
+    act(() => result.current.controller.moveItem(0, -1));
+    act(() => result.current.controller.moveItem(0, 1));
+    act(() => result.current.controller.confirmPicker());
+    expect(result.current.config).toEqual(initial);
+    expect(result.current.emissions).toEqual([]);
+  });
+
+  it("deselects one pick, cancels without saving, and clears selections on reopening", async () => {
+    const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [] }));
+    await waitFor(() => expect(result.current.controller.library).toEqual(LIBRARY));
+    act(() => result.current.controller.openPicker("items"));
+    act(() => result.current.controller.togglePicked("sl-a"));
+    act(() => result.current.controller.togglePicked("sl-b"));
+    act(() => result.current.controller.togglePicked("sl-a"));
+    expect(result.current.controller.picked).toEqual(["sl-b"]);
+    act(() => result.current.controller.cancelPicker());
+    expect(result.current.controller.picker).toBeNull();
+    expect(result.current.emissions).toEqual([]);
+    act(() => result.current.controller.openPicker("items"));
+    expect(result.current.controller.picked).toEqual([]);
+  });
+
+  it("appends HTML without a mounted textarea and skips a missing library asset", async () => {
+    const { result, rerender } = renderHook(() => useControlledMedia({ mode: "html", html: "prefix" }));
+    await waitFor(() => expect(result.current.controller.library).toEqual(LIBRARY));
+    act(() => result.current.controller.openPicker("html"));
+    act(() => result.current.controller.togglePicked("missing"));
+    act(() => result.current.controller.togglePicked("sl-a"));
+    act(() => result.current.controller.confirmPicker());
+    const html = 'prefix<img data-media-slug="sl-a" alt="sl-a alt">';
+    expect(result.current.config).toEqual({ mode: "html", html });
+    expect(result.current.controller.picker).toBeNull();
+    // A later textarea mount still receives the pending caret, once.
+    const area = document.createElement("textarea");
+    area.value = html;
+    document.body.append(area);
+    try {
+      result.current.controller.htmlRef.current = area;
+      rerender();
+      expect(document.activeElement).toBe(area);
+      expect([area.selectionStart, area.selectionEnd]).toEqual([html.length, html.length]);
+      area.setSelectionRange(0, 0);
+      rerender();
+      expect(area.selectionStart).toBe(0);
+    } finally { area.remove(); }
+  });
+
+  it("synchronizes scroll only when the gutter is attached", () => {
+    const { result } = renderHook(() => useControlledMedia({ mode: "html", html: "a\nb" }));
+    const area = document.createElement("textarea");
+    area.scrollTop = 37;
+    const event = { currentTarget: area } as Parameters<typeof result.current.controller.onHtmlScroll>[0];
+    act(() => result.current.controller.onHtmlScroll(event));
+    const gutter = document.createElement("div");
+    result.current.controller.gutterRef.current = gutter;
+    act(() => result.current.controller.onHtmlScroll(event));
+    expect(gutter.scrollTop).toBe(37);
+    expect(result.current.controller.htmlLines).toBe(2);
+  });
+});
+
+
+it("the controller's default port loads media through the real API adapter", async () => {
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+    expect(String(input)).toBe("/api/admin/v1/workspaces/workspace-local/media");
+    return new Response(JSON.stringify({ media: LIBRARY }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  try {
+    const { result, unmount } = renderHook(() => useMediaContentEditor({ config: { mode: "media", items: [{ slug: "sl-a" }] },
+      widgetType: "media", onChange: () => { throw new Error("loading must not change the config"); } }));
+    await waitFor(() => expect(result.current.library).toEqual(LIBRARY));
+    expect(result.current.rows[0].asset).toEqual(LIBRARY[0]);
+    expect(result.current.mediaUrl(LIBRARY[0])).toBe("/api/admin/v1/workspaces/workspace-local/media/id-a/original");
+    unmount();
+  } finally { vi.unstubAllGlobals(); }
 });

@@ -48,6 +48,62 @@ afterEach(() => {
 });
 
 describe("useEditMediaPanel — injected port (no fetch stub)", () => {
+  it("closes an unchanged panel without writing metadata or announcing a save", async () => {
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const update = vi.spyOn(port, "updateMedia");
+    const onSaved = vi.fn();
+    const onCancel = vi.fn();
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved, onCancel }, { port, locale: "en" }), { wrapper });
+    await act(async () => { await result.current.save(); });
+    expect(onCancel).toHaveBeenCalledExactlyOnceWith();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(port.items).toEqual([ITEM]);
+  });
+
+  it("persists independent metadata fields, including nonblank CSS and parsed pixel sizes", async () => {
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const onSaved = vi.fn();
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved, onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    act(() => {
+      result.current.setSlug("edited-slug");
+      result.current.setAlt("Accessible description");
+      result.current.setCaption("Photo caption");
+      result.current.setCredit("Photographer");
+      result.current.setWidth("640");
+      result.current.setHeight("480");
+      result.current.setCssClass(" photo-frame ");
+    });
+    await act(async () => { await result.current.save(); });
+    expect(port.items).toEqual([{ ...ITEM, slug: "edited-slug", alt: "Accessible description", caption: "Photo caption",
+      credit: "Photographer", width: 640, height: 480, cssClass: " photo-frame " }]);
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears stored CSS, HTML attributes and dimensions when their inputs are blank", async () => {
+    const item = { ...ITEM, cssClass: "framed", htmlAttributes: 'data-motion="fade-in"', width: 640, height: 480 };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    act(() => {
+      result.current.setCssClass("  ");
+      result.current.setHtmlAttributes("  ");
+      result.current.setWidth("");
+      result.current.setHeight("");
+    });
+    expect(result.current.htmlAttributesError).toBeNull();
+    await act(async () => { await result.current.save(); });
+    expect(port.items).toEqual([{ ...item, cssClass: null, htmlAttributes: null, width: null, height: null }]);
+  });
+
+  it("retains the creator principal when the injected port has no user-list capability", async () => {
+    const item = { ...ITEM, createdBy: "legacy-principal" };
+    const port = createFakeMediaPort({ media: [item] });
+    const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), { wrapper });
+    await act(async () => {});
+    expect(result.current.createdByLabel).toBe("legacy-principal");
+    expect(result.current.error).toBeNull();
+  });
+
   // `publicUrl` (readable-slugs S5a, UI half, 2026-09-23) reads straight off `item.publicUrl` — no
   // port call at all, unlike the old `originalUrl` this replaces (that read
   // `port.mediaOriginalUrl(item.id)`, the authenticated admin byte route `MediaPreview`'s `<img>`

@@ -1,11 +1,13 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminAppearance, useSettingsAppearance } from "../use-admin-appearance.hooks";
 import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE } from "../../lib/settings-tabs";
+import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
 
 const primary = () => document.documentElement.style.getPropertyValue("--jini-theme-light-primary");
 afterEach(() => document.documentElement.removeAttribute("style"));
+afterEach(() => vi.unstubAllGlobals());
 
 it("applies the saved accent on load and follows settings refreshes", async () => {
   let accentColor = "#a855f7";
@@ -92,4 +94,52 @@ it("a pending shell read cannot repaint an accent the operator has just previewe
   await act(async () => resolve({ ...DEFAULT_APPEARANCE, accentColor: "#2563eb" }));
   await waitFor(() => expect(result.current.data?.accentColor).toBe("#2563eb"));
   expect(primary()).toBe("#e11d48");
+});
+
+it("the live port follows appearance and unscoped refreshes and ignores unrelated namespaces", async () => {
+  let accentColor = "#a855f7";
+  const fetch = vi.fn(async (url: string) => {
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.appearance");
+    return new Response(JSON.stringify({ data: [{ key: "accentColor", value: accentColor }] }));
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { unmount } = renderHook(() => useAdminAppearance({}));
+  await waitFor(() => expect(primary()).toBe("#a855f7"));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  accentColor = "#123456";
+  await act(async () => publishSettingsRefresh(["core.execution"]));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(primary()).toBe("#a855f7");
+  await act(async () => publishSettingsRefresh([APPEARANCE_NAMESPACE]));
+  await waitFor(() => expect(primary()).toBe("#123456"));
+  accentColor = "#e11d48";
+  await act(async () => publishSettingsRefresh());
+  await waitFor(() => expect(primary()).toBe("#e11d48"));
+  expect(fetch).toHaveBeenCalledTimes(3);
+  unmount();
+  await act(async () => publishSettingsRefresh([APPEARANCE_NAMESPACE]));
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+it("settings previews use the document root when options are omitted", () => {
+  const { rerender } = renderHook(({ accentColor }) => useSettingsAppearance({ accentColor, ready: true }), {
+    initialProps: { accentColor: "#a855f7" },
+  });
+  expect(primary()).toBe("#a855f7");
+  rerender({ accentColor: "#123456" });
+  expect(primary()).toBe("#123456");
+});
+
+it("loaded accents and draft previews apply to the supplied root", async () => {
+  const root = document.createElement("main");
+  const port = {
+    loadAppearance: async () => ({ ...DEFAULT_APPEARANCE, accentColor: "#a855f7" }),
+    subscribeToSettingsRefresh: () => () => {},
+  };
+  renderHook(() => useAdminAppearance({}, { port, root }));
+  await waitFor(() => expect(root.style.getPropertyValue("--jini-theme-light-primary")).toBe("#a855f7"));
+  renderHook(() => useSettingsAppearance({ accentColor: "#123456", ready: true }, { root }));
+  expect(root.style.getPropertyValue("--jini-theme-light-primary")).toBe("#123456");
+  expect(root.style.getPropertyValue("--jini-theme-dark-primary")).toBe("#123456");
+  expect(primary()).toBe("");
 });

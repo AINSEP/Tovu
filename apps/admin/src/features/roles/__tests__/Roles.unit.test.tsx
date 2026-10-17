@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -442,6 +442,182 @@ describe("permission removal is confirmed first (real hook, fake port)", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  function gate() {
+    let release!: () => void;
+    const promise = new Promise<void>(resolve => { release = resolve; });
+    return { promise, release };
+  }
+
+  it("creates a policy without an optional description and clears its form", async () => {
+    const port = createFakeRolesPort();
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([]));
+    act(() => result.current.setPolicyName("Reader"));
+    const event = new Event("submit", { cancelable: true });
+    await act(() => result.current.onCreatePolicy(event as unknown as React.FormEvent));
+    expect(event.defaultPrevented).toBe(true);
+    expect(port.policies).toEqual([{ id: "fake-policy-1", workspaceId: "fake-ws", name: "Reader", description: undefined, isBuiltin: false, isFrozen: false }]);
+    await waitFor(() => expect(result.current.policies).toEqual(port.policies));
+    expect(result.current.policyName).toBe("");
+    expect(result.current.policyDescription).toBe("");
+    expect(result.current.policySaving).toBe(false);
+    expect(result.current.policyError).toBeNull();
+  });
+
+  it.each(["role", "policy"] as const)("finishing a %s deletion leaves an already-dismissed confirmation closed", async (kind) => {
+    const port = createFakeRolesPort({ roles: [CUSTOM_ROLE], policies: [CUSTOM_POLICY] });
+    const pending = gate();
+    const deleteRole = port.deleteRole;
+    const deletePolicy = port.deletePolicy;
+    port.deleteRole = async id => { await pending.promise; return deleteRole(id); };
+    port.deletePolicy = async id => { await pending.promise; return deletePolicy(id); };
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).toEqual([CUSTOM_ROLE]));
+    act(() => { if (kind === "role") result.current.setPendingRoleDelete(CUSTOM_ROLE); else result.current.setPendingPolicyDelete(CUSTOM_POLICY); });
+    let deletion!: Promise<void>;
+    act(() => { deletion = kind === "role" ? result.current.onDeleteRole() : result.current.onDeletePolicy(); });
+    act(() => { if (kind === "role") result.current.setPendingRoleDelete(null); else result.current.setPendingPolicyDelete(null); });
+    await act(async () => { pending.release(); await deletion; });
+    expect(kind === "role" ? result.current.pendingRoleDelete : result.current.pendingPolicyDelete).toBeNull();
+    expect(kind === "role" ? port.roles : port.policies).toEqual([]);
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.rowError).toBeNull();
+  });
+
+  it("reports the current policy's failed permission load and allows a later open to retry", async () => {
+    const port = createFakeRolesPort({ policies: [CUSTOM_POLICY], initialPolicyPermissions: [PERMISSION_ROW] });
+    const listPermissions = port.listPolicyPermissions;
+    let unavailable = true;
+    port.listPolicyPermissions = async id => {
+      if (unavailable) throw new Error("policy store unavailable");
+      return listPermissions(id);
+    };
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY]));
+    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    await waitFor(() => expect(result.current.rowError).toBe("policy store unavailable"));
+    expect(result.current.permissionsLoading).toBe(false);
+    expect(result.current.permissionRows).toEqual([]);
+    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    unavailable = false;
+    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    await waitFor(() => expect(result.current.permissionRows).toEqual([PERMISSION_ROW]));
+    expect(result.current.rowError).toBeNull();
+    expect(result.current.permissionsLoading).toBe(false);
+  });
+
+  it.each(["role", "policy"] as const)("an older %s rename cannot clear a newer rename's busy state", async (kind) => {
+    const roleB = { ...CUSTOM_ROLE, id: "role-b", name: "Writer" };
+    const policyB = { ...CUSTOM_POLICY, id: "policy-b", name: "Publishing" };
+    const port = createFakeRolesPort({ roles: [CUSTOM_ROLE, roleB], policies: [CUSTOM_POLICY, policyB] });
+    const first = gate();
+    const second = gate();
+    const updateRole = port.updateRole;
+    const updatePolicy = port.updatePolicy;
+    port.updateRole = async input => { await (input.roleId === CUSTOM_ROLE.id ? first : second).promise; return updateRole(input); };
+    port.updatePolicy = async (target, options) => { await (target.policyId === CUSTOM_POLICY.id ? first : second).promise; return updatePolicy(target, options); };
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).toEqual([CUSTOM_ROLE, roleB]));
+    act(() => {
+      if (kind === "role") { result.current.startEditRole(CUSTOM_ROLE); result.current.setEditingRoleName("First renamed"); }
+      else { result.current.startEditPolicy(CUSTOM_POLICY); result.current.setEditingPolicyName("First renamed"); }
+    });
+    let pendingFirst!: Promise<void>;
+    act(() => { pendingFirst = kind === "role" ? result.current.onSaveRole(CUSTOM_ROLE.id) : result.current.onSavePolicy(CUSTOM_POLICY.id); });
+    act(() => {
+      if (kind === "role") { result.current.startEditRole(roleB); result.current.setEditingRoleName("Second renamed"); }
+      else { result.current.startEditPolicy(policyB); result.current.setEditingPolicyName("Second renamed"); }
+    });
+    let pendingSecond!: Promise<void>;
+    act(() => { pendingSecond = kind === "role" ? result.current.onSaveRole(roleB.id) : result.current.onSavePolicy(policyB.id); });
+    await act(async () => { first.release(); await pendingFirst; });
+    expect(result.current.rowSavingId).toBe(kind === "role" ? roleB.id : policyB.id);
+    expect(kind === "role" ? result.current.editingRoleId : result.current.editingPolicyId).toBe(kind === "role" ? roleB.id : policyB.id);
+    expect((kind === "role" ? port.roles : port.policies).map(row => row.name)).toEqual(["First renamed", kind === "role" ? "Writer" : "Publishing"]);
+    await act(async () => { second.release(); await pendingSecond; });
+    expect(result.current.rowSavingId).toBeNull();
+    expect(kind === "role" ? result.current.editingRoleId : result.current.editingPolicyId).toBeNull();
+    expect((kind === "role" ? port.roles : port.policies).map(row => row.name)).toEqual(["First renamed", "Second renamed"]);
+  });
+
+  it.each(["role", "policy"] as const)("an older %s deletion cannot unlock or dismiss a newer deletion", async (kind) => {
+    const roleB = { ...CUSTOM_ROLE, id: "role-b", name: "Writer" };
+    const policyB = { ...CUSTOM_POLICY, id: "policy-b", name: "Publishing" };
+    const port = createFakeRolesPort({ roles: [CUSTOM_ROLE, roleB], policies: [CUSTOM_POLICY, policyB] });
+    const first = gate();
+    const second = gate();
+    const deleteRole = port.deleteRole;
+    const deletePolicy = port.deletePolicy;
+    port.deleteRole = async id => { await (id === CUSTOM_ROLE.id ? first : second).promise; return deleteRole(id); };
+    port.deletePolicy = async id => { await (id === CUSTOM_POLICY.id ? first : second).promise; return deletePolicy(id); };
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY, policyB]));
+    act(() => { if (kind === "role") result.current.setPendingRoleDelete(CUSTOM_ROLE); else result.current.setPendingPolicyDelete(CUSTOM_POLICY); });
+    let pendingFirst!: Promise<void>;
+    act(() => { pendingFirst = kind === "role" ? result.current.onDeleteRole() : result.current.onDeletePolicy(); });
+    act(() => { if (kind === "role") result.current.setPendingRoleDelete(roleB); else result.current.setPendingPolicyDelete(policyB); });
+    let pendingSecond!: Promise<void>;
+    act(() => { pendingSecond = kind === "role" ? result.current.onDeleteRole() : result.current.onDeletePolicy(); });
+    await act(async () => { first.release(); await pendingFirst; });
+    expect(result.current.rowSavingId).toBe(kind === "role" ? roleB.id : policyB.id);
+    expect(kind === "role" ? result.current.pendingRoleDelete : result.current.pendingPolicyDelete).toEqual(kind === "role" ? roleB : policyB);
+    expect(kind === "role" ? port.roles : port.policies).toEqual([kind === "role" ? roleB : policyB]);
+    await act(async () => { second.release(); await pendingSecond; });
+    expect(result.current.rowSavingId).toBeNull();
+    expect(kind === "role" ? result.current.pendingRoleDelete : result.current.pendingPolicyDelete).toBeNull();
+    expect(kind === "role" ? port.roles : port.policies).toEqual([]);
+  });
+
+  it.each(["another row", "dismissed"] as const)("a settled permission removal preserves a confirmation that was %s while it was pending", async (replacement) => {
+    const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
+    const port = createFakeRolesPort({ policies: [CUSTOM_POLICY], initialPolicyPermissions: [PERMISSION_ROW, other] });
+    const pending = gate();
+    const remove = port.removePolicyPermission;
+    port.removePolicyPermission = async input => { await pending.promise; return remove(input); };
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY]));
+    act(() => result.current.setPendingPermissionRemove({ policyId: CUSTOM_POLICY.id, row: PERMISSION_ROW }));
+    let removal!: Promise<void>;
+    act(() => { removal = result.current.onConfirmRemovePermission(); });
+    const next = replacement === "another row" ? { policyId: CUSTOM_POLICY.id, row: other } : null;
+    act(() => result.current.setPendingPermissionRemove(next));
+    await act(async () => { pending.release(); await removal; });
+    expect(result.current.pendingPermissionRemove).toEqual(next);
+    expect(result.current.removingPermissionId).toBeNull();
+    expect(port.policyPermissions).toEqual([other]);
+    expect(result.current.rowError).toBeNull();
+  });
+
+  it("an older permission write leaves a newer policy write busy and keeps its current inputs", async () => {
+    const policyB = { ...CUSTOM_POLICY, id: "policy-b", name: "Publishing" };
+    const port = createFakeRolesPort({ policies: [CUSTOM_POLICY, policyB] });
+    const first = gate();
+    const second = gate();
+    const write = port.writePolicyPermission;
+    port.writePolicyPermission = async (input, options) => { await (input.policyId === CUSTOM_POLICY.id ? first : second).promise; return write(input, options); };
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.policies).toEqual([CUSTOM_POLICY, policyB]));
+    act(() => result.current.togglePermissionForm(CUSTOM_POLICY.id));
+    await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
+    act(() => result.current.setPermissionInput("content.write"));
+    let pendingFirst!: Promise<void>;
+    act(() => { pendingFirst = result.current.onWritePermission(CUSTOM_POLICY.id); });
+    act(() => result.current.togglePermissionForm(policyB.id));
+    await waitFor(() => expect(result.current.permissionsLoading).toBe(false));
+    act(() => result.current.setPermissionInput("content.read"));
+    let pendingSecond!: Promise<void>;
+    act(() => { pendingSecond = result.current.onWritePermission(policyB.id); });
+    await act(async () => { first.release(); await pendingFirst; });
+    expect(result.current.rowSavingId).toBe(policyB.id);
+    expect(result.current.permissionInput).toBe("content.read");
+    expect(result.current.permissionRows).toEqual([]);
+    expect(port.policyPermissions.map(row => [row.policyId, row.permission])).toEqual([[CUSTOM_POLICY.id, "content.write"]]);
+    await act(async () => { second.release(); await pendingSecond; });
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.permissionInput).toBe("");
+    expect(result.current.permissionRows.map(row => [row.policyId, row.permission])).toEqual([[policyB.id, "content.read"]]);
   });
 
   it("clicking Remove asks first and leaves the permission in place until confirmed", async () => {

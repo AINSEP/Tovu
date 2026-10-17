@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import type { AssistantConversation } from "../../lib/assistant-chats";
-import { upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
+import { createFakeAssistantChatsPort, upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
 
 /**
  * @file `upsertMessage` — pulled out of `createFakeAssistantChatsPort`'s `saveMessage`
@@ -82,5 +82,35 @@ describe("withDerivedTitle", () => {
   test("leaves the conversation unchanged when derivation produces no usable title", () => {
     const untitled = conversation();
     expect(withDerivedTitle(untitled, message("m1", "   "))).toBe(untitled);
+  });
+});
+
+describe("fake chat persistence", () => {
+  test("creation derives a title from a supplied first message", async () => {
+    const port = createFakeAssistantChatsPort();
+    const created = await port.createConversation('Write a page called "Getting Started"');
+    expect(created.title).toBe("Page: Getting Started");
+    expect((await port.listConversations()).find(row => row.id === created.id)).toEqual(created);
+  });
+
+  test("a nonempty first message with no meaningful title stays untitled", async () => {
+    const port = createFakeAssistantChatsPort();
+    expect((await port.createConversation("   ")).title).toBeNull();
+  });
+
+  test("renaming a missing conversation does not change existing conversations", async () => {
+    const existing = conversation();
+    const port = createFakeAssistantChatsPort({ conversations: [existing] });
+    await port.renameConversation("missing", "New title");
+    expect(await port.listConversations()).toEqual([existing]);
+  });
+
+  test("deleting an orphan transcript removes its messages without removing another conversation", async () => {
+    const existing = conversation();
+    const port = createFakeAssistantChatsPort({ conversations: [existing], messages: { orphan: [message("m1", "orphan")] } });
+    expect(await port.loadMessages("orphan")).toEqual([message("m1", "orphan")]);
+    await port.deleteConversation("orphan");
+    expect(await port.loadMessages("orphan")).toEqual([]);
+    expect(await port.listConversations()).toEqual([existing]);
   });
 });

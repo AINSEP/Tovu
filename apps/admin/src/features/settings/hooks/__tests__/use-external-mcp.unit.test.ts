@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@/lib/api";
-import { useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
+import { describeStoredCredentials, toAccessTokenWriteBody, useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
 
 /**
  * @file Coverage for `useExternalMcp` (0/9 funcs) — the real `/mcp-servers` transport behind
@@ -37,6 +37,8 @@ beforeEach(() => {
   probeExternalMcpServer.mockReset();
   useAdminLocale.mockReturnValue("en");
 });
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalMcpServer {
   return {
@@ -82,6 +84,134 @@ const BLANK_OAUTH_FIELDS = {
   oauthTokenEndpoint: "",
   oauthDeviceAuthorizationEndpoint: "",
 };
+
+describe("stored credential summaries", () => {
+  it("uses the default locale and reports no summary when nothing is stored", () => {
+    expect(describeStoredCredentials({ server: server() })).toBeUndefined();
+  });
+
+  it("uses server-derived hints instead of the legacy variable-name fallback", () => {
+    expect(describeStoredCredentials({ server: server({
+      envNames: ["API_KEY"], envTokenHints: { API_KEY: { length: 16, last4: "abcd" } },
+      hasAccessToken: true, accessTokenHint: { length: 20, last4: "wxyz" },
+    }) }, { locale: "en" })).toBe("API_KEY: …abcd, 16 chars · Access token set (…wxyz, 20 chars)");
+  });
+
+  it("omits an absent static token and variable name from a write", () => {
+    expect(toAccessTokenWriteBody({ authMode: "static_env" })).toEqual({});
+  });
+});
+
+describe("useExternalMcp — saved-server verification", () => {
+  it("keeps a successful remote save when its post-save probe fails", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "remote", transport: "streamable_http", url: "https://mcp.example.com", hasAccessToken: true }) });
+    probeExternalMcpServer.mockRejectedValue(new Error("The server rejected this token."));
+    const { result } = renderHook(() => useExternalMcp());
+    let outcome: unknown;
+    await act(async () => {
+      outcome = await result.current.dependencies.port.addSource({ fields: {
+        id: "remote", transport: "streamable_http", url: "https://mcp.example.com", authMode: "static_env", accessToken: "test-token",
+      } });
+    });
+    expect(outcome).toMatchObject({ ok: true, source: { statusMessage: "Access token set · The server rejected this token." } });
+    expect(probeExternalMcpServer).toHaveBeenCalledExactlyOnceWith("remote");
+    expect(result.current.restartRequired).toBe(true);
+    // The verified row is also the merge base for later edits, including failed ones.
+    saveExternalMcpServer.mockRejectedValue(new Error("write failed"));
+    await expect(result.current.dependencies.port.updateSource!("remote", { enabled: false })).resolves.toMatchObject({
+      id: "remote", statusMessage: "write failed", enabled: true,
+    });
+  });
+
+  it("translates an opaque post-save probe failure without reporting a failed save", async () => {
+    useAdminLocale.mockReturnValue("es");
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "remote", transport: "streamable_http", url: "https://mcp.example.com", authMode: "none" }) });
+    probeExternalMcpServer.mockRejectedValue({});
+    const { result } = renderHook(() => useExternalMcp());
+    await act(async () => {
+      await expect(result.current.dependencies.port.addSource({ fields: { id: "remote", transport: "streamable_http", url: "https://mcp.example.com", authMode: "none" } })).resolves.toMatchObject({
+        ok: true, source: { statusMessage: "No se pudo contactar con el servidor." },
+      });
+    });
+    expect(result.current.restartRequired).toBe(true);
+  });
+
+  it("reports a connected remote server after a successful post-save probe", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "remote", transport: "streamable_http", url: "https://mcp.example.com", authMode: "none" }) });
+    probeExternalMcpServer.mockResolvedValue({ tools: [], probedAt: "2026-10-16T00:00:00Z" });
+    const { result } = renderHook(() => useExternalMcp());
+    await act(async () => {
+      await expect(result.current.dependencies.port.addSource({ fields: { id: "remote", transport: "streamable_http", url: "https://mcp.example.com", authMode: "none" } })).resolves.toMatchObject({
+        ok: true, source: { statusMessage: "Connected." },
+      });
+    });
+    expect(probeExternalMcpServer).toHaveBeenCalledExactlyOnceWith("remote");
+  });
+
+  it("leaves a disabled remote server saved but untested after replacing its token", async () => {
+    listExternalMcpServers.mockResolvedValue({ servers: [server({ transport: "streamable_http", enabled: false })] });
+    saveExternalMcpServer.mockResolvedValue({ server: server({ transport: "streamable_http", enabled: false, hasAccessToken: true }) });
+    const { result } = renderHook(() => useExternalMcp());
+    await result.current.dependencies.port.fetchSources();
+    await act(async () => {
+      await expect(result.current.dependencies.port.updateSource!("local-fs", { fields: { accessToken: "new-token" } })).resolves.toMatchObject({
+        enabled: false, statusMessage: "Access token set · Saved, not tested.",
+      });
+    });
+    expect(saveExternalMcpServer.mock.calls[0]![1]).toMatchObject({ enabled: false, accessToken: "new-token" });
+    expect(probeExternalMcpServer).not.toHaveBeenCalled();
+  });
+
+  it("returns null when an update fails before any row has been fetched", async () => {
+    saveExternalMcpServer.mockRejectedValue(new Error("not found"));
+    const { result } = renderHook(() => useExternalMcp());
+    await expect(result.current.dependencies.port.updateSource!("unknown", { enabled: false })).resolves.toBeNull();
+    expect(result.current.restartRequired).toBe(false);
+  });
+
+  it("writes defaults for an uncached row without probing an unchanged token", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "uncached", command: "", args: [], allowedToolNames: [] }) });
+    const { result } = renderHook(() => useExternalMcp());
+    await act(async () => {
+      await expect(result.current.dependencies.port.updateSource!("uncached", { enabled: true })).resolves.toMatchObject({ id: "uncached", enabled: true });
+    });
+    expect(saveExternalMcpServer).toHaveBeenCalledExactlyOnceWith("uncached", {
+      transport: "stdio", enabled: true, command: "", url: "", args: "", allowedToolNames: "", writeAllowedToolNames: "", authMode: "static_env",
+    });
+    expect(probeExternalMcpServer).not.toHaveBeenCalled();
+    expect(result.current.restartRequired).toBe(true);
+  });
+
+  it("defaults to the real API and locale hook when called without dependencies", async () => {
+    const base = "/api/admin/v1/workspaces/workspace-local";
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      expect(init?.method ?? "GET").toBe("GET");
+      requests.push(url);
+      if (url === `${base}/settings/effective?namespace=core.language`) return Response.json({ data: [{ key: "locale", value: "es", sourceLayer: "user", defVersion: 1 }] });
+      if (url === `${base}/mcp-servers`) return Response.json({ servers: [server({ hasAccessToken: true })] });
+      throw new Error(`Unexpected default MCP request: ${url}`);
+    });
+    const { result } = renderHook(() => useExternalMcpHook());
+    const initialDependencies = result.current.dependencies;
+    // The locale read changes the bound translator and its memoized port together.
+    await waitFor(() => expect(result.current.dependencies).not.toBe(initialDependencies));
+    const [item] = await result.current.dependencies.port.fetchSources();
+    expect(item!.statusMessage).toBe("Token de acceso guardado");
+    expect(requests).toEqual([`${base}/settings/effective?namespace=core.language`, `${base}/mcp-servers`]);
+  });
+
+  it("maps built-in flags and populated OAuth identity without disclosing secrets", async () => {
+    listExternalMcpServers.mockResolvedValue({ servers: [server({ builtIn: true, url: "https://mcp.example.com", oauth: {
+      providerId: "example", grant: "authorization_code", clientId: "client", scopes: ["read", "write"],
+      status: "connected", expiresAt: null, tokenEnvName: "OAUTH_TOKEN", hasStoredToken: true,
+    } })] });
+    const { result } = renderHook(() => useExternalMcp());
+    const [item] = await result.current.dependencies.port.fetchSources();
+    expect(item!.fields).toMatchObject({ builtIn: "true", url: "https://mcp.example.com", oauthProviderId: "example",
+      oauthGrant: "authorization_code", oauthClientId: "client", oauthScopes: "read write", oauthTokenEnvName: "OAUTH_TOKEN", oauthClientSecret: "", accessToken: "" });
+  });
+});
 
 describe("useExternalMcp — fetchSources / toItem", () => {
   it("maps each server to a SourceConfigItem, joining args/allowedToolNames, always blanking env", async () => {
