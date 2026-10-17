@@ -1,12 +1,17 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import Ajv from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import type { DiscoveredTheme } from "../../theme/index.js";
+import { discoverAllBuiltInThemes, requestThemePreviewRefresh, type DiscoveredTheme } from "../../theme/index.js";
 import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
+import { PageConcurrentEditError, PageNotFoundError, type PagesHtmlDocumentStorePort } from "../html-document-store.sqlite.js";
 
 /**
  * @file The Pages agent tools — the surface the assistant actually authors pages through.
@@ -21,7 +26,10 @@ import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registratio
 const clock = { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z") };
 const WS = "ws-1";
 
-function harness(themeDeps: Pick<PagesToolDeps, "themes" | "resolveActiveThemeId"> = {}) {
+function harness(
+  themeDeps: Pick<PagesToolDeps, "themes" | "themesDir" | "resolveActiveThemeId"> = {},
+  storeFactory?: PagesToolDeps["pagesHtmlStore"],
+) {
   const repo = new InMemoryPostRepo([]);
   const registrations = buildPagesRegistrations({
     ...themeDeps,
@@ -30,7 +38,7 @@ function harness(themeDeps: Pick<PagesToolDeps, "themes" | "resolveActiveThemeId
     // assertions below are about the tools' behavior rather than about authz plumbing.
     authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
+    pagesHtmlStore: storeFactory ?? ((scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock })),
   });
   // Keyed by `descriptor.id` — the registry's own key (`ToolRegistry.register` throws on a
   // duplicate id), which is what the catalog's `name` becomes once wired.
@@ -368,3 +376,129 @@ test("a site with no installed theme returns no token vocabulary", async () => {
   await seedPage(repo, "no-theme-installed", "Landing");
   assert.equal((await call("pages_read_html", { id: "no-theme-installed" }) as { theme: unknown }).theme, null);
 });
+
+test("a page store that reads without capturing a version fails closed", async () => {
+  const { call } = harness({}, () => ({
+    read: async () => '<section data-agent-element="hero">Hello</section>',
+    capturedVersion: () => null,
+    ensureHtmlFormat: async () => { assert.fail("a read must not convert the page"); },
+    write: async () => { assert.fail("a missing version must never allow a write"); },
+  }));
+  await assert.rejects(call("pages_read_html", { id: "broken-store" }), {
+    message: "pages tool: the store captured no version after a successful read — the write guard has nothing to condition on",
+  });
+});
+
+test("a theme roster without an active-theme resolver supplies no invented vocabulary", async () => {
+  const { repo, call } = harness({ themes: [] });
+  await seedPage(repo, "unresolved", "Landing");
+  assert.equal((await call("pages_read_html", { id: "unresolved" }) as { theme: unknown }).theme, null);
+});
+
+test("a doc page without a content array is reported as empty", async () => {
+  const { repo, call } = harness();
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "empty-doc", title: "Landing", kind: "page", bodyJson: { type: "doc" } } });
+  const result = await call("pages_read_html", { id: "empty-doc" }) as { html: string; hasDocContent: boolean; note?: string };
+  assert.equal(result.html, "");
+  assert.equal(result.hasDocContent, false);
+  assert.equal(result.note, undefined);
+});
+
+test("reading a post through the page tool does not advertise an empty page to author", async () => {
+  const { repo, call } = harness();
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Post", kind: "post" } });
+  await assert.rejects(call("pages_read_html", { id: "post-1" }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
+});
+
+test("a page trashed between the HTML read and fallback lookup is not reported as authorable", async () => {
+  const h = harness({}, scope => {
+    const store = new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock });
+    const read = store.read.bind(store);
+    store.read = async () => {
+      try {
+        return await read();
+      } catch (error) {
+        if (!(error instanceof PageNotFoundError)) throw error;
+        const row = await h.repo.findById({ workspaceId: WS, id: scope.postId });
+        assert.ok(row);
+        await h.repo.softDelete({ workspaceId: WS, id: row.id, deletedAt: "2026-08-05T00:00:00.000Z", updatedAt: "2026-08-05T00:00:00.000Z", version: row.version });
+        throw error;
+      }
+    };
+    return store;
+  });
+  await seedPage(h.repo, "trashed-during-read", "Landing");
+  await assert.rejects(h.call("pages_read_html", { id: "trashed-during-read" }), { name: "ToolInputError", message: /^PAGES_NOT_FOUND: / });
+  const saved = await h.repo.findById({ workspaceId: WS, id: "trashed-during-read" });
+  assert.equal(saved?.deletedAt, "2026-08-05T00:00:00.000Z");
+  assert.equal(saved?.bodyFormat, "doc");
+});
+
+test("page reads refresh theme vocabulary after an external theme edit", async (t) => {
+  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-page-theme-"));
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const themeDir = path.join(themesDir, "static", "ink");
+  fs.mkdirSync(path.join(themeDir, "templates"), { recursive: true });
+  fs.writeFileSync(path.join(themeDir, "theme.json"), JSON.stringify({ id: "ink", name: "Ink", version: "1.0.0", tier: "declarative", engine: 1 }));
+  fs.writeFileSync(path.join(themeDir, "tokens.json"), JSON.stringify({ "--ink": "#111" }));
+  fs.writeFileSync(path.join(themeDir, "styles.css"), "body{margin:0}");
+  fs.writeFileSync(path.join(themeDir, "templates", "home.json"), '{"type":"doc","content":[]}');
+  fs.writeFileSync(path.join(themeDir, "templates", "entry.json"), '{"type":"doc","content":[]}');
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
+  const { repo, call } = harness({ themes, themesDir, resolveActiveThemeId: async () => "ink" });
+  await seedPage(repo, "disk-themed", "Landing");
+  const readTheme = async () => (await call("pages_read_html", { id: "disk-themed" }) as { theme: { id: string; tokens: Record<string, string> } }).theme;
+  assert.equal((await readTheme()).tokens["--ink"], "#111");
+  fs.writeFileSync(path.join(themeDir, "tokens.json"), JSON.stringify({ "--ink": "#abc" }));
+  requestThemePreviewRefresh({ themesDir }, { revision: "page-theme-updated" });
+  const refreshed = await readTheme();
+  assert.equal(refreshed.id, "ink");
+  assert.equal(refreshed.tokens["--ink"], "#abc");
+});
+
+const FAULT_PAGE = '<section data-agent-element="a">A</section><section data-agent-element="b">B</section>';
+const WRITES = [
+  ["pages_write_html", { id: "page-1", html: '<section data-agent-element="a">Updated</section>' }],
+  ["pages_write_region", { id: "page-1", handle: "a", html: "Updated" }],
+  ["pages_move_region", { id: "page-1", handle: "b", before: "a" }],
+] as const;
+
+for (const [tool, input] of [["pages_read_html", { id: "page-1" }], ...WRITES] as const) {
+  test(`${tool} propagates a store read failure without writing`, async () => {
+    const failure = new Error("page storage unavailable");
+    const store: PagesHtmlDocumentStorePort = {
+      read: async () => { throw failure; },
+      capturedVersion: () => null,
+      write: async () => { assert.fail("a failed read must never write"); },
+      ensureHtmlFormat: async () => { assert.fail("a storage failure must never convert the page"); },
+    };
+    const { call } = harness({}, () => store);
+    await assert.rejects(call(tool, input), error => error === failure);
+  });
+}
+
+for (const [tool, input] of WRITES) {
+  for (const concurrent of [false, true]) {
+    test(`${tool} ${concurrent ? "explains a compare-and-set conflict" : "propagates a storage write failure"} without altering the body`, async () => {
+      const failure = concurrent ? new PageConcurrentEditError("page changed during the write") : new Error("page storage unavailable");
+      const pending: string[] = [];
+      const store: PagesHtmlDocumentStorePort = {
+        read: async () => FAULT_PAGE,
+        capturedVersion: () => 1,
+        ensureHtmlFormat: async () => { assert.fail("the page already has HTML"); },
+        write: async html => { pending.push(html); throw failure; },
+      };
+      const { call } = harness({}, () => store);
+      await assert.rejects(call(tool, input), error => {
+        if (!concurrent) return error === failure;
+        assert.ok(error instanceof Error);
+        assert.equal(error.name, "ToolInputError");
+        assert.equal(error.message, "VERSION_CONFLICT: page changed during the write. Nothing was written. Re-read the page with pages_read_html, reapply your change to the body you get back, and resend.");
+        return true;
+      });
+      assert.equal(pending.length, 1, "the failure must occur at the write boundary");
+      assert.notEqual(pending[0], FAULT_PAGE);
+      assert.equal(await store.read(), FAULT_PAGE);
+    });
+  }
+}

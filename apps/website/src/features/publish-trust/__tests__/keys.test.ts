@@ -191,3 +191,21 @@ test("a derived key exposes no way to serialize its private half", async () => {
   // and the generation. `sign` is a closure, so JSON.stringify drops it entirely.
   assert.deepEqual(Object.keys(JSON.parse(JSON.stringify(key))).sort(), ["generation", "publicKeyB64u"]);
 });
+
+test("a crypto provider failure refuses a well-formed publishing signature without throwing", async () => {
+  const key = await derivePublishSigningKey(keyInput());
+  const message = "challenge:provider-failure";
+  const input = { publicKeyB64u: key.publicKeyB64u, message, signatureB64u: key.sign(message) };
+  assert.equal(verifyPublishSignature(input), true, "the failure is in crypto, not malformed material");
+  const attempts: unknown[] = [];
+  const accepted = verifyPublishSignature(input, { verifyDecoded: (decoded) => {
+    attempts.push(decoded);
+    throw new Error("crypto provider unavailable");
+  } });
+  assert.deepEqual(attempts, [{
+    rawPublicKey: Buffer.from(input.publicKeyB64u, "base64url"),
+    signature: Buffer.from(input.signatureB64u, "base64url"),
+    message,
+  }]);
+  assert.equal(accepted, false);
+});

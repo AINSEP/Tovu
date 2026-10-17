@@ -7,7 +7,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { createHookRegistry } from "../hooks.js";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
-import { buildNewsletterDeliveryRegistrations, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
+import { buildNewsletterDeliveryRegistrations, contributeNewsletterDeliveryTools, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../send-pipeline.js";
 import type { SendBatchJob } from "../ports.js";
@@ -45,10 +45,10 @@ async function fixture(driver = "smtp", status = "draft") {
     const { emitSurface, ...context } = extra;
     return tool.handler({ executionId: "exec", principal: { id: "operator" }, run: { id: "run" }, input, signal: new AbortController().signal, ...context }, { emitSurface });
   };
-  const raise = async (toolId: string, input: unknown = { campaignId: "campaign" }) => {
+  const raise = async (toolId: string, input: unknown = { campaignId: "campaign" }, extra: Partial<ToolExecutionContext> = {}) => {
     let emitted!: (value: unknown) => void;
     const emission = new Promise<unknown>((resolve) => { emitted = resolve; });
-    const pending = call(toolId, input, { emitSurface: async (value) => { emitted(value); } });
+    const pending = call(toolId, input, { ...extra, emitSurface: async (value) => { emitted(value); } });
     const surface = await emission as { payload: { resource: { resource: { text: string } } } };
     const html = surface.payload.resource.resource.text;
     const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1];
@@ -83,6 +83,91 @@ test("test send refuses caller-supplied addresses and a missing owner email", as
   await assert.rejects(h.call("newsletter_send_test", { campaignId: "campaign", testAddresses: ["reader@example.com"] }), { message: "NEWSLETTER_OWNER_ONLY: Test sends only use the site owner's stored email. Remove recipient fields and retry." });
   h.deps.userRepo.findByPrincipalId = async () => null;
   await assert.rejects(h.call("newsletter_send_test"), { message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test." });
+  assert.deepEqual(h.messages, []);
+});
+
+for (const email of [undefined, "   "]) {
+  test(`test send refuses an owner whose stored email is ${email === undefined ? "unset" : "blank"}`, async () => {
+    const h = await fixture();
+    h.deps.userRepo.findByPrincipalId = async () => ({ workspaceId: "ws", principalId: "owner", username: "owner", passwordHash: "hash", email });
+    await assert.rejects(h.call("newsletter_send_test"), {
+      message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test.",
+    });
+    assert.deepEqual(h.messages, []);
+  });
+}
+
+test("the delivery contributor builds working owner-test tools with its default surface store", async () => {
+  const h = await fixture();
+  const contributor = contributeNewsletterDeliveryTools();
+  assert.equal(contributor.domain, "newsletter-delivery");
+  assert.equal(contributor.risk, newsletterDeliveryDerivedRisk);
+  const tool = buildNewsletterDeliveryRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_send_test")!;
+  assert.equal(contributor.build, buildNewsletterDeliveryRegistrations);
+  assert.deepEqual(await tool.handler({ executionId: "exec", principal: { id: "operator" }, run: { id: "run" }, input: { campaignId: "campaign" }, signal: new AbortController().signal }), {
+    delivered: true, mailDeliveryAvailable: true,
+  });
+  assert.deepEqual(h.messages, [{ workspaceId: "ws", to: { email: "owner@example.com" }, from: { email: "sender@example.com", name: "Editor" }, replyTo: { email: "reply@example.com" }, subject: "[TEST] October news", text: "Preview" }]);
+});
+
+test("abandoning during post-confirmation authorization prevents a campaign transition", async () => {
+  const h = await fixture();
+  const abort = new AbortController();
+  const raised = await h.raise("newsletter_send_campaign", undefined, { signal: abort.signal });
+  h.deps.authorize = async () => { abort.abort(); return { allowed: true, reason: "matched" }; };
+  raised.answer({ decision: "confirm" });
+  assert.deepEqual(await raised.pending, { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true });
+  assert.equal((await h.deps.newsletterCampaignRepo.findById({ workspaceId: "ws", id: "campaign" }))?.status, "draft");
+  assert.deepEqual(h.messages, []);
+});
+
+test("abandoning while the transaction reads the campaign prevents scheduling", async () => {
+  const h = await fixture();
+  const abort = new AbortController();
+  const raised = await h.raise("newsletter_schedule_campaign", { campaignId: "campaign", scheduledAt: "2026-10-02T12:00:00.000Z" }, { signal: abort.signal });
+  const findById = h.deps.newsletterCampaignRepo.findById.bind(h.deps.newsletterCampaignRepo);
+  h.deps.newsletterCampaignRepo.findById = async (input) => {
+    const campaign = await findById(input);
+    abort.abort();
+    return campaign;
+  };
+  raised.answer({ decision: "confirm" });
+  assert.deepEqual(await raised.pending, { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true });
+  const campaign = await findById({ workspaceId: "ws", id: "campaign" });
+  assert.equal(campaign?.status, "draft");
+  assert.equal(campaign?.scheduledAt, null);
+  assert.deepEqual(await h.deps.newsletterCampaignRepo.listRevisions({ workspaceId: "ws", campaignId: "campaign" }), []);
+  assert.deepEqual(h.messages, []);
+});
+
+test("abandoning while resume readiness is checked leaves the issue paused", async () => {
+  const h = await fixture("smtp", "paused");
+  const abort = new AbortController();
+  h.deps.newsletterSendingEnabled = async () => true;
+  h.deps.membersConsentCapability = { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "consent" }), revoke: async () => ({ status: "revoked" }) };
+  h.deps.originRegistry.canonicalOrigin = async () => {
+    abort.abort();
+    return { scheme: "https", host: "example.com", verifiedAt: NOW, source: "workspace-setting" };
+  };
+  const raised = await h.raise("newsletter_resume_campaign", undefined, { signal: abort.signal });
+  raised.answer({ decision: "confirm" });
+  assert.deepEqual(await raised.pending, { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true });
+  assert.equal((await h.deps.newsletterCampaignRepo.findById({ workspaceId: "ws", id: "campaign" }))?.status, "paused");
+  assert.deepEqual(await h.deps.newsletterCampaignRepo.listRevisions({ workspaceId: "ws", campaignId: "campaign" }), []);
+  assert.deepEqual(h.messages, []);
+});
+
+test("an audience failure after launch reports the committed start without exposing directory errors", async () => {
+  const h = await fixture("smtp", "scheduled");
+  h.deps.newsletterSendingEnabled = async () => true;
+  h.deps.membersConsentCapability = { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "consent" }), revoke: async () => ({ status: "revoked" }) };
+  h.deps.newsletterSubscriberDirectory.getContacts = async () => { throw new Error("private@example.com directory endpoint failed"); };
+  const raised = await h.raise("newsletter_send_campaign");
+  raised.answer({ decision: "confirm" });
+  assert.deepEqual(await raised.pending, { confirmed: true, started: true, campaignId: "campaign", status: "sending", delivered: false, mailDeliveryAvailable: true,
+    note: "The issue started, but audience processing needs attention. Inspect the send log before retrying; delivery is not confirmed.",
+  });
+  assert.equal((await h.deps.newsletterCampaignRepo.findById({ workspaceId: "ws", id: "campaign" }))?.status, "sending");
   assert.deepEqual(h.messages, []);
 });
 

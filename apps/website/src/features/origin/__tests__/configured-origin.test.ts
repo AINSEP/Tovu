@@ -268,3 +268,37 @@ test("planOriginBoot defaults to the production runtime signal and writes no loc
     else process.env.TOVU_RUNTIME_MODE = previous;
   }
 });
+
+test("resolveConfiguredOrigin defaults to console warnings and the process environment", (t) => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = previous;
+  });
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
+  process.env.TOVU_PUBLIC_URL = "not a url";
+  assert.equal(resolveConfiguredOrigin({ now: NOW }), undefined);
+  assert.deepEqual(warnings, [refusalMessage("it is not a parseable URL", "not a url")]);
+});
+
+test("planOriginBoot defaults to process configuration, boot timestamp and console warnings", (t) => {
+  const previous = { url: process.env.TOVU_PUBLIC_URL, mode: process.env.TOVU_RUNTIME_MODE };
+  t.after(() => {
+    for (const [key, value] of [["TOVU_PUBLIC_URL", previous.url], ["TOVU_RUNTIME_MODE", previous.mode]] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
+  process.env.TOVU_RUNTIME_MODE = "production";
+  process.env.TOVU_PUBLIC_URL = "https://configured.example";
+  assert.deepEqual(planOriginBoot({ now: NOW }), { kind: "configured", origin: {
+    scheme: "https", host: "configured.example", verifiedAt: NOW, source: "workspace-setting",
+  } });
+  assert.deepEqual(warnings, []);
+  delete process.env.TOVU_PUBLIC_URL;
+  assert.deepEqual(planOriginBoot({ now: NOW }, {}), { kind: "none" });
+  assert.deepEqual(warnings, [NO_CONFIG_IN_PRODUCTION_WARNING]);
+});

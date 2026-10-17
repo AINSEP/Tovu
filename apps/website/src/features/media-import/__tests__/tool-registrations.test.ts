@@ -24,7 +24,7 @@ import { batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from ".
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { contributeMediaImportTools } from "../tool-registrations.js";
+import { contributeMediaImportTools, withCallerSafeEgressRefusal } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -383,6 +383,42 @@ test("a transport-level SSRF refusal propagates and nothing is written", async (
 
   assert.equal(blobStore.writes.length, 0);
   assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("an injected refusal logger receives private diagnostics while the caller receives only the safe reason", async () => {
+  const safe = "the requested host is not allowed";
+  const full = "metadata.example resolved to 169.254.169.254";
+  const refusal = new EgressRefusedError({ message: full }, { callerSafeMessage: safe });
+  const f = fakeRouteDeps({ responses: [refusal] });
+  const logs: string[] = [];
+  const deps = { ...f.deps, mediaImportEgressRefusalLog: (line: string) => logs.push(line) };
+  await assert.rejects(wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL })), (error: unknown) => {
+    assert.ok(error instanceof ToolInputError);
+    assert.ok(error.message.startsWith(safe));
+    assert.doesNotMatch(error.message, /169\.254\.169\.254/);
+    return true;
+  });
+  assert.deepEqual(logs, [`[media-import] media_import_from_url egress refused: ${full}`]);
+  assert.deepEqual(await f.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual(f.blobStore.writes, []);
+});
+
+test("transport failures retain their error identity instead of becoming caller validation errors", async () => {
+  const failure = new Error("connection failed");
+  const f = fakeRouteDeps({ responses: [failure] });
+  await assert.rejects(wired("media_import_from_url", f.deps).handler(executionContext({ url: SOURCE_URL })), error => error === failure);
+  assert.deepEqual(await f.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual(f.blobStore.writes, []);
+});
+
+test("shared egress narrowing identifies the consuming tool in diagnostics", async () => {
+  const logs: string[] = [];
+  await assert.rejects(withCallerSafeEgressRefusal(line => logs.push(line), async () => {
+    throw new EgressRefusedError({ message: "private address blocked" }, { callerSafeMessage: "host refused" });
+  }, { toolId: "theme_import_file_from_url" }), {
+    message: "host refused", callerSafeMessage: "host refused",
+  });
+  assert.deepEqual(logs, ["[media-import] theme_import_file_from_url egress refused: private address blocked"]);
 });
 
 test("a missing 'url' is rejected before the network", async () => {

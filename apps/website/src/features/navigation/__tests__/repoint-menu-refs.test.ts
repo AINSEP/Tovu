@@ -288,3 +288,44 @@ test("menuHoldersReferencing() called with no ids returns nothing", () => {
 
   assert.deepEqual(holders, []);
 });
+
+test("repointMenuItems() preserves empty children and shares an unchanged nested subtree", () => {
+  const leaf = entryRefItem({ id: "unrelated", entryId: "keep", children: [] });
+  const branch = urlItem({ children: [leaf] });
+  const items = [branch];
+  const result = repointMenuItems(items, replacementMap({ old: { newId: "new", entityType: "page" } }));
+  assert.equal(result.count, 0);
+  assert.equal(result.items, items);
+  assert.equal(result.items[0], branch);
+  assert.equal(result.items[0].children, branch.children);
+  assert.equal(result.items[0].children![0], leaf);
+});
+
+test("repointMenuItems() changing only a parent shares its unchanged children", () => {
+  const children = [urlItem()];
+  const original = entryRefItem({ entryId: "old", children });
+  const result = repointMenuItems([original], replacementMap({ old: { newId: "new", entityType: "page" } }));
+  assert.equal(result.count, 1);
+  assert.deepEqual(result.items[0].target, { kind: "entryRef", entryId: "new" });
+  assert.equal(result.items[0].children, children);
+  assert.deepEqual(original.target, { kind: "entryRef", entryId: "old" });
+});
+
+test("menuHoldersReferencing() ignores unmatched entry refs and empty children alongside a nested match", () => {
+  const menu = makeMenu({ id: "mixed", doc: { type: "menu", version: 1, items: [
+    entryRefItem({ entryId: "other", children: [] }),
+    urlItem({ children: [entryRefItem({ entryId: "wanted", children: [] })] }),
+  ] } });
+  assert.deepEqual(menuHoldersReferencing([menu], ["wanted"]), [
+    { entityType: "menu", entityId: "mixed", entityLabel: "Header", referencedId: "wanted" },
+  ]);
+});
+
+test("empty menu collections and empty item arrays preserve the no-change contract", () => {
+  const items: readonly NavItemNode[] = [];
+  const result = repointMenuItems(items, replacementMap({ old: { newId: "new", entityType: "page" } }));
+  assert.equal(result.count, 0);
+  assert.equal(result.items, items);
+  assert.deepEqual(menuHoldersReferencing([], ["old"]), []);
+  assert.deepEqual(menuHoldersReferencing([makeMenu({ id: "empty" })], ["old"]), []);
+});

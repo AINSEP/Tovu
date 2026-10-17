@@ -63,3 +63,9 @@ test("moving a region next to one of its own descendants is refused — it would
   const html = `<section data-agent-element="outer"><div data-agent-element="inner"><p>i</p></div></section>`;
   assert.deepEqual(moveRegion(html, region(html, "outer"), region(html, "inner"), "before"), { problem: "into-itself" });
 });
+
+test("regions at the document edges can move without inventing whitespace", () => {
+  const html = A + B;
+  assert.deepEqual(moveRegion(html, region(html, "a"), region(html, "b"), "after"), { html: B + A });
+  assert.deepEqual(moveRegion(html, region(html, "b"), region(html, "a"), "before"), { html: B + A });
+});

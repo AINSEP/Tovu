@@ -242,3 +242,30 @@ test("untaggedTopLevelSections flags a bare heading at the top level — the con
     { tag: "p", suggestedHandle: undefined },
   ]);
 });
+
+test("literal less-than text and malformed close tags do not hide a later editable region", () => {
+  const html = `2 < 3 </ broken><section data-agent-element="real">body</section>`;
+  const found = locateRegion(html, "real");
+  assert.ok("region" in found);
+  assert.equal(replaceRegionInner(html, found.region, "edited"), `2 < 3 </ broken><section data-agent-element="real">edited</section>`);
+});
+
+test("an unterminated open tag creates no phantom region", () => {
+  const html = `<section data-agent-element="real">body</section><div data-agent-element="unfinished" title="never closed`;
+  assert.deepEqual(regionHandlesIn(html), ["real"]);
+  assert.deepEqual(locateRegion(html, "unfinished"), { problem: { kind: "absent", available: ["real"] } });
+});
+
+test("an unterminated declaration after a region leaves its replacement offsets intact", () => {
+  const html = `<section data-agent-element="real">body</section><!unfinished`;
+  const found = locateRegion(html, "real");
+  assert.ok("region" in found);
+  assert.equal(replaceRegionInner(html, found.region, "edited"), `<section data-agent-element="real">edited</section><!unfinished`);
+});
+
+test("empty void and unclosed top-level sections are still reported for missing handles", () => {
+  assert.deepEqual(untaggedTopLevelSections(`<br><section>`), [
+    { tag: "br", suggestedHandle: undefined },
+    { tag: "section", suggestedHandle: undefined },
+  ]);
+});

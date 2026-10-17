@@ -6,6 +6,32 @@ import { InMemorySettingsRepo, getEffective, set } from '@jini-ai/core/settings'
 import { injectPublishedWebMcp } from '../published-html.js';
 import { ensureSettingsUiTabDefinitions, isPublishedWebMcpEnabled, PUBLISHED_WEBMCP_KEY, PUBLISHED_WEBMCP_NAMESPACE } from '../settings.js';
 
+test('opt-out removes tools inside nested templates while preserving ordinary attributes and scripts', () => {
+  const html = '<template id="outer"><template><form toolname="contact" class="keep"><input toolparamdescription="Address" name="email"></form></template><script type="application/json">{"toolname":"keep"}</script></template>';
+  assert.equal(injectPublishedWebMcp({ html, enabled: false }, {}),
+    '<template id="outer"><template><form  class="keep"><input  name="email"></form></template><script type="application/json">{"toolname":"keep"}</script></template>');
+});
+
+test('opt-out removes a marked script even when the marker follows other attributes', () => {
+  const html = '<body><script src="keep.js"></script><script type="text/javascript" data-tovu-webmcp-script>remove()</script><p title="keep">Text</p></body>';
+  assert.equal(injectPublishedWebMcp({ html, enabled: false }),
+    '<body><script src="keep.js"></script><p title="keep">Text</p></body>');
+});
+
+test('injection respects an uppercase closing body and preserves the remaining document bytes', () => {
+  const html = '<HTML><BODY>Text</BODY></HTML>';
+  const injected = injectPublishedWebMcp({ html, enabled: true }, {});
+  assert.ok(injected.startsWith('<HTML><BODY>Text<script data-tovu-webmcp-script>'));
+  assert.ok(injected.endsWith('</script></BODY></HTML>'));
+  assert.equal(injectPublishedWebMcp({ html: injected, enabled: false }), html);
+});
+
+test('opt-out preserves ordinary attributes adopted onto implicit or repeated body elements', () => {
+  for (const html of ['Text<body class="keep">', '<body>Text<body class="keep">']) {
+    assert.equal(injectPublishedWebMcp({ html, enabled: false }), html);
+  }
+});
+
 test('published HTML opt-out removes native form discovery without rewriting scripts, comments or form transport', () => {
   const html = '<!doctype html><html><body><!-- toolname="example" --><form action="/forms/contact" method="post" toolname="contact" tooldescription="Contact" toolautosubmit><input name="email" toolparamtitle="Email"></form><script>const example = \'toolname="example"\';</script></body></html>';
   const off = injectPublishedWebMcp({ html, enabled: false });

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { buildImportFilename, MediaImportValidationError, parseImportUrl } from "@jini-ai/cms/media/import";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -610,4 +611,53 @@ test("plain http stays refused before the network for any origin the harness did
 test("a listed origin still gets every byte check: HTML served as an image is refused", async () => {
   const client = new FakeHttpClient([imageResponse(HTML_BODY)]);
   await assert.rejects(fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [FIXTURE_ORIGIN] }, url: `${FIXTURE_ORIGIN}/a.png` }), MediaImportValidationError);
+});
+
+test("an empty harness allowlist never permits plain HTTP", async () => {
+  const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
+  await assert.rejects(fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [] }, url: `${FIXTURE_ORIGIN}/a.png` }), /must use https/);
+  assert.deepEqual(client.calls, []);
+});
+
+test("a harness allowlist leaves malformed URLs subject to the absolute URL refusal", async () => {
+  const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
+  await assert.rejects(fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [FIXTURE_ORIGIN] }, url: "not a URL" }), /must be an absolute URL/);
+  assert.deepEqual(client.calls, []);
+});
+
+test("a harness allowlist leaves HTTPS requests and provenance unchanged", async () => {
+  const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
+  const fetched = await fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [FIXTURE_ORIGIN] }, url: URL_UNDER_TEST });
+  assert.equal(client.calls[0].url, URL_UNDER_TEST);
+  assert.equal(fetched.url.href, URL_UNDER_TEST);
+  assert.deepEqual(fetched.bytes, REAL_PNG);
+});
+
+for (const finalUrl of ["https://cdn.example.com/redirected.png", "https://127.0.0.1:41235/redirected.png"]) {
+  test(`an HTTP fixture import preserves the distinct final origin ${finalUrl}`, async () => {
+    const client = new FakeHttpClient([imageResponse(REAL_PNG, { finalUrl })]);
+    const fetched = await fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [FIXTURE_ORIGIN] }, url: `${FIXTURE_ORIGIN}/a.png` });
+    assert.equal(client.calls[0].url, `${FIXTURE_ORIGIN}/a.png`);
+    assert.equal(fetched.url.href, finalUrl);
+    assert.deepEqual(fetched.bytes, REAL_PNG);
+  });
+}
+
+test("a caller's import policy and Accept header govern the same guarded transport", async () => {
+  const bytes = Buffer.from("font fixture");
+  const client = new FakeHttpClient([imageResponse(bytes)]);
+  const policy = {
+    maxBytes: bytes.length,
+    allowedContentTypes: new Set(["font/woff2"]),
+    sniffer: { sniff: ({ bytes: received }: { bytes: Uint8Array }) => {
+      assert.deepEqual(received, bytes);
+      return "font/woff2";
+    } },
+  };
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }, { policy, accept: "font/woff2" });
+  assert.equal(fetched.contentType, "font/woff2");
+  assert.deepEqual(fetched.bytes, bytes);
+  assert.deepEqual(client.calls[0].headers, { Accept: "font/woff2" });
+  assert.equal(client.calls[0].maxResponseBytes, undefined, "the host transport retains its independent backstop");
+  await assert.rejects(fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }, { policy: { ...policy, maxBytes: bytes.length - 1 } }), /exceeds the 11-byte import limit/);
 });

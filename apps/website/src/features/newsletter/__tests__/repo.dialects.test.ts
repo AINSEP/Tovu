@@ -129,6 +129,20 @@ describeEachDialect(
   { tables: ["newsletter_campaigns", "newsletter_campaign_revisions"], make: repos },
   (makeRepos) => {
     describe("campaign repo", () => {
+      test("incrementCounter initializes an absent stored counter without losing other counters", async () => {
+        const { kernel, campaigns } = makeRepos();
+        await campaigns.saveCampaignRow(campaign("c1"));
+        // The persisted JSON is the boundary: an omitted outcome counter starts at zero.
+        await kernel.run(db => db.updateTable("newsletter_campaigns")
+          .set({ counters_json: JSON.stringify({ recipients: 12, failed: 3 }) })
+          .where("workspace_id", "=", WS).where("id", "=", "c1").execute());
+        await campaigns.incrementCounter({ workspaceId: WS, id: "c1", counter: "delivered", updatedAt: T1 });
+        const stored = await kernel.run(db => db.selectFrom("newsletter_campaigns").select(["counters_json", "updated_at"])
+          .where("workspace_id", "=", WS).where("id", "=", "c1").executeTakeFirstOrThrow());
+        assert.deepEqual(JSON.parse(stored.counters_json), { recipients: 12, failed: 3, delivered: 1 });
+        assert.equal(stored.updated_at, T1);
+      });
+
       test("saveCampaignRow then findById round-trips; misses and other workspaces are null", async () => {
         const { campaigns } = makeRepos();
         const full = campaign("c1", { preheader: "pre", scheduledAt: T1, audienceSnapshotId: "snap-1" });

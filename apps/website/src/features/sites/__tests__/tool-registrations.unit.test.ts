@@ -1,8 +1,12 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
@@ -10,12 +14,12 @@ import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { SiteListEntry } from "#src/platform/site-dir/index";
+import { InitDirNotEmptyError, SiteDirInvalidError, ValidationError, type SiteListEntry } from "#src/platform/site-dir/index";
 
 
 import { sitesAgentToolCatalog } from "../agent-tools.js";
 import type { SitesToolDeps } from "../deps.js";
-import { buildSitesRegistrations, contributeSitesTools, sitesDerivedRisk } from "../tool-registrations.js";
+import { buildSitesReadRegistrations, buildSitesRegistrations, contributeSitesListTools, contributeSitesTools, sitesDerivedRisk } from "../tool-registrations.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -258,4 +262,88 @@ test("sites_duplicate_site: refuses a sourceName that does not name a real site,
       err instanceof Error && err.name === "ToolInputError" && err.message.includes("does not name a real site")
   );
   assert.equal(duplicateSiteCalls.length, 0);
+});
+
+test("sites_duplicate_site: an absent capability reader defaults to disabled before authorization", async () => {
+  const { routeDeps, duplicateSiteCalls } = fakeDeps();
+  delete routeDeps.isSiteSwitcherEnabled;
+  const authorization: unknown[] = [];
+  routeDeps.authorize = async request => { authorization.push(request); return { allowed: true, reason: "matched" }; };
+  await assert.rejects(registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler(
+    ctxFor({ sourceName: "source-site", targetName: "new-client" })),
+    { name: "SiteSwitchingDisabledError", message: "site switching is disabled on this deployment — sites_duplicate_site is unavailable" });
+  assert.deepEqual(authorization, []);
+  assert.deepEqual(duplicateSiteCalls, []);
+});
+
+for (const ErrorClass of [ValidationError, InitDirNotEmptyError, SiteDirInvalidError]) {
+  test(`sites_duplicate_site: ${ErrorClass.name} is returned as a schema-decorated input error`, async () => {
+    const { routeDeps } = fakeDeps();
+    const message = `${ErrorClass.name}: cannot copy this source to this target`;
+    routeDeps.duplicateSite = async () => { throw new ErrorClass(message); };
+    await assert.rejects(registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler(
+      ctxFor({ sourceName: "source-site", targetName: "new-client" })), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, "ToolInputError");
+      assert.ok(error.message.includes(message));
+      assert.ok(error.message.includes("sourceName"));
+      return true;
+    });
+    assert.deepEqual(routeDeps.sitesWorkspace!.registry({}).list({}), []);
+  });
+}
+
+test("sites_duplicate_site: an unexpected copy failure propagates unchanged and never registers a target", async () => {
+  const { routeDeps } = fakeDeps();
+  const fault = new Error("disk disconnected during copy");
+  routeDeps.duplicateSite = async () => { throw fault; };
+  await assert.rejects(registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler(
+    ctxFor({ sourceName: "source-site", targetName: "new-client" })), error => error === fault);
+  assert.deepEqual(routeDeps.sitesWorkspace!.registry({}).list({}), []);
+});
+
+test("sites_duplicate_site: the default workspace stores copies in the isolated home catalog", async t => {
+  const { routeDeps, duplicateSiteCalls } = fakeDeps();
+  delete routeDeps.sitesWorkspace;
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-default-workspace-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const previousHome = process.env.TOVU_SITES_HOME;
+  process.env.TOVU_SITES_HOME = path.join(root, "shared-home");
+  t.after(() => { if (previousHome === undefined) delete process.env.TOVU_SITES_HOME; else process.env.TOVU_SITES_HOME = previousHome; });
+  const workspace = createSitesWorkspace({}, { cwd: "/tmp/fake-cwd" });
+  const targetDir = path.join(workspace.home({}), "default-copy");
+  const result = await registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler(
+    ctxFor({ sourceName: "source-site", targetName: "default-copy" }));
+  assert.deepEqual(result, { name: "default-copy", dir: targetDir, siteId: "new-site-id-1234", sourceName: "source-site" });
+  assert.deepEqual(duplicateSiteCalls, [{ sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir, name: undefined }]);
+  assert.deepEqual(workspace.registry({}).list({}).map(({ id, name, path }) => ({ id, name, path })),
+    [{ id: "new-site-id-1234", name: "default-copy", path: targetDir }]);
+});
+
+test("sites_list: default capability and persisted choice readers use the binding's tree", async t => {
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-read-sites-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const previousFlag = process.env.TOVU_ENABLE_SITE_SWITCHER;
+  delete process.env.TOVU_ENABLE_SITE_SWITCHER;
+  t.after(() => { if (previousFlag === undefined) delete process.env.TOVU_ENABLE_SITE_SWITCHER; else process.env.TOVU_ENABLE_SITE_SWITCHER = previousFlag; });
+  writeFileSync(path.join(root, ".env"), "OTHER=private\nTOVU_SITE=queued\n");
+  const siteBinding = { dir: path.join(root, "sites", "absent"), name: "absent", dirOverridden: false, switcherCompatible: true };
+  const deps = { workspaceId: WORKSPACE_ID, siteBinding, authorize: async () => ({ allowed: true, reason: "matched" }), listSites: () => [] };
+  const result = await registrationFor(buildSitesReadRegistrations(deps), "sites_list").handler(ctxFor({}));
+  assert.deepEqual(result, { switchingEnabled: false, sites: [], currentSite: { ...siteBinding, listed: false }, persistedSiteName: "queued" });
+});
+
+test("sites_list: an install-directory binding has no persisted switcher choice", async t => {
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-installed-site-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const siteBinding = { dir: path.join(root, "absent"), name: "absent", dirOverridden: true, switcherCompatible: false };
+  const deps = { workspaceId: WORKSPACE_ID, siteBinding, authorize: async () => ({ allowed: true, reason: "matched" }),
+    isSiteSwitcherEnabled: () => true, readPersistedActiveSite: () => { assert.fail("install directories have no switcher tree"); } };
+  const contributor = contributeSitesListTools();
+  const registrations = contributor.build(deps as unknown as Parameters<typeof contributor.build>[0], {
+    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
+      idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
+  });
+  const result = await registrationFor(registrations, "sites_list").handler(ctxFor({}));
+  assert.deepEqual(result, { switchingEnabled: true, sites: [], currentSite: { ...siteBinding, listed: false }, persistedSiteName: null });
 });

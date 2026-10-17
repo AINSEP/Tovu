@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,6 +14,7 @@ import { DEFAULT_OWNER_CREDENTIALS, DEFAULT_OWNER_PASSWORD, createInMemoryIdenti
 // this repo's OWN pairs and grants (theme.edit -> pages.edit_html, `features/pages/permissions.ts`),
 // registered by a host rather than by the library — the seam the migration registry exists for.
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { InMemoryApiKeyRepo } from "../repo.memory.js";
 
 const WORKSPACE = "workspace-1";
 const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z", nowMs: () => Date.parse("2026-07-14T00:00:00.000Z") };
@@ -52,6 +54,15 @@ test("resolveOwnerCredentials maps only the env it is given, with the unchanged 
   assert.deepEqual(resolveOwnerCredentials({ env: {} }), { username: "admin", password: DEFAULT_OWNER_PASSWORD });
   assert.deepEqual(resolveOwnerCredentials({ env: { TOVU_ADMIN_USER: "Configured-Owner", TOVU_ADMIN_PASSWORD: "configured-password-fixture" } }), { username: "Configured-Owner", password: "configured-password-fixture" });
   assert.deepEqual(DEFAULT_OWNER_CREDENTIALS, { username: "admin", password: DEFAULT_OWNER_PASSWORD });
+});
+
+test("resolveOwnerCredentials preserves explicitly empty credentials instead of replacing them with shared defaults", () => {
+  assert.deepEqual(resolveOwnerCredentials({ env: { TOVU_ADMIN_USER: "", TOVU_ADMIN_PASSWORD: "" } }, {}), {
+    username: "", password: "",
+  });
+  assert.deepEqual(resolveOwnerCredentials({ env: { TOVU_ADMIN_PASSWORD: "host-password" } }), {
+    username: "admin", password: "host-password",
+  });
 });
 
 test("wiring.ts never reads process.env itself: the owner login reaches it only through injection", () => {
@@ -102,6 +113,40 @@ function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };
 }
+
+test("identity wiring adapts an ISO-only host clock and keeps in-memory deletion unsupported", async () => {
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
+    permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE,
+    clock: { nowIso: () => fixedClock.nowIso() }, idGen: counterIdGen(),
+  }, {});
+  await deps.identityReady;
+  const ownerId = await deps.ownerPrincipalId;
+  const owner = await deps.principalRepo.findById({ workspaceId: WORKSPACE, id: ownerId });
+  assert.equal(owner?.createdAt, fixedClock.nowIso());
+  assert.equal(deps.removeUser, undefined);
+  assert.equal(await deps.isInTrash(ownerId), false);
+});
+
+test("read-only identity wiring uses the verified owner without seeding or credential repository construction", async (t) => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  const apiKeyRepo = new InMemoryApiKeyRepo();
+  const required = { db, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
+    permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE,
+    clock: fixedClock, idGen: counterIdGen(), readOnlyOwnerPrincipalId: "verified-owner",
+  };
+  for (const reconcileGrantsOnBoot of [undefined, true]) {
+    assert.throws(() => createSqliteIdentityRouteDeps({ ...required, reconcileGrantsOnBoot }, { apiKeyRepo }), {
+      name: "TypeError", message: "A read-only owner requires reconcileGrantsOnBoot: false",
+    });
+  }
+  const deps = createSqliteIdentityRouteDeps({ ...required, reconcileGrantsOnBoot: false }, { apiKeyRepo });
+  await deps.identityReady;
+  assert.equal(await deps.ownerPrincipalId, "verified-owner");
+  assert.equal(deps.apiKeyRepo, apiKeyRepo);
+  assert.equal(await deps.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" }), null);
+  assert.deepEqual(await deps.roleRepo.list({ workspaceId: WORKSPACE }), []);
+});
 
 test("createInMemoryIdentityRouteDeps: identityReady also runs migrateDeprecatedPermissionGrants against real registered pairs (ADR-PIPE-012 T013)", async () => {
   const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),

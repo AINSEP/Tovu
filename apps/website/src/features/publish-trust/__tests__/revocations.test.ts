@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -371,4 +372,33 @@ test("the in-memory store revokes, restores, preserves idempotency and refuses o
   const overflow = await port.revoke({ sourceInstallationId: "one-too-many", nowIso: NOW });
   assert.equal(overflow.ok, false);
   assert.deepEqual(await port.list(), { ok: true, revocations: full });
+});
+
+test("whitespace-only revocation documents represent no disconnected computers", () => {
+  assert.deepEqual(parseRevocationDocument(" \n\t "), { ok: true, revocations: [] });
+});
+
+for (const [field, values, reason] of [
+  ["sourceInstallationId", [42, "x".repeat(513)], "each revocation needs a 'sourceInstallationId'"],
+  ["revokedAt", [42, "", "x".repeat(513)], "each revocation needs an ISO-8601 'revokedAt'"],
+  ["note", ["", "x".repeat(513)], "a revocation 'note' must be a non-empty string when present"],
+] as const) {
+  for (const value of values) {
+    test(`revocation ${field} refuses ${typeof value === "number" ? "a number" : value.length === 0 ? "an empty string" : "more than 512 characters"}`, () => {
+      assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, [field]: value }])), { ok: false, reason });
+    });
+  }
+}
+
+for (const note of [undefined, null]) {
+  test(`a ${note === undefined ? "missing" : "null"} revocation note is normalized to null`, () => {
+    assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, note }])), {
+      ok: true, revocations: [{ sourceInstallationId: "laptop", revokedAt: NOW, note: null }],
+    });
+  });
+}
+
+test("revocation fields accept exactly 512 characters", () => {
+  const entry = { sourceInstallationId: "s".repeat(512), revokedAt: NOW, note: "n".repeat(512) };
+  assert.deepEqual(parseRevocationDocument(JSON.stringify([entry])), { ok: true, revocations: [entry] });
 });

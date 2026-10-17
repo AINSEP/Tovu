@@ -1,8 +1,9 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildPermanentDeleteRegistrations, permanentDeleteDerivedRisk, type PermanentDeleteToolDeps } from "../tool-registrations.js";
+import { buildPermanentDeleteRegistrations, contributePermanentDeleteTools, permanentDeleteDerivedRisk, type PermanentDeleteToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -42,7 +43,7 @@ function harness(id: string, input: unknown, permission: string) {
   const ctx: ToolExecutionContext = { executionId: "e-1", principal: { id: "owner" }, run: { id: "r-1" }, input, signal: controller.signal };
   // Mutable here so each case can install its own emitter; `ToolExecutionOptions` itself is readonly.
   const options: { emitSurface?: SurfaceEmitter } = {};
-  return { options, store, writes, permissions, permission, registration, ctx, controller, setAllowed: (v: boolean) => { allowed = v; }, setExists: (v: boolean) => { exists = v; } };
+  return { deps, options, store, writes, permissions, permission, registration, ctx, controller, setAllowed: (v: boolean) => { allowed = v; }, setExists: (v: boolean) => { exists = v; } };
 }
 
 for (const [id, input, permission] of CASES) {
@@ -143,6 +144,71 @@ test("expired human confirmation returns an explicit refusal without a delete", 
   });
   assert.equal(deletes, 0);
   } finally { clearTimeout(keepAlive); }
+});
+
+test("a whitespace-only delete id is refused before authorization or preparation", async () => {
+  const h = harness("media_purge_asset", { mediaId: " \t " }, "media.delete.force");
+  h.deps.prepare = async () => { assert.fail("an empty id must never be prepared"); };
+  await assert.rejects(h.registration.handler(h.ctx, h.options), {
+    name: "ToolInputError", message: "media_purge_asset: 'mediaId' must be a non-empty id.",
+  });
+  assert.deepEqual(h.permissions, []);
+  assert.deepEqual(h.writes, []);
+});
+
+test("a run aborted during final reauthorization does not execute a confirmed delete", async () => {
+  const h = harness("media_purge_asset", { mediaId: "m-1" }, "media.delete.force");
+  let checks = 0;
+  h.deps.authorize = async () => {
+    checks++;
+    if (checks === 2) h.controller.abort();
+    return { allowed: true, reason: "matched" };
+  };
+  h.options.emitSurface = async () => {
+    h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: "media_purge_asset" })!, principalId: "owner", params: { decision: "confirm" } }, { toolId: "media_purge_asset" });
+  };
+  assert.deepEqual(await h.registration.handler(h.ctx, h.options), {
+    removed: false, cancelled: false, reason: "abandoned",
+    note: "The confirmation dialog was closed because the run ended. Nothing was changed.",
+  });
+  assert.equal(checks, 2);
+  assert.deepEqual(h.writes, []);
+});
+
+test("a prepared delete's specific warning is shown before its effect", async () => {
+  const h = harness("trash_empty", {}, "content.read");
+  h.deps.prepare = async () => ({
+    details: [{ label: "Snapshot", value: "Two saved items" }],
+    warning: "Both saved items will be lost.",
+    execute: async () => { h.writes.push("trash_empty"); return { removed: true }; },
+  });
+  let card = "";
+  h.options.emitSurface = async emission => {
+    card = JSON.stringify(emission.payload);
+    h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: "trash_empty" })!, principalId: "owner", params: { decision: "confirm" } }, { toolId: "trash_empty" });
+  };
+  assert.deepEqual(await h.registration.handler(h.ctx, h.options), { removed: true });
+  assert.match(card, /Both saved items will be lost\./);
+  assert.deepEqual(h.writes, ["trash_empty"]);
+});
+
+test("the contributor binds its host dependencies and confirmation surface to executable tools", async () => {
+  const h = harness("trash_empty", {}, "content.read");
+  const host = {} as Parameters<Parameters<typeof contributePermanentDeleteTools>[0]["buildDeps"]>[0];
+  const contributor = contributePermanentDeleteTools({ buildDeps: routeDeps => {
+    assert.equal(routeDeps, host);
+    return h.deps;
+  } });
+  const surfaces = { surfaceExchanges: h.store, assertChatDeleteAllowed: async () => {} };
+  const registrations = contributor.build(host, surfaces);
+  const registration = registrations.find(entry => entry.descriptor.id === "trash_empty");
+  assert.ok(registration);
+  h.options.emitSurface = async () => {
+    h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: "trash_empty" })!, principalId: "owner", params: { decision: "confirm" } }, { toolId: "trash_empty" });
+  };
+  assert.equal(contributor.domain, "permanent-delete");
+  assert.deepEqual(await registration.handler(h.ctx, h.options), { removed: true, id: "id-1" });
+  assert.deepEqual(h.writes, ["trash_empty"]);
 });
 
 for (const [id, input, permission] of CASES) {

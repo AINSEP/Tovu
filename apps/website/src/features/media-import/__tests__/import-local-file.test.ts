@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -119,6 +120,32 @@ test("local imports stamp the authenticated owner, ignoring caller attribution",
   const stored = await fixture.deps.mediaRepo.findById({ workspaceId: "ws-local", id: result.media.id });
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, "owner");
+});
+
+test("an omitted root resolver reads the booted site through the existing filesystem root owner", async (t) => {
+  const f = await setup(t);
+  delete f.deps.resolveRoots;
+  fs.writeFileSync(path.join(f.parent, "site-photo.png"), PNG);
+  const result = await f.run({ root: "site", path: "site-photo.png" });
+  assert.equal(result.media.title, "site-photo");
+  assert.equal(result.media.sourceUrl, "");
+  const rows = await f.deps.mediaRepo.list({ workspaceId: "ws-local" });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, result.media.id);
+  const sha256 = createHash("sha256").update(PNG).digest("hex");
+  assert.deepEqual(Buffer.from(await f.deps.blobStore.get({ storageKey: `ws/ws-local/blobs/${sha256.slice(0, 2)}/${sha256}` })), PNG);
+  assert.equal(f.resolutions(), 0);
+});
+
+test("local content-type storage failures propagate without claiming a successful import", async (t) => {
+  const f = await setup(t);
+  fs.writeFileSync(path.join(f.rootPath, "photo.png"), PNG);
+  const failure = new Error("content-type storage unavailable");
+  f.deps.mediaContentTypeStore.set = async () => { throw failure; };
+  await assert.rejects(f.run({ root: "site", path: "photo.png" }), error => error === failure);
+  const rows = await f.deps.mediaRepo.list({ workspaceId: "ws-local" });
+  assert.equal(rows.length, 1, "upload succeeded, so the metadata failure must not be reported as success");
+  assert.deepEqual(await f.deps.mediaContentTypeStore.getMany({ workspaceId: "ws-local", sha256s: [rows[0].source.sha256] }), new Map());
 });
 
 test("catalog schema, domain registration and derived risk declare a permission-gated durable mutation", async (t) => {

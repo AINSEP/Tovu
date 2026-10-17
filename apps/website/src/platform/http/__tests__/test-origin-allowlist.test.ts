@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import path from "node:path";
 import test from "node:test";
 
@@ -97,4 +98,48 @@ test("only exact loopback-literal origins with an explicit port are accepted", (
   for (const bad of ["http://localhost:41234", "http://10.0.0.1:80", "http://127.0.0.1", "http://127.0.0.1:41234/path", "ftp://127.0.0.1:21", "http://user@127.0.0.1:1", "not a url"]) {
     assert.throws(() => parseTestOrigins({ origins: [bad] }), TypeError, bad);
   }
+});
+
+test("the native transport reaches a loopback fixture without injected HTTP ports", async (t) => {
+  const requests: string[] = [];
+  const server = createServer((request, response) => {
+    requests.push(request.url!);
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    response.end("native fixture");
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(() => new Promise<void>((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve());
+    server.closeAllConnections();
+  }));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const client = createTestOriginHttpClientFactory({ allowedOrigins: [origin] })(MEDIA_IMPORT_EGRESS_POLICY, {});
+  const response = await client.send(get(`${origin}/native`));
+  assert.equal(response.status, 200);
+  assert.equal(response.bodyText, "native fixture");
+  assert.deepEqual(requests, ["/native"]);
+});
+
+test("an unlisted origin keeps the caller's existing development host permission", async () => {
+  const transport = recordingTransport(ok);
+  const client = clientFor(transport, { ...WEB_FETCH_EGRESS_POLICY, devHostAllowlist: ["localhost"] });
+  assert.equal((await client.send(get("http://localhost:41235/existing-permission"))).bodyText, "fixture");
+  assert.deepEqual(transport.hops.map(hop => [hop.url, hop.peer.ip]), [["http://localhost:41235/existing-permission", "127.0.0.1"]]);
+});
+
+test("an unlisted private origin is permitted when the original caller permits private addresses", async () => {
+  const transport = recordingTransport(ok);
+  const client = clientFor(transport, { ...WEB_FETCH_EGRESS_POLICY, denyPrivateAddresses: false });
+  assert.equal((await client.send(get("http://10.0.0.1/private"))).status, 200);
+  assert.deepEqual(transport.hops.map(hop => [hop.url, hop.peer.ip]), [["http://10.0.0.1/private", "10.0.0.1"]]);
+});
+
+test("harness origins normalize a single trailing slash and deduplicate", () => {
+  assert.deepEqual([...parseTestOrigins({ origins: [FIXTURE, `${FIXTURE}/`, "https://127.0.0.1:8443/"] })], [FIXTURE, "https://127.0.0.1:8443"]);
+  assert.deepEqual([...parseTestOrigins({ origins: [] })], []);
 });

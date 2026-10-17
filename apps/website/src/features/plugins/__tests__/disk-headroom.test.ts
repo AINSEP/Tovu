@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -100,4 +101,21 @@ test("dataModule refuses insufficient headroom before snapshot or plugin DDL", a
     db.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("an unavailable volume reports measurement failure without inventing insufficient headroom", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-headroom-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.deepEqual(checkDiskHeadroom(path.join(dir, "missing-volume", "content.db")), {
+    ok: true, requiredBytes: 0, freeBytes: null, measurementFailed: true,
+  });
+});
+
+test("a WAL without a main database still contributes its bytes to the rounded headroom requirement", (t) => {
+  measuredFreeSpace(t, 5);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-headroom-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const dbPath = path.join(dir, "content.db");
+  fs.writeFileSync(`${dbPath}-wal`, Buffer.alloc(3));
+  assert.deepEqual(checkDiskHeadroom(dbPath), { ok: true, requiredBytes: 5, freeBytes: 5 });
 });
