@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { AdminPermanentDeletes } from "../AdminPermanentDeletes";
@@ -88,4 +88,57 @@ it("translates the save fallback while preserving real API errors", async () => 
   await userEvent.click(screen.getByRole("checkbox", { name: PERMANENT_DELETE_TOOLS[0].label }));
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("no se pudo guardar el acceso a eliminaciones permanentes"));
   expect(screen.getByRole("checkbox", { name: PERMANENT_DELETE_TOOLS[0].label })).not.toBeChecked();
+});
+
+it("unchanged enable requests do not write or ask for confirmation", async () => {
+  const f = fakePort();
+  const { result } = renderHook(() => useAdminPermanentDeletes({ port: f.port }));
+  await waitFor(() => expect(result.current.settings?.enabled).toBe(false));
+  await act(async () => { await result.current.setEnabled({ enabled: false }, {}); });
+  expect(f.writes).toEqual([]);
+  expect(result.current.dialog.open).toBe(false);
+  expect(result.current.settings).toEqual({ enabled: false, allowedToolIds: [], canEdit: true });
+});
+
+it("checklist commands preserve the stored selection while the master is off", async () => {
+  const f = fakePort({ enabled: false, allowedToolIds: ["trash_empty"], canEdit: true });
+  const { result } = renderHook(() => useAdminPermanentDeletes({ port: f.port }));
+  await waitFor(() => expect(result.current.settings?.enabled).toBe(false));
+  await act(async () => {
+    await result.current.setTool({ toolId: "trash_empty", checked: false }, {});
+    await result.current.selectAll({}, {});
+    await result.current.selectNone({}, {});
+  });
+  expect(f.writes).toEqual([]);
+  expect(result.current.settings?.allowedToolIds).toEqual(["trash_empty"]);
+});
+
+it("unchecking one tool preserves the other tools and checking an existing tool does not duplicate it", async () => {
+  const secondId = PERMANENT_DELETE_TOOLS[1].id;
+  const f = fakePort({ enabled: true, allowedToolIds: ["trash_empty", secondId], canEdit: true });
+  const { result } = renderHook(() => useAdminPermanentDeletes({ port: f.port }, {}));
+  await waitFor(() => expect(result.current.settings?.enabled).toBe(true));
+  await act(async () => { await result.current.setTool({ toolId: "trash_empty", checked: true }); });
+  expect(f.writes).toEqual([{ enabled: true, allowedToolIds: ["trash_empty", secondId], riskAcknowledged: false }]);
+  await act(async () => { await result.current.setTool({ toolId: "trash_empty", checked: false }); });
+  expect(f.writes.at(-1)).toEqual({ enabled: true, allowedToolIds: [secondId], riskAcknowledged: false });
+  expect(result.current.settings?.allowedToolIds).toEqual([secondId]);
+});
+
+it("checklist commands are inert before settings load", async () => {
+  let resolveRead!: (settings: AssistantPermanentDeletesSettings) => void;
+  const pending = new Promise<AssistantPermanentDeletesSettings>(resolve => { resolveRead = resolve; });
+  const f = fakePort();
+  const port: AssistantPermanentDeletesPort = { ...f.port, read: () => pending };
+  const { result } = renderHook(() => useAdminPermanentDeletes({ port }));
+  expect(result.current.settings).toBeNull();
+  await act(async () => {
+    await result.current.setTool({ toolId: "trash_empty", checked: true });
+    await result.current.selectAll({});
+    await result.current.selectNone({});
+    await result.current.setEnabled({ enabled: false });
+  });
+  expect(f.writes).toEqual([]);
+  await act(async () => { resolveRead({ enabled: false, allowedToolIds: [], canEdit: true }); });
+  await waitFor(() => expect(result.current.settings?.enabled).toBe(false));
 });

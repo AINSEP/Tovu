@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
+import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/lib/api";
 import { navigate } from "@/lib/router";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
@@ -344,6 +344,33 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
 });
 
 describe("injected port (2026-08-14, Orc-BASH pass)", () => {
+  const envelope: DatabaseContextEnvelope = {
+    v: 1, correlationId: "test-link", siteId: "site1", ledgerEventId: null,
+    restorePointId: "rp1", drift: "none", intent: "restore", issuedAt: "2026-08-01T00:00:00.000Z",
+  };
+
+  it("creates a manual restore point when request options are omitted", async () => {
+    const port = createFakeRecoveryPort();
+    expect(await port.createRestorePoint()).toEqual({ restorePoint: { id: "fake-rp-1", costClass: "cheap", kind: "full" } });
+    expect(await port.listRecoveryRestorePoints()).toEqual({ items: [{
+      id: "fake-rp-1", costClass: "cheap", kind: "full", trigger: "manual",
+      watermarkAtCapture: 0, createdAt: "1970-01-01T00:00:00.000Z",
+    }] });
+  });
+
+  it("returns not-found and records the envelope when no deep-link result is seeded", async () => {
+    const port = createFakeRecoveryPort();
+    expect(await port.resolveRecoveryDeepLink(envelope)).toEqual({ found: false, restorePoint: null });
+    expect(port.deepLinkCalls).toEqual([envelope]);
+  });
+
+  it("rejects a failed deep-link lookup while retaining the attempted envelope", async () => {
+    const port = createFakeRecoveryPort({ deepLinkError: new Error("deep link unavailable") });
+    await expect(port.resolveRecoveryDeepLink(envelope)).rejects.toThrow("deep link unavailable");
+    expect(port.deepLinkCalls).toEqual([envelope]);
+    expect(await port.listRecoveryRestorePoints()).toEqual({ items: [] });
+  });
+
   /** Drives the pure hook directly against `createFakeRecoveryPort` — `fetchMock` (the real
    *  network `useWiredRecovery` above goes through) is asserted NEVER called for the Recovery data
    *  itself; only this file's own `beforeEach` locale-settings shim still uses real `fetch`, since

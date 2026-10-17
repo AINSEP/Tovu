@@ -425,6 +425,52 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {
+  it.each(["toggle", "delete"] as const)("keeps a pending list unknown when %s succeeds before the first read", async action => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const reads: Array<(value: { posts: Array<{ post: typeof PAGE }> }) => void> = [];
+    port.listPages = () => new Promise(resolve => { reads.push(resolve); });
+    const { result, unmount } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en" }));
+    expect(result.current.pages).toBeNull();
+    if (action === "toggle") {
+      await act(async () => result.current.togglePagePublish(PAGE));
+      expect(port.pages[0].status).toBe("draft");
+    } else {
+      act(() => result.current.setPendingDelete(PAGE));
+      await act(async () => result.current.removePage());
+      expect(port.pages).toEqual([]);
+      expect(result.current.pendingDelete).toBeNull();
+    }
+    expect(result.current.pages).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.error).toBeNull();
+    // Finish every suspended read after detaching the view; no unresolved work leaks to peers.
+    unmount();
+    await act(async () => { for (const resolve of reads) resolve({ posts: [] }); });
+  });
+
+  it("retains unrelated pages when deleting a row", async () => {
+    const other = { ...PAGE, id: "other", title: "Keep" };
+    const port = createFakePagesPort({ pages: [PAGE, other] });
+    const { result } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE, other]));
+    act(() => result.current.setPendingDelete(PAGE));
+    await act(async () => result.current.removePage());
+    expect(result.current.pages).toEqual([other]);
+    expect(port.pages).toEqual([other]);
+  });
+
+  it("reports an Error from deletion and retains the row", async () => {
+    const port = createFakePagesPort({ pages: [PAGE], deleteError: new Error("Deletion denied") });
+    const { result } = renderHook(() => usePages({ port, navigate: () => {}, t: k => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
+    act(() => result.current.setPendingDelete(PAGE));
+    await act(async () => result.current.removePage());
+    expect(result.current.error).toBe("Deletion denied");
+    expect(result.current.pages).toEqual([PAGE]);
+    expect(result.current.pendingDelete).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+  });
+
   it("loads pages through the injected port and navigates on create, without touching fetch", async () => {
     vi.stubGlobal("fetch", fetchMock);
     try {

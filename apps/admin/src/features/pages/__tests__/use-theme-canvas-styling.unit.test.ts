@@ -89,9 +89,49 @@ describe("tokensToCanvasCss", () => {
   it("drops a key that is not a plain custom property name", () => {
     expect(tokensToCanvasCss({ ...DARK, "body { color": "red" }, undefined)).not.toContain("body {");
   });
+
+  it("drops non-string values from a third-party token document while preserving valid tokens", () => {
+    expect(tokensToCanvasCss(JSON.parse('{"--invalid":42,"--color":"blue"}'), undefined))
+      .toBe(":root{--color:blue;}");
+  });
 });
 
 describe("useThemeCanvasStyling", () => {
+  it("settles ready without styling when every default token is unusable", async () => {
+    const port = createFakeThemeCanvasPort({ tokensByUrl: {
+      "/theme-assets/basic/tokens.json": { "--unsafe": "red;display:none" },
+      "/theme-assets/basic/tokens.light.json": LIGHT,
+    } });
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    await waitFor(() => expect(result.current).toEqual({ status: "ready", styling: {} }));
+  });
+
+  it.each(["resolves", "rejects"] as const)("keeps the new theme when an obsolete request %s", async outcome => {
+    let resolveOld!: (tokens: typeof DARK) => void;
+    let rejectOld!: (reason: Error) => void;
+    const oldTokens = new Promise<typeof DARK>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; });
+    const base = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    const port = { ...base, fetchThemeTokens: (url: string) => {
+      if (url === "/theme-assets/old/tokens.json") return oldTokens;
+      return base.fetchThemeTokens(url);
+    } };
+    const { result, rerender } = renderHook(({ theme }) => useThemeCanvasStyling(theme, 2, port), {
+      initialProps: { theme: "old" },
+    });
+    rerender({ theme: "basic" });
+    await waitFor(() => expect(result.current).toEqual({ status: "ready", styling: {
+      stylesheets: ["/theme-assets/basic/css/theme.css"],
+      css: ":root{--bg:oklch(9% 0.004 250);--fg:oklch(96% 0.003 250);}",
+      contentWrapper: undefined,
+    } }));
+    const current = result.current;
+    await act(async () => {
+      if (outcome === "resolves") resolveOld({ "--bg": "red", "--fg": "blue" });
+      else rejectOld(new Error("obsolete fetch failed"));
+    });
+    expect(result.current).toBe(current);
+  });
+
   it("stays pending until the active theme id is known", () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
     const { result } = renderHook(() => useThemeCanvasStyling(null, 2, port));
@@ -193,6 +233,22 @@ describe("useThemeCanvasStyling", () => {
 });
 
 describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", () => {
+  it("keeps the timed-out state when the required token request later rejects", async () => {
+    vi.useFakeTimers();
+    try {
+      let rejectTokens!: (reason: Error) => void;
+      const pending = new Promise<never>((_resolve, reject) => { rejectTokens = reject; });
+      const port = { ...createFakeThemeCanvasPort(), fetchThemeTokens: () => pending };
+      const { result, unmount } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+      expect(result.current).toEqual({ status: "ready", styling: {} });
+      const timedOut = result.current;
+      await act(async () => { rejectTokens(new Error("late network failure")); });
+      expect(result.current).toBe(timedOut);
+      unmount();
+    } finally { vi.useRealTimers(); }
+  });
+
   // Repro 2 in the pages-redo plan: `/theme-assets/*/tokens.json` hanging (API restarting behind the
   // Vite proxy) left the tab on "Loading the theme's styles…" forever, because the `Promise.all` this
   // hook races had no timeout. This bounds it — a hung fetch degrades to the same "no canvas styling"
@@ -227,9 +283,10 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       let resolveTokens: (tokens: typeof DARK) => void = () => {};
+      const pending = new Promise<typeof DARK>(resolve => { resolveTokens = resolve; });
       const port = {
         ...createFakeThemeCanvasPort(),
-        fetchThemeTokens: () => new Promise<typeof DARK>((resolve) => (resolveTokens = resolve)),
+        fetchThemeTokens: () => pending,
       };
       const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
 

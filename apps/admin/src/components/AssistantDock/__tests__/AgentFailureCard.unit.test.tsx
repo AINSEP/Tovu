@@ -1,10 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { useContext } from "react";
 import { afterEach, expect, it } from "vitest";
 import { JiniChatProvider, MessageRow, registerExtEventRenderer, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import type { AgentEvent, ChatMessage, ChatTransport } from "@jini-ai/chat/core";
 import fixture from "./fixtures/gemini-position-9";
 import { AgentFailureCard } from "../AgentFailureCard";
-import { FailureSurfaceContext, useAgentFailureSurface } from "../AgentFailureCard.hooks";
+import { FailureSurfaceContext, useAgentFailureCard, useAgentFailureSurface } from "../AgentFailureCard.hooks";
 import { AGENT_FAILURE_EVENT, GENERIC_AGENT_FAILURE, type FailureAgent } from "../agent-failure";
 
 afterEach(cleanup);
@@ -85,4 +86,82 @@ it("shows today's exact generic notice when stderr is absent", () => {
     expect(screen.queryByText("Show details")).toBeNull();
     expect(document.querySelector(".admin-agent-failure")).toBeNull();
   } finally { h.unregister(); }
+});
+
+it.each([undefined, null, false, "failed", {}, { reason: 1, details: "Error: failed" }, { reason: "Error: failed", details: 1 }])(
+  "ignores malformed persisted failure data (%j)", data => {
+    const { result } = renderHook(() => useAgentFailureCard({ events: [data], runStreaming: false, runSucceeded: false }));
+    expect(result.current).toBeNull();
+  },
+);
+
+it("uses the persisted reason when details are empty and no agent id or hint exists", () => {
+  const { result } = renderHook(() => useAgentFailureCard({
+    events: [{ reason: "Error: backend refused the request", details: "", agentId: 42 }],
+    runStreaming: false, runSucceeded: false,
+  }));
+  expect(result.current).toEqual({ reason: "Error: backend refused the request", details: "Error: backend refused the request",
+    hint: undefined, switchLabel: undefined, switchAgent: undefined });
+});
+
+it.each([{ runStreaming: true, runSucceeded: false }, { runStreaming: false, runSucceeded: true }])(
+  "hides a valid failure while streaming or after success (%j)", flags => {
+    const { result } = renderHook(() => useAgentFailureCard({
+      events: [{ reason: "Error: refused", details: "Error: refused" }], ...flags,
+    }));
+    expect(result.current).toBeNull();
+  },
+);
+
+it("the default failure context accepts a switch without requiring a provider", () => {
+  const { result } = renderHook(() => useContext(FailureSurfaceContext));
+  expect(result.current.agents).toEqual([]);
+  expect(result.current.switchAgent("missing")).toBeUndefined();
+});
+
+it("uses local guidance when the source agent has no declared hints", () => {
+  const actions = { agents: [{ id: "gemini", name: "Gemini", available: true }], switchAgent: () => {} };
+  const { result } = renderHook(() => useAgentFailureCard({
+    events: [{ reason, details: reason, agentId: "gemini" }], runStreaming: false, runSucceeded: false,
+  }), { wrapper: ({ children }) => <FailureSurfaceContext.Provider value={actions}>{children}</FailureSurfaceContext.Provider> });
+  expect(result.current).toEqual({ reason, details: reason, agentId: "gemini",
+    hint: "Google ended free sign-in for Gemini CLI. Switch to Antigravity, or set Gemini CLI to use an API key.",
+    switchLabel: undefined, switchAgent: undefined });
+});
+
+it("keeps the latest rescan inventory when an older list completes and switches only to confirmed agents", async () => {
+  let releaseList!: (agents: readonly FailureAgent[]) => void;
+  const listed = new Promise<readonly FailureAgent[]>(resolve => { releaseList = resolve; });
+  const fresh: readonly FailureAgent[] = [
+    { id: "aider", name: "Aider", available: true },
+    { id: "gemini", name: "Gemini", available: false },
+    { id: "unknown", name: "Unconfirmed" },
+  ];
+  const selections: ChatPaneAgentSelection[] = [];
+  const modes: string[] = [];
+  const input: Parameters<typeof useAgentFailureSurface>[0] = {
+    transport: { async startRun() { return { runId: "run" }; }, async reattachRun() {},
+      async stopRun() {}, async fetchRunStatus() { return null; } },
+    runtimeAccess: { listAgents: () => listed, rescanAgents: async () => fresh, daemonOnline: async () => true },
+    initialMessages: undefined,
+    onSelectionChange: selection => { selections.push(selection); },
+    onExecutionModeChange: mode => { modes.push(mode); },
+  };
+  const { result } = renderHook(() => useAgentFailureSurface(input));
+  expect(result.current.initialMessages).toBeUndefined();
+  const stale = result.current.runtimeAccess.listAgents();
+  await act(async () => { expect(await result.current.runtimeAccess.rescanAgents()).toEqual(fresh); });
+  expect(result.current.actions.agents).toEqual(fresh);
+  await act(async () => { releaseList([{ id: "obsolete", name: "Old", available: true }]); await stale; });
+  expect(result.current.actions.agents).toEqual(fresh);
+  act(() => {
+    result.current.actions.switchAgent("missing");
+    result.current.actions.switchAgent("gemini");
+    result.current.actions.switchAgent("unknown");
+  });
+  expect(selections).toEqual([]);
+  expect(modes).toEqual([]);
+  act(() => { result.current.actions.switchAgent("aider"); });
+  expect(selections).toEqual([{ agentId: "aider" }]);
+  expect(modes).toEqual(["local"]);
 });

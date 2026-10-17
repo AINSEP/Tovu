@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import type { AdminMedia } from "@/lib/api";
 
-import { closeDialog, openDialog, syncLightboxDialog } from "../hooks/use-media-lightbox.hooks";
+import { closeDialog, openDialog, syncLightboxDialog, useMediaLightbox } from "../hooks/use-media-lightbox.hooks";
 
 /**
  * @file Direct tests for the top-level functions extracted out of `useMediaLightbox`'s open/close
@@ -76,6 +78,16 @@ describe("closeDialog", () => {
 });
 
 describe("syncLightboxDialog", () => {
+  it("opens without a close button and tolerates a non-HTML focus trigger on close", () => {
+    const dialog = fakeDialog();
+    const triggerRef: React.RefObject<Element | null> = { current: null };
+    syncLightboxDialog(dialog, true, triggerRef, { current: null });
+    expect(dialog.open).toBe(true);
+    triggerRef.current = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    syncLightboxDialog(dialog, false, triggerRef, { current: null });
+    expect(dialog.open).toBe(false);
+  });
+
   it("on open: captures document.activeElement into triggerRef, opens the dialog, and focuses closeRef", () => {
     const dialog = fakeDialog({ open: false });
     const trigger = document.createElement("button");
@@ -127,5 +139,42 @@ describe("syncLightboxDialog", () => {
 
     expect(() => syncLightboxDialog(dialog, false, triggerRef, closeRef)).not.toThrow();
     expect(dialog.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("lightbox navigation guards", () => {
+  it("ignores navigation while closed, including keyboard events before a dialog is attached", () => {
+    const navigated: number[] = [];
+    const { result } = renderHook(() => useMediaLightbox({ items: [], activeIndex: null,
+      onNavigate: index => navigated.push(index), onClose: () => {} }));
+    const event = { key: "ArrowRight", preventDefault: vi.fn() } as unknown as React.KeyboardEvent<HTMLDialogElement>;
+    act(() => {
+      result.current.goToPrev();
+      result.current.goToNext();
+      result.current.handleKeyDown(event);
+    });
+    expect(navigated).toEqual([]);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.item).toBeNull();
+    expect(result.current.hasPrev).toBe(false);
+    expect(result.current.hasNext).toBe(false);
+  });
+
+  it("clamps the previous and next actions and leaves unrelated keys to the browser", () => {
+    const navigated: number[] = [];
+    // This controller only resolves media by index; rendering owns the asset fields.
+    const items = [{ id: "first" }, { id: "second" }] as AdminMedia[];
+    const { result, rerender } = renderHook(({ activeIndex }) => useMediaLightbox({ items, activeIndex,
+      onNavigate: index => navigated.push(index), onClose: () => {} }), { initialProps: { activeIndex: 0 } });
+    act(() => { result.current.goToPrev(); result.current.goToNext(); });
+    expect(navigated).toEqual([1]);
+    rerender({ activeIndex: 1 });
+    act(() => { result.current.goToNext(); result.current.goToPrev(); });
+    expect(navigated).toEqual([1, 0]);
+    const event = { key: "Home", preventDefault: vi.fn() } as unknown as React.KeyboardEvent<HTMLDialogElement>;
+    act(() => result.current.handleKeyDown(event));
+    expect(navigated).toEqual([1, 0]);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(result.current.item).toBe(items[1]);
   });
 });

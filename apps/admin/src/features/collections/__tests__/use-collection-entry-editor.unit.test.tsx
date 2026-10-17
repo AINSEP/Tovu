@@ -5,6 +5,8 @@ import { ApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { useInvalidate } from "@jini-ai/ui/fetch-query";
+import { KEYS } from "../rules";
 import { navigate } from "@/lib/router";
 import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
 import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
@@ -623,6 +625,29 @@ describe("injected port (useWiredX conversion coverage)", () => {
 });
 
 describe("M2 — an invalid json field refuses to save instead of saving the old value", () => {
+  it("keeps duplicate validity reports idempotent and blocks saving until every invalid field is fixed", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const { result } = renderHook(() => useCollectionEntryEditor(
+      { contentTypeKey: "recipe", entryId: ENTRY.id }, { port, navigate: () => {}, locale: "en", t: k => k }), { wrapper });
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    act(() => {
+      result.current.setTitle("Corrected recipe");
+      result.current.setFieldValidity("untouched", true);
+      result.current.setFieldValidity("meta", false);
+      result.current.setFieldValidity("meta", false);
+      result.current.setFieldValidity("extra", false);
+      result.current.setFieldValidity("meta", true);
+      result.current.setFieldValidity("meta", true);
+    });
+    await act(async () => result.current.save());
+    expect(result.current.error).toBe("Fix the invalid JSON before saving.");
+    expect(port.entries[0]).toEqual(ENTRY);
+    act(() => result.current.setFieldValidity("extra", true));
+    await act(async () => result.current.save());
+    expect(result.current.error).toBeNull();
+    expect(port.entries[0]).toMatchObject({ title: "Corrected recipe", version: ENTRY.version + 1 });
+  });
+
   it("refuses to save while a json field is invalid, then saves once it's fixed", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() =>
@@ -670,6 +695,49 @@ describe("M2 — an invalid json field refuses to save instead of saving the old
 
     expect(port.entries[0]!.status).toBe("draft");
     expect(result.current.error).toBe("Fix the invalid JSON before saving.");
+  });
+});
+
+describe("entry field fallbacks", () => {
+  it("keeps unsaved edits when the same entry is refreshed in the shared cache", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    let refreshed = false;
+    const listContentTypes = port.listContentTypes;
+    port.listContentTypes = async () => {
+      const result = await listContentTypes();
+      return refreshed ? { items: result.items.map(type => ({ ...type, label: "Refreshed Recipe" })) } : result;
+    };
+    const { result } = renderHook(() => ({
+      editor: useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: ENTRY.id },
+        { port, navigate: () => {}, locale: "en", t: k => k }),
+      invalidate: useInvalidate(),
+    }), { wrapper });
+    await waitFor(() => expect(result.current.editor.entry).toEqual(ENTRY));
+    act(() => {
+      result.current.editor.setTitle("Unsaved title");
+      result.current.editor.setSlug("unsaved-slug");
+      result.current.editor.setExtFields({ notes: "Unsaved notes" });
+      result.current.editor.editor!.commands.setContent('<p>Unsaved body</p>');
+    });
+    refreshed = true;
+    act(() => result.current.invalidate({ key: KEYS.list }));
+    await waitFor(() => expect(result.current.editor.contentType?.label).toBe("Refreshed Recipe"));
+    expect(result.current.editor.title).toBe("Unsaved title");
+    expect(result.current.editor.slug).toBe("unsaved-slug");
+    expect(result.current.editor.extFields).toEqual({ notes: "Unsaved notes" });
+    expect(result.current.editor.editor!.getText()).toBe("Unsaved body");
+    expect(port.entries[0]).toEqual(ENTRY);
+  });
+
+  it.each([null, {}, { ext: {} }])("loads an entry without extension fields (%j) as an empty editable field set", async fieldsJson => {
+    const entry = { ...ENTRY, fieldsJson };
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [entry] });
+    const { result } = renderHook(() => useCollectionEntryEditor(
+      { contentTypeKey: "recipe", entryId: entry.id }, { port, navigate: () => {}, locale: "en", t: k => k }), { wrapper });
+    await waitFor(() => expect(result.current.entry).toEqual(entry));
+    expect(result.current.extFields).toEqual({});
+    expect(result.current.title).toBe(ENTRY.title);
+    expect(result.current.editor!.getText()).toBe("");
   });
 });
 

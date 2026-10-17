@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import { ApiError, type AdminPost } from "@/lib/api";
 import {
   DEFAULT_PAGE_SORT,
   pageVersionConflictMessage,
+  readPageVersionConflict,
   buildPageAutosaveDraft,
   buildPageSavePlan,
   comparePagesByStatus,
@@ -604,6 +605,37 @@ describe("pagePartialSaveMessage", () => {
     expect(message).toBe(
       "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
     );
+  });
+
+  it("falls back to the generic failure copy for an Error with an empty message", () => {
+    expect(pagePartialSaveMessage(t, "en", new Error(""))).toBe(
+      "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
+    );
+  });
+});
+
+describe("readPageVersionConflict", () => {
+  it.each([undefined, {}, { details: null }, { details: { expectedVersion: "4", currentVersion: "5" } }])(
+    "leaves unknown conflict versions null for body %j", (body) => {
+      const error = new ApiError("stale save", 409, "VERSION_CONFLICT", body);
+      expect(readPageVersionConflict(error, "published")).toEqual({
+        expectedVersion: null, currentVersion: null, attemptedStatus: "published",
+      });
+    },
+  );
+
+  it("keeps the available version when only the current version is missing", () => {
+    const error = new ApiError("stale save", 409, "VERSION_CONFLICT", { details: { expectedVersion: 4 } });
+    expect(readPageVersionConflict(error, undefined)).toEqual({
+      expectedVersion: 4, currentVersion: null, attemptedStatus: undefined,
+    });
+  });
+});
+
+describe("pageVersionConflictMessage with unknown versions", () => {
+  it("explains a newer save without inventing either missing version", () => {
+    expect(pageVersionConflictMessage(identityT, { expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }))
+      .toBe("Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version.");
   });
 });
 

@@ -173,6 +173,31 @@ describe("runLifecycle", () => {
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {
+  it("starts with an empty registry when no seed is supplied", async () => {
+    const port = createFakeCollectionsPort();
+    expect(await port.listContentTypes()).toEqual({ items: [] });
+  });
+
+  it("rejects a lifecycle change for an unknown key without changing the registry", async () => {
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+    await expect(port.contentTypeLifecycle({ key: "missing", op: "deprecate", expectedVersion: 1 }))
+      .rejects.toThrow("fake content type not found: missing");
+    expect(await port.listContentTypes()).toEqual({ items: [TYPE] });
+  });
+
+  it.each([
+    ["reactivate", "active"],
+    ["tombstone", "tombstone"],
+  ] as const)("persists %s with an incremented version", async (op, status) => {
+    const seeded = { ...TYPE, status: "deprecated" as const, version: 4 };
+    const port = createFakeCollectionsPort({ types: [seeded] });
+    const updated = { ...seeded, status, version: 5 };
+    expect(await port.contentTypeLifecycle({ key: TYPE.key, op, expectedVersion: 4 }))
+      .toEqual({ contentType: updated });
+    expect(await port.listContentTypes()).toEqual({ items: [updated] });
+    expect(seeded).toEqual({ ...TYPE, status: "deprecated", version: 4 });
+  });
+
   it("loads content types through the injected port, without touching fetch", async () => {
     vi.stubGlobal("fetch", fetchMock);
     try {

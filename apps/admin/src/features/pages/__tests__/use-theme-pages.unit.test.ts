@@ -154,6 +154,24 @@ describe("useThemePages", () => {
     expect(result.current.pages).toBeNull();
   });
 
+  it("uses the load fallback for a non-Error presentation rejection", async () => {
+    const port = createFakeThemePagesPort();
+    port.getPresentation = async () => { throw "presentation unavailable"; };
+    const { result } = renderHook(() => useThemePages(port));
+    await waitFor(() => expect(result.current.error).toBe("failed to load theme pages"));
+    expect(result.current.activeThemeId).toBeNull();
+    expect(result.current.pages).toBeNull();
+  });
+
+  it("keeps the theme id and uses the load fallback for a non-Error detail rejection", async () => {
+    const port = createFakeThemePagesPort({ activeThemeId: "storefront" });
+    port.getThemeDetail = async () => { throw null; };
+    const { result } = renderHook(() => useThemePages(port));
+    await waitFor(() => expect(result.current.error).toBe("failed to load theme pages"));
+    expect(result.current.activeThemeId).toBe("storefront");
+    expect(result.current.pages).toBeNull();
+  });
+
   it("sets the fallback error when the second, chained getThemeDetail call rejects", async () => {
     const port = createFakeThemePagesPort({ getThemeDetailError: new Error("detail boom") });
     const { result } = renderHook(() => useThemePages(port));
@@ -199,6 +217,43 @@ describe("useThemePages", () => {
   });
 
   describe("setPagePublished", () => {
+    it("finishes a publish before the first detail read has filled the cache", async () => {
+      const port = createFakeThemePagesPort({ pageFiles: [ABOUT] });
+      const readDetail = port.getThemeDetail;
+      let releaseDetail!: () => void;
+      const pending = new Promise<void>((resolve) => { releaseDetail = resolve; });
+      port.getThemeDetail = async (themeId) => { await pending; return readDetail(themeId); };
+      const { result } = renderHook(() => useThemePages(port));
+      await waitFor(() => expect(result.current.activeThemeId).toBe("basic"));
+      expect(result.current.pages).toBeNull();
+
+      await act(() => result.current.setPagePublished("about", true));
+      expect(result.current.savingPageId).toBeNull();
+      expect(result.current.error).toBeNull();
+      expect(result.current.pages).toBeNull();
+      expect((await readDetail("basic")).files).toContainEqual({ ...ABOUT, published: true });
+
+      await act(async () => { releaseDetail(); });
+      await waitFor(() => expect(result.current.pages).toEqual([
+        { pageId: "about", filePath: ABOUT.path, published: true, resettable: true, collidingContent: null },
+      ]));
+    });
+
+    it("uses the publish fallback for a non-Error rejection and retains the stored row", async () => {
+      const port = createFakeThemePagesPort({ pageFiles: [ABOUT] });
+      port.setPagePublished = async () => { throw { reason: "write unavailable" }; };
+      const { result } = renderHook(() => useThemePages(port));
+      await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+      await act(() => result.current.setPagePublished("about", true));
+      expect(result.current.error).toBe("failed to update publish state");
+      expect(result.current.savingPageId).toBeNull();
+      expect(result.current.pages).toEqual([
+        { pageId: "about", filePath: ABOUT.path, published: false, resettable: true, collidingContent: null },
+      ]);
+      expect((await port.getThemeDetail("basic")).files).toEqual([ABOUT]);
+    });
+
     it("publishes a row and updates it in place, tracking savingPageId only for that row", async () => {
       const port = createFakeThemePagesPort({ activeThemeId: "storefront", pageFiles: [ABOUT, PRICING] });
       const publishSpy = vi.spyOn(port, "setPagePublished");

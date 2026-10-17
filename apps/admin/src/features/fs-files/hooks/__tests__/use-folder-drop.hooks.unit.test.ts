@@ -304,6 +304,34 @@ describe("useFolderDrop", () => {
     expect(result.current.notice).toEqual({ kind: "error", path: "/Users/x/a-file", reason: "not-a-directory" });
   });
 
+  it.each([undefined, { error: 42 }])("uses the directory-validation notice when INVALID_PATH has no textual body (%j)", async (body) => {
+    const composerHandle = fakeComposerHandle();
+    const { dataTransfer, port } = folderDataTransfer(["/Users/x/a-file"]);
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port,
+      getCustomRoot: async () => ({ path: null }),
+      setCustomRoot: async () => { throw new ApiError("invalid path", 400, "INVALID_PATH", body); },
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+
+    expect(result.current.notice).toEqual({ kind: "error", path: "/Users/x/a-file", reason: "not-a-directory" });
+    expect(composerHandle.current?.insertText).toHaveBeenCalledWith("/Users/x/a-file");
+  });
+
+  it("does not infer a validation reason from the message of an unrelated API error", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port,
+      getCustomRoot: async () => ({ path: null }),
+      setCustomRoot: async () => { throw new ApiError("does not exist", 503, "UNAVAILABLE", { error: "does not exist" }); },
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+    expect(result.current.notice).toEqual({ kind: "error", path: "/Users/x/site", reason: "endpoint-unreachable" });
+  });
+
   it("reports the endpoint as unreachable for a non-validation failure (network/500)", async () => {
     const composerHandle = fakeComposerHandle();
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
@@ -401,6 +429,44 @@ describe("useFolderDrop", () => {
 
     act(() => vi.advanceTimersByTime(1000));
     expect(result.current.notice).toBeNull();
+  });
+
+  it("gives a second confirmation its own full auto-dismiss interval", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    let root: string | null = null;
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port,
+      getCustomRoot: async () => ({ path: root }),
+      setCustomRoot: async (path) => { root = path; return { path }; },
+      autoDismissMs: 1000,
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/a", replacedPreviousPath: null });
+    act(() => vi.advanceTimersByTime(600));
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+    expect(root).toBe("/Users/x/b");
+    expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/b", replacedPreviousPath: "/Users/x/a" });
+
+    act(() => vi.advanceTimersByTime(400));
+    expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" });
+    act(() => vi.advanceTimersByTime(599));
+    expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/b" });
+    act(() => vi.advanceTimersByTime(1));
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("can dismiss before any confirmation has scheduled a timer", () => {
+    const { result } = renderHook(() => useFolderDrop({ composerHandle: fakeComposerHandle() }, {
+      getPort: () => null,
+      getCustomRoot: async () => ({ path: null }),
+      setCustomRoot: async (path) => ({ path }),
+    }));
+
+    act(() => result.current.dismiss());
+    expect(result.current.notice).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("retry() is a no-op before any drop has been handled", () => {

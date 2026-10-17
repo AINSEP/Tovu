@@ -88,6 +88,102 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
 });
 
 describe("useSiteKeyRecovery — Start fresh", () => {
+  it("clears an earlier preview and shows the shared error when a new preview fails", async () => {
+    let fail = false;
+    const port = makePort({ previewStartFresh: async () => {
+      if (fail) throw new Error("Preview service unavailable");
+      return PREVIEW;
+    } });
+    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    await act(async () => result.current.openStartFresh());
+    expect(result.current.preview).toEqual(PREVIEW);
+    act(() => result.current.cancelStartFresh());
+    fail = true;
+
+    await act(async () => result.current.openStartFresh());
+
+    expect(result.current.preview).toBeNull();
+    expect(result.current.startFreshError).toBe("Preview service unavailable");
+    expect(result.current.startFreshStep).toBe("confirm");
+    act(() => result.current.cancelStartFresh());
+    expect(result.current.startFreshError).toBeNull();
+  });
+
+  it("finishes recovery without a refresh callback", async () => {
+    const { result } = renderHook(() => useSiteKeyRecovery(makePort(), t, undefined));
+    act(() => result.current.setSiteKey(HEX));
+    await act(async () => result.current.unlock());
+    expect(result.current.resultMessage).toBe("Unlocked. Your saved credentials work again.");
+    expect(result.current.unlocking).toBe(false);
+    expect(result.current.unlockError).toBeNull();
+    act(() => result.current.setConfirmText("START FRESH"));
+    await act(async () => result.current.startFresh());
+    expect(result.current.startFreshStep).toBe("closed");
+    expect(result.current.startingFresh).toBe(false);
+    expect(result.current.startFreshError).toBeNull();
+    expect(result.current.resultMessage).toContain("Order sync (https://hooks.example.test/orders)");
+  });
+
+  it.each([
+    [new ApiError("Recovery forbidden", 403, undefined, { detail: 42 }), "Recovery forbidden"],
+    [new ApiError("Recovery unavailable", 503), "Recovery unavailable"],
+    ["unexpected refusal", "unknown error"],
+  ])("uses the shared fallback for a refusal without a string detail (%s)", async (failure, message) => {
+    const port = makePort({ importSiteKey: async () => {
+      throw failure;
+    } });
+    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    act(() => result.current.setSiteKey(HEX));
+    await act(async () => result.current.unlock());
+    expect(result.current.unlockError).toBe(message);
+    expect(result.current.siteKey).toBe(HEX);
+    expect(result.current.unlocking).toBe(false);
+  });
+
+  it("ignores a second unlock while the first token is being imported", async () => {
+    const base = makePort();
+    let release!: () => void;
+    const imported: string[] = [];
+    const port = makePort({ importSiteKey: async token => {
+      imported.push(token);
+      await new Promise<void>(resolve => { release = resolve; });
+      return base.importSiteKey(token);
+    } });
+    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    act(() => result.current.setSiteKey(HEX));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.unlock(); });
+    expect(result.current.unlocking).toBe(true);
+    await act(async () => result.current.unlock());
+    expect(imported).toEqual([HEX]);
+    await act(async () => { release(); await pending; });
+    expect(result.current.siteKey).toBe("");
+    expect(result.current.unlocking).toBe(false);
+  });
+
+  it("disables confirmation while starting fresh and ignores repeat confirmation", async () => {
+    const base = makePort();
+    let release!: () => void;
+    const confirmations: string[] = [];
+    const port = makePort({ startFresh: async phrase => {
+      confirmations.push(phrase);
+      await new Promise<void>(resolve => { release = resolve; });
+      return base.startFresh(phrase);
+    } });
+    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    await act(async () => result.current.openStartFresh());
+    act(() => result.current.setConfirmText("START FRESH"));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.startFresh(); });
+    expect(result.current.startingFresh).toBe(true);
+    expect(result.current.canConfirmStartFresh).toBe(false);
+    await act(async () => result.current.startFresh());
+    expect(confirmations).toEqual(["START FRESH"]);
+    await act(async () => { release(); await pending; });
+    expect(result.current.startingFresh).toBe(false);
+    expect(result.current.confirmText).toBe("");
+  });
+
   it("reports completion without receiver-update instructions when no webhooks were affected", async () => {
     const port = makePort({
       previewStartFresh: vi.fn(async () => ({ ...PREVIEW, affectedWebhooks: [], detail: "2 saved credentials can't be unlocked and will be removed." })),

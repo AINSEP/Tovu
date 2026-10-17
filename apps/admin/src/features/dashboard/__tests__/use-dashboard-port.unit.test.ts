@@ -31,6 +31,28 @@ function postFixture(overrides: Partial<AdminPost> = {}): AdminPost {
 }
 
 describe("useDashboard — injected port", () => {
+  it.each([
+    ["listPostsError", "posts"],
+    ["listPagesError", "pages"],
+    ["listMediaError", "media"],
+  ] as const)("reports %s independently of the healthy comments count", async (errorOption, stat) => {
+    const port = createFakeDashboardPort({ [errorOption]: new Error(`${stat} unavailable`), pendingCommentsCount: 3 });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current[stat]).toEqual({ value: null, error: `${stat} unavailable` }));
+    await waitFor(() => expect(result.current.comments).toEqual({ value: 3, error: null }));
+  });
+
+  it("reports a presentation failure without hiding the healthy posts count", async () => {
+    const port = createFakeDashboardPort({ getPresentationError: new Error("theme unavailable"), posts: [postFixture()] });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeError).toBe("theme unavailable"));
+    expect(result.current.themeId).toBeNull();
+    expect(result.current.themeName).toBeNull();
+    await waitFor(() => expect(result.current.posts).toEqual({ value: 1, error: null }));
+  });
+
   it("loads all five stats from the fake port's seed, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);

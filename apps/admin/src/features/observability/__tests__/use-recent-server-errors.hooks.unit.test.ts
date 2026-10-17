@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminServerLogs } from "@/lib/api";
 import { createFakeRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
-import { RECENT_ERRORS_LIMIT, useRecentServerErrors } from "../hooks/use-recent-server-errors.hooks";
+import { RECENT_ERRORS_LIMIT, useRecentServerErrors, useWiredRecentServerErrors } from "../hooks/use-recent-server-errors.hooks";
 
-/** @file `useRecentServerErrors` against the injected port — no fetch stub, no api spy. */
+/** @file Injected-port behavior and the wired hook's real API/locale composition. */
 
 const LOGS: AdminServerLogs = {
   entries: [
@@ -20,6 +20,46 @@ const LOGS: AdminServerLogs = {
 const t = (key: string) => key;
 
 describe("useRecentServerErrors", () => {
+  it("keeps an unformattable timestamp visible instead of dropping the row", async () => {
+    const logs: AdminServerLogs = { ...LOGS, entries: [{ ...LOGS.entries[0], at: "invalid-timestamp" }], matched: 1 };
+    const port = createFakeRecentServerErrorsPort({ logs });
+    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rows).toHaveLength(1);
+    expect(result.current.rows[0]).toMatchObject({ at: "invalid-timestamp", when: "invalid-timestamp", message: "older" });
+    expect(result.current.error).toBeNull();
+  });
+
+  it("composes the real logs client with the stored admin locale", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/settings/effective") && url.includes("namespace=core.language")) {
+        return new Response(JSON.stringify({ data: [{ key: "locale", value: "es" }] }));
+      }
+      if (url.includes("/system/server-logs")) return new Response(JSON.stringify(LOGS));
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result, unmount } = renderHook(() => useWiredRecentServerErrors());
+      await waitFor(() => expect(result.current.logs).toEqual(LOGS));
+      await waitFor(() => expect(result.current.t("Recent errors")).toBe("Errores recientes"));
+      expect(result.current.rows[0]).toMatchObject({ source: "daemon", message: "newer\n  at stack" });
+      const logCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/system/server-logs"));
+      expect(logCalls.length).toBeGreaterThan(0);
+      for (const [input] of logCalls) {
+        const url = new URL(String(input), "https://admin.example");
+        expect(url.pathname).toBe("/api/admin/v1/workspaces/workspace-local/system/server-logs");
+        expect(Object.fromEntries(url.searchParams)).toEqual({ level: "error", limit: "50" });
+      }
+      expect(result.current.error).toBeNull();
+      unmount();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("asks for error lines only, capped, and returns rows newest first", async () => {
     const port = createFakeRecentServerErrorsPort({ logs: LOGS });
     const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));

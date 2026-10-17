@@ -31,3 +31,67 @@ it("routes truncated central directories to chat", async () => {
   const file = await archive(["SKILL.md"]);
   expect(await chatPackageKind({ file: new File([file.slice(0, file.size - 1)], "broken.zip") })).toBe("attachment");
 });
+
+it.each(["notes.txt", "archive.zip", "tiny.zip"])("keeps an ordinary or unreadable archive-shaped attachment (%s)", async name => {
+  expect(await chatPackageKind({ file: new File(["ordinary content"], name) })).toBe("attachment");
+});
+
+it("keeps an attachment when reading its ZIP fails", async () => {
+  class UnreadableZip extends File {
+    override slice(): Blob { throw new Error("File is no longer readable"); }
+  }
+  expect(await chatPackageKind({ file: new UnreadableZip(["zip"], "lost.zip") })).toBe("attachment");
+});
+
+it.each([
+  ["multi-disk archive", (view: DataView, end: number) => view.setUint16(end + 4, 1, true)],
+  ["directory on another disk", (view: DataView, end: number) => view.setUint16(end + 6, 1, true)],
+  ["too many entries", (view: DataView, end: number) => view.setUint16(end + 10, 4097, true)],
+  ["inconsistent entry counts", (view: DataView, end: number) => view.setUint16(end + 8, 0, true)],
+  ["oversized directory", (view: DataView, end: number) => view.setUint32(end + 12, 1024 * 1024 + 1, true)],
+  ["inconsistent directory offset", (view: DataView, end: number) => view.setUint32(end + 16, 0, true)],
+  ["invalid central signature", (view: DataView, end: number) => view.setUint32(view.getUint32(end + 16, true), 0, true)],
+  ["truncated central header", (view: DataView, end: number) => { view.setUint16(end + 8, 2, true); view.setUint16(end + 10, 2, true); }],
+  ["name extending beyond the directory", (view: DataView, end: number) => view.setUint16(view.getUint32(end + 16, true) + 28, 65535, true)],
+  ["extra uncounted central data", (view: DataView, end: number) => { view.setUint16(end + 8, 0, true); view.setUint16(end + 10, 0, true); }],
+] as const)("routes %s to attachments even when a skill marker is present", async (_name, corrupt) => {
+  const bytes = new Uint8Array(await (await archive(["SKILL.md"])).arrayBuffer());
+  corrupt(new DataView(bytes.buffer), bytes.length - 22);
+  expect(await chatPackageKind({ file: new File([bytes], "broken.zip") })).toBe("attachment");
+});
+
+it("rejects a false end record whose comment length does not reach the end of the file", async () => {
+  const file = await archive(["SKILL.md"]);
+  expect(await chatPackageKind({ file: new File([await file.arrayBuffer(), "trailing"], "trailing.zip") })).toBe("attachment");
+});
+
+it("recognizes skill names with Windows separators and a leading relative marker", async () => {
+  const bytes = new Uint8Array(await (await archive(["./SKILL.md"])).arrayBuffer());
+  const directory = new DataView(bytes.buffer).getUint32(bytes.length - 22 + 16, true);
+  // The shared packer normalizes slashes; external ZIPs can retain Windows separators.
+  bytes.set(new TextEncoder().encode(".\\SKILL.md"), directory + 46);
+  expect(await chatPackageKind({ file: new File([bytes], "windows.zip") })).toBe("skill");
+});
+
+it("groups companion files under browser and expanded skill folders while keeping loose attachments separate", async () => {
+  const browserSkill = new File(["skill"], "SKILL.md");
+  Object.defineProperty(browserSkill, "webkitRelativePath", { value: "browser/SKILL.md" });
+  const browserCompanion = new File(["companion"], "guide.txt");
+  Object.defineProperty(browserCompanion, "webkitRelativePath", { value: "browser/guide.txt" });
+  const expanded = Object.assign(new File(["skill"], "SKILL.md"), { relativePath: "expanded\\SKILL.md" });
+  const companion = Object.assign(new File(["companion"], "run.txt"), { relativePath: "expanded\\run.txt" });
+  const loose = new File(["notes"], "notes.txt");
+  const standalone = new File(["skill"], "SKILL.md");
+  expect(await partitionChatPackages({ files: [browserSkill, browserCompanion, expanded, companion, loose, standalone] })).toEqual({
+    skills: [browserSkill, browserCompanion, expanded, companion, standalone], attachments: [loose],
+  });
+});
+
+it("keeps agent-plugin browser folders together even when they bundle skills", async () => {
+  const files = ["plugin.json", "SKILL.md", "helper.txt"].map(name => {
+    const file = new File(["content"], name);
+    Object.defineProperty(file, "webkitRelativePath", { value: `agent/${name}` });
+    return file;
+  });
+  expect(await partitionChatPackages({ files })).toEqual({ skills: [], attachments: files });
+});
