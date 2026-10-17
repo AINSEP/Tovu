@@ -40,7 +40,7 @@ import { contributeWebTools } from "#src/features/web/tool-registrations";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
 import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
-import { createPlaywrightPageCapture } from "#src/features/web-screenshot/playwright-page-capture";
+import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-page-capture";
 import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
@@ -462,7 +462,7 @@ export function installFirstPartyToolContributors(
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
-      capture: createPlaywrightPageCapture({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+      capture: createPageCaptureForHost({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
       encodeTiles: encodeScreenshotTiles,
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),

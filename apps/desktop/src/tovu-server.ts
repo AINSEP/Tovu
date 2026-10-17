@@ -290,6 +290,8 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
   // Desktop launches many sites: a relocation exported for one CLI run must not become shared state.
   const isolated = omitEnvironmentKeys({ env: baseEnv ?? process.env,
     keys: ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR",
+      // Each site gets a fresh native-render capability from its launcher, never an inherited one.
+      "JINI_DESKTOP_RENDER_URL", "JINI_DESKTOP_RENDER_TOKEN",
       ...(siteDir ? ["TOVU_SITE_DIR", "TOVU_AGENT_CWD"] : [])],
   }, { caseInsensitive: process.platform === "win32" });
   const env = isolated.env;

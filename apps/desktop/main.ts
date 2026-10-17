@@ -108,6 +108,7 @@ import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen 
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
+import { startDesktopCaptureBridge } from "./src/desktop-capture.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
@@ -785,6 +786,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   // rather than set optimistically.
   const adminDevProxyUrl = await resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env });
 
+  const captureBridge = await startDesktopCaptureBridge({ createWindow: options => new BrowserWindow(options) });
   let server: TovuServerHandle;
   try { server = await startTovuServer({
     repoRoot: PAYLOAD_ROOT,
@@ -793,13 +795,15 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
     port: options.port,
     emitBootToken: true,
     adminDevProxyUrl,
-    nodeToolchainEnv: { ...NODE_TOOLCHAIN_ENV, TOVU_RUNNING_APP: "Desktop" },
+    nodeToolchainEnv: { ...NODE_TOOLCHAIN_ENV, ...captureBridge.env, TOVU_RUNNING_APP: "Desktop" },
   }); } catch (error) {
+    captureBridge.close();
     // A simultaneous Web start can win between our preflight and the child's database claim.
     const attached = attachRunningSite({ workspace: sharedSites, dir: siteDir });
     if (attached) return { server: attached, partition };
     throw error;
   }
+  server.onExit(() => captureBridge.close());
   rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir });
   recordSiteOpened(ctx.registryPath, {
     siteDir,

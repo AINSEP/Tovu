@@ -22,6 +22,8 @@
  */
 import { createLazyBrowser, encodeJpeg, importPlaywrightChromium } from "#src/platform/headless-browser/lazy-browser";
 import type { SitePreviewCapturePort } from "./site-preview-service.js";
+import { desktopRenderForHost } from '#src/platform/headless-browser/desktop-render';
+import type { UrlCapturePort } from '@jini-ai/desktop-host';
 
 /** The slice of Playwright this adapter drives — structural, so tests pass a fake without mocking modules. */
 export interface PreviewPage {
@@ -98,5 +100,31 @@ export function createPlaywrightSitePreviewCapture(
       // The service closes once its queue drains, so no Chromium idles between card views.
       return browser.close();
     },
+  };
+}
+
+/** Sites and Themes previews share the desktop native browser capability when present.
+ * The established queue still owns retries and the established encoder owns JPEG sizing.
+ * @complexity O(pixels), bounded by the native capture contract.
+ */
+export function createSitePreviewCaptureForHost(
+  _required: Record<string, never> = {},
+  { env = process.env, capture = desktopRenderForHost({ env }), ...options }: PlaywrightSitePreviewCaptureOptions & { env?: NodeJS.ProcessEnv; capture?: UrlCapturePort | null } = {},
+): SitePreviewCapturePort {
+  if (!capture) return createPlaywrightSitePreviewCapture({}, options);
+  const resize = options.resize ?? resizeWithSharp;
+  const log = options.log ?? console.warn;
+  return {
+    async capture({ url }) {
+      try {
+        const result = await capture.captureUrl({ url, viewport: VIEWPORT, fullPage: false,
+          maxPageHeightPx: VIEWPORT.height, settleMs: PAINT_SETTLE_MS });
+        return await resize({ png: Buffer.from(result.png), width: STORED_WIDTH_PX });
+      } catch {
+        log('[site-preview] native capture failed');
+        return null;
+      }
+    },
+    async close() {},
   };
 }

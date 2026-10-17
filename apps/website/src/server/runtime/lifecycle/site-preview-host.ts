@@ -2,7 +2,7 @@
  * browser) per binding, the same lifetime rule `local-site-host.ts` applies to its supervisor. */
 import { isSiteSwitcherEnabled, type SiteBinding } from "#src/platform/site-dir/index";
 import {
-  createPlaywrightSitePreviewCapture,
+  createSitePreviewCaptureForHost,
   createSitePreviewService,
   createSitePreviewStore,
   sitePreviewRoot,
@@ -23,7 +23,7 @@ export function sitePreviewServiceForHost({ binding }: { binding: SiteBinding },
   if (root === null) return undefined;
   const existing = hosts.get(binding.dir);
   if (existing) return existing;
-  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createPlaywrightSitePreviewCapture() });
+  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createSitePreviewCaptureForHost() });
   hosts.set(binding.dir, service);
   return service;
 }

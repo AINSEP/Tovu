@@ -35,4 +35,4 @@ export {
   type SitePreviewTarget,
 } from "./site-preview/site-preview-service.js";
 
-export { createPlaywrightSitePreviewCapture } from "./site-preview/playwright-site-preview-capture.js";
+export { createPlaywrightSitePreviewCapture, createSitePreviewCaptureForHost } from "./site-preview/playwright-site-preview-capture.js";

@@ -4,7 +4,7 @@
 import path from "node:path";
 import { isSiteSwitcherEnabled, type SiteBinding } from "#src/platform/site-dir/index";
 import {
-  createPlaywrightSitePreviewCapture,
+  createSitePreviewCaptureForHost,
   createSitePreviewService,
   createSitePreviewStore,
   sitePreviewRoot,
@@ -27,7 +27,7 @@ export function themePreviewServiceForHost({ binding }: { binding: SiteBinding }
   const existing = hosts.get(binding.dir);
   if (existing) return existing;
   const root = path.join(path.dirname(sitesRoot), "theme-previews", binding.name);
-  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createPlaywrightSitePreviewCapture() });
+  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createSitePreviewCaptureForHost() });
   hosts.set(binding.dir, service);
   return service;
 }
