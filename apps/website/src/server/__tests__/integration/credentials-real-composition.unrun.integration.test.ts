@@ -1,4 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 

@@ -1,9 +1,13 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
@@ -35,7 +39,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
  * and the run FAILS LOUDLY (via `assert.ok` per marker, not a single aggregate check) naming exactly
  * which table's marker leaked if the allowlist is ever bypassed.
  *
- * Uses `createSiteRouteDeps(undefined, {db, workspaceId})` (`create-sqlite-route-deps-overrides.
+ * Uses `createSiteRouteDeps(dbPath, {db, workspaceId})` (`create-sqlite-route-deps-overrides.
  * integration.test.ts`'s own established pattern) against an `openContentDb(":memory:")` handle, so
  * the canary rows are written directly via Drizzle table objects — bypassing every repo/port
  * entirely, which is the point: this proves the ROUTE never reads these tables, independent of
@@ -272,15 +276,30 @@ test("GET .../publish-content/export never leaks a row from any sensitive table,
     else process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyBefore;
   });
 
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-publish-no-leak-"));
   const db = openContentDb(":memory:");
+  let closeStore: (() => Promise<void>) | undefined;
+  let server: ReturnType<typeof createServer> | undefined;
+  t.after(async () => {
+    try {
+      if (server) await new Promise<void>((resolve) => server!.close(() => resolve()));
+      await closeStore?.();
+    } finally {
+      db.$client.close();
+      fs.rmSync(siteDir, { recursive: true, force: true });
+    }
+  });
   plantCanaries(db);
-  const deps = await createSiteRouteDeps(undefined, { db, workspaceId: WORKSPACE });
+  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+    db, workspaceId: WORKSPACE,
+    siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
+    onStoreOpened: (store) => { closeStore = () => store.close(); },
+  });
   await deps.identityReady;
 
-  const server = createServer(createApp(deps));
+  server = createServer(createApp(deps));
   server.listen(0);
   await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const address = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${address.port}`;
 

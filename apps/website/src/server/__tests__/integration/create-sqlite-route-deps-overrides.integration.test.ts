@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -83,15 +84,30 @@ test("legacy default path with no dbPath argument at all also still resolves wor
   }
 });
 
-test("new overrides path: a pre-opened db + explicit workspaceId is honored verbatim, and the EXACT SAME db handle is reused (not a second db opened)", async () => {
+test("new overrides path: a pre-opened db + explicit workspaceId is honored verbatim, and the EXACT SAME db handle is reused (not a second db opened)", async (t) => {
+  const dbPath = mkTempDbPath();
+  const siteDir = path.dirname(dbPath);
   // A ':memory:' db is a fresh, wholly isolated instance per open — if createSiteRouteDeps
   // incorrectly opened its OWN second db instead of reusing `overrides.db`, this pre-inserted row
   // (which lives ONLY in this exact in-memory instance) would be invisible through `deps`.
   const db = openContentDb(":memory:");
+  let closeStore: (() => Promise<void>) | undefined;
+  t.after(async () => {
+    try {
+      await closeStore?.();
+    } finally {
+      db.$client.close();
+      fs.rmSync(siteDir, { recursive: true, force: true });
+    }
+  });
   const customWorkspaceId = "custom-override-workspace";
   db.insert(workspaces).values({ id: customWorkspaceId, name: "Custom Override", slug: "custom-override", createdAt: "2026-07-28T00:00:00.000Z" }).run();
 
-  const deps = await createSiteRouteDeps(undefined, { db, workspaceId: customWorkspaceId });
+  const deps = await createSiteRouteDeps(dbPath, {
+    db, workspaceId: customWorkspaceId,
+    siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
+    onStoreOpened: (store) => { closeStore = () => store.close(); },
+  });
 
   assert.equal(deps.workspaceId, customWorkspaceId, "REQ-06: the override's workspaceId must be honored verbatim, not the legacy literal");
 
