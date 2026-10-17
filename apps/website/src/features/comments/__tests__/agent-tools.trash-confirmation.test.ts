@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -166,4 +167,19 @@ test("a stale expectedVersion still refuses the trash", async () => {
   await commentRepo.save(seedComment({version: 2}));
   await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TRASH_TOOL_ID)), { message: "COMMENTS_VERSION_CONFLICT: comment 'comment-1' was modified concurrently (current version is 2). Re-read it with comments_list_moderation_queue and retry with the fresh version" });
   assert.equal((await commentRepo.findById({workspaceId: WORKSPACE_ID, id: "comment-1"}))?.status, "pending");
+});
+
+test("trashing a comment preserves the caller's note in its moderation audit log", async () => {
+  const { deps, commentRepo } = await fakeRouteDeps();
+  await commentRepo.save(seedComment());
+  const registration = buildCommentsRegistrations(deps).find(r => r.descriptor.id === TRASH_TOOL_ID);
+  assert.ok(registration);
+  assert.deepEqual(await call(registration, { input: { commentId: "comment-1", expectedVersion: 1, note: "Duplicate submission" } }),
+    { trashed: true, cancelled: false, moderated: { commentId: "comment-1", toStatus: "trash" } });
+  const logs = await commentRepo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: "comment-1" });
+  assert.equal(logs.length, 1);
+  assert.deepEqual(logs.map(log => ({ action: log.action, note: log.note, actorPrincipalId: log.actorPrincipalId })), [
+    { action: "trash", note: "Duplicate submission", actorPrincipalId: PRINCIPAL_ID },
+  ]);
+  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "trash");
 });

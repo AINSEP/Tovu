@@ -1,7 +1,8 @@
+import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderHtmlForm } from '@jini-ai/cms/forms';
-import { renderHtmlMenu } from '#src/features/navigation/html-render';
+import { renderHtmlMenu, type HtmlMenuItem } from '#src/features/navigation/html-render';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render';
 
 test('rendered HTML forms advertise native tools and preserve human submission and transport', () => {
@@ -36,4 +37,41 @@ test('HTML menu tools have stable unique names; external and unavailable targets
   assert.equal((html.match(/data-toolname=/g) ?? []).length, 3);
   assert.match(html, /href="https:\/\/other.example">External<\/a>/);
   assert.doesNotMatch(html, /Draft/);
+});
+
+test('HTML menus retain unavailable parents only while a visible descendant exists', () => {
+  const child: HtmlMenuItem = { label: 'Child', href: '/child', available: true, isCurrent: false, children: [] };
+  const items: HtmlMenuItem[] = [
+    { label: 'Unavailable', href: '/draft', available: false, isCurrent: false, children: [child] },
+    { label: 'Heading', href: null, available: true, isCurrent: false, isActive: true, attrs: {}, children: [child] },
+    { label: 'Hidden', href: null, available: true, isCurrent: false, children: [] },
+  ];
+  const html = renderHtmlMenu({ id: 'tree', items, sanitizeHref: href => href });
+  assert.match(html, /<span data-tovu-menu-label>Unavailable<\/span><ul/);
+  assert.match(html, /data-active="true" data-has-children="true"><span data-tovu-menu-label>Heading<\/span>/);
+  assert.match(html, /data-toolname="menu_tree_0_0"/);
+  assert.match(html, /data-toolname="menu_tree_1_0"/);
+  assert.doesNotMatch(html, /Hidden|href="\/draft"/);
+  assert.equal(renderHtmlMenu({ id: 'empty', items: [], sanitizeHref: href => href }), '');
+});
+
+test('HTML menus escape display attributes and secure new tabs while preserving explicit rel tokens', () => {
+  const item: HtmlMenuItem = { label: 'A & B', href: '/a', available: true, isCurrent: true, isActive: true,
+    attrs: { icon: 'icon"', description: '<details>', rel: ' author  noopener author ', openInNewTab: true }, children: [] };
+  const html = renderHtmlMenu({ id: 'main"', items: [item], sanitizeHref: () => '/safe?q="&x=1' });
+  assert.match(html, /data-tovu-menu="main&quot;"/);
+  assert.match(html, /href="\/safe\?q=&quot;&amp;x=1" aria-current="page" target="_blank" rel="author noopener noreferrer"/);
+  assert.match(html, /<span data-tovu-menu-icon="icon&quot;"><\/span>A &amp; B<span data-tovu-menu-description>&lt;details&gt;<\/span>/);
+  assert.match(html, /data-toolname="menu_main__0" data-tooldescription="A &amp; B"/);
+  const sameTab = renderHtmlMenu({ id: 'main', items: [{ ...item, attrs: { rel: 'nofollow', openInNewTab: false } }], sanitizeHref: href => href });
+  assert.match(sameTab, /rel="nofollow"/);
+  assert.doesNotMatch(sameTab, /target=|noopener|data-tovu-menu-icon|data-tovu-menu-description/);
+});
+
+test('HTML menu tool exposure follows the sanitized URL and refuses schemes, authorities and unsafe characters', () => {
+  for (const href of ['', 'https://elsewhere.test', 'mailto:a@example.test', '//elsewhere.test', '\\\\elsewhere.test', '/bad\\path', '/bad path', '/bad\u0000path']) {
+    const html = renderHtmlMenu({ id: 'policy', items: [{ label: 'Link', href: '/authored', available: true, isCurrent: false, children: [] }], sanitizeHref: () => href });
+    assert.match(html, /<a href=/);
+    assert.doesNotMatch(html, /data-toolname=/, JSON.stringify(href));
+  }
 });

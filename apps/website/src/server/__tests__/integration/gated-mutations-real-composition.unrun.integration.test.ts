@@ -1,4 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; expectations unverified.
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -163,7 +164,7 @@ test("[unrun] migrate-forward [sqlite]: plan → confirm → execute captures a 
   const points = listed.items.filter((item) => item.trigger === "migrate-forward");
   assert.equal(points.length, 1, JSON.stringify(listed.items));
   assert.deepEqual({ costClass: points[0].costClass, kind: points[0].kind }, { costClass: "cheap", kind: "file-snapshot" });
-  assert.equal(path.dirname(points[0].artifactRef), site.siteDir, "the snapshot is written beside content.db");
+  assert.equal(path.dirname(points[0].artifactRef), path.dirname(site.deps.siteStoragePaths.contentDbPath), "the snapshot is written beside content.db");
   assert.equal(fs.statSync(points[0].artifactRef).size > 0, true, "the snapshot file really exists and is not empty");
 
   const ledger = await site.deps.databaseLedgerRepo.query({ limit: 50 });

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
@@ -331,4 +332,54 @@ test("resend acknowledgement does not expose contact or provider failures", asyn
     assert.deepEqual(await h.call("newsletter_resend_confirmation", { subscriptionId: "subscription" }), { delivered: true, mailDeliveryAvailable: true });
     assert.deepEqual(h.messages, []);
   }
+});
+
+for (const driver of ["console", "memory"]) {
+  test(`resend stops when mail switches off at the final capability check: ${driver}`, async () => {
+    const h = await fixture();
+    const capabilities = h.deps.mailer.capabilities();
+    let reads = 0;
+    h.deps.mailer.capabilities = () => ({ ...capabilities, driver: ++reads === 1 ? "smtp" : driver });
+    h.deps.newsletterSubscriptionRepo.findById = async () => assert.fail("mail-off resend must not look up a subscription");
+    const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find(tool => tool.descriptor.id === "newsletter_resend_confirmation")!;
+    h.tools.set(tool.descriptor.id, tool);
+    assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }), {
+      delivered: false, mailDeliveryAvailable: false,
+      note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email.",
+    });
+    assert.deepEqual(h.messages, []);
+    assert.deepEqual(await h.deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: "ws", subscriptionId: "subscription" }), []);
+  });
+}
+
+test("resend with an in-memory mail driver refuses before subscriber lookup", async () => {
+  const h = await fixture("memory");
+  h.deps.newsletterSubscriptionRepo.findById = async () => assert.fail("in-memory mail must not look up a subscriber");
+  const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find(tool => tool.descriptor.id === "newsletter_resend_confirmation")!;
+  h.tools.set(tool.descriptor.id, tool);
+  assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }), {
+    delivered: false, mailDeliveryAvailable: false,
+    note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email.",
+  });
+  assert.deepEqual(h.messages, []);
+});
+
+test("resend abandoned during contact lookup creates no token or mail", async () => {
+  const h = await fixture();
+  const abort = new AbortController();
+  const subscription = { id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending" as const, source: "admin" as const, subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW };
+  await h.deps.newsletterSubscriptionRepo.save(subscription);
+  h.deps.newsletterSubscriberDirectory.getContact = async (input) => {
+    assert.deepEqual(input, { workspaceId: "ws", subscriberId: "subscriber" });
+    abort.abort();
+    return { workspaceId: "ws", subscriberId: "subscriber", email: "reader@example.com", emailDeliverable: true };
+  };
+  const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find(tool => tool.descriptor.id === "newsletter_resend_confirmation")!;
+  h.tools.set(tool.descriptor.id, tool);
+  assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }, { signal: abort.signal }), {
+    confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true,
+  });
+  assert.deepEqual(h.messages, []);
+  assert.deepEqual(await h.deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: "ws", subscriptionId: "subscription" }), []);
+  assert.deepEqual(await h.deps.newsletterSubscriptionRepo.findById({ workspaceId: "ws", id: "subscription" }), subscription);
 });

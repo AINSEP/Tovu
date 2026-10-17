@@ -33,6 +33,15 @@ test("Newsletter basic error classes inherit from Error and preserve message", (
   assert.equal(forbidden.message, "forbidden");
 });
 
+test("message-less newsletter lookup and authorization errors preserve their domain identities", () => {
+  for (const ErrorType of [NewsletterCampaignNotFoundError, NewsletterListNotFoundError, NewsletterSubscriptionNotFoundError, NewsletterForbiddenError]) {
+    const error = new ErrorType();
+    assert.ok(error instanceof ErrorType);
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, "");
+  }
+});
+
 test("NewsletterSubscriberNotFoundError stores subscriberId", () => {
   const err = new NewsletterSubscriberNotFoundError("subscriber missing", "sub-123");
   assert.ok(err instanceof Error);

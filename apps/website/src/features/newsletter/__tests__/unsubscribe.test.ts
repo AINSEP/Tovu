@@ -242,3 +242,36 @@ test("processUnsubscribe: an unbound consent capability still persists the self-
   assert.equal(row?.updatedAt, NOW);
   assert.deepEqual(revokedCalls, []);
 });
+
+test("processUnsubscribe rejects missing token parts before looking up or changing consent", async () => {
+  for (const rawToken of ["", ".signature", "claims", "claims."]) {
+    const original = baseSubscription();
+    const { deps, repo } = makeDeps(original);
+    await assert.rejects(processUnsubscribe({ deps, input: { rawToken } }), (error: unknown) => {
+      assert.ok(error instanceof NewsletterUnsubscribeTokenInvalidError);
+      assert.equal(error.reason, "signature_invalid");
+      assert.equal(error.message, "malformed unsubscribe token");
+      return true;
+    });
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: original.id }), original);
+    assert.deepEqual(revokedCalls, []);
+  }
+});
+
+test("buildUnsubscribeLink preserves the verified base path and omits only the scheme's default port", async () => {
+  for (const [scheme, port, authority] of [
+    ["https", 443, "https://acme.test"],
+    ["http", 80, "http://acme.test"],
+    ["http", 443, "http://acme.test:443"],
+    ["https", 80, "https://acme.test:80"],
+  ] as const) {
+    const { deps } = makeDeps(baseSubscription());
+    deps.originRegistry = { ...originRegistry, canonicalOrigin: async () => ({
+      scheme, port, host: "acme.test", basePath: "/tenant", verifiedAt: NOW, source: "workspace-setting" as const,
+    }) };
+    const claims: UnsubscribeTokenClaims = { workspaceId: WS, subscriberId: "subscriber-1", listId: "list-1", campaignId: null, consentRevisionId: "rev-1" };
+    const link = await buildUnsubscribeLink({ deps, claims });
+    assert.equal(link.slice(0, link.indexOf("?")), `${authority}/tenant/newsletter/unsubscribe`);
+    assert.deepEqual(await processUnsubscribe({ deps, input: { rawToken: new URL(link).searchParams.get("token")! } }), { outcome: "unsubscribed" });
+  }
+});

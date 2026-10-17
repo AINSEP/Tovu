@@ -1,5 +1,9 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import { InitDirNotEmptyError, ValidationError, type SiteBinding, type SiteListEntry } from "#src/platform/site-dir/index";
 
@@ -110,4 +114,97 @@ test("activateSite: an unknown name never restarts", () => {
   let requested = false;
   activateSite({ switcherBase: "/repo", name: "ghost", restartNow: true }, { listSites: () => [SITE], persistActiveSite: () => {}, devRestart: { requestRestart: () => { requested = true; } } });
   assert.equal(requested, false);
+});
+
+test("createSiteForOwner refuses malformed tokens before checking or creating", async () => {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: [] }, {
+    createSite: async () => assert.fail("invalid tokens must not create a site"),
+    checkAgentPluginAccessToken: async () => assert.fail("invalid tokens must not be checked"),
+  }), { ok: false, code: "VALIDATION_ERROR", error: "'agentPluginTokens' must map plugin ids to token strings" });
+});
+
+test("createSiteForOwner refuses tokens without a guarded HTTP client", async () => {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } }, {
+    createSite: async () => assert.fail("unsupported token must not create a site"),
+    checkAgentPluginAccessToken: async () => assert.fail("no unguarded token check"),
+    sealPendingAgentPluginTokens: async () => assert.fail("no unchecked tokens saved"),
+  }), { ok: false, code: "AGENT_PLUGIN_TOKEN_UNSUPPORTED", pluginId: "notion", error: "Notion can't be connected with an access token here. Leave it empty and connect it later from chat. No site was created." });
+});
+
+test("createSiteForOwner checks tokens before creation and seals trimmed tokens for the new site's key", async () => {
+  const events: unknown[] = [];
+  const httpClient = { request: async () => assert.fail("the injected checker owns probing") } as never;
+  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", adminPassword: "explicit-password", agentPluginTokens: { notion: " tok " } }, {
+    customCredentialsHttpClient: httpClient,
+    checkAgentPluginAccessToken: async (deps, input) => {
+      assert.equal(deps.workspaceId, "ws"); assert.equal(deps.httpClient, httpClient);
+      events.push(["checked", input]); return "ok";
+    },
+    createSite: async (required, optional) => {
+      events.push(["created", required, optional]); return { name: "beta", dir: "/new/site", siteId: "new-key" } as never;
+    },
+    sealPendingAgentPluginTokens: async (input) => { events.push(["sealed", input]); },
+  });
+  assert.deepEqual(events, [
+    ["checked", { pluginId: "notion", token: "tok" }],
+    ["created", { name: "beta", adminPassword: "explicit-password" }, { cwd: "/repo" }],
+    ["sealed", { siteDir: "/new/site", siteKeyId: "new-key", tokens: { notion: "tok" } }],
+  ]);
+  assert.deepEqual(result, { ok: true, site: { name: "beta", dir: "/new/site", siteId: "new-key" }, agentPluginTokens: { status: "saved", pluginIds: ["notion"] } });
+});
+
+test("createSiteForOwner refuses an invalid checked token before writing anything", async () => {
+  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "bad-token" } }, {
+    customCredentialsHttpClient: {} as never, checkAgentPluginAccessToken: async () => "invalid",
+    createSite: async () => assert.fail("invalid token must not create a site"),
+    sealPendingAgentPluginTokens: async () => assert.fail("invalid token must not be sealed"),
+  });
+  assert.deepEqual(result, { ok: false, code: "AGENT_PLUGIN_TOKEN_INVALID", pluginId: "notion", error: "That Notion access token didn't work. Check it, or leave it empty and connect Notion later from chat. No site was created." });
+});
+
+test("createSiteForOwner uses the real checker to refuse an unbundled plugin", async () => {
+  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { "coverage-no-such-plugin": "tok" } }, {
+    customCredentialsHttpClient: { request: async () => assert.fail("unbundled plugins have no probe URL") } as never,
+    createSite: async () => assert.fail("unbundled token must not create a site"), sealPendingAgentPluginTokens: async () => assert.fail("unchecked token"),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.code, "AGENT_PLUGIN_TOKEN_UNSUPPORTED");
+  assert.equal(!result.ok && result.pluginId, "coverage-no-such-plugin");
+});
+
+for (const failure of [new Error("disk full"), "volume offline"]) {
+  test(`createSiteForOwner keeps the created site and reports failed token storage: ${String(failure)}`, async (t) => {
+    const diagnostics = t.mock.method(console, "error", () => {});
+    const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } }, {
+      customCredentialsHttpClient: {} as never, checkAgentPluginAccessToken: async () => "unavailable",
+      createSite: async () => ({ name: "beta", dir: "/new/site", siteId: "new-key" }) as never,
+      sealPendingAgentPluginTokens: async () => { throw failure; },
+    });
+    assert.deepEqual(result, { ok: true, site: { name: "beta", dir: "/new/site", siteId: "new-key" }, agentPluginTokens: { status: "failed", pluginIds: ["notion"] } });
+    assert.deepEqual(diagnostics.mock.calls.map(call => call.arguments), [[`[system/sites] the new site's access tokens could not be stored: ${failure instanceof Error ? failure.message : failure}`]]);
+  });
+}
+
+test("createSiteForOwner defaults to the real name validator without creating an invalid site", async () => {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/unused", name: "../invalid" }), {
+    ok: false, code: "VALIDATION_ERROR", error: "createSite: name must be 1..100 lowercase letters, digits, and dashes",
+  });
+});
+
+test("activateSite persists through the real writer in the supplied temporary base", async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-site-admin-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const result = activateSite({ switcherBase: dir, name: "alpha", restartNow: true }, { listSites: () => [SITE] });
+  assert.deepEqual(result, { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS, restarting: false });
+  assert.equal(await readFile(path.join(dir, ".env"), "utf8"), "TOVU_SITE=alpha\n");
+  assert.deepEqual(activateSite({ switcherBase: dir, name: "coverage-no-such-site" }), { ok: false, code: "SITE_NOT_FOUND", error: "site 'coverage-no-such-site' was not found" });
+});
+
+test("activateSite respects a supervisor that cannot switch sites", () => {
+  const persisted: unknown[] = [];
+  assert.deepEqual(activateSite({ switcherBase: "/repo", name: "alpha", restartNow: true }, {
+    listSites: () => [SITE], persistActiveSite: (input) => { persisted.push(input); },
+    devRestart: { canSwitchSite: false, requestRestart: () => assert.fail("incapable supervisor must not restart") },
+  }), { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS, restarting: false });
+  assert.deepEqual(persisted, [{ name: "alpha" }]);
 });

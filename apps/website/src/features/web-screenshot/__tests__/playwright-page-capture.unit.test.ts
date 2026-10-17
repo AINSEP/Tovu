@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PageWorkTimeout, type RenderBrowserPool } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";
 import { createPlaywrightPageCapture, type CaptureBrowser, type CaptureBrowserLauncher, type CaptureContextOptions, type CaptureLaunchOptions, type CapturePage } from "../playwright-page-capture.js";
@@ -16,10 +17,14 @@ interface FakeOptions {
   failLaunch?: boolean;
   /** Status the fake "network" (the fulfilled route) answers the navigation with. */
   hangGoto?: boolean;
-  pageHeight?: number;
+  pageHeight?: unknown;
+  gotoError?: unknown;
+  nullResponse?: boolean;
+  scrollError?: Error;
+  onGoto?: () => void;
 }
 
-function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400 }: FakeOptions = {}) {
+function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400, gotoError, nullResponse = false, scrollError, onGoto }: FakeOptions = {}) {
   const events: string[] = [];
   const launches: CaptureLaunchOptions[] = [];
   const contexts: CaptureContextOptions[] = [];
@@ -35,6 +40,8 @@ function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400 }
           let current = "about:blank";
           const page: CapturePage = {
             async goto(url) {
+              onGoto?.();
+              if (gotoError !== undefined) throw gotoError;
               if (hangGoto) await new Promise(() => {});
               let fulfilled: number | undefined;
               let aborted: string | undefined;
@@ -45,10 +52,15 @@ function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400 }
               });
               if (aborted) throw new Error(`page.goto: net::ERR_BLOCKED_BY_CLIENT at ${url}`);
               current = url;
-              return { status: () => fulfilled! };
+              return nullResponse ? null : { status: () => fulfilled! };
             },
             async waitForTimeout(ms) { events.push(`settle:${ms}`); },
-            async evaluate(expression) { events.push(expression.includes("scrollTo") ? "scroll-through" : "measure"); return pageHeight; },
+            async evaluate(expression) {
+              const scrolling = expression.includes("scrollTo");
+              events.push(scrolling ? "scroll-through" : "measure");
+              if (scrolling && scrollError) throw scrollError;
+              return pageHeight;
+            },
             async title() { return "T".repeat(400); },
             url: () => current,
             async screenshot(options) { screenshots.push(options); return Buffer.from("png"); },
@@ -264,4 +276,142 @@ test("screenshot uses an injected shared browser pool without launching or closi
   assert.equal(leases, 0); assert.equal(fake.launches.length, 1);
   assert.ok(fake.events.includes("context-close")); assert.ok(!fake.events.includes("browser-close"));
   await capture.close(); assert.equal(closes, 1);
+});
+
+test("the default launcher resolves the host Playwright module and captures through its structural adapter", async t => {
+  const fake = fakeBrowser();
+  // Only the external SDK is replaced; the host loader, browser pool and renderer all run.
+  t.mock.module("playwright", { namedExports: { chromium: fake.launcher } });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") });
+  t.after(() => capture.close());
+  const result = await capture.capture(request());
+  assert.deepEqual(result.png, Buffer.from("png"));
+  assert.equal(result.finalUrl, "https://example.com/");
+  assert.equal(result.status, 200);
+  assert.equal(fake.launches[0]?.chromiumSandbox, true);
+  assert.ok(fake.events.includes("context-close"));
+});
+
+test("full-page capture rounds a finite height up and falls back to the viewport for invalid measurements", async t => {
+  for (const [pageHeight, expected] of [[901.2, 902], ["2400", 800], [NaN, 800], [Infinity, 800], [0, 800], [-1, 800]] as const) {
+    const fake = fakeBrowser({ pageHeight });
+    const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+    t.after(() => capture.close());
+    const result = await capture.capture(request({ fullPage: true }));
+    assert.deepEqual([result.pageHeight, result.capturedHeight], [expected, expected]);
+    assert.deepEqual(fake.screenshots[0]?.clip, { x: 0, y: 0, width: 1280, height: expected });
+  }
+});
+
+test("a page without a navigation response still produces a capture with null status", async t => {
+  const fake = fakeBrowser({ nullResponse: true });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  t.after(() => capture.close());
+  const result = await capture.capture(request());
+  assert.equal(result.status, null);
+  assert.deepEqual(result.png, Buffer.from("png"));
+});
+
+test("a scroll-reveal script failure is best effort and does not prevent the full-page screenshot", async t => {
+  const fake = fakeBrowser({ scrollError: new Error("page script failed") });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  t.after(() => capture.close());
+  const result = await capture.capture(request({ fullPage: true }));
+  assert.deepEqual([result.pageHeight, result.capturedHeight], [2400, 2400]);
+  assert.deepEqual(result.png, Buffer.from("png"));
+  assert.deepEqual(fake.events.filter(event => ["scroll-through", "measure"].includes(event)), ["scroll-through", "measure"]);
+});
+
+test("a scroll-reveal budget timeout aborts capture and closes the context", async t => {
+  const fake = fakeBrowser({ scrollError: new PageWorkTimeout({ timeoutMs: 1000 }) });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 1000 });
+  t.after(() => capture.close());
+  await assert.rejects(capture.capture(request({ fullPage: true })), (error: unknown) => {
+    assert.ok(error instanceof PageCaptureError);
+    assert.equal(error.kind, "timeout");
+    assert.equal(error.message, "exceeded 1000ms");
+    return true;
+  });
+  assert.ok(fake.events.includes("context-close"));
+  assert.deepEqual(fake.screenshots, []);
+});
+
+test("navigation errors expose only a Chromium code or a generic message", async t => {
+  for (const [gotoError, expected] of [
+    [new Error("page.goto: net::ERR_CONNECTION_RESET at http://private.example/secret"), "ERR_CONNECTION_RESET"],
+    [new Error("private diagnostic details"), "navigation failed"],
+    ["private non-Error rejection", "navigation failed"],
+  ] as const) {
+    const fake = fakeBrowser({ gotoError });
+    const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+    t.after(() => capture.close());
+    await assert.rejects(capture.capture(request()), (error: unknown) => {
+      assert.ok(error instanceof PageCaptureError);
+      assert.equal(error.kind, "failed");
+      assert.equal(error.message, expected);
+      return true;
+    });
+    assert.ok(fake.events.includes("context-close"));
+    assert.deepEqual(fake.screenshots, []);
+  }
+});
+
+test("a caller's already-aborted signal prevents launch and an active abort prevents a screenshot", async t => {
+  const alreadyAborted = new AbortController();
+  alreadyAborted.abort();
+  const fake = fakeBrowser();
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  t.after(() => capture.close());
+  await assert.rejects(capture.capture(request(), { signal: alreadyAborted.signal }), (error: unknown) => {
+    assert.ok(error instanceof PageCaptureError);
+    assert.equal(error.kind, "unavailable");
+    return true;
+  });
+  assert.deepEqual(fake.launches, []);
+
+  const controller = new AbortController();
+  const active = fakeBrowser({ onGoto: () => controller.abort() });
+  const running = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => active.launcher });
+  t.after(() => running.close());
+  await assert.rejects(running.capture(request(), { signal: controller.signal }), (error: unknown) => {
+    assert.ok(error instanceof PageCaptureError);
+    assert.equal(error.kind, "failed");
+    assert.equal(error.message, "navigation failed");
+    return true;
+  });
+  assert.ok(active.events.includes("context-close"));
+  assert.deepEqual(active.screenshots, []);
+});
+
+test("a shared browser without screenshot support reports a safe failure and releases its lease", async t => {
+  const fake = fakeBrowser();
+  const launched = await fake.launcher.launch({ headless: true, chromiumSandbox: true, args: [] });
+  let released = 0;
+  const pool: RenderBrowserPool = {
+    acquire: async () => ({
+      browser: {
+        newContext: async options => {
+          const context = await launched.newContext(options as unknown as CaptureContextOptions);
+          return { ...context, newPage: async () => {
+            const { screenshot: _screenshot, ...page } = await context.newPage();
+            return page;
+          } };
+        },
+        close: () => launched.close(),
+      },
+      release: () => { released++; },
+    }),
+    close: () => launched.close(),
+  };
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { browserPool: pool });
+  t.after(() => capture.close());
+  await assert.rejects(capture.capture(request()), (error: unknown) => {
+    assert.ok(error instanceof PageCaptureError);
+    assert.equal(error.kind, "failed");
+    assert.equal(error.message, "navigation failed");
+    return true;
+  });
+  assert.equal(released, 1);
+  assert.ok(fake.events.includes("context-close"));
+  assert.deepEqual(fake.screenshots, []);
 });

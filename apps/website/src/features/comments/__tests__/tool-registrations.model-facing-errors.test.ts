@@ -5,6 +5,7 @@
  * indistinguishable from a crash. Asserts the exact `ToolInputError` text the model now sees, the
  * fact `ToolExecutor.execute` branches its BAD_REQUEST-vs-internal classification on.
  */
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -90,4 +91,16 @@ test("a permission denial is COMMENTS_FORBIDDEN on every handler, not a redacted
       toolId,
     );
   }
+});
+
+test("a conflict without a current version gives actionable guidance with an unknown version", async () => {
+  const handler = handlerFor(makeDeps({ moderation: { ok: false, reason: "conflict" } }), "comments_approve_comment");
+  assert.equal(await rejectionMessage(handler(ctxWithInput({ commentId: "c1", expectedVersion: 1 }))),
+    "COMMENTS_VERSION_CONFLICT: comment 'c1' was modified concurrently (current version is unknown). Re-read it with comments_list_moderation_queue and retry with the fresh version");
+});
+
+test("a comment removed between the trash lookup and write reports not found", async () => {
+  const handler = handlerFor(makeDeps({ existing: true, moderation: { ok: false, reason: "not-found" } }), "comments_trash_comment");
+  assert.equal(await rejectionMessage(handler(ctxWithInput({ commentId: "c1", expectedVersion: 1 }))),
+    "COMMENTS_NOT_FOUND: comment 'c1' was not found");
 });

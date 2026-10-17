@@ -1,4 +1,5 @@
 /** guide contract: live site facts reuse Site Inspection and gate each registry read. */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemorySettingsRepo, getEffective } from "@jini-ai/core/settings";
@@ -58,3 +59,44 @@ test("a host without a membership toggle reports unavailable rather than enabled
   const f = fixture();
   assert.deepEqual(await readSiteGuideFacts({ deps: { ...f.deps, readMembersEnabled: async () => null }, caller, topics: ["members"] }), { members: { status: "unavailable" } });
 });
+
+test("guide facts omit unknown and unrequested topics without reading any registry", async () => {
+  const f = fixture();
+  assert.deepEqual(await readSiteGuideFacts({ deps: f.deps, caller, topics: ["unknown"] }, {}), {});
+  assert.deepEqual(f.reads, []);
+});
+
+test("authorization failures hide their details and never read the requested registry", async () => {
+  const f = fixture();
+  const deps = { ...f.deps, authorize: async () => { throw new Error("PRIVATE_CANARY"); } };
+  assert.deepEqual(await readSiteGuideFacts({ deps, caller, topics: ["widgets"] }), { widgets: { status: "unavailable" } });
+  assert.deepEqual(f.reads, []);
+});
+
+for (const topic of ["themes", "plugins"] as const) {
+  test(`${topic} facts stay unavailable when the profile read fails but the registry succeeds`, async () => {
+    const f = fixture();
+    const fail = async (): Promise<never> => { throw new Error("PRIVATE_CANARY"); };
+    const deps = topic === "themes" ? { ...f.deps, presentationRepo: { findByWorkspaceId: fail } }
+      : { ...f.deps, discoverPlugins: fail };
+    assert.deepEqual(await readSiteGuideFacts({ deps, caller, topics: [topic] }), { [topic]: { status: "unavailable" } });
+    assert.ok(f.reads.includes(topic === "themes" ? "markers" : "agent-plugins"));
+  });
+
+  test(`${topic} facts stay unavailable when the registry read fails after a successful profile`, async () => {
+    const f = fixture();
+    const fail = () => { throw new Error("PRIVATE_CANARY"); };
+    const deps = topic === "themes" ? { ...f.deps, listMarkers: fail }
+      : { ...f.deps, readAgentPlugins: async () => fail() };
+    assert.deepEqual(await readSiteGuideFacts({ deps, caller, topics: [topic] }), { [topic]: { status: "unavailable" } });
+  });
+
+  test(`${topic} facts report forbidden when only the second permission check denies access`, async () => {
+    const f = fixture();
+    let decisions = 0;
+    const deps = { ...f.deps, authorize: async () => ({ allowed: ++decisions === 1, reason: "test decision" }) };
+    assert.deepEqual(await readSiteGuideFacts({ deps, caller, topics: [topic] }), { [topic]: { status: "forbidden" } });
+    assert.equal(decisions, 2);
+    assert.equal(f.reads.includes(topic === "themes" ? "markers" : "agent-plugins"), false);
+  });
+}

@@ -21,6 +21,16 @@ export const PLUGIN_INSTALL_SOURCE_SCHEMA = {
 
 export interface PluginInstallRequest { readonly kind: "folder" | "zip"; readonly path?: string; readonly attachmentRef?: string; readonly replace: boolean }
 
+export interface InstallArchiveFiles {
+  stat(required: { path: string }, optional?: Record<string, never>): Promise<{ size: number }>;
+  read(required: { path: string }, optional?: Record<string, never>): Promise<Uint8Array>;
+}
+
+const nodeArchiveFiles: InstallArchiveFiles = {
+  stat: ({ path: sourcePath }, _optional) => stat(sourcePath),
+  read: ({ path: sourcePath }, _optional) => readFile(sourcePath),
+};
+
 export function readPluginInstallRequest(
   { input: rawInput }: { input: unknown },
   _optional: Record<string, never> = {},
@@ -41,7 +51,7 @@ export function readPluginInstallRequest(
 /** Bound reads BEFORE allocation; never interpret an opaque attachment id as a filesystem path. */
 export async function readPluginInstallArchive(
   required: { request: PluginInstallRequest; ownerId: string; runId: string; maxBytes: number },
-  optional: { readAttachment?: InstallAttachmentReader } = {},
+  optional: { readAttachment?: InstallAttachmentReader; files?: InstallArchiveFiles } = {},
 ): Promise<Uint8Array> {
   const { request, ownerId, runId, maxBytes } = required;
   if (request.attachmentRef) {
@@ -51,10 +61,11 @@ export async function readPluginInstallArchive(
     return result.bytes;
   }
   const sourcePath = request.path!;
+  const files = optional.files ?? nodeArchiveFiles;
   let size: number;
-  try { size = (await stat(sourcePath)).size; } catch { throw new ToolInputError({ message: `No readable ZIP at ${sourcePath}.` }); }
+  try { size = (await files.stat({ path: sourcePath })).size; } catch { throw new ToolInputError({ message: `No readable ZIP at ${sourcePath}.` }); }
   if (size > maxBytes) throw new ToolInputError({ message: "ZIP exceeds the 32 MiB upload limit." });
-  const bytes = await readFile(sourcePath);
+  const bytes = await files.read({ path: sourcePath });
   // Re-check in case the local file grew between stat and read.
   if (bytes.byteLength > maxBytes) throw new ToolInputError({ message: "ZIP exceeds the 32 MiB upload limit." });
   return bytes;

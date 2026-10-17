@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,6 +31,18 @@ function makeEvent(overrides: Partial<DomainEvent> = {}): DomainEvent {
 type OutboxOptions = { claimLeaseMs?: number };
 
 function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) => OutboxPort) {
+  test(`[${label}] settling an unknown id leaves existing pending events untouched`, async () => {
+    const outbox = makeOutbox();
+    const event = makeEvent();
+    await outbox.enqueue(event);
+    await outbox.markDelivered({ id: "missing" });
+    await outbox.markFailed({ id: "missing", error: "not this event", nextAttemptAt: "2099-01-01T00:00:00.000Z", nextStatus: "failed" });
+    const claimed = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
+    assert.deepEqual(claimed.map(row => ({ event: row.event, status: row.status, attempts: row.attempts })), [
+      { event, status: "processing", attempts: 1 },
+    ]);
+  });
+
   test(`[${label}] enqueue() then claimPending() returns the event as pending->processing`, async () => {
     const outbox = makeOutbox();
     await outbox.enqueue(makeEvent());

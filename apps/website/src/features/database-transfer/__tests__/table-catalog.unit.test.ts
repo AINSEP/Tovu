@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
+import { sql } from "drizzle-orm";
+import { boolean, check, ForeignKeyBuilder, index, integer, jsonb, pgTable, primaryKey, text, unique } from "drizzle-orm/pg-core";
 
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
-import { collectSchemaTables, planSnapshotTables } from "../table-catalog.js";
+import { collectSchemaTables, collectTransferTables, planChatSnapshotTables, planSnapshotTables } from "../table-catalog.js";
 import { indexSql } from "../postgres-ddl.js";
 
 test("the host schema retains the submission-IP retention index's partial predicate", () => {
@@ -72,4 +74,71 @@ test("content.db's legacy chat tables are left out with a reason: chat.db is the
   const chatTables = ["ai_chat_messages", "ai_chats", "assistant_agent_sessions"];
   assert.deepEqual(plan.tables.filter((entry) => chatTables.includes(entry.name)), []);
   assert.deepEqual(plan.leftOut.filter((entry) => chatTables.includes(entry.table)), chatTables.map((table) => ({ table, reason: "conversations are copied from chat.db; chat history still left in content.db from before the chat.db split is not copied" })));
+});
+
+test("core projection carries literal and SQL defaults, identity modes and application-generated defaults", () => {
+  const table = pgTable("catalog_variants", {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    next: integer("next").generatedByDefaultAsIdentity(),
+    label: text("label").notNull().default("O'Brien"),
+    count: integer("count").default(7), enabled: boolean("enabled").default(false),
+    expression: text("expression").default(sql`'ready'`),
+    computed: text("computed").$defaultFn(() => "generated-in-app"),
+  });
+  assert.deepEqual(collectSchemaTables({}, { schema: { table }, copyOrder: () => ["table"] }), [{
+    name: "catalog_variants", columns: [
+      { name: "id", sqlType: "integer", notNull: true, identity: "ALWAYS" },
+      { name: "next", sqlType: "integer", notNull: true, identity: "BY DEFAULT" },
+      { name: "label", sqlType: "text", notNull: true, default: "'O''Brien'" },
+      { name: "count", sqlType: "integer", notNull: false, default: "7" },
+      { name: "enabled", sqlType: "boolean", notNull: false, default: "false" },
+      { name: "expression", sqlType: "text", notNull: false, default: "'ready'" },
+      { name: "computed", sqlType: "text", notNull: false },
+    ], primaryKey: ["id"], indexes: [], foreignKeys: [], checks: [],
+  }]);
+});
+
+test("core projection rejects unsupported defaults and missing manifest exports", () => {
+  const unsupported = pgTable("bad_defaults", { payload: jsonb("payload").default({ bad: true }) });
+  assert.throws(() => collectSchemaTables({}, { schema: { unsupported }, copyOrder: () => ["unsupported"] }), { message: "schema.postgres.ts: 'payload' has a default this copier cannot write" });
+  for (const collect of [collectTransferTables, collectSchemaTables]) {
+    assert.throws(() => collect({}, { schema: {}, copyOrder: () => ["missing"] }), { message: "schema.postgres.ts has no table exported as 'missing'; regenerate it" });
+  }
+});
+
+test("core projection retains composite keys, unique columns and multi-column unique constraints", () => {
+  const table = pgTable("catalog_keys", { a: text("a").unique(), b: text("b") }, columns => [
+    primaryKey({ columns: [columns.b, columns.a] }), unique("catalog_pair").on(columns.a, columns.b),
+    index().on(columns.b), check("catalog_a_present", sql`length(${columns.a}) > 0`),
+  ]);
+  const [projected] = collectSchemaTables({}, { schema: { table }, copyOrder: () => ["table"] });
+  assert.deepEqual(projected!.primaryKey, ["b", "a"]);
+  assert.deepEqual(projected!.indexes, [
+    { name: "catalog_keys_idx", columns: ["b"], unique: false },
+    { name: "catalog_keys_a_unique", columns: ["a"], unique: true },
+    { name: "catalog_pair", columns: ["a", "b"], unique: true },
+  ]);
+  assert.deepEqual(projected!.checks, [{ name: "catalog_a_present", sql: 'length("catalog_keys"."a") > 0' }]);
+});
+
+test("chat snapshot order places the three owned tables first and sorts other tables by name", (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec(`CREATE TABLE z_extra (id TEXT); CREATE TABLE a_extra (id TEXT);
+    CREATE TABLE assistant_agent_sessions (id TEXT); CREATE TABLE ai_chat_messages (id TEXT); CREATE TABLE ai_chats (id TEXT);`);
+  const source = openSqliteSnapshotSource(db.serialize());
+  t.after(() => source.close());
+  assert.deepEqual(planChatSnapshotTables(source).tables.map(table => table.name), ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "a_extra", "z_extra"]);
+});
+
+test("foreign keys without actions project SQL's no-action defaults", () => {
+  const parent = pgTable("catalog_parent", { id: integer("id").primaryKey() });
+  const child = pgTable("catalog_child", { parentId: integer("parent_id") }, columns => [
+    new ForeignKeyBuilder(() => ({ columns: [columns.parentId], foreignColumns: [parent.id] }), {}),
+  ]);
+  const [projected] = collectTransferTables({}, { schema: { child }, copyOrder: () => ["child"] });
+  assert.deepEqual(projected!.foreignKeys, [{
+    name: "catalog_child_parent_id_catalog_parent_id_fk", columns: ["parent_id"], foreignTable: "catalog_parent",
+    foreignColumns: ["id"], onDelete: "no action", onUpdate: "no action",
+  }]);
 });

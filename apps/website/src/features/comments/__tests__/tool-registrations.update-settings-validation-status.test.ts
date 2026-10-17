@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -89,4 +90,27 @@ test("comments_update_settings maps out-of-range domain validation to ToolInputE
   assert.ok(registration);
   await assert.rejects(registration.handler(ctxWithInput({ spamAutoRejectScore: 1.5, requireModeration: false })), (error: unknown) => error instanceof ToolInputError && /spamAutoRejectScore/.test(error.message));
   assert.deepEqual(await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }), before);
+});
+
+test("comments_update_settings accepts null to clear a previously configured close-after period", async () => {
+  const deps = await makeDeps();
+  const registration = buildCommentsRegistrations(deps).find(r => r.descriptor.id === "comments_update_settings");
+  assert.ok(registration);
+  await registration.handler(ctxWithInput({ closeAfterDays: 14 }));
+  assert.equal((await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId })).closeAfterDays, 14);
+  const result = await registration.handler(ctxWithInput({ closeAfterDays: null }));
+  const persisted = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  assert.equal(persisted.closeAfterDays, null);
+  assert.deepEqual(result, { settings: persisted });
+});
+
+test("comments_update_settings ignores incorrectly typed optional fields when a valid patch field remains", async () => {
+  const deps = await makeDeps();
+  const before = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  const registration = buildCommentsRegistrations(deps).find(r => r.descriptor.id === "comments_update_settings");
+  assert.ok(registration);
+  const result = await registration.handler(ctxWithInput({ enabled: false, requireModeration: "false", maxDepth: "2", closeAfterDays: "never", spamAutoRejectScore: "0.8", maxPerIpPerHour: "7" }));
+  const expected = { ...before, enabled: false };
+  assert.deepEqual(result, { settings: expected });
+  assert.deepEqual(await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }), expected);
 });

@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -94,6 +95,21 @@ async function seedSurvivors(kernel: ContentKernel): Promise<void> {
 }
 
 for (const dialect of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
+  test(`[${dialect.name}] default boot options record completion without modifying a readable entry`, async t => {
+    const kernel = dialect.make();
+    if (dialect.name === "sqlite") t.after(() => kernel.close());
+    await prepare(kernel);
+    await insertEntry(kernel, "readable", "widget", { ext: { widget: { payload: "{}" } } });
+    const before = await snapshot(kernel);
+    assert.deepEqual(await removeUnreadableOwnerEntries({ kernel }), { ran: true, removed: [] });
+    const marker = await readMarker(kernel) as { completedAt: string; removed: unknown[]; hardDeleteReason: string };
+    assert.equal(new Date(marker.completedAt).toISOString(), marker.completedAt);
+    assert.deepEqual(marker.removed, []);
+    assert.equal(marker.hardDeleteReason, UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON);
+    assert.deepEqual(await snapshot(kernel), before);
+    assert.equal(await watermark(kernel), 0);
+  });
+
   test(`[${dialect.name}] removes exactly the mismatched-namespace rows (trash purge for widget, recorded hard delete for widget_area); every other row survives byte for byte`, async () => {
     const kernel = dialect.make();
     await prepare(kernel);

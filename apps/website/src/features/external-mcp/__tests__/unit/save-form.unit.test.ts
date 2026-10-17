@@ -332,3 +332,31 @@ test("a stdio connection still gets the hints that tell it to supply its own end
   assert.equal(hintOf("oauthTokenEndpoint"), "Needed unless Provider ID is set.");
   assert.equal(hintOf("oauthDeviceAuthorizationEndpoint"), "Needed for Device code, unless Provider ID is set.");
 });
+
+test("explicit prefill values, including empty strings, win over every stored value", () => {
+  const input: ExternalMcpSaveInput = {
+    id: "srv-1", transport: "streamable_http", label: "", command: "node", args: "",
+    url: "https://new.example/mcp", allowedToolNames: "", writeAllowedToolNames: "",
+    authMode: "oauth", accessTokenEnvName: "NEW_TOKEN", oauthProviderId: "new-provider",
+    oauthGrant: "authorization_code", oauthClientId: "new-client", oauthScopes: "",
+    oauthTokenEnvName: "NEW_OAUTH_TOKEN", oauthAuthorizationEndpoint: "https://new.example/auth",
+    oauthTokenEndpoint: "https://new.example/token", oauthDeviceAuthorizationEndpoint: "https://new.example/device",
+  };
+  const existing = existingView({ accessTokenEnvName: "OLD_TOKEN" });
+  assert.deepEqual(mergeExternalMcpSavePrefill(input, existing), input);
+  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existing).accessTokenEnvName, "OLD_TOKEN");
+  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existingView()).accessTokenEnvName, undefined);
+});
+
+test("static_env explicitly selects token entry and none omits credential fields", () => {
+  for (const isUpdate of [false, true]) {
+    const fields = buildExternalMcpSaveFormFields({ ...BASE_INPUT, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, isUpdate);
+    const token = fields.find(field => field.name === "accessToken")!;
+    assert.equal(token.hint, isUpdate ? "Leave blank to keep the stored token." : "Enter the API key or bearer token for this server.");
+    assert.equal(Object.hasOwn(token, "value"), false);
+    assert.equal((fields.find(field => field.name === "accessTokenEnvName") as { value: string }).value, "API_TOKEN");
+  }
+  const form = buildExternalMcpSaveForm({ save: { ...BASE_INPUT, authMode: "none" }, isUpdate: false }, {});
+  assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }]);
+  assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
+});

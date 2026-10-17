@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,7 +10,8 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
-import { trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
+import { assertActiveOwnerFloor, assertUserAccountAction, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard, userAccountProtection, trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
+import { UserDeleteUnsupportedError } from "../user-purge-types.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**
@@ -426,4 +428,171 @@ test("trashUser: trashing an already-trashed user is an idempotent no-op — one
   assert.deepEqual(trashPage.items, firstPage.items, "repeated trash preserves the original index row and prior marker");
   assert.equal(await f.trash.restore({ workspaceId: f.workspaceId, entityType: USER_ENTITY_TYPE, entityId: targetId, at: NOW }), "restored");
   assert.equal((await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: targetId }))?.status, "active");
+});
+
+test("owner classification rejects wildcard grants limited by resource or constraint", async (t) => {
+  const f = await setup("ws-limited-wildcards");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "limited");
+  await grantDirectPermission(f, target, "content.read", "read-only");
+  const policyId = "limited-policy";
+  await f.identity.repos.policies.save({ id: policyId, workspaceId: f.workspaceId, name: "limited", isBuiltin: false, isFrozen: false });
+  await f.identity.repos.principalPolicies.save({ id: "limited-link", workspaceId: f.workspaceId, principalId: target, policyId });
+  await f.identity.repos.policyPermissions.save({ id: "resource-wildcard", workspaceId: f.workspaceId, policyId, permission: "*", resourceType: "post" });
+  await f.identity.repos.policyPermissions.save({ id: "constraint-wildcard", workspaceId: f.workspaceId, policyId, permission: "*", constraintJson: '{"owner":"self"}' });
+  assert.equal(await principalHoldsOwnerWildcard({ deps: f.identity, workspaceId: f.workspaceId, principalId: target }, {}), false);
+  await makeOwnerWildcard(f, target);
+  assert.equal(await principalHoldsOwnerWildcard({ deps: f.identity, workspaceId: f.workspaceId, principalId: target }, {}), true);
+});
+
+test("account protection distinguishes ordinary users, builtin admins and owners", async (t) => {
+  const f = await setup("ws-protection-kinds");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "promoted");
+  const required = { deps: f.identity, workspaceId: f.workspaceId, principalId: target };
+  assert.deepEqual(await userAccountProtection(required, {}), { isOwner: false, isProtectedAccount: false });
+  assert.equal(await principalHoldsBuiltinAdminRole(required, {}), false);
+  await f.identity.repos.roles.save({ id: "builtin-editor", workspaceId: f.workspaceId, name: "coverage-editor", isBuiltin: true });
+  await f.identity.repos.principalRoles.save({ id: "editor-link", workspaceId: f.workspaceId, principalId: target, roleId: "builtin-editor" });
+  assert.equal(await principalHoldsBuiltinAdminRole(required), false);
+  assert.deepEqual(await userAccountProtection(required), { isOwner: false, isProtectedAccount: false });
+  await makeBuiltinAdmin(f, target);
+  assert.deepEqual(await userAccountProtection(required, {}), { isOwner: false, isProtectedAccount: true });
+  assert.equal(await principalHoldsBuiltinAdminRole(required, {}), true);
+  assert.deepEqual(await userAccountProtection({ ...required, principalId: f.ownerPrincipalId }), { isOwner: true, isProtectedAccount: true });
+});
+
+test("the owner floor accepts an active owner and rejects a workspace containing only disabled owners", async (t) => {
+  const f = await setup("ws-owner-floor");
+  t.after(() => f.db.$client.close());
+  await assertActiveOwnerFloor({ deps: f.identity, workspaceId: f.workspaceId }, {});
+  await disablePrincipalDirect(f, f.ownerPrincipalId);
+  await assert.rejects(assertActiveOwnerFloor({ deps: f.identity, workspaceId: f.workspaceId }), {
+    constructor: OwnerRequiredError, message: "the workspace must keep at least one active owner-`*` principal",
+  });
+});
+
+test("account actions reject a missing principal even without a caller", async (t) => {
+  const f = await setup("ws-action-missing");
+  t.after(() => f.db.$client.close());
+  await assert.rejects(assertUserAccountAction({ deps: f.identity, workspaceId: f.workspaceId, principalId: "missing", action: "purge" }), {
+    constructor: IdentityNotFoundError, message: "principal 'missing' was not found",
+  });
+});
+
+for (const action of ["disable", "purge"] as const) {
+  test(`${action} refuses self-destruction with action-specific wording`, async (t) => {
+    const f = await setup(`ws-self-${action}`);
+    t.after(() => f.db.$client.close());
+    await assert.rejects(assertUserAccountAction({ deps: f.identity, workspaceId: f.workspaceId, principalId: f.ownerPrincipalId, action }, { callerPrincipalId: f.ownerPrincipalId }), {
+      constructor: SelfDeleteError, message: action === "disable" ? "you cannot disable your own account" : "you cannot delete your own account",
+    });
+  });
+  test(`${action} preserves the seeded owner even for another owner`, async (t) => {
+    const f = await setup(`ws-seeded-${action}`);
+    t.after(() => f.db.$client.close());
+    const caller = await createBareUser(f, "second-owner");
+    await makeOwnerWildcard(f, caller);
+    await assert.rejects(assertUserAccountAction({ deps: f.identity, workspaceId: f.workspaceId, principalId: f.ownerPrincipalId, action }, { callerPrincipalId: caller, seededOwnerPrincipalId: f.ownerPrincipalId }), {
+      constructor: OwnerRequiredError, message: action === "disable" ? "the seeded owner principal can never be disabled" : "the seeded owner principal can never be deleted",
+    });
+  });
+}
+
+test("a builtin admin can act on an ordinary user but cannot reset another admin's password", async (t) => {
+  const f = await setup("ws-admin-action");
+  t.after(() => f.db.$client.close());
+  const caller = await createBareUser(f, "admin-caller");
+  const target = await createBareUser(f, "admin-target");
+  await makeBuiltinAdmin(f, caller);
+  const required = { deps: f.identity, workspaceId: f.workspaceId, principalId: target, action: "reset-password" as const };
+  await assertUserAccountAction(required, { callerPrincipalId: caller });
+  await makeBuiltinAdmin(f, target);
+  await assert.rejects(assertUserAccountAction(required, { callerPrincipalId: caller }), {
+    constructor: OwnerRequiredError, message: "only an owner can delete, trash, disable or reset the password of an admin or owner account",
+  });
+  await assertUserAccountAction(required, { callerPrincipalId: f.ownerPrincipalId });
+  await assertUserAccountAction({ ...required, principalId: f.ownerPrincipalId }, { callerPrincipalId: f.ownerPrincipalId, seededOwnerPrincipalId: f.ownerPrincipalId });
+});
+
+test("trashing a user without an identity-user row fails before a Trash mutation", async (t) => {
+  const f = await setup("ws-missing-user-row");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "orphan");
+  f.db.$client.prepare("DELETE FROM identity_users WHERE principal_id = ?").run(target);
+  await assert.rejects(trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: f.ownerPrincipalId, principalId: target, seededOwnerPrincipalId: f.ownerPrincipalId } }), {
+    constructor: IdentityNotFoundError, message: `user '${target}' was not found`,
+  });
+  assert.equal((await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: target }))?.status, "active");
+  assert.deepEqual((await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 })).items, []);
+});
+
+test("a composition without Trash wiring refuses deletion and preserves the account", async (t) => {
+  const f = await setup("ws-no-trash-wiring");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "unwired");
+  await assert.rejects(trashUser({ deps: { ...f.deps, removeUser: undefined }, input: { workspaceId: f.workspaceId, callerPrincipalId: f.ownerPrincipalId, principalId: target, seededOwnerPrincipalId: f.ownerPrincipalId } }), {
+    constructor: UserDeleteUnsupportedError, message: "this identity store has no Trash wiring; users cannot be deleted (composition-only limitation)",
+  });
+  assert.equal((await f.identity.repos.principals.findById({ workspaceId: f.workspaceId, id: target }))?.status, "active");
+  assert.deepEqual((await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 })).items, []);
+});
+
+test("dangling role links confer neither builtin-admin authority nor account protection", async (t) => {
+  const f = await setup("ws-dangling-role");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "dangling");
+  await f.identity.repos.principalRoles.save({ id: "dangling-role-link", workspaceId: f.workspaceId, principalId: target, roleId: "deleted-role" });
+  const required = { deps: f.identity, workspaceId: f.workspaceId, principalId: target };
+  assert.equal(await principalHoldsBuiltinAdminRole(required), false);
+  assert.deepEqual(await userAccountProtection(required), { isOwner: false, isProtectedAccount: false });
+});
+
+test("a builtin owner role is protected even when its wildcard policy was removed", async (t) => {
+  const f = await setup("ws-owner-role-only");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "owner-role-only");
+  await makeOwnerWildcard(f, target);
+  const role = await f.identity.repos.roles.findByName({ workspaceId: f.workspaceId, name: "owner" });
+  assert.ok(role);
+  f.db.$client.prepare("DELETE FROM role_policies WHERE workspace_id = ? AND role_id = ?").run(f.workspaceId, role.id);
+  assert.deepEqual(await userAccountProtection({ deps: f.identity, workspaceId: f.workspaceId, principalId: target }), { isOwner: false, isProtectedAccount: true });
+});
+
+test("a custom role named owner does not protect an ordinary account", async (t) => {
+  const f = await setup("ws-custom-owner-role");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "custom-owner");
+  const role = await f.identity.repos.roles.findByName({ workspaceId: f.workspaceId, name: "owner" });
+  assert.ok(role);
+  await f.identity.repos.roles.save({ ...role, isBuiltin: false });
+  f.db.$client.prepare("DELETE FROM role_policies WHERE workspace_id = ? AND role_id = ?").run(f.workspaceId, role.id);
+  await f.identity.repos.principalRoles.save({ id: "custom-owner-link", workspaceId: f.workspaceId, principalId: target, roleId: role.id });
+  assert.deepEqual(await userAccountProtection({ deps: f.identity, workspaceId: f.workspaceId, principalId: target }), { isOwner: false, isProtectedAccount: false });
+});
+
+test("a seeded account requires an owner caller even after losing its owner role", async (t) => {
+  const f = await setup("ws-seeded-without-grants");
+  t.after(() => f.db.$client.close());
+  const caller = await createBareUser(f, "non-owner-admin");
+  await makeBuiltinAdmin(f, caller);
+  f.db.$client.prepare("DELETE FROM principal_roles WHERE workspace_id = ? AND principal_id = ?").run(f.workspaceId, f.ownerPrincipalId);
+  await assert.rejects(assertUserAccountAction({ deps: f.identity, workspaceId: f.workspaceId, principalId: f.ownerPrincipalId, action: "reset-password" }, { callerPrincipalId: caller, seededOwnerPrincipalId: f.ownerPrincipalId }), {
+    constructor: OwnerRequiredError, message: "only an owner can delete, trash, disable or reset the password of an admin or owner account",
+  });
+});
+
+test("trashing a user passes its username and email to the Trash display", async (t) => {
+  const f = await setup("ws-trash-display-email");
+  t.after(() => f.db.$client.close());
+  const target = await createBareUser(f, "departing-with-email");
+  const user = await f.identity.repos.users.findByPrincipalId({ workspaceId: f.workspaceId, principalId: target });
+  assert.ok(user);
+  await f.identity.repos.users.save({ ...user, email: "departing@example.test" });
+  await trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: f.ownerPrincipalId, principalId: target, seededOwnerPrincipalId: f.ownerPrincipalId } });
+  const page = await f.trash.list({ workspaceId: f.workspaceId, now: NOW, limit: 50 });
+  const trashed = page.items.find(item => item.entityId === target);
+  assert.ok(trashed);
+  assert.equal(trashed.displayTitle, "departing-with-email");
+  assert.equal(trashed.displaySubtitle, "departing@example.test");
 });

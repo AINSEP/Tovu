@@ -1,3 +1,4 @@
+import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
@@ -92,5 +93,30 @@ test('domain authorization and errors propagate without replacing their identity
   const error = new ToolInputError({ message: 'Domain permission denied' });
   const registrations = buildCredentialSaveRegistrations({ adapters: { ...f.adapters, apiCreate: async () => { throw error; } } });
   await assert.rejects(registrations[0]!.handler({ ...f.context, input: { kind: 'api' } }), e => e === error);
+  assert.deepEqual(f.calls, []);
+});
+
+test('publish credentials without prefill forward only the authoritative target', async () => {
+  const f = fixture();
+  const result = await f.registrations[0]!.handler({ ...f.context, input: { kind: 'publish-host', target: 's3' } });
+  assert.equal(result, f.results.publishHost);
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual(f.calls[0]!.ctx.input, { target: 's3' });
+  assert.deepEqual(f.calls[0]!.options, {});
+});
+
+test('publish credentials reject cross-kind metadata before opening the form', async () => {
+  const f = fixture();
+  await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'publish-host', target: 's3', label: 'not-a-publish-field' } }), {
+    name: 'ToolInputError', message: 'credential_save accepts only non-secret metadata for the selected kind; enter secrets in the human form.',
+  });
+  assert.deepEqual(f.calls, []);
+});
+
+test('media credentials reject the provider alias even when target is present', async () => {
+  const f = fixture();
+  await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'media-provider', target: 'openai', provider: 'other' } }), {
+    name: 'ToolInputError', message: 'Use target for the credential provider.',
+  });
   assert.deepEqual(f.calls, []);
 });

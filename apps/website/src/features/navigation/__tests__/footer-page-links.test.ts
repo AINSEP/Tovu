@@ -1,6 +1,8 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { sql } from "kysely";
+import { eachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { migrateFooterPageLinks } from "../migrate-footer-page-links.js";
 import { resolveMenuDoc } from "../index.js";
@@ -12,7 +14,84 @@ import { postSearchFor } from "#src/features/post/search-index";
 import { renderHtmlMenu } from "../html-render.js";
 import type { NavMenuDoc } from "../index.js";
 
+test("footer repair counts no conversion or watermark when the database refuses the menu update", async (t) => {
+  const kernel = freshSqliteContentKernel();
+  t.after(() => kernel.close());
+  await seedWorkspaces(kernel, ["ws"]);
+  await kernel.run(db => db.insertInto("posts").values({
+    id: "about-page", workspace_id: "ws", title: "About", slug: "about", kind: "page", status: "published",
+    body_json: "{}", body_html: null, updated_at: "2026-10-04", version: 1, seo_ext_json: null, deleted_at: null,
+    template_choice: null, overrides_theme_page: null, member_access_json: null, autosave_json: null,
+    created_by_principal_id: null, created_at: null,
+  }).execute());
+  const doc: NavMenuDoc = { type: "menu", version: 1, items: [
+    { id: "menu-item-1", label: "About", target: { kind: "url", href: "/about" } },
+  ] };
+  await kernel.run(db => db.insertInto("menus").values({
+    id: "menu-footer-nav", workspace_id: "ws", slug: "footer-nav", title: "Footer", status: "published",
+    doc_json: JSON.stringify(doc), locations_json: "[]", updated_at: "2026-10-04", version: 1,
+  }).execute());
+  await kernel.run(db => db.insertInto("database_write_watermark").values({ id: 1, value: 7, last_stamped_at: null })
+    .onConflict(oc => oc.column("id").doUpdateSet({ value: 7, last_stamped_at: null })).execute());
+  // Database fault injection: RAISE(IGNORE) makes the real conditional UPDATE affect zero rows.
+  // The repair must account for persisted conversions, never the number it merely planned.
+  await kernel.run(db => sql`CREATE TRIGGER refuse_footer_repair BEFORE UPDATE ON menus
+    WHEN OLD.id = 'menu-footer-nav' BEGIN SELECT RAISE(IGNORE); END`.execute(db));
+  assert.deepEqual(await migrateFooterPageLinks({ kernel }, { now: () => "2026-10-17T12:00:00.000Z" }), { converted: 0 });
+  const row = await new SqlMenuRepo(kernel).findById({ workspaceId: "ws", id: "menu-footer-nav" });
+  assert.deepEqual(row?.doc, doc);
+  assert.equal(row?.version, 1);
+  assert.equal((await kernel.run(db => db.selectFrom("database_write_watermark").select("value").where("id", "=", 1).executeTakeFirstOrThrow())).value, 7);
+  const marker = await kernel.run(db => db.selectFrom("setting_values_global").select("setting_id")
+    .where("setting_id", "=", "tovu.internal.boot_repair.footer_page_links").executeTakeFirst());
+  assert.ok(marker);
+});
+
 for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "database_write_watermark", "setting_values_global"], make: (kernel) => kernel })) {
+  test(`[${dialect.name}] footer repair fills missing snapshots and preserves authored targets and complete refs`, async (t) => {
+    const kernel = dialect.make();
+    if (dialect.name === "sqlite") t.after(() => kernel.close());
+    await seedWorkspaces(kernel, ["ws"]);
+    await kernel.run(db => db.insertInto("posts").values(([
+      ["about-page", "about"], ["contact-page", "contact"], ["faq-page", "faq"],
+    ] as const).map(([id, slug]) => ({
+      id, workspace_id: "ws", title: slug, slug, kind: "page", status: "draft",
+      body_json: "{}", body_html: null, updated_at: "2026-10-04", version: 1, seo_ext_json: null, deleted_at: null,
+      template_choice: null, overrides_theme_page: null, member_access_json: null, autosave_json: null,
+      created_by_principal_id: null, created_at: null,
+    }))).execute());
+    const doc: NavMenuDoc = { type: "menu", version: 1, items: [
+      { id: "menu-item-1", label: "About", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/original-about" }, children: [] },
+      { id: "menu-item-2", label: "Contact", target: { kind: "entryRef", entryId: "contact-page", entryType: "page" } },
+      { id: "menu-item-4", label: "FAQ", target: { kind: "entryRef", entryId: "faq-page", entryType: "post", lastKnownHref: "/original-faq" } },
+      { id: "menu-item-5", label: "Terms of Service", target: { kind: "entryRef", entryId: "missing" } },
+      { id: "menu-item-6", label: "Privacy Policy", target: { kind: "url", href: "/privacy-policy" } },
+      { id: "menu-item-docs", label: "My Docs", target: { kind: "url", href: "/docs" } },
+      { id: "menu-item-articles", label: "Articles", target: { kind: "url", href: "/my-articles" } },
+      { id: "menu-item-about", label: "About", target: { kind: "route", route: "home" } },
+      { id: "operator-ref", label: "FAQ", target: { kind: "entryRef", entryId: "faq-page", lastKnownHref: "/author-path" } },
+    ] };
+    const unchanged: NavMenuDoc = { type: "menu", version: 1, items: [doc.items[0]!] };
+    await kernel.run(db => db.insertInto("menus").values([
+      { id: "menu-footer-nav", slug: "footer-nav", doc_json: JSON.stringify(doc) },
+      { id: "d080e7cc-4f22-45bf-9a5a-8de81f2f9249", slug: "footer-resources", doc_json: JSON.stringify(unchanged) },
+    ].map(row => ({ ...row, workspace_id: "ws", title: row.slug, status: "published", locations_json: "[]", updated_at: "2026-10-04", version: 1 }))).execute());
+    const now = "2026-10-17T12:00:00.000Z";
+    assert.deepEqual(await migrateFooterPageLinks({ kernel }, { now: () => now }), { converted: 2 });
+    const repo = new SqlMenuRepo(kernel);
+    assert.deepEqual((await repo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))?.doc, {
+      ...doc, items: doc.items.map(item => item.id === "menu-item-2"
+        ? { ...item, target: { kind: "entryRef", entryId: "contact-page", entryType: "page", lastKnownHref: "/contact" } }
+        : item.id === "menu-item-4" ? { ...item, target: { kind: "entryRef", entryId: "faq-page", entryType: "page", lastKnownHref: "/original-faq" } } : item),
+    });
+    const untouched = await repo.findById({ workspaceId: "ws", id: "d080e7cc-4f22-45bf-9a5a-8de81f2f9249" });
+    assert.deepEqual(untouched?.doc, unchanged);
+    assert.equal(untouched?.version, 1);
+    const repaired = await repo.findById({ workspaceId: "ws", id: "menu-footer-nav" });
+    assert.equal(repaired?.updatedAt, now);
+    assert.equal(repaired?.version, 2);
+  });
+
   test(`[${dialect.name}] footer page conversion is scoped/idempotent, and public refs follow rename/unpublish/trash`, async () => {
     const kernel = dialect.make();
     await seedWorkspaces(kernel, ["ws", "other"]);

@@ -1,7 +1,8 @@
 /** fxpid: contracts must remain reusable without feature, application or server imports. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -42,4 +43,64 @@ test('fxpid: moved attachment vocabulary still validates and reads opaque instal
   }), bytes);
   assert.deepEqual(calls, [[{ ref, ownerId: 'operator', runId: 'run' }, { maxBytes: 3 }]]);
   assert.throws(() => readPluginInstallRequest({ input: { source: { kind: 'zip', attachmentRef: 'attachment:../12345678' } } }), { message: 'source.attachmentRef must be an attachment:<uuid> ZIP reference.' });
+});
+
+for (const source of [undefined, null, 'zip', []]) {
+  test(`install rejects a non-object source: ${JSON.stringify(source)}`, () => {
+    assert.throws(() => readPluginInstallRequest({ input: { source } }), { name: 'ToolInputError', message: 'source is required.' });
+  });
+}
+
+for (const [source, message] of [
+  [{ kind: 'tar', path: '/tmp/plugin' }, "source.kind must be 'folder' or 'zip'."],
+  [{ kind: 'zip' }, 'Exactly one of source.path/source.attachmentRef is required.'],
+  [{ kind: 'zip', path: '/tmp/plugin.zip', attachmentRef: 'attachment:12345678' }, 'Exactly one of source.path/source.attachmentRef is required.'],
+  [{ kind: 'folder', attachmentRef: 'attachment:12345678' }, 'source.attachmentRef must be an attachment:<uuid> ZIP reference.'],
+  [{ kind: 'zip', attachmentRef: 12345678 }, 'source.attachmentRef must be an attachment:<uuid> ZIP reference.'],
+  [{ kind: 'zip', path: 42 }, 'source.path must be an absolute path on the machine Tovu runs on (expand ~ first).'],
+  [{ kind: 'zip', path: '~/plugin.zip' }, 'source.path must be an absolute path on the machine Tovu runs on (expand ~ first).'],
+] as const) {
+  test(`install request refuses ${JSON.stringify(source)}`, () => {
+    assert.throws(() => readPluginInstallRequest({ input: { source } }), { name: 'ToolInputError', message });
+  });
+}
+
+test('install preserves absolute folder and ZIP paths and only accepts boolean replacement', () => {
+  for (const kind of ['folder', 'zip'] as const) {
+    for (const replace of [true, false, undefined]) {
+      assert.deepEqual(readPluginInstallRequest({ input: { source: { kind, path: '/tmp/package' }, replace } }, {}), { kind, path: '/tmp/package', replace: replace === true });
+    }
+  }
+  assert.throws(() => readPluginInstallRequest({ input: { source: { kind: 'zip', path: '/tmp/package' }, replace: 'true' } }), { message: 'replace must be a boolean.' });
+});
+
+test('install refuses unavailable attachments without interpreting their refs as disk paths', async () => {
+  const required = { request: { kind: 'zip' as const, attachmentRef: 'attachment:12345678', replace: false }, ownerId: 'operator', runId: 'run', maxBytes: 3 };
+  const expected = { message: 'Chat ZIP attachment is unavailable or exceeds the 32 MiB upload limit. Use an attachmentRef listed by chat_list_pending_attachments.' };
+  await assert.rejects(readPluginInstallArchive(required), expected);
+  await assert.rejects(readPluginInstallArchive(required, { readAttachment: async () => ({ ok: false, refusal: 'not-owner' }) }), expected);
+  await assert.rejects(readPluginInstallArchive(required, { readAttachment: async () => ({ ok: true, bytes: Uint8Array.of(1, 2, 3, 4) }) }), { message: 'ZIP exceeds the 32 MiB upload limit.' });
+});
+
+test('local archive reads accept the byte limit and reject missing and oversized files', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'tovu-install-source-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const sourcePath = path.join(dir, 'plugin.zip');
+  const required = { request: { kind: 'zip' as const, path: sourcePath, replace: false }, ownerId: 'operator', runId: 'run', maxBytes: 3 };
+  await assert.rejects(readPluginInstallArchive(required), { message: `No readable ZIP at ${sourcePath}.` });
+  await writeFile(sourcePath, Uint8Array.of(7, 8, 9));
+  assert.deepEqual([...await readPluginInstallArchive(required)], [7, 8, 9]);
+  await writeFile(sourcePath, Uint8Array.of(7, 8, 9, 10));
+  await assert.rejects(readPluginInstallArchive(required), { message: 'ZIP exceeds the 32 MiB upload limit.' });
+});
+
+test('local archive rechecks size after a file grows between metadata and byte reads', async () => {
+  const operations: unknown[] = [];
+  await assert.rejects(readPluginInstallArchive({ request: { kind: 'zip', path: '/virtual/plugin.zip', replace: false }, ownerId: 'operator', runId: 'run', maxBytes: 3 }, {
+    files: {
+      stat: async (input) => { operations.push(input); return { size: 3 }; },
+      read: async (input) => { operations.push(input); return Uint8Array.of(1, 2, 3, 4); },
+    },
+  }), { message: 'ZIP exceeds the 32 MiB upload limit.' });
+  assert.deepEqual(operations, [{ path: '/virtual/plugin.zip' }, { path: '/virtual/plugin.zip' }]);
 });

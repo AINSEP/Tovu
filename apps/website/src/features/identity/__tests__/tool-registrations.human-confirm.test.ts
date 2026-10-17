@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
@@ -16,7 +17,7 @@ import {
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
 
-import { buildGatedIdentityRegistrations, type TovuIdentityToolDeps } from "../tool-registrations.js";
+import { buildGatedIdentityRegistrations, withoutPassword, contributeIdentityTools, type TovuIdentityToolDeps } from "../tool-registrations.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -360,3 +361,97 @@ for (const changed of [false, true]) {
     }
   });
 }
+
+test("withoutPassword preserves other schema rules and handles an omitted required list", () => {
+  assert.deepEqual(withoutPassword({ type: "object", additionalProperties: false, properties: { username: { type: "string" }, password: { type: "string" } } }), {
+    type: "object", additionalProperties: false, required: [], properties: { username: { type: "string" } },
+  });
+});
+
+test("identity contribution exposes the gated builder and the shared risk catalog", () => {
+  const contribution = contributeIdentityTools();
+  assert.equal(contribution.domain, "identity");
+  assert.equal(contribution.build, buildGatedIdentityRegistrations);
+  assert.equal(contribution.risk!.get("identity_user_create"), "mutates-durable-state");
+});
+
+test("identity gates reject invalid input with corrective schema guidance before opening a card", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  for (const [toolId, input] of [
+    ["identity_user_create", null], ["identity_user_create", "newcomer"], ["identity_user_create", []],
+    ["identity_user_create", {}], ["identity_role_delete", { roleId: 42 }],
+    ["identity_policy_delete", { policyId: "pol-review", unknown: true }], ["identity_user_disable", {}],
+  ] as const) {
+    await assert.rejects(h.tools.get(toolId)!.handler(ctx(h, input), { emitSurface: async () => assert.fail("invalid input must not open a card") }), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, "ToolInputError");
+      assert.ok(error.message.includes("Fix the input and retry — this will not resolve on retry without an input change."));
+      assert.ok(error.message.includes(`Schema for '${toolId}':`));
+      return true;
+    });
+  }
+  assert.equal(h.store.size(), 0);
+  assert.ok(await h.repos.roles.findById({ workspaceId: WORKSPACE_ID, id: "r-editor" }));
+  assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
+  assert.equal((await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: "p-ada" }))!.status, "active");
+});
+
+test("role and policy deletion refuse missing targets before opening confirmation", async () => {
+  const h = await buildHarness();
+  for (const kind of ["role", "policy"]) {
+    const toolId = `identity_${kind}_delete`;
+    await assert.rejects(h.tools.get(toolId)!.handler(ctx(h, { [`${kind}Id`]: "missing" }), { emitSurface: async () => assert.fail("missing target must not prompt") }), {
+      name: "ToolInputError", message: `${toolId}: ${kind} was not found. Nothing was deleted.`,
+    });
+  }
+  assert.equal(h.store.size(), 0);
+});
+
+test("identity disable translates owner protection into an actionable refusal", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  const ownerBefore = await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: h.ownerPrincipalId });
+  await assert.rejects(h.tools.get("identity_user_disable")!.handler({ ...ctx(h, { principalId: h.ownerPrincipalId }), principal: { id: "p-ada" } }), {
+    name: "ToolInputError", message: "identity_user_disable: OWNER_REQUIRED: only an owner can delete, trash, disable or reset the password of an admin or owner account. Nothing was changed.",
+  });
+  assert.deepEqual(await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: h.ownerPrincipalId }), ownerBefore);
+});
+
+test("identity disable preserves unexpected transaction failures", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  const failure = new Error("transaction unavailable");
+  const deps = { ...h.deps, transactions: { run: async () => { throw failure; } } };
+  const tool = buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store }).find(tool => tool.descriptor.id === "identity_user_disable")!;
+  await assert.rejects(tool.handler(ctx(h, { principalId: "p-ada" }), {}), error => error === failure);
+  assert.equal((await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: "p-ada" }))!.status, "active");
+});
+
+test("identity tools adapt an ISO-only host clock when disabling a user", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  const tools = buildGatedIdentityRegistrations({ ...h.deps, clock: { nowIso: () => "2026-10-17T12:34:56.000Z" } });
+  const tool = tools.find(tool => tool.descriptor.id === "identity_user_disable")!;
+  const result = await tool.handler(ctx(h, { principalId: "p-ada" })) as { user: { status: string } };
+  assert.equal(result.user.status, "disabled");
+  const stored = await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: "p-ada" });
+  assert.equal(stored!.status, "disabled");
+  assert.equal(stored!.disabledAt, "2026-10-17T12:34:56.000Z");
+});
+
+test("role confirmation lists principal and policy assignments, and cancellation preserves them", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  const principalRole = { id: "link-ada", workspaceId: WORKSPACE_ID, principalId: "p-ada", roleId: "r-editor" };
+  const rolePolicy = { id: "link-policy", workspaceId: WORKSPACE_ID, roleId: "r-editor", policyId: "pol-review" };
+  await h.repos.principalRoles.save(principalRole);
+  await h.repos.rolePolicies.save(rolePolicy);
+  const card = await raise(h, "identity_role_delete", { roleId: "r-editor" });
+  assert.ok(card.html.includes("1: link-ada"));
+  assert.ok(card.html.includes("1: link-policy"));
+  card.answer({ decision: "cancel" });
+  assert.deepEqual(await card.pending, { deleted: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
+  assert.deepEqual(await h.repos.principalRoles.listByRoleId({ workspaceId: WORKSPACE_ID, roleId: "r-editor" }), [principalRole]);
+  assert.deepEqual(await h.repos.rolePolicies.listByRoleId({ workspaceId: WORKSPACE_ID, roleId: "r-editor" }), [rolePolicy]);
+});

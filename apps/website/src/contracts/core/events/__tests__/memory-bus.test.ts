@@ -172,3 +172,18 @@ test("a handler failure is reported by publish for the outbox to retry", async (
   await bus.subscribe({ eventName: "entry.published", handler: async () => { throw failure; } });
   await assert.rejects(bus.publish({ id: "evt", name: "entry.published", occurredAt: "2026-02-21T00:00:00.000Z", workspaceId: "workspace-1", payload: {} }), (error) => error === failure);
 });
+
+test("unsubscribing repeatedly preserves other wildcard handlers and later named subscriptions", async () => {
+  const bus = new InMemoryEventBus();
+  const seen: string[] = [];
+  const removed = await bus.subscribeAll({ handler: async () => { seen.push("removed"); } });
+  await bus.subscribeAll({ handler: async event => { seen.push(`all:${event.id}`); } });
+  const named = await bus.subscribe({ eventName: "entry.published", handler: async () => { seen.push("old"); } });
+  await removed();
+  await removed();
+  await named();
+  await named();
+  await bus.subscribe({ eventName: "entry.published", handler: async event => { seen.push(`new:${event.id}`); } });
+  await bus.publish({ id: "evt", name: "entry.published", occurredAt: "2026-02-21T00:00:00.000Z", workspaceId: "workspace-1", payload: {} });
+  assert.deepEqual(seen, ["new:evt", "all:evt"]);
+});

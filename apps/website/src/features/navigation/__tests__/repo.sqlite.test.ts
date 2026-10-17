@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -145,6 +146,27 @@ for (const each of menuDialects) {
 // ---------------------------------------------------------------------------
 
 for (const each of menuDialects) {
+  test(`[SqlMenuRepo ${each.name}] trash-blind lookup still enforces identity and workspace scope`, async (t) => {
+    const { kernel, repo } = each.make();
+    if (each.name === "sqlite") t.after(() => kernel.close());
+    const row = sampleMenu();
+    await repo.save(row);
+    assert.deepEqual(await repo.findByIdIncludingTrashed({ workspaceId: "ws-1", id: row.id }), row);
+    assert.equal(await repo.findByIdIncludingTrashed({ workspaceId: "ws-2", id: row.id }), null);
+    assert.equal(await repo.findByIdIncludingTrashed({ workspaceId: "ws-1", id: "missing" }), null);
+  });
+
+  test(`[SqlMenuRepo ${each.name}] save preserves non-unique storage failures without changing the stored menu`, async (t) => {
+    const { kernel, repo } = each.make();
+    if (each.name === "sqlite") t.after(() => kernel.close());
+    const row = sampleMenu();
+    await repo.save(row);
+    const failure = new Error("storage unavailable");
+    const unavailable = new SqlMenuRepo({ ...kernel, run: async () => { throw failure; } });
+    await assert.rejects(unavailable.save({ ...row, title: "Must not persist" }), error => error === failure);
+    assert.deepEqual(await repo.findById({ workspaceId: row.workspaceId, id: row.id }), row);
+  });
+
   test(`[SqlMenuRepo ${each.name}] a trashed menu is hidden from live reads, not revived by save, and still holds its slug`, async () => {
     const { kernel, repo } = each.make();
     await repo.save(sampleMenu({ doc: { type: "menu", version: 1, items: [{ id: "i", label: "Home", target: { kind: "url", href: "/" } }] } }));

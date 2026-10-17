@@ -94,14 +94,19 @@ function coreTable(table: PgTable): TransferTable {
   };
 }
 
+export interface CoreTableCatalogPorts {
+  schema?: Readonly<Record<string, PgTable | undefined>>;
+  copyOrder?: typeof computeCoreTableCopyOrder;
+}
+
 /**
  * The core tables a copy carries, in foreign-key-safe order, logins and saved keys removed.
  *
  * @complexity O(tables + foreign keys).
  */
-export function collectTransferTables(): TransferTable[] {
-  const byExportName = pgSchema as unknown as Record<string, PgTable | undefined>;
-  return computeCoreTableCopyOrder().flatMap((exportName) => {
+export function collectTransferTables(_required: Record<string, never> = {}, optional: CoreTableCatalogPorts = {}): TransferTable[] {
+  const byExportName = optional.schema ?? (pgSchema as unknown as Readonly<Record<string, PgTable | undefined>>);
+  return (optional.copyOrder ?? computeCoreTableCopyOrder)().flatMap((exportName) => {
     const table = byExportName[exportName];
     if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
     if (getTableConfig(table).name in EXCLUDED_CORE_TABLES) return [];
@@ -115,9 +120,9 @@ export function collectTransferTables(): TransferTable[] {
  *
  * @complexity O(tables + foreign keys).
  */
-export function collectSchemaTables(): TransferTable[] {
-  const byExportName = pgSchema as unknown as Record<string, PgTable | undefined>;
-  return computeCoreTableCopyOrder().map((exportName) => {
+export function collectSchemaTables(_required: Record<string, never> = {}, optional: CoreTableCatalogPorts = {}): TransferTable[] {
+  const byExportName = optional.schema ?? (pgSchema as unknown as Readonly<Record<string, PgTable | undefined>>);
+  return (optional.copyOrder ?? computeCoreTableCopyOrder)().map((exportName) => {
     const table = byExportName[exportName];
     if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
     return coreTable(table);

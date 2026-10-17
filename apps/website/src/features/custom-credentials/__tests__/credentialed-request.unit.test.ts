@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -90,6 +91,22 @@ function makeDeps(overrides: Partial<CredentialedRequestDeps> & { httpClient: Ht
     ...overrides,
   };
 }
+
+test("credential target resolution preserves storage failure identity before any transport", async () => {
+  const writeDeps = makeWriteDeps();
+  const failure = new Error("credential storage unavailable");
+  const repo = Object.assign(writeDeps.repo, { listByWorkspace: async () => { throw failure; } });
+  await assert.rejects(resolveRequestTarget({ repo }, { workspaceId: WORKSPACE, label: "saved", url: "https://api.example.com/" }), error => error === failure);
+});
+
+test("credential verification preserves scheme-loading failures without sending a request", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const failure = new Error("scheme registry unavailable");
+  const httpClient = new FakeHttpClient();
+  const deps = makeDeps({ httpClient, loadAuthSchemes: async () => { throw failure; } }, writeDeps);
+  await assert.rejects(verifyCustomCredential(deps, { workspaceId: WORKSPACE, label: "name.com" }), error => error === failure);
+  assert.deepEqual(httpClient.calls, []);
+});
 
 /** Seeds both `name.com` and `fly.io` custom credentials, single-host — the owner's own real
  *  motivating case. `fly.io` here has no `additionalHosts`; see {@link seedFlyIoMultiHost} for the

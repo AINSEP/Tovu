@@ -9,6 +9,7 @@
  * widest catalog in this sweep — all 14 wired tools sent every one of `errors.ts`'s typed classes,
  * plus the kit's `ForbiddenError`, straight into the SEC-005 redactor.
  */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -285,4 +286,48 @@ test("authorized subscription, archive, cancel and pause tools persist and retur
   assert.equal((await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: "c-2" }))?.status, "paused");
   await deps.newsletterSendRepo.save({ id: "send-1", workspaceId: WORKSPACE_ID, campaignId: "c-1", audienceSnapshotId: "snap-1", subscriberId: "subscriber-1", recipientEmail: "reader@example.com", status: "delivered", attempts: 1, idempotencyKey: "key-1", providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, createdAt: NOW, updatedAt: NOW });
   assert.deepEqual(await output("newsletter_list_send_log", { campaignId: "c-1" }), { sends: [{ id: "send-1", subscriberId: "subscriber-1", recipientEmail: "reader@example.com", status: "delivered", attempts: 1, providerMessageId: "pm-1", lastError: null, nextAttemptAt: null, updatedAt: NOW }] });
+});
+
+test("campaign updates replace supplied fields and preserve omitted fields", async () => {
+  const deps = makeRouteDeps();
+  await seedList(deps);
+  await deps.newsletterListRepo.save({ id: "l-2", workspaceId: WORKSPACE_ID, name: "Other", slug: "other", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW });
+  const tool = buildNewsletterRegistrations(deps).find(tool => tool.descriptor.id === "newsletter_create_campaign")!;
+  const context = { executionId: "exec", principal: { id: PRINCIPAL_ID }, run: { id: "run" }, signal: new AbortController().signal };
+  const created = await tool.handler({ ...context, input: { subject: "Initial", fromName: "Initial sender", fromEmail: "first@example.com", replyTo: "first-reply@example.com", listId: "l-1" } }) as { campaign: { id: string; preheader: string | null } };
+  assert.equal(created.campaign.preheader, null);
+  const update = buildNewsletterRegistrations(deps).find(tool => tool.descriptor.id === "newsletter_update_campaign")!;
+  const fields = { subject: "Replacement", preheader: "New preview", fromName: "New sender", fromEmail: "new@example.com", replyTo: "new-reply@example.com", listId: "l-2" };
+  const updated = await update.handler({ ...context, input: { campaignId: created.campaign.id, ...fields } });
+  assert.deepEqual(updated, { campaign: { ...created.campaign, ...fields, version: 2 } });
+  const preserved = await update.handler({ ...context, input: { campaignId: created.campaign.id } });
+  assert.deepEqual(preserved, { campaign: { ...created.campaign, ...fields, version: 3 } });
+  const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: created.campaign.id });
+  assert.ok(stored);
+  assert.deepEqual({ subject: stored.subject, preheader: stored.preheader, fromName: stored.fromName, fromEmail: stored.fromEmail, replyTo: stored.replyTo, listId: stored.listId, version: stored.version }, { ...fields, version: 3 });
+});
+
+test("campaign listing filters matching status and leaves absent, empty and non-string status unfiltered", async () => {
+  const deps = makeRouteDeps();
+  const campaign = { id: "draft", workspaceId: WORKSPACE_ID, status: "draft" as const, subject: "Draft", preheader: null, fromName: "Sender", fromEmail: "sender@example.com", replyTo: "reply@example.com", listId: "l-1", scheduledAt: null, sendStartedAt: null, audienceSnapshotId: null, counters: { recipients: 0, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: PRINCIPAL_ID, createdAt: NOW, updatedAt: NOW };
+  await deps.newsletterCampaignRepo.saveCampaignRow(campaign);
+  await deps.newsletterCampaignRepo.saveCampaignRow({ ...campaign, id: "sent", status: "sent", subject: "Sent" });
+  const tool = buildNewsletterRegistrations(deps).find(tool => tool.descriptor.id === "newsletter_list_campaigns")!;
+  const context = { executionId: "exec", principal: { id: PRINCIPAL_ID }, run: { id: "run" }, signal: new AbortController().signal };
+  for (const [input, expected] of [[{}, ["draft", "sent"]], [{ status: "" }, ["draft", "sent"]], [{ status: 7 }, ["draft", "sent"]], [{ status: "draft" }, ["draft"]], [{ status: "paused" }, []]] as const) {
+    const result = await tool.handler({ ...context, input }) as { campaigns: { id: string }[] };
+    assert.deepEqual(result.campaigns.map(row => row.id).sort(), expected);
+  }
+});
+
+test("subscription creation preserves an explicit import source", async () => {
+  const deps = makeRouteDeps();
+  await seedList(deps);
+  deps.newsletterSubscriberDirectory = { getContact: async () => ({ workspaceId: WORKSPACE_ID, subscriberId: "imported", email: "reader@example.com", emailDeliverable: true }), getContacts: async () => [] };
+  deps.originRegistry = { canonicalOrigin: async () => ({ scheme: "https", host: "example.com", verifiedAt: NOW, source: "workspace-setting" }), isAllowedRedirectTarget: async () => true, isAllowedEgressTarget: async () => true };
+  deps.mailer = { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: true, supportsWebhookFeedback: false, supportsAttachments: false, maxBatchSize: 1 }), send: async () => ({ ok: true, providerMessageId: "mail", acceptedAt: NOW }), sendBatch: async () => [] };
+  const tool = buildNewsletterRegistrations(deps).find(tool => tool.descriptor.id === "newsletter_create_subscription")!;
+  const result = await tool.handler({ executionId: "exec", principal: { id: PRINCIPAL_ID }, run: { id: "run" }, input: { listId: "l-1", subscriberId: "imported", source: "import" }, signal: new AbortController().signal }) as { subscription: { id: string; source: string } };
+  assert.equal(result.subscription.source, "import");
+  assert.equal((await deps.newsletterSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: result.subscription.id }))!.source, "import");
 });
