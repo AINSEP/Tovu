@@ -7,6 +7,7 @@ import {
   SYSTEM_CONTENT_TYPES,
   entryPublicHref,
   humanizeFieldName,
+  isCollectionListLayout,
   parseCollectionListConfig,
 } from "../../public-list.js";
 
@@ -266,4 +267,75 @@ test("parseCollectionListConfig: a null where means no filter, like an absent on
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.ok && result.query.where, []);
+});
+
+test("non-object collection configs use the same complete defaults as an empty object", () => {
+  const expected = parseCollectionListConfig({}, RECIPE_CONTENT_TYPE);
+  for (const config of [undefined, null, [], "recipe", 42, false]) {
+    assert.deepEqual(parseCollectionListConfig(config, RECIPE_CONTENT_TYPE), expected);
+  }
+});
+
+test("non-finite limits and columns fall back instead of reaching the query", () => {
+  for (const value of [NaN, Infinity, -Infinity]) {
+    const parsed = parseCollectionListConfig({ limit: value, columns: value }, RECIPE_CONTENT_TYPE);
+    assert.ok(parsed.ok);
+    assert.equal(parsed.query.limit, 6);
+    assert.equal(parsed.display.columns, 3);
+  }
+});
+
+test("empty and non-string sorts use the caller default while an authored sort wins", () => {
+  for (const sort of ["", null, 1]) {
+    const parsed = parseCollectionListConfig({ sort }, RECIPE_CONTENT_TYPE, { defaultSort: "title" });
+    assert.ok(parsed.ok);
+    assert.deepEqual(parsed.query.sort, { by: "title", dir: "asc" });
+  }
+  const authored = parseCollectionListConfig({ sort: "oldest", limit: 2, maxItems: 9 }, RECIPE_CONTENT_TYPE,
+    { defaultSort: "updated", limitKey: "maxItems" });
+  assert.ok(authored.ok);
+  assert.deepEqual(authored.query.sort, { by: "published", dir: "asc" });
+  assert.equal(authored.query.limit, 9);
+});
+
+test("a direction prefix without a sort field is refused", () => {
+  assert.deepEqual(parseCollectionListConfig({ sort: "-" }, RECIPE_CONTENT_TYPE), {
+    ok: false, reason: 'unknown field in sort: "-"',
+  });
+});
+
+test("string equality values are preserved in collection filters", () => {
+  const parsed = parseCollectionListConfig({ where: { published_note: "Ada's recipe" } }, RECIPE_CONTENT_TYPE);
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.query.where, [{ field: "published_note", value: "Ada's recipe" }]);
+});
+
+test("malformed fields fall back to displayable fields while an empty list deliberately displays none", () => {
+  for (const fields of [null, "serves", ["serves", 1]]) {
+    const parsed = parseCollectionListConfig({ fields }, RECIPE_CONTENT_TYPE);
+    assert.ok(parsed.ok);
+    assert.deepEqual(parsed.display.fields.map(f => f.name), ["prep_time", "serves", "vegetarian", "published_note"]);
+  }
+  const empty = parseCollectionListConfig({ fields: [] }, RECIPE_CONTENT_TYPE);
+  assert.ok(empty.ok);
+  assert.deepEqual(empty.display.fields, []);
+  const explicit = parseCollectionListConfig({ fields: ["author", "extra"] }, RECIPE_CONTENT_TYPE);
+  assert.ok(explicit.ok);
+  assert.deepEqual(explicit.display.fields, RECIPE_CONTENT_TYPE.fields.slice(4));
+});
+
+test("a null tombstone leaves a content type available", () => {
+  assert.deepEqual(parseCollectionListConfig({}, { ...RECIPE_CONTENT_TYPE, tombstonedAt: null }),
+    parseCollectionListConfig({}, RECIPE_CONTENT_TYPE));
+});
+
+test("layout membership rejects values outside the closed presentation vocabulary", () => {
+  for (const layout of ["cards", "list", "accordion", "carousel"]) assert.equal(isCollectionListLayout(layout), true);
+  for (const layout of [undefined, null, 1, {}, "grid"]) assert.equal(isCollectionListLayout(layout), false);
+});
+
+test("field labels handle empty words, hyphens, camel case and whitespace", () => {
+  assert.equal(humanizeFieldName(""), "");
+  assert.equal(humanizeFieldName(" _-  "), "");
+  assert.equal(humanizeFieldName("__prepTime-2Minutes  total__"), "Prep time 2 minutes total");
 });

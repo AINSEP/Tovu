@@ -2436,3 +2436,369 @@ describe("templateFor — saved page template remains selectable", () => {
     expect(port.updatePostCalls).toEqual([]);
   });
 });
+
+describe("page editor recovery and failure outcomes", () => {
+  function editorDeps(options: Parameters<typeof createFakePageEditorPort>[0] = { page: HTML_PAGE }) {
+    return {
+      port: createFakePageEditorPort(options), themeCanvasPort: createFakeThemeCanvasPort(),
+      navigate: vi.fn(), t: (locale: string, key: string) => `${locale}:${key}`, locale: "en",
+    };
+  }
+
+  it.each([new Error("page unavailable"), "transport failed"])("reports an initial load failure without hydrating a page: %s", async failure => {
+    const deps = editorDeps();
+    deps.port.getPage = async () => { throw failure; };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.error).toBe(failure instanceof Error ? failure.message : "en:failed to load page"));
+    expect(result.current.page).toBeNull();
+    expect(result.current.title).toBe("");
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
+  it("keeps pending edits when the locale changes after hydration", async () => {
+    const deps = editorDeps();
+    const { result, rerender } = renderHook(({ locale }) => usePageEditor("landing", { ...deps, locale }), {
+      initialProps: { locale: "en" },
+    });
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setTitle("Unsaved local title"));
+    rerender({ locale: "fr" });
+    await act(async () => {});
+    expect(result.current.title).toBe("Unsaved local title");
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.t("Saved")).toBe("fr:Saved");
+  });
+
+  it("reports a redirect failure with translated load text when navigation throws a non-Error", async () => {
+    const deps = editorDeps({ page: { ...HTML_PAGE, slug: "/" } });
+    deps.navigate.mockImplementation(() => { throw "navigation unavailable"; });
+    const { result } = renderHook(() => usePageEditor(HTML_PAGE.id, deps));
+    await waitFor(() => expect(result.current.error).toBe("en:failed to load page"));
+    expect(result.current.page?.id).toBe(HTML_PAGE.id);
+    expect(deps.navigate).toHaveBeenCalledWith("/pages/home", { replace: true });
+  });
+
+  it.each(["resolve", "reject"] as const)("ignores a superseded route load that later %ss", async outcome => {
+    const deps = editorDeps();
+    let resolve!: (value: { post: typeof HTML_PAGE }) => void;
+    let reject!: (error: Error) => void;
+    const pending = new Promise<{ post: typeof HTML_PAGE }>((yes, no) => { resolve = yes; reject = no; });
+    let oldReadStarted = false;
+    deps.port.getPage = async route => {
+      if (route === "old-page") { oldReadStarted = true; return pending; }
+      return { post: HTML_PAGE };
+    };
+    const { result, rerender } = renderHook(({ route }) => usePageEditor(route, deps), {
+      initialProps: { route: "old-page" },
+    });
+    await waitFor(() => expect(oldReadStarted).toBe(true));
+    rerender({ route: "landing" });
+    await waitFor(() => expect(result.current.page?.id).toBe(HTML_PAGE.id));
+    await act(async () => {
+      if (outcome === "resolve") resolve({ post: { ...HTML_PAGE, id: "old-id", slug: "old-page", title: "Old page" } });
+      else reject(new Error("late old-route failure"));
+      await pending.catch(() => undefined);
+    });
+    expect(result.current.title).toBe("Landing");
+    expect(result.current.error).toBeNull();
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
+  it("save, overwrite, remove and restore are inert before the initial page arrives", async () => {
+    const deps = editorDeps();
+    deps.port.getPage = () => new Promise(() => {});
+    const { result, unmount } = renderHook(() => usePageEditor("landing", deps));
+    await act(async () => {
+      await result.current.save();
+      await result.current.saveOverwritingConflict();
+      await result.current.remove();
+      result.current.restoreRecoveredDraft();
+    });
+    expect(result.current.page).toBeNull();
+    expect(result.current.saving).toBe(false);
+    expect(result.current.deleting).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(deps.port.updatePostCalls).toEqual([]);
+    expect(deps.port.deleteCalled).toBe(false);
+    unmount();
+  });
+
+  it("shows translated fallback text for a non-Error save refusal and retains the working copy", async () => {
+    const deps = editorDeps();
+    deps.port.updatePost = async () => { throw "offline"; };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setHtml("<p>unsaved</p>"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("en:failed to save page");
+    expect(result.current.html).toBe("<p>unsaved</p>");
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.saving).toBe(false);
+    expect(deps.port.current.bodyHtml).toBe("<p>hello</p>");
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+  });
+
+  it.each([new Error("delete refused"), "offline"])("a delete failure closes confirmation and leaves the page and route intact: %s", async failure => {
+    const deps = editorDeps();
+    deps.port.deletePage = async () => { throw failure; };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setConfirmingDelete(true));
+    await act(async () => { await result.current.remove(); });
+    expect(result.current.error).toBe(failure instanceof Error ? "delete refused" : "en:failed to delete page");
+    expect(result.current.confirmingDelete).toBe(false);
+    expect(result.current.deleting).toBe(false);
+    expect(result.current.page?.id).toBe(HTML_PAGE.id);
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
+  it("a failed conflict re-read keeps the rejected draft and conflict for retry", async () => {
+    const deps = editorDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setHtml("<p>my work</p>"));
+    deps.port.simulateConcurrentSave();
+    await act(async () => { await result.current.save("published"); });
+    const conflict = result.current.saveConflict;
+    expect(conflict).not.toBeNull();
+    deps.port.getPage = async () => { throw new Error("read unavailable"); };
+    await act(async () => { await result.current.saveOverwritingConflict(); });
+    expect(result.current.error).toBe("en:could not re-read the current version — your changes are still here, try again");
+    expect(result.current.html).toBe("<p>my work</p>");
+    expect(result.current.saveConflict).toEqual(conflict);
+    expect(deps.port.updatePostCalls).toHaveLength(1);
+    expect(deps.port.updatePageHtmlCalls).toEqual([]);
+  });
+
+  it("overwrite without a conflict uses the fresh basis without changing the draft status", async () => {
+    const deps = editorDeps({ page: { ...DOC_PAGE, status: "draft" } });
+    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setTitle("Local draft"));
+    deps.port.simulateConcurrentSave();
+    await act(async () => { await result.current.saveOverwritingConflict(); });
+    expect(result.current.error).toBeNull();
+    expect(deps.port.current.title).toBe("Local draft");
+    expect(deps.port.current.status).toBe("draft");
+    expect(deps.port.updatePostCalls[0].expectedVersion).toBe(DOC_PAGE.version + 1);
+  });
+
+  it("an external Load latest failure preserves local work and reports the recovery action", async () => {
+    const deps = editorDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setTitle("Keep this draft"));
+    deps.port.getPage = async () => { throw new Error("read unavailable"); };
+    await act(async () => { await result.current.loadExternalChange(); });
+    expect(result.current.error).toBe("en:could not re-read the current version — your changes are still here, try again");
+    expect(result.current.title).toBe("Keep this draft");
+    expect(result.current.page?.version).toBe(HTML_PAGE.version);
+    expect(deps.port.discardAutosaveCalled).toBe(false);
+  });
+
+  it("a superseded save failure cannot clear the newer save's pending state or show an error", async () => {
+    const deps = editorDeps({ page: DOC_PAGE });
+    let rejectOld!: (error: Error) => void;
+    const oldWrite = new Promise<Awaited<ReturnType<typeof deps.port.updatePost>>>((_yes, no) => { rejectOld = no; });
+    let releaseNew!: () => void;
+    const newGate = new Promise<void>(yes => { releaseNew = yes; });
+    const update = deps.port.updatePost;
+    let calls = 0;
+    deps.port.updatePost = async (target, patch) => {
+      calls += 1;
+      if (calls === 1) return oldWrite;
+      await newGate;
+      return update(target, patch);
+    };
+    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setTitle("Latest local title"));
+    let oldSave!: Promise<void>;
+    act(() => { oldSave = result.current.save(); });
+    await waitFor(() => expect(calls).toBe(1));
+    let newSave!: Promise<void>;
+    act(() => { newSave = result.current.save("published"); });
+    await waitFor(() => expect(calls).toBe(2));
+    await act(async () => { rejectOld(new Error("obsolete failure")); await oldSave; });
+    expect(result.current.error).toBeNull();
+    expect(result.current.saving).toBe(true);
+    expect(result.current.message).toBeNull();
+    await act(async () => { releaseNew(); await newSave; });
+    expect(result.current.saving).toBe(false);
+    expect(result.current.status).toBe("published");
+    expect(deps.port.current.title).toBe("Latest local title");
+  });
+
+  it.each(["slug", "status"] as const)("a %s-only edit is dirty and saving establishes a new clean baseline", async field => {
+    const deps = editorDeps({ page: DOC_PAGE });
+    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => {
+      if (field === "slug") result.current.setSlug("renamed-policy");
+      else result.current.setStatus("draft");
+    });
+    expect(result.current.contentDirty).toBe(true);
+    expect(result.current.dirty).toBe(true);
+    await act(async () => { await result.current.save(); });
+    expect(result.current.contentDirty).toBe(false);
+    expect(result.current.dirty).toBe(false);
+    expect(deps.port.current[field]).toBe(field === "slug" ? "renamed-policy" : "draft");
+  });
+
+  it.each([
+    { bodyFormat: "doc" as const, bodyJson: { type: "doc" } },
+    { bodyFormat: "html" as const },
+  ])("restoring $bodyFormat metadata without an HTML body leaves the intact body and canvas revision alone", async body => {
+    const deps = editorDeps({ page: HTML_PAGE, autosave: {
+      ...body, title: "Recovered metadata", slug: "recovered", baseVersion: HTML_PAGE.version,
+      savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local",
+    } });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+    act(() => result.current.restoreRecoveredDraft());
+    expect(result.current.title).toBe("Recovered metadata");
+    expect(result.current.slug).toBe("recovered");
+    expect(result.current.html).toBe("<p>hello</p>");
+    expect(result.current.contentRevision).toBe(0);
+    expect(result.current.recoverableDraft).toBeNull();
+    expect(deps.port.discardAutosaveCalled).toBe(false);
+  });
+
+  it("preview expansion preserves the selected device, ignores other keys, and collapses on Escape or tab exit", async () => {
+    const deps = editorDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setDevice("mobile"));
+    act(() => result.current.togglePreviewExpanded());
+    expect(result.current.previewExpanded).toBe(true);
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })); });
+    expect(result.current.previewExpanded).toBe(true);
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+    expect(result.current.previewExpanded).toBe(false);
+    expect(result.current.device).toBe("mobile");
+    act(() => result.current.togglePreviewExpanded());
+    act(() => result.current.setView("html"));
+    expect(result.current.previewExpanded).toBe(false);
+    act(() => result.current.setView("preview"));
+    expect(result.current.previewExpanded).toBe(false);
+  });
+
+  it("opens and closes template source with the selected template intact", async () => {
+    const deps = editorDeps({ page: { ...HTML_PAGE, templateChoice: "page.html" } });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.onViewTemplateClick());
+    expect(result.current.showTemplateModal).toBe(true);
+    expect(result.current.templateChoice).toBe("page.html");
+    act(() => result.current.onCloseTemplateModal());
+    expect(result.current.showTemplateModal).toBe(false);
+  });
+
+  it("a dirty Save button persists through the same port as direct Save", async () => {
+    const deps = editorDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setHtml("<p>changed</p>"));
+    act(() => result.current.onSave());
+    await waitFor(() => expect(result.current.message).toBe("en:Saved"));
+    expect(deps.port.current.bodyHtml).toBe("<p>changed</p>");
+    expect(result.current.confirmingUnchangedSave).toBe(false);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it.each(["<p>hello</p>", "<p>unreported edit</p>"])("a clean Save button flushes %s before deciding whether to warn", async html => {
+    const deps = editorDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    result.current.interactiveEditorRef.current = { flush: async () => html };
+    await act(async () => { result.current.onSave(); });
+    if (html === "<p>hello</p>") {
+      expect(result.current.confirmingUnchangedSave).toBe(true);
+      expect(deps.port.updatePostCalls).toEqual([]);
+    } else {
+      await waitFor(() => expect(result.current.message).toBe("en:Saved"));
+      expect(deps.port.current.bodyHtml).toBe("<p>unreported edit</p>");
+      expect(result.current.confirmingUnchangedSave).toBe(false);
+    }
+  });
+
+  it.each(["save", "onSave", "saveOverwritingConflict", "back", "template", "preview", "html"] as const)(
+    "a source integrity failure during %s keeps the intact HTML and prevents unsafe actions", async action => {
+      const { EditorSourceError } = await import("@jini-ai/ui/html-editor");
+      const deps = editorDeps();
+      const { result } = renderHook(() => usePageEditor("landing", deps));
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      act(() => result.current.setView("interactive"));
+      result.current.interactiveEditorRef.current = { flush: async () => { throw new EditorSourceError(); } };
+      const preventDefault = vi.fn();
+      await act(async () => {
+        if (action === "save") await result.current.save();
+        else if (action === "onSave") result.current.onSave();
+        else if (action === "saveOverwritingConflict") await result.current.saveOverwritingConflict();
+        else if (action === "back") await result.current.onBackLinkClick({ preventDefault });
+        else if (action === "template") result.current.setTemplateChoice("other.html");
+        else result.current.setView(action);
+      });
+      await waitFor(() => expect(result.current.error).toBe("en:Can't edit this source visually. Use HTML."));
+      expect(result.current.html).toBe("<p>hello</p>");
+      expect(result.current.view).toBe(action === "html" ? "html" : "interactive");
+      expect(result.current.templateChoice).toBeNull();
+      expect(result.current.confirmingUnchangedSave).toBe(false);
+      expect(deps.port.updatePostCalls).toEqual([]);
+      expect(deps.port.updatePageHtmlCalls).toEqual([]);
+      expect(deps.navigate).not.toHaveBeenCalled();
+      if (action === "back") expect(preventDefault).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("the ordinary back link prevents navigation only when the dirty guard is cancelled", async () => {
+    const deps = editorDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const preventDefault = vi.fn();
+    await act(async () => { await result.current.onBackLinkClick({ preventDefault }); });
+    expect(preventDefault).not.toHaveBeenCalled();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      act(() => result.current.setTitle("Unsaved title"));
+      await act(async () => { await result.current.onBackLinkClick({ preventDefault }); });
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+      expect(result.current.title).toBe("Unsaved title");
+      expect(deps.navigate).not.toHaveBeenCalled();
+    } finally { confirm.mockRestore(); }
+  });
+
+  it("Edit HTML preserves verbatim source when jumping from an Interactive block", async () => {
+    const source = '<section data-kui id="block"><p>hello</p></section>';
+    const deps = editorDeps({ page: { ...HTML_PAGE, bodyHtml: source } });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    await act(async () => { await result.current.onRequestEditHtml({ occurrenceIndex: 0, tagName: "section", id: "block" }, {}); });
+    expect(result.current.view).toBe("html");
+    expect(result.current.draftHtml).toBe(source);
+    expect(result.current.html).toBe(source);
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("a production-mode external refresh updates the body and baseline without losing the new row", async () => {
+    vi.stubEnv("DEV", false);
+    resetContentRefreshBus();
+    const deps = editorDeps();
+    const { result, unmount } = renderHook(() => usePageEditor("landing", deps));
+    try {
+      await waitFor(() => expect(result.current.page).not.toBeNull());
+      await act(async () => {
+        deps.port.simulateExternalWrite({ bodyHtml: "<p>from assistant</p>" });
+        publishContentRefresh([PAGES_RESOURCE]);
+      });
+      await waitFor(() => expect(result.current.html).toBe("<p>from assistant</p>"));
+      expect(result.current.page?.version).toBe(HTML_PAGE.version + 1);
+      expect(result.current.contentRevision).toBe(1);
+      expect(result.current.dirty).toBe(false);
+    } finally {
+      unmount();
+      resetContentRefreshBus();
+      vi.unstubAllEnvs();
+    }
+  });
+});

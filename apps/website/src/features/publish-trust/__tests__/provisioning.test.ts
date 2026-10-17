@@ -395,3 +395,112 @@ test("a codec encode refusal leaves the stored document untouched", async () => 
   assert.deepEqual(await port.connect({ grant: grantFor("laptop") }), { ok: false, reason: "config is read-only" });
   assert.equal(io.files[path], original);
 });
+
+test("whitespace documents are empty and an overfull document is refused whole", () => {
+  assert.deepEqual(parseGrantDocument(" \t\n"), { ok: true, grants: [] });
+  const grants = Array.from({ length: MAX_PROVISIONED_GRANTS + 1 }, (_, i) => grantFor(`source-${i}`));
+  assert.deepEqual(parseGrantDocument(JSON.stringify(grants)), {
+    ok: false, reason: "grant document holds more than 8 grants",
+  });
+});
+
+test("compact serialization round-trips without the committed file's whitespace", () => {
+  const grants = [grantFor("laptop"), grantFor("desktop")];
+  const text = serializeGrantDocument(grants, { pretty: false });
+  assert.equal(text.includes("\n"), false);
+  assert.deepEqual(parseGrantDocument(text), { ok: true, grants });
+});
+
+test("an env grant configures the running install in preference to the committed file", () => {
+  const grant = grantFor("desktop");
+  assert.deepEqual(resolvePublishTrust({ envValue: JSON.stringify([grant]), fileContents: "not JSON" }), {
+    state: "configured", origin: "env", grants: [grant], reason: null,
+  });
+  assert.deepEqual(resolvePublishTrust({ envValue: "[]", fileContents: JSON.stringify([grant]) }), {
+    state: "revoked", origin: "env", grants: [], reason: null,
+  });
+});
+
+test("destination status messages distinguish one computer, several, revocation and invalid settings", () => {
+  assert.equal(describePublishTrustState({ state: "configured", origin: "file", grants: [grantFor("one")], reason: null }),
+    "1 computer can publish to this site.");
+  assert.equal(describePublishTrustState({ state: "configured", origin: "file", grants: [grantFor("one"), grantFor("two")], reason: null }),
+    "2 computers can publish to this site.");
+  assert.equal(describePublishTrustState({ state: "revoked", origin: "file", grants: [], reason: null }),
+    "Publishing to this site is switched off. No computer is connected.");
+  for (const reason of [null, "Bad version."]) {
+    assert.equal(describePublishTrustState({ state: "invalid", origin: "file", grants: [], reason }),
+      "This site's publishing settings could not be read, so nobody can publish to it." + (reason ? ` ${reason}` : ""));
+  }
+});
+
+test("expiry uses the default lifetime when options or lifetimeDays are omitted and honors zero", () => {
+  assert.equal(grantNotAfterFrom(NOW), "2027-09-19T12:00:00.000Z");
+  assert.equal(grantNotAfterFrom(NOW, {}), "2027-09-19T12:00:00.000Z");
+  assert.equal(grantNotAfterFrom(NOW, { lifetimeDays: 0 }), NOW);
+});
+
+test("connection renewal warnings include the boundary and singular day wording", () => {
+  for (const [notAfter, verdict, message] of [
+    ["2026-09-20T12:00:00.000Z", "expiring-soon", "This computer can publish to example.test for 1 more day. Reconnecting and deploying renews it."],
+    ["2026-10-19T12:00:00.000Z", "expiring-soon", "This computer can publish to example.test for 30 more days. Reconnecting and deploying renews it."],
+    ["2026-10-20T12:00:00.000Z", "connected", "This computer can publish to example.test."],
+  ] as const) {
+    assert.deepEqual(describeConnection({
+      resolution: { state: "configured", origin: "file", grants: [grantFor("laptop", { notAfter })], reason: null },
+      sourceInstallationId: "laptop", publicKeyB64u: "pk-laptop", siteLabel: "example.test", nowIso: NOW,
+    }), { verdict, message });
+  }
+});
+
+test("provisioning reports parse failures on reads without exposing a usable partial grant list", async () => {
+  const path = "/repo/deploy/publish-trust.json";
+  const original = JSON.stringify([grantFor("laptop"), { version: 999 }]);
+  for (const observed of [false, true]) {
+    const events: ProvisioningEvent[] = [];
+    const io = memoryIo({ [path]: original });
+    const port = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path,
+      ...(observed ? { onEvent: (event: ProvisioningEvent) => events.push(event) } : {}),
+    });
+    const expected = { ok: false, reason: "unsupported grant version 999; this install implements version 1" };
+    assert.deepEqual(await port.readProvisioned(), expected);
+    assert.deepEqual(await port.disconnect({ sourceInstallationId: "laptop" }), expected);
+    assert.equal(io.files[path], original);
+    assert.deepEqual(events, observed ? [
+      { kind: "error", target: port.target, reason: expected.reason },
+      { kind: "error", target: port.target, reason: expected.reason },
+    ] : []);
+  }
+});
+
+test("provisioning announces unchanged edits and refusal reasons without writing", async () => {
+  const path = "/repo/deploy/publish-trust.json";
+  const full = Array.from({ length: MAX_PROVISIONED_GRANTS }, (_, i) => grantFor(`m${i}`));
+  const original = JSON.stringify(full);
+  const events: ProvisioningEvent[] = [];
+  const io = memoryIo({ [path]: original });
+  const port = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path, onEvent: event => events.push(event) });
+  assert.deepEqual(await port.connect({ grant: full[0] }), { ok: true, grants: full, changed: false, target: port.target });
+  const refused = await port.connect({ grant: grantFor("extra") });
+  assert.deepEqual(refused, { ok: false, reason: "this site already accepts 8 computers; disconnect one first" });
+  assert.deepEqual(events, [
+    { kind: "write", target: port.target, grants: 8, changed: false },
+    { kind: "error", target: port.target, reason: "this site already accepts 8 computers; disconnect one first" },
+  ]);
+  assert.equal(io.files[path], original);
+});
+
+test("a codec refusal is observable through the event port and never becomes a write", async () => {
+  const io = memoryIo();
+  const events: ProvisioningEvent[] = [];
+  const port = createFileProvisioning({ io, path: "/repo/config", onEvent: event => events.push(event), codec: {
+    ...COMMITTED_JSON_CODEC, encode: () => ({ ok: false, reason: "cannot preserve config" }),
+  } });
+  assert.deepEqual(await port.readProvisioned(), { ok: true, grants: [] });
+  assert.deepEqual(await port.connect({ grant: grantFor("laptop") }), { ok: false, reason: "cannot preserve config" });
+  assert.deepEqual(io.files, {});
+  assert.deepEqual(events, [
+    { kind: "read", target: port.target, grants: 0 },
+    { kind: "error", target: port.target, reason: "cannot preserve config" },
+  ]);
+});

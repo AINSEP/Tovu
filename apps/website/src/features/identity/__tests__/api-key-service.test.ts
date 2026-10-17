@@ -1,9 +1,10 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GrantExceedsIssuerError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, resolveEffectivePermissions } from "@jini-ai/user-management/server";
 import { authenticateApiKey, createApiKeyPrincipal, issueApiKey, revokeApiKey, type ApiKeyServiceDeps } from "../api-key-service.js";
 import type { ApiKeyRecord } from "../api-key-types.js";
@@ -187,3 +188,175 @@ test("a trimmed name or label exactly 255 characters long is accepted and persis
   const issued = await issueApiKey({ deps: h.deps, input: { ...h.input, principalId: principal.id, label: ` ${"l".repeat(255)} ` } });
   assert.equal((await h.deps.apiKeys.findById({ workspaceId: WS, id: issued.apiKey.id }))?.label, "l".repeat(255));
 });
+
+test("principal creation accepts the explicit machine kind and refuses every privileged kind", async () => {
+  const h = await harness();
+  const { principal } = await createApiKeyPrincipal({ deps: h.deps, input: {
+    workspaceId: WS, callerPrincipalId: "issuer", kind: "api_key", displayName: "  Explicit machine  ",
+  } });
+  assert.equal(principal.kind, "api_key");
+  assert.equal(principal.status, "active");
+  assert.equal(principal.displayName, "Explicit machine");
+  assert.deepEqual(await h.deps.repos.principals.findById({ workspaceId: WS, id: principal.id }), principal);
+  for (const kind of [null, "user", "system", "user-local", 42]) {
+    await assert.rejects(createApiKeyPrincipal({ deps: h.deps, input: {
+      workspaceId: WS, callerPrincipalId: "issuer", kind, displayName: "Rejected",
+    } }), { constructor: IdentityValidationError, message: `'kind' must be 'api_key', got '${String(kind)}'` });
+  }
+});
+
+test("principal display names must be strings within the trimmed bounds", async () => {
+  const h = await harness();
+  for (const displayName of [undefined, null, 42, "", " \t ", "x".repeat(256)]) {
+    await assert.rejects(createApiKeyPrincipal({ deps: h.deps, input: {
+      workspaceId: WS, callerPrincipalId: "issuer", displayName,
+    } }), { constructor: IdentityValidationError, message: "'displayName' must be 1..255 characters after trimming" });
+  }
+});
+
+for (const [field, value, message] of [
+  ["label", null, "'label' must be 1..255 characters after trimming"],
+  ["label", "  ", "'label' must be 1..255 characters after trimming"],
+  ["policyIds", null, "'policyIds' must be a non-empty array of policy ids"],
+  ["policyIds", "source", "'policyIds' must be a non-empty array of policy ids"],
+  ["policyIds", [42], "'policyIds' entries must be non-blank policy ids"],
+  ["principalId", null, "'principalId' is required"],
+] as const) {
+  test(`invalid ${field} ${JSON.stringify(value)} refuses issuance before any write`, async () => {
+    const h = await harness();
+    await assert.rejects(issueApiKey({ deps: h.deps, input: { ...h.input, [field]: value } }), {
+      constructor: IdentityValidationError, message,
+    });
+    assert.deepEqual((await h.deps.repos.policies.list({ workspaceId: WS })).map(p => p.id).sort(), ["issuer-policy", "source"]);
+    assert.deepEqual(await h.deps.apiKeys.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id }), []);
+  });
+}
+
+test("all key transitions reject an unauthorized caller before revealing missing targets or bad inputs", async () => {
+  const h = await harness();
+  await h.deps.repos.policyPermissions.deleteByPolicyId({ workspaceId: WS, policyId: "issuer-policy" });
+  await assert.rejects(createApiKeyPrincipal({ deps: h.deps, input: {
+    workspaceId: WS, callerPrincipalId: "issuer", displayName: null, kind: "system",
+  } }), IdentityForbiddenError);
+  await assert.rejects(issueApiKey({ deps: h.deps, input: { ...h.input, principalId: "missing", label: null } }), IdentityForbiddenError);
+  await assert.rejects(revokeApiKey({ deps: h.deps, input: { workspaceId: WS, callerPrincipalId: "issuer", keyId: "missing" } }), IdentityForbiddenError);
+  assert.deepEqual(await h.deps.apiKeys.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id }), []);
+});
+
+test("a missing or foreign principal cannot receive a key", async () => {
+  const h = await harness();
+  await h.deps.repos.principals.save({ ...h.principal, id: "foreign", workspaceId: "other-ws" });
+  for (const principalId of ["missing", "foreign"]) {
+    await assert.rejects(issueApiKey({ deps: h.deps, input: { ...h.input, principalId } }), {
+      constructor: IdentityNotFoundError, message: `principal '${principalId}' was not found`,
+    });
+  }
+  assert.deepEqual((await h.deps.repos.policies.list({ workspaceId: WS })).map(p => p.id).sort(), ["issuer-policy", "source"]);
+});
+
+test("an active human cannot be used as an API-key principal", async () => {
+  const h = await harness();
+  await assert.rejects(issueApiKey({ deps: h.deps, input: { ...h.input, principalId: "issuer" } }), {
+    constructor: IdentityValidationError, message: "ISSUE_API_KEY target must be a machine (kind='api_key') principal, got kind='user'",
+  });
+});
+
+for (const grantKind of ["role", "policy"] as const) {
+  test(`a principal with an existing ${grantKind} grant cannot receive a snapshot`, async () => {
+    const h = await harness();
+    if (grantKind === "role") {
+      await h.deps.repos.roles.save({ id: "role", workspaceId: WS, name: "Runner role", isBuiltin: false });
+      await h.deps.repos.principalRoles.save({ id: "grant", workspaceId: WS, principalId: h.principal.id, roleId: "role" });
+    } else {
+      await h.deps.repos.principalPolicies.save({ id: "grant", workspaceId: WS, principalId: h.principal.id, policyId: "source" });
+    }
+    await assert.rejects(issueApiKey({ deps: h.deps, input: h.input }), {
+      constructor: IdentityValidationError,
+      message: `principal '${h.principal.id}' already carries grants; ISSUE_API_KEY requires a grantless principal so the key's authority equals exactly the policies attached here`,
+    });
+    assert.deepEqual(await h.deps.apiKeys.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id }), []);
+    assert.deepEqual((await h.deps.repos.policies.list({ workspaceId: WS })).map(p => p.id).sort(), ["issuer-policy", "source"]);
+  });
+}
+
+test("an owner wildcard source is refused even though the issuer is an owner", async () => {
+  const h = await harness();
+  await h.deps.repos.policyPermissions.save({ id: "source-wildcard", workspaceId: WS, policyId: "source", permission: "*", resourceType: null, constraintJson: null });
+  await assert.rejects(issueApiKey({ deps: h.deps, input: h.input }), {
+    constructor: IdentityValidationError, message: "policy 'source' carries the owner wildcard '*'; an API-key snapshot may never carry it",
+  });
+  assert.deepEqual((await h.deps.repos.policies.list({ workspaceId: WS })).map(p => p.id).sort(), ["issuer-policy", "source"]);
+  assert.deepEqual(await h.deps.apiKeys.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id }), []);
+});
+
+test("an empty source policy issues a grantless snapshot without requiring extra issuer permissions", async () => {
+  const h = await harness();
+  await h.deps.repos.policyPermissions.deleteByPolicyId({ workspaceId: WS, policyId: "source" });
+  await h.deps.repos.policyPermissions.deleteByPolicyId({ workspaceId: WS, policyId: "issuer-policy" });
+  await h.deps.repos.policyPermissions.save({ id: "manage", workspaceId: WS, policyId: "issuer-policy", permission: "apikey.manage", resourceType: null, constraintJson: null });
+  const issued = await issueApiKey({ deps: h.deps, input: h.input });
+  assert.deepEqual(await resolveEffectivePermissions({ deps: h.deps.repos, workspaceId: WS, principalId: h.principal.id }), []);
+  assert.deepEqual((await h.deps.repos.principalPolicies.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id })).map(row => row.policyId), [issued.apiKey.issuedPolicyId]);
+  assert.equal((await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: issued.rawKey } }))?.principal.id, h.principal.id);
+});
+
+for (const expiresAt of [null, ""] as const) {
+  test(`an explicit ${JSON.stringify(expiresAt)} expiry issues a usable key with no expiry`, async () => {
+    const h = await harness();
+    const issued = await issueApiKey({ deps: h.deps, input: { ...h.input, expiresAt } });
+    assert.equal(issued.apiKey.expiresAt, undefined);
+    assert.equal((await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: issued.rawKey } }))?.principal.id, h.principal.id);
+  });
+}
+
+test("a scoped manager holding the exact permission unconstrained can issue it without a wildcard", async () => {
+  const h = await harness();
+  await h.deps.repos.policyPermissions.deleteByPolicyId({ workspaceId: WS, policyId: "issuer-policy" });
+  for (const permission of ["apikey.manage", "content.read"]) {
+    await h.deps.repos.policyPermissions.save({ id: `issuer-${permission}`, workspaceId: WS, policyId: "issuer-policy", permission, resourceType: null, constraintJson: null });
+  }
+  await h.deps.repos.policyPermissions.deleteByPolicyId({ workspaceId: WS, policyId: "source" });
+  await h.deps.repos.policyPermissions.save({ id: "source-read", workspaceId: WS, policyId: "source", permission: "content.read" });
+  const issued = await issueApiKey({ deps: h.deps, input: { ...h.input, principalId: ` ${h.principal.id} `, policyIds: [" source "] } });
+  const rows = await h.deps.repos.policyPermissions.listByPolicyId({ workspaceId: WS, policyId: issued.apiKey.issuedPolicyId! });
+  assert.deepEqual(rows.map(({ permission, resourceType, constraintJson }) => ({ permission, resourceType, constraintJson })),
+    [{ permission: "content.read", resourceType: null, constraintJson: null }]);
+  assert.equal(issued.apiKey.principalId, h.principal.id);
+});
+
+test("revoking a missing key gives the specific not-found error", async () => {
+  const h = await harness();
+  await assert.rejects(revokeApiKey({ deps: h.deps, input: { workspaceId: WS, callerPrincipalId: "issuer", keyId: "missing" } }), {
+    constructor: IdentityNotFoundError, message: "api key 'missing' was not found",
+  });
+});
+
+test("revocation supports a legacy key without a snapshot policy", async () => {
+  const h = await harness();
+  const key: ApiKeyRecord = { id: "legacy", workspaceId: WS, principalId: h.principal.id, label: "Legacy", keyHash: "digest:secret", prefix: "tovu_ak_0123456789ab", createdAt: NOW };
+  await h.deps.apiKeys.save(key);
+  const expected = { ...key, revokedAt: NOW };
+  assert.deepEqual(await revokeApiKey({ deps: h.deps, input: { workspaceId: WS, callerPrincipalId: "issuer", keyId: key.id } }), { apiKey: expected });
+  assert.deepEqual(await h.deps.apiKeys.findById({ workspaceId: WS, id: key.id }), expected);
+  assert.equal(await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: "tovu_ak_0123456789ab.secret" } }), null);
+});
+
+for (const restriction of [
+  { resourceType: "entry", constraintJson: null },
+  { resourceType: null, constraintJson: '{"type":"recipe"}' },
+]) {
+  test(`a constrained wildcard ${JSON.stringify(restriction)} cannot delegate otherwise unheld permissions`, async () => {
+    const h = await harness();
+    await h.deps.repos.policyPermissions.deleteByPolicyId({ workspaceId: WS, policyId: "issuer-policy" });
+    await h.deps.repos.policyPermissions.save({ id: "manage", workspaceId: WS, policyId: "issuer-policy", permission: "apikey.manage", resourceType: null, constraintJson: null });
+    await h.deps.repos.policyPermissions.save({ id: "limited-wildcard", workspaceId: WS, policyId: "issuer-policy", permission: "*", ...restriction });
+    await assert.rejects(issueApiKey({ deps: h.deps, input: h.input }), error => {
+      assert.ok(error instanceof GrantExceedsIssuerError);
+      assert.deepEqual(error.offendingPermissions, ["content.read"]);
+      assert.equal(error.message, "principal 'issuer' cannot grant permission(s) it does not hold unconstrained: content.read");
+      return true;
+    });
+    assert.deepEqual(await h.deps.apiKeys.listByPrincipalId({ workspaceId: WS, principalId: h.principal.id }), []);
+    assert.deepEqual((await h.deps.repos.policies.list({ workspaceId: WS })).map(p => p.id).sort(), ["issuer-policy", "source"]);
+  });
+}

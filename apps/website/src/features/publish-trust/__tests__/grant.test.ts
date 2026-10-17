@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  backstopGrantAllows,
   grantAllowsCapability,
   grantAllowsEntityType,
   isGrantActive,
+  isBackstopEntityType,
   isPublishTrustRoute,
   parsePublishTrustGrant,
   PUBLISH_TRUST_GRANT_VERSION,
@@ -44,6 +46,52 @@ test("a well-formed grant parses", () => {
   const grant = parseOrThrow(validGrantDoc());
   assert.equal(grant.sourceInstallationId, "src-install");
   assert.deepEqual(grant.capabilities, ["publish_content.read", "publish_content.apply"]);
+});
+
+test("backstop entity classification accepts only the two raw entity types", () => {
+  for (const entityType of ["raw-row", "raw-file"]) {
+    assert.equal(isBackstopEntityType({ entityType }), true);
+  }
+  for (const entityType of ["", "post", "raw", "raw-row/child"]) {
+    assert.equal(isBackstopEntityType({ entityType }, {}), false);
+  }
+});
+
+test("a backstop-capable grant still refuses an entity type it did not enumerate", () => {
+  assert.equal(backstopGrantAllows({
+    grant: { capabilities: ["publish_content.apply", "publish_content.backstop"], entityTypes: ["raw-row"] },
+    entityType: "raw-file",
+  }, {}), false);
+});
+
+test("a public key generation must be a non-negative integer", () => {
+  for (const generation of [undefined, null, "1", -1, 0.5, NaN, Infinity]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ publicKeys: [{ publicKeyB64u: "AAAA", generation }] })), {
+      ok: false, reason: "each 'publicKeys' entry needs a non-negative integer 'generation'",
+    });
+  }
+  assert.deepEqual(parseOrThrow(validGrantDoc({ publicKeys: [{ publicKeyB64u: "AAAA", generation: 0 }] })).publicKeys,
+    [{ publicKeyB64u: "AAAA", generation: 0 }]);
+});
+
+test("a grant requires a bounded parseable expiry", () => {
+  for (const notAfter of [undefined, null, 42, "", "x".repeat(513), "not-a-date"]) {
+    assert.deepEqual(parsePublishTrustGrant(validGrantDoc({ notAfter })), {
+      ok: false, reason: "'notAfter' must be an ISO-8601 timestamp",
+    });
+  }
+});
+
+test("repeated capabilities are accepted once, preserving the first occurrence order", () => {
+  const capabilities = ["publish_content.apply", "publish_content.read", "publish_content.apply"];
+  assert.deepEqual(parseOrThrow(validGrantDoc({ capabilities })).capabilities,
+    ["publish_content.apply", "publish_content.read"]);
+  assert.deepEqual(capabilities, ["publish_content.apply", "publish_content.read", "publish_content.apply"]);
+});
+
+test("an invalid expiry on a hand-built grant is inactive with a valid clock", () => {
+  const grant = parseOrThrow(validGrantDoc());
+  assert.equal(isGrantActive({ ...grant, notAfter: "invalid" }, "2026-10-16T00:00:00Z"), false);
 });
 
 test("a grant claiming content.write is REFUSED — publishing authority cannot be widened", () => {

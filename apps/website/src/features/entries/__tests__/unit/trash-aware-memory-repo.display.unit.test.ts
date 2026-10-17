@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -338,4 +339,80 @@ test("memory repo excludes types, trash, status and other workspaces before appl
   assert.deepEqual(rows.map((row) => row.id), ["live"]);
   const unrestricted = await repo.listByWorkspaceExcludingTypes({ workspaceId: "ws-1", excludeTypes: [] });
   assert.deepEqual(unrestricted.map((row) => row.id).sort(), ["draft", "foreign", "live", "widget"]);
+});
+
+test("memory display sorting ties missing field envelopes by id and paginates after sorting", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const fields = [null, undefined, {}, { ext: {} }, { ext: { site: {} } }, { ext: { site: { prepTime: null } } }];
+  for (const [index, fieldsJson] of fields.entries()) {
+    const row = await seed(repo, `r${fields.length - index}`);
+    await repo.save({ ...row, fieldsJson });
+  }
+  const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: {
+    type: "recipe", where: [], sort: { by: { field: "prepTime" }, dir: "asc" }, offset: 2, limit: 2,
+  } });
+  assert.deepEqual(rows.map(row => row.id), ["r3", "r4"]);
+  assert.deepEqual(await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: {
+    type: "recipe", where: [{ field: "prepTime", value: 1 }], sort: { by: "title", dir: "asc" }, limit: 10,
+  } }), []);
+});
+
+test("memory display sorting compares mixed scalar types as strings and breaks equal text by id", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  for (const [id, value] of [["r4", true], ["r3", "true"], ["r2", "2"], ["r1", 10]] as const) {
+    const row = await seed(repo, id);
+    await repo.save({ ...row, fieldsJson: { ext: { site: { mixed: value } } } });
+  }
+  for (const [dir, expected] of [
+    ["asc", ["r1", "r2", "r3", "r4"]],
+    ["desc", ["r3", "r4", "r2", "r1"]],
+  ] as const) {
+    const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: {
+      type: "recipe", where: [], sort: { by: { field: "mixed" }, dir }, limit: 10,
+    } });
+    assert.deepEqual(rows.map(row => row.id), [...expected]);
+  }
+});
+
+test("memory repo restores a trash marker and limits only live rows", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const trash = await seed(repo, "trash");
+  const first = await seed(repo, "first");
+  const second = await seed(repo, "second");
+  await repo.saveAny({ ...trash, deletedAt: "2026-10-16T00:00:00Z" });
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: "ws-1" }, { limit: 1 })).map(row => row.id), [first.id]);
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: "ws-1" })).map(row => row.id), [first.id, second.id]);
+  await repo.saveAny({ ...trash, deletedAt: null });
+  assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: trash.id }), trash);
+  assert.deepEqual(await repo.findBySlug({ workspaceId: "ws-1", type: "recipe", slug: trash.slug }), trash);
+  assert.deepEqual(await repo.findAnyById({ workspaceId: "ws-1", id: trash.id }), { ...trash, deletedAt: null });
+  assert.deepEqual(await repo.findAnyBySlug({ workspaceId: "ws-1", type: "recipe", slug: trash.slug }), { ...trash, deletedAt: null });
+});
+
+test("memory repo returns null for absent and foreign-workspace lookups", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const row = await seed(repo, "present");
+  for (const workspaceId of ["ws-1", "ws-foreign"]) {
+    const id = workspaceId === "ws-1" ? "missing" : row.id;
+    const slug = workspaceId === "ws-1" ? "missing" : row.slug;
+    assert.equal(await repo.findById({ workspaceId, id }), null);
+    assert.equal(await repo.findAnyById({ workspaceId, id }), null);
+    assert.equal(await repo.findBySlug({ workspaceId, type: "recipe", slug }), null);
+    assert.equal(await repo.findAnyBySlug({ workspaceId, type: "recipe", slug }), null);
+  }
+});
+
+test("memory purge preserves foreign trash and releases the local id and slug for reuse", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const row = await seed(repo, "purge");
+  const trashed = { ...row, deletedAt: "2026-10-16T00:00:00Z" };
+  await repo.saveAny(trashed);
+  await repo.hardDelete({ workspaceId: "ws-foreign", id: row.id });
+  assert.deepEqual(await repo.findAnyById({ workspaceId: "ws-1", id: row.id }), trashed);
+  await repo.hardDelete({ workspaceId: "ws-1", id: row.id }, {});
+  assert.equal(await repo.findAnyById({ workspaceId: "ws-1", id: row.id }), null);
+  assert.equal(await repo.findAnyBySlug({ workspaceId: "ws-1", type: "recipe", slug: row.slug }), null);
+  await repo.hardDelete({ workspaceId: "ws-1", id: row.id });
+  await repo.save(row, { expectedVersion: null });
+  assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: row.id }), row);
 });

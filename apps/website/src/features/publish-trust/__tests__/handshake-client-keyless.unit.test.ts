@@ -153,3 +153,107 @@ for (const [leg, fields] of [
     }
   });
 }
+
+test("an invalid destination address is still named in a non-Error transport failure", async () => {
+  await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => { throw "egress denied"; } } },
+    { baseUrl: "invalid-address" }), {
+    name: "PublishTrustHandshakeError", failure: "unreachable",
+    message: "invalid-address could not be reached: egress denied",
+  });
+});
+
+test("malformed successful JSON quotes at most 200 response characters", async () => {
+  const bodyText = "<html>" + "x".repeat(300);
+  await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => ({ status: 200, headers: {}, bodyText }) } },
+    { baseUrl: "https://dest.example" }), {
+    name: "PublishTrustHandshakeError", failure: "not-a-tovu-site",
+    message: `dest.example answered, but it does not look like a Tovu site (${bodyText.slice(0, 200)}).`,
+  });
+});
+
+for (const bodyText of ['"hello"', "42", "[]"]) {
+  test(`a successful non-object JSON response ${bodyText} is not a Tovu identity`, async () => {
+    await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => ({ status: 200, headers: {}, bodyText }) } },
+      { baseUrl: "https://dest.example" }), {
+      name: "PublishTrustHandshakeError", failure: "not-a-tovu-site",
+      message: "dest.example answered, but it does not look like a Tovu site.",
+    });
+  });
+}
+
+for (const bodyText of ["invalid JSON", "null", '"SECRET_STORE_UNCONFIGURED"', '{"code":"OTHER_FAILURE"}']) {
+  test(`an unrelated 503 body ${bodyText} uses the generic refusal without quoting the destination`, async () => {
+    await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => ({ status: 503, headers: {}, bodyText }) } },
+      { baseUrl: "https://dest.example" }), {
+      name: "PublishTrustHandshakeError", failure: "refused",
+      message: "dest.example refused to set up publishing right now. Try again in a moment.",
+    });
+  });
+}
+
+test("an informational HTTP status is refused rather than parsed as an identity", async () => {
+  await assert.rejects(fetchDestinationIdentity({ httpClient: { send: async () => ({
+    status: 199, headers: {}, bodyText: JSON.stringify({ installationId: "dest", workspaceId: "ws" }),
+  }) } }, { baseUrl: "https://dest.example" }), {
+    name: "PublishTrustHandshakeError", failure: "refused",
+    message: "dest.example refused to set up publishing right now. Try again in a moment.",
+  });
+});
+
+test("an identity with no string origin falls back to the requested base URL", async () => {
+  for (const origin of [undefined, 42]) {
+    assert.deepEqual(await fetchDestinationIdentity({ httpClient: { send: async () => ({
+      status: 200, headers: {}, bodyText: JSON.stringify({ installationId: "dest", workspaceId: "ws", origin }),
+    }) } }, { baseUrl: "https://dest.example" }), {
+      installationId: "dest", workspaceId: "ws", origin: "https://dest.example",
+    });
+  }
+});
+
+test("backstop sessions sign the default generation and retain requested capabilities when omitted by the server", async () => {
+  const requests: Array<{ url: string; body?: string }> = [];
+  const identity = { installationId: "dest", workspaceId: "dest-ws", origin: "https://dest.example" };
+  const result = await openPublishSession({
+    keyring: {
+      activeKey: async () => assert.fail("no raw key read"),
+      deriveSigningSecret: async () => assert.fail("no webhook secret"),
+      derive: async () => new Uint8Array(32).fill(7),
+    },
+    httpClient: { send: async request => {
+      requests.push(request);
+      const body = requests.length === 1 ? identity : requests.length === 2
+        ? { nonce: "n", targetInstallationId: "dest" } : { token: "session" };
+      return { status: 200, headers: {}, bodyText: JSON.stringify(body) };
+    } },
+  }, { baseUrl: "https://dest.example", workspaceId: "source-ws", backstop: true });
+  const capabilities = ["publish_content.read", "publish_content.apply", "publish_content.backstop"];
+  assert.deepEqual(result, { token: "session", expiresAt: "", capabilities, identity });
+  const signed = JSON.parse(requests[2].body!);
+  assert.equal(signed.generation, 1);
+  assert.deepEqual(signed.capabilities, capabilities);
+  const { createPrivateKey, createPublicKey, verify } = await import("node:crypto");
+  const privateKey = createPrivateKey({ key: Buffer.concat([
+    Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.alloc(32, 7),
+  ]), format: "der", type: "pkcs8" });
+  const sourceId = Buffer.alloc(16, 7).toString("base64url");
+  assert.equal(verify(null, Buffer.from(`tovu-publish-challenge-v1\nn\ndest\n${sourceId}\n1\npublish_content.apply,publish_content.backstop,publish_content.read`),
+    createPublicKey(privateKey), Buffer.from(signed.signatureB64u, "base64url")), true);
+});
+
+test("a session response keeps string capabilities and drops non-string values", async () => {
+  const responses = [
+    { installationId: "dest", workspaceId: "ws" },
+    { nonce: "n", targetInstallationId: "dest" },
+    { token: "session", expiresAt: 42, capabilities: ["publish_content.read", null, 1, "publish_content.apply"] },
+  ];
+  const result = await openPublishSession({
+    keyring: {
+      activeKey: async () => assert.fail("no raw key read"),
+      deriveSigningSecret: async () => assert.fail("no webhook secret"),
+      derive: async () => new Uint8Array(32).fill(7),
+    },
+    httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify(responses.shift()) }) },
+  }, { baseUrl: "https://dest.example", workspaceId: "source-ws" });
+  assert.deepEqual(result.capabilities, ["publish_content.read", "publish_content.apply"]);
+  assert.equal(result.expiresAt, "");
+});

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSettingsPrincipalLookup } from "../index.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
@@ -17,6 +18,7 @@ import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 import {
   ensureSiteTitleSettingDefinition,
   InMemorySiteTitlePreservationStore,
+  normalizeSiteTitle,
   preserveLegacySiteTitles,
   resolveSiteTitle,
   SITE_TITLE_KEY,
@@ -423,4 +425,35 @@ test("a committed pin with a failed preservation marker is resolved on retry wit
   assert.equal(await ledger.preservationStore.isPending("ws-pre"), false);
   assert.deepEqual(await systemPinRevisions(ledger, "ws-pre"), before);
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: SITE_DISPLAY_NAME }), { workspaceId: "ws-pre" }), "Tovu Demo Site");
+});
+
+test("REQ-08: title normalization accepts trimmed bounds and rejects non-string values", () => {
+  for (const value of [undefined, null, 42, true, {}, [], "", " \t\n", "x".repeat(201)]) {
+    assert.equal(normalizeSiteTitle(value), undefined);
+  }
+  assert.equal(normalizeSiteTitle("  A  "), "A");
+  assert.equal(normalizeSiteTitle(` ${"x".repeat(200)} `), "x".repeat(200));
+});
+
+test("preservation markers default to empty, deduplicate and sort ids, and resolve idempotently", async () => {
+  const empty = new InMemorySiteTitlePreservationStore();
+  assert.deepEqual(await empty.listPendingWorkspaceIds(), []);
+  assert.equal(await empty.isPending("missing"), false);
+  const store = new InMemorySiteTitlePreservationStore(["ws-z", "ws-a", "ws-z"]);
+  assert.deepEqual(await store.listPendingWorkspaceIds(), ["ws-a", "ws-z"]);
+  await store.markPreserved({ workspaceId: "ws-a", preservedAt: clock.nowIso() });
+  await store.markPreserved({ workspaceId: "ws-a", preservedAt: clock.nowIso() });
+  await store.markPreserved({ workspaceId: "missing", preservedAt: clock.nowIso() });
+  assert.deepEqual(await store.listPendingWorkspaceIds(), ["ws-z"]);
+});
+
+test("REQ-05: renderable configured and workspace names are trimmed before rendering", async () => {
+  const ledger = await makeLedger();
+  assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "  Configured title  " }), { workspaceId: "ws-new" }),
+    "Configured title");
+  const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = {
+    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso() }),
+  };
+  assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "x".repeat(201), workspaceRepo }), { workspaceId: "ws-new" }),
+    "Workspace title");
 });
