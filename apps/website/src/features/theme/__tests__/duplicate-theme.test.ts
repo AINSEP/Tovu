@@ -88,6 +88,68 @@ test("the source theme is never modified", () => {
   assert.deepEqual(snapshot(source.dir), before);
 });
 
+test("duplication rewrites only the source theme's absolute asset prefix in copied text files", (t) => {
+  const { root, themes, source } = makeSite();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sourcePrefix = `/theme-assets/${STOCK_ID}/`;
+  const copyPrefix = "/theme-assets/roastery/";
+  const otherPrefix = `/theme-assets/${STOCK_ID}-other/`;
+  const textFiles = [
+    [
+      "render/pages/assets.html",
+      `<link href="${sourcePrefix}assets/site.css"><img src="${otherPrefix}images/hero.png">`,
+      `<link href="${copyPrefix}assets/site.css"><img src="${otherPrefix}images/hero.png">`,
+    ],
+    [
+      "render/partials/hero.liquid",
+      `<img src="${sourcePrefix}images/hero.png"><img src="/theme-assets/another/images/hero.png">`,
+      `<img src="${copyPrefix}images/hero.png"><img src="/theme-assets/another/images/hero.png">`,
+    ],
+    ["render/partials/footer.hbs", `<img src="${sourcePrefix}images/footer.png">`, `<img src="${copyPrefix}images/footer.png">`],
+    [
+      "css/theme.css",
+      `@import '${sourcePrefix}css/base.css'; .hero { background: url('${sourcePrefix}images/hero.png?v=1#top'); }`,
+      `@import '${copyPrefix}css/base.css'; .hero { background: url('${copyPrefix}images/hero.png?v=1#top'); }`,
+    ],
+    [
+      "assets/manifest.json",
+      JSON.stringify({ icon: `${sourcePrefix}images/icon.png`, other: `${otherPrefix}images/icon.png` }),
+      JSON.stringify({ icon: `${copyPrefix}images/icon.png`, other: `${otherPrefix}images/icon.png` }),
+    ],
+    ["assets/icon.svg", `<svg><image href="${sourcePrefix}images/hero.png"/></svg>`, `<svg><image href="${copyPrefix}images/hero.png"/></svg>`],
+    ["assets/config", `icon=${sourcePrefix}images/icon.png`, `icon=${copyPrefix}images/icon.png`],
+  ] as const;
+  for (const [relativePath, content] of textFiles) {
+    fs.mkdirSync(path.dirname(path.join(source.dir, relativePath)), { recursive: true });
+    fs.writeFileSync(path.join(source.dir, relativePath), content, "utf8");
+  }
+  const manifestPath = path.join(source.dir, "theme.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  manifest.description = `${sourcePrefix}images/hero.png`;
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest), "utf8");
+  const binaryFiles = [
+    ["assets/image.png", Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]), Buffer.from(`${sourcePrefix}images/hero.png`)])],
+    ["assets/font.woff2", Buffer.from(`${sourcePrefix}images/hero.png`)],
+    ["assets/nul.bin", Buffer.from(`\0${sourcePrefix}images/hero.png`)],
+    ["assets/invalid.bin", Buffer.concat([Buffer.from([0xff]), Buffer.from(`${sourcePrefix}images/hero.png`)])],
+  ] as const;
+  for (const [relativePath, content] of binaryFiles) fs.writeFileSync(path.join(source.dir, relativePath), content);
+  const before = snapshot(source.dir);
+
+  const result = duplicateTheme({ source, themesRoot: root, newName: "Roastery", takenIds: new Set(themes.map((theme) => theme.manifest.id)) });
+
+  assert.equal(result.id, "roastery");
+  for (const [relativePath, , expected] of textFiles) {
+    assert.equal(fs.readFileSync(path.join(result.dir, relativePath), "utf8"), expected, relativePath);
+  }
+  const copiedManifest = JSON.parse(fs.readFileSync(path.join(result.dir, "theme.json"), "utf8"));
+  assert.equal(copiedManifest.description, `${copyPrefix}images/hero.png`);
+  assert.equal(copiedManifest.lineage.from, STOCK_ID);
+  for (const [relativePath, content] of binaryFiles) assert.deepEqual(fs.readFileSync(path.join(result.dir, relativePath)), content, relativePath);
+  assert.deepEqual(snapshot(source.dir), before, "rewrites must never touch the source");
+  assert.deepEqual(snapshot(path.join(root, THEME_CATALOG_DIR, STOCK_TIER, result.id)), snapshot(result.dir), "Reset must retain the rewritten URLs");
+});
+
 test("duplicateDiscoveredTheme rescans: the copy is in the live themes array and loads valid", () => {
   const { root, themes } = makeSite();
   const { result, theme } = duplicateDiscoveredTheme({ themes, themesDir: root, sourceThemeId: STOCK_ID, newName: "Roastery" });

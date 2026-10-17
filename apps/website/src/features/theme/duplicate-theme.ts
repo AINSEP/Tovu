@@ -1,8 +1,10 @@
+import { isUtf8 } from "node:buffer";
 import { randomBytes } from "node:crypto";
 import { constants as fsConstants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-import { TRASH_DIR_NAME } from "./file-identity-lock.js";
+import { rewriteThemeAssetPaths } from "./asset-path-rewrites.js";
+import { fileExtension, fileGroup, TRASH_DIR_NAME } from "./file-identity-lock.js";
 import { isRecognizedThemeRoot, MAX_LISTED_FILES, MAX_THEME_FILE_BYTES, MAX_WALK_DEPTH } from "./theme-files.js";
 import { writeGeneratedThemeOriginal } from "./sync-originals.js";
 import { MIGRATION_STAGING_DIR_PREFIX, nextAvailableThemeId, rescanThemes, THEME_CATALOG_DIR, type DiscoveredTheme, type ThemeTier } from "./theme.js";
@@ -212,6 +214,36 @@ function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name:
 }
 
 /**
+ * Rebind absolute asset URLs in every staged text file before the copy and its stored original
+ * become visible. Reuse the theme file groups to skip binary media (SVG is text), then inspect
+ * bytes so templates, CSS and manifests all participate, including extensionless text. NUL-bearing
+ * or invalid UTF-8 files stay byte-identical: decoding binary assets as UTF-8 and writing them back
+ * would corrupt them.
+ *
+ * @throws Whatever `node:fs` throws; the caller removes staging on failure.
+ * @complexity O(b) time and O(m) space for total copied bytes b and largest file size m, bounded by
+ * the already-checked copy plan.
+ */
+function rewriteCopiedAssetPaths(
+  required: { stagingDir: string; files: readonly PlannedFile[]; sourceThemeId: string; targetThemeId: string },
+  _optional: Record<string, never> = {}
+): void {
+  const { stagingDir, files, sourceThemeId, targetThemeId } = required;
+  for (const file of files) {
+    if (fileGroup(file.relativePath, undefined) === "asset" && fileExtension(file.relativePath) !== ".svg") continue;
+    const filePath = join(stagingDir, file.relativePath);
+    const bytes = readFileSync(filePath);
+    if (bytes.includes(0) || !isUtf8(bytes)) continue;
+    const original = bytes.toString("utf8");
+    const rewritten = rewriteThemeAssetPaths(
+      { content: original, sourceThemeId, rules: [{ v1Prefix: "", v2Prefix: "" }] },
+      { targetThemeId }
+    );
+    if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
+  }
+}
+
+/**
  * Snapshot the just-created copy into the site's originals catalog
  * (`<themesRoot>/__original-themes__/<tier>/<id>`), the same place a seeded theme's original lives,
  * so the copy's Explore has something to Reset to and shows no "no stored original" banner (owner
@@ -275,6 +307,7 @@ export function duplicateTheme(
     for (const file of plan.files) {
       copyFileSync(join(sourceDir, file.relativePath), join(stagingDir, file.relativePath), fsConstants.COPYFILE_EXCL);
     }
+    rewriteCopiedAssetPaths({ stagingDir, files: plan.files, sourceThemeId: source.manifest.id, targetThemeId: id });
     rewriteCopiedManifest(stagingDir, { id, name, source });
     // Re-checked right before the rename: `renameSync` onto an EMPTY existing directory replaces it
     // silently on POSIX, so a folder created since `assignThemeId` must be refused here, not merged.

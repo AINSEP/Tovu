@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+import { rewriteThemeAssetPaths } from "../asset-path-rewrites.js";
 import { loadTheme, MIGRATION_STAGING_DIR_PREFIX, type ThemeTier } from "../theme.js";
 import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package.js";
 import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan.js";
@@ -149,10 +150,7 @@ function applyAssetPathRewrites(stagingDir: string, id: string, plan: ThemeMigra
     if (!move.to.startsWith("render/")) continue;
     const filePath = join(stagingDir, move.to);
     const original = readFileSync(filePath, "utf8");
-    const rewritten = rules.reduce(
-      (content, rule) => content.split(`/theme-assets/${id}/${rule.v1Prefix}`).join(`/theme-assets/${id}/${rule.v2Prefix}`),
-      original
-    );
+    const rewritten = rewriteThemeAssetPaths({ content: original, sourceThemeId: id, rules });
     if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
   }
 }
