@@ -81,16 +81,17 @@ test("featfallback: HTML media and img use the library, overrides win and body c
   assert.equal(json.data.image, "https://site.example/m/body/og.v2/image.jpg");
 });
 
-test("featfallback: skip video/trashed media; external body URLs qualify for OG only with absolute HTTPS", async () => {
+test("featfallback: skip video/trashed media; absolute HTTPS external body URLs reach OG and Twitter but not JSON-LD", async () => {
   const elements = await head(buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "media", attrs: { assetId: "video" } }, ...bodyJson.content] } }));
   assert.equal(url(og(elements)), "https://site.example/m/body/og.v2/image.jpg");
   assert.equal(og(await head(buildPostRecord({ bodyJson }), { trashBody: true })), undefined);
   for (const src of ["https://external.example/a.jpg", "http://external.example/a.jpg", "//external.example/a.jpg"]) {
     const external = await head(buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "image", attrs: { src } }] } }));
     assert.equal(url(og(external)), src.startsWith("https:") ? src : undefined);
-    assert.equal(twitter(external), undefined);
+    // Jini 391560e8 deliberately reuses the resolved OG image for X without a Twitter override.
+    assert.equal(url(twitter(external)), src.startsWith("https:") ? src : undefined);
     const json = jsonImage(external);
     assert.ok(json?.kind === "jsonld");
-    assert.equal(json.data.image, undefined, "an external body URL qualifies for OG only");
+    assert.equal(json.data.image, undefined, "an external body URL is not a schema image fallback");
   }
 });
