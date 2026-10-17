@@ -1,3 +1,4 @@
+import "../../website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import type { SpawnOptions } from "node:child_process";
