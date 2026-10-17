@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file T010 🔴 REQUIRED, GATING (ADR-PIPE-011 Mitigations Required).
  *
@@ -167,4 +168,23 @@ test("installNewsletterDataModule rejects a real declaration failure instead of 
     db.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("installNewsletterDataModule preserves existing newsletter rows on repeated boot", async (t) => {
+  const { db, dbPath, dir } = openWithCore();
+  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  await installNewsletterDataModule({ db, dbPath });
+  db.prepare(`INSERT INTO p_newsletter__lists
+    (id, workspace_id, name, slug, is_default, status, created_at, updated_at)
+    VALUES ('list-1', 'ws-1', 'Weekly', 'weekly', 1, 'active', 'created', 'updated')`).run();
+  const schema = db.prepare("SELECT name, sql FROM sqlite_master WHERE name LIKE 'p_newsletter__%' ORDER BY name").all();
+
+  await installNewsletterDataModule({ db, dbPath }, {});
+
+  assert.deepEqual(db.prepare("SELECT * FROM p_newsletter__lists").all(), [{
+    id: "list-1", workspace_id: "ws-1", name: "Weekly", slug: "weekly", is_default: 1,
+    status: "active", created_at: "created", updated_at: "updated",
+  }]);
+  assert.deepEqual(db.prepare("SELECT name, sql FROM sqlite_master WHERE name LIKE 'p_newsletter__%' ORDER BY name").all(), schema);
+  assert.deepEqual(db.prepare("SELECT * FROM workspaces").all(), [{ id: "ws-1", name: "Acme" }]);
 });

@@ -127,6 +127,25 @@ test('consent request ports use the injected platform rate-key owner after trust
   assert.deepEqual(seen, ['2001:db8:1:2::123']); assert.deepEqual(keys, ['2001:db8:1:2::/64']);
 });
 
+test('a configured region header missing from the request yields an unknown region', () => {
+  const ports = createSiteConsentRequestPorts({
+    origin: () => 'https://site.example', trustedRegionHeader: 'x-trusted-region',
+    rateLimiter: { check: async () => ({ allowed: true as const }) },
+  }, {});
+  const request = { get: () => undefined, ip: '127.0.0.1' } as Request;
+
+  assert.equal(ports.region({ request }, {}), null);
+});
+
+test('a request without a consent cookie has no receipt', () => {
+  const ports = createSiteConsentRequestPorts({
+    origin: () => 'https://site.example', rateLimiter: { check: async () => ({ allowed: true as const }) },
+  });
+
+  assert.equal(ports.readReceiptId({ cookieHeader: 'session=unrelated' }, {}), null);
+  assert.equal(ports.readReceiptId({ cookieHeader: '' }), null);
+});
+
 
 test('consent has independent readiness after the shared ledger boot and cannot reject WebMCP readiness', async () => {
   const { deps, settingsRepo, write } = await ledger({ register: false });

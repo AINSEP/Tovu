@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,6 +6,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { getMediaProviderCredentials, saveMediaProviderCredentials } from "../../media/provider-credential-store.js";
+import { mediaVaultScope } from "../../media/provider-credential-vault.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { saveMediaProviderKey } from "../provider-credential-save.js";
@@ -53,4 +55,27 @@ test("store validation errors propagate and nothing is written", async () => {
   const { repo, deps } = makeDeps();
   await assert.rejects(saveMediaProviderKey({ deps, workspaceId: WS, provider: "not-a-provider", apiKey: "sk-abcd1234" }));
   assert.deepEqual(await repo.listByWorkspaceId(WS), []);
+});
+
+test("a blank key preserves a migrated provider whose token length is unknown and returns no hint", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, { workspaceId: WS, providers: {
+    openai: { apiKey: "sk-existing-abcd1234", baseUrl: "https://proxy.example.test/v1", model: "gpt-image-1" },
+  } });
+  const scope = mediaVaultScope({ workspaceId: WS, providerId: "openai" });
+  const [before] = await repo.vault.list(scope);
+  assert.ok(before);
+  // Boot migration can retain an envelope without an authoritative token-length hint.
+  await repo.vault.put({ record: { ...before, tokenLength: null, last4: null, revision: before.revision + 1 }, expectedRevision: before.revision });
+
+  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "" }, {}), { configured: true, tokenHint: null });
+  assert.deepEqual((await getMediaProviderCredentials(deps, { workspaceId: WS })).openai, {
+    apiKeyConfigured: true, baseUrl: "https://proxy.example.test/v1", model: "gpt-image-1",
+  });
+  const [after] = await repo.vault.list(scope);
+  assert.ok(after);
+  assert.deepEqual(after.sealed, before.sealed);
+  assert.equal(after.tokenLength, null);
+  assert.equal(after.last4, null);
+  assert.equal(after.createdAt, before.createdAt);
 });

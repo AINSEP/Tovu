@@ -229,6 +229,12 @@ test("computeOutboxBackoffMs stays within [half, full] of the exponential step a
   assert.equal(cappedUpper, computeOutboxBackoffMs(7, { random: () => 1 }));
 });
 
+test("computeOutboxBackoffMs uses host randomness when no random port is supplied", (t) => {
+  t.mock.method(Math, "random", () => 0.25);
+
+  assert.equal(computeOutboxBackoffMs(1), 18_750);
+});
+
 test("processOutbox stops retrying and permanently excludes a row once MAX_OUTBOX_ATTEMPTS is reached", async () => {
   const outbox = new InMemoryOutbox();
   let currentIso = "2026-02-21T00:00:00.000Z";

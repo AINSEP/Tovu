@@ -19,3 +19,15 @@ test("entry row mapping preserves JSON false and zero rather than treating them 
   assert.equal(toRow({ ...record, bodyJson: null }).body_json, null);
   assert.equal(toRecord({ ...row, body_json: null, deleted_at: null }).bodyJson, null);
 });
+
+test("an undefined entry body is persisted as SQL null rather than an undefined binding", () => {
+  assert.deepEqual(toRow({
+    id: "empty-body", workspaceId: "ws", type: "recipe", slug: "empty", status: "draft",
+    title: "No body", bodyJson: undefined, fieldsJson: { servings: 2 }, publishedAt: null,
+    createdAt: "created", updatedAt: "updated", version: 1,
+  }), {
+    id: "empty-body", workspace_id: "ws", type: "recipe", slug: "empty", status: "draft",
+    title: "No body", body_json: null, fields_json: '{"servings":2}', published_at: null,
+    created_at: "created", updated_at: "updated", version: 1,
+  });
+});
