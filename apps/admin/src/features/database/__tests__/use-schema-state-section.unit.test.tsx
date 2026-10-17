@@ -2,8 +2,9 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import type { AdminSchemaState } from "@/lib/api";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
-import { createFakeSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
+import { createFakeSchemaStateSectionPort, defaultSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
 
 /**
  * @file `useSchemaStateSection` — the Database screen's drift check.
@@ -23,6 +24,22 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 describe("useSchemaStateSection", () => {
   afterEach(() => vi.unstubAllGlobals());
+  it("reads the live schema-state endpoint through the default port", async () => {
+    const state: AdminSchemaState = { status: "diverged", siteMeta: { version: 7, tag: "site" }, runtime: { version: 7, tag: "runtime" } };
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url) !== "/api/admin/v1/database/schema-state") throw new Error(`Unexpected test request: ${url}`);
+      return new Response(JSON.stringify(state), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    expect(await defaultSchemaStateSectionPort.getDatabaseSchemaState()).toEqual(state);
+  });
+
+  it("defaults the fake to a matching schema pair without seed options", async () => {
+    expect(await createFakeSchemaStateSectionPort().getDatabaseSchemaState()).toEqual({
+      status: "in-sync", siteMeta: { version: 1, tag: "fake" }, runtime: { version: 1, tag: "fake" },
+    });
+  });
+
   it("stays silent once a clean in-sync read lands", async () => {
     const port = createFakeSchemaStateSectionPort({ state: { status: "in-sync", siteMeta: null, runtime: null } });
     const { result } = renderHook(() => useSchemaStateSection({ port }), { wrapper });

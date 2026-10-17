@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
@@ -10,6 +10,7 @@ import {
   UNAVAILABLE_RETRY_ATTEMPTS,
   UNAVAILABLE_RETRY_INTERVAL_MS,
   useExternalMcpAdmissions,
+  useWiredExternalMcpAdmissions,
   type ExternalMcpAdmissionsPort,
 } from "../use-external-mcp-admissions.hooks";
 import type { SavedConnectionIntent } from "../../external-mcp-admissions-rules";
@@ -36,6 +37,59 @@ function wrapper({ children }: { children: React.ReactNode }) {
 const SAVED: Record<string, SavedConnectionIntent> = {
   higgsfield: { allowedToolNames: "generate_image", enabled: true },
 };
+
+afterEach(() => { vi.unstubAllGlobals(); });
+
+it("the wired admissions controller reads admissions and permissions and reports a refused restart", async () => {
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    if (url.includes("/settings/effective")) {
+      expect(method).toBe("GET");
+      return Response.json({ data: [] });
+    }
+    if (url.endsWith("/auth/me")) {
+      expect(method).toBe("GET");
+      return Response.json({ effectivePermissions: ["*"] });
+    }
+    if (url.endsWith("/mcp-servers/admissions")) {
+      expect(method).toBe("GET");
+      return Response.json({ connections: [] });
+    }
+    expect(url).toMatch(/\/system\/assistant-daemon\/restart$/);
+    expect(method).toBe("POST");
+    return Response.json({ error: "restart refused", reason: "shutting down" }, { status: 409 });
+  }));
+  const { result } = renderHook(() => useWiredExternalMcpAdmissions({}), { wrapper });
+  await waitFor(() => expect(result.current.canRestart).toBe(true));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.connections).toEqual([]);
+  await act(async () => { result.current.restart(); });
+  await waitFor(() => expect(result.current.restartError).toBe("shutting down"));
+  expect(result.current.restartAccepted).toBe(false);
+  expect(result.current.restarting).toBe(false);
+});
+
+it("a rejected restart reports its error without starting a watch", async () => {
+  const { port } = fakePort();
+  port.restartAssistantDaemon = async () => { throw new Error("restart permission revoked"); };
+  const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), { wrapper });
+  await waitFor(() => expect(result.current.connections).toHaveLength(1));
+  await act(async () => { result.current.restart(); });
+  await waitFor(() => expect(result.current.restartError).toBe("restart permission revoked"));
+  expect(result.current.restartAccepted).toBe(false);
+  expect(result.current.restarting).toBe(false);
+});
+
+it("a restart refused without a reason uses the translated fallback", async () => {
+  const { port } = fakePort();
+  port.restartAssistantDaemon = async () => ({ ok: false });
+  const { result } = renderHook(() => useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED, t: (key) => `[translated] ${key}` }), { wrapper });
+  await waitFor(() => expect(result.current.connections).toHaveLength(1));
+  await act(async () => { result.current.restart(); });
+  await waitFor(() => expect(result.current.restartError).toBe("[translated] the restart was refused"));
+  expect(result.current.restartAccepted).toBe(false);
+});
 
 describe("useExternalMcpAdmissions — restart usefulness", () => {
   it.each([false, true])("exports restartHelps=%s independently of restart permission", async (addFreshServer) => {

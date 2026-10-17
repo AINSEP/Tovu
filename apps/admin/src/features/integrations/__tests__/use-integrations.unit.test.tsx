@@ -54,7 +54,84 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("the integrations fake preserves subscription state", () => {
+  it("resumes a paused subscription without changing another subscription", async () => {
+    const first = subscriptionFixture();
+    const paused = subscriptionFixture({ id: "sub2", status: "paused" });
+    const port = createFakeIntegrationsPort({ subscriptions: [first, paused] });
+    expect(await port.pauseIntegrationSubscription({ id: "sub2", paused: false })).toEqual({ subscription: { ...paused, status: "active" } });
+    expect(await port.listIntegrationSubscriptions()).toEqual({ subscriptions: [first, { ...paused, status: "active" }] });
+    expect(paused.status).toBe("paused");
+  });
+
+  it("rejects pausing an unknown subscription without changing the store", async () => {
+    const seed = subscriptionFixture();
+    const port = createFakeIntegrationsPort({ subscriptions: [seed] });
+    await expect(port.pauseIntegrationSubscription({ id: "missing", paused: true })).rejects.toThrow("fake integrations port: unknown subscription missing");
+    expect(await port.listIntegrationSubscriptions()).toEqual({ subscriptions: [seed] });
+  });
+
+  it("rejects deleting an unknown subscription without removing an existing one", async () => {
+    const seed = subscriptionFixture();
+    const port = createFakeIntegrationsPort({ subscriptions: [seed] });
+    await expect(port.deleteIntegrationSubscription("missing")).rejects.toThrow("fake integrations port: unknown subscription missing");
+    expect(await port.listIntegrationSubscriptions()).toEqual({ subscriptions: [seed] });
+  });
+});
+
 describe("useIntegrations — injected port", () => {
+  it("resumes a paused subscription through the port and refreshes its status", async () => {
+    const paused = subscriptionFixture({ status: "paused" });
+    const port = createFakeIntegrationsPort({ subscriptions: [paused] });
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.subscriptions).toEqual([paused]));
+
+    await act(async () => result.current.onTogglePause(paused));
+
+    await waitFor(() => expect(result.current.subscriptions).toEqual([{ ...paused, status: "active" }]));
+    expect(port.subscriptions).toEqual([{ ...paused, status: "active" }]);
+  });
+
+  it("leaves the list intact when delete has no pending confirmation", async () => {
+    const subscription = subscriptionFixture();
+    const port = createFakeIntegrationsPort({ subscriptions: [subscription] });
+    const deleteSubscription = vi.spyOn(port, "deleteIntegrationSubscription");
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.subscriptions).toEqual([subscription]));
+
+    await act(async () => result.current.onDelete());
+
+    expect(deleteSubscription).not.toHaveBeenCalled();
+    expect(port.subscriptions).toEqual([subscription]);
+    expect(result.current.pendingDelete).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("keeps a failed create draft in the form rather than reporting a page-level error", async () => {
+    const port = {
+      ...createFakeIntegrationsPort(),
+      createIntegrationSubscription: async () => { throw new Error("creation denied"); },
+    };
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.subscriptions).toEqual([]));
+    act(() => {
+      result.current.setFormOpen(true);
+      result.current.setLabel("Draft hook");
+      result.current.setTargetUrl("https://example.com/draft");
+      result.current.setTopics("post.published");
+    });
+
+    await act(async () => result.current.onCreate({ preventDefault: () => {} } as React.FormEvent));
+
+    await waitFor(() => expect(result.current.formError).toBe("creation denied"));
+    expect(result.current.formOpen).toBe(true);
+    expect(result.current.label).toBe("Draft hook");
+    expect(result.current.targetUrl).toBe("https://example.com/draft");
+    expect(result.current.topics).toBe("post.published");
+    expect(result.current.error).toBeNull();
+    expect(result.current.saving).toBe(false);
+  });
+
   it("loads subscriptions on mount from the fake port's seed, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);

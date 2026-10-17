@@ -977,6 +977,50 @@ describe("usePublishCredentials — save surfaces the server's save-time verific
 });
 
 describe("usePublishCredentials — rows come from the deploy registry's descriptors", () => {
+  it("retains a draft entered before target descriptors load and waits for the credential contract before saving", async () => {
+    const created = { ...GH_CREDENTIAL, id: "vercel-new", providerId: "vercel" };
+    const createCredential = vi.fn().mockResolvedValue(created);
+    const port = createFakePublishCredentialsPort({ createCredential });
+    const { result, rerender } = renderHook(({ targets }) => usePublishCredentials(port, fakeT, fakeLocale, targets), {
+      wrapper, initialProps: { targets: undefined as typeof PUBLISH_TARGETS | undefined },
+    });
+    await waitFor(() => expect(result.current.executionMode).not.toBeUndefined());
+    act(() => result.current.setField("vercel", "token", "vc_draft"));
+
+    await act(async () => result.current.save("vercel"));
+
+    expect(createCredential).not.toHaveBeenCalled();
+    expect(result.current.rows).toBeUndefined();
+    rerender({ targets: PUBLISH_TARGETS });
+    expect(result.current.rows!.find(row => row.providerId === "vercel")!.values).toEqual({ token: "vc_draft" });
+    await act(async () => result.current.save("vercel"));
+    expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "vercel", token: "vc_draft" } });
+    expect(result.current.rows!.find(row => row.providerId === "vercel")!.saved).toEqual(created);
+  });
+
+  it("validates a secondary secret field while ordinary field edits preserve its error", async () => {
+    const targets = [{ id: "bucket-host", label: "Bucket Host", configFields: [], credential: {
+      tokenField: "secretKey", fields: [
+        { name: "secretKey", label: "Secret key", required: true, secret: true as const },
+        { name: "accessKey", label: "Access key", secret: true as const },
+        { name: "bucket", label: "Bucket" },
+      ],
+    } }];
+    const port = createFakePublishCredentialsPort();
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, targets), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    act(() => result.current.setField("bucket-host", "accessKey", "   "));
+
+    expect(result.current.rows![0].error).toBe("Enter a token. Spaces alone are not a token.");
+    act(() => result.current.setField("bucket-host", "bucket", "site"));
+    expect(result.current.rows![0].error).toBe("Enter a token. Spaces alone are not a token.");
+    expect(result.current.rows![0].values).toEqual({ accessKey: "   ", bucket: "site" });
+    act(() => result.current.setField("bucket-host", "accessKey", "valid_access_key"));
+    expect(result.current.rows![0].error).toBeNull();
+    expect(result.current.rows![0].values.accessKey).toBe("valid_access_key");
+  });
+
   it("stays undefined until the targets are known, even once credentials have loaded", async () => {
     const port = createFakePublishCredentialsPort();
     const { result, rerender } = renderHook(({ targets }) => usePublishCredentials(port, fakeT, fakeLocale, targets), {

@@ -7,10 +7,62 @@ import { RemoteImageImport } from "../RemoteImageImport";
 import { useRemoteImageImport } from "../hooks/use-remote-image-import.hooks";
 import { KEYS } from "../rules";
 import { MEDIA_DICT } from "../media-i18n";
+import type { MediaImportPort } from "../hooks/media-import-dependencies.hooks";
 
 const wrapper = ({ children }: { children: React.ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
 
 describe("remote media import", () => {
+  it("ignores a direct submit with an invalid URL and preserves the draft", async () => {
+    const importFromUrl = vi.fn();
+    const { result } = renderHook(() => useRemoteImageImport({ t: (key) => key }, { port: { importFromUrl } }), { wrapper });
+    act(() => result.current.setUrl("http://cdn.example/fox.png"));
+
+    await act(async () => result.current.submit());
+
+    expect(importFromUrl).not.toHaveBeenCalled();
+    expect(result.current.url).toBe("http://cdn.example/fox.png");
+    expect(result.current.urlInvalid).toBe(true);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("sends only one import when submitted twice before the first request settles", async () => {
+    let resolveImport!: () => void;
+    const importFromUrl = vi.fn(() => new Promise<Awaited<ReturnType<MediaImportPort["importFromUrl"]>>>((resolve) => {
+      resolveImport = () => resolve({ media: {
+        id: "new-media", workspaceId: "w1", title: "Fox", slug: "fox", alt: "", caption: "", credit: "",
+        sha256: "f".repeat(64), status: "active", createdAt: "2026-10-16T00:00:00.000Z", updatedAt: "2026-10-16T00:00:00.000Z",
+        version: 1, width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", publicUrl: "/m/fox",
+      } });
+    }));
+    const { result } = renderHook(() => useRemoteImageImport({ t: (key) => key }, { port: { importFromUrl } }), { wrapper });
+    act(() => result.current.setUrl("https://cdn.example/fox.png"));
+    let first!: Promise<void>;
+    await act(async () => {
+      first = result.current.submit();
+      await result.current.submit();
+    });
+
+    expect(importFromUrl).toHaveBeenCalledTimes(1);
+    expect(importFromUrl).toHaveBeenCalledWith({ url: "https://cdn.example/fox.png" }, { alt: undefined });
+    expect(result.current.url).toBe("https://cdn.example/fox.png");
+    await act(async () => { resolveImport(); await first; });
+    expect(result.current.url).toBe("");
+    expect(result.current.open).toBe(false);
+  });
+
+  it("closes the URL dialog without submitting or clearing its draft", async () => {
+    const importFromUrl = vi.fn();
+    render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    fireEvent.change(screen.getByLabelText("Remote image URL"), { target: { value: "https://cdn.example/fox.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(document.querySelector(".media-import-dialog")).not.toHaveAttribute("open");
+    expect(importFromUrl).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    expect(screen.getByLabelText("Remote image URL")).toHaveValue("https://cdn.example/fox.png");
+  });
+
   it("presents the URL action and passes trimmed URL/alt through the injected port", async () => {
     const importFromUrl = vi.fn().mockResolvedValue({ media: { id: "new-media" } });
     render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });

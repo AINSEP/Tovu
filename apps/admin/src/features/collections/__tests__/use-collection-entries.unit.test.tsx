@@ -48,6 +48,26 @@ const RECIPE_ENTRY: AdminEntry = {
 const ARTICLE_ENTRY: AdminEntry = { ...RECIPE_ENTRY, id: "e2", type: "article", title: "An Article" };
 
 describe("useCollectionEntries", () => {
+  it("lists all seeded entries when no content type filter is requested", async () => {
+    const port = createFakeCollectionEntriesPort({ entries: [RECIPE_ENTRY, ARTICLE_ENTRY] });
+
+    expect(await port.listEntries({})).toEqual({ items: [RECIPE_ENTRY, ARTICLE_ENTRY] });
+  });
+
+  it("rejects an entry read with the configured error even when matching entries exist", async () => {
+    const error = new Error("entries unavailable");
+    const port = createFakeCollectionEntriesPort({ entries: [RECIPE_ENTRY], listEntriesError: error });
+
+    await expect(port.listEntries({ type: "recipe" })).rejects.toBe(error);
+  });
+
+  it("provides empty catalogues when the fake is created without seed options", async () => {
+    const port = createFakeCollectionEntriesPort();
+
+    expect(await port.listContentTypes()).toEqual({ items: [] });
+    expect(await port.listEntries({})).toEqual({ items: [] });
+  });
+
   it("resolves contentType and entries (filtered by type) through the injected port, without touching fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

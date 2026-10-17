@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminSiteKeyStatus } from "@/lib/api";
-import { useSiteKey } from "../hooks/use-site-key.hooks";
+import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
 import type { SiteKeyPort } from "../hooks/site-key-port.hooks";
 import { useRevealedKeyCopy } from "../SiteKeyTab.hooks";
 
@@ -34,6 +34,33 @@ afterEach(() => {
 });
 
 describe("useSiteKey", () => {
+  it("the wired controller loads the real API port and binds its translator to the saved locale", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      expect(init?.method ?? "GET").toBe("GET");
+      if (url.includes("/settings/effective")) {
+        return Response.json({ data: [{ key: "locale", value: "es" }] });
+      }
+      expect(url).toMatch(/\/system\/site-key$/);
+      return Response.json(ACTIVE);
+    }));
+    const { result } = renderHook(() => useWiredSiteKey());
+    await waitFor(() => expect(result.current.status).toEqual(ACTIVE));
+    await waitFor(() => expect(result.current.t("unknown error")).toBe("error desconocido"));
+    expect(result.current.loadError).toBeNull();
+    expect(result.current.revealedHex).toBeNull();
+  });
+
+  it("a failed refresh reports the load failure and keeps the earlier revealed key", async () => {
+    const port = makePort({ status: vi.fn().mockResolvedValueOnce(ACTIVE).mockRejectedValue(new Error("refresh unavailable")) });
+    const { result } = await mount(port);
+    await act(async () => result.current.reveal());
+    expect(result.current.revealedHex).toBe(HEX);
+    await act(async () => result.current.refresh());
+    await waitFor(() => expect(result.current.loadError).toContain("refresh unavailable"));
+    expect(result.current.revealedHex).toBe(HEX);
+  });
+
   it("loads status once on mount and reveals the exact hex only on request; hide clears it", async () => {
     const port = makePort();
     const { result, rerender } = await mount(port);
@@ -59,6 +86,51 @@ describe("useSiteKey", () => {
     await act(async () => result.current.reveal());
     expect(port.reveal).not.toHaveBeenCalled();
     expect(result.current.revealedHex).toBeNull();
+  });
+
+  it("an active key with no revealed hex stays hidden", async () => {
+    const { result } = await mount(makePort({ reveal: async () => ACTIVE }));
+    await act(async () => result.current.reveal());
+    expect(result.current.revealedHex).toBeNull();
+    expect(result.current.revealError).toBeNull();
+    expect(result.current.revealing).toBe(false);
+  });
+
+  it("ignores another reveal while the first reveal is pending", async () => {
+    let finish!: (value: Awaited<ReturnType<SiteKeyPort["reveal"]>>) => void;
+    const pending = new Promise<Awaited<ReturnType<SiteKeyPort["reveal"]>>>((resolve) => { finish = resolve; });
+    const port = makePort({ reveal: vi.fn(() => pending) });
+    const { result } = await mount(port);
+    let first!: Promise<void>;
+    act(() => { first = result.current.reveal(); });
+    expect(result.current.revealing).toBe(true);
+    await act(async () => result.current.reveal());
+    expect(port.reveal).toHaveBeenCalledTimes(1);
+    await act(async () => { finish({ ...ACTIVE, hex: HEX }); await first; });
+    expect(result.current.revealedHex).toBe(HEX);
+    expect(result.current.revealing).toBe(false);
+  });
+
+  it("ignores generation before status loads and while a generation is pending", async () => {
+    let finish!: (value: Awaited<ReturnType<SiteKeyPort["generate"]>>) => void;
+    const pending = new Promise<Awaited<ReturnType<SiteKeyPort["generate"]>>>((resolve) => { finish = resolve; });
+    const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(() => pending) });
+    const { result } = renderHook(() => useSiteKey(port, t, "en"));
+    await act(async () => result.current.generate());
+    expect(port.generate).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.status).toEqual(MISSING));
+    let first!: Promise<void>;
+    act(() => { first = result.current.generate(); });
+    expect(result.current.generating).toBe(true);
+    await act(async () => result.current.generate());
+    expect(port.generate).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish({ outcome: "created", fingerprint: "generated-fp", keyFilePath: "/new-key", runtimeMode: "local" });
+      await first;
+    });
+    expect(result.current.status).toEqual({ active: true, source: "file", state: "active", fingerprint: "generated-fp", keyFilePath: "/new-key", runtimeMode: "local" });
+    expect(result.current.generating).toBe(false);
+    expect(result.current.generateError).toBeNull();
   });
 
   it("reports status and reveal failures without staying busy or exposing a key", async () => {

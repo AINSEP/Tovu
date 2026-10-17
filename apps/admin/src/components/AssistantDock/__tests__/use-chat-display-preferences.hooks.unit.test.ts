@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
-import { defaultChatDisplayPreferencesPort } from "../chat-display-preferences.adapter";
+import { defaultChatDisplayPreferencesPort, useChatDisplayPreferences as useDefaultChatDisplayPreferences } from "../chat-display-preferences.adapter";
 import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
 import {
   useChatDisplayPreferences,
@@ -202,4 +202,38 @@ describe("defaultChatDisplayPreferencesPort.subscribeToSettingsRefresh", () => {
     publishSettingsRefresh(["core.interface"]);
     expect(listener).toHaveBeenCalledTimes(2);
   });
+});
+
+it("the composed preferences hook loads stored values and persists only the changed user setting", async () => {
+  const stored = new Map<string, unknown>([["chatToolCalls", "show"], ["chatShowUsageLine", false], ["chatShowThinking", true]]);
+  const writes: unknown[] = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url === "/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.interface" && init?.method === "GET") {
+      return new Response(JSON.stringify({ data: Array.from(stored, ([key, value]) => ({ key, value, sourceLayer: "user", defVersion: 1 })) }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }
+    if (url === "/api/admin/v1/workspaces/workspace-local/settings/value" && init?.method === "PUT") {
+      const body = JSON.parse(String(init.body));
+      expect(body).toEqual({ namespace: "core.interface", key: "chatToolCalls", scope: "user", valueJson: "hidden" });
+      writes.push(body);
+      stored.set(body.key, body.valueJson);
+      return new Response(JSON.stringify({ key: body.key, scope: body.scope, value: body.valueJson, revisionSeq: 1 }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }
+    throw new Error(`Unexpected settings request: ${init?.method} ${url}`);
+  });
+  try {
+    const { result, unmount } = renderHook(() => useDefaultChatDisplayPreferences());
+    try {
+      await waitFor(() => expect(result.current.preferences).toEqual({ toolCalls: "show", showUsageLine: false, showThinking: true }));
+      await act(async () => result.current.update({ toolCalls: "hidden" }));
+      expect(writes).toEqual([{ namespace: "core.interface", key: "chatToolCalls", scope: "user", valueJson: "hidden" }]);
+      expect(Object.fromEntries(stored)).toEqual({ chatToolCalls: "hidden", chatShowUsageLine: false, chatShowThinking: true });
+      expect(result.current.preferences).toEqual({ toolCalls: "hidden", showUsageLine: false, showThinking: true });
+      expect(result.current.saveFailed).toBe(false);
+    } finally { unmount(); }
+  } finally { vi.unstubAllGlobals(); }
 });

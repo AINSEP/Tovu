@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser, AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/lib/api";
@@ -6,7 +6,7 @@ import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
-import { useTrash } from "../hooks/use-trash.hooks";
+import { useTrash, useWiredTrash } from "../hooks/use-trash.hooks";
 import type { TrashPort } from "../hooks/trash-port.hooks";
 import { KEYS, TRASH_RESOURCE } from "../rules";
 
@@ -55,11 +55,66 @@ function user(overrides: Partial<AdminIdentityUser> = {}): AdminIdentityUser {
 }
 
 afterEach(() => {
+  cleanup();
   resetContentRefreshBus();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe("useTrash", () => {
+  it("ignores selection and batch actions before the first page arrives", async () => {
+    const port = createFakeTrashPort();
+    let resolvePage!: (page: AdminTrashPage) => void;
+    port.listTrash = () => new Promise(resolve => { resolvePage = resolve; });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    expect(result.current.items).toBeNull();
+    act(() => result.current.toggleAll());
+    await act(async () => { await result.current.onRestoreSelected(); await result.current.onPurgeConfirmed(); });
+    expect(result.current.selected.size).toBe(0);
+    expect(result.current.busy).toBe(false);
+    expect(port.restoreCalls).toEqual([]);
+    expect(port.purgeCalls).toEqual([]);
+    await act(async () => resolvePage({ items: [item()], nextCursor: null }));
+    expect(result.current.items).toEqual([item()]);
+  });
+
+  it("ignores a purge while a selected restore is pending", async () => {
+    const port = createFakeTrashPort({ items: [item()] });
+    let complete!: (report: AdminTrashRestoreReport) => void;
+    port.restoreTrashItems = () => new Promise(resolve => { complete = resolve; });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([item()]));
+    act(() => result.current.toggle("trash-1"));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.onRestoreSelected(); });
+    expect(result.current.busy).toBe(true);
+    await act(() => result.current.onPurgeConfirmed());
+    expect(port.purgeCalls).toEqual([]);
+    expect([...result.current.selected]).toEqual(["trash-1"]);
+    await act(async () => { complete({ restored: 1, results: [{ entityType: "post", entityId: "post-1", outcome: "restored" }] }); await pending; });
+    expect(result.current.busy).toBe(false);
+    expect(result.current.selected.size).toBe(0);
+  });
+
+  it("the wired controller loads rows and locale through the real API binding", async () => {
+    const base = "/api/admin/v1/workspaces/workspace-local";
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      expect(init?.method ?? "GET").toBe("GET");
+      calls.push(url);
+      if (url === `${base}/trash`) return Response.json({ items: [item()], nextCursor: null });
+      if (url === `${base}/users`) return Response.json({ users: [user()] });
+      if (url === `${base}/settings/effective?namespace=core.language`) return Response.json({ data: [{ key: "locale", value: "es", sourceLayer: "user", defVersion: 1 }] });
+      throw new Error(`Unexpected wired trash request: ${url}`);
+    });
+    const { result } = renderHook(() => useWiredTrash(), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([item()]));
+    await waitFor(() => expect(result.current.locale).toBe("es"));
+    await waitFor(() => expect([...result.current.actorUsernames]).toEqual([["principal-1", "admin"]]));
+    expect(calls).toEqual(expect.arrayContaining([`${base}/trash`, `${base}/users`, `${base}/settings/effective?namespace=core.language`]));
+    expect(result.current.error).toBeNull();
+  });
+
   it("loads the first page through the injected port, without touching fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -506,6 +561,26 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
       },
     };
   }
+
+  it("reports a current page failure, releases the load lock, and permits retrying that cursor", async () => {
+    const { port, cursorCalls } = createControlledPort();
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+    act(() => { void result.current.loadMore(); });
+    expect(result.current.loadingMore).toBe(true);
+    await act(async () => { cursorCalls[0]!.reject(new Error("next page unavailable")); });
+    expect(result.current.error).toBe("next page unavailable");
+    expect(result.current.items).toEqual([item()]);
+    expect(result.current.nextCursor).toBe("c2");
+    expect(result.current.loadingMore).toBe(false);
+    act(() => { void result.current.loadMore(); });
+    expect(cursorCalls).toHaveLength(2);
+    await act(async () => { cursorCalls[1]!.resolve({ items: [item({ id: "next" })], nextCursor: null }); });
+    expect(result.current.items).toEqual([item(), item({ id: "next" })]);
+    expect(result.current.loadingMore).toBe(false);
+    act(() => { void result.current.loadMore(); });
+    expect(cursorCalls).toHaveLength(2, "an exhausted cursor must not fetch another page");
+  });
 
   it("two loadMore calls in the same tick send one request and append the page once", async () => {
     const { port, cursorCalls } = createControlledPort();

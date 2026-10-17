@@ -7,6 +7,7 @@ import {
   inactiveTabWillBeDropped,
   insertAtSelection,
   isDroppedAttributeRow,
+  isValidMediaSlug,
   legacyImagesToItems,
   lineCount,
   MAX_MEDIA_ITEMS,
@@ -77,6 +78,10 @@ describe("HTML attribute rows", () => {
 
 describe("slug add / validate", () => {
   const library = [asset("1", "sl-1"), asset("2", "sl-2")];
+  it("rejects an empty slug through the standalone validator", () => {
+    expect(isValidMediaSlug("")).toBe(false);
+    expect(isValidMediaSlug("a".repeat(200))).toBe(true);
+  });
   it("names each problem, and accepts a known new slug", () => {
     expect(mediaSlugProblem({ slug: "  ", items: [], library })).toBe("empty");
     expect(mediaSlugProblem({ slug: "a b", items: [], library })).toBe("invalid");
@@ -107,6 +112,11 @@ describe("slug add / validate", () => {
 });
 
 describe("reorder", () => {
+  it("leaves the list unchanged when the source index is negative", () => {
+    const list = items("a", "b");
+    expect(moveMediaItem({ items: list, from: -1, to: 1 })).toBe(list);
+    expect(list).toEqual([{ slug: "a" }, { slug: "b" }]);
+  });
   it("moves up/down, clamps at the ends, and returns the same array for a no-op", () => {
     const list = items("a", "b", "c");
     expect(moveMediaItem({ items: list, from: 2, to: 1 }).map((i) => i.slug)).toEqual(["a", "c", "b"]);
@@ -119,6 +129,16 @@ describe("reorder", () => {
 });
 
 describe("reading and writing config", () => {
+  it("discards malformed item records while preserving valid slug rows", () => {
+    const state = readMediaContent({ config: { items: [null, [], "junk", {}, { slug: 42 }, { slug: "kept", alt: 12, caption: false }] }, widgetType: "media" });
+    expect(state).toEqual({ mode: "media", html: "", media: { items: [{ slug: "kept" }], layout: "single" } });
+  });
+
+  it("keeps legacy ids visible before the library loads and skips records without an id", () => {
+    expect(readMediaContent({ config: { images: [null, [], {}, { mediaId: 12 }, { mediaId: "pending", alt: "", caption: "Caption" }] }, widgetType: "gallery" })).toEqual({
+      mode: "media", html: "", media: { items: [{ slug: "pending", alt: "", caption: "Caption" }], layout: "grid" },
+    });
+  });
   it("reads media mode, html mode and mode-less configs", () => {
     const media = readMediaContent({ config: { mode: "media", items: [{ slug: "a", alt: "", caption: "c", src: "x" }], layout: "grid", columns: 4, aspectRatio: "16/9", cssClass: "photos", htmlAttributes: 'data-kui="x"' }, widgetType: "media" });
     expect(media).toEqual({ mode: "media", html: "", media: { items: [{ slug: "a", alt: "", caption: "c" }], layout: "grid", columns: 4, aspectRatio: "16/9", cssClass: "photos", htmlAttributes: 'data-kui="x"' } });
@@ -158,6 +178,13 @@ describe("reading and writing config", () => {
 
 describe("tab switching without a config change", () => {
   const stored = readMediaContent({ config: { mode: "media", items: [{ slug: "a" }], layout: "grid" }, widgetType: "media" });
+
+  it("shows the previously stashed HTML draft without changing the saved media config", () => {
+    const view = viewedMediaContent({ stored, viewMode: "html", stash: { html: "<p>Uncommitted draft</p>" } });
+    expect(view).toEqual({ ...stored, mode: "html", html: "<p>Uncommitted draft</p>" });
+    expect(stored.mode).toBe("media");
+    expect(stored.html).toBe("");
+  });
 
   it("shows an empty target tab without emitting, stashing the stored tab", () => {
     const next = switchMediaContentMode({ stored, stash: {}, mode: "html" });

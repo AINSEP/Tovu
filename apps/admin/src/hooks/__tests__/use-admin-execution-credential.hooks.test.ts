@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../../lib/api";
+import { ApiError as FakeApiError, type AdminExecutionCredential, type AdminExecutionCredentialPatch } from "../../lib/api";
 import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
 import type { AdminExecutionCredentialPort } from "../admin-execution-credential-port.hooks";
 
@@ -20,39 +20,16 @@ import type { AdminExecutionCredentialPort } from "../admin-execution-credential
  * 5. Cross-mount: a save/migrate in one mounted instance is observed by a SEPARATE, independently
  *    mounted instance of this same hook, without either remounting.
  *
- * All five drive `useWiredAdminExecutionCredential` against a mocked `lib/api` (below) — kept as-is
- * by the `useWiredX` dependency-injection conversion, a call-site swap with no assertion changed. The
+ * All five drive `useWiredAdminExecutionCredential` through the real API adapter and a fetch fake
+ * (below), so endpoint binding and error conversion stay in the exercised flow. The
  * `describe("injected port …")` block at the end of this file is new: it drives the bare
  * `useAdminExecutionCredential` against `createFakeAdminExecutionCredentialPort` directly, with NO
  * `vi.mock("../../lib/api", ...)` — see `admin-execution-credential-port.hooks.ts`'s file header for
  * what is and is not injected and why.
  */
 
-const { getAdminExecutionCredential, setAdminExecutionCredential, FakeApiError } = vi.hoisted(() => {
-  class FakeApiError extends Error {
-    status: number;
-    code?: string;
-    constructor(message: string, status: number, code?: string) {
-      super(message);
-      this.status = status;
-      this.code = code;
-    }
-  }
-  return {
-    getAdminExecutionCredential: vi.fn(),
-    setAdminExecutionCredential: vi.fn(),
-    FakeApiError,
-  };
-});
-
-vi.mock("../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, getAdminExecutionCredential, setAdminExecutionCredential },
-    ApiError: FakeApiError,
-  };
-});
+const getAdminExecutionCredential = vi.fn();
+const setAdminExecutionCredential = vi.fn();
 
 import {
   resolveByokFooterStatusLine,
@@ -86,6 +63,25 @@ beforeEach(() => {
   window.localStorage.clear();
   getAdminExecutionCredential.mockReset().mockResolvedValue({ data: unsetView() });
   setAdminExecutionCredential.mockReset();
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    if (url.includes("/settings/effective?namespace=core.language")) {
+      expect(method).toBe("GET");
+      return Response.json({ data: [] });
+    }
+    expect(url).toMatch(/\/assistant\/execution-credential$/);
+    expect(["GET", "PUT"]).toContain(method);
+    try {
+      const body = method === "GET"
+        ? await getAdminExecutionCredential()
+        : await setAdminExecutionCredential(JSON.parse(String(init?.body)));
+      return Response.json(body);
+    } catch (error) {
+      if (!(error instanceof FakeApiError)) throw error;
+      return Response.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+  }));
 });
 
 afterEach(() => {
@@ -94,6 +90,26 @@ afterEach(() => {
   // unmounted (or unmounted after this file's own cleanup ran) could leave a stale listener that
   // fires into a later test's unrelated assertions.
   resetSettingsRefreshBus();
+  vi.unstubAllGlobals();
+});
+
+describe("useAdminExecutionCredential — host error copy", () => {
+  it.each([
+    [new FakeApiError("Use a supported model.", 400, "EXECUTION_CREDENTIAL_VALIDATION_ERROR"), "Use a supported model."],
+    [new FakeApiError("", 400, "EXECUTION_CREDENTIAL_VALIDATION_ERROR"), "That value was rejected."],
+    [new FakeApiError("unrecognized failure", 409, "OTHER_CODE"), "unrecognized failure"],
+    [new Error("credential storage unavailable"), "credential storage unavailable"],
+    [null, "failed to save the key"],
+  ])("preserves or supplies the operator message for %s", async (error, message) => {
+    const port = createFakeAdminExecutionCredentialPort({ onSave: () => { throw error; } });
+    const onByokChange = vi.fn();
+    const { result } = renderHook(() => useAdminExecutionCredential({ byok: byok({ apiKey: "sk-keep-this-key" }), onByokChange }, port));
+    await waitFor(() => expect(result.current.stored).toEqual(unsetView()));
+    await act(async () => { await result.current.saveKey(); });
+    expect(result.current.saveState).toEqual({ status: "error", message });
+    expect(port.current).toEqual(unsetView());
+    expect(onByokChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("useAdminExecutionCredential — write-only display", () => {

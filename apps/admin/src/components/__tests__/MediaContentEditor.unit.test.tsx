@@ -5,6 +5,7 @@ import type { AdminMedia } from "../../lib/api";
 import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../WidgetConfigFields/MediaContentEditor";
 import { useMediaContentEditor } from "../WidgetConfigFields/MediaContentEditor.hooks";
+import { useHtmlAttributeRows } from "../WidgetConfigFields/HtmlAttributeRows.hooks";
 import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
@@ -153,6 +154,24 @@ describe("MediaContentEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove data-kui" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove onclick" }));
     expect(saved()).not.toHaveProperty("htmlAttributes");
+  });
+
+  it("replaces local attribute rows when a different stored value arrives without emitting an edit", () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook(({ value }) => useHtmlAttributeRows({ value, onChange }), {
+      initialProps: { value: 'aria-label="Before"' },
+    });
+    act(() => result.current.addRow());
+    expect(result.current.rows).toEqual([{ name: "aria-label", value: "Before" }, { name: "", value: "" }]);
+
+    rerender({ value: 'title="Reloaded" onclick="alert(1)"' });
+
+    expect(result.current.rows).toEqual([{ name: "title", value: "Reloaded" }, { name: "onclick", value: "alert(1)" }]);
+    expect(result.current.dropped).toEqual([false, true]);
+    expect(onChange).not.toHaveBeenCalled();
+    rerender({ value: 'title="Reloaded" onclick="alert(1)"' });
+    expect(result.current.rows).toEqual([{ name: "title", value: "Reloaded" }, { name: "onclick", value: "alert(1)" }]);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("inserts slug-first markup for picked media at the Raw HTML caret", async () => {

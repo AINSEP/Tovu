@@ -8,6 +8,7 @@ import {
   buildExternalMcpFieldSpecs,
   buildExternalMcpRemoveConfirmCopy,
   describeSaveStatus,
+  mergeSourceUpdate,
   resolveByokConfig,
   resolveExternalMcpEffectiveAuthMode,
   resolveExternalMcpEffectiveTransport,
@@ -29,6 +30,29 @@ import type { AdminExternalMcpOAuthInput, AdminExternalMcpServerInput } from "@/
 function slice(value: unknown, loadError: string | null = null): SliceLoadState {
   return { value, loadError };
 }
+
+describe("mergeSourceUpdate", () => {
+  it("defaults an unknown source to empty fields and enabled", () => {
+    expect(mergeSourceUpdate(undefined, {})).toEqual({ fields: {}, enabled: true, label: undefined });
+  });
+
+  it("defaults missing previous fields and enabled while retaining its label", () => {
+    expect(mergeSourceUpdate({ label: "Local" }, {})).toEqual({ fields: {}, enabled: true, label: "Local" });
+  });
+
+  it("keeps explicit false and blank labels and merges fields without mutating the prior source", () => {
+    const previous = { fields: { command: "node", args: "old" }, enabled: true, label: "Local" };
+    const patch = { fields: { args: "new" }, enabled: false, label: "" };
+    expect(mergeSourceUpdate(previous, patch)).toEqual({ fields: { command: "node", args: "new" }, enabled: false, label: "" });
+    expect(previous).toEqual({ fields: { command: "node", args: "old" }, enabled: true, label: "Local" });
+    expect(patch).toEqual({ fields: { args: "new" }, enabled: false, label: "" });
+  });
+
+  it("preserves a disabled source when the patch omits enabled", () => {
+    expect(mergeSourceUpdate({ fields: { command: "node" }, enabled: false, label: "Local" }, {}))
+      .toEqual({ fields: { command: "node" }, enabled: false, label: "Local" });
+  });
+});
 
 describe("areAnySlicesLoading", () => {
   it("is false for an empty slice set", () => {

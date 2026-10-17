@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { primaryControlsThatFit, usePostEditorUi, usePostPreviewIframeEscape, useToolbarOverflow } from "../hooks/use-post-editor-ui.hooks";
+import { primaryControlsThatFit, usePostEditorUi, usePostPreviewIframeEscape, usePostSettingsDialog, useToolbarOverflow } from "../hooks/use-post-editor-ui.hooks";
 
 afterEach(() => { vi.restoreAllMocks(); document.querySelectorAll("iframe").forEach((node) => node.remove()); });
 
@@ -170,4 +170,78 @@ it("measures a narrow toolbar and marks only the controls that fit as primary", 
   expect(primaries()).toEqual([true, true, true, true, true, true]);
   toolbar.remove();
   vi.unstubAllGlobals();
+});
+
+it("retains the chosen settings tab when the dialog is reopened", () => {
+  const { result } = renderHook(() => usePostSettingsDialog());
+  expect([result.current.open, result.current.tab]).toEqual([false, "author"]);
+  act(() => result.current.openDialog());
+  act(() => result.current.setTab("publish"));
+  expect([result.current.open, result.current.tab]).toEqual([true, "publish"]);
+  act(() => result.current.closeDialog());
+  expect([result.current.open, result.current.tab]).toEqual([false, "publish"]);
+  act(() => result.current.openDialog());
+  expect([result.current.open, result.current.tab]).toEqual([true, "publish"]);
+});
+
+it.each(["absent", "hidden"])("keeps all controls primary when More is %s and ResizeObserver is unavailable", (visibility) => {
+  vi.stubGlobal("ResizeObserver", undefined);
+  try {
+    const toolbar = document.createElement("div");
+    if (visibility === "hidden") {
+      const more = document.createElement("button");
+      more.className = "tb-more";
+      toolbar.append(more); // jsdom reports offsetWidth 0, as display:none does in the browser.
+    }
+    const { result, unmount } = renderHook(() => useToolbarOverflow());
+    act(() => result.current.toolbarRef(toolbar));
+    expect(Array.from({ length: 6 }, (_, rank) => result.current.slot(rank)["data-tb"]))
+      .toEqual(["primary", "primary", "primary", "primary", "primary", "primary"]);
+    unmount();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("measures an initially hidden control on its first appearance with no column gap", () => {
+  vi.stubGlobal("ResizeObserver", undefined);
+  try {
+    const toolbar = document.createElement("div");
+    toolbar.style.paddingLeft = toolbar.style.paddingRight = "0px";
+    toolbar.style.columnGap = "normal";
+    Object.defineProperty(toolbar, "clientWidth", { value: 101 });
+    const more = document.createElement("button");
+    more.className = "tb-more";
+    Object.defineProperty(more, "offsetWidth", { value: 40 });
+    const control = document.createElement("button");
+    control.dataset.tbRank = "0";
+    let width = 0;
+    Object.defineProperty(control, "offsetWidth", { get: () => width });
+    toolbar.append(control, more);
+    const { result, unmount } = renderHook(() => useToolbarOverflow());
+    act(() => result.current.toolbarRef(toolbar));
+    expect(result.current.slot(0)["data-tb"]).toBe("primary");
+
+    width = 80;
+    act(() => result.current.toggle());
+    expect(result.current.open).toBe(true);
+    expect(result.current.slot(0)["data-tb"]).toBeUndefined();
+    unmount();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("cleans up an opaque preview and ignores navigation after unmount", () => {
+  const frame = document.createElement("iframe");
+  document.body.append(frame);
+  const doc = frame.contentDocument!;
+  vi.spyOn(frame, "contentDocument", "get").mockReturnValue(null);
+  const collapse = vi.fn();
+  const { result, unmount } = renderHook(() => usePostPreviewIframeEscape(true, collapse));
+  act(() => result.current(frame));
+  unmount();
+  frame.dispatchEvent(new Event("load"));
+  doc.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  expect(collapse).not.toHaveBeenCalled();
 });

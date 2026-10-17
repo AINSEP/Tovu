@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { menuTargetEditorKind, pageItemsForSave, pageTargetForChoice, targetForKind } from "../page-link-rules";
+import { hasPageLinks, menuTargetEditorKind, pageItemsForSave, pageLinkState, pageTargetForChoice, targetForKind, type PageMenuTarget } from "../page-link-rules";
 
 it("distinguishes Page from existing generic Entry links without changing the public ref discriminator", () => {
   const entry = { kind: "entryRef" as const, entryId: "post-1" };
@@ -23,5 +23,48 @@ it("retains the last-known path during a catalogue failure and drops it when a d
   expect(pageTargetForChoice({ entryId: "page-2", previous: target })).toEqual({ kind: "entryRef", entryId: "page-2", entryType: "page" });
   expect(targetForKind({ kind: "page", prev: { kind: "url", href: "/about" } })).toEqual({
     kind: "entryRef", entryId: "", entryType: "page", lastKnownHref: "/about",
+  });
+});
+
+it("respects an explicit non-page content type even when its id appears in the page catalogue", () => {
+  const target = { kind: "entryRef" as const, entryId: "same-id", entryType: "recipe" };
+  const pages = [{ id: "same-id", title: "About", status: "published" as const }];
+
+  expect(menuTargetEditorKind({ target, pages })).toBe("entryRef");
+  expect(hasPageLinks({ items: [{ id: "recipe", target }] })).toBe(false);
+});
+
+it("finds a nested page reference under an explicitly non-page parent", () => {
+  const parent: PageMenuTarget = { kind: "entryRef", entryId: "recipe-1", entryType: "recipe" };
+  const child: PageMenuTarget = { kind: "entryRef", entryId: "page-1", entryType: "page" };
+  expect(hasPageLinks({ items: [{
+    id: "recipe", target: parent,
+    children: [{ id: "about", target: child }],
+  }] })).toBe(true);
+});
+
+it("preserves an existing page path snapshot ahead of an old generic URL", () => {
+  expect(targetForKind({ kind: "page", prev: {
+    kind: "entryRef", entryId: "page-1", entryType: "page", lastKnownHref: "/current", href: "/stale",
+  } })).toEqual({ kind: "entryRef", entryId: "page-1", entryType: "page", lastKnownHref: "/current" });
+});
+
+it("saves an unfinished Page choice with an empty id and no guessed URL", () => {
+  const target: PageMenuTarget = { kind: "entryRef", entryType: "page" };
+  expect(pageItemsForSave({ items: [{ id: "unfinished", target }] })).toEqual([
+    { id: "unfinished", target: { kind: "entryRef", entryId: "", entryType: "page" } },
+  ]);
+});
+
+it("uses translated fallback text for a missing page that has no menu label", () => {
+  expect(pageLinkState({ entryId: "missing", pages: [], t: (key) => `translated:${key}` })).toEqual({
+    value: "missing", unavailable: true,
+    choices: [{ id: "", title: "translated:Choose a page…" }, { id: "missing", title: "translated:Page not published" }],
+  });
+});
+
+it("leaves an empty picker available while the page catalogue is unknown", () => {
+  expect(pageLinkState({ t: (key) => key })).toEqual({
+    value: "", unavailable: false, choices: [{ id: "", title: "Choose a page…" }],
   });
 });

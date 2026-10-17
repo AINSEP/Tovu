@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminServerLogs } from "@/lib/api";
-import { createFakeRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
+import { createFakeRecentServerErrorsPort, defaultRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
 import { RECENT_ERRORS_LIMIT, useRecentServerErrors, useWiredRecentServerErrors } from "../hooks/use-recent-server-errors.hooks";
 
 /** @file Injected-port behavior and the wired hook's real API/locale composition. */
@@ -20,6 +20,37 @@ const LOGS: AdminServerLogs = {
 const t = (key: string) => key;
 
 describe("useRecentServerErrors", () => {
+  it("copies the original error text through the browser clipboard", async () => {
+    const copied: string[] = [];
+    const priorClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: async (text: string) => { copied.push(text); } },
+    });
+    try {
+      const text = "server failed\n  at request (/srv/app.ts:12:3)";
+      await expect(defaultRecentServerErrorsPort.copyText(text)).resolves.toBe(true);
+      expect(copied).toEqual([text]);
+    } finally {
+      if (priorClipboard) Object.defineProperty(navigator, "clipboard", priorClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
+
+  it("returns the fake's empty log snapshot when no logs are seeded", async () => {
+    const port = createFakeRecentServerErrorsPort();
+    await expect(port.getServerLogs({ level: "error", limit: 1 })).resolves.toEqual({
+      entries: [], matched: 0, buffered: 0, truncated: false, capturing: true,
+    });
+    expect(port.queries).toEqual([{ level: "error", limit: 1 }]);
+  });
+
+  it("reports a refused copy without losing the requested diagnostic", async () => {
+    const port = createFakeRecentServerErrorsPort({ copyResult: false });
+    await expect(port.copyText("diagnostic")).resolves.toBe(false);
+    expect(port.copied).toEqual(["diagnostic"]);
+  });
+
   it("keeps an unformattable timestamp visible instead of dropping the row", async () => {
     const logs: AdminServerLogs = { ...LOGS, entries: [{ ...LOGS.entries[0], at: "invalid-timestamp" }], matched: 1 };
     const port = createFakeRecentServerErrorsPort({ logs });

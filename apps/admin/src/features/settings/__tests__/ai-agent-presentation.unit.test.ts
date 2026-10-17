@@ -9,6 +9,57 @@ const claude: DetectedAgent = { id: 'claude', label: 'Claude Code', installed: t
 const fakePort = (agents: readonly DetectedAgent[]): ExecutionPort => ({ detectLocalAgents: async () => agents, testConnection: async () => ({ ok: true }) });
 
 describe('D-21 AI agent presentation', () => {
+  it('uses browser scope by default and tolerates a configuration that has not loaded yet', async () => {
+    const bridges = ['tovuFiles', 'tovuVoice'] as const;
+    const originals = bridges.map(name => Object.getOwnPropertyDescriptor(window, name));
+    try {
+      for (const name of bridges) Object.defineProperty(window, name, { configurable: true, value: undefined });
+      const port = fakePort([claude]);
+      const { result } = renderHook(() => useAiAgentPresentation({ port, config: null, locale: 'en' }));
+      await act(async () => { await result.current.port.detectLocalAgents(); });
+      expect(result.current.scopeCopy).toBe('Detected on the Tovu server, not on your own computer.');
+      expect(result.current.warning).toBeNull();
+    } finally {
+      bridges.forEach((name, index) => {
+        const original = originals[index];
+        if (original) Object.defineProperty(window, name, original);
+        else Reflect.deleteProperty(window, name);
+      });
+    }
+  });
+
+  it('keeps the warning after an identical scan and clears it when authentication changes', async () => {
+    let agents: readonly DetectedAgent[] = [claude];
+    const port: ExecutionPort = { ...fakePort([]), detectLocalAgents: async () => agents };
+    const { result } = renderHook(() => useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true }));
+    await act(async () => { await result.current.port.detectLocalAgents(); });
+    expect(result.current.warning).toBe('Claude Code: Authentication required. Sign in before sending.');
+    agents = [{ ...claude }];
+    await act(async () => { await result.current.port.detectLocalAgents(); });
+    expect(result.current.warning).toBe('Claude Code: Authentication required. Sign in before sending.');
+    agents = [{ ...claude, authStatus: 'ok' }];
+    await act(async () => { await result.current.port.detectLocalAgents(); });
+    expect(result.current.warning).toBeNull();
+  });
+
+  it('lets a pending detection finish after unmount without publishing another presentation', async () => {
+    let complete!: (agents: readonly DetectedAgent[]) => void;
+    const detected = new Promise<readonly DetectedAgent[]>(resolve => { complete = resolve; });
+    const port = { ...fakePort([]), detectLocalAgents: () => detected };
+    const presentations: (string | null)[] = [];
+    const { result, unmount } = renderHook(() => {
+      const presentation = useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true });
+      presentations.push(presentation.warning);
+      return presentation;
+    });
+    const pending = result.current.port.detectLocalAgents();
+    unmount();
+    const countAtUnmount = presentations.length;
+    await act(async () => { complete([claude]); await expect(pending).resolves.toEqual([claude]); });
+    expect(presentations).toHaveLength(countAtUnmount);
+    expect(presentations).toEqual([null]);
+  });
+
   it('words desktop and server scope exactly, reusing host bridge presence', () => {
     expect(localCliScopeCopy({ desktop: true })).toBe('Detected on this computer.');
     expect(localCliScopeCopy({ desktop: false })).toBe('Detected on the Tovu server, not on your own computer.');

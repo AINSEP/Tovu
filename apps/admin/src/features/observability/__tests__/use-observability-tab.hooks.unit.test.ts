@@ -1,9 +1,13 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useObservabilityTab } from "../hooks/use-observability-tab.hooks";
 
-const navigate = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/router", () => ({ navigate }));
+let originalUrl: string;
+beforeEach(() => {
+  originalUrl = window.location.href;
+  window.history.replaceState(null, "", "/admin/observability");
+});
+afterEach(() => window.history.replaceState(null, "", originalUrl));
 const tabs = [
   { id: "overview", label: "Overview", subtitle: "Overview copy", panel: null },
   { id: "queries", label: "Queries", subtitle: "Queries copy", panel: null },
@@ -11,17 +15,18 @@ const tabs = [
 
 describe("Observability page tab adapter", () => {
   it("selects a deep link and follows later route changes without navigating on load", () => {
-    navigate.mockClear();
+    const historyLength = window.history.length;
     const { result, rerender } = renderHook(({ tabId }) => useObservabilityTab({ tabs, tabId }), { initialProps: { tabId: "queries" } });
     expect(result.current.activeTabId).toBe("queries");
     expect(result.current.subtitle).toBe("Queries copy");
     rerender({ tabId: "overview" });
     expect(result.current.activeTabId).toBe("overview");
     expect(result.current.subtitle).toBe("Overview copy");
-    expect(navigate).not.toHaveBeenCalled();
+    expect(window.location.pathname + window.location.search).toBe("/admin/observability");
     act(() => result.current.onTabChange("queries"));
     expect(result.current.subtitle).toBe("Queries copy");
-    expect(navigate).toHaveBeenCalledWith("/observability?tab=queries", { replace: true });
+    expect(window.location.pathname + window.location.search).toBe("/admin/observability?tab=queries");
+    expect(window.history.length).toBe(historyLength);
   });
 
   it.each([null, "missing", "queries"])("uses Overview for an unavailable request %s", tabId => {
@@ -43,5 +48,20 @@ describe("Observability page tab adapter", () => {
     rerender({ available: tabs.slice(0, 1) });
     expect(result.current.activeTabId).toBe("overview");
     expect(result.current.subtitle).toBe("Overview copy");
+  });
+
+  it("has no active tab or subtitle while permissions expose no tabs, then adopts the first available tab", () => {
+    const { result, rerender } = renderHook(({ available }) => useObservabilityTab({ tabs: available }, {}), {
+      initialProps: { available: tabs.slice(0, 0) },
+    });
+    expect(result.current.activeTabId).toBeUndefined();
+    expect(result.current.subtitle).toBeUndefined();
+    expect(window.location.search).toBe("");
+    rerender({ available: tabs });
+    expect(result.current.activeTabId).toBe("overview");
+    expect(result.current.subtitle).toBe("Overview copy");
+    rerender({ available: [] });
+    expect(result.current.activeTabId).toBeUndefined();
+    expect(result.current.subtitle).toBeUndefined();
   });
 });

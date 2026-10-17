@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminWebhookDelivery, AdminWebhookSubscription } from "@/lib/api";
-import { displayTimestamp, integrationRowMenuItems, parseTopics } from "../rules";
+import { displayTimestamp, integrationRowMenuItems, parseTopics, visibleIntegrationsError } from "../rules";
 
 /**
  * @file Pure-logic coverage for `features/integrations/rules.ts` — the row-menu builder whose
@@ -23,6 +23,40 @@ const SUBSCRIPTION: AdminWebhookSubscription = {
   disabledAt: null,
   lastDelivery: null,
 };
+
+describe("visibleIntegrationsError", () => {
+  it("prioritizes a toggle failure over delete and initial load failures", () => {
+    expect(visibleIntegrationsError({
+      toggleError: new Error("toggle denied"), deleteError: new Error("delete denied"),
+      listError: new Error("load failed"), hasSubscriptions: false, locale: "en",
+    })).toBe("toggle denied");
+  });
+
+  it("prioritizes a delete failure over an initial load failure", () => {
+    expect(visibleIntegrationsError({
+      toggleError: null, deleteError: new Error("delete denied"),
+      listError: new Error("load failed"), hasSubscriptions: false, locale: "en",
+    })).toBe("delete denied");
+  });
+
+  it("keeps loaded subscriptions usable when a background refresh fails", () => {
+    expect(visibleIntegrationsError({
+      toggleError: null, deleteError: null, listError: new Error("refresh failed"), hasSubscriptions: true, locale: "en",
+    })).toBeNull();
+  });
+
+  it("shows an initial load failure when no subscriptions have loaded", () => {
+    expect(visibleIntegrationsError({
+      toggleError: null, deleteError: null, listError: new Error("load failed"), hasSubscriptions: false, locale: "en",
+    })).toBe("load failed");
+  });
+
+  it("has no banner while an initial load is pending without errors", () => {
+    expect(visibleIntegrationsError({
+      toggleError: null, deleteError: null, listError: null, hasSubscriptions: false, locale: "en",
+    })).toBeNull();
+  });
+});
 
 describe("parseTopics", () => {
   it("splits, trims, and drops blanks", () => {

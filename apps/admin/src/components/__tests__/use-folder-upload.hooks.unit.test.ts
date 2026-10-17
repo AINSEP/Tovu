@@ -73,4 +73,48 @@ describe("useFolderUpload", () => {
     result.current.onChoose();
     expect(click).toHaveBeenCalledOnce();
   });
+
+  it("allows choosing before the hidden input is mounted", () => {
+    const { result, onZipped, onError } = setup();
+    expect(() => result.current.onChoose()).not.toThrow();
+    expect(result.current.zipping).toBe(false);
+    expect(onZipped).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("treats a picker with no file list as an empty folder and clears the input", async () => {
+    const { result, onZipped, onError } = setup();
+    const target = { files: null, value: "C:\\fakepath\\x" };
+    await act(async () => {
+      await result.current.onChange({ target } as unknown as ChangeEvent<HTMLInputElement>);
+    });
+    expect(target.value).toBe("");
+    expect(onError.mock.calls).toEqual([[FOLDER_EMPTY]]);
+    expect(onZipped).not.toHaveBeenCalled();
+    expect(result.current.zipping).toBe(false);
+  });
+
+  it("reports an unexpected handoff failure and releases the picker for another attempt", async () => {
+    const received: string[] = [];
+    const errors: string[] = [];
+    let failHandoff = true;
+    const { result } = renderHook(() => useFolderUpload({
+      maxBytes: 1024, tooLarge: "too big", isLocked: () => false,
+      onZipped: file => {
+        if (failHandoff) throw new Error("preview unavailable");
+        received.push(file.name);
+      },
+      onError: key => errors.push(key),
+    }));
+    await act(async () => { await result.current.onChange(change([picked("p/a")]).event); });
+    expect(errors).toEqual(["Could not read that folder. Try again."]);
+    expect(received).toEqual([]);
+    expect(result.current.zipping).toBe(false);
+
+    failHandoff = false;
+    await act(async () => { await result.current.onChange(change([picked("p/a")]).event); });
+    expect(received).toEqual(["p.zip"]);
+    expect(errors).toEqual(["Could not read that folder. Try again."]);
+    expect(result.current.zipping).toBe(false);
+  });
 });

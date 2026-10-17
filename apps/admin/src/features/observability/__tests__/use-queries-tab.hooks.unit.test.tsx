@@ -1,13 +1,42 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useContext, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AdminFetchQueryAdapterContext } from "@/lib/fetch-query/adapter-context";
-import { useQueriesTab, type QueriesIdentityPort } from "../hooks/use-queries-tab.hooks";
+import { useQueriesTab, useWiredQueriesTab, type QueriesIdentityPort } from "../hooks/use-queries-tab.hooks";
 
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("Queries tab host wiring", () => {
+  it("reads the authenticated owner through the real API and the host's TanStack provider", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url) !== "/api/admin/v1/auth/me") throw new Error(`Unexpected test request: ${url}`);
+      return new Response(JSON.stringify({ user: { id: "owner-1", username: "owner" }, effectivePermissions: ["*"] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }));
+    const { result } = renderHook(() => useWiredQueriesTab(), { wrapper });
+
+    await waitFor(() => expect(result.current.visible).toBe(true));
+    expect(result.current.readOnly).toBe(!import.meta.env.DEV);
+  });
+
+  it("keeps the wired tab hidden without requesting identity on a built-in host", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const builtinWrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider adapter="builtin">{children}</FetchQueryProvider>;
+    const { result } = renderHook(() => useWiredQueriesTab(), { wrapper: builtinWrapper });
+
+    await act(async () => {});
+
+    expect(result.current).toEqual({ visible: false, readOnly: !import.meta.env.DEV });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
 
 describe("Queries tab visibility", () => {
   it.each([

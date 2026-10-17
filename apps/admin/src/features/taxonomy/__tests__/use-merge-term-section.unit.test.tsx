@@ -408,4 +408,36 @@ describe("useMergeTermSection — injected port", () => {
     expect(result.current.step).toBe("idle");
     await waitFor(() => expect(result.current.error).toBe("cycle detected"));
   });
+
+  it("keeps the plan available when the fake rejects confirmation", async () => {
+    const port = createFakeMergeTermSectionPort({ confirmError: "plan expired" });
+    const onMerged = vi.fn();
+    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"), { wrapper });
+    act(() => result.current.setIntoTermId("into1"));
+    await act(async () => { await result.current.startPlan(); });
+    await act(async () => { await result.current.doConfirm(); });
+
+    await waitFor(() => expect(result.current.error).toBe("plan expired"));
+    expect(result.current.step).toBe("planned");
+    expect(result.current.plan).toEqual({ planId: "fake-plan-1", planHash: "fake-hash-1", overlappingContentCount: 0 });
+    expect(result.current.confirmationToken).toBeNull();
+    expect(result.current.busy).toBe(false);
+    expect(onMerged).not.toHaveBeenCalled();
+  });
+
+  it("retains the confirmed ceremony without reporting a merge when the fake rejects execution", async () => {
+    const port = createFakeMergeTermSectionPort({ executeError: "merge refused" });
+    const onMerged = vi.fn();
+    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"), { wrapper });
+    act(() => result.current.setIntoTermId("into1"));
+    await act(async () => { await result.current.startPlan(); });
+    await act(async () => { await result.current.doConfirm(); });
+    await act(async () => { await result.current.doExecute(); });
+
+    await waitFor(() => expect(result.current.error).toBe("merge refused"));
+    expect(result.current.step).toBe("confirmed");
+    expect(result.current.confirmationToken).toBe("fake-confirmation-token");
+    expect(result.current.busy).toBe(false);
+    expect(onMerged).not.toHaveBeenCalled();
+  });
 });

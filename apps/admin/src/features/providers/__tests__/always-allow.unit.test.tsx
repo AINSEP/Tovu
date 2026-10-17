@@ -7,7 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 
 import { AlwaysAllowPanel } from "../AlwaysAllowPanel";
 import { formatGrantedAt, groupAlwaysAllow } from "../always-allow-rules";
-import { createFakeAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
+import { createFakeAlwaysAllowPort, defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
 import type { AlwaysAllowPort } from "../hooks/always-allow-port.hooks";
 import { useAlwaysAllow } from "../hooks/use-always-allow.hooks";
 
@@ -75,6 +75,33 @@ describe("formatGrantedAt", () => {
 });
 
 describe("AlwaysAllowPanel", () => {
+  it("loads and revokes saved approvals through the real API adapter", async () => {
+    const saved = approval("server/one", "read file?");
+    let approvals = [saved];
+    const approvalsPath = "/api/admin/v1/workspaces/workspace-local/mcp-servers/tool-approvals";
+    const serversPath = "/api/admin/v1/workspaces/workspace-local/mcp-servers";
+    const revokePath = "/api/admin/v1/workspaces/workspace-local/mcp-servers/server%2Fone/tool-approvals/read%20file%3F";
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === approvalsPath && (!init?.method || init.method === "GET")) {
+        return new Response(JSON.stringify({ approvals }));
+      }
+      if (url === serversPath && (!init?.method || init.method === "GET")) {
+        return new Response(JSON.stringify({ servers: [{ serverId: "server/one", label: "One" }] }));
+      }
+      if (url === revokePath && init?.method === "DELETE") {
+        approvals = [];
+        return new Response(JSON.stringify({ removed: true }));
+      }
+      throw new Error(`Unexpected request: ${init?.method} ${url}`);
+    });
+
+    await expect(defaultAlwaysAllowPort.listExternalMcpToolApprovals()).resolves.toEqual({ approvals: [saved] });
+    await expect(defaultAlwaysAllowPort.listExternalMcpServers()).resolves.toEqual({ servers: [{ serverId: "server/one", label: "One" }] });
+    await expect(defaultAlwaysAllowPort.revokeExternalMcpToolApproval("server/one", "read file?")).resolves.toEqual({ removed: true });
+    await expect(defaultAlwaysAllowPort.listExternalMcpToolApprovals()).resolves.toEqual({ approvals: [] });
+  });
+
   it("lists each server's Always-allow tools under the server's label", async () => {
     const network = vi.fn();
     vi.stubGlobal("fetch", network);

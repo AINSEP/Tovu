@@ -6,6 +6,7 @@ import {
   copyKeysResultText,
   otherCredentialRemoveDialogBody,
   removeDialogTitle,
+  siteKeyGenerateErrorMessage,
   siteKeyRevealErrorMessage,
   t,
 } from "../security-i18n";
@@ -20,6 +21,16 @@ const LOCALES = [
   "es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko",
   "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn",
 ];
+
+describe("site key generation errors", () => {
+  it("includes the failure detail in the selected language", () => {
+    expect(siteKeyGenerateErrorMessage("es", "disk full")).toBe("No se pudo generar una clave del sitio: disk full");
+  });
+
+  it.each(["en", "xx", "constructor"])("uses English generation copy for %s", (locale) => {
+    expect(siteKeyGenerateErrorMessage(locale, "disk full")).toBe("Couldn't generate a site key: disk full");
+  });
+});
 
 describe("Media · External Providers screen label", () => {
   it.each(["en", ...LOCALES])("matches the Media screen and tab labels in %s", (locale) => {
@@ -120,6 +131,13 @@ describe("copy keys result copy", () => {
   it("shows the generic failure for an unknown copy reason", () => {
     expect(copyKeysResultText({
       result: { kind: "media-provider", id: "cloudinary", status: "failed", reasonCode: "unknown-reason" },
+      t: translate,
+    })).toBe("Copying keys failed. Try again.");
+  });
+
+  it("shows the generic failure when a failed copy omits its reason", () => {
+    expect(copyKeysResultText({
+      result: { kind: "media-provider", id: "cloudinary", status: "failed" },
       t: translate,
     })).toBe("Copying keys failed. Try again.");
   });

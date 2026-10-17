@@ -1,9 +1,16 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePushToTalk } from "../use-push-to-talk.hooks";
 import type { PushToTalkCapture } from "../mic-capture";
-import type { VoiceInputPort } from "../../voice-input-port";
+import type { VoiceInputAvailability, VoiceInputPort } from "../../voice-input-port";
+
+let originalVoiceBridge: PropertyDescriptor | undefined;
+beforeEach(() => { originalVoiceBridge = Object.getOwnPropertyDescriptor(window, "tovuVoice"); });
+afterEach(() => {
+  if (originalVoiceBridge) Object.defineProperty(window, "tovuVoice", originalVoiceBridge);
+  else Reflect.deleteProperty(window, "tovuVoice");
+});
 
 /**
  * @file Tests `usePushToTalk`'s orchestration — availability probing, pointer-down/up wiring, and
@@ -30,6 +37,35 @@ function fakeCapture(overrides: Partial<PushToTalkCapture> = {}): PushToTalkCapt
 }
 
 describe("usePushToTalk — availability", () => {
+  it.each([undefined, {}])("resolves the desktop bridge when voicePort is not overridden (%j)", async overrides => {
+    const port = fakePort();
+    Object.defineProperty(window, "tovuVoice", { configurable: true, value: port });
+    const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, overrides));
+    await waitFor(() => expect(result.current.available).toBe(true));
+    expect(result.current.unavailableReason).toBeUndefined();
+    expect(port.isAvailable).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["resolve", "reject"] as const)("ignores a replaced port's late probe %s", async outcome => {
+    let resolve!: (value: VoiceInputAvailability) => void;
+    let reject!: (error: Error) => void;
+    const pending = new Promise<VoiceInputAvailability>((done, fail) => { resolve = done; reject = fail; });
+    const oldPort = fakePort({ isAvailable: () => pending });
+    const { result, rerender } = renderHook(({ port }) => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: port }), {
+      initialProps: { port: oldPort },
+    });
+    expect(result.current.available).toBeNull();
+    rerender({ port: fakePort() });
+    await waitFor(() => expect(result.current.available).toBe(true));
+    await act(async () => {
+      if (outcome === "resolve") resolve({ available: false, reason: "on-device-recognition-unavailable" });
+      else reject(new Error("old bridge closed"));
+      await pending.catch(() => {});
+    });
+    expect(result.current.available).toBe(true);
+    expect(result.current.unavailableReason).toBeUndefined();
+  });
+
   it("reports unavailable immediately when there is no voice port at all (plain browser tab)", async () => {
     const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: null }));
     await waitFor(() => expect(result.current.available).toBe(false));
@@ -71,6 +107,51 @@ describe("usePushToTalk — availability", () => {
 });
 
 describe("usePushToTalk — recording lifecycle", () => {
+  it("ignores another hold start while a recording is already active", async () => {
+    const capture = fakeCapture({ stopAndTranscribe: vi.fn().mockResolvedValue("one recording") });
+    const port = fakePort();
+    const onTranscript = vi.fn();
+    const createCapture = vi.fn(() => capture);
+    const { result } = renderHook(() => usePushToTalk({ onTranscript }, { voicePort: port, createCapture }));
+    await waitFor(() => expect(result.current.available).toBe(true));
+    act(() => result.current.startHold());
+    await waitFor(() => expect(result.current.indicator.isRecording).toBe(true));
+    act(() => result.current.startHold());
+    expect(createCapture).toHaveBeenCalledTimes(1);
+    expect(result.current.indicator.isRecording).toBe(true);
+    act(() => result.current.endHold());
+    await waitFor(() => expect(onTranscript).toHaveBeenCalledWith("one recording"));
+    expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("can start a new hold after an early release even when discarding the old recording fails", async () => {
+    let grant!: () => void;
+    const start = new Promise<void>(resolve => { grant = resolve; });
+    const discarded = fakeCapture({
+      start: () => start,
+      stopAndTranscribe: vi.fn(async () => { throw new Error("discarded transcription failed"); }),
+    });
+    const next = fakeCapture({ stopAndTranscribe: vi.fn().mockResolvedValue("next hold") });
+    const port = fakePort();
+    const onTranscript = vi.fn();
+    let attempts = 0;
+    const { result } = renderHook(() => usePushToTalk({ onTranscript }, {
+      voicePort: port, createCapture: () => attempts++ === 0 ? discarded : next,
+    }));
+    await waitFor(() => expect(result.current.available).toBe(true));
+    act(() => result.current.startHold());
+    act(() => result.current.endHold());
+    await act(async () => { grant(); await start; });
+    expect(discarded.stopAndTranscribe).toHaveBeenCalledTimes(1);
+    expect(result.current.indicator.label).toBe("Hold to talk");
+    expect(onTranscript).not.toHaveBeenCalled();
+    act(() => result.current.startHold());
+    await waitFor(() => expect(result.current.indicator.isRecording).toBe(true));
+    act(() => result.current.endHold());
+    await waitFor(() => expect(onTranscript).toHaveBeenCalledWith("next hold"));
+    expect(onTranscript).toHaveBeenCalledTimes(1);
+  });
+
   it("pointerdown -> mic granted -> recording indicator; pointerup -> transcript delivered to onTranscript", async () => {
     const capture = fakeCapture({ stopAndTranscribe: vi.fn().mockResolvedValue("publish the homepage") });
     const port = fakePort();
@@ -224,6 +305,29 @@ describe("usePushToTalk — recording lifecycle", () => {
  * waiting on the permission prompt.
  */
 describe("usePushToTalk — unmount releases the microphone", () => {
+  it.each(["recording", "requesting-mic"] as const)("discards cleanup failures after unmount from %s", async phase => {
+    let grant!: () => void;
+    const start = new Promise<void>(resolve => { grant = resolve; });
+    const capture = fakeCapture({
+      start: () => phase === "recording" ? Promise.resolve() : start,
+      stopAndTranscribe: vi.fn(async () => { throw new Error("cleanup transcription failed"); }),
+    });
+    const port = fakePort();
+    const onTranscript = vi.fn();
+    const { result, unmount } = renderHook(() => usePushToTalk({ onTranscript }, { voicePort: port, createCapture: () => capture }));
+    await waitFor(() => expect(result.current.available).toBe(true));
+    act(() => result.current.startHold());
+    if (phase === "recording") await waitFor(() => expect(result.current.indicator.isRecording).toBe(true));
+    else expect(result.current.indicator.label).toBe("Requesting microphone…");
+    await act(async () => { unmount(); });
+    if (phase === "requesting-mic") {
+      expect(capture.stopAndTranscribe).not.toHaveBeenCalled();
+      await act(async () => { grant(); await start; });
+    }
+    expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
+    expect(onTranscript).not.toHaveBeenCalled();
+  });
+
   it("unmount while recording stops the capture", async () => {
     const capture = fakeCapture();
     const onTranscript = vi.fn();
