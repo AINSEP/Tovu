@@ -118,6 +118,14 @@ test("resolveMediaPublicUrls: a recorded video asset uses the byte-passthrough /
   assert.equal(result.get(asset.id), `/m/${asset.id}/original`);
 });
 
+test("resolveMediaPublicUrls: sanitized SVG needs no registered raster transform", async () => {
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const asset = fakeAsset({ slug: "vector-logo" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "image/svg+xml" });
+  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [asset]);
+  assert.equal(result.get(asset.id), "/m/vector-logo/original");
+});
+
 test("resolveMediaPublicUrls: a non-video asset with a registered 'public' transform resolves the real /m/ image URL, ext mapped from the transform's format", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});

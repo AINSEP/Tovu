@@ -93,7 +93,7 @@ export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps,
       // Already-aborted calls cannot ask the human or perform an irreversible effect.
       if (ctx.signal.aborted) return { removed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
       return plan.execute();
-    } }, { flag: "removed" });
+    } }, { flag: "removed", batch: spec.key !== null });
   }
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "permanent-delete", catalogModule: "features/permanent-delete/agent-tools.ts", catalog: indexCatalogById({ catalog: permanentDeleteAgentToolCatalog }), handlers, derivedRisk: permanentDeleteDerivedRisk });
 }

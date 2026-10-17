@@ -879,7 +879,7 @@ function MediaToolbar({
               // since 2026-08-24 — this attribute drifted out of sync with that until 2026-09-07 (see the
               // regression test pinning this exact set). Advisory only: `port.uploadMedia` still enforces
               // the real allowlist server-side regardless of what this lets past the file picker.
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml,video/mp4,video/webm"
               aria-label={t("File to upload")}
               onChange={onFileChange}
               {...agentHandle({ handle: "media-upload-file" }, {

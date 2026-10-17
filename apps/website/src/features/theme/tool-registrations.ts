@@ -930,7 +930,7 @@ export function buildThemesRegistrations(
         const theme = findThemeOrThrow(routeDeps, themeId);
 
         if (isTrashedThemePath(relativePath)) {
-          throw new ThemePathError(`'${relativePath}' is already inside the trash`);
+          throw new ThemePathError(`'${relativePath}' was moved to the theme's trash; restore with theme_restore_trashed_file using themeId '${themeId}' and trashedPath '${relativePath}'`);
         }
 
         // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own
@@ -966,6 +966,7 @@ export function buildThemesRegistrations(
           themeId,
           path: relativePath,
           trashedPath,
+          note: "Moved to the theme's trash; restore with theme_restore_trashed_file using this themeId and trashedPath.",
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),

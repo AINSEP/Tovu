@@ -1008,3 +1008,38 @@ test("the BYOK discovery registry hides disallowed permanent deletes from both h
   assert.equal(s.registry.has({ toolId: "workspace_delete" }), false);
   assert.equal(s.registry.has({ toolId: "trash_list_items" }), true);
 });
+
+test('owner discovery exposes permanent deletes with the site grant off, including credential and role deletes', async () => {
+  const s = createByokToolSurface({ ...fakeRouteDeps(), ownerPrincipalId: Promise.resolve(PRINCIPAL.id) }, { installExtensions: false, contributions });
+  for (const id of ['trash_empty', 'trash_purge_item', 'media_purge_asset', 'identity_user_delete', 'identity_role_delete', 'custom_credential_delete', 'external_mcp_delete']) {
+    const described = await s.executeMetaTool(PRINCIPAL, RUN, call('describe_tool', { id }));
+    assert.notEqual(described.isError, true, id);
+    assert.match(textOf(described), new RegExp(id));
+    const definition = JSON.parse(textOf(described));
+    if (id !== 'trash_empty') assert.ok(definition.inputSchema.properties.items, `${id} must advertise a single-card batch`);
+  }
+  const search = await s.executeMetaTool(PRINCIPAL, RUN, call('search_tools', { query: 'permanently delete media image', limit: 10 }));
+  assert.match(textOf(search), /media_purge_asset/);
+});
+
+test('an owner delete executes through the assembled BYOK guard only after the confirmation click', async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+  const s = createByokToolSurface({ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
+    ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,
+  }, { installExtensions: false, contributions });
+  let cards = 0;
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call('execute_delegated_tool', {
+    toolId: 'external_mcp_delete', input: { serverId: 'echo-server' },
+  }), undefined, async () => {
+    cards++;
+    assert.ok(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: 'echo-server' }));
+    const exchangeId = s.surfaceExchanges.findTypedAnswerTarget({ principalId: PRINCIPAL.id, toolId: 'external_mcp_delete' })!;
+    assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { decision: 'confirm' } }, { toolId: 'external_mcp_delete' }), { ok: true });
+  });
+  assert.notEqual(result.isError, true, textOf(result));
+  assert.equal(cards, 1);
+  assert.equal(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: 'echo-server' }), null);
+});

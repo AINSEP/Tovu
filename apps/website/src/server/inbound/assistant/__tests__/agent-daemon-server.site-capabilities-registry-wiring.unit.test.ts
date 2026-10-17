@@ -10,7 +10,7 @@ import { installFirstPartyToolContributors } from "#src/server/runtime/compositi
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
 import { ALL_CHAT_DELETE_TOOLS, createChatDeleteScope } from "#src/assistant/permanent-delete-tool-gate";
-import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
+import { readChatPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
@@ -75,7 +75,7 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   const ownerId = await routeDeps.ownerPrincipalId;
   const registry = createToolRegistry({});
   const deleteScope = evaluateDaemonExpression<ReturnType<typeof createChatDeleteScope>>(
-    daemonInitializer("deleteScope"), { routeDeps, createChatDeleteScope, readAssistantPermanentDeletesPolicy },
+    daemonInitializer("deleteScope"), { routeDeps, createChatDeleteScope, readChatPermanentDeletesPolicy },
   );
   const visibleRegistry = evaluateDaemonExpression<Pick<typeof registry, "list">>(
     daemonInitializer("visibleRegistry"), { registry, deleteScope, isChatToolAllowed },
@@ -93,10 +93,11 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   });
   const registration = registrations.find((entry) => entry.descriptor.id === "site_describe_capabilities");
   assert.ok(registration);
-  const result = await registration.handler({
+  const readCapabilities = async () => await registration.handler({
     executionId: "audit-capabilities", principal: { id: ownerId }, run: { id: "audit-run" },
     input: { sections: ["tools"] }, signal: new AbortController().signal,
   }) as { sections: { tools: { status: string; data: { total: number; domains: Array<{ tools: Array<{ id: string }> }> } } } };
+  const result = await readCapabilities();
   const tools = result.sections.tools;
   assert.equal(tools.status, "ok");
   const ids = tools.data.domains.flatMap((domain) => domain.tools.map((tool) => tool.id));
@@ -106,4 +107,7 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   for (const toolId of ALL_CHAT_DELETE_TOOLS.allowedToolIds) {
     assert.equal(ids.includes(toolId), false, `${toolId} must stay hidden without a chat-delete grant`);
   }
+  const ownerResult = await deleteScope.fresh({ principalId: ownerId, run: readCapabilities });
+  const ownerIds = ownerResult.sections.tools.data.domains.flatMap(domain => domain.tools.map(tool => tool.id));
+  for (const toolId of ALL_CHAT_DELETE_TOOLS.allowedToolIds) assert.ok(ownerIds.includes(toolId), `${toolId} must be visible in the authenticated owner's chat`);
 });

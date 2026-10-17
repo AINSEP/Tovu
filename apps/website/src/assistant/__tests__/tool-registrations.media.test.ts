@@ -212,7 +212,7 @@ test("requiresConfirmation is unset on every wired Media tool", () => {
 test("an out-of-vocabulary content type is rejected with the schema attached for retry", async () => {
   const { deps } = fakeRouteDeps();
   const error = await wired("media_upload_asset", deps)
-    .handler(executionContext({ filename: "evil.svg", contentType: "image/svg+xml", dataBase64: ONE_PIXEL_PNG_BASE64 }))
+    .handler(executionContext({ filename: "unsupported.pdf", contentType: "application/pdf", dataBase64: ONE_PIXEL_PNG_BASE64 }))
     .then(() => null, (e: unknown) => e as Error);
 
   assert.ok(error, "an out-of-allowlist content type must reject");

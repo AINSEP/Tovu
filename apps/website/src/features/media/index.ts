@@ -107,7 +107,7 @@ export { InMemoryImageTransformer } from "@jini-ai/cms/media";
 
 export { SharpImageTransformer, ImageTransformUnavailableError, ImageSourceCorruptError } from "@jini-ai/cms/media/node";
 
-export { sniffContentType, type SniffedContentType } from "@jini-ai/cms/media";
+export { sanitizeSvg, sniffContentType, type SniffedContentType } from "@jini-ai/cms/media";
 
 export { mediaAgentToolCatalog } from "@jini-ai/cms/media";
 export type { AgentToolDefinition } from "@jini-ai/core";

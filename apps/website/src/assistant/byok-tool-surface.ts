@@ -32,7 +32,7 @@ import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
-import { readAssistantPermanentDeletesPolicy } from "./permanent-delete-settings.js";
+import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "../contracts/headless/assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
@@ -496,7 +496,7 @@ export function createByokToolSurface(
   // The input omits exactly the limiter and catalog reader built here. Domain slices already
   // declare the clock; the assembled object is checked against AssistantToolRegistryDeps.
   const registry = createToolRegistry({});
-  const deleteScope = createChatDeleteScope({ readPolicy: () => readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady }) });
+  const deleteScope = createChatDeleteScope({ readPolicy: ({ principalId }) => readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady }) });
   // Discovery view only: Jini authorizes invocations against the inner registry's WeakMap
   // identity. Executors must use `registry`, never this filtered view.
   const visibleRegistry: ToolRegistry = {
@@ -667,7 +667,7 @@ export function createByokToolSurface(
       runId: run.id,
     };
 
-    return deleteScope.fresh({ run: () => {
+    return deleteScope.fresh({ principalId: principal.id, run: () => {
       const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog }) });
       if (call.name === "search_tools") return runSearchTools(visibleCatalog, visibleRegistry, args, catalogAudit);
       if (call.name === "describe_tool") return runDescribeTool(visibleCatalog, args, catalogAudit);

@@ -115,7 +115,7 @@ import {
   resolveNewSessionField,
 } from "../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../assistant/agent-session-preset.js";
-import { readAssistantPermanentDeletesPolicy } from "../../../assistant/permanent-delete-settings.js";
+import { readChatPermanentDeletesPolicy } from "../../../assistant/permanent-delete-settings.js";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "../../../assistant/permanent-delete-tool-gate.js";
 import { isChatToolAllowed } from "../../../contracts/headless/assistant-permanent-deletes-policy.js";
 import { readAssistantSubagentsEnabled } from "../../../assistant/subagent-settings.js";
@@ -489,7 +489,7 @@ installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await 
 });
 
 const registry = createToolRegistry({});
-const deleteScope = createChatDeleteScope({ readPolicy: () => readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady }) });
+const deleteScope = createChatDeleteScope({ readPolicy: ({ principalId }) => readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady }) });
 const visibleRegistry = { list: (...args: Parameters<typeof registry.list>) => registry.list(...args).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })) };
 let refreshSkillsCatalog = () => {};
 
@@ -1276,8 +1276,8 @@ app.use(express.json({ limit: "6mb" }));
 // Read skills before discovery or execution, including changes made by another process.
 // Package catalog routes are synchronous; native request context supplies a fresh grant
 // without rebinding process-wide state or rebuilding the FTS index for each request.
-app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], (_req, _res, next) => {
-  void deleteScope.fresh({ run: () => next() }).catch(next);
+app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], (req, _res, next) => {
+  void deleteScope.fresh({ principalId: req.get(RUN_PRINCIPAL_HEADER), run: () => next() }).catch(next);
 });
 app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
 // Re-resolve the bearer after parsing, so even a credential that expired while parsing fails

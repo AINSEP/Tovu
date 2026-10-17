@@ -231,3 +231,36 @@ for (const [id, input, permission] of CASES) {
     assert.equal(reads, 2); assert.deepEqual(h.writes, []);
   });
 }
+
+for (const [id, singleInput, permission] of CASES.filter(([id]) => id !== 'trash_empty')) {
+  test(`${id}: one card names and confirms the whole batch`, async () => {
+    const key = Object.keys(singleInput)[0]!;
+    const h = harness(id, { items: [{ [key]: 'first' }, { [key]: 'second' }] }, permission);
+    const removed: string[] = [];
+    h.deps.prepare = async (_toolId, targetId) => ({
+      details: [{ label: 'Item', value: `review ${targetId}` }],
+      execute: async () => { removed.push(targetId!); return { removed: true, id: targetId }; },
+    });
+    let cards = 0;
+    h.options.emitSurface = async emission => {
+      cards++;
+      assert.deepEqual(removed, []);
+      assert.match(JSON.stringify(emission.payload), /review first/);
+      assert.match(JSON.stringify(emission.payload), /review second/);
+      const exchangeId = h.store.findTypedAnswerTarget({ principalId: 'owner', toolId: id })!;
+      h.store.deliver({ exchangeId, principalId: 'owner', params: { decision: 'confirm', [key]: 'forged' } }, { toolId: id });
+    };
+    assert.deepEqual(await h.registration.handler(h.ctx, h.options), {
+      batch: true, total: 2, results: [{ removed: true, id: 'first' }, { removed: true, id: 'second' }],
+    });
+    assert.equal(cards, 1);
+    assert.deepEqual(removed, ['first', 'second']);
+  });
+
+  test(`${id}: a malformed later batch item cannot delete earlier items`, async () => {
+    const h = harness(id, { items: [singleInput, { confirmed: true }] }, permission);
+    h.options.emitSurface = async () => { assert.fail('invalid batch must not emit a card'); };
+    await assert.rejects(h.registration.handler(h.ctx, h.options), /not an input of this tool/);
+    assert.deepEqual(h.writes, []);
+  });
+}

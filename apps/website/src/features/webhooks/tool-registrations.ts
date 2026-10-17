@@ -327,7 +327,7 @@ export function buildWebhooksRegistrations(
         });
         return { deleted: true, cancelled: false, subscription: toSubscriptionToolView(subscription, null) };
       },
-    }, { flag: "deleted", declined: ({ reason, prepared }) => {
+    }, { flag: "deleted", batch: true, declined: ({ reason, prepared }) => {
       if (reason === "declined" && prepared) return { deleted: false, cancelled: true, subscription: toSubscriptionToolView(prepared.existing, null) };
       return { deleted: false, cancelled: false, reason, note: reason === "expired"
         ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."

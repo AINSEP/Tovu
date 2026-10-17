@@ -1,13 +1,13 @@
-import { createHash } from 'node:crypto';
-import { nowIso } from '@jini-ai/core/primitives';
+import { replaceMediaFile } from '@jini-ai/cms/media';
 import type { Express } from 'express';
 import { decodeStrictBase64 } from '#src/contracts/core/index';
 import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, TOVU_MAX_UPLOAD_BYTES,
-  resolveUploadContentType, withSha256Lock, type MediaRecord } from '#src/features/media/index';
+  resolveUploadContentType } from '#src/features/media/index';
 import { resolveMediaPublicUrls } from '#src/features/media/tool-registrations';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import { toAdminMediaResponse } from '#src/server/inbound/admin-http/http/media';
 import type { MediaRouteDeps } from './deps.js';
+import { resolveMediaByteSizes } from './byte-size.js';
 
 function parseReplacement({ body }: { body: unknown }) {
   const values = (body ?? {}) as Record<string, unknown>;
@@ -27,33 +27,6 @@ function parseReplacement({ body }: { body: unknown }) {
     throw new MediaValidationError({ message: `content type '${verified}' is not allowed for upload` });
   }
   return { bytes, contentType: verified };
-}
-
-/** Stage verified bytes before the atomic source switch, under the existing GC/dedup lock.
- * No temporary media identity is created. If the CAS fails, an unreferenced staged blob may
- * remain for the normal orphan sweep; deleting it here could destroy another upload's bytes. */
-async function replaceFile({ deps, media, bytes, contentType, principalId }: {
-  deps: MediaRouteDeps; media: MediaRecord; bytes: Uint8Array; contentType: string; principalId: string;
-}) {
-  const sha256 = createHash('sha256').update(bytes).digest('hex');
-  const updatedAt = nowIso({ clock: deps.clock });
-  return withSha256Lock({ key: sha256, criticalSection: async () => {
-    let blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256 });
-    if (!blob) {
-      const { storageKey } = await deps.blobStore.put({ workspaceId: deps.workspaceId, sha256, bytes });
-      blob = { id: deps.idGen.newId(), workspaceId: deps.workspaceId, sha256, storageKey,
-        status: 'active', createdAt: updatedAt, createdByPrincipal: principalId };
-      await deps.assetBlobRepo.save(blob);
-    } else if (blob.status === 'tombstoned') {
-      blob = { ...blob, status: 'active', tombstonedAt: undefined };
-      await deps.assetBlobRepo.save(blob);
-    }
-    await deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType });
-    const { applied } = await deps.mediaRepo.replaceFileIfVersion!({ workspaceId: deps.workspaceId,
-      id: media.id, ifVersion: media.version, sha256, storageKey: blob.storageKey,
-      originalRenditionId: deps.idGen.newId(), updatedAt });
-    return applied ? { ...media, source: { sha256 }, updatedAt, version: media.version + 1 } : null;
-  } });
 }
 
 /** Same JSON upload protocol and per-entity permission as the host's media metadata route.
@@ -83,12 +56,15 @@ export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; de
         res.status(503).json({ error: 'media file replacement is unavailable', code: 'MEDIA_REPLACE_UNAVAILABLE' }); return;
       }
       const upload = parseReplacement({ body: req.body });
-      const saved = await replaceFile({ deps, media, ...upload, principalId: principal.id });
+      const saved = await replaceMediaFile({ deps, media, ...upload, principalId: principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
       if (!saved) {
         res.status(409).json({ error: 'media changed while replacing its file', code: 'MEDIA_REPLACE_CONFLICT' }); return;
       }
       const publicUrl = (await resolveMediaPublicUrls(deps, [saved])).get(saved.id) ?? null;
-      res.json({ media: toAdminMediaResponse({ media: saved, contentType: upload.contentType, publicUrl, byteSize: upload.bytes.byteLength }) });
+      const byteSize = upload.contentType === "image/svg+xml"
+        ? (await resolveMediaByteSizes({ deps, media: [saved] })).get(saved.source.sha256) ?? null
+        : upload.bytes.byteLength;
+      res.json({ media: toAdminMediaResponse({ media: saved, contentType: upload.contentType, publicUrl, byteSize }) });
     } catch (error) {
       res.status(error instanceof MediaValidationError ? 400 : 500).json({
         error: error instanceof MediaValidationError ? error.message : 'internal error',

@@ -86,6 +86,22 @@ async function registerOne(
   });
 }
 
+test("SVG requested through a versioned raster URL stays vector and carries CSP and nosniff", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" onload="alert(1)"><path d="M0 0h10v10z"/></svg>', "logo.svg");
+    await registerOne(deps, "public", { format: "webp" });
+    const response = await fetch(`${baseUrl}/m/${media.id}/public.v1/logo.webp`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "image/svg+xml");
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(response.headers.get("content-security-policy"), "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+    const svg = await response.text();
+    assert.match(svg, /viewBox="0 0 10 10"/);
+    assert.doesNotMatch(svg, /onload|alert/);
+    assert.deepEqual((await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id })).map(row => row.transformName), ["original"]);
+  });
+});
+
 /** Same shape `content-post-get-by-slug.test.ts`'s own `makePost` uses. */
 function makePost(overrides: Partial<PostRecord> & Pick<PostRecord, "id" | "slug">, workspaceId: string): PostRecord {
   return {

@@ -4,12 +4,12 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 
 import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
-import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType, type MediaRecord } from "#src/features/media/index";
+import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
-import { DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
+import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 
 /**
@@ -535,6 +535,11 @@ async function sendMediaRenditionResult(
       return;
     }
 
+    if (result.contentType === "image/svg+xml") {
+      // Vector passthroughs do not receive the raster pipeline's re-encode protection.
+      res.set("X-Content-Type-Options", "nosniff");
+      res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
+    }
     res
       .status(200)
       // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
@@ -609,17 +614,16 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  *
  * So this route bypasses the transform system entirely: {@link resolveMediaOriginalBlob} +
  * {@link sendMediaOriginalResponse} are the SAME functions `routes/admin/media/original.ts`'s
- * authenticated admin-preview route already uses (content-type sniffed fresh from bytes, SVG/HTML
+ * authenticated admin-preview route already uses (content-type sniffed fresh from bytes, SVG sanitized, HTML
  * forced to `application/octet-stream` + `attachment`, `nosniff`/CSP/CORP headers, `Range` support
  * for video seeking) — reused, not reimplemented, so the two routes' security posture can't drift
  * apart. The one behavioral difference from the admin route: no `requireAdminSession`/`media.read`
  * gate, since this URL is meant to sit in a `<video src>` on a public page.
  *
- * VIDEO/AUDIO ONLY (owner-approved mediawidget, 2026-10-10/11): the earlier video-only
- * boundary is deliberately widened for recognized audio, which also has no image transform.
- * This remains a narrow original-byte path: image assets must still reach the public web through
- * {@link registerMediaRenditionRoute}'s sanitizing re-encode above. Unknown bytes and markup stay
- * 404; sniffing, range handling and the member gate keep their existing owners.
+ * Video/audio and sanitized SVG share this original-byte path. Raster images still use
+ * {@link registerMediaRenditionRoute}'s re-encode. SVG is sanitized before serving even for
+ * legacy blobs; unknown bytes and HTML stay 404. Range handling and the member gate keep
+ * their existing owners.
  *
  * ADR-030 §4 gate (2026-09-03 sweep): {@link resolveMediaAccessDecision} runs before the blob is
  * even fetched, same as {@link registerMediaRenditionRoute} above — a denied caller gets the SAME
@@ -654,10 +658,10 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       }
       const { blob } = resolved;
 
-      const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
-      const sniffed = sniffContentType({ bytes });
-      if (!sniffed.startsWith("video/") && !sniffed.startsWith("audio/")) {
-        // Neither recognized video nor audio (or an unrecognized/corrupt asset).
+      const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+      const sniffed = sniffContentType({ bytes: sourceBytes });
+      if (sniffed !== "image/svg+xml" && !sniffed.startsWith("video/") && !sniffed.startsWith("audio/")) {
+        // Neither recognized video/audio nor SVG (or an unrecognized/corrupt asset).
         // everything else's public URL is `registerMediaRenditionRoute`'s transform-backed one.
         // `private, no-store` for the same reason the rendition route's not-found branch uses it
         // (2026-09-05): it must be byte-identical to this route's own gate-denied 404 just above,
@@ -666,6 +670,8 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
         return;
       }
 
+      // Reuse ingest sanitization for legacy blobs before applying byte ranges.
+      const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
       const totalLength = bytes.byteLength;
       const range = parseRangeHeader({ header: req.get("range"), totalLength });
       sendMediaOriginalResponse(res, bytes, range, {

@@ -144,8 +144,8 @@ test("catalog grants survive a parser continuation using the pre-existing reques
   // parser implementations that resume on the stream's pre-existing resource; no server starts.
   const stream = new AsyncResource("request-stream-fixture");
   const policy = { enabled: true, allowedToolIds: ["trash_empty"] };
-  const deleteScope = createChatDeleteScope({ readPolicy: async () => policy });
-  type Middleware = (req: { parsed?: boolean }, res: object, next: (error?: unknown) => void) => void;
+  const deleteScope = createChatDeleteScope({ readPolicy: async ({ principalId }) => { assert.equal(principalId, "owner"); return policy; } });
+  type Middleware = (req: { parsed?: boolean; get(name: string): string | undefined }, res: object, next: (error?: unknown) => void) => void;
   const stack: Middleware[] = [];
   const statements = daemonSource.statements.filter(statement => ts.isExpressionStatement(statement) &&
     ts.isCallExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "app.use" &&
@@ -157,10 +157,12 @@ test("catalog grants survive a parser continuation using the pre-existing reques
       express: { json: () => ((req, _res, next) => {
         queueMicrotask(() => stream.runInAsyncScope(() => { req.parsed = true; next(); }));
       }) as Middleware },
-      DELEGATED_TOOL_CALLS_PATH: "/api/delegated-tools/call", deleteScope,
+      DELEGATED_TOOL_CALLS_PATH: "/api/delegated-tools/call", RUN_PRINCIPAL_HEADER: "x-tovu-principal-id", deleteScope,
     });
     await new Promise<void>((resolve, reject) => {
-      const req: { parsed?: boolean } = {};
+      const req: { parsed?: boolean; get(name: string): string | undefined } = {
+        get: name => name === "x-tovu-principal-id" ? "owner" : undefined,
+      };
       let index = 0;
       const next = (error?: unknown) => {
         if (error) { reject(error); return; }

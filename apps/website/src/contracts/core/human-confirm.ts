@@ -17,7 +17,7 @@
  * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
 import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
-import { createApprovalHandler, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
+import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -80,7 +80,7 @@ export async function requireHumanConfirm(
   { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: ChatDeleteSurfaceDeps; spec: HumanConfirmSpec },
   { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
-  await requireChatDeleteGrant({ surfaces, toolId: spec.toolId });
+  await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
   if (!emitSurface) {
     throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
         "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
@@ -123,7 +123,7 @@ export async function requireHumanConfirm(
     const outcome = classifyConfirmationAnswer({ answer });
     if (!outcome.confirmed || answer.status !== "received") return outcome;
     // A revoke while the human reads the card takes effect before the domain effect resumes.
-    await requireChatDeleteGrant({ surfaces, toolId: spec.toolId });
+    await requireChatDeleteGrant({ surfaces, toolId: spec.toolId, principalId: ctx.principal.id });
     const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
     const offered = alternatives.some((alternative) => alternative.choice === choice);
     return offered && typeof choice === "string" ? { confirmed: true, choice } : { confirmed: true };
@@ -200,21 +200,32 @@ export function approvalToolHandler<TPrepared>(
     describe: (required: { ctx: ToolExecutionContext; prepared: TPrepared }) => HumanConfirmSpec | Promise<HumanConfirmSpec>;
     run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer; choice?: string }, optional: ToolExecutionOptions) => Promise<unknown>;
   },
-  { flag = 'executed', ask = () => true, rememberKey, remembered, declined }: {
+  { flag = 'executed', ask = () => true, rememberKey, remembered, declined, batch = false }: {
     flag?: string;
     ask?: (required: { prepared: TPrepared }) => boolean;
     rememberKey?: (required: { prepared: TPrepared }) => string | undefined;
     remembered?: RememberedApprovalPort;
     declined?: (required: { reason: 'declined' | 'expired' | 'abandoned'; prepared?: TPrepared }) => unknown;
+    batch?: boolean;
   } = {},
 ): ToolHandler {
-  return createApprovalHandler({
+  const steps: ApprovalSteps<TPrepared, HumanConfirmSpec> = {
     prepare,
     describe: async ({ ctx, prepared }) => ({ ask: ask({ prepared }), description: await describe({ ctx, prepared }), rememberKey: rememberKey?.({ prepared }) }),
     askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
     run,
     notConfirmed: declined ?? (({ reason }) => ({ [flag]: false, ...notConfirmedResult({ confirmed: false, reason }) })),
-  }, { remembered });
+  };
+  if (batch) return createBatchApprovalHandler({ steps, combineDescriptions: ({ descriptions }) => ({
+    ...descriptions[0]!,
+    title: `Permanently delete ${descriptions.length} selections?`,
+    description: "Review every target below. One Confirm click approves this entire batch; there is no undo.",
+    details: descriptions.flatMap((description, index) => [
+      { label: `Selection ${index + 1}`, value: description.title }, ...description.details,
+    ]),
+    warning: [...new Set(descriptions.map(description => description.warning).filter(Boolean))].join("\n"),
+  }) });
+  return createApprovalHandler(steps, { remembered });
 }
 
 /**

@@ -42,7 +42,8 @@
  * - **Bytes are what the bytes say they are.** The response's own `Content-Type` header is NEVER
  *   trusted (see {@link fetchImage}); the type is decided by `sniffContentType`'s magic-byte read of
  *   the actual payload, and only the types in {@link IMPORTABLE_CONTENT_TYPES} are accepted. A
- *   server that answers `image/png` and returns HTML, a PDF, or an unsanitized SVG is rejected.
+ *   server that answers `image/png` and returns HTML or a PDF is rejected; SVG is accepted and
+ *   sanitized by `uploadMedia` before hashing or storage.
  * - **Bounded, with no silent truncation.** {@link MEDIA_IMPORT_MAX_BYTES} caps the payload, and a
  *   response whose BYTES the egress policy clipped (`HttpResponse.bodyBytesTruncated`) is refused
  *   outright rather than stored. That distinction is the whole point: a truncated image is not a
@@ -85,11 +86,10 @@ import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from
  * sniffed content type to hand back the byte-passthrough `/m/{id}/original` route for anything
  * `video/`-prefixed — so accepting a video HERE adds no new capability the assistant could not
  * already reach one hop earlier (fetch the bytes itself, base64-encode them, call
- * `media_upload_asset`); it only removes the pointless detour. SVG stays absent for the reason
- * `DEFAULT_ALLOWED_MIME_TYPES` itself states: it needs an ingest sanitizer that does not exist yet.
+ * `media_upload_asset`); it only removes the pointless detour. SVG is accepted because `uploadMedia` sanitizes it before hashing or storing it.
  */
 export const IMPORTABLE_CONTENT_TYPES: ReadonlySet<string> = new Set<SniffedContentType>([
-  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "video/mp4", "video/webm",
+  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml", "video/mp4", "video/webm",
 ]);
 /**
  * Largest payload this tool will import. Not an independent number: it IS `contracts/core/upload-limits.ts`'s

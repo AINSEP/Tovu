@@ -16,7 +16,6 @@ import {
   type AssetBlobRepoPort,
   type AssetRenditionRepoPort,
   type BlobStorePort,
-  type MediaRepoPort,
   type TransformDefinitionRepoPort,
   type UploadMediaInput,
 } from "../media/index.js";
@@ -27,6 +26,8 @@ import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "../fs-files/layout.j
 import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
+import { replaceMediaFile, MediaValidationError, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
+import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 
 /**
  * @file Wires URL and local-file imports onto the same upload pipeline: fetch URLs through the
@@ -54,7 +55,7 @@ export interface MediaImportToolDeps {
   siteBinding: { readonly dir: string };
   clock: Clock;
   idGen: IdGenerator;
-  mediaRepo: MediaRepoPort;
+  mediaRepo: MediaFileReplacementRepoPort;
   assetBlobRepo: AssetBlobRepoPort;
   assetRenditionRepo: AssetRenditionRepoPort;
   blobStore: BlobStorePort;
@@ -158,6 +159,7 @@ export async function withCallerSafeEgressRefusal<T>(
  * `sideEffects` declaration.
  */
 export const mediaImportDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  ["media_replace_file", "mutates-durable-state"],
   // -> one outbound guarded HTTPS GET + uploadMedia (mediaRepo.save/blobRepo.save/
   // renditionRepo.save) + mediaContentTypeStore.set. A genuine durable Tovu-side write, the same
   // classification media_upload_asset and media_generate_asset both carry.
@@ -237,11 +239,56 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
   };
 }
 
+/** Read replacement bytes through the existing root containment, secret exclusions and bounded read.
+ * @throws FsFilePathError or MediaImportValidationError for unsafe paths or unsupported bytes.
+ * @complexity O(b) time/space for b file bytes, bounded by the host upload ceiling. */
+async function readLocalReplacement({ routeDeps, input }: { routeDeps: MediaImportToolDeps; input: Record<string, unknown> }, _optional = {}) {
+  const rootPath = resolveLocalImportRoot({ routeDeps, root: requireString({ input, key: "root" }) });
+  const relativePath = requireString({ input, key: "path" });
+  const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
+  const bytes = await openFsFileForRead({ rootPath, relativePath, maxBytes });
+  const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
+  return { bytes, contentType };
+}
+
 /** Builds this domain's permission-gated durable import handlers; root/path validation precedes I/O.
  * @complexity O(1) registration work; handlers are bounded by the upload cap.
  */
 export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    /** Authorize before fetching; the admin's shared service owns blob staging and atomic versioning. */
+    media_replace_file: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
+      const mediaId = requireString({ input, key: "mediaId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "media.update" },
+      { entityType: "media", entityId: mediaId });
+      return withSchemaOnRejection({
+        toolId: "media_replace_file", catalog: CATALOG_BY_ID,
+        isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof FsFilePathError || error instanceof MediaValidationError,
+        fn: async () => {
+          const remote = input.url !== undefined;
+          if (remote ? input.root !== undefined || input.path !== undefined : input.root === undefined || input.path === undefined) {
+            throw new MediaImportValidationError({ message: "Pass either url or root and path, never both." });
+          }
+          const media = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
+          if (!media || media.status !== "active") throw new MediaImportValidationError({ message: "Media was not found or is in Trash; restore it before replacing its file." });
+          if (!routeDeps.mediaRepo.replaceFileIfVersion || !routeDeps.mediaRepo.saveRenditionIfSource) {
+            throw new MediaImportValidationError({ message: "Media file replacement is unavailable on this storage adapter." });
+          }
+          const source = remote
+            ? await withCallerSafeEgressRefusal(routeDeps.mediaImportEgressRefusalLog ?? console.warn,
+              () => fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url: requireString({ input, key: "url" }) }),
+              { toolId: "media_replace_file" })
+            : await readLocalReplacement({ routeDeps, input });
+          const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+          if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
+          const urls = await resolveMediaPublicUrls(routeDeps, [saved]);
+          return { media: { id: saved.id, slug: saved.slug, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
+        },
+      });
+    },
     media_import_local_file: async (ctx): Promise<{ media: ImportedMediaView }> => {
       const input = requireInputRecord({ input: ctx.input });
       const root = requireString({ input, key: "root" });
@@ -255,7 +302,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
 
       return withSchemaOnRejection({
         toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
-        isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError,
+        isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError || error instanceof MediaValidationError,
         fn: async () => {
           const rootPath = resolveLocalImportRoot({ routeDeps, root });
           const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
@@ -292,7 +339,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
       return withSchemaOnRejection({
         toolId: "media_import_from_url",
         catalog: CATALOG_BY_ID,
-        isShapeRejection: isImportShapeRejection,
+        isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof MediaValidationError,
         fn: () =>
           withCallerSafeEgressRefusal(logEgressRefusal, async () => {
             const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });

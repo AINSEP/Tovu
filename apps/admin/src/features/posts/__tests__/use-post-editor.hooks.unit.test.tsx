@@ -989,7 +989,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     // Keep in sync BY HAND with `@jini-ai/cms/media`'s `media-service.ts` `DEFAULT_ALLOWED_MIME_TYPES`,
     // same as `fetch-image.test.ts`'s equivalent pin for `IMPORTABLE_CONTENT_TYPES` in apps/website.
     expect(new Set(FILE_HANDLER_ALLOWED_MIME_TYPES)).toEqual(
-      new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "video/mp4", "video/webm"])
+      new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml", "video/mp4", "video/webm"])
     );
   });
 

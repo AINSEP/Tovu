@@ -3,6 +3,18 @@ import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY,
 export interface PermanentDeleteSettingsDeps {
   settingsRepo: SettingsRepoPort; getEffective: typeof getEffective; settingsReady: Promise<void>; workspaceId: string;
 }
+/** Owner chats inherit the admin's delete capabilities; the human card still gates every effect.
+ * Non-owner callers retain the site's explicit grant, including fresh revocation checks.
+ * @complexity O(13) local time/space plus owner lookup or one settings read. */
+export async function readChatPermanentDeletesPolicy(
+  required: PermanentDeleteSettingsDeps & { ownerPrincipalId: Promise<string>; principalId?: string },
+  _optional = {},
+): Promise<AssistantPermanentDeletesPolicy> {
+  if (required.principalId && required.principalId === await required.ownerPrincipalId) {
+    return { enabled: true, allowedToolIds: PERMANENT_DELETE_TOOLS.map(tool => tool.id) };
+  }
+  return readAssistantPermanentDeletesPolicy(required);
+}
 /** Fresh per run/call. Missing or invalid values deny; unavailable storage propagates.
  * @param required - The existing site ledger, effective-value resolver and definition readiness.
  * @returns A copied OFF policy for absent/malformed values, or the validated site grant.

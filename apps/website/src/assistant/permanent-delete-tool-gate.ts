@@ -22,14 +22,14 @@ export function filterChatDeleteCatalog(required: { catalog: ToolCatalogQuery; p
  * @returns The catalog adapter and fresh async scope; outside a scope grants are OFF.
  * @example const scope = createChatDeleteScope({ readPolicy }); await scope.fresh({ run: executeRun });
  * @complexity O(1) local time/space per scope plus the injected settings read. */
-export function createChatDeleteScope(required: { readPolicy(): Promise<AssistantPermanentDeletesPolicy> }, _optional = {}) {
+export function createChatDeleteScope(required: { readPolicy(input: { principalId?: string }): Promise<AssistantPermanentDeletesPolicy> }, _optional = {}) {
   const context = new AsyncLocalStorage<AssistantPermanentDeletesPolicy>();
   const policy = () => context.getStore() ?? DEFAULT_PERMANENT_DELETES_POLICY;
   return {
     policy,
     catalog: ({ catalog }: { catalog: ToolCatalogQuery }) => filterChatDeleteCatalog({ catalog, policy }),
-    async fresh<T>(input: { run: () => T | Promise<T> }, _options = {}): Promise<T> {
-      const snapshot = await required.readPolicy();
+    async fresh<T>(input: { run: () => T | Promise<T>; principalId?: string }, _options = {}): Promise<T> {
+      const snapshot = await required.readPolicy({ principalId: input.principalId });
       return context.run(snapshot, input.run);
     },
   };

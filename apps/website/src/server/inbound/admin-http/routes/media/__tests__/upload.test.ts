@@ -169,18 +169,22 @@ test("upload: a file one byte over TOVU_MAX_UPLOAD_BYTES (50 MiB) is rejected wi
   assert.equal(json.error, "uploaded file exceeds the 50 MB size cap");
 });
 
-test("upload: SVG markup declared as image/png is rejected with 400 and nothing is stored", async (t) => {
-  const { mediaRepo } = createRouteDeps();
-  const app = buildApp({ mediaRepo });
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>';
+test("upload: SVG declared as image/png is sanitized before hashing and storing", async (t) => {
+  const deps = createRouteDeps();
+  const app = buildApp({ ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" onload="alert(1)"><script>alert(1)</script><path d="M0 0h10v10z"/></svg>';
   const { status, json } = await upload(t, app, {
-    filename: "pixel.png",
-    contentType: "image/png",
-    dataBase64: Buffer.from(svg, "utf8").toString("base64"),
+    filename: "logo.png", contentType: "image/png", dataBase64: Buffer.from(svg).toString("base64"),
   });
-  assert.equal(status, 400);
-  assert.deepEqual(json, { error: "the file's content (image/svg+xml) is not an allowed media type" });
-  assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.equal(status, 201);
+  assert.equal(json.media.contentType, "image/svg+xml");
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: json.media.sha256 });
+  assert.ok(blob);
+  const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+  assert.doesNotMatch(Buffer.from(bytes).toString(), /script|onload|alert/);
+  assert.match(Buffer.from(bytes).toString(), /viewBox="0 0 10 10"/);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), json.media.sha256);
+  assert.equal(json.media.publicUrl, `/m/${json.media.slug}/original`);
 });
 
 test("upload: HTML declared as image/jpeg is rejected with 400", async (t) => {

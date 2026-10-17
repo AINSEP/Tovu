@@ -67,6 +67,37 @@ function mp4Bytes(payload: string): Uint8Array {
   return b;
 }
 
+test("public SVG originals have image/svg+xml, nosniff and CSP, including legacy unsanitized blobs and ranges", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const raw = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" onload="alert(1)"><script>alert(1)</script><foreignObject/><path d="M0 0h10v10z"/></svg>');
+    const { media } = await uploadOne(deps, raw, "logo.svg", "image/svg+xml");
+    const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: media.source.sha256 });
+    assert.ok(blob);
+    // Bypass ingest deliberately to exercise the legacy-data serving boundary.
+    const originalGet = deps.blobStore.get.bind(deps.blobStore);
+    deps.blobStore.get = async (input) => input.storageKey === blob.storageKey ? raw : originalGet(input);
+    for (const key of [media.id, media.slug]) {
+      const response = await fetch(`${baseUrl}/m/${key}/original`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), "image/svg+xml");
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.equal(response.headers.get("content-security-policy"), "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+      assert.equal(response.headers.get("content-disposition"), null);
+      const clean = await response.text();
+      assert.doesNotMatch(clean, /script|onload|foreignObject|alert/);
+      assert.match(clean, /viewBox="0 0 10 10"/);
+      const partial = await fetch(`${baseUrl}/m/${key}/original`, { headers: { Range: "bytes=0-9" } });
+      assert.equal(partial.status, 206);
+      assert.equal(partial.headers.get("content-type"), "image/svg+xml");
+      assert.equal(partial.headers.get("x-content-type-options"), "nosniff");
+      assert.equal(partial.headers.get("content-security-policy"), "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+      assert.equal(await partial.text(), clean.slice(0, 10));
+    }
+    await trashMedia({ deps: { clock: deps.clock, mediaRepo: deps.mediaRepo }, input: { workspaceId: deps.workspaceId, id: media.id } });
+    assert.equal((await fetch(`${baseUrl}/m/${media.id}/original`)).status, 410);
+  });
+});
+
 /** Same shape `content-post-get-by-slug.test.ts`'s own `makePost` uses. */
 function makePost(overrides: Partial<PostRecord> & Pick<PostRecord, "id" | "slug">, workspaceId: string): PostRecord {
   return {

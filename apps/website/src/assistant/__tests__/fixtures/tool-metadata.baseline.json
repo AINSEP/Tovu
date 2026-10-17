@@ -7,6 +7,7 @@
     }
   },
   "keywords": {
+    "media_replace_file": "replace swap change image photo picture file bytes existing media in place same id slug version url local",
     "assistant_chats_list": "previous earlier interrupted chat conversation history search resume continue what we were doing",
     "assistant_chat_read": "read previous chat transcript history tail messages resume interrupted continue conversation",
     "content_stats": "how many count number of posts pages articles statistics stats word count words long length percentage chart pie breakdown",
@@ -298,6 +299,11 @@
     "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite"
   },
   "queries": {
+    "media_replace_file": [
+      "Replace this image in place.",
+      "Change the file but keep the media id and references.",
+      "Replace a media file from a local file or https URL."
+    ],
     "deployment_diagnose_static_export": [
       "What would a static export drop?",
       "Why was my static publish refused?"
@@ -1784,6 +1790,10 @@
     ]
   },
   "approvals": {
+    "media_replace_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
     "assistant_chats_list": {
       "class": "read",
       "confirmation": "direct"

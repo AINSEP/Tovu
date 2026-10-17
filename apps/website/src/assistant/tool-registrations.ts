@@ -1,5 +1,5 @@
 import { isChatToolAllowed, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/assistant-permanent-deletes-policy.js";
-import { readAssistantPermanentDeletesPolicy } from "./permanent-delete-settings.js";
+import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
 import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
@@ -37,7 +37,7 @@ import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-too
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { deriveContentReadRegistrations } from "./content-read-tool.js";
-import { applyBatchInputs, type BatchableTool } from "./batch-tool-inputs.js";
+import { applyBatchInputs, batchDescriptorFor, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions, ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
@@ -321,8 +321,8 @@ export function buildAssistantToolRegistrations(
       ? Reflect.get(target, key, receiver) : Reflect.get(routeDeps, key),
   });
 
-  const assertChatDeleteAllowed = async ({ toolId }: { toolId: string }) => {
-    const policy = await readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady });
+  const assertChatDeleteAllowed = async ({ toolId, principalId }: { toolId: string; principalId?: string }) => {
+    const policy = await readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady });
     if (!isChatToolAllowed({ toolId, policy })) throw chatDeleteRefusal({ toolId });
   };
   const guardedSurfaces: ChatDeleteSurfaceDeps = { ...surfaces, assertChatDeleteAllowed };
@@ -371,7 +371,7 @@ export function buildAssistantToolRegistrations(
   // Before collapse: content_read cards inherit the checked read registrations.
   const guardedRegistrations = registrations.map(registration => PERMANENT_DELETE_TOOLS.some(tool => tool.id === registration.descriptor.id)
     ? { ...registration, handler: async (ctx: import("@jini-ai/core").ToolExecutionContext, optional?: import("@jini-ai/core").ToolExecutionOptions) => {
-      await assertChatDeleteAllowed({ toolId: registration.descriptor.id });
+      await assertChatDeleteAllowed({ toolId: registration.descriptor.id, principalId: ctx.principal.id });
       return registration.handler(ctx, optional);
     } } : registration);
   const approvedRegistrations = guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
@@ -420,7 +420,14 @@ export function buildAssistantToolRegistrations(
   }) : approvedRegistrations;
   // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
   // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
-  const batchedRegistrations = applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools });
+  const batchedRegistrations = applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools }).map(registration => {
+    const toolId = registration.descriptor.id;
+    if (!PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId) || toolId === "trash_empty" || toolId === "deployment_ops_unset_secret") return registration;
+    // The domain's approval lifecycle prepares all selections and asks once. Do not put the
+    // ordinary per-item batch executor around it: that would create one confirmation per item.
+    const descriptor = batchDescriptorFor({ descriptor: registration.descriptor, tool: { toolId } });
+    return { ...registration, descriptor: { ...descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
+  });
   if (options.includeContentReadCollapse === false) return batchedRegistrations;
   const finalRegistrations = deriveContentReadRegistrations(batchedRegistrations);
   // A new collapsed card is a new registered tool too: never exempt it from the guard.

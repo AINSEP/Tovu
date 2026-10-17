@@ -102,9 +102,26 @@ const IMPORT_SCHEMA = {
  */
 export const mediaImportAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: "media_replace_file",
+    description: "Replace the file bytes of an existing media item in place from an https URL or a local file. Keeps its id, slug, metadata and all page references; increments its version and refreshes its /m/ renditions, just like Replace file in Admin Media. Use this when the owner wants a different image under the same media entry, rather than creating another entry. Pass mediaId and either url or root plus path (the same roots as fs_list_files). Returns {media:{id,slug,version,sha256,publicUrl}}. Requires media.update. Refuses trashed items, concurrent edits, unavailable replacement storage, unsafe URLs or paths, and oversized or unsupported bytes. No deletion confirmation is needed.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "media.update" },
+    inputSchema: {
+      type: "object", additionalProperties: false, required: ["mediaId"],
+      properties: {
+        mediaId: { type: "string", minLength: 1 },
+        url: IMPORT_SCHEMA.properties.url,
+        root: LOCAL_IMPORT_SCHEMA.properties.root,
+        path: LOCAL_IMPORT_SCHEMA.properties.path,
+      },
+      oneOf: [{ required: ["url"], not: { anyOf: [{ required: ["root"] }, { required: ["path"] }] } },
+        { required: ["root", "path"], not: { required: ["url"] } }],
+    },
+  },
+  {
     name: "media_import_local_file",
     description:
-      "Put an image or video saved on this computer into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use this for local files on disk, such as a video in Downloads, a photo on the Desktop, or a logo in a theme folder. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, MP4 and WebM, up to 50 MiB, detected from the actual bytes. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Files outside the file browser's roots, secrets, denied files, and oversized or unsupported files are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
+      "Put an image or video saved on this computer into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use this for local files on disk, such as a video in Downloads, a photo on the Desktop, or a logo in a theme folder. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Files outside the file browser's roots, secrets, denied files, and oversized or unsupported files are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
     sideEffects: "mutates-durable-state",
     authorization: { permission: "media.upload" },
     inputSchema: LOCAL_IMPORT_SCHEMA,
@@ -112,7 +129,7 @@ export const mediaImportAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "media_import_from_url",
     description:
-      "THIS IS HOW TO SAVE AN IMAGE OR VIDEO YOU ONLY HAVE A URL FOR — the missing third way into the media library, alongside media_upload_asset (which needs base64 bytes you are already holding) and media_promote_chat_attachment (which needs a file a human attached to this chat). Call this whenever you have a link to an image or video and want it in the media library: an image another tool or an external MCP server just generated and returned a URL for, an image on a page you are working from, a stock/CDN image or video clip the human pointed you at. You do NOT need to download the file, read it, or convert it to base64 first — pass the URL and the server fetches the bytes itself. Requires an absolute https URL; the fetch is size-bounded, time-bounded, and blocked from reaching private/internal addresses. The file's real format is detected from its actual bytes, not from what the server claims, and only PNG, JPEG, GIF, WebP, AVIF, MP4 and WebM are accepted — a URL that returns HTML, a PDF, or an SVG is rejected rather than saved as a broken asset. On success the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl) is the SAME shape media_upload_asset/media_generate_asset/content_read.media_asset return, so the id can go straight into media_update_metadata/media_trash_asset and `publicUrl` (when present) can be used to embed the asset in a post or page immediately. Importing the same file twice is safe and cheap — identical bytes are de-duplicated to one stored blob. A 403 or 404 usually means a signed URL has already expired: ask for a fresh URL instead of retrying the same one.",
+      "THIS IS HOW TO SAVE AN IMAGE OR VIDEO YOU ONLY HAVE A URL FOR — the missing third way into the media library, alongside media_upload_asset (which needs base64 bytes you are already holding) and media_promote_chat_attachment (which needs a file a human attached to this chat). Call this whenever you have a link to an image or video and want it in the media library: an image another tool or an external MCP server just generated and returned a URL for, an image on a page you are working from, a stock/CDN image or video clip the human pointed you at. You do NOT need to download the file, read it, or convert it to base64 first — pass the URL and the server fetches the bytes itself. Requires an absolute https URL; the fetch is size-bounded, time-bounded, and blocked from reaching private/internal addresses. The file's real format is detected from its actual bytes, not from what the server claims, and only PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM are accepted — SVG is sanitized before storage; a URL that returns HTML or a PDF is rejected rather than saved as a broken asset. On success the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl) is the SAME shape media_upload_asset/media_generate_asset/content_read.media_asset return, so the id can go straight into media_update_metadata/media_trash_asset and `publicUrl` (when present) can be used to embed the asset in a post or page immediately. Importing the same file twice is safe and cheap — identical bytes are de-duplicated to one stored blob. A 403 or 404 usually means a signed URL has already expired: ask for a fresh URL instead of retrying the same one.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "media.upload" },
     inputSchema: IMPORT_SCHEMA,

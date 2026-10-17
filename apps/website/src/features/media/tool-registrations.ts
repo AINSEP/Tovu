@@ -48,7 +48,7 @@ function resolveOneAssetPublicUrl(
 ): string | null {
   const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
-  if (contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath(key, { kind: "original" });
+  if (contentType === "image/svg+xml" || contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath(key, { kind: "original" });
   if (!latest) return null;
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
   return mediaPublicPath(key, { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext });

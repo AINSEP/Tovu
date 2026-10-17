@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { findMediaByIdOrSlug, sniffContentType, type MediaRecord } from "#src/features/media/index";
+import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { parseRangeHeader, type ParsedRange } from "#src/server/inbound/admin-http/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
@@ -22,20 +22,19 @@ import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
  * gating an ordinary authenticated-session preview fetch.)
  *
  * SECURITY — this route serves attacker-influenced bytes. `uploadMedia`
- * validates only a client-supplied `contentType` STRING against an advisory
- * allowlist (`DEFAULT_ALLOWED_MIME_TYPES`); it never inspects the actual bytes,
- * and neither `media` nor `asset_blobs` persists a real content type anywhere
- * (see `media-service.ts`'s file header, point 4). So:
+ * validates its MIME allowlist and sanitizes SVG before storage. Legacy blobs may predate that
+ * protection, and response types must describe the actual bytes rather than stored metadata. So:
  *  - `Content-Type` is NEVER the client's upload-time string — it is always
  *    `sniffContentType(bytes)`, computed fresh from the bytes this exact
  *    response is about to send (`content-type-sniffer.ts`).
- *  - A sniffed `text/html`/`application/xhtml+xml`/`image/svg+xml` (SVG and
- *    HTML are same-origin stored-XSS vectors if ever rendered inline) is
+ *  - SVG is sanitized before inline serving, including blobs that predate safe ingest.
+ *  - A sniffed `text/html`/`application/xhtml+xml` (same-origin stored-XSS vectors
+ *    if ever rendered inline) is
  *    forced to `application/octet-stream` + `Content-Disposition: attachment`
  *    rather than served as-is — see `DISALLOWED_INLINE_CONTENT_TYPES` below.
  *  - `X-Content-Type-Options: nosniff` is always set, so a browser trusts the
  *    Content-Type this route declares instead of re-sniffing the raw bytes
- *    itself (without this header, the SVG/HTML defusal above is moot — a
+ *    itself (without this header, the HTML download defusal above is moot — a
  *    sniffing browser could still render forced-`octet-stream` bytes as HTML).
  *  - A restrictive `Content-Security-Policy` and `Cross-Origin-Resource-Policy`
  *    ride along as further defense in depth in case the response is ever
@@ -62,7 +61,14 @@ import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
  * out-of-bounds handling this defers to.
  */
 
-/** Sniffed types that must never be served as their literal `Content-Type` — SVG and HTML (and
+/**
+ * Keep inline logo styles and data images; sanitization strips references other than document-local
+ * fragments and data URLs, so same-origin image loads are unnecessary. Retain the sandbox as
+ * defense in depth when an SVG is opened as a top-level document.
+ */
+export const SVG_CONTENT_SECURITY_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox";
+
+/** Sniffed types that must never be served as their literal `Content-Type` — HTML (and
  * XHTML, which this route blocks even though `sniffContentType` currently folds it into
  * `"text/html"` — see that module's doc comment) are same-origin stored-XSS vectors if a browser
  * ever renders them inline. Kept as an explicit route-level check (rather than only trusting the
@@ -74,7 +80,6 @@ import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
 export const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
   "text/html",
   "application/xhtml+xml",
-  "image/svg+xml",
 ]);
 
 /**
@@ -155,7 +160,9 @@ export function sendMediaOriginalResponse(
 ): void {
   const totalLength = bytes.byteLength;
   res.set("X-Content-Type-Options", "nosniff");
-  res.set("Content-Security-Policy", "default-src 'none'; sandbox");
+  res.set("Content-Security-Policy", contentType.safe === "image/svg+xml"
+    ? SVG_CONTENT_SECURITY_POLICY
+    : "default-src 'none'; sandbox");
   res.set("Cross-Origin-Resource-Policy", "same-origin");
   res.set("Cache-Control", "private, no-store");
   res.set("Content-Type", contentType.safe);
@@ -210,10 +217,11 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
       }
       const { blob } = resolved;
 
-      const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+      const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+      const sniffed = sniffContentType({ bytes: sourceBytes });
+      // Old blobs may predate ingest sanitization; never authorize raw markup from its label.
+      const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
       const totalLength = bytes.byteLength;
-
-      const sniffed = sniffContentType({ bytes });
       const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
       // Every response here reflects this principal's authorization at request time and may name
       // whether a specific asset is trashed — never shared-cached (mirrors the public rendition

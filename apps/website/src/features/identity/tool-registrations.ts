@@ -126,7 +126,7 @@ export function buildGatedIdentityRegistrations(
         if (!isDeepStrictEqual(currentReferences, references)) throw new ToolInputError({ message: `${registration.descriptor.id}: dependencies changed while confirmation was open. Request a new confirmation; nothing was deleted.` });
         return registration.handler({ ...ctx, input: { [`${kind}Id`]: id } }, options);
       },
-    }, { flag: "deleted" }),
+    }, { flag: "deleted", batch: true }),
   });
 
   const createUserWithHumanPassword = (inner: ToolHandler, publishedSchema: unknown): ToolHandler => async (ctx, options = {}) => {

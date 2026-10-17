@@ -128,11 +128,13 @@ test("theme_trash_file moves the file into .trash/, leaving the theme valid and 
     path: string;
     trashedPath: string;
     status: string;
+    note: string;
   };
 
   assert.equal(result.path, "styles.css");
   assert.match(result.trashedPath, /^\.trash\/\d+\/styles\.css$/);
   assert.equal(result.status, "valid");
+  assert.match(result.note, /Moved to the theme's trash; restore with theme_restore_trashed_file/);
   assert.equal(existsInTheme(themesDir, "styles.css"), false, "the original path must be empty");
   assert.equal(existsInTheme(themesDir, result.trashedPath), true, "the bytes must exist at the trashed path");
   assert.equal(fs.readFileSync(path.join(themesDir, "plain", result.trashedPath), "utf8"), before, "trashing must not alter the bytes");
@@ -164,7 +166,7 @@ test("theme_trash_file refuses a path that is already inside .trash/", async () 
   const { deps } = fakeRouteDeps();
   const first = (await trashFile(deps, { themeId: "plain", path: "styles.css" })) as { trashedPath: string };
 
-  await assert.rejects(() => trashFile(deps, { themeId: "plain", path: first.trashedPath }), /already inside the trash/);
+  await assert.rejects(() => trashFile(deps, { themeId: "plain", path: first.trashedPath }), /moved to the theme's trash; restore with theme_restore_trashed_file/);
 });
 
 test("trashing two different files that once shared a path never collides — each trash op gets its own timestamp folder", async (t) => {

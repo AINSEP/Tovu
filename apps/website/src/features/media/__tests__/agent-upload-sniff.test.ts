@@ -42,7 +42,7 @@ const WORKSPACE_ID = "ws-media-tools";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-24T00:00:00.000Z";
 
-const SVG_BYTES = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>', "utf8");
+const HTML_BYTES = Buffer.from("<html><script>alert(1)</script></html>", "utf8");
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
@@ -83,13 +83,13 @@ test("media_upload_asset rejects bytes that sniff outside the allowlist even whe
   await assert.rejects(
     () => wired("media_upload_asset", deps).handler(
       executionContext({
-        dataBase64: SVG_BYTES.toString("base64"),
+        dataBase64: HTML_BYTES.toString("base64"),
         filename: "logo.png",
         // Declared type IS on the allowlist — only sniffing the real bytes catches this.
         contentType: "image/png",
       })
     ),
-    /the file's content \(image\/svg\+xml\) is not an allowed media type/
+    /the file's content \(text\/html\) is not an allowed media type/
   );
 
   const remaining = await mediaRepo.list({ workspaceId: WORKSPACE_ID });

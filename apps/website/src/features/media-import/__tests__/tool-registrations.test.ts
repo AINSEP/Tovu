@@ -173,6 +173,29 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
+test("the assistant URL tool sanitizes SVG, hashes stored bytes, and returns an original URL", async () => {
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><foreignObject/><a href="javascript:alert(1)"><path d="M0 0h10v10z"/></a></svg>');
+  const fixture = fakeRouteDeps({ responses: [imageResponse(svg)] });
+  const result = await wired("media_import_from_url", fixture.deps).handler(executionContext({ url: "https://example.com/logo.svg" })) as { media: { id: string; slug: string; sha256: string; publicUrl: string } };
+  assert.equal(fixture.blobStore.writes.length, 1);
+  const stored = fixture.blobStore.writes[0]!;
+  assert.doesNotMatch(Buffer.from(stored.bytes).toString(), /script|onload|foreignObject|javascript:|alert/);
+  assert.equal(sha256Hex(stored.bytes), result.media.sha256);
+  assert.equal(result.media.publicUrl, `/m/${result.media.slug}/original`);
+  assert.equal((await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }))?.title, "logo");
+});
+
+test("both model-facing import descriptions advertise sanitized SVG and need no confirmation", () => {
+  for (const name of ["media_import_local_file", "media_import_from_url"]) {
+    const entry = mediaImportAgentToolCatalog.find(tool => tool.name === name)!;
+    assert.match(entry.description, /SVG/);
+    const registration = wired(name, fakeRouteDeps().deps);
+    assert.equal(registration.descriptor.requiresConfirmation, undefined);
+    assert.equal(entry.authorization.permission, "media.upload");
+    assert.match(entry.description, /SVG is sanitized before storage/);
+  }
+});
+
 test("URL imports attribute each new row to its actor even when the source bytes are shared", async () => {
   const fixture = fakeRouteDeps({ responses: [imageResponse(REAL_PNG), imageResponse(REAL_PNG)] });
   for (const actor of ["owner-importing", "plugin-api-key"]) {
@@ -195,7 +218,8 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 function mediaImportRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_import")).map((r) => [r.descriptor.id, r]));
+  const toolIds = new Set(mediaImportAgentToolCatalog.map((tool) => tool.name));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => toolIds.has(r.descriptor.id)).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -212,9 +236,10 @@ interface ImportResult {
 // 1. Wiring and published contract
 // ---------------------------------------------------------------------------
 
-test("both URL and local-file imports are wired in the media-import domain", () => {
+test("URL and local-file imports and in-place replacement are wired in the media-import domain", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...mediaImportRegistrations(deps).keys()].sort(), ["media_import_from_url", "media_import_local_file"]);
+  assert.deepEqual([...mediaImportRegistrations(deps).keys()].sort(), ["media_import_from_url", "media_import_local_file", "media_replace_file"]);
+  assert.equal(wired("media_replace_file", deps).descriptor.id, "media_replace_file");
 });
 
 test("URL batches keep the shared cap and report an invalid URL between successful imports", async () => {

@@ -7,6 +7,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { parseOptionalStringField } from "./parse.js";
+import { resolveMediaByteSizes } from "./byte-size.js";
 
 /** The three required upload fields plus the three optional metadata fields, parsed off an untyped
  *  body in one place, or `null` if a required field is missing or the wrong shape. `dataBase64` must
@@ -133,9 +134,8 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         return;
       }
 
-      // What the bytes ACTUALLY are, not the `contentType` the client declared: SVG/HTML/unknown
-      // bytes declared as an image are rejected here; an allowed type mislabeled as another is
-      // stored as what it really is.
+      // Trust sniffed bytes rather than the client label. HTML/unknown bytes are rejected;
+      // uploadMedia sanitizes accepted SVG before hashing/storage.
       const verifiedContentType = resolveUploadContentType({ bytes, declaredContentType: contentType });
 
       const { media } = await uploadMedia({
@@ -169,7 +169,10 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       });
 
       const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
-      res.status(201).json({ media: toAdminMediaResponse({ media, contentType: verifiedContentType, publicUrl, byteSize: bytes.byteLength }) });
+      const byteSize = verifiedContentType === "image/svg+xml"
+        ? (await resolveMediaByteSizes({ deps, media: [media] })).get(media.source.sha256) ?? null
+        : bytes.byteLength;
+      res.status(201).json({ media: toAdminMediaResponse({ media, contentType: verifiedContentType, publicUrl, byteSize }) });
     } catch (err) {
       // Slug allocation is a courtesy lookup before save. Concurrent uploads can choose
       // the same free slug; the durable repo enforces uniqueness with MediaConflictError.

@@ -85,8 +85,8 @@ for (const [input, error] of [
   [{}, 'filename, contentType, and dataBase64 are required'],
   [{ ...body, filename: {} }, 'filename, contentType, and dataBase64 are required'],
   [{ ...body, dataBase64: '%%%invalid' }, 'dataBase64 is not valid base64'],
-  [{ ...body, contentType: 'image/svg+xml' }, "content type 'image/svg+xml' is not allowed for upload"],
-  [{ ...body, dataBase64: Buffer.from('<svg/>').toString('base64') }, "the file's content (image/svg+xml) is not an allowed media type"],
+  [{ ...body, contentType: 'application/pdf' }, "content type 'application/pdf' is not allowed for upload"],
+  [{ ...body, dataBase64: Buffer.from('<svg/>').toString('base64') }, "invalid SVG document"],
 ] as const) {
   test(`replace refuses invalid upload: ${error}`, async t => {
     const { deps, media } = await fixture(t);
@@ -102,6 +102,21 @@ test('replace enforces the host upload size cap before writing', async t => {
   assert.deepEqual(await invoke({ deps, id: media.id, input: { ...body, dataBase64: large.toString('base64') } }),
     { status: 400, json: { error: 'uploaded file exceeds the 50 MB size cap' } });
   assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), media);
+});
+
+test('replace sanitizes SVG before switching its source and preserves the media identity', async t => {
+  const { deps, media } = await fixture(t);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><path d="M0 0h10v10z"/></svg>';
+  const result = await invoke({ deps, id: media.id, input: { filename: 'logo.svg', contentType: 'image/svg+xml', dataBase64: Buffer.from(svg).toString('base64') } });
+  assert.equal(result.status, 200);
+  assert.equal(result.json.media.id, media.id);
+  assert.equal(result.json.media.version, media.version + 1);
+  assert.equal(result.json.media.publicUrl, `/m/${media.slug}/original`);
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: result.json.media.sha256 });
+  assert.ok(blob);
+  const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+  assert.doesNotMatch(Buffer.from(bytes).toString(), /script|onload|alert/);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), result.json.media.sha256);
 });
 
 test('replace fails closed on wrong workspace, missing principal, missing asset, trash and missing transaction capability', async t => {

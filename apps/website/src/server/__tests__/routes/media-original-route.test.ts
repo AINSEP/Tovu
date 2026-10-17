@@ -178,17 +178,22 @@ test("media original route: an HTML payload declared as image/png at upload is s
   assert.deepEqual(body, htmlBytes, "bytes are still downloadable, just never served as text/html");
 });
 
-test("media original route: an SVG payload declared as image/png at upload is served as application/octet-stream with Content-Disposition: attachment, never as image/svg+xml", async (t) => {
+test("media original route: an SVG payload declared as image/png at upload is sanitized and served inline with SVG security headers", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const svgBytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+  const svgBytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><path d="M0 0h10v10z"/></svg>');
   const mediaId = await storeRawBytes(deps, { filename: "totally-a-photo-2.png", bytes: svgBytes });
 
   const res = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie } });
   assert.equal(res.status, 200);
-  assert.equal(res.headers.get("content-type"), "application/octet-stream");
-  assert.equal(res.headers.get("content-disposition"), "attachment");
+  assert.equal(res.headers.get("content-type"), "image/svg+xml");
+  assert.equal(res.headers.get("content-security-policy"), "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+  assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(res.headers.get("content-disposition"), null);
+  const svg = await res.text();
+  assert.match(svg, /<path/);
+  assert.doesNotMatch(svg, /script|alert/);
 });
 
 test("media original route: Range requests — full body without a Range header, exact slices with one, 416 when unsatisfiable, and full body for malformed/multi-range headers", async (t) => {

@@ -3,6 +3,13 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** media-import registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "media_replace_file": {
+    search: {
+      keywords: "replace swap change image photo picture file bytes existing media in place same id slug version url local",
+      queries: ["Replace this image in place.", "Change the file but keep the media id and references.", "Replace a media file from a local file or https URL."],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "media_import_from_url": {
     search: {
       keywords: "url urls link links address addresses href http https web internet online remote external elsewhere cdn s3 cloudfront bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",

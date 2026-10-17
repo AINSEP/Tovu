@@ -217,10 +217,12 @@ test("a WebM served with no content-type header round-trips byte-for-byte and sn
   assert.equal(fetched.contentType, "video/webm");
 });
 
-test("an SVG served as image/png is rejected — SVG has no ingest sanitizer, so it is not importable regardless of the header", async () => {
+test("an SVG served as image/png is detected for downstream ingest sanitization", async () => {
   const client = new FakeHttpClient([imageResponse(SVG_BODY, { headers: { "content-type": "image/png" } })]);
 
-  await assert.rejects(() => fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST }), /its actual bytes are 'image\/svg\+xml'/);
+  const fetched = await fetchImage({ deps: { httpClient: client }, url: URL_UNDER_TEST });
+  assert.equal(fetched.contentType, "image/svg+xml");
+  assert.deepEqual(Buffer.from(fetched.bytes), SVG_BODY);
 });
 
 test("a '.png.html' double-extension URL is decided by its bytes, not by either extension", async () => {
@@ -229,10 +231,10 @@ test("a '.png.html' double-extension URL is decided by its bytes, not by either 
   await assert.rejects(() => fetchImage({ deps: { httpClient: client }, url: "https://cdn.example.com/a/photo.png.html" }), /its actual bytes are 'text\/html'/);
 });
 
-test("IMPORTABLE_CONTENT_TYPES is exactly the five still-image types plus video/mp4 and video/webm — the same set uploadMedia's own DEFAULT_ALLOWED_MIME_TYPES accepts, never silently widened beyond it (e.g. to SVG)", () => {
+test("IMPORTABLE_CONTENT_TYPES includes SVG for sanitized ingest alongside raster images and video", () => {
   assert.deepEqual(
     [...IMPORTABLE_CONTENT_TYPES].sort(),
-    ["image/avif", "image/gif", "image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]
+    ["image/avif", "image/gif", "image/jpeg", "image/png", "image/svg+xml", "image/webp", "video/mp4", "video/webm"]
   );
 });
 

@@ -73,6 +73,19 @@ function rejection(message: string) {
   };
 }
 
+test("the assistant imports a local SVG logo, persists sanitized bytes and returns its original URL", async (t) => {
+  const f = await setup(t);
+  fs.writeFileSync(path.join(f.rootPath, "logo.svg"), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" onload="alert(1)"><script>alert(1)</script><foreignObject/><path d="M0 0h12v12z"/></svg>');
+  const { media } = await f.run({ root: "custom", path: "logo.svg" });
+  const blob = await f.deps.assetBlobRepo.findByHash({ workspaceId: "ws-local", sha256: media.sha256 });
+  assert.ok(blob);
+  const bytes = await f.deps.blobStore.get({ storageKey: blob.storageKey });
+  assert.doesNotMatch(Buffer.from(bytes).toString(), /script|onload|foreignObject|alert/);
+  assert.match(Buffer.from(bytes).toString(), /viewBox="0 0 12 12"/);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), media.sha256);
+  assert.equal(media.publicUrl, `/m/${media.slug}/original`);
+});
+
 test("local import batches eleven images, preserves per-item errors and keeps the shared cap", async (t) => {
   const f = await setup(t);
   fs.writeFileSync(path.join(f.rootPath, "photo.png"), PNG);
@@ -227,12 +240,12 @@ test("absolute paths and symlinks outside the root are refused with actionable r
   await f.noWrites();
 });
 
-for (const [format, text] of [["SVG", '<svg xmlns="http://www.w3.org/2000/svg"></svg>'], ["HTML", "<!DOCTYPE html><html></html>"], ["PDF", "%PDF-1.7\nnot a photo"]]) {
+for (const [format, text] of [["HTML", "<!DOCTYPE html><html></html>"], ["PDF", "%PDF-1.7\nnot a photo"]]) {
   test(`refuses ${format} renamed .png by the actual bytes without writes`, async (t) => {
     const f = await setup(t);
     fs.writeFileSync(path.join(f.rootPath, "fake.png"), text);
-    const actualType = format === "SVG" ? "image/svg+xml" : format === "HTML" ? "text/html" : "application/octet-stream";
-    await assert.rejects(() => f.run({ root: "custom", path: "fake.png" }), rejection(`'fake.png' is not an importable file: its actual bytes are '${actualType}'. Only image/png, image/jpeg, image/gif, image/webp, image/avif, video/mp4, video/webm can be imported (the file extension is deliberately ignored — the bytes decide).`));
+    const actualType = format === "HTML" ? "text/html" : "application/octet-stream";
+    await assert.rejects(() => f.run({ root: "custom", path: "fake.png" }), rejection(`'fake.png' is not an importable file: its actual bytes are '${actualType}'. Only image/png, image/jpeg, image/gif, image/webp, image/avif, image/svg+xml, video/mp4, video/webm can be imported (the file extension is deliberately ignored — the bytes decide).`));
     await f.noWrites();
   });
 }
