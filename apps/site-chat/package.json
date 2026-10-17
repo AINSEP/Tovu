@@ -46,6 +46,6 @@
   },
   "overrides": {
     "@jini-ai/ui": "$@jini-ai/ui",
-    "@jini-ai/core": "^0.4.7"
+    "@jini-ai/core": "^0.4.8"
   }
 }

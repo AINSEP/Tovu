@@ -121,7 +121,7 @@
     "@jini-ai/cli": "^0.4.0",
     "@jini-ai/cms": "^0.5.13",
     "@jini-ai/commerce": "^0.1.1",
-    "@jini-ai/core": "^0.4.7",
+    "@jini-ai/core": "^0.4.8",
     "@jini-ai/daemon": "^0.6.8",
     "@jini-ai/db": "^0.3.5",
     "@jini-ai/desktop-host": "^0.4.1",
