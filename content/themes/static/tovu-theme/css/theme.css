@@ -1533,12 +1533,9 @@ html.mnav-open, html.mnav-open body { overflow: hidden; }
    the theme mask would add a second arrow centred on that nav box. Keep the mask only as
    the fallback for builds that still ship a text glyph. */
 .kui-lightbox-prev:has(> svg)::before, .kui-lightbox-next:has(> svg)::before { content: none; }
-.kui-lightbox-gallery { grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 8px; }
-.kui-lightbox-gallery > figure { grid-column: 1 / -1; }
-.kui-lightbox-gallery > .kui-lightbox-counter { grid-row: 2; grid-column: 1 / -1; justify-self: center; align-self: center; }
-.kui-lightbox-gallery > .kui-lightbox-prev, .kui-lightbox-gallery > .kui-lightbox-next { position: relative; inset: auto; grid-row: 2; }
-.kui-lightbox-gallery > .kui-lightbox-prev { grid-column: 2; }
-.kui-lightbox-gallery > .kui-lightbox-next { grid-column: 3; }
+/* kUInetic's bottom-right nav puts "next" over the site chat bubble, which is unusable
+   behind the modal anyway. Hide it while the lightbox is open; it returns when the dialog closes. */
+body:has(> dialog.kui-lightbox[open]) > .jini-chat-bubble { visibility: hidden; }
 
 /* The authored landing deck's next arrow can scroll behind the fixed 56px site-chat FAB.
    Reserve control gutters on phones; the existing video/dot rows still span the full grid.
