@@ -32,19 +32,22 @@ const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
  * (ADR-041 §3), or this runtime's bundled identity when that stamp is absent. Non-CLI production
  * boots can have a migrated database without a meta file; the bundled journal is a real comparison
  * source, so checking status does not need to create a file that also affects site-key resolution.
- * Reads `__drizzle_migrations` plus the bundled `db/drizzle/meta/_journal.json`, producing the three read
- * summaries the Database agent-tool catalog promises. `__drizzle_migrations`'s shape
+ * Reads the migration ledgers plus the bundled `db/drizzle/meta/_journal.json`, producing the three
+ * read summaries the Database agent-tool catalog promises. `__drizzle_migrations`'s shape
  * (`id`/`hash`/`created_at`) was confirmed empirically against `drizzle-orm`'s own
  * `SQLiteSyncDialect.migrate()` (`node_modules/drizzle-orm/sqlite-core/dialect.js`), not assumed:
- * `created_at` is stored as exactly the applied migration's journal-entry `when` epoch-millis
- * value, which is what makes matching an applied row back to its journal entry (for `version`/`tag`)
- * possible without a second identity column.
+ * `created_at` is initially stored as the applied migration's journal-entry `when` epoch-millis
+ * value, allowing an applied row to be matched back to its journal entry (for `version`/`tag`).
+ * Historical stamps were rewritten, so this comparison is unsound for pending detection after
+ * ADR-066 adoption: the runner reconciles the frozen chain by content hash.
  *
  * How it relates to the project:
- * Postgres/PGlite has no `__drizzle_migrations`: its ledger is `tovu_migrations` (ADR-066). There, a
- * pending migration is a `CONTENT_MIGRATIONS` step missing from that ledger, and the applied schema
- * identity is the bundled journal's head once `0000_legacy_baseline` (everything the drizzle chain was
- * at the freeze) is recorded — the same identity `.site-meta.json` is stamped with on every dialect.
+ * Postgres/PGlite has no `__drizzle_migrations`: its ledger is `tovu_migrations` (ADR-066). Pending
+ * migrations are `CONTENT_MIGRATIONS` steps missing from that ledger, also on SQLite once the ledger
+ * records `0000_legacy_baseline` (the whole frozen drizzle chain). SQLite files without that baseline
+ * retain the journal timestamp comparison. Applied schema identity on Postgres/PGlite is the bundled
+ * journal's head once the baseline is recorded — the same identity `.site-meta.json` is stamped with
+ * on every dialect; SQLite schema-state reads still match legacy timestamps to the journal.
  *
  * `server/deps.ts` composes the real `SqliteDatabaseIntrospectionAdapter` against the SAME already-
  * open `ContentDb` handle `restorePointsRepo`/`dbOps` reuse (no second connection is ever opened);
@@ -146,13 +149,15 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
   }
 
   /**
-   * @complexity O(m) in the bundled journal's entry count (currently 21) plus one bounded
-   * `__drizzle_migrations` query — not a function of any caller-controlled input.
+   * Lists content steps absent from the ADR-066 ledger on Postgres/PGlite and on SQLite with a
+   * recorded legacy baseline. Pre-ADR-066 SQLite files retain the journal timestamp comparison.
+   * @complexity O(m + l) in content steps or journal entries and applied ledger/history rows;
+   * bounded metadata queries, with no caller-controlled input.
    * @overallScore 100
    */
   async listPendingMigrations(): Promise<{ items: PendingMigration[] }> {
-    if (this.kernel.dialect === "postgres") {
-      const applied = await this.readLedgerIds();
+    const applied = await this.readLedgerIds();
+    if (this.kernel.dialect === "postgres" || applied.has(LEGACY_BASELINE_ID)) {
       const pending = CONTENT_MIGRATIONS.map((step, index) => ({ index, tag: step.id })).filter((item) => !applied.has(item.tag));
       return { items: pending };
     }
@@ -249,10 +254,10 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
     return head ? { version: head.idx, tag: head.tag } : null;
   }
 
-  /** Postgres/PGlite: the step ids recorded in `tovu_migrations`; empty when it is missing or unreadable. */
+  /** All dialects: the step ids recorded in `tovu_migrations`; empty when it is missing or unreadable. */
   private async readLedgerIds(): Promise<Set<string>> {
-    if (!(await this.migrationsTableExists())) return new Set();
     try {
+      if (!(await tableExists(this.kernel, LEDGER_TABLE))) return new Set();
       const rows = await this.kernel.query<{ id: string }>(sql`SELECT id FROM ${sql.table(LEDGER_TABLE)}`);
       return new Set(rows.map((row) => row.id));
     } catch {

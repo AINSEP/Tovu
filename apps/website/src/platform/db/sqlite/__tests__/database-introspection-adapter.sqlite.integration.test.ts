@@ -9,12 +9,13 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { sql } from "kysely";
 
-import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import { migrateSqliteContentFile, openContentDb, openSqliteContentConnection, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { SqliteDatabaseIntrospectionAdapter } from "../database-introspection-adapter.sqlite.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
+import { readFrozenChain } from "../../migrations/legacy-sqlite.js";
 
 /**
  * @file ADR-041 §3 — integration tests for `SqliteDatabaseIntrospectionAdapter`, the real backing
@@ -25,7 +26,9 @@ import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
  * architecture SCC cut) alongside the adapter it exercises; the port it exercises against
  * (`DatabaseIntrospectionPort`) stays at `features/database/adapter.sqlite.ts`.
  *
- * Two fixture strategies, deliberately both used:
+ * Three fixture strategies, deliberately all used:
+ *  - "real runner" tests migrate a fresh SQLite connection through `migrateSqliteContentFile`,
+ *    exercising ADR-066 ledger-based pending detection with rewritten legacy timestamps.
  *  - "real content.db" tests open an actual `content.db` via `openContentDb` (so `__drizzle_migrations`
  *    is populated by drizzle-orm's own real migrator, against this repo's real bundled
  *    `db/drizzle/meta/_journal.json`) — proof the adapter works against production wiring, not
@@ -107,6 +110,55 @@ test("real content.db: .site-meta.json stamped to match this runtime's real late
 
     const pending = await adapter.listPendingMigrations();
     assert.deepEqual(pending.items, [], "a freshly-migrated real content.db has nothing pending against its own bundled journal");
+  } finally {
+    db.$client.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("real runner: an adopted SQLite baseline ignores rewritten legacy timestamps when listing pending migrations", async () => {
+  const dir = tmpDir("database-adapter-ledger-stamps-");
+  const dbPath = path.join(dir, "content.db");
+  const db = openSqliteContentConnection({ filePath: dbPath });
+  try {
+    const report = await migrateSqliteContentFile(db, dbPath);
+    assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map((step) => step.id));
+    const chain = readFrozenChain();
+    const entry = chain[67];
+    assert.ok(entry);
+    const rewrittenTimestamp = Math.max(...chain.map((step) => step.when)) + 1;
+    // ADR-066 identifies the frozen chain by hash; historical journal stamps were rewritten.
+    const updated = db.$client.prepare("UPDATE __drizzle_migrations SET created_at = ? WHERE hash = ?")
+      .run(rewrittenTimestamp, entry.hash);
+    assert.equal(updated.changes, 1);
+
+    const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
+    assert.deepEqual(await adapter.listPendingMigrations(), { items: [] });
+  } finally {
+    db.$client.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("real runner: SQLite reports a missing content step by ledger id and content migration index", async () => {
+  const dir = tmpDir("database-adapter-ledger-pending-");
+  const dbPath = path.join(dir, "content.db");
+  const db = openSqliteContentConnection({ filePath: dbPath });
+  try {
+    await migrateSqliteContentFile(db, dbPath);
+    const index = CONTENT_MIGRATIONS.length - 1;
+    const lastStep = CONTENT_MIGRATIONS[index];
+    assert.ok(lastStep);
+    const deleted = db.$client.prepare("DELETE FROM tovu_migrations WHERE id = ?").run(lastStep.id);
+    assert.equal(deleted.changes, 1);
+
+    const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
+    const expected = { items: [{ index, tag: lastStep.id }] };
+    assert.deepEqual(await adapter.listPendingMigrations(), expected);
+
+    // The ADR-066 ledger must be readable independently of the legacy history table.
+    db.$client.exec("DROP TABLE __drizzle_migrations");
+    assert.deepEqual(await adapter.listPendingMigrations(), expected);
   } finally {
     db.$client.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -257,6 +309,8 @@ test("synthetic journal: listPendingMigrations reports exactly the entries not y
   ];
   const { dir, dbPath, db } = migrateRealDb(applied);
   try {
+    assert.equal(db.$client.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'tovu_migrations'").get(), undefined,
+      "pre-ADR-066 files have no content ledger and must still compare journal timestamps");
     // The adapter is handed a journal with ONE extra, never-applied entry — its SQL file need not
     // even exist on disk, since listPendingMigrations only ever reads the journal JSON.
     const fullJournal = [...applied, { idx: 2, when: 3_000, tag: "third-not-applied" }];
@@ -265,6 +319,9 @@ test("synthetic journal: listPendingMigrations reports exactly the entries not y
     const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath, journalPath });
     const pending = await adapter.listPendingMigrations();
     assert.deepEqual(pending.items, [{ index: 2, tag: "third-not-applied" }]);
+    // A ledger table alone does not prove that ADR-066 adopted the frozen chain.
+    db.$client.exec("CREATE TABLE tovu_migrations (id text PRIMARY KEY)");
+    assert.deepEqual(await adapter.listPendingMigrations(), pending, "a ledger without the baseline still uses the journal");
     fs.rmSync(migrationsDir, { recursive: true, force: true });
   } finally {
     db.$client.close();
