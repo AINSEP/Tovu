@@ -17,6 +17,9 @@ import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases"
 import { registerAdminCredentialCopyRoutes } from "#src/server/inbound/admin-http/routes/system/credential-copy";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { createLocalCredentialCopy, LocalCredentialCopyError } from "../local-credential-copy.js";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
+import { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
+import { createDbPublishCredentialSource } from "#src/features/deployments/static-publish/credentials";
 
 const stamp = "2026-10-11T12:00:00.000Z";
 const token = "copy-test-secret-1234567890";
@@ -83,6 +86,27 @@ async function save(site: Awaited<ReturnType<typeof fixture>>["source"], kind: V
   return site.service.put({ ...context(site.id, kind), id, expectedRevision: null, provider: kind === "media-provider" ? "media-test" : null,
     label: id, meta, payload: { token: value }, hintToken: value });
 }
+
+test("copy inventory retains every eligible kind, labels custom host compatibility, and copied Vercel keys resolve for publishing", async () => {
+  const f = await fixture();
+  try {
+    for (const kind of VAULT_KINDS.filter(kind => registry.isCopyableKind[kind])) await save(f.source, kind);
+    await save(f.source, "custom", "Vercel");
+    const before = fs.readFileSync(f.source.dbPath);
+    const copy = createLocalCredentialCopy({ ...f.required, loadDeployTargets: loadBundledDeployTargets }, f.options);
+    const sources = await copy.list({});
+    assert.equal(sources[0].keys.length, 8);
+    assert.deepEqual(sources[0].keys.find(key => key.label === "Vercel")?.publishHosts, ["vercel"]);
+    assert.deepEqual(sources[0].keys.find(key => key.id === "custom")?.publishHosts, []);
+    assert.deepEqual((await copy.copy({ sourceSiteId: "source", ids: ["Vercel"], overwrite: false, actorId: "owner" }))
+      .map(row => [row.id, row.status]), [["Vercel", "copied"]]);
+    const publish = createDbPublishCredentialSource({ repo: new VendorCredentialSetVaultRepo({ vault: f.target.repo, kind: "vendor", vendor: true }),
+      sealer: f.target.sealer, loadDeployTargets: loadBundledDeployTargets });
+    assert.deepEqual(await publish.isConfigured({ workspaceId: "target", target: "vercel" }), { configured: true });
+    assert.deepEqual(await publish.resolve({ workspaceId: "target", target: "vercel" }), { ok: true, token });
+    assert.deepEqual(fs.readFileSync(f.source.dbPath), before);
+  } finally { await f.close(); }
+});
 
 for (const placement of ["inSite", "appData"] as const) test(`${placement}: copied keys reopen under the target key/AAD, preserving IDs; source stays byte-identical`, async () => {
   const f = await fixture(placement);

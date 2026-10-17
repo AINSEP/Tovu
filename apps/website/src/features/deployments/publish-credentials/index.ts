@@ -30,6 +30,7 @@ export {
 } from "./store.js";
 
 export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode.js";
+export { publishHostsForCredential } from "./custom-tokens.js";
 
 export {
   createAccountLabelHealScheduler,

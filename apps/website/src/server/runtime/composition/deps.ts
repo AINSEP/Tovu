@@ -2061,6 +2061,7 @@ async function composeSiteRouteDeps(
     peerSiteReads: createPeerSiteReads({ currentSiteDir: resolvedSiteBinding.dir }, {}),
     localCredentialCopy: createLocalCredentialCopy({ targetKernel: kernel, targetWorkspaceId: workspaceId,
       targetSiteDir: resolvedSiteBinding.dir, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
+      loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
       registry: await loadSiteVaultKinds({ workspaceId, siteDir: resolvedSiteBinding.dir }, {
         loadContributions: agentPluginLifecycle.loadPluginContributions,
       }) }),

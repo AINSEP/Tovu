@@ -16,6 +16,8 @@ import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
+import { createCustomCredential } from "#src/features/custom-credentials/store";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 
 import type { LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
@@ -93,6 +95,72 @@ function tool(registrations: Map<string, ToolRegistration>, id: string): ToolReg
   assert.ok(found, `expected '${id}' to be wired`);
   return found;
 }
+
+test("missing publish keys report matching registered-site labels only to the local installation owner", async () => {
+  const { deps } = fakeDeps();
+  deps.publishExecutionMode = "hosted-api-only";
+  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
+  let lists = 0;
+  deps.localCredentialCopy = { localHost: true, copy: async () => { assert.fail("discovery must never copy"); }, list: async () => {
+    lists++;
+    return [
+      { siteId: "dev", name: "tovu-dev", keys: [
+        { kind: "vendor", id: "github-id", label: "GitHub Pages token", provider: "github", publishHosts: ["github-pages"] },
+      ] },
+      { siteId: "luv", name: "luvira", keys: [
+        { kind: "custom", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", publishHosts: ["vercel"],
+          secretCanary: "must-not-leak" } as { kind: "custom"; id: string; label: string; provider: null; publishHosts: string[] },
+      ] },
+    ];
+  } };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = await call(capabilities) as { credentialSources: { siteId: string; name: string; keys: { label: string; publishHosts: string[] }[] }[] };
+  assert.deepEqual(result.credentialSources, [
+    { siteId: "dev", name: "tovu-dev", keys: [{ kind: "vendor", label: "GitHub Pages token", provider: "github", publishHosts: ["github-pages"] }] },
+    { siteId: "luv", name: "luvira", keys: [{ kind: "custom", label: "Vercel", provider: null, publishHosts: ["vercel"] }] },
+  ]);
+  assert.deepEqual(result.credentialSources.filter(source => source.keys.some(key => key.publishHosts.includes("vercel"))).map(source => source.name), ["luvira"]);
+  assert.doesNotMatch(JSON.stringify(result.credentialSources), /must-not-leak|TAIL|vercel-id|github-id/);
+  deps.ownerPrincipalId = Promise.resolve("another-owner");
+  assert.equal(Object.hasOwn(await call(capabilities) as object, "credentialSources"), false);
+  assert.equal(lists, 1);
+  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
+  deps.localCredentialCopy.localHost = false;
+  assert.equal(Object.hasOwn(await call(capabilities) as object, "credentialSources"), false);
+  assert.equal(lists, 1);
+});
+
+test("unavailable cross-site inventory is explicit and cannot leak raw source errors", async () => {
+  const { deps } = fakeDeps();
+  deps.publishExecutionMode = "hosted-api-only";
+  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
+  deps.localCredentialCopy = { localHost: true, copy: async () => [], list: async () => { throw new Error("private-path-canary"); } };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as { credentialSourcesUnavailable: boolean };
+  assert.equal(result.credentialSourcesUnavailable, true);
+  assert.doesNotMatch(JSON.stringify(result), /private-path-canary/);
+});
+
+test("capabilities recognize custom Vercel tokens without opening them or claiming verification", async () => {
+  const { deps } = fakeDeps();
+  deps.publishExecutionMode = "hosted-api-only";
+  assert.ok(deps.vendorCredentialSetRepo.vault);
+  const saved = await createCustomCredential({ repo: new CustomCredentialVaultRepo({ vault: deps.vendorCredentialSetRepo.vault }),
+    sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+  { workspaceId: deps.workspaceId, label: "Vercel", category: "general", baseUrl: "https://api.vercel.com", connection: { token: "synthetic-vercel-token" } });
+  deps.siteAssistantSecretSealer = { seal: async () => { assert.fail("capabilities must not seal"); }, open: async () => { assert.fail("capabilities must not open"); } };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
+    providers: { providerId: string; credentialConfigured: boolean; ready: boolean; verified: string | null; savedCredentials: { id: string }[] }[];
+  };
+  const vercel = result.providers.find(provider => provider.providerId === "vercel")!;
+  assert.equal(vercel.credentialConfigured, true);
+  assert.equal(vercel.ready, false);
+  assert.equal(vercel.verified, null);
+  assert.deepEqual(vercel.savedCredentials.map(row => row.id), [saved.id]);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic-vercel-token|sealed|ciphertext/);
+});
 
 interface CallOptions {
   input?: unknown;

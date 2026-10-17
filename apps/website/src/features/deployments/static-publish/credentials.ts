@@ -235,7 +235,7 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
   async function resolveChosenCredential(
     input: { workspaceId: UUID; target: StaticPublishTargetId; credentialId: UUID }
   ): Promise<Awaited<ReturnType<PublishCredentialSource["resolve"]>>> {
-    const resolved = await resolveForPublish(deps, { workspaceId: input.workspaceId, id: input.credentialId });
+    const resolved = await resolveForPublish(deps, { workspaceId: input.workspaceId, id: input.credentialId, providerId: input.target });
     if (!resolved) {
       return { ok: false, reason: CHOSEN_CREDENTIAL_UNAVAILABLE_REASON };
     }

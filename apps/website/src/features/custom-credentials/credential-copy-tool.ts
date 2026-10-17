@@ -10,7 +10,17 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credenti
 
 export const CREDENTIAL_COPY_TOOL_ID = 'credential_copy_from_project';
 type SourceChoice = { siteId: string; name: string; reasonCode?: string; message?: string;
-  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string }[] };
+  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string; publishHosts?: string[] }[] };
+
+/** Allowlisted local discovery for model results. No key IDs, hints, paths or envelope fields.
+ * No I/O or mutation; O(sites + keys + host IDs) time and space.
+ */
+export function summarizeCredentialSources({ sources }: { sources: readonly SourceChoice[] }, _options = {}) {
+  return sources.map(source => ({ siteId: source.siteId, name: source.name,
+    ...(source.reasonCode ? { reasonCode: source.reasonCode } : {}),
+    keys: source.keys.map(key => ({ kind: key.kind, label: key.label, provider: key.provider,
+      publishHosts: [...(key.publishHosts ?? [])] })) }));
+}
 /** Structural C2 port: inventory eligibility, source re-resolution, CAS and resealing have one owner. */
 export interface CredentialCopyToolDeps {
   readonly workspaceId: string;
@@ -140,7 +150,9 @@ export function buildCredentialCopyRegistrations({ deps, surfaces }: {
               ? `Start ${source.name} once in Tovu to upgrade it, then copy.` : failureMessages[source.reasonCode]);
             await exchange.send({ emission: emission(form({ uri, exchangeId: exchange.id, submitLabel: 'Copy', fields: [
               { kind: 'multi-enum', name: 'ids', label: 'Keys', required: true, options: source.keys.map(key => ({
-                value: key.id, label: `${key.label} · ${key.provider ?? key.kind}${key.last4 ? ` · …${key.last4}` : ''}` })) },
+                value: key.id, label: `${key.label} · ${key.provider ?? key.kind}${key.last4 ? ` · …${key.last4}` : ''}` +
+                  (key.publishHosts === undefined ? '' : key.publishHosts.length
+                    ? ` · Publish: ${key.publishHosts.join(', ')}` : ' · No static publish host') })) },
               { kind: 'boolean', name: 'overwrite', label: 'Overwrite existing', value: false },
             ] })) });
             const answer = await exchange.receive({});

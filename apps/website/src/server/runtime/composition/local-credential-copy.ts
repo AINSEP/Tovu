@@ -19,6 +19,8 @@ import { resolveSiteKeyFingerprint, siteKeySourcesForSiteDir } from "#src/featur
 import { bootLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { isLocalTovuHost, registeredSources, type RegisteredSiteSource as Source } from "./registered-sites.js";
 import type { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
+import type { DeployTargetRegistry } from "#src/features/deployments/deploy-targets/types";
+import { publishHostsForCredential } from "#src/features/deployments/publish-credentials/index";
 
 export class LocalCredentialCopyError extends Error {
   constructor({ reasonCode, message }: { reasonCode: string; message: string }, _options = {}) {
@@ -29,7 +31,7 @@ export class LocalCredentialCopyError extends Error {
 }
 export interface CredentialCopyChoice {
   siteId: string; name: string;
-  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string }[];
+  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string; publishHosts?: string[] }[];
   reasonCode?: string; message?: string;
   /** Desktop's existing startSite(id) uses the canonical project folder as its ID. Never logged. */
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
@@ -45,6 +47,7 @@ type Selection = { id: string; kind: VaultKind; revision: number; label: string;
 export function createLocalCredentialCopy(required: {
   targetKernel: ContentKernel; targetWorkspaceId: string; targetSiteDir: string;
   keyring: KeyringPort; sealer: SecretSealerPort; registry: ReturnType<typeof createTovuVaultKinds>;
+  loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
 }, { workspace = createSitesWorkspace({}), home = homedir(), localHost = isLocalTovuHost({}, {}),
   desktopStartAvailable = Boolean(bootLocalOwnerSignIn.acceptsCapability), logger = createConsoleLogger({ prefix: "" }),
   openSource = openSqliteFileKernel, operationId = randomUUID,
@@ -93,6 +96,7 @@ export function createLocalCredentialCopy(required: {
     /** Safe source choices; per-source refusals do not hide other usable sources. */
     async list(_required: Record<string, never>, _options = {}): Promise<CredentialCopyChoice[]> {
       const choices: CredentialCopyChoice[] = [];
+      const deployTargets = await required.loadDeployTargets?.(required.targetWorkspaceId);
       for (const source of sources()) {
         try {
           const keys = await readSource({ source, read: async ({ rows }) => rows.filter(row =>
@@ -101,6 +105,7 @@ export function createLocalCredentialCopy(required: {
               assertCredentialFreeField({ value: row.label, field: "label" });
               if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" });
               return { kind: row.kind, id: row.id, label: row.label, provider: row.provider,
+                ...(deployTargets ? { publishHosts: publishHostsForCredential({ credential: row, registry: deployTargets }) } : {}),
                 ...(row.kind !== "database-destination" && row.token_length !== null && row.token_length >= 12 && row.last4
                   ? { last4: row.last4.slice(-4) } : {}) };
             }) });

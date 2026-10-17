@@ -50,6 +50,25 @@ async function keys(f: ReturnType<typeof fixture>) {
   await turn();
 }
 
+test('copy card shows custom keys alongside vendor keys and their publish hosts; only selected IDs are copied', async () => {
+  const f = fixture();
+  f.deps.localCredentialCopy!.list = async () => [{ siteId: 'source', name: 'Source', keys: [
+    { kind: 'custom', id: 'vercel-key', label: 'Vercel', provider: null, publishHosts: ['vercel'] },
+    { kind: 'custom', id: 'dns-key', label: 'name.com', provider: null, publishHosts: [] },
+    { kind: 'vendor', id: 'github-key', label: 'GitHub Pages token', provider: 'github', publishHosts: ['github-pages'] },
+  ] }];
+  const pending = f.run();
+  await keys(f);
+  for (const id of ['vercel-key', 'dns-key', 'github-key']) assert.match(f.resource().text, new RegExp(`name="ids" value="${id}"`));
+  assert.match(f.resource().text, /Vercel · custom · Publish: vercel/);
+  assert.match(f.resource().text, /name.com · custom · No static publish host/);
+  assert.match(f.resource().text, /GitHub Pages token · github · Publish: github-pages/);
+  assert.doesNotMatch(f.resource().text, /name="ids"[^>]* checked/);
+  f.answer({ ids: ['vercel-key', 'dns-key', 'github-key'], overwrite: false });
+  await pending;
+  assert.deepEqual(f.calls, [{ sourceSiteId: 'source', ids: ['vercel-key', 'dns-key', 'github-key'], overwrite: false, actorId: 'owner' }]);
+});
+
 test('C3: one tool, exchange-only metadata, no direct model selection', async () => {
   const f = fixture();
   assert.equal(f.tool.descriptor.id, CREDENTIAL_COPY_TOOL_ID);
