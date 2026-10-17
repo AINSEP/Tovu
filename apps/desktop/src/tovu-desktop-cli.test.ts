@@ -81,7 +81,8 @@ test('the real CLI entry propagates success, refusal, and usage exit codes', () 
     const expected = runTovuDesktopCli(args, capture().io);
     // Plain node, as the entry's `#!/usr/bin/env node` runs it. A tsx child also wrote its
     // esbuild-transformed image into the coverage run under the source paths, at the wrong lines.
-    const child = spawnSync(process.execPath, [entry, ...args], { encoding: 'utf8', timeout: 5000 });
+    // Allow slow cold starts under full-suite CPU load; this asserts exit codes, not startup speed.
+    const child = spawnSync(process.execPath, [entry, ...args], { encoding: 'utf8', timeout: 30_000 });
     assert.equal(child.error, undefined);
     assert.equal(child.status, expected, child.stderr);
   }
