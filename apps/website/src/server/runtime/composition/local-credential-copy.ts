@@ -1,6 +1,4 @@
-import fs from "node:fs";
 import { homedir } from "node:os";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
@@ -9,7 +7,6 @@ import { AesGcmSecretSealer, type KeyringPort, type SecretSealerPort } from "@ji
 import { SecretsVaultService, VAULT_KINDS, VaultError, type VaultKind, type VaultCopyResult,
   type VaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
-import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openSqliteFileKernel, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { tableExists } from "#src/platform/db/kernel/dialect";
@@ -18,9 +15,9 @@ import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases"
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { EnvOrFileKeyring, inspectSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
-import { readSiteMetaJson, resolveSiteKeyFingerprint, siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyFingerprint, siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
 import { bootLocalOwnerSignIn } from "../boot/local-owner-signin.js";
-import { detectDeploymentSignals } from "../boot/boot-readiness-warnings.js";
+import { isLocalTovuHost, registeredSources, type RegisteredSiteSource as Source } from "./registered-sites.js";
 import type { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
 export class LocalCredentialCopyError extends Error {
@@ -37,19 +34,18 @@ export interface CredentialCopyChoice {
   /** Desktop's existing startSite(id) uses the canonical project folder as its ID. Never logged. */
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
 }
-type Source = { siteId: string; name: string; dir: string };
 type Selection = { id: string; kind: VaultKind; revision: number; label: string; provider: string | null;
   owner_key: string; principal_id: string | null; binding: string | null; last4: string | null; token_length: number | null };
 
 /** Bind local folder discovery to Jini's existing vault operation. No source boot or key writes.
  * Inventory is O(sites + rows); copy performs bounded sequential SELECTs/CAS writes per selected ID.
  * Source connections are owning, read-only kernels and always close, including failed preflight.
+ * @throws LocalCredentialCopyError for refused/unavailable sources. @complexity O(sites + selected rows).
  */
 export function createLocalCredentialCopy(required: {
   targetKernel: ContentKernel; targetWorkspaceId: string; targetSiteDir: string;
   keyring: KeyringPort; sealer: SecretSealerPort; registry: ReturnType<typeof createTovuVaultKinds>;
-}, { workspace = createSitesWorkspace({}), home = homedir(), localHost = bootLocalOwnerSignIn.enabled ||
-    (resolveRuntimeMode() === "local" && detectDeploymentSignals({ env: process.env }).length === 0),
+}, { workspace = createSitesWorkspace({}), home = homedir(), localHost = isLocalTovuHost({}, {}),
   desktopStartAvailable = Boolean(bootLocalOwnerSignIn.acceptsCapability), logger = createConsoleLogger({ prefix: "" }),
   openSource = openSqliteFileKernel, operationId = randomUUID,
 }: { workspace?: SitesWorkspace; home?: string; localHost?: boolean; desktopStartAvailable?: boolean;
@@ -166,42 +162,6 @@ export function createLocalCredentialCopy(required: {
   };
 }
 export type LocalCredentialCopy = ReturnType<typeof createLocalCredentialCopy>;
-
-/** Registry IDs are discovery, never a request-supplied path. Exclude both sides of an identity collision.
- * O(n) small metadata/filesystem probes and maps for n registered folders; no source databases open.
- */
-function registeredSources({ workspace, targetSiteId, targetSiteDir, targetFile }: {
-  workspace: SitesWorkspace; targetSiteId: string; targetSiteDir: string; targetFile: string | undefined;
-}, _options = {}): Source[] {
-  const entries: (Source & { registeredId: string })[] = [];
-  for (const entry of workspace.registry({}).list({})) {
-    try {
-      const dir = fs.realpathSync(entry.path);
-      if (!fs.statSync(dir).isDirectory() || dir.split(path.sep).includes("site-trash")) continue;
-      const meta = readSiteMetaJson(dir);
-      if (typeof meta?.siteId !== "string" || !meta.siteId) continue;
-      entries.push({ siteId: meta.siteId, name: entry.name, dir, registeredId: entry.id });
-    } catch { /* Missing/unreadable folders are unavailable choices, never repaired here. */ }
-  }
-  const identities = new Map<string, number>();
-  const folders = new Map<string, number>();
-  for (const source of entries) {
-    identities.set(source.siteId, (identities.get(source.siteId) ?? 0) + 1);
-    folders.set(source.dir, (folders.get(source.dir) ?? 0) + 1);
-  }
-  const currentDir = fs.realpathSync(targetSiteDir);
-  return entries.filter(source => {
-    if (source.siteId !== source.registeredId || source.siteId === targetSiteId || source.dir === currentDir ||
-      identities.get(source.siteId) !== 1 || folders.get(source.dir) !== 1) return false;
-    try {
-      const sourceFile = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false }).contentDbPath;
-      if (!targetFile || targetFile === ":memory:" || !fs.existsSync(sourceFile)) return true;
-      // Folder identities alone cannot detect a symlink/hardlink to the live target database.
-      const a = fs.statSync(sourceFile), b = fs.statSync(targetFile);
-      return a.dev !== b.dev || a.ino !== b.ino;
-    } catch { return false; }
-  });
-}
 
 function needsUpgrade({ source }: { source: Source }, _options = {}): LocalCredentialCopyError {
   return new LocalCredentialCopyError({ reasonCode: "source-needs-upgrade",

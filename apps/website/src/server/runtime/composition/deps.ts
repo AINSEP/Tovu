@@ -1,6 +1,7 @@
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
+import { createSiteChatHistory } from "./site-chat-history.js";
 import { createLocalCredentialCopy } from "./local-credential-copy.js";
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
 import { createTovuPluginHost } from "./plugin-host.js";
@@ -2057,6 +2058,7 @@ async function composeSiteRouteDeps(
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory,
     workspaceId: workspaceId,
+    siteChatHistory: createSiteChatHistory({ currentSiteDir: resolvedSiteBinding.dir }, {}),
     localCredentialCopy: createLocalCredentialCopy({ targetKernel: kernel, targetWorkspaceId: workspaceId,
       targetSiteDir: resolvedSiteBinding.dir, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
       registry: await loadSiteVaultKinds({ workspaceId, siteDir: resolvedSiteBinding.dir }, {
