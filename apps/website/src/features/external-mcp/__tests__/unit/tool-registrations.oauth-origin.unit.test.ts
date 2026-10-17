@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -235,4 +236,22 @@ test("configured URLs with a trailing slash or path send exactly one origin-base
     if (previous === undefined) delete process.env.TOVU_PUBLIC_URL;
     else process.env.TOVU_PUBLIC_URL = previous;
   }
+});
+
+test("a blank operator override falls back to the derived HTTP origin", async t => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });
+  process.env.TOVU_PUBLIC_URL = " \t ";
+  const handler = await makeConnectHandler("http://localhost:3000");
+  const result = await call(handler, { id: SERVER }) as { authorizationUrl: string };
+  assert.equal(redirectUriOf(result.authorizationUrl), `http://localhost:3000${CALLBACK_PATH_SUFFIX}`);
+});
+
+test("an explicit HTTP override is used after trimming and stripping its path", async t => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });
+  process.env.TOVU_PUBLIC_URL = " http://localhost:8080/operator?query=1 ";
+  const handler = await makeConnectHandler("https://ignored.example");
+  const result = await call(handler, { id: SERVER }) as { authorizationUrl: string };
+  assert.equal(redirectUriOf(result.authorizationUrl), `http://localhost:8080${CALLBACK_PATH_SUFFIX}`);
 });

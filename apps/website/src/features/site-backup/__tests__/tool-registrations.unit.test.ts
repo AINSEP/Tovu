@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -19,7 +20,9 @@ import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { SiteBackupPlanStore } from "../plan-store.js";
 import type { SiteBackupSources } from "../sources.js";
 import { SiteBackupPushJobs } from "../push-jobs.js";
-import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
+import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
+import type { SourceControlProviderDescriptor } from "../../source-control/provider-registry.js";
+import type { SourceControlProviderOperations } from "../../source-control/provider-module.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { InMemorySourceControlCredentialSetRepo } from "../../source-control/repo.memory.js";
 import { createSourceControlCredential } from "../../source-control/store.js";
@@ -215,6 +218,9 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
   assert.ok(planTool && pushTool, "both site-backup tools must be registered");
 
   return {
+    deps,
+    repo,
+    sourceControlRepo,
     site,
     github,
     dbOps,
@@ -982,4 +988,323 @@ test("a media file over the host's per-file limit is left out of the plan and na
   const result = (await call(h.pushTool, { planId: planned.planId })) as Result;
   assert.equal(result.pushed, true);
   assert.equal(h.github.files.has("demo-site/uploads/ws/workspace-local/blobs/ef/huge"), false);
+});
+
+/** Keep the bundled provider's real operations; vary only the host port under test. */
+function providerWith(
+  operations: Partial<SourceControlProviderOperations>,
+  descriptor: Partial<SourceControlProviderDescriptor> = {},
+): NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> {
+  return async workspaceId => {
+    const registry = await githubFromSource(workspaceId);
+    const entries = registry.list().map(entry => ({ ...entry, descriptor: { ...entry.descriptor, ...descriptor }, module: {
+      ...entry.module, create: (kit: Parameters<typeof entry.module.create>[0]) => ({ ...entry.module.create(kit), ...operations }),
+    } }));
+    return { ...registry, list: () => entries, get: id => entries.find(entry => entry.descriptor.id === id) };
+  };
+}
+
+function overriddenTool(h: ReturnType<typeof harness>, id: string, overrides: Partial<SiteBackupToolDeps>): ToolRegistration {
+  const registration = buildSiteBackupRegistrations({ ...h.deps, ...overrides }, { surfaceExchanges: h.surfaceExchanges }).find(r => r.descriptor.id === id);
+  assert.ok(registration);
+  return registration;
+}
+
+for (const [name, input, message] of [
+  ["non-string credential", { credential: 1 }, /'credential' must be a string/],
+  ["non-string branch", { branch: false }, /'branch' must be a string/],
+  ["non-string folder", { folder: [] }, /'folder' must be a string/],
+  ["non-string commit message", { commitMessage: null }, /'commitMessage' must be a string/],
+  ["null include", { include: null }, /'include' must be an object/],
+  ["array include", { include: [] }, /'include' must be an object/],
+  ["scalar include", { include: true }, /'include' must be an object/],
+  ["non-boolean switch", { include: { media: "false" } }, /'include.media' must be true or false/],
+] as const) test(`plan refuses ${name} before authorization or host access`, async t => {
+  const h = harness(t);
+  const error = await rejection(call(h.planTool, { ...PLAN_INPUT, ...input }));
+  assert.match(error.message, message);
+  assert.deepEqual(h.authorized, []);
+  assert.deepEqual(h.github.calls, []);
+  assert.deepEqual(h.dbOps.captureCalls, []);
+});
+
+test("an explicit branch and commit message replace existing folder contents with the reviewed plan", async t => {
+  const h = harness(t);
+  await h.seed();
+  h.github.state.folderExists = true;
+  h.github.files.set("demo-site/old.txt", Buffer.from("previous backup"));
+  const planned = await plan(h, { ...PLAN_INPUT, branch: "main", folder: "demo-site", commitMessage: "Reviewed backup", include: { database: false } });
+  assert.equal(planned.planned, true);
+  assert.equal(planned.folderExists, true);
+  assert.match(String(planned.nextStep), /current contents will be replaced/);
+  const pushed = await call(h.pushTool, { planId: planned.planId }) as Result;
+  assert.equal(pushed.pushed, true);
+  const commit = h.github.calls.find(request => request.method === "POST" && request.url.endsWith("/git/commits"));
+  assert.ok(commit);
+  assert.equal(JSON.parse(commit.body!).message, "Reviewed backup");
+  assert.equal(h.github.files.has("demo-site/old.txt"), false);
+  assert.equal(h.github.files.has("demo-site/tovu-backup.json"), true);
+  assert.equal(h.github.files.get("README.md")?.toString("utf8"), "Outside the backup folder");
+});
+
+for (const config of [undefined, "invalid json", JSON.stringify({ name: " " }), JSON.stringify({ name: 42 })]) {
+  test(`backup uses the site folder name when config is ${config ?? "missing"}`, async t => {
+    const h = harness(t);
+    await h.seed();
+    const configPath = path.join(h.site.root, "config.json");
+    if (config === undefined) rmSync(configPath);
+    else write(configPath, config);
+    const id = await plannedId(h);
+    const taken = h.deps.siteBackupPlanStore!.take({ planId: id, principalId: OWNER_PRINCIPAL, workspaceId: WORKSPACE_ID });
+    assert.equal(taken.ok, true);
+    if (!taken.ok) assert.fail("expected the saved plan");
+    assert.deepEqual(taken.plan.site, { name: "demo-site", folderName: "demo-site" });
+    assert.equal(taken.plan.commitMessage, `Tovu site backup: demo-site (${NOW})`);
+  });
+}
+
+test("provider load refusals are logged and a missing provider returns an actionable refusal", async t => {
+  const h = harness(t, { providers: async () => ({ list: () => [], get: () => undefined, refusals: ["host plugin is unavailable"] }) });
+  const result = await plan(h);
+  assert.equal(result.code, "NO_PROVIDER");
+  assert.equal(result.planned, false);
+  assert.match(String(result.message), /plugin|provider/i);
+  assert.deepEqual(h.logLines, ["[site-backup] host plugin is unavailable"]);
+  assert.deepEqual(h.dbOps.captureCalls, []);
+});
+
+test("an unrecognized failure code from a JavaScript host plugin becomes PROVIDER_ERROR", async t => {
+  // Plugin .mjs modules are runtime inputs: a newer host may return a code outside today's TS union.
+  const inspectBackupRepository = async () => ({ ok: false, code: "host-maintenance", message: "The host is under maintenance" });
+  const h = harness(t, { providers: providerWith({ inspectBackupRepository: inspectBackupRepository as unknown as SourceControlProviderOperations["inspectBackupRepository"] }) });
+  await h.seed();
+  assert.deepEqual(await plan(h), { planned: false, code: "PROVIDER_ERROR", message: "The host is under maintenance" });
+  assert.deepEqual(h.dbOps.captureCalls, []);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("a named host connection must match its saved label", async t => {
+  const h = harness(t);
+  await h.seedConnection("Actual connection");
+  const result = await plan(h, { ...PLAN_INPUT, credential: "Different connection" });
+  assert.equal(result.code, "CREDENTIAL_NOT_FOUND");
+  assert.match(String(result.message), /Different connection/);
+  assert.deepEqual(h.github.calls, []);
+});
+test("an unreadable saved host connection reports the safe site-key diagnosis", async t => {
+  const h = harness(t, { openSealer: inner => new LeakySealer(inner) });
+  await h.seedConnection();
+  const result = await plan(h);
+  assert.equal(result.code, "CREDENTIAL_UNREADABLE");
+  assert.match(String(result.message), /GitHub connection/);
+  assert.doesNotMatch(JSON.stringify(result), /LEAK-SENTINEL|ghp_/);
+  assert.deepEqual(h.github.calls, []);
+});
+
+test("a credential deleted between selection and resolution is reported as missing", async t => {
+  const h = harness(t);
+  const saved = await h.seed();
+  let reads = 0;
+  const repo = { vault: h.repo.vault, findById: h.repo.findById.bind(h.repo), insert: h.repo.insert.bind(h.repo), update: h.repo.update.bind(h.repo), delete: h.repo.delete.bind(h.repo),
+    listByWorkspace: async (input: { workspaceId: string }) => {
+      if (++reads === 2) await h.repo.delete({ workspaceId: WORKSPACE_ID, id: saved.id });
+      return h.repo.listByWorkspace(input);
+    },
+  };
+  const result = await call(overriddenTool(h, "site_backup_plan", { customCredentialSetRepo: repo }), PLAN_INPUT) as Result;
+  assert.equal(result.code, "CREDENTIAL_NOT_FOUND");
+  assert.match(String(result.message), /deleted while the backup was being prepared/);
+  assert.equal(await h.repo.findById({ workspaceId: WORKSPACE_ID, id: saved.id }), null);
+  assert.deepEqual(h.github.calls, []);
+});
+
+for (const [providerCode, code] of [
+  ["repo-not-found", "REPOSITORY_NOT_FOUND"], ["no-push-permission", "NO_PUSH_PERMISSION"], ["repo-empty", "REPOSITORY_EMPTY"],
+  ["branch-not-found", "BRANCH_NOT_FOUND"], ["folder-is-file", "FOLDER_IS_FILE"], ["provider-error", "PROVIDER_ERROR"],
+] as const) test(`plan maps the host's ${providerCode} refusal without taking a snapshot`, async t => {
+  const h = harness(t, { providers: providerWith({ inspectBackupRepository: async () => ({ ok: false, code: providerCode, message: "Host refused the backup" }) }) });
+  await h.seed();
+  assert.deepEqual(await plan(h), { planned: false, code, message: "Host refused the backup" });
+  assert.deepEqual(h.dbOps.captureCalls, []);
+});
+
+for (const withDetail of [true, false]) test(`snapshot failure ${withDetail ? "with" : "without"} private detail stops planning`, async t => {
+  const h = harness(t);
+  await h.seed();
+  const dbOps: DbOpsPort = { getCapabilities: async () => withDetail
+    ? { restorePoint: { kind: "file-snapshot", costClass: "cheap" } }
+    : { restorePoint: { kind: "external", costClass: "unavailable" } },
+    captureRestorePoint: async () => { throw new Error("private snapshot failure"); }, restoreFromArtifact: h.dbOps.restoreFromArtifact.bind(h.dbOps) };
+  const result = await call(overriddenTool(h, "site_backup_plan", { dbOps }), PLAN_INPUT) as Result;
+  assert.equal(result.planned, false);
+  assert.equal(result.code, "DATABASE_SNAPSHOT_FAILED");
+  assert.doesNotMatch(JSON.stringify(result), /private snapshot failure/);
+  assert.equal(h.logLines.length, withDetail ? 1 : 0);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("a database snapshot exceeding the host limit refuses the whole plan", async t => {
+  const h = harness(t, { providers: providerWith({}, { maxFileBytes: DB_BYTES.length - 1 }) });
+  await h.seed();
+  const result = await plan(h);
+  assert.equal(result.code, "LIMIT_EXCEEDED");
+  assert.match(String(result.message), /database\/content.db/);
+  assert.equal(h.dbOps.captureCalls.length, 1);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("a credential deleted after planning refuses the push without writing", async t => {
+  const h = harness(t);
+  const saved = await h.seed();
+  const id = await plannedId(h);
+  await h.repo.delete({ workspaceId: WORKSPACE_ID, id: saved.id });
+  const result = await call(h.pushTool, { planId: id }) as Result;
+  assert.equal(result.pushed, false);
+  assert.equal(result.code, "CREDENTIAL_NOT_FOUND");
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("a push without site sources still diagnoses unreadable credentials using an isolated home", async t => {
+  isolateHomeDir(t);
+  const h = harness(t);
+  await h.seed();
+  const id = await plannedId(h);
+  const result = await call(overriddenTool(h, "site_backup_push", {
+    siteBackupSources: undefined, siteBackupSiteKeyStatus: undefined, siteAssistantSecretSealer: new LeakySealer(h.deps.siteAssistantSecretSealer),
+  }), { planId: id }) as Result;
+  assert.equal(result.code, "CREDENTIAL_UNREADABLE");
+  assert.match(String(result.message), /this server has no Site key/);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("the contributor exposes the backup registrations and their independent risk classification", t => {
+  const h = harness(t);
+  const contributor = contributeSiteBackupTools();
+  assert.equal(contributor.domain, "site-backup");
+  assert.equal(contributor.risk, siteBackupDerivedRisk);
+  assert.deepEqual(contributor.build(h.deps as never, { surfaceExchanges: h.surfaceExchanges }).map(registration => registration.descriptor.id), ["site_backup_plan", "site_backup_push"]);
+});
+
+test("a malformed saved API URL is ignored during automatic credential selection", async t => {
+  const h = harness(t);
+  const saved = await h.seed();
+  const original = await h.repo.vault.find({ workspaceId: WORKSPACE_ID, id: saved.id });
+  assert.ok(original);
+  await h.repo.vault.put({ expectedRevision: original.revision, record: { ...original, revision: original.revision + 1, meta: { ...original.meta, baseUrl: "not-an-absolute-url" } } });
+  const result = await call(overriddenTool(h, "site_backup_plan", { sourceControlCredentialSetRepo: undefined }), PLAN_INPUT) as Result;
+  assert.equal(result.code, "CREDENTIAL_NOT_FOUND");
+  assert.match(String(result.message), /no saved credential points at/);
+  assert.deepEqual(h.github.calls, []);
+});
+
+test("a plugin host without a legacy connection kind cannot read another host's saved connection", async t => {
+  const h = harness(t, { providers: providerWith({}, { id: "new-host" }) });
+  await h.seedConnection();
+  const result = await plan(h);
+  assert.equal(result.code, "CREDENTIAL_NOT_FOUND");
+  assert.deepEqual(h.github.calls, []);
+});
+
+test("a named credential for neither of two enabled hosts returns NO_PROVIDER", async t => {
+  const h = harness(t, { providers: async workspaceId => {
+    const registry = await githubFromSource(workspaceId);
+    const github = registry.list()[0]!;
+    const entries = [github, { ...github, descriptor: { ...github.descriptor, id: "second-host", apiOrigin: "https://second.example", label: "Second host" } }];
+    return { ...registry, list: () => entries, get: id => entries.find(entry => entry.descriptor.id === id) };
+  } });
+  await h.seed("Other host", "https://third.example");
+  const result = await plan(h, { ...PLAN_INPUT, credential: "Other host" });
+  assert.equal(result.code, "NO_PROVIDER");
+  assert.match(String(result.message), /third.example/);
+  assert.deepEqual(h.github.calls, []);
+});
+
+test("a custom-repository failure during credential resolution propagates without taking a snapshot", async t => {
+  const h = harness(t);
+  await h.seed();
+  const failure = new Error("credential repository unavailable");
+  let reads = 0;
+  const repo = { vault: h.repo.vault, findById: h.repo.findById.bind(h.repo), insert: h.repo.insert.bind(h.repo), update: h.repo.update.bind(h.repo), delete: h.repo.delete.bind(h.repo),
+    listByWorkspace: async (input: { workspaceId: string }) => { if (++reads === 2) throw failure; return h.repo.listByWorkspace(input); },
+  };
+  await assert.rejects(call(overriddenTool(h, "site_backup_plan", { customCredentialSetRepo: repo }), PLAN_INPUT), error => error === failure);
+  assert.deepEqual(h.dbOps.captureCalls, []);
+  assert.deepEqual(h.github.calls, []);
+});
+
+test("the default failure logger receives only the host's server-safe diagnostic", async t => {
+  const h = harness(t, { providers: providerWith({ inspectBackupRepository: async () => ({ ok: false, code: "network-unreachable", message: "Try again later", logDetail: "Error ECONNREFUSED" }) }) });
+  await h.seed();
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (line: string) => { warnings.push(line); });
+  const result = await call(overriddenTool(h, "site_backup_plan", { siteBackupFailureLog: undefined, siteBackupHttpClient: h.github, siteBackupSleep: undefined }), PLAN_INPUT);
+  assert.deepEqual(result, { planned: false, code: "NETWORK_UNREACHABLE", message: "Try again later" });
+  assert.deepEqual(warnings, ["[site-backup] site_backup_plan: failed code=network-unreachable detail=Error ECONNREFUSED"]);
+  assert.deepEqual(h.github.writes(), []);
+});
+
+test("a saved source-control username is retained in the backup's authorization header", async t => {
+  const h = harness(t);
+  const saved = await h.seedConnection();
+  const row = await h.sourceControlRepo.vault.find({ workspaceId: WORKSPACE_ID, id: saved.id });
+  assert.ok(row?.sealed);
+  const { buildVaultAad } = await import("@jini-ai/platform/secrets/credential-sets");
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({ plaintext: JSON.stringify({ token: TOKEN, username: "backup-user" }), key: await keyring.activeKey(), aad: buildVaultAad(row) });
+  await h.sourceControlRepo.vault.put({ expectedRevision: row.revision, record: { ...row, sealed, revision: row.revision + 1 } });
+  const result = await call(overriddenTool(h, "site_backup_plan", { siteAssistantSecretSealer: sealer }), PLAN_INPUT) as Result;
+  assert.equal(result.planned, true);
+  assert.ok(h.github.calls.length > 0);
+  assert.ok(h.github.calls.every(request => request.headers?.Authorization === `Basic ${Buffer.from(`backup-user:${TOKEN}`).toString("base64")}` || request.headers?.authorization === `Basic ${Buffer.from(`backup-user:${TOKEN}`).toString("base64")}`));
+});
+
+test("the default plan store and job registry carry a backup from planning through a single-use push", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(NOW) });
+  const h = harness(t);
+  await h.seed();
+  const deps = { ...h.deps, siteBackupPlanStore: undefined, siteBackupPushJobs: undefined, siteBackupNow: undefined, siteBackupPushWaitMs: undefined };
+  const registrations = buildSiteBackupRegistrations(deps, { surfaceExchanges: h.surfaceExchanges });
+  const planner = registrations.find(registration => registration.descriptor.id === "site_backup_plan")!;
+  const pusher = registrations.find(registration => registration.descriptor.id === "site_backup_push")!;
+  const planned = await call(planner, PLAN_INPUT) as Result;
+  assert.equal(planned.planned, true);
+  const result = await call(pusher, { planId: planned.planId }) as Result;
+  assert.equal(result.pushed, true);
+  const manifestBytes = h.github.files.get("demo-site/tovu-backup.json");
+  assert.ok(manifestBytes);
+  const manifest = JSON.parse(manifestBytes.toString("utf8"));
+  assert.equal(manifest.createdAt, NOW);
+  const commit = h.github.calls.find(request => request.method === "POST" && request.url.endsWith("/git/commits"));
+  assert.ok(commit);
+  assert.equal(JSON.parse(commit.body!).message, `Tovu site backup: Demo Site (${NOW})`);
+  const repeated = await call(pusher, { planId: planned.planId }) as Result;
+  assert.equal(repeated.code, "PLAN_NOT_FOUND");
+  assert.equal(h.github.writeRoutes().filter(route => route === "POST /git/commits").length, 1);
+});
+
+test("stopping the backup as the manifest upload completes prevents the commit", async t => {
+  const h = harness(t, { providers: providerWith({ backupInlineTextMaxBytes: 0 }) });
+  await h.seed();
+  const planId = await plannedId(h);
+  let stopped = false;
+  const httpClient: NonNullable<SiteBackupToolDeps["siteBackupHttpClient"]> = { send: async request => {
+    const response = await h.github.send(request);
+    if (request.method === "POST" && request.url.endsWith("/git/blobs")) {
+      const body = JSON.parse(request.body!);
+      const bytes = Buffer.from(body.content, "base64");
+      if (bytes.toString("utf8").includes('"tovu-site-backup"')) {
+        const job = h.deps.siteBackupPushJobs!.find({ planId, principalId: OWNER_PRINCIPAL, workspaceId: WORKSPACE_ID });
+        assert.ok(job);
+        job.controller.abort();
+        stopped = true;
+      }
+    }
+    return response;
+  } };
+  const result = await call(overriddenTool(h, "site_backup_push", { siteBackupHttpClient: httpClient }), { planId });
+  assert.equal(stopped, true);
+  assert.deepEqual(result, { pushed: false, cancelled: false, reason: "abandoned" });
+  assert.equal(h.github.writes().some(request => request.url.endsWith("/git/commits") || request.url.endsWith("/git/trees")), false);
+  assert.equal(h.github.state.tip, "tip-1");
 });
