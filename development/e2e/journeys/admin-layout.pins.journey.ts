@@ -5,6 +5,7 @@ import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtu
 import { expect } from "../support/bug-pin-fixtures.js";
 import { loginAsAdmin, pinSessionHeaders } from "../support/bug-pin-auth.js";
 import assert from "node:assert/strict";
+import { mkdirSync } from "node:fs";
 import { test as base } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
 import { IsolatedJourneySite } from "../support/isolated-journey-site.js";
@@ -662,8 +663,8 @@ test.describe("Bug pin: admin-visual-parity", () => {
  * defect found") on the grounds that they're looking at rendered pixels, not source.
  *
  * This is a capture-and-save tool, not a pass/fail regression: every "test" below just navigates to
- * one admin section and writes a full-page screenshot to `ADS-memory/reports/`, so the images can be
- * diffed by eye and rerun after a fix for a real before/after. Run against `playwright.visual-
+ * one admin section and writes a full-page screenshot to gitignored `development/test-results/`,
+ * so the images can be diffed by eye and rerun after a fix for a real before/after. Run against `playwright.visual-
  * parity.config.ts`'s hermetic `TOVU_DB=memory` boot — never the real `infra/content.db`.
  *
  * Categories & Tags renders empty in a fresh memory boot (`seed.ts` seeds posts/media/menus but no
@@ -672,14 +673,16 @@ test.describe("Bug pin: admin-visual-parity", () => {
  * (not a raw API bypass) — one flat, one hierarchical with a parent/child pair — so the capture shows
  * the same shape of screen the owner is looking at.
  *
- * `SNAPSHOT_DIR` is overridable so the same spec produces `before/` and `after/` sets across a fix
- * without editing this file twice.
+ * `SNAPSHOT_DIR` defaults to `development/test-results/visual-parity-taxonomy-workspace/before`.
+ * `VISUAL_PARITY_DIR` still overrides it so the same spec produces `before/` and `after/` sets
+ * across a fix without editing this file twice.
  */
 
 const SNAPSHOT_DIR =
-  process.env.VISUAL_PARITY_DIR ?? "ADS-memory/reports/visual-parity-taxonomy-workspace/before";
+  process.env.VISUAL_PARITY_DIR ?? path.resolve(import.meta.dirname, "../../test-results/visual-parity-taxonomy-workspace/before");
 
 async function shoot(page: import("@playwright/test").Page, name: string) {
+  mkdirSync(SNAPSHOT_DIR, { recursive: true });
   await page.screenshot({ path: `${SNAPSHOT_DIR}/${name}.png`, fullPage: true });
 }
 
@@ -1218,9 +1221,9 @@ test.describe("admin app survives an exhausted per-origin connection pool, acros
 
 // Migrated from placeholder-tabs-card-parity.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: placeholder-tabs-card-parity", () => {
-/** Absolute so the screenshot destination doesn't depend on whatever directory Playwright happens
+/** Absolute default so the screenshot destination doesn't depend on whatever directory Playwright happens
  *  to be invoked from — a relative path here resolves against `process.cwd()`, not `testDir`. */
-const SCREENSHOT_DIR = path.resolve(import.meta.dirname, "../../../ADS-memory/reports/placeholder-tabs-card-parity");
+const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR ?? path.resolve(import.meta.dirname, "../../test-results/placeholder-tabs-card-parity");
 
 /**
  * @file Pins the fix for the "Payments/Deployment/Authentication don't match Settings" bug
@@ -1322,6 +1325,7 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
         "Settings must retain its transparent shell background"
       ).toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
 
+      mkdirSync(SCREENSHOT_DIR, { recursive: true });
       await page.screenshot({
         path: path.join(SCREENSHOT_DIR, `${section.path.replace(/\//g, "_")}.png`),
         fullPage: true,
