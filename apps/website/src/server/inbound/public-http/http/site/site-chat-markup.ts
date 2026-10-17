@@ -8,7 +8,7 @@ export function renderLazySiteChatMarkup({ enabled, variant, assetsReady, mountI
   enabled: boolean; variant: 'react' | 'vanilla'; assetsReady: boolean; mountId: 'tovu-site-assistant-root';
 }, _options = {}): { head: string; body: string } | null {
   if (!enabled) return { head: '', body: '' };
-  // An owner can keep using an old built React widget while the coordinator builds the new entries.
+  // A partial deployment must not fall back to fetching React before the visitor opens chat.
   if (!assetsReady) return null;
   return {
     // Match site-chat-theme.css before the widget stylesheet loads, without changing host tokens.

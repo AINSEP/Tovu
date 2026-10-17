@@ -1,7 +1,9 @@
 import { hasQueuedPageAction, loadSiteAssistantState } from './session-store';
 import { readSiteChatComparisonVariant } from './site-chat-comparison';
 
-/** Product bindings only. The build entry supplies Jini after its additive entries are built. */
+/** Product bindings only. The build entry supplies Jini after its additive entries are built.
+ * React assets load on open intent only; a closed chat's queued effects wait for its next mount.
+ */
 export function startSiteChatLoader({ install, loadAssets }: {
   install: (args: { button: HTMLButtonElement; load: () => Promise<void>; open: (args?: { focus?: boolean }) => void;
     resume: boolean; deepLink: boolean; preload: boolean; loadingLabel: string; retryLabel: string }) => { activate: (args: Record<string, never>) => Promise<void> };
@@ -22,7 +24,9 @@ export function startSiteChatLoader({ install, loadAssets }: {
   const deepLink = location.hash === '#open-chat' || new URLSearchParams(location.search).get('open-chat') === '1';
   if (resume || deepLink) root.dataset.chatOpen = 'true';
   const widget = vanilla ? 'site-assistant-vanilla' : 'site-assistant';
-  const loader = install({ button, resume, deepLink, preload: (options.hasQueued ?? hasQueuedPageAction)(),
+  // Destination effects used to preload either widget even with chat closed. Keep React lazy:
+  // its single-use queue is drained on the next mount, after explicit open or open-state restore.
+  const loader = install({ button, resume, deepLink, preload: vanilla && (options.hasQueued ?? hasQueuedPageAction)(),
     loadingLabel: 'Loading chat…', retryLabel: 'Chat could not load. Activate to retry.',
     load: () => loadAssets({ document, scriptUrl: `/site-chat/${widget}.js`, styleUrl: `/site-chat/${widget}.css`, mount: root }),
     open: ({ focus = false } = {}) => {

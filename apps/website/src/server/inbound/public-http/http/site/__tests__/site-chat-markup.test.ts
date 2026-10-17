@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup } from '../site-chat-markup.js';
-import { injectSiteAssistantIntoStaticPage } from '../render.js';
+import { injectSiteAssistantIntoStaticPage, renderSite } from '../render.js';
 import { useSiteChatBuild } from './site-chat.fixture.js';
 
 for (const variant of ['react', 'vanilla'] as const) test(`${variant}: enabled public markup includes only bubble CSS and the tiny loader`, () => {
@@ -16,10 +18,27 @@ for (const variant of ['react', 'vanilla'] as const) test(`${variant}: enabled p
   assert.match(markup.body, /<script defer src="\/site-chat\/site-assistant-loader\.js" data-consent-category="functional"><\/script>/);
   assert.doesNotMatch(markup.head + markup.body, /remixicon|src="\/site-chat\/site-assistant(?:-vanilla)?\.js"/);
 });
-test('disabled emits nothing; missing build artifacts signal the existing React fallback', () => {
+test('disabled emits nothing; missing build artifacts signal an unavailable lazy widget', () => {
   assert.deepEqual(renderLazySiteChatMarkup({ enabled: false, variant: 'vanilla', assetsReady: true, mountId: 'tovu-site-assistant-root' }), { head: '', body: '' });
   assert.equal(renderLazySiteChatMarkup({ enabled: true, variant: 'react', assetsReady: false, mountId: 'tovu-site-assistant-root' }), null);
 });
+
+for (const selection of [true, 'react', 'vanilla'] as const) {
+  for (const proxy of [false, true]) test(`${selection}, proxy=${proxy}: legacy assets cannot trigger an eager fallback`, async t => {
+    useSiteChatBuild({ test: t, ready: proxy });
+    if (proxy) process.env.TOVU_SITE_CHAT_DEV_PROXY_URL = 'http://localhost:5174';
+    else {
+      // Simulate a rolling deployment containing the old React bundle but no lazy loader.
+      for (const name of ['site-assistant.js', 'site-assistant.css']) {
+        writeFileSync(path.join(process.env.TOVU_SITE_CHAT_DIST!, name), 'legacy fixture');
+      }
+    }
+    const page = '<html><head></head><body>Page</body></html>';
+    assert.equal(injectSiteAssistantIntoStaticPage(page, selection), page);
+    const html = await renderSite({ theme: null, route: 'home', siteTitle: 'Page', posts: [], siteAssistantEnabled: selection });
+    assert.doesNotMatch(html, /tovu-site-assistant-root|site-assistant[^"']*\.(?:js|css)|modulepreload/i);
+  });
+}
 
 for (const variant of ['react', 'vanilla'] as const) test(`server wiring selects the site's ${variant} choice with ready assets`, t => {
   useSiteChatBuild({ test: t, ready: true });

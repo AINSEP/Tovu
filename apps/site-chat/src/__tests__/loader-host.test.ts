@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
+import { installLazyChatLoader, loadChatAssets } from '@jini-ai/chat/browser/lazy-loader';
 import { startSiteChatLoader } from '../loader-host';
 
 for (const variant of ['react', 'vanilla']) test(`loader host binds ${variant} assets only on demand and preserves open intent`, async () => {
@@ -38,16 +39,59 @@ for (const link of ['/#open-chat', '/?open-chat=1']) test(`explicit deep link ${
   dom.window.close();
 });
 
-test('a pending destination effect preloads without turning a closed conversation into an open one', () => {
-  const dom = new JSDOM('<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader></button>', { url: 'https://example.test/' });
+for (const variant of ['react', 'vanilla']) test(`${variant}: pending destination effects preload only the lightweight widget while closed`, () => {
+  const dom = new JSDOM(`<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader data-widget="${variant}"></button>`, { url: 'https://example.test/' });
   let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
   startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; }, loadAssets: async () => {} },
     { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
       loadState: () => ({ open: false, messages: [] }), hasQueued: () => true });
-  assert.equal(config!.preload, true);
+  assert.equal(config!.preload, variant === 'vanilla');
   assert.equal(config!.resume, false);
   assert.equal(dom.window.document.getElementById('tovu-site-assistant-root')!.dataset.chatOpen, undefined);
   dom.window.close();
+});
+
+for (const queued of [false, true]) test(`React chat with queued=${queued} inserts no assets until open, then loads CSS and the bundle once`, async t => {
+  const dom = new JSDOM('<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader data-widget="react"></button>', { url: 'https://example.test/' });
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const button = document.querySelector('button')!;
+  const root = document.getElementById('tovu-site-assistant-root')!;
+  let finished!: Promise<void>;
+  let dispose!: () => void;
+  startSiteChatLoader({
+    install: args => {
+      const loader = installLazyChatLoader(args);
+      dispose = () => loader.dispose();
+      return loader;
+    },
+    loadAssets: args => (finished = loadChatAssets(args)),
+  }, { document, location: dom.window.location, events: dom.window as unknown as Window,
+    loadState: () => ({ open: false, messages: [] }), hasQueued: () => queued });
+  t.after(() => dispose());
+
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(document.querySelectorAll('script, link[rel="stylesheet"], link[rel="modulepreload"]').length, 0);
+  assert.equal(root.dataset.chatOpen, undefined);
+  button.click();
+  button.click();
+  await new Promise(resolve => setImmediate(resolve));
+  const stylesheet = document.querySelector('link')!;
+  assert.equal(stylesheet.getAttribute('href'), '/site-chat/site-assistant.css');
+  assert.equal(document.querySelector('script'), null, 'CSS must be ready before React loads');
+  stylesheet.dispatchEvent(new dom.window.Event('load'));
+  await new Promise(resolve => setImmediate(resolve));
+  const script = document.querySelector('script')!;
+  assert.equal(script.getAttribute('src'), '/site-chat/site-assistant.js');
+  root.dataset.chatMounted = 'true';
+  script.dispatchEvent(new dom.window.Event('load'));
+  await finished;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(document.querySelectorAll('script').length, 1);
+  assert.equal(document.querySelectorAll('link').length, 1);
+  assert.equal(root.dataset.chatOpen, 'true');
+  assert.equal(root.dataset.chatFocus, 'true');
+  assert.equal(button.hidden, true);
 });
 
 test('an open-chat anchor activates after loading even when its hash is already selected', () => {

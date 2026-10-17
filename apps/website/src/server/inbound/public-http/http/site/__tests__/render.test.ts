@@ -497,39 +497,41 @@ test("renderSite: siteAssistantEnabled:false is the same as omitting it — no m
   assert.doesNotMatch(html, /site-assistant\.css/);
 });
 
-test("renderSite: legacy build fallback injects the stylesheet link, mount node, and deferred script, once each, in the page shell (not a theme template)", async (t) => {
-  useSiteChatBuild({ test: t, ready: false });
+test("renderSite: the page shell includes only the lazy loader and inline bubble CSS, once each", async (t) => {
+  useSiteChatBuild({ test: t, ready: true });
   const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: true });
-  assert.match(html, /<link rel="stylesheet" href="\/site-chat\/site-assistant\.css"\/>/);
+  assert.match(html, /<style data-jini-chat-bubble>/);
   assert.match(html, /<div id="tovu-site-assistant-root"><\/div>/);
-  assert.match(html, /<script defer src="\/site-chat\/site-assistant\.js"><\/script>/);
+  assert.match(html, /<script defer src="\/site-chat\/site-assistant-loader\.js" data-consent-category="functional"><\/script>/);
+  assert.doesNotMatch(html, /(?:src|href)=["'][^"']*(?:site-assistant\.(?:js|css)|react)|modulepreload/i);
   // Exactly once each: this is the shell every route funnels through, not per-theme injection.
   assert.equal(html.match(/tovu-site-assistant-root/g)?.length, 1);
-  assert.equal((html.match(/site-assistant\.css/g) ?? []).length, 1);
-  // The stylesheet link lives in <head> (never render-blocked behind the deferred script), and the
+  assert.equal((html.match(/site-assistant-loader\.js/g) ?? []).length, 1);
+  // Bubble styles live in <head> (never delayed behind the deferred script), and the
   // deferred script comes after the themed page body — never a blocking script ahead of paintable
   // content.
   const headCloseIndex = html.indexOf("</head>");
-  const cssLinkIndex = html.indexOf("site-assistant.css");
+  const bubbleStyleIndex = html.indexOf("data-jini-chat-bubble");
   const bodyIndex = html.indexOf('class="site"');
-  const scriptIndex = html.indexOf("site-assistant.js");
-  assert.ok(cssLinkIndex < headCloseIndex, "the stylesheet link must be in <head>");
+  const scriptIndex = html.indexOf("site-assistant-loader.js");
+  assert.ok(bubbleStyleIndex < headCloseIndex, "bubble styles must be in <head>");
   assert.ok(bodyIndex < scriptIndex, "the script tag must come after the themed page body");
 });
 
 test("renderSite: siteAssistantEnabled:true injects the widget on a static-tier home page too — regression for the ADR-054 gap where `renderStaticTierHomePage` bypasses `pageShell` (and its siteAssistantMarkup splice) entirely, so the widget silently never appeared for any static theme's home route no matter the setting", async (t) => {
-  useSiteChatBuild({ test: t, ready: false });
+  useSiteChatBuild({ test: t, ready: true });
   const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.tier, "static");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Basic Demo", posts: [], siteAssistantEnabled: true });
   assert.match(html, /<div id="tovu-site-assistant-root"><\/div>/);
-  assert.match(html, /<script defer src="\/site-chat\/site-assistant\.js"><\/script>/);
-  assert.match(html, /<link rel="stylesheet" href="\/site-chat\/site-assistant\.css"\/>/);
+  assert.match(html, /src="\/site-chat\/site-assistant-loader\.js"/);
+  assert.match(html, /<style data-jini-chat-bubble>/);
+  assert.doesNotMatch(html, /(?:src|href)=["'][^"']*(?:site-assistant\.(?:js|css)|react)|modulepreload/i);
 });
 
 test("renderSite: siteAssistantEnabled:false (or omitted) shows no widget on a static-tier home page — same fail-closed default as every other tier", async () => {
@@ -3148,20 +3150,14 @@ const HEAD_COMMENT_MENTIONING_CLOSING_TAGS = [
 ].join("\n");
 
 test("injectSiteAssistantIntoStaticPage: closing tags named inside a head comment are skipped (regression)", (t) => {
-  useSiteChatBuild({ test: t, ready: false });
+  useSiteChatBuild({ test: t, ready: true });
   const out = injectSiteAssistantIntoStaticPage(HEAD_COMMENT_MENTIONING_CLOSING_TAGS, true);
-
-  assert.equal(
-    out,
-    [
-      "<!doctype html>",
-      '<html lang="en"><head>',
-      "<!-- cloak: armed before </head> runs, then at the end of <body> rather than at </body>. -->",
-      "<title>Home</title>",
-      '<link rel="stylesheet" href="/site-chat/site-assistant.css"/></head><body><h1>Hi</h1>' +
-        '<div id="tovu-site-assistant-root"></div><script defer src="/site-chat/site-assistant.js"></script></body></html>',
-    ].join("\n")
-  );
+  const comment = "<!-- cloak: armed before </head> runs, then at the end of <body> rather than at </body>. -->";
+  assert.ok(out.includes(comment), "the authored comment must remain intact");
+  const liveMarkup = out.replace(/<!--[\s\S]*?-->/g, "");
+  assert.match(liveMarkup, /<style data-jini-chat-bubble>[\s\S]*<\/style><\/head>/);
+  assert.match(liveMarkup, /<div id="tovu-site-assistant-root"><\/div>/);
+  assert.match(liveMarkup, /src="\/site-chat\/site-assistant-loader\.js"[^>]*><\/script><\/body>/);
 });
 
 test("injectExtraHeadIntoStaticPage: a </head> named inside a head comment is skipped (regression)", () => {

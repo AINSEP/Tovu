@@ -3113,11 +3113,11 @@ function fontLink(theme: DiscoveredTheme): string {
 const SITE_ASSISTANT_MOUNT_ID = "tovu-site-assistant-root";
 
 /**
- * ADR-054 Task 2/3 — the visitor chat's mount node plus its `<script defer>`, injected once here
+ * ADR-054 Task 2/3 — the visitor chat's mount node plus its lazy `<script defer>`, injected once here
  * rather than into any of the five theme templates (see this file's own module doc). `defer`, not a
  * blocking `<script>` or a bare module tag with no attribute: the ADR's own "Costs and open risks"
  * section requires this to never block first paint, and `defer` is what guarantees the browser keeps
- * parsing/painting the rest of the document while the bundle fetches, only running it once parsing
+ * parsing/painting the rest of the document while the loader fetches, only running it once parsing
  * finishes.
  *
  * Gated on `enabled` — never unconditional. `src/assistant/public-assistant-settings.ts`'s file
@@ -3126,7 +3126,7 @@ const SITE_ASSISTANT_MOUNT_ID = "tovu-site-assistant-root";
  * contract, not a shortcut." Emitting `hidden`/`display:none` markup here when disabled would be
  * exactly that defect, so the disabled case returns nothing at all rather than an inert tag.
  *
- * Ships a `<link rel="stylesheet">` alongside the script — a real, measured omission until a
+ * The old eager bundle shipped a stylesheet alongside the script — a real, measured omission until a
  * browser check caught it (2026-08-03): the mount div and script alone got the FAB rendering, but
  * with none of `apps/site-chat/src/widget.css`'s positioning/sizing loaded, so it rendered as a bare
  * unstyled `<button>` (33×28px, page-flow position) instead of the designed fixed 56×56 circle.
@@ -3135,22 +3135,16 @@ const SITE_ASSISTANT_MOUNT_ID = "tovu-site-assistant-root";
  * HOST-supplied layout CSS (`.chat-fab`/`.tovu-site-assistant__panel` position/size) does, because
  * nothing else on an arbitrary themed page provides it. Placed in `<head>` (not deferred like the
  * script) since it is small (under 1KB) and a visible FAB pop-in after paint would be a worse
- * regression than the negligible render-blocking cost of one tiny stylesheet.
+ * regression than the negligible render-blocking cost of one tiny stylesheet. The lazy adapter
+ * now supplies inline bubble CSS for first paint; Jini loads the full widget CSS on activation.
+ * Missing lazy assets (including a legacy dev proxy) emit no widget, never an eager React fallback.
  */
-function legacySiteAssistantMarkup(enabled: boolean): { head: string; body: string } {
-  if (!enabled) return { head: "", body: "" };
-  return {
-    head: `<link rel="stylesheet" href="/site-chat/site-assistant.css"/>`,
-    body: `<div id="${SITE_ASSISTANT_MOUNT_ID}"></div><script defer src="/site-chat/site-assistant.js"></script>`,
-  };
-}
-
 const siteChatAssetsReady = createSiteChatAssetReadiness({
   exists: ({ directory, name }) => existsSync(path.join(directory, name)),
 });
 
 /** Both widgets share the tiny loader once deployment artifacts are ready. Default remains React.
- * Readiness preserves the owner's old running build during the coordinator's deferred build batch. */
+ * Readiness fails closed so incomplete builds cannot eagerly fetch the React widget. */
 function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: string } {
   if (!enabled) return { head: "", body: "" };
   const variant = enabled === "vanilla" ? "vanilla" : "react";
@@ -3158,7 +3152,7 @@ function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: 
   const assetsReady = !process.env.TOVU_SITE_CHAT_DEV_PROXY_URL &&
     siteChatAssetsReady({ directory: distDir, variant });
   return renderLazySiteChatMarkup({ enabled: true, variant, assetsReady, mountId: SITE_ASSISTANT_MOUNT_ID })
-    ?? legacySiteAssistantMarkup(true);
+    ?? { head: "", body: "" };
 }
 
 /**
