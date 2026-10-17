@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
@@ -60,6 +61,16 @@ function runPrincipalRepoSuite(adapterName: string, makeRepo: () => PrincipalRep
 }
 
 function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
+  test(`[${adapterName}] UserRepoPort: login time survives an update and can be cleared`, async () => {
+    const repo = makeRepo();
+    const row = { principalId: "p-login", workspaceId: WS, username: "login-user", passwordHash: "h", email: "reader@example.test", lastLoginAt: "2026-01-03T00:00:00.000Z" };
+    await repo.save(row);
+    assert.deepEqual(await repo.findByUsername({ workspaceId: WS, username: row.username }), row);
+    assert.deepEqual(await repo.list({ workspaceId: WS }), [row]);
+    await repo.save({ ...row, email: undefined, lastLoginAt: undefined });
+    assert.deepEqual(await repo.findByPrincipalId({ workspaceId: WS, principalId: row.principalId }), { ...row, email: undefined, lastLoginAt: undefined });
+  });
+
   test(`[${adapterName}] UserRepoPort: save + findByPrincipalId/findByUsername round-trip, save is upsert`, async () => {
     const repo = makeRepo();
     await repo.save({ principalId: "p-1", workspaceId: WS, username: "ada", passwordHash: "h1" });
@@ -83,6 +94,17 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
 }
 
 function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPort) {
+  test(`[${adapterName}] SessionRepoPort: client metadata survives save and is cleared by a later save without it`, async () => {
+    const repo = makeRepo();
+    const row = { id: "s-client", workspaceId: WS, principalId: "p-1", tokenHash: "client-hash", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2026-02-01T00:00:00.000Z", ip: "192.0.2.8", userAgent: "Coverage browser", revokedAt: "2026-01-05T00:00:00.000Z" };
+    await repo.save(row);
+    assert.deepEqual(await repo.findByTokenHash({ workspaceId: WS, tokenHash: row.tokenHash }), row);
+    assert.deepEqual(await repo.listByPrincipalId({ workspaceId: WS, principalId: row.principalId }), [row]);
+    const cleared = { ...row, ip: undefined, userAgent: undefined, revokedAt: undefined };
+    await repo.save(cleared);
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), cleared);
+  });
+
   test(`[${adapterName}] SessionRepoPort: save + findById/findByTokenHash round-trip, revoke sets revokedAt`, async () => {
     const repo = makeRepo();
     await repo.save({

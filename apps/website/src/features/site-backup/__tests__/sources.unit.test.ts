@@ -1,4 +1,6 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
+import { lstat, readdir } from "node:fs/promises";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -11,6 +13,7 @@ import {
   captureDatabaseSnapshot,
   checkSiteBackupLimits,
   collectSiteBackupFiles,
+  formatByteSize,
   readPlannedFile,
   SITE_BACKUP_LIMITS,
   skipOversizedFiles,
@@ -455,4 +458,156 @@ test("the manifest names the format, Tovu version, schema, timestamp, scopes, da
     settings: { included: true },
   });
   assert.deepEqual(manifest.files, [{ path: "database/content.db", bytes: 6, sha256: "a".repeat(64) }]);
+});
+
+const walkFileSystem = { lstat, readdir: (dir: string) => readdir(dir, { withFileTypes: true }) };
+
+test("absent scope folders and settings files produce an empty backup", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  for (const name of ["themes", "uploads", "skills", "agent-plugins", "config.json", ".site-meta.json"]) {
+    rmSync(path.join(site.root, name), { recursive: true, force: true });
+  }
+  assert.deepEqual(await collectSiteBackupFiles({ sources: site.sources, include: ALL }, {}), { files: [], skipped: [], scopeNotes: {} });
+});
+
+test("settings links and directories are reported instead of read as regular files", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const config = path.join(site.root, "config.json");
+  const meta = path.join(site.root, ".site-meta.json");
+  unlinkSync(config);
+  unlinkSync(meta);
+  symlinkSync(path.join(site.root, "content.db"), config);
+  mkdirSync(meta);
+  assert.deepEqual(await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, settings: true } }), {
+    files: [], scopeNotes: {}, skipped: [
+      { path: "settings/config.json", reason: "a symbolic link — never followed, so nothing outside the site can ride along" },
+      { path: "settings/.site-meta.json", reason: "not a regular file" },
+    ],
+  });
+});
+
+for (const fault of [Object.assign(new Error("disk unavailable"), { code: "EIO" }), null, "disk unavailable"]) {
+  test(`directory read propagates unexpected ${String(fault)} failures`, async (t) => {
+    const site = makeSite();
+    t.after(site.cleanup);
+    await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, {
+      fileSystem: { ...walkFileSystem, readdir: async () => { throw fault; } },
+    }), error => error === fault);
+  });
+}
+
+test("a file disappearing between listing and lstat is omitted without losing stable siblings", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const target = path.join(site.root, "config.json");
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, settings: true } }, {
+    fileSystem: { ...walkFileSystem, lstat: async file => {
+      if (file === target) throw Object.assign(new Error("removed"), { code: "ENOENT" });
+      return lstat(file);
+    } },
+  });
+  assert.deepEqual(paths(result.files), ["settings/.site-meta.json"]);
+  assert.deepEqual(result.skipped, []);
+});
+
+test("an unexpected lstat failure aborts collection rather than silently omitting a file", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const failure = Object.assign(new Error("metadata unavailable"), { code: "EIO" });
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, settings: true } }, {
+    fileSystem: { ...walkFileSystem, lstat: async () => { throw failure; } },
+  }), error => error === failure);
+});
+
+test("plugin workspace links, invalid ids and stray files are not traversed", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const root = site.sources.agentPlugins.workspacesDir;
+  symlinkSync(path.join(root, "workspace-local"), path.join(root, "workspace-link"));
+  write(path.join(root, "stray.txt"), "not a workspace");
+  mkdirSync(path.join(root, "bad_id"));
+  // The installer folds ids to lowercase. A directory that only matches after folding is not owned.
+  mkdirSync(path.join(root, "WORKSPACE-UPPER"));
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } });
+  assert.deepEqual(result.skipped.map(item => [item.path, item.reason]).sort(), [
+    ["agent-plugins/ws/WORKSPACE-UPPER", "not a workspace folder the plugin installer writes"],
+    ["agent-plugins/ws/bad_id", "not a workspace folder the plugin installer writes"],
+    ["agent-plugins/ws/workspace-link", "a symbolic link — never followed, so nothing outside the site can ride along"],
+  ].sort());
+  assert.ok(paths(result.files).includes("agent-plugins/ws/workspace-local/activations.json"));
+});
+
+test("plugin paths that are missing or regular files are empty, and invalid plugin ids are ignored", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const ws = site.sources.agentPlugins.forWorkspace("workspace-local");
+  write(path.join(ws.root, "invalid_id", "package", "sha256", "secret"), "excluded");
+  write(path.join(ws.root, "empty-plugin", "package"), "not a directory");
+  write(path.join(ws.root, "other-plugin", "memory"), "not a directory");
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } });
+  assert.deepEqual(result.skipped, []);
+  assert.ok(result.files.some(file => file.path.endsWith("composio/memory/notes/notes.md")));
+  assert.ok(result.files.every(file => !/invalid_id|empty-plugin|other-plugin/.test(file.path)));
+});
+
+test("plugin-owned-directory lstat failures other than ENOENT abort collection", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const failure = Object.assign(new Error("package metadata unavailable"), { code: "EIO" });
+  const packagePath = path.join(site.sources.agentPlugins.forWorkspace("workspace-local").root, "packages");
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, {
+    fileSystem: { ...walkFileSystem, lstat: async file => {
+      if (file === packagePath) throw failure;
+      return lstat(file);
+    } },
+  }), error => error === failure);
+});
+
+for (const [bytes, formatted] of [[0, "0 B"], [1023, "1023 B"], [1024, "1 KiB"], [1536, "1.5 KiB"], [1048576, "1 MiB"], [1073741824, "1 GiB"], [1610612736, "1.5 GiB"]] as const) {
+  test(`${bytes} bytes formats as ${formatted}`, () => assert.equal(formatByteSize(bytes), formatted));
+}
+
+test("a planned file replaced by a directory is stale", async (t) => {
+  const site = makeSite();
+  t.after(site.cleanup);
+  const collected = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } });
+  const file = collected.files[0]!;
+  unlinkSync(file.absPath);
+  mkdirSync(file.absPath);
+  assert.deepEqual(await readPlannedFile(file), { ok: false, message: `'${file.path}' changed since the plan was made. Call site_backup_plan again.` });
+});
+
+test("a file truncated after fstat is refused and its handle is closed", async () => {
+  const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, bytes: 6, mtimeMs: 12 };
+  let closed = false;
+  assert.deepEqual(await readPlannedFile(file, { openFile: async () => ({
+    stat: async () => ({ isFile: () => true, size: 6, mtimeMs: 12 }),
+    readFile: async () => Buffer.from("short"),
+    close: async () => { closed = true; },
+  }) }), { ok: false, message: "'themes/index.html' changed since the plan was made. Call site_backup_plan again." });
+  assert.equal(closed, true);
+});
+
+for (const failingOperation of ["stat", "readFile"] as const) {
+  test(`a handle ${failingOperation} failure propagates after closing the handle`, async () => {
+    const failure = new Error(`${failingOperation} failed`);
+    let closed = false;
+    const file = { path: "themes/index.html", absPath: "/fixture/index.html", scope: "themes" as const, bytes: 6, mtimeMs: 12 };
+    await assert.rejects(readPlannedFile(file, { openFile: async () => ({
+      stat: async () => { if (failingOperation === "stat") throw failure; return { isFile: () => true, size: 6, mtimeMs: 12 }; },
+      readFile: async () => { throw failure; },
+      close: async () => { closed = true; },
+    }) }), error => error === failure);
+    assert.equal(closed, true);
+  });
+}
+
+test("a manifest with no database scope records null and preserves an explicitly empty scope note", () => {
+  const manifest = JSON.parse(buildSiteBackupManifest({ createdAt: "2026-10-16T00:00:00Z", tovuVersion: "1", schema: { index: 1, tag: "one" },
+    site: { name: "Empty", folderName: "empty" }, database: null, include: NONE, scopeNotes: { settings: "" }, files: [] }));
+  assert.equal(manifest.database, null);
+  assert.deepEqual(manifest.scopes.settings, { included: false, note: "" });
+  assert.deepEqual(manifest.files, []);
 });

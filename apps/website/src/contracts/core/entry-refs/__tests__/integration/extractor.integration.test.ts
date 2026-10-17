@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor.js";
+import type { EntryRefRow } from "../../types.js";
 
 /**
  * @file C-009 `extractEntryRefs` — SPEC-043 REQ-29..32, AC-21/22, INV-06.
@@ -213,4 +214,82 @@ test("a 5000-deep bodyJson extracts every widgetEmbed ref in document order inst
       ["widget-embed", "widget-last", "bodyJson.content[2]"],
     ],
   );
+});
+
+const source = { workspaceId: "ws-refs", sourceEntryId: "source-refs", sourceEntryType: "page" };
+function reference(fields: Omit<EntryRefRow, "workspaceId" | "sourceEntryId">): EntryRefRow {
+  return { workspaceId: source.workspaceId, sourceEntryId: source.sourceEntryId, ...fields };
+}
+
+test("structured extraction ignores malformed nodes, placements and namespace bags without dropping valid siblings", () => {
+  const refs = extractEntryRefs({
+    ...source,
+    bodyJson: {
+      placements: [null, 8, [], {}, { widgetEntryId: 42 }, { widgetEntryId: "placed" }],
+      content: [null, false, "text", [], {}, { type: "widgetEmbed" }, { type: "widgetEmbed", attrs: [] },
+        { type: "widgetEmbed", attrs: { widgetEntryId: 9 } }, { type: "widgetEmbed", attrs: { widgetEntryId: "inline" } }],
+    },
+    fieldsExt: { nil: null, primitive: 8, array: [], missing: {}, bad: { config: [] },
+      links: { config: { emptyRef: "", numericId: 1, title: "copy", categoryTermId: "term", menuRef: "menu", entryRefId: "entry", fallbackId: "fallback" } } },
+  });
+  assert.deepEqual(refs, [
+    reference({ sourceKind: "widget-area-placement", fieldPath: "bodyJson.placements[5]", targetKind: "entry", targetId: "placed" }),
+    reference({ sourceKind: "widget-embed", fieldPath: "bodyJson.content[8]", targetKind: "entry", targetId: "inline" }),
+    ...[["categoryTermId", "term", "term"], ["menuRef", "entry", "menu"], ["entryRefId", "entry", "entry"], ["fallbackId", "entry", "fallback"]].map(([key, kind, id]) =>
+      reference({ sourceKind: "config-field", fieldPath: `fields.ext.links.config.${key}`, targetKind: kind as "term" | "entry", targetId: id })),
+  ]);
+});
+
+for (const widgetType of ["gallery", "media"] as const) {
+  test(`${widgetType} config references preserve authored media positions and repeated targets`, () => {
+    assert.deepEqual(extractEntryRefs({ ...source, bodyJson: null,
+      fieldsExt: { widget: { widgetType, config: { images: [null, { mediaId: "hero" }, { mediaId: "hero" }] } } },
+    }), [1, 2].map(index => reference({ sourceKind: "config-field", fieldPath: `fields.ext.widget.config.media[${index}]`, targetKind: "asset", targetId: "hero" })));
+  });
+}
+
+test("media content in placements and inline widgets is indexed with each owning field path", () => {
+  assert.deepEqual(extractEntryRefs({ ...source, bodyJson: {
+    placements: [{ widgetEntryId: "gallery", content: { images: [{ mediaId: "placed-image" }] } }],
+    content: [{ type: "widgetEmbed", attrs: { content: { images: [{ mediaId: "inline-image" }] } } }],
+  }, fieldsExt: {} }), [
+    reference({ sourceKind: "config-field", fieldPath: "bodyJson.placements[0].content.media[0]", targetKind: "asset", targetId: "placed-image" }),
+    reference({ sourceKind: "widget-area-placement", fieldPath: "bodyJson.placements[0]", targetKind: "entry", targetId: "gallery" }),
+    reference({ sourceKind: "config-field", fieldPath: "bodyJson.content[0].attrs.content.media[0]", targetKind: "asset", targetId: "inline-image" }),
+  ]);
+});
+
+const marker = (config: Record<string, unknown>) => `<div data-embed-config='${JSON.stringify(config)}'></div>`;
+
+test("HTML galleries keep image locators even with invalid layout and duplicate targets", () => {
+  const html = marker({ type: "gallery", layout: "invalid", images: [null, { mediaId: "hero" }, { mediaId: "hero" }] });
+  assert.deepEqual(extractHtmlEntryRefs({ ...source, html }, {}), [1, 2].map(index => reference({
+    sourceKind: "page-html-embed", fieldPath: `bodyHtml[embed:gallery#1].images[${index}].mediaId`, targetKind: "asset", targetId: "hero",
+  })));
+});
+
+test("HTML single-target references stop at fifty and accept exactly the maximum id length", () => {
+  const ids = ["x".repeat(200), ...Array.from({ length: 50 }, (_, i) => `widget-${i}`)];
+  const refs = extractHtmlEntryRefs({ ...source, html: ids.map(id => marker({ type: "widget", id })).join("") });
+  assert.deepEqual(refs, ids.slice(0, 50).map((id, index) => reference({
+    sourceKind: "page-html-embed", fieldPath: `bodyHtml[embed:widget#${index + 1}]`, targetKind: "entry", targetId: id,
+  })));
+});
+
+test("gallery markers have a separate fifty-marker budget and cannot consume a later widget reference", () => {
+  const galleries = Array.from({ length: 51 }, (_, i) => marker({ type: "gallery", images: [{ mediaId: `image-${i}` }] }));
+  const refs = extractHtmlEntryRefs({ ...source, html: galleries.join("") + marker({ type: "WIDGET", id: "last-widget" }) });
+  assert.deepEqual(refs, [
+    ...Array.from({ length: 50 }, (_, i) => reference({ sourceKind: "page-html-embed", fieldPath: `bodyHtml[embed:gallery#${i + 1}].images[0].mediaId`, targetKind: "asset", targetId: `image-${i}` })),
+    reference({ sourceKind: "page-html-embed", fieldPath: "bodyHtml[embed:widget#52]", targetKind: "entry", targetId: "last-widget" }),
+  ]);
+});
+
+test("raw HTML media and media authored inside a non-gallery marker retain separate source paths", () => {
+  const html = '<img data-media-slug="raw-image">' + marker({ type: "widget", id: "media-widget", content: { images: [{ mediaId: "nested-image" }] } });
+  assert.deepEqual(extractHtmlEntryRefs({ ...source, html }), [
+    reference({ sourceKind: "config-field", fieldPath: "bodyHtml.raw.media[0]", targetKind: "asset", targetId: "raw-image" }),
+    reference({ sourceKind: "config-field", fieldPath: "bodyHtml[embed:widget#1].media[0]", targetKind: "asset", targetId: "nested-image" }),
+    reference({ sourceKind: "page-html-embed", fieldPath: "bodyHtml[embed:widget#1]", targetKind: "entry", targetId: "media-widget" }),
+  ]);
 });

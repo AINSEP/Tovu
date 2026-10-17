@@ -1,4 +1,4 @@
-import { constants as fsConstants, type Dirent } from "node:fs";
+import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
 import { lstat, open, readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
@@ -118,7 +118,19 @@ const SYMLINK_REASON = "a symbolic link — never followed, so nothing outside t
 interface WalkSink {
   readonly files: PlannedDiskFile[];
   readonly skipped: SkippedSiteBackupFile[];
+  readonly fileSystem: SiteBackupWalkFileSystem;
 }
+
+/** The filesystem reads used by backup collection, including files removed during the walk. */
+export interface SiteBackupWalkFileSystem {
+  readonly lstat: (file: string) => Promise<Stats>;
+  readonly readdir: (dir: string) => Promise<Dirent[]>;
+}
+
+const WALK_FILE_SYSTEM: SiteBackupWalkFileSystem = {
+  lstat,
+  readdir: (dir) => readdir(dir, { withFileTypes: true }),
+};
 
 function isMissing(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ENOENT";
@@ -126,9 +138,9 @@ function isMissing(err: unknown): boolean {
 
 /** `readdir` that treats a folder that doesn't exist as empty: a site with no themes folder yet has
  *  nothing to back up there, which is not an error. */
-async function readdirOrEmpty(dir: string): Promise<Dirent[]> {
+async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem): Promise<Dirent[]> {
   try {
-    return await readdir(dir, { withFileTypes: true });
+    return await fileSystem.readdir(dir);
   } catch (err) {
     if (isMissing(err)) return [];
     throw err;
@@ -144,7 +156,7 @@ async function readdirOrEmpty(dir: string): Promise<Dirent[]> {
 async function addFile(sink: WalkSink, input: { absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
   let info;
   try {
-    info = await lstat(input.absPath);
+    info = await sink.fileSystem.lstat(input.absPath);
   } catch (err) {
     if (isMissing(err)) return;
     throw err;
@@ -168,7 +180,7 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
  * @complexity O(entries under `absDir`) filesystem calls; recursion depth is the folder depth.
  */
 async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
-  const entries = await readdirOrEmpty(input.absDir);
+  const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
   for (const entry of entries) {
     if (IGNORED_NAMES.has(entry.name) || input.excludeTopLevel?.has(entry.name)) continue;
     const absPath = path.join(input.absDir, entry.name);
@@ -204,7 +216,7 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
   let current = input.baseDir;
   for (const segment of path.relative(input.baseDir, input.absDir).split(path.sep)) {
     current = path.join(current, segment);
-    const info = await lstat(current).catch((err: unknown) => (isMissing(err) ? null : Promise.reject(err)));
+    const info = await sink.fileSystem.lstat(current).catch((err: unknown) => (isMissing(err) ? null : Promise.reject(err)));
     if (info === null) return;
     if (info.isSymbolicLink()) {
       sink.skipped.push({ path: agentPluginsRelPath(input.layout, current), reason: SYMLINK_REASON });
@@ -226,7 +238,7 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
  * @complexity O(entries under each included folder).
  */
 async function walkAgentPlugins(sink: WalkSink, layout: AgentPluginLayout): Promise<void> {
-  for (const entry of await readdirOrEmpty(layout.workspacesDir)) {
+  for (const entry of await readdirOrEmpty(layout.workspacesDir, sink.fileSystem)) {
     const absWorkspace = path.join(layout.workspacesDir, entry.name);
     if (entry.isSymbolicLink()) {
       sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: SYMLINK_REASON });
@@ -250,7 +262,7 @@ async function walkAgentPlugins(sink: WalkSink, layout: AgentPluginLayout): Prom
       await addFile(sink, { absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
     }
     await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
-    for (const pluginEntry of await readdirOrEmpty(workspace.root)) {
+    for (const pluginEntry of await readdirOrEmpty(workspace.root, sink.fileSystem)) {
       if (PLUGIN_WORKSPACE_FILES.has(pluginEntry.name) || (!pluginEntry.isDirectory() && !pluginEntry.isSymbolicLink())) continue;
       let pluginRoot: string;
       try {
@@ -287,9 +299,9 @@ const MEDIA_IN_OBJECT_STORAGE_NOTE =
  * @throws Only an unexpected filesystem error (a missing folder is treated as empty).
  * @complexity O(entries under every included scope's folder) filesystem calls, plus O(n log n) to sort.
  */
-export async function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }): Promise<CollectedSiteBackupFiles> {
+export async function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }, optional: { fileSystem?: SiteBackupWalkFileSystem } = {}): Promise<CollectedSiteBackupFiles> {
   const { sources, include } = input;
-  const sink: WalkSink = { files: [], skipped: [] };
+  const sink: WalkSink = { files: [], skipped: [], fileSystem: optional.fileSystem ?? WALK_FILE_SYSTEM };
   const scopeNotes: Partial<Record<SiteBackupScope, string>> = {};
 
   if (include.media) {
@@ -417,6 +429,13 @@ export function checkSiteBackupLimits(
 
 export type ReadPlannedFileResult = { ok: true; bytes: Buffer } | { ok: false; message: string };
 
+/** The opened file's metadata and bytes must come from the same handle. */
+export interface SiteBackupReadHandle {
+  stat(): Promise<Pick<Stats, "isFile" | "size" | "mtimeMs">>;
+  readFile(): Promise<Buffer>;
+  close(): Promise<void>;
+}
+
 /**
  * Reads a planned file at push time, refusing it if it is no longer the file the human reviewed.
  *
@@ -426,11 +445,11 @@ export type ReadPlannedFileResult = { ok: true; bytes: Buffer } | { ok: false; m
  *
  * @complexity O(file size) — one open, one fstat, one read.
  */
-export async function readPlannedFile(file: PlannedDiskFile): Promise<ReadPlannedFileResult> {
+export async function readPlannedFile(file: PlannedDiskFile, optional: { openFile?: (file: string, flags: number) => Promise<SiteBackupReadHandle> } = {}): Promise<ReadPlannedFileResult> {
   const stale: ReadPlannedFileResult = { ok: false, message: `'${file.path}' changed since the plan was made. Call site_backup_plan again.` };
   let handle;
   try {
-    handle = await open(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+    handle = await (optional.openFile ?? open)(file.absPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
   } catch {
     return stale;
   }
