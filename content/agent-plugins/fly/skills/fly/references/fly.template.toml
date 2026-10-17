@@ -1,7 +1,7 @@
 # ============================================================================
 # Tovu — fly.io app config TEMPLATE.
 #
-# Derived from the working `fly.toml` at the Tovu repo root. Write this to the
+# Matches the plugin's deploy-configs/fly.mjs renderer. Write this to the
 # root of the operator's repo, next to `Dockerfile`.
 #
 # EVERY `<<PLACEHOLDER: ...>>` below must be replaced before this file is

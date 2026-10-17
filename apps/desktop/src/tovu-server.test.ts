@@ -329,7 +329,7 @@ test("buildServeEnv pins TOVU_SITE_DIR to the requested site despite an inherite
 
 // Regression for the 2026-09-19 live blocker: the Publish Content dialog's Connect button reported
 // "No live site is set up yet" for a site that HAD been deployed, because
-// `features/publish-trust`'s committed-config resolution (`fly.toml`, `deploy/publish-trust.json`)
+// `features/publish-trust`'s committed-config resolution (`.github/workflows/fly-deploy.yml`, `deploy/publish-trust.json`)
 // fell back to the bare `process.cwd()` — the repo root for a normal `tovu serve`, but own-server
 // mode's cwd is wherever opened Electron, same class of gap as the `TOVU_SITE_DIR` pair above.
 test("buildServeEnv sets TOVU_REPO_ROOT to the repo root", () => {

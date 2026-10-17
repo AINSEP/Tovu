@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { load as parseYaml } from "js-yaml";
+import { parse as parseToml } from "smol-toml";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
@@ -19,7 +24,7 @@ function renderFlyToml(descriptor: DeploymentDescriptor, options: RenderDeployCo
 /**
  * @file `renderFlyToml` against a KNOWN, hand-fixed descriptor (not the real repo's) — exact-string
  * assertions, so a change to the emitted TOML's shape is caught here regardless of whatever the real
- * `Dockerfile`/`fly.toml` happen to say at the time (that's `deploy-config.unit.test.ts`'s job).
+ * `Dockerfile`/`package.json` happen to say at the time (that's `deploy-config.unit.test.ts`'s job).
  */
 
 const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
@@ -110,4 +115,124 @@ test("renderFlyToml: rejects a --region that would inject a new top-level TOML k
 test("renderFlyToml: rejects a quote- or newline-bearing appName/volumeName, not just region (regression)", () => {
   assert.throws(() => renderFlyToml({ ...FIXTURE_DESCRIPTOR, appName: 'evil"\nsome_key="x' }, { region: "iad" }), ValidationError);
   assert.throws(() => renderFlyToml({ ...FIXTURE_DESCRIPTOR, volumeName: 'evil"\nsome_key="x' }, { region: "iad" }), ValidationError);
+});
+
+
+/** Golden production fields captured from root fly.toml before its removal. Comments lived in the
+ * workflow header; every actual setting below must survive plugin generation unchanged. */
+const PRODUCTION_FLY_TOML = `app = "tovu"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[build.args]
+  TOVU_INSTALL_BROWSER = "0"
+
+[env]
+  TOVU_RUNTIME_MODE = "production"
+  PORT = "3000"
+  TOVU_SITE = "tovu-com"
+  TOVU_PUBLIC_URL = "https://tovu.dev"
+
+[[mounts]]
+  source = "tovu_sites"
+  destination = "/workspace/Tovu/sites"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/readyz"
+`;
+
+test("renderFlyToml preserves every production field, including the live volume folder and public origin", () => {
+  const result = renderFlyToml({
+    ...FIXTURE_DESCRIPTOR, appName: "tovu", port: 3000, volumeName: "tovu_sites",
+  }, {
+    region: "iad",
+    env: { TOVU_SITE: "tovu-com", TOVU_PUBLIC_URL: "https://tovu.dev" },
+    buildArgs: { TOVU_INSTALL_BROWSER: "0" },
+  });
+  assert.equal(result.contents, PRODUCTION_FLY_TOML);
+});
+
+test("the production workflow's generation command uses the plugin and emits the parity config without npm or a built CLI", (t) => {
+  const repoRoot = path.resolve(path.dirname(MODULE_PATH), "../../../..");
+  const workflow = parseYaml(readFileSync(path.join(repoRoot, ".github/workflows/fly-deploy.yml"), "utf8")) as {
+    env: Record<string, string>;
+    concurrency: { "cancel-in-progress": boolean };
+    jobs: { deploy: { steps: Array<{ name?: string; run?: string; env?: Record<string, string> }> } };
+  };
+  const steps = workflow.jobs.deploy.steps;
+  const index = steps.findIndex(step => step.name === "Generate Fly config from the plugin");
+  assert.ok(index >= 0);
+  assert.equal(steps[index + 1].run,
+    "flyctl deploy --remote-only --config fly.toml --build-arg TOVU_BUILD_SHA=${{ github.sha }}");
+  assert.deepEqual(steps[index + 1].env, { FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}" });
+  assert.equal(workflow.concurrency["cancel-in-progress"], false);
+  assert.ok(!("FLY_API_TOKEN" in workflow.env), "generation receives no Fly credential from workflow inputs");
+
+  // Run only the generation step in a fresh checkout-shaped directory. No flyctl, npm, TS loader,
+  // network, or repo-root output is involved; the actual YAML env/command must produce the golden.
+  const root = mkdtempSync(path.join(tmpdir(), "tovu-fly-workflow-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const moduleCopy = path.join(root, "content/agent-plugins/fly/deploy-configs/fly.mjs");
+  mkdirSync(path.dirname(moduleCopy), { recursive: true });
+  copyFileSync(MODULE_PATH, moduleCopy);
+  const result = spawnSync("bash", ["-eu", "-c", steps[index].run!], {
+    cwd: root, encoding: "utf8",
+    env: { PATH: process.env.PATH, ...workflow.env, TOVU_ADMIN_PASSWORD: "never-render-this-secret" },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(path.join(root, "fly.toml"), "utf8"), PRODUCTION_FLY_TOML);
+});
+
+test("renderFlyToml escapes variable values instead of treating them as TOML syntax", () => {
+  const value = 'https://example.test/a?next="quoted"\\path\n[unexpected]\r\t';
+  const result = renderFlyToml(FIXTURE_DESCRIPTOR, {
+    region: "iad", env: { TOVU_PUBLIC_URL: value, PORT: "4321" },
+    buildArgs: { CUSTOM_BUILD: value },
+  });
+  const parsed = parseToml(result.contents);
+  assert.deepEqual(parsed.env, { TOVU_RUNTIME_MODE: "production", PORT: "4321", TOVU_PUBLIC_URL: value });
+  assert.deepEqual(parsed.build, { dockerfile: "Dockerfile", args: { CUSTOM_BUILD: value } });
+  assert.equal((result.contents.match(/^  PORT = /gm) ?? []).length, 1, "overrides emit a single TOML key");
+  assert.match(result.contents, /^  PORT = "4321"$/m);
+  assert.doesNotMatch(result.contents, /^\[unexpected\]/m);
+});
+
+test("renderFlyToml rejects invalid variable names, non-string values, and declared secrets in either map", () => {
+  for (const field of ["env", "buildArgs"] as const) {
+    for (const variables of [
+      { "BAD\n[env]": "value" },
+      { BAD: 123 },
+      { TOVU_ADMIN_PASSWORD: "never-include-this-value" },
+    ]) {
+      assert.throws(() => renderFlyToml(FIXTURE_DESCRIPTOR, {
+        region: "iad", [field]: variables as unknown as Record<string, string>,
+      }), error => error instanceof ValidationError && !error.message.includes("never-include-this-value"));
+    }
+  }
+});
+
+test("renderFlyToml omits an empty build args table and preserves defaults for empty options maps", () => {
+  assert.equal(renderFlyToml(FIXTURE_DESCRIPTOR, { region: "iad", env: {}, buildArgs: {} }).contents,
+    renderFlyToml(FIXTURE_DESCRIPTOR, { region: "iad" }).contents);
+});
+
+
+test("renderFlyToml escapes the TOML-forbidden DEL control character", () => {
+  const result = renderFlyToml(FIXTURE_DESCRIPTOR, { region: "iad", env: { LABEL: "before\u007fafter" } });
+  assert.ok(result.contents.includes('  LABEL = "before\\u007fafter"\n'));
+  assert.ok(!result.contents.includes("\u007f"));
+  assert.deepEqual(parseToml(result.contents).env, { TOVU_RUNTIME_MODE: "production", PORT: "4000", LABEL: "before\u007fafter" });
 });

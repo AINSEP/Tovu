@@ -16,7 +16,7 @@ import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/c
  *
  * Run with cwd at the repo root (inherited from the test runner, same assumption
  * `dockerfile.unit.test.ts` already makes) — `buildDeploymentDescriptor` reads the real
- * `Dockerfile`/`fly.toml` from `process.cwd()`.
+ * `Dockerfile`/`package.json` from `process.cwd()`.
  */
 
 const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");

@@ -177,7 +177,7 @@ async function runPinSite(
     if (testInfo.titlePath.includes("Bug pin: dockerfile-tab-editable")) {
       // Never write/restore the shared checkout's Dockerfile, even after an assertion fails.
       manifest.apiCwd = site.runtimeDir;
-      for (const relative of ["Dockerfile", "fly.toml", "apps/website/src/server/inbound/public-http/routes/ops/health.ts"]) {
+      for (const relative of ["Dockerfile", "package.json", "apps/website/src/server/inbound/public-http/routes/ops/health.ts"]) {
         const destination = path.join(site.runtimeDir, relative);
         mkdirSync(path.dirname(destination), { recursive: true });
         copyFileSync(path.join(REPO_ROOT, relative), destination);

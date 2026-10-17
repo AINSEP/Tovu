@@ -1,10 +1,9 @@
 /**
  * @file `tovu deploy config --target fly` for the Tovu `deploy` plugin: renders `fly.toml` from the
  * host's `DeploymentDescriptor` (`apps/website/src/features/deployments/deploy-config.ts`).
- * Structurally mirrors the repo-root `fly.toml`: that file IS the reference for what a correct Fly
- * config for Tovu looks like (`[build]`, `[env]`, `[[mounts]]`, `[http_service]` with a
- * `/readyz`-backed check). This renderer reproduces its exact shape with the caller-supplied region
- * and the descriptor's derived facts substituted in.
+ * Owns the generated Fly config (`[build]`, `[env]`, `[[mounts]]`, `[http_service]` with a
+ * `/readyz`-backed check). Production's `.github/workflows/fly-deploy.yml` calls this same renderer
+ * with its deployment values; there is no checked-in repo-root `fly.toml` to read.
  *
  * No enumerated region allow-list here, unlike the Render/Railway renderers: Fly's region catalog is
  * large (~30 codes) and had no authoritative source to enumerate against without risking rejecting a
@@ -18,16 +17,40 @@
 /**
  * @typedef {{ readonly name: string, readonly requirement: "boot-blocking" | "recommended" }} DeploymentSecret
  * @typedef {{ readonly appName: string, readonly port: number, readonly dockerfilePath: string, readonly volumeMountPath: string, readonly volumeName: string, readonly healthCheckPath: string, readonly secrets: readonly DeploymentSecret[] }} DeploymentDescriptor
- * @typedef {{ readonly region: string }} RenderDeployConfigOptions
+ * @typedef {{ readonly region: string, readonly env?: Readonly<Record<string, string>>, readonly buildArgs?: Readonly<Record<string, string>> }} RenderDeployConfigOptions
  * @typedef {{ readonly assertNoConfigInjection: (fieldLabel: string, value: string) => void, readonly validationError: (message: string) => Error, readonly migrationsNote: string }} DeployConfigKit
  * @typedef {{ readonly filename: string, readonly contents: string, readonly notes: readonly string[] }} RenderedDeployConfig
  */
 
 /**
+ * Serializes explicitly supplied non-secret variables as TOML assignments. JSON string quoting
+ * also escapes TOML basic strings, including URLs, backslashes, quotes and control characters.
+ * @param {{ values: Readonly<Record<string, string>>, secrets: readonly DeploymentSecret[], label: string }} input
+ * @param {DeployConfigKit} kit Error factory supplied by the host.
+ * @returns {string} Indented assignments, or an empty string for an empty map.
+ * @throws {Error} For invalid variable names, non-string values or declared secret names.
+ * @complexity O(n + s), where n is the total variable text and s the secret count.
+ */
+function renderVariables({ values, secrets, label }, kit) {
+  const secretNames = new Set(secrets.map(secret => secret.name));
+  return Object.entries(values).map(([name, value]) => {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || typeof value !== "string" || secretNames.has(name)) {
+      throw kit.validationError(`${label} must contain only non-secret string variables with valid names`);
+    }
+    // JSON permits a literal DEL character; TOML requires it to be escaped too.
+    return `  ${name} = ${JSON.stringify(value).replace(/\u007f/g, "\\u007f")}\n`;
+  }).join("");
+}
+
+/**
+ * Renders the descriptor and optional non-secret env/build arguments without I/O. The established
+ * three-argument generator port is retained for compatibility with every hosting plugin.
  * @param {DeploymentDescriptor} descriptor
  * @param {RenderDeployConfigOptions} options
  * @param {DeployConfigKit} kit
  * @returns {RenderedDeployConfig}
+ * @throws {Error} The host's validation error for missing/unsafe identifiers or invalid variables.
+ * @complexity O(n + s), where n is variable text and s the declared secret count.
  */
 function render(descriptor, options, kit) {
   const region = options.region.trim();
@@ -38,15 +61,21 @@ function render(descriptor, options, kit) {
   kit.assertNoConfigInjection("the derived Fly app name (fly.toml's app)", descriptor.appName);
   kit.assertNoConfigInjection("the derived Fly volume name (fly.toml's [[mounts]].source)", descriptor.volumeName);
 
+  const buildArgs = renderVariables({ values: options.buildArgs ?? {}, secrets: descriptor.secrets, label: "buildArgs" }, kit);
+  const env = renderVariables({
+    values: { TOVU_RUNTIME_MODE: "production", PORT: String(descriptor.port), ...options.env },
+    secrets: descriptor.secrets,
+    label: "env",
+  }, kit);
+
   const contents = `app = "${descriptor.appName}"
 primary_region = "${region}"
 
 [build]
   dockerfile = "${descriptor.dockerfilePath}"
 
-[env]
-  TOVU_RUNTIME_MODE = "production"
-  PORT = "${descriptor.port}"
+${buildArgs ? `[build.args]\n${buildArgs}\n` : ""}[env]
+${env.trimEnd()}
 
 [[mounts]]
   source = "${descriptor.volumeName}"

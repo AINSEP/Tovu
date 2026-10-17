@@ -244,6 +244,12 @@ test("the address to confirm comes from the deploy config the repo already carri
   });
   assert.equal(await findCandidateDestination({ io, resolvePath: (r) => r }), "https://tovu.example");
 
+  // This repo generates its config during CI; the committed workflow owns the public URL.
+  const workflowIo = memoryIo({
+    ".github/workflows/fly-deploy.yml": 'env:\n  TOVU_PUBLIC_URL: https://workflow.example\n',
+  });
+  assert.equal(await findCandidateDestination({ io: workflowIo, resolvePath: (r) => r }), "https://workflow.example");
+
   // A fresh install that has never been deployed simply has none. An empty state, not an error.
   assert.equal(await findCandidateDestination({ io: memoryIo(), resolvePath: (r) => r }), null);
 });

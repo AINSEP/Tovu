@@ -2,7 +2,7 @@
 # Runs `flyctl deploy` with this repo's own root as the build context, regardless of the
 # caller's cwd. `@jini-ai/*` packages are consumed from the npm registry now, so the image
 # builds from the Tovu checkout alone — this script no longer needs a sibling `Jini` checkout
-# or any parent-directory context gymnastics (see `Dockerfile` and `fly.toml`'s own headers for
+# or any parent-directory context gymnastics (see `Dockerfile` and `.github/workflows/fly-deploy.yml`'s headers for
 # that history). It exists only so "deploy" always resolves to the same directory rather than
 # whatever the shell happens to be in.
 #
@@ -12,8 +12,9 @@
 #
 # Requires:
 #   - flyctl on PATH, authenticated (`flyctl auth login` or FLY_API_TOKEN)
-#   - `Tovu/fly.toml` to exist (create it from `fly launch` or the checked-in
-#     starting point before first use — see that file's own header)
+#   - a generated `Tovu/fly.toml`: run `tovu deploy config --target fly --region <region>
+#     --out fly.toml` first, then review deployment-specific env/build args. The Fly plugin
+#     owns the renderer and references/fly.template.toml; no root config is checked in.
 #
 # This script only ASSEMBLES and RUNS the flyctl command; it does not decide
 # to deploy for you — that's still your call every time you invoke it.
@@ -24,7 +25,7 @@ TOVU_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 if [ ! -f "$TOVU_ROOT/fly.toml" ]; then
   echo "error: $TOVU_ROOT/fly.toml does not exist." >&2
-  echo "  Create it (see the file's own header for the required [build] shape)" >&2
+  echo "  Generate it: tovu deploy config --target fly --region <region> --out fly.toml" >&2
   echo "  before running this script." >&2
   exit 1
 fi

@@ -42,12 +42,13 @@ import {
  */
 
 /** Deploy-config files a repo may carry, in the order they are consulted for a candidate address.
+ *  Operator repos may commit generated configs; this repo keeps generation inputs in its workflow.
  *
  *  This is a SUGGESTION mechanism, never a trust decision: whatever it finds is shown to the owner
  *  for confirmation and is re-validated as a URL before anything is done with it. That is why a
  *  plain scan is adequate here where a real parser would be required to WRITE one (a provisioning codec) — the
  *  cost of a wrong guess is a pre-filled field the owner corrects, not a misdirected publish. */
-export const DEPLOY_CONFIG_CANDIDATE_PATHS = ["fly.toml", "render.yaml", "railway.toml", "app.json"] as const;
+export const DEPLOY_CONFIG_CANDIDATE_PATHS = ["fly.toml", "render.yaml", "railway.toml", "app.json", ".github/workflows/fly-deploy.yml"] as const;
 
 /** The deploy-config key naming a deployment's public origin. Already this repo's own convention
  *  for exactly that (`features/origin/configured-origin.ts`); reusing it means a site that has ever
@@ -67,7 +68,7 @@ const PUBLIC_URL_PATTERN = new RegExp(`${PUBLIC_URL_KEY}\\s*[:=]\\s*["']?(https:
  *
  * @returns The first `https` origin found, or `null` — an install that has never been deployed has
  * no candidate, which is an ordinary empty state and not an error.
- * @complexity O(f · n) for `f` config files of length `n`; f is a fixed list of four.
+ * @complexity O(f · n) for `f` config files of length `n`; f is a fixed list of five.
  */
 export async function findCandidateDestination(deps: {
   readonly io: ProvisioningFileIo;

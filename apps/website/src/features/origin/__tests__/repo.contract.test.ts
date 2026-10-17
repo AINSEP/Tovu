@@ -219,7 +219,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   });
 
   // Config is authoritative over a previously configured value: environment access (fly secrets /
-  // fly.toml) is a higher privilege than an admin-UI login, and an operator who moves the site to a
+  // workflow env inputs to the Fly plugin) is a higher privilege than an admin-UI login, and an operator who moves the site to a
   // new domain must be able to say so. Recorded as a decision, not an accident.
   test("registerConfiguredOrigin updates an existing workspace-setting row when the configured origin changes", async () => {
     const kernel = makeKernel();

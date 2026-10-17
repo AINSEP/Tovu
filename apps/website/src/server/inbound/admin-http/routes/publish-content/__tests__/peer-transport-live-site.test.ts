@@ -10,7 +10,7 @@ import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentPeerTransportRoutes } from "../peer-transport.js";
 
 /**
- * @file The live site (`TOVU_RUNTIME_MODE=production`, set in `fly.toml`) has nowhere to publish
+ * @file The live site (`TOVU_RUNTIME_MODE=production`, set by the Fly plugin's generated config) has nowhere to publish
  * to — it IS the destination. The admin hides every Publish entry point there; these tests pin the
  * server-side refusal behind that, so a stale tab or a direct call cannot push from the live site.
  */

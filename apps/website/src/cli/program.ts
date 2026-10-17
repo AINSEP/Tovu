@@ -216,7 +216,7 @@ export function createProgram(): Command {
   deployProgram
     .command("config")
     .description(
-      "generate one platform's deploy config file from Tovu's single deployment descriptor (Dockerfile/fly.toml as source of truth) — prints to stdout, or writes to --out"
+      "generate one platform's deploy config file from Tovu's single deployment descriptor (Dockerfile/package.json as source of truth) — prints to stdout, or writes to --out"
     )
     .option("--target <target>", deployConfigTargetOptionHelp())
     .option("--region <region>", "platform region (required — no default region is assumed)")

@@ -21,7 +21,7 @@ import { ValidationError } from "#src/platform/site-dir/index";
  * for. Another platform is one new plugin module plus one manifest line, never a change to this one.
  *
  * Derivation over hardcoding, wherever that's reasonably possible: {@link buildDeploymentDescriptor}
- * reads the repo's own already-committed files (`Dockerfile`, `fly.toml`, the `/readyz` route's own
+ * reads the repo's own already-committed files (`Dockerfile`, `package.json`, the `/readyz` route's own
  * source) rather than repeating their values as separate literals that could drift out of sync.
  * Each derivation names its exact source below; a field that genuinely can't be derived (which env
  * vars are load-bearing secrets — a semantic judgment call, not a textual pattern) is hardcoded with
@@ -48,21 +48,19 @@ export interface DeploymentSecret {
 }
 
 export interface DeploymentDescriptor {
-  /** The Fly app name, reused as Render's service `name` too, so both platforms name the same
-   *  logical deployment identically. Derived from `fly.toml`'s `app = "..."`. */
+  /** Default deployment name from package.json's name. Deployment callers may supply their own
+   *  descriptor when the platform resource has a different name. */
   readonly appName: string;
   /** The container port the process listens on. Derived from `Dockerfile`'s `EXPOSE` line. */
   readonly port: number;
-  /** Repo-relative path to the Dockerfile every renderer builds from. Derived from `fly.toml`'s
-   *  `[build] dockerfile = "..."`. */
+  /** Repo-relative Dockerfile path, the same root file the deployment editor owns. */
   readonly dockerfilePath: string;
   /** The one persistent volume's mount path INSIDE the container — every site's `content.db`,
-   *  `uploads/`, `themes/`. Derived from `fly.toml`'s `[[mounts]] destination = "..."`. A wrong
+   *  `uploads/`, `themes/`. Derived from Dockerfile's VOLUME declaration. A wrong
    *  value here is silent data loss on the next deploy, not a startup error. */
   readonly volumeMountPath: string;
-  /** The volume's own name/id, reused as Render's `disk.name` and referenced in Railway's
-   *  volume-creation note for cross-platform naming consistency. Derived from `fly.toml`'s
-   *  `[[mounts]] source = "..."`. */
+  /** Default volume name: <package name>_sites. Callers targeting an existing volume supply its
+   *  actual name in their descriptor; never rename a persisted volume by changing this default. */
   readonly volumeName: string;
   /** HTTP path the platform should poll to learn whether Tovu is actually ready to serve traffic
    *  (503 until migrations/seeding finish) — not `/health`, which only proves the process is
@@ -78,6 +76,10 @@ export interface DeploymentDescriptor {
  *  not about Tovu itself. No renderer may default this — see each renderer's own validation. */
 export interface RenderDeployConfigOptions {
   readonly region: string;
+  /** Explicit non-secret runtime values, supported by generators that expose environment blocks. */
+  readonly env?: Readonly<Record<string, string>>;
+  /** Explicit non-secret image build arguments. Secret values belong in the platform secret store. */
+  readonly buildArgs?: Readonly<Record<string, string>>;
 }
 
 /** One platform's generated config, plus whatever it could NOT express inside the file itself
@@ -344,22 +346,22 @@ function extractOrThrow(source: string, pattern: RegExp, describe: string, sourc
  *
  * @throws {Error} when a source file's format has drifted far enough that a derivation pattern no
  *   longer matches — see {@link extractOrThrow}. Never returns a guessed or partially-stale value.
- * @complexity O(1) — three bounded file reads, six fixed regex matches, no loop over caller data.
+ * @complexity O(n) in the total source text — three reads and fixed extraction passes.
  */
 export function buildDeploymentDescriptor(): DeploymentDescriptor {
   const dockerfile = readRepoFile("Dockerfile");
-  const flyToml = readRepoFile("fly.toml");
+  const packageJson = readRepoFile("package.json");
   const healthRouteSource = readRepoFile("apps/website/src/server/inbound/public-http/routes/ops/health.ts");
 
   const port = Number(extractOrThrow(dockerfile, /^EXPOSE\s+(\d+)\s*$/m, "the container port", "Dockerfile (EXPOSE line)"));
-  const dockerfilePath = extractOrThrow(flyToml, /\[build\][^[]*?dockerfile\s*=\s*"([^"]+)"/, "the Dockerfile path", 'fly.toml ([build].dockerfile)');
-  const appName = extractOrThrow(flyToml, /^app\s*=\s*"([^"]+)"/m, "the app name", "fly.toml (app)");
-  const volumeName = extractOrThrow(flyToml, /\[\[mounts\]\][^[]*?source\s*=\s*"([^"]+)"/, "the volume name", "fly.toml ([[mounts]].source)");
+  const dockerfilePath = "Dockerfile";
+  const appName = extractOrThrow(packageJson, /^\s*"name"\s*:\s*"([^"]+)"/m, "the default app name", "package.json (name)");
+  const volumeName = `${appName}_sites`;
   const volumeMountPath = extractOrThrow(
-    flyToml,
-    /\[\[mounts\]\][^[]*?destination\s*=\s*"([^"]+)"/,
+    dockerfile,
+    /^VOLUME\s+\["([^"]+)"\]\s*$/m,
     "the volume mount path",
-    "fly.toml ([[mounts]].destination)"
+    "Dockerfile (VOLUME line)"
   );
   const healthCheckPath = extractOrThrow(
     healthRouteSource,

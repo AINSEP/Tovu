@@ -17,7 +17,7 @@ import { createPublishContentModule } from "../publish-content.js";
 /**
  * @file Regression for the 2026-09-19 live blocker: the desktop app's Publish Content dialog
  * reported "No live site is set up yet" for a site that HAD been deployed, because
- * `createPublishContentModule` resolved its committed-config paths (`fly.toml`,
+ * `createPublishContentModule` resolved its committed-config paths (now the deploy workflow and
  * `deploy/publish-trust.json`) against the bare process working directory — the repo root for a
  * normal `tovu serve`, but `apps/desktop` for own-server mode (`tovu-server.ts`'s `buildServeEnv`
  * doc). Screenshot: `ADS-memory/.local-artifacts/owner-screenshots-2026-09-19/publish-404.png`
@@ -74,11 +74,12 @@ function buildApp(deps = buildDeps()): express.Express {
   return app;
 }
 
-test("GET .../destination reads the candidate from TOVU_REPO_ROOT's fly.toml, not the process's cwd", async (t) => {
+test("GET .../destination reads the candidate from TOVU_REPO_ROOT's deploy workflow, not the process's cwd", async (t) => {
   const repoRoot = await mkdtemp(path.join(tmpdir(), "publish-content-repo-root-"));
   const cwd = await mkdtemp(path.join(tmpdir(), "publish-content-cwd-"));
   await writeFile(path.join(cwd, "fly.toml"), '[env]\n TOVU_PUBLIC_URL = "https://wrong-cwd.example"\n');
-  await writeFile(path.join(repoRoot, "fly.toml"), 'app = "example"\n\n[env]\n  TOVU_PUBLIC_URL = "https://tovu-repo-root-test.example"\n');
+  await mkdir(path.join(repoRoot, ".github/workflows"), { recursive: true });
+  await writeFile(path.join(repoRoot, ".github/workflows/fly-deploy.yml"), 'env:\n  TOVU_PUBLIC_URL: "https://tovu-repo-root-test.example"\n');
 
   const previous = process.env.TOVU_REPO_ROOT;
   const previousCwd = process.cwd();
@@ -100,7 +101,7 @@ test("GET .../destination reads the candidate from TOVU_REPO_ROOT's fly.toml, no
   assert.equal(
     body.candidateUrl,
     "https://tovu-repo-root-test.example",
-    "must read the TOVU_REPO_ROOT-anchored fly.toml, not fall through to a cwd-relative read of the real repo's own fly.toml"
+    "must read the TOVU_REPO_ROOT-anchored workflow, not fall through to a cwd-relative config"
   );
   assert.equal(body.message, "Publish to tovu-repo-root-test.example?");
 });

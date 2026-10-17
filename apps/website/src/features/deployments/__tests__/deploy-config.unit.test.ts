@@ -10,20 +10,20 @@ import { assertNoConfigInjection, buildDeploymentDescriptor } from "../deploy-co
 
 /**
  * @file `buildDeploymentDescriptor`'s own derivation logic. Pins the values it derives from THIS
- * repo's real `Dockerfile`/`fly.toml`/`health.ts` today — same discipline `dockerfile.unit.test.ts`
+ * repo's real `Dockerfile`/`package.json`/`health.ts` today — same discipline `dockerfile.unit.test.ts`
  * already uses reading the repo-root Dockerfile directly rather than a fixture: if any of those
  * three files' relevant fields ever change shape, this test SHOULD fail loudly, forcing either the
  * extraction pattern or this pin to be updated deliberately, rather than silently drifting.
  */
 
-test("buildDeploymentDescriptor: derives every field from the repo's own Dockerfile/fly.toml/health.ts", () => {
+test("buildDeploymentDescriptor: derives every field from the repo's own Dockerfile/package.json/health.ts", () => {
   const descriptor = buildDeploymentDescriptor();
 
-  assert.equal(descriptor.appName, "tovu", "derived from fly.toml's `app = \"...\"`");
+  assert.equal(descriptor.appName, "tovu", "derived from package.json's name");
   assert.equal(descriptor.port, 3000, "derived from Dockerfile's `EXPOSE 3000`");
-  assert.equal(descriptor.dockerfilePath, "Dockerfile", "derived from fly.toml's [build].dockerfile");
-  assert.equal(descriptor.volumeMountPath, "/workspace/Tovu/sites", "derived from fly.toml's [[mounts]].destination");
-  assert.equal(descriptor.volumeName, "tovu_sites", "derived from fly.toml's [[mounts]].source");
+  assert.equal(descriptor.dockerfilePath, "Dockerfile", "same root Dockerfile the deployment editor owns");
+  assert.equal(descriptor.volumeMountPath, "/workspace/Tovu/sites", "derived from Dockerfile's VOLUME");
+  assert.equal(descriptor.volumeName, "tovu_sites", "default name derived from package.json");
   assert.equal(descriptor.healthCheckPath, "/readyz", "derived from the real registerReadyzRoute registration");
 });
 
@@ -68,7 +68,7 @@ test("buildDeploymentDescriptor refuses source format drift instead of guessing 
   t.mock.method(process, "cwd", () => root);
   t.after(() => rmSync(root, { recursive: true, force: true }));
   writeFileSync(path.join(root, "Dockerfile"), "FROM node:22\n# EXPOSE removed\n");
-  writeFileSync(path.join(root, "fly.toml"), 'app = "fixture"\n[build]\ndockerfile = "Dockerfile"\n[[mounts]]\nsource = "data"\ndestination = "/data"\n');
+  writeFileSync(path.join(root, "package.json"), '{"name":"fixture"}\n');
   const routePath = path.join(root, "apps/website/src/server/inbound/public-http/routes/ops/health.ts");
   mkdirSync(path.dirname(routePath), { recursive: true });
   writeFileSync(routePath, 'export const registerReadyzRoute = () => app.get("/readyz", handler);');
@@ -130,4 +130,26 @@ test("assertNoConfigInjection rejects every quoted-sink and YAML indicator chara
     const value = `before${character}after`;
     assert.throws(() => assertNoConfigInjection("field", value), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`);
   }
+});
+
+
+test("buildDeploymentDescriptor needs no generated config and derives volume/name changes from source", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "tovu-deploy-no-config-"));
+  t.mock.method(process, "cwd", () => root);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(path.join(root, "Dockerfile"), 'FROM node:24\nVOLUME ["/data/sites"]\nEXPOSE 4321\n');
+  writeFileSync(path.join(root, "package.json"), '{\n  "name": "fixture"\n}\n');
+  const routePath = path.join(root, "apps/website/src/server/inbound/public-http/routes/ops/health.ts");
+  mkdirSync(path.dirname(routePath), { recursive: true });
+  writeFileSync(routePath, 'export const registerReadyzRoute = () => app.get("/is-ready", handler);');
+  assert.deepEqual(buildDeploymentDescriptor(), {
+    appName: "fixture", port: 4321, dockerfilePath: "Dockerfile",
+    volumeMountPath: "/data/sites", volumeName: "fixture_sites", healthCheckPath: "/is-ready",
+    secrets: [
+      { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
+      { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
+      { name: "TOVU_SITE_KEY", requirement: "boot-blocking" },
+      { name: "COMMENTS_IP_SALT", requirement: "recommended" },
+    ],
+  });
 });

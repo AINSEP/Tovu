@@ -459,7 +459,7 @@ export function siteThemesDir(optional: SitePathResolverOptional & { siteDir?: s
  * `hydrateContentDbFromSeed()` copies this into {@link defaultContentDbPath} once, on a site's first
  * boot where `content.db` does not exist yet, and never again — an existing `content.db` is
  * production data, and overwriting it on a later redeploy is unrecoverable data loss. Living under
- * `content/`, not `sites/`, is what lets it survive `fly.toml`'s volume mount over
+ * `content/`, not `sites/`, is what lets it survive the Fly plugin's generated volume mount over
  * `/workspace/Tovu/sites`: that mount shadows the ENTIRE image `sites/` tree at runtime, so anything
  * shipped there for a fresh volume to read would be invisible the moment the mount takes effect.
  *
@@ -1537,7 +1537,7 @@ async function composeSiteRouteDeps(
         // reimplementing it in SQL and silently orphaning bytes.
         purgeAsset: async ({ workspaceId: ws, entityId }) => {
           await purgeMedia({
-            deps: { mediaRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
+            deps: { mediaRepo, entryRefsRepo, postRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
             input: { workspaceId: ws, id: entityId },
           });
         },

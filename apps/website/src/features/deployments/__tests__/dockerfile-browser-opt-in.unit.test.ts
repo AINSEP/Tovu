@@ -33,7 +33,6 @@ test("Dockerfile: Chromium installs only when the arg is explicitly 1", () => {
 
 test("host configs: every in-repo build passes 0 (off) unless an operator opts in", () => {
   assert.match(read("docker-compose.yml"), /^\s+TOVU_INSTALL_BROWSER: \$\{TOVU_INSTALL_BROWSER:-0\}$/m);
-  assert.match(read("fly.toml"), /^\[build\.args\]\n\s+TOVU_INSTALL_BROWSER = "0"$/m);
-  assert.match(read(".github/workflows/fly-deploy.yml"), /--build-arg TOVU_INSTALL_BROWSER=0$/m);
+  assert.match(read(".github/workflows/fly-deploy.yml"), /^  TOVU_INSTALL_BROWSER: "0"$/m);
   assert.match(read(".github/workflows/publish-image.yml"), /^\s+TOVU_INSTALL_BROWSER=0$/m);
 });

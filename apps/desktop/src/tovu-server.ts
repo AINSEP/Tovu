@@ -397,12 +397,12 @@ interface BuildServeEnvInput {
  * - **`TOVU_REPO_ROOT` is set unless the operator already pinned one.** Same shape of gap as
  *   `TOVU_SITE_DIR` above, one layer over in `features/publish-trust`: `findCandidateDestination`
  *   and the provisioning port behind the Publish dialog's Connect button resolve the repo-relative
- *   committed config they read and write (`fly.toml`, `deploy/publish-trust.json`) against
+ *   committed config they read and write (`.github/workflows/fly-deploy.yml`, `deploy/publish-trust.json`) against
  *   `process.cwd()` when this is unset (`resolveCommittedConfigRoot()`'s own doc) — correct for a
  *   plain `tovu serve` and for the deployed container (`Dockerfile`'s `WORKDIR` IS the repo root),
  *   wrong for own-server mode. Confirmed live 2026-09-19: with this unset, the dialog reported "no
  *   live site" for a site that had already been deployed, because the scan looked for
- *   `apps/desktop/fly.toml` instead of the repo root's.
+ *   `apps/desktop/fly.toml` instead of the then-committed repo-root config.
  *
  * `PORT`, `TOVU_CONTENT_DB` and `TOVU_DB` are dropped so a variable exported in the developer's
  * shell cannot silently repoint the desktop app's database or port — this shell's `--port` and
@@ -555,12 +555,12 @@ function applyRepoRootDefaults(env: NodeJS.ProcessEnv, repoRoot: string): void {
   // **`TOVU_REPO_ROOT` is set unless the operator already pinned one.** Same class of gap as
   // `TOVU_SITE_DIR` above, one layer over in `features/publish-trust`: `findCandidateDestination`
   // and the provisioning port that backs the Publish dialog's Connect button resolve their
-  // repo-relative committed config (`fly.toml`, `deploy/publish-trust.json`) against
+  // repo-relative committed config (`.github/workflows/fly-deploy.yml`, `deploy/publish-trust.json`) against
   // `process.cwd()` when this is unset (`resolveCommittedConfigRoot()`'s own doc) — correct for a
   // plain `tovu serve` run from the repo root and for the deployed container, wrong for own-server
   // mode, whose cwd is wherever opened Electron. Confirmed live 2026-09-19: with this unset, the
   // dialog reported "no live site" for a site that HAD been deployed, because the scan looked for
-  // `apps/desktop/fly.toml` instead of the real one at the repo root.
+  // `apps/desktop/fly.toml` instead of the then-committed repo-root config.
   if (!env.TOVU_REPO_ROOT) {
     env.TOVU_REPO_ROOT = repoRoot;
   }
