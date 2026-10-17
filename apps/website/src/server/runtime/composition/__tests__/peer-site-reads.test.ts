@@ -7,6 +7,9 @@ import sharp from 'sharp';
 import { sql } from 'kysely';
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from '@jini-ai/core';
 import { openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
+import { CONTENT_MIGRATIONS } from '#src/platform/db/migrations/index';
+import { LEDGER_TABLE } from '#src/platform/db/migrations/runner';
+import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index';
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { CrossSiteUnavailable, createPeerSiteReads } from '../peer-site-reads.js';
 import { peerFixture } from './peer-site-reads.fixture.js';
@@ -23,6 +26,19 @@ const inspection = (handler: ToolRegistration['handler']): ToolRegistration[] =>
 
 for (const placement of ['inSite', 'appData'] as const) test(`${placement}: reads B's posts/media/forms and owner chats through the real catalog; audits only A`, async t => {
   const f = await peerFixture(t, placement);
+  // A distinct first theme catches a missing preference; matching ids on A catch a leaked roster.
+  for (const site of [f.a, f.b]) {
+    for (const id of ['decoy', 'selected']) {
+      const dir = path.join(site.dir, 'themes', 'static', id);
+      fs.mkdirSync(path.join(dir, 'templates'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'theme.json'), JSON.stringify({ id, name: id, version: '1.0.0', tier: 'declarative', engine: 1 }));
+      fs.writeFileSync(path.join(dir, 'tokens.json'), JSON.stringify({ '--ink': site.name === 'B' && id === 'selected' ? '#123456' : '#ff0000' }));
+      fs.writeFileSync(path.join(dir, 'styles.css'), 'body{margin:0}');
+      for (const template of ['home', 'entry']) fs.writeFileSync(path.join(dir, 'templates', `${template}.json`), '{"type":"doc","content":[]}');
+    }
+    await new SqlitePresentationSettingsRepo(site.kernel).save({ workspaceId: site.workspaceId,
+      activeThemeId: site.name === 'B' ? 'selected' : 'decoy', updatedAt: site.clock.nowIso() });
+  }
   const files = [f.b.paths.contentDbPath, f.b.paths.chatDbPath, f.b.journalPath];
   const before = files.map(file => ({ bytes: fs.readFileSync(file), mtime: fs.statSync(file).mtimeMs }));
   for (const [id, input, text] of [
@@ -38,8 +54,9 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
   assert.deepEqual(chats.chats.map(chat => chat.id), ['owner-chat']);
   const chat = await f.call('assistant_chat_read', { site: 'B', chatId: 'owner-chat' }) as { messages: Array<{ content: string }> };
   assert.equal(chat.messages[0]!.content, 'B owner-chat');
-  const html = await f.call('pages_read_html', { site: 'B', id: 'page' }) as { html: string };
+  const html = await f.call('pages_read_html', { site: 'B', id: 'page' }) as { html: string; theme: unknown };
   assert.match(html.html, /B page/);
+  assert.deepEqual(html.theme, { id: 'selected', tokens: { '--ink': '#123456' }, tokensLight: {} });
   const image = await f.call('media_view_image', { site: 'B', mediaId: 'media' }) as { content: Array<{ type: string; data?: string }> };
   const block = image.content.find(block => block.type === 'image'); assert.ok(block?.data);
   const pixels = await sharp(Buffer.from(block.data, 'base64')).removeAlpha().raw().toBuffer();
@@ -118,7 +135,8 @@ test('local-host/name/trash/live-db-alias/storage/schema refusals are fixed and 
   fs.writeFileSync(meta, JSON.stringify({ siteId: 'B', storage: { kind: 'pglite' } }));
   await rejects(f.peer, 'B', 'Only local SQLite sites can be read.');
   fs.writeFileSync(meta, JSON.stringify({ siteId: 'B', storage: { kind: 'sqlite' } }));
-  f.b.db.$client.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT MAX(created_at) FROM __drizzle_migrations)');
+  // ADR-066: adopted sites track pending steps in the TS ledger; the frozen Drizzle chain stays intact.
+  await f.b.kernel.execute(sql`DELETE FROM ${sql.table(LEDGER_TABLE)} WHERE id = ${CONTENT_MIGRATIONS.at(-1)!.id}`);
   await rejects(f.peer, 'B', 'Open B in Tovu once to upgrade it.');
 });
 

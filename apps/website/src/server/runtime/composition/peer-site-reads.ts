@@ -25,6 +25,7 @@ import { resolveSiteStorage } from '#src/platform/site-dir/site-storage';
 import { resolveWorkspace } from '#src/platform/site-dir/resolve-workspace';
 import { SqlitePostRepo, postSearchIndexFor } from '#src/features/post/index';
 import { PagesHtmlDocumentStore } from '#src/features/pages/index';
+import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from '#src/features/presentation/index';
 import { LocalFsBlobStore } from '#src/features/media/index';
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
 import { SqliteSettingsRepo } from '#src/features/settings/repo.sqlite';
@@ -196,6 +197,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
   await identity.identityReady;
   const postRepo = new SqlitePostRepo(kernel), settingsRepo = new SqliteSettingsRepo(kernel);
+  const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
   const entryRefsRepo = new SqliteEntryRefsRepo(kernel), mediaRepo = new SqliteMediaRepo(kernel);
   const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);
   const transformDefinitionRepo = new SqliteTransformDefinitionRepo(kernel);
@@ -247,6 +249,8 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     menuRepo: new SqliteMenuRepo(kernel), navLocationBindingRepo: new SqliteNavLocationBindingRepo(kernel),
     entryRepo: new SqliteEntryRepo(kernel), contentTypeRepo: new SqliteContentTypeRepo(kernel),
     themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
+    // Use the renderer's resolver over the peer's read-only settings, never the active site's closure.
+    resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
     commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
     memberRepo: new SqliteMemberRepo(kernel), memberTierRepo: new SqliteMemberTierRepo(kernel), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
     newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(kernel), newsletterListRepo: new SqliteNewsletterListRepo(kernel),
