@@ -1537,7 +1537,7 @@ async function composeSiteRouteDeps(
         // reimplementing it in SQL and silently orphaning bytes.
         purgeAsset: async ({ workspaceId: ws, entityId }) => {
           await purgeMedia({
-            deps: { mediaRepo, entryRefsRepo, postRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
+            deps: { mediaRepo, blobRepo: assetBlobRepo, renditionRepo: assetRenditionRepo, blobStore, clock },
             input: { workspaceId: ws, id: entityId },
           });
         },
