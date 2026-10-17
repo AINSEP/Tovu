@@ -18,6 +18,14 @@ afterEach(() => {
 });
 
 describe("useObservabilityStatus — injected port (no fetch stub, no api spy)", () => {
+  it("reports disabled with no service name when the fake has no seeded status", async () => {
+    const port = createFakeObservabilityStatusPort();
+    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
+
+    await waitFor(() => expect(result.current.status).toEqual({ enabled: false, serviceName: null }));
+    expect(result.current.error).toBeNull();
+  });
+
   it("reports OFF/noop when the injected status says disabled — the OTEL_EXPORTER_OTLP_ENDPOINT-unset case", async () => {
     const getSpy = vi.spyOn(api, "getObservabilityStatus");
     const port = createFakeObservabilityStatusPort({ status: { enabled: false, serviceName: null } });

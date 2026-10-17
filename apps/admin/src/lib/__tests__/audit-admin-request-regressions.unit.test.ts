@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { ApiError, onUnauthenticated } from "../api";
-import { listSkills, enableSkill } from "../../features/skills/api";
+import { listSkills, enableSkill, loadSkillDraft } from "../../features/skills/api";
 import { createInstalledSkillsComposerCapabilitySource } from "../../features/plugins/installed-skills-composer-source";
 import { reloadThemePreviews } from "../../features/themes/theme-preview-refresh";
 
@@ -38,4 +38,17 @@ it("skills writes preserve the encoded route, JSON body and admin cookies", asyn
   await enableSkill("skill/a", false);
   expect(sent[0].url).toBe("/api/admin/v1/workspaces/workspace-local/skills/skill%2Fa");
   expect(sent[0].init).toMatchObject({ method: "PATCH", credentials: "same-origin", body: '{"enabled":false}' });
+});
+
+it.each([
+  ["skill name", { skillName: 42, guidance: "Follow the runbook.", bundledFiles: [] }],
+  ["guidance", { skillName: "incident-response", guidance: null, bundledFiles: [] }],
+  ["bundled files", { skillName: "incident-response", guidance: "Follow the runbook.", bundledFiles: {} }],
+])("rejects skill guidance with malformed %s", async (_field, response) => {
+  vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/skills/skill%2Fincident/guidance");
+    expect(init).toMatchObject({ method: "GET", credentials: "same-origin" });
+    return Response.json(response);
+  });
+  await expect(loadSkillDraft("skill/incident")).rejects.toThrow("Could not load this skill. Try again.");
 });

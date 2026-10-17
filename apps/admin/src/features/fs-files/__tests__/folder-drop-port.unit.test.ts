@@ -1,10 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
 
 /** @file Mirrors `voice-input-port.ts`'s own capability-gate shape exactly — SPEC-053 EC-05 (a plain
  *  browser tab, no `window.tovuFiles`, must resolve to `null`, never throw). */
 describe("getFolderDropPort", () => {
+  it("returns null when there is no global window and no injected window", () => {
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(getFolderDropPort(undefined)).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("returns null for a window with no tovuFiles bridge (plain browser tab)", () => {
     const fakeWindow = {} as unknown as Window;
     expect(getFolderDropPort(fakeWindow)).toBeNull();

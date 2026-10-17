@@ -38,6 +38,11 @@ function deps(port = createFakeMenusPort({ menus: [MENU] })) {
 afterEach(() => vi.restoreAllMocks());
 
 describe("menuHtmlStarter", () => {
+  it("keeps an unlabeled item's destination with empty link text", () => {
+    const items: AdminMenuItem[] = [{ id: "unlabeled", target: { kind: "url", href: "/guide" } }];
+    expect(menuHtmlStarter({ items })).toBe(`<a href="/guide"></a>`);
+  });
+
   it("emits the theme's flat link shape for a flat menu, escaped", () => {
     expect(menuHtmlStarter({ items: ITEMS })).toBe(
       `<a href="/">Home</a>\n<a href="/about?a=1&amp;b=2">About &amp; us</a>`

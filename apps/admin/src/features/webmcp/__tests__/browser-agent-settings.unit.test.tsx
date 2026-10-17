@@ -1,5 +1,6 @@
 import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BrowserAgentSettingsPanel } from "../BrowserAgentSettingsPanel";
 import { WEBMCP_PREFERENCE_KEY, useBrowserAgentSettings, setBrowserAgentEnabled, type BrowserAgentSettingsPort } from "../browser-agent-settings.hooks";
@@ -9,6 +10,29 @@ import { ADMIN_LOCALES } from "../../../lib/settings-tabs";
 afterEach(() => { act(() => setBrowserAgentEnabled({ enabled: true })); localStorage.clear(); });
 
 describe("browser-agent opt-out", () => {
+  it("ignores unrelated storage events until the preference itself changes", () => {
+    localStorage.clear();
+    const view = renderHook(() => useBrowserAgentSettings());
+    expect(view.result.current.enabled).toBe(true);
+    act(() => {
+      localStorage.setItem(WEBMCP_PREFERENCE_KEY, "false");
+      window.dispatchEvent(new StorageEvent("storage", { key: "another-preference" }));
+    });
+    expect(view.result.current.enabled).toBe(true);
+    act(() => window.dispatchEvent(new StorageEvent("storage", { key: WEBMCP_PREFERENCE_KEY })));
+    expect(view.result.current.enabled).toBe(false);
+    view.unmount();
+  });
+
+  it("uses the enabled server snapshot before browser preferences can be read", () => {
+    localStorage.setItem(WEBMCP_PREFERENCE_KEY, "false");
+    function Preference() {
+      const { enabled } = useBrowserAgentSettings();
+      return <span>{enabled ? "Enabled" : "Disabled"}</span>;
+    }
+    expect(renderToString(<Preference />)).toBe("<span>Enabled</span>");
+  });
+
   it("can be driven through an injected preference port", () => {
     let enabled = false;
     const listeners = new Set<() => void>();

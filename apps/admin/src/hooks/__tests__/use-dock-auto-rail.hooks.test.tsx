@@ -1,5 +1,5 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@jini-ai/admin/react";
 
 import {
@@ -135,6 +135,21 @@ describe("useDockAutoRail", () => {
   it("never folds without matchMedia (an embed that lacks it)", () => {
     const { result } = renderHook(() => useDockAutoRail({ dockOpen: true }, { matchMedia: () => null }));
     expect(result.current.railOverride).toBeNull();
+  });
+
+  it("keeps the stored rail preference when the browser has no matchMedia", () => {
+    vi.stubGlobal("matchMedia", undefined);
+    try {
+      const { result, rerender, unmount } = renderHook(({ dockOpen }) => useDockAutoRail({ dockOpen }), {
+        initialProps: { dockOpen: true },
+      });
+      expect(result.current.railOverride).toBeNull();
+      rerender({ dockOpen: false });
+      expect(result.current.railOverride).toBeNull();
+      unmount();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("restores the real Sidebar's stored choice without storage events, including after a manual toggle", () => {

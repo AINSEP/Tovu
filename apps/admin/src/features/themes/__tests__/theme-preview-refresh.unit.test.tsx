@@ -13,6 +13,33 @@ import { ThemePreviewReloadButton } from "../ThemePreviewReloadButton";
 import { THEMES_DICT } from "../themes-i18n";
 afterEach(resetThemePreviewRefresh);
 
+it("leaves an absent preview URL empty even when a tool supplies a path", () => {
+  expect(freshPreviewUrl({ url: "", revision: "new", path: "/about" })).toBe("");
+});
+
+it("rejects malformed revisions without notifying previews", () => {
+  const seen: string[] = [];
+  const dispose = subscribeThemePreviewRefresh({ listener: ({ revision }) => seen.push(revision) });
+  for (const revision of ["", "bad/revision", "x".repeat(101)]) publishThemePreviewRefresh({ revision });
+  expect(seen).toEqual([]);
+  publishThemePreviewRefresh({ revision: "valid-revision" });
+  expect(seen).toEqual(["valid-revision"]);
+  dispose();
+});
+
+it("evicts only the oldest revision after retaining 256 distinct refreshes", () => {
+  const seen: string[] = [];
+  const dispose = subscribeThemePreviewRefresh({ listener: ({ revision }) => seen.push(revision) });
+  const revisions = Array.from({ length: 257 }, (_, index) => `revision-${index}`);
+  for (const revision of revisions) publishThemePreviewRefresh({ revision });
+  expect(seen).toEqual(revisions);
+  publishThemePreviewRefresh({ revision: "revision-1" });
+  expect(seen).toEqual(revisions);
+  publishThemePreviewRefresh({ revision: "revision-0" });
+  expect(seen).toEqual([...revisions, "revision-0"]);
+  dispose();
+});
+
 it("every mounted preview refreshes, including when the open source text is unchanged", () => {
   let n = 0;
   const deps = { makeRevision: () => `revision-${++n}` };

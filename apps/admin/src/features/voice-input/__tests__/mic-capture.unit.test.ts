@@ -31,6 +31,34 @@ function setup(failSetup = false, rejectTranscription = false) {
 }
 
 describe("real microphone capture with Web Audio boundary fakes", () => {
+  it("preserves microphone permission errors before any audio resources exist", async () => {
+    const f = setup();
+    f.getUserMedia.mockRejectedValueOnce(new Error("microphone permission denied"));
+    await expect(f.capture.start()).rejects.toThrow("microphone permission denied");
+    expect(f.context.createMediaStreamSource).not.toHaveBeenCalled();
+    expect(f.processor.disconnect).not.toHaveBeenCalled();
+    expect(f.context.close).not.toHaveBeenCalled();
+    for (const track of f.tracks) expect(track.stop).not.toHaveBeenCalled();
+    expect(f.transcribe).not.toHaveBeenCalled();
+  });
+
+  it("disconnects the processor and releases the microphone if connecting the graph fails", async () => {
+    const f = setup();
+    f.processor.connect.mockImplementationOnce(() => { throw new Error("audio graph unavailable"); });
+    await expect(f.capture.start()).rejects.toThrow("audio graph unavailable");
+    expect(f.processor.disconnect).toHaveBeenCalledTimes(1);
+    for (const track of f.tracks) expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(f.context.close).toHaveBeenCalledTimes(1);
+    expect(f.transcribe).not.toHaveBeenCalled();
+  });
+
+  it("transcribes an empty recording at the fallback sample rate before capture starts", async () => {
+    const transcribe = vi.fn(async () => ({ text: "No speech", elapsedMs: 0 }));
+    const capture = createMicPushToTalkCapture({ isAvailable: async () => ({ available: true }), transcribe });
+    await expect(capture.stopAndTranscribe()).resolves.toBe("No speech");
+    expect(transcribe).toHaveBeenCalledExactlyOnceWith(new Float32Array(), 16000);
+  });
+
   it.each([false, true])("copies chunks in order and releases all resources before transcribe (reject=%s)", async (reject) => {
     const f = setup(false, reject);
     await f.capture.start();

@@ -15,6 +15,20 @@ describe("site key env provenance", () => {
     expect(siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "TOVU_SITE_KEY" }, t: translate })).toBe("Active: environment variable TOVU_SITE_KEY");
     expect(siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "LEGACY_VAR" }, t: translate })).toBe("Active: environment variable LEGACY_VAR");
   });
+
+  it("uses the standard environment name when the server omits it", () => {
+    expect(siteKeyStatusBadgeLabel({
+      status: { active: true, source: "env" },
+      t: key => t({ locale: "en", key }),
+    })).toBe("Active: environment variable TOVU_SITE_KEY");
+  });
+
+  it("labels an active file key without using environment provenance", () => {
+    expect(siteKeyStatusBadgeLabel({
+      status: { active: true, source: "file", envVarName: "IGNORED_VAR" },
+      t: key => t({ locale: "en", key }),
+    })).toBe("Active — key file");
+  });
   it("interpolates the German badge", () => {
     expect(siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "TOVU_SITE_KEY" }, t: key => t({ locale: "de", key: key }) })).toBe("Aktiv: Umgebungsvariable TOVU_SITE_KEY");
   });

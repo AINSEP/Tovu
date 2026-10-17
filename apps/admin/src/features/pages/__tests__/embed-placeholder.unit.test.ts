@@ -28,6 +28,14 @@ describe("createEmbedPlaceholderDescriber", () => {
     expect(describe_(el)).toBeUndefined();
   });
 
+  it("identifies a legacy placeholder by its authored element id", () => {
+    const el = document.createElement("div");
+    el.setAttribute("data-widget-embed", "contact-form");
+    el.id = "contact-slot";
+
+    expect(describe_(el)).toEqual({ kindLabel: "Content", identityLabel: "#contact-slot" });
+  });
+
   it("keeps a safe generic card when data-embed-config is not valid JSON", () => {
     const el = markerElement("{not json");
     expect(describe_(el)).toEqual({ kindLabel: "Content", identityLabel: "no id set" });

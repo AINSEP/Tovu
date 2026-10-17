@@ -643,6 +643,10 @@ describe("titleNodeText", () => {
     expect(titleNodeText({ type: "doc", content: [{ type: "title", content: [] }] })).toBe("");
   });
 
+  it("returns '' when an empty title node omits its content array", () => {
+    expect(titleNodeText({ type: "doc", content: [{ type: "title" }] })).toBe("");
+  });
+
   it("returns '' when the doc has no title node at all (pre-migration shape, before withTitleNode has run)", () => {
     expect(titleNodeText({ type: "doc", content: [{ type: "paragraph" }] })).toBe("");
   });

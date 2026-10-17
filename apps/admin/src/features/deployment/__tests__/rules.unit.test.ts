@@ -287,6 +287,13 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
       accountId: "acct",
     });
   });
+
+  it("omits an absent token from the connection while retaining declared account fields", () => {
+    expect(buildCredentialConnectionInput("cloudflare-pages", spec, { accountId: " acct ", stray: "x" })).toEqual({
+      providerId: "cloudflare-pages",
+      accountId: "acct",
+    });
+  });
 });
 
 describe("agent handle ids", () => {

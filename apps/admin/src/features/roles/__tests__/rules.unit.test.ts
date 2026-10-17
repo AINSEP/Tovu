@@ -49,6 +49,11 @@ describe("describeApiError", () => {
     expect(describeApiError(err, "fallback", "en")).toBe("some other server message");
   });
 
+  it.each([undefined, ""])("preserves the server message when the ApiError code is %s", (code) => {
+    const err = new ApiError("Role service unavailable", 503, code);
+    expect(describeApiError(err, "Could not load roles", "es")).toBe("Role service unavailable");
+  });
+
   it("defers to the shared default translation for a plain Error", () => {
     expect(describeApiError(new Error("network down"), "fallback", "en")).toBe("network down");
   });

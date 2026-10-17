@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 import {
   homeFallbackPublishReason,
+  lockedPublishReason,
   themePageCollisionMessage,
   themePagePath,
   themePagePublicLinkState,
@@ -105,6 +106,15 @@ describe("homeFallbackPublishReason", () => {
     expect(homeFallbackPublishReason({ id: "p", slug: "/", title: "Home", kind: "page" }, identityT)).toEqual({
       on: false,
       reason: "Not shown — Home is your home page",
+    });
+  });
+});
+
+describe("lockedPublishReason", () => {
+  it("keeps index on as the home fallback when asked without a row", () => {
+    expect(lockedPublishReason("index", identityT)).toEqual({
+      on: true,
+      reason: "Home page fallback — shown at / until one of your pages is set as the home page",
     });
   });
 });

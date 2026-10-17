@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { categoryLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "../rules";
+import { categoryLabel, costClassLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "../rules";
 import type { AdminDegradedBanner } from "@/lib/api";
 
 /**
@@ -48,6 +48,12 @@ describe("categoryLabel", () => {
 
   it("falls back to a Spanish '<category> writes' template for an untaught category in es", () => {
     expect(categoryLabel("taxonomy_terms", "es")).toBe("escrituras de taxonomy_terms");
+  });
+});
+
+describe("costClassLabel", () => {
+  it("preserves an unrecognized server cost class instead of losing the badge text", () => {
+    expect(costClassLabel("remote-snapshot", "es")).toBe("remote-snapshot");
   });
 });
 

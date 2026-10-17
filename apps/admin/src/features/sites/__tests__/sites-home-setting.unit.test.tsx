@@ -1,9 +1,31 @@
 import { act, renderHook, render, screen, cleanup, within } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useSitesHome } from "../hooks/use-sites-home.hooks";
 import { resolveSiteCardView } from "../Sites.hooks";
 import type { AdminSitesSnapshot } from "@/lib/api";
+
+afterEach(() => vi.unstubAllGlobals());
+
+it.each([undefined, {}])("saves through the default API port when options are %s", async (options) => {
+  const sent: string[] = [];
+  vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/system/sites/home");
+    expect(init).toMatchObject({ method: "PUT", credentials: "same-origin" });
+    expect(JSON.parse(String(init?.body))).toEqual({ path: "/requested/home" });
+    sent.push(url);
+    return Response.json({ home: "/canonical/home" });
+  });
+  const { result } = renderHook(() => useSitesHome({ home: "/old" }, options), {
+    wrapper: ({ children }) => <FetchQueryProvider>{children}</FetchQueryProvider>,
+  });
+  act(() => result.current.setPath("/requested/home"));
+  await act(async () => { await result.current.save(); });
+  expect(sent).toEqual(["/api/admin/v1/workspaces/workspace-local/system/sites/home"]);
+  expect(result.current.path).toBe("/canonical/home");
+  expect(result.current.error).toBeNull();
+  expect(result.current.saving).toBe(false);
+});
 
 it("home settings use the injected action and show exact errors without changing the saved folder", async () => {
   const calls: string[] = []; let fail = false;
@@ -18,6 +40,31 @@ it("home settings use the injected action and show exact errors without changing
   await act(async () => { await result.current.save(); });
   expect(result.current.error).toBe("TOVU_SITES_HOME overrides this setting."); expect(result.current.path).toBe("/new");
 });
+it("keeps the draft after a non-Error failure and accepts the server's normalized home on retry", async () => {
+  let fail = true;
+  const calls: string[] = [];
+  const port = { setSitesHome: async ({ path }: { path: string }) => {
+    calls.push(path);
+    if (fail) throw "Folder is read-only";
+    return { home: "/normalized/home" };
+  } };
+  const { result } = renderHook(() => useSitesHome({ home: "/old" }, { port }), {
+    wrapper: ({ children }) => <FetchQueryProvider>{children}</FetchQueryProvider>,
+  });
+  act(() => result.current.setPath("/draft/../home"));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.error).toBe("Folder is read-only");
+  expect(result.current.path).toBe("/draft/../home");
+  expect(result.current.saving).toBe(false);
+
+  fail = false;
+  await act(async () => { await result.current.save(); });
+  expect(result.current.error).toBeNull();
+  expect(result.current.path).toBe("/normalized/home");
+  expect(result.current.saving).toBe(false);
+  expect(calls).toEqual(["/draft/../home", "/draft/../home"]);
+});
+
 it("a Desktop-owned running card offers its URL and has no Web stop action", () => {
   const site = { name: "alpha", dir: "/home/alpha", displayName: "Alpha", createdAt: "2026-10-09", active: false };
   const snapshot: AdminSitesSnapshot = { sites: [site], switchingEnabled: true, localManagementEnabled: true, persistedSiteName: null,

@@ -1,10 +1,25 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { useMediaCardDetails } from "../hooks/use-media-card-details.hooks";
 import type { AdminMedia } from "@/lib/api";
 
 describe("phone media card details", () => {
+  it("server-renders the desktop card when no window is available", () => {
+    function CardDetails() {
+      const { isPhone } = useMediaCardDetails({ onToggleEdit: () => {} });
+      return <span>{isPhone ? "Phone details" : "Desktop details"}</span>;
+    }
+
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(renderToString(<CardDetails />)).toBe("<span>Desktop details</span>");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("tracks phone width, cleans up the viewport subscription, and uses the existing edit action", () => {
     const query = Object.assign(new EventTarget(), {
       matches: false, media: "(max-width: 640px)", onchange: null,

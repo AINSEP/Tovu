@@ -144,6 +144,20 @@ describe("usePostEditor — publishAt / featured image", () => {
 });
 
 describe("usePostFeaturedImage", () => {
+  it("closing the picker cancels without changing the current image", () => {
+    const onChange = vi.fn();
+    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const { result } = renderHook(() => usePostFeaturedImage("m7", onChange, { port }));
+
+    act(() => result.current.openPicker());
+    expect(result.current.pickerOpen).toBe(true);
+    act(() => result.current.closePicker());
+
+    expect(result.current.pickerOpen).toBe(false);
+    expect(result.current.previewUrl).toBe("/media/m7");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("selecting stores the asset id and closes; clear sends null; preview uses the media URL", () => {
     const onChange = vi.fn();
     const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };

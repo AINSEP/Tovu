@@ -31,6 +31,20 @@ it('projects fresh saved reads for a deployed send and keeps its source ref unto
   expect(source.handleExecutionModeChange).not.toHaveBeenCalled();
 });
 
+it('reads the latest controller ref when no async config reader is supplied', async () => {
+  const { readExecutionConfigForSend: _reader, ...source } = controller();
+  const { result } = renderHook(() => useTovuDockExecution({ controller: source, locale: 'en' }, {
+    usePolicy: (input) => useTovuExecutionPolicy(input, { desktop: true }),
+  }));
+  const latest = { ...saved, byok: { ...saved.byok, model: 'updated-before-send' } };
+  source.executionConfigRef.current = latest;
+
+  expect(await result.current.readExecutionConfigForSend()).toBe(latest);
+  expect(result.current.executionConfigRef.current).toBe(latest);
+  expect(source.executionConfigRef.current).toBe(latest);
+  expect(source.setExecutionConfig).not.toHaveBeenCalled();
+});
+
 it('awaits runtime discovery before a local send rather than using the pending BYOK projection', async () => {
   let finish!: (value: { mode: 'local' }) => void;
   const loadRuntime = () => new Promise<{ mode: 'local' }>((resolve) => { finish = resolve; });

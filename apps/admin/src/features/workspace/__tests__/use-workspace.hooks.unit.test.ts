@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { useQueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminWorkspace } from "@/lib/api";
@@ -275,6 +276,35 @@ describe("useWiredWorkspace — composes the real port + real useAdminLocale", (
 
 
 describe("workspace cache and form drafts", () => {
+  it("keeps an unsaved rename while a reset cache reloads the workspace", async () => {
+    const port = createFakeWorkspacePort({ workspace: WORKSPACE });
+    const { result } = renderHook(() => ({ workspace: useWorkspace({ port }), client: useQueryClient() }));
+    await waitFor(() => expect(result.current.workspace.workspace).toEqual(WORKSPACE));
+    act(() => {
+      result.current.workspace.setName("Unsaved name");
+      result.current.workspace.setSlug("unsaved-slug");
+    });
+    let resolveReload!: (value: { workspace: AdminWorkspace }) => void;
+    const reload = new Promise<{ workspace: AdminWorkspace }>((resolve) => { resolveReload = resolve; });
+    port.getWorkspace = () => reload;
+
+    let reset!: Promise<void>;
+    act(() => { reset = result.current.client.resetQueries({ queryKey: ["workspace", "current"], exact: true }); });
+    await waitFor(() => expect(result.current.workspace.workspace).toBeNull());
+    expect(result.current.workspace.name).toBe("Unsaved name");
+    expect(result.current.workspace.slug).toBe("unsaved-slug");
+    expect(result.current.workspace.error).toBeNull();
+
+    const refreshed = { ...WORKSPACE, name: "Server name", slug: "server-slug" };
+    await act(async () => {
+      resolveReload({ workspace: refreshed });
+      await reset;
+    });
+    await waitFor(() => expect(result.current.workspace.workspace).toEqual(refreshed));
+    expect(result.current.workspace.name).toBe("Unsaved name");
+    expect(result.current.workspace.slug).toBe("unsaved-slug");
+  });
+
   it("publishes a sibling save without replacing an unsaved rename", async () => {
     const port = createFakeWorkspacePort({ workspace: WORKSPACE });
     const { result } = renderHook(() => ({ first: useWorkspace({ port }), second: useWorkspace({ port }) }));

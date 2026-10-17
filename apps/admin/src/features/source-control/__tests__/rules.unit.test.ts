@@ -80,6 +80,10 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
 });
 
 describe("buildSourceControlConnectionInput", () => {
+  it("omits declared fields that have no value in the form", () => {
+    expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: {} }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
+  });
+
   it("passes the token unchanged to the store when the host declares nothing else", () => {
     expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: "  ghp_abc  " }, GITHUB.fields)).toEqual({ providerId: "github", token: "  ghp_abc  " });
   });

@@ -49,6 +49,21 @@ describe("rules", () => {
 });
 
 describe("useCreateSitePluginTokens", () => {
+  it("uses plugin ids as display names while the plugin list is loading", async () => {
+    let resolve!: (value: { plugins: AdminTokenSignInPlugin[] }) => void;
+    const pending = new Promise<{ plugins: AdminTokenSignInPlugin[] }>((done) => { resolve = done; });
+    const port = createFakeSitesPort(snapshot, { listTokenSignInPlugins: () => pending });
+    const { result } = renderHook(() => useCreateSitePluginTokens(port), { wrapper });
+
+    expect(result.current.fields).toEqual([]);
+    expect(result.current.displayNames(["supabase", "unknown"])).toEqual(["supabase", "unknown"]);
+    expect(result.current.tokensForCreate()).toBeUndefined();
+
+    await act(async () => { resolve({ plugins: [SUPABASE] }); });
+    await waitFor(() => expect(result.current.fields).toEqual([{ ...SUPABASE, token: "" }]));
+    expect(result.current.displayNames(["supabase", "unknown"])).toEqual(["Supabase", "unknown"]);
+  });
+
   it("offers one empty field per plugin the server lists, and collects only what was typed", async () => {
     const port = createFakeSitesPort(snapshot, { listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     const { result } = renderHook(() => useCreateSitePluginTokens(port), { wrapper });

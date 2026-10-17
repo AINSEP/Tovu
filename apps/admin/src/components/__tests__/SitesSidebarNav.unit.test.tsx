@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@jini-ai/admin/react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminNavGroup } from "@/nav";
@@ -41,6 +41,44 @@ describe("Sites sidebar label", () => {
     act(() => window.dispatchEvent(new Event("resize")));
     expect(link.querySelector(".cms-sites-name")?.getAttribute("title")).toBeNull();
     expect(link.getAttribute("title")).toBeNull();
+  });
+
+  it("updates the full-name tooltip on observed label resizes and disconnects on unmount", async () => {
+    const observers = new Set<LabelResizeObserver>();
+    class LabelResizeObserver {
+      readonly targets = new Set<Element>();
+      constructor(readonly notify: () => void) {}
+      observe(element: Element) { this.targets.add(element); observers.add(this); }
+      disconnect() { this.targets.clear(); observers.delete(this); }
+    }
+    vi.stubGlobal("ResizeObserver", LabelResizeObserver);
+    try {
+      const widths = { scrollWidth: 80, clientWidth: 80 };
+      const view = mount({ name: "resized-site", widths });
+      const link = await screen.findByRole("link", { name: "Sites (resized-site)" });
+      await waitFor(() => expect(link.querySelector(".cms-sites-name")).not.toBeNull());
+      const name = link.querySelector(".cms-sites-name")!;
+      await waitFor(() => expect([...observers].some(observer => observer.targets.has(name))).toBe(true));
+      expect(name.getAttribute("title")).toBeNull();
+
+      const resizeLabel = () => {
+        for (const observer of observers) {
+          if (observer.targets.has(name)) observer.notify();
+        }
+      };
+      widths.clientWidth = 40;
+      act(resizeLabel);
+      expect(name.getAttribute("title")).toBe("resized-site");
+      widths.clientWidth = 80;
+      act(resizeLabel);
+      expect(name.getAttribute("title")).toBeNull();
+
+      view.unmount();
+      expect(observers.size).toBe(0);
+    } finally {
+      cleanup();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps Sites plain when there is no active name", async () => {

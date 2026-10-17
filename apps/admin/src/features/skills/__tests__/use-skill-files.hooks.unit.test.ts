@@ -37,6 +37,14 @@ describe("useSkillFiles", () => {
     expect(result.current.selectedFile).toBeNull();
   });
 
+  it("shows a readable fallback when the file reader rejects without an Error", async () => {
+    const read = async (): Promise<SkillFiles> => { throw "permission denied"; };
+    const { result } = renderHook(() => useSkillFiles({ toolId: listing.toolId, read, t }));
+    await waitFor(() => expect(result.current.status).toEqual({ text: "Could not load skill files.", role: "alert" }));
+    expect(result.current.files).toEqual([]);
+    expect(result.current.selectedFile).toBeNull();
+  });
+
   it("discards stale reads and resets selection when inspecting another skill", async () => {
     let resolveFirst!: (value: SkillFiles) => void;
     const read = vi.fn((id: string) => id === "first" ? new Promise<SkillFiles>(resolve => { resolveFirst = resolve; }) : Promise.resolve(listing));

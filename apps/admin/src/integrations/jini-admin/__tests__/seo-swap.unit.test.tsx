@@ -7,6 +7,8 @@ import { createMemorySeoApi } from '@jini-ai/admin/seo/adapters/memory';
 import { Seo } from '../../../features/seo';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { seoEvents } from '../seo-ports';
+import { SeoMediaPickerSlot } from '../seo-module.hooks';
+import { MediaPickerDialog } from '../../../components/MediaPickerDialog/MediaPickerDialog';
 import { tovuKit } from '../kit';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
@@ -34,6 +36,18 @@ function fixture({ useLocale = () => 'en', tabId = null, sitemapText = '<urlset>
 }
 
 describe('Jini SEO host switch', () => {
+  it('omits an absent agent handle while forwarding the host media picker contract', () => {
+    const onSelect = vi.fn();
+    const onCancel = vi.fn();
+    const accept = ['image/*'];
+
+    const element = SeoMediaPickerSlot({ onSelect, onCancel, accept });
+
+    expect(element.type).toBe(MediaPickerDialog);
+    expect(element.props).toEqual({ onSelect, onCancel, accept });
+    expect(element.props).not.toHaveProperty('agentHandle');
+  });
+
   it.each([
     [[], false], [['media.read'], false], [['admin.seo.manage'], true], [['*'], true],
   ] as const)('retains the SEO route gate for grants %j', (permissions, visible) => {

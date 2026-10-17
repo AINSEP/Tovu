@@ -1,5 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { closePublishRequest, requestPublish, usePublishRequest } from "../hooks/publish-request.store";
 
@@ -10,6 +12,31 @@ import { closePublishRequest, requestPublish, usePublishRequest } from "../hooks
  */
 
 describe("publish-request.store", () => {
+  beforeEach(() => closePublishRequest());
+  afterEach(() => closePublishRequest());
+
+  it("uses an empty server snapshot even while a client publish request is open", async () => {
+    const { result } = renderHook(() => usePublishRequest());
+    let pending!: ReturnType<typeof requestPublish>;
+    act(() => {
+      pending = requestPublish({ types: ["page"] });
+    });
+    const clientRequest = result.current;
+    expect(clientRequest?.criteria).toEqual({ types: ["page"] });
+
+    function RequestState() {
+      const request = usePublishRequest();
+      return createElement("span", null, request === null ? "No publish request" : "Publish request open");
+    }
+
+    expect(renderToString(createElement(RequestState))).toBe("<span>No publish request</span>");
+    expect(result.current).toBe(clientRequest);
+
+    act(() => closePublishRequest());
+    expect(result.current).toBeNull();
+    expect(await pending).toMatchObject({ opened: true, planned: false });
+  });
+
   it("requestPublish({types:['page']}) sets the open request", () => {
     const { result } = renderHook(() => usePublishRequest());
     expect(result.current).toBeNull();

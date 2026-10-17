@@ -58,4 +58,20 @@ describe('owner 2026-10-07 deployed Local CLI gate', () => {
     expect(result.current.allowed).toBe(false);
     expect(result.current.note).toBeNull();
   });
+
+  it('refuses a local send when the pending runtime discovery rejects', async () => {
+    let reject!: (reason: Error) => void;
+    const runtime = new Promise<never>((_resolve, fail) => { reject = fail; });
+    const { result } = renderHook(() => useTovuExecutionPolicy({ config: saved, locale: 'en' }, {
+      desktop: false, loadRuntime: () => runtime,
+    }));
+    const allowed = result.current.readAllowedForSend();
+    await act(async () => { reject(new Error('runtime unavailable')); });
+
+    expect(await allowed).toBe(false);
+    expect(result.current.allowed).toBe(false);
+    expect(result.current.visibility).toBe('hidden');
+    expect(result.current.config.mode).toBe('byok');
+    expect(result.current.note).toBeNull();
+  });
 });
