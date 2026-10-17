@@ -5,6 +5,7 @@
  *
  * Includes a regression test for a real defect found while writing these tests: see "BUG" below.
  */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -204,6 +205,83 @@ function makeRig(opts: {
   };
   return { deps, campaignRepo, subscriptionRepo, audienceSnapshotRepo, sendRepo, outbox, bus };
 }
+
+test("freezeAudience: a dangling snapshot reference is replaced with a persisted fresh audience", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign({ audienceSnapshotId: "missing-snapshot" })] });
+  const result = await freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } });
+
+  assert.notEqual(result.snapshot.id, "missing-snapshot");
+  assert.equal(result.snapshot.recipientCount, 0);
+  assert.deepEqual(result.sendIds, []);
+  assert.deepEqual(await rig.audienceSnapshotRepo.findById({ workspaceId: WS, id: result.snapshot.id }), result.snapshot);
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.audienceSnapshotId, result.snapshot.id);
+});
+
+test("dispatchRow: an already sent row preserves its provider receipt without resending", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({ mailer });
+  const row = makeSendRow({ status: "sent", providerMessageId: "existing-provider-receipt" });
+  const result = await dispatchRow({ deps: rig.deps, row, campaignId: "camp-1", listId: "list-1", status: "subscribed", message: {
+    subject: "Hello", fromName: "Acme", fromEmail: "hello@acme.test", replyTo: "hello@acme.test",
+  } });
+
+  assert.deepEqual(result, { outcome: "sent", providerMessageId: "existing-provider-receipt", error: null });
+  assert.deepEqual(mailer.calls, []);
+});
+
+test("sendTestCampaign: a configured preheader reaches the test email as text", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({ campaigns: [makeCampaign({ preheader: "Preview this announcement" })], mailer });
+  const result = await sendTestCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", testAddresses: ["preview@test.com"] } });
+
+  assert.deepEqual(result.results, [{ email: "preview@test.com", outcome: "sent", error: null }]);
+  assert.equal(mailer.calls.length, 1);
+  assert.equal(mailer.calls[0].message.text, "Preview this announcement");
+});
+
+test("handleSendBatchClaimed: a configured preheader reaches the subscriber email as text", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending", preheader: "Subscriber announcement" })], mailer });
+  await rig.subscriptionRepo.save({ id: "subscription-1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  await rig.sendRepo.save(makeSendRow());
+
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+
+  assert.equal(mailer.calls.length, 1);
+  assert.equal(mailer.calls[0].message.text, "Subscriber announcement");
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "delivered");
+});
+
+test("handleSendBatchClaimed: a terminal row in a still-sending campaign is skipped without recounting", async () => {
+  const mailer = makeMailer();
+  const campaign = makeCampaign({ status: "sending", counters: { recipients: 1, delivered: 1, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 } });
+  const rig = makeRig({ campaigns: [campaign], mailer });
+  const row = makeSendRow({ status: "delivered", attempts: 1, providerMessageId: "original-receipt" });
+  await rig.sendRepo.save(row);
+
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+
+  assert.deepEqual(mailer.calls, []);
+  assert.deepEqual(await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }), row);
+  const stored = await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" });
+  assert.equal(stored?.status, "sent");
+  assert.deepEqual(stored?.counters, campaign.counters);
+});
+
+test("handleSendBatchClaimed: a campaign disappearing before the recipient check leaves the row pending", async () => {
+  const mailer = makeMailer();
+  const campaign = makeCampaign({ status: "sending" });
+  const rig = makeRig({ campaigns: [campaign], mailer });
+  const row = makeSendRow();
+  await rig.sendRepo.save(row);
+  let reads = 0;
+  rig.deps.campaignRepo.findById = async () => ++reads === 1 ? campaign : null;
+
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
+
+  assert.deepEqual(mailer.calls, []);
+  assert.deepEqual(await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }), row);
+});
 
 /* ------------------------------------------------------------------------------------------------
  * authorizeSend

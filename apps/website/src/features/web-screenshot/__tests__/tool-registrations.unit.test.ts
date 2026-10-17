@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -142,4 +143,39 @@ test("the contributor hands each built registration its site's opener and captur
   assert.deepEqual(savedFor, ["this-site"], "the writer is built from the deps of the site being served");
   assert.equal(facts.themeId, "luvira-copy");
   assert.deepEqual(facts.savedFiles, ["/sites/demo/.captures/1970-01-01/000000-000-site-desktop-theme-luvira-copy.jpg"]);
+});
+
+test("a cancelled tool call rejects with its abort reason before capturing a page", async () => {
+  let captures = 0;
+  const ports = await fakePorts();
+  const capture = ports.capture.capture;
+  ports.capture.capture = async (required, optional) => {
+    captures += 1;
+    return capture(required, optional);
+  };
+  const contributor = contributeWebScreenshotTools({ ports });
+  const [registration] = contributor.build(deps([]) as never, {} as never);
+  const controller = new AbortController();
+  const reason = new Error("screenshot cancelled by the caller");
+  controller.abort(reason);
+
+  await assert.rejects(registration!.handler({ ...ctx({ url: "https://example.com/" }), signal: controller.signal }), (error) => error === reason);
+  assert.equal(captures, 0);
+});
+
+test("a live cancellation signal reaches the capture adapter through the registered tool", async () => {
+  const controller = new AbortController();
+  const ports = await fakePorts();
+  const capture = ports.capture.capture;
+  let observedSignal: AbortSignal | undefined;
+  ports.capture.capture = async (required, optional) => {
+    observedSignal = optional?.signal;
+    return capture(required, optional);
+  };
+  const [registration] = buildWebScreenshotRegistrations({ routeDeps: deps([]), service: createWebScreenshotService({ ports }) });
+  const output = blocksOf(await registration!.handler({ ...ctx({ url: "https://example.com/" }), signal: controller.signal }));
+
+  assert.equal(observedSignal, controller.signal);
+  assert.equal(JSON.parse(output[0]!.text!).finalUrl, "https://example.com/");
+  assert.deepEqual(output.map((block) => block.type), ["text", "image"]);
 });

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -16,7 +17,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
 import { contributePostTools } from "#src/features/post/tool-registrations";
-import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
+import { buildChangeSetsRegistrations, contributeChangeSetsTools, type ChangeSetToolDeps } from "#src/features/change-sets/tool-registrations";
 import { getChangeSetsAgentToolCatalog } from "#src/features/change-sets/agent-tools";
 import type { PostRecord } from "#src/features/post/post";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -269,4 +270,27 @@ test("change_sets_list: newest first, 20 by default, and never more than 100 how
 
   const huge = (await wired("change_sets_list", deps).handler(executionContext({ limit: 500 }))) as { changeSets: unknown[] };
   assert.equal(huge.changeSets.length, 100);
+});
+
+test("change_sets_list: accepts omitted input and preserves repo order for tied timestamps", async () => {
+  const { deps, changeSets } = fakeRouteDeps();
+  const records = [
+    { id: "older", workspaceId: WORKSPACE_ID, status: "applied" as const, summary: "older edit", createdAt: NOW },
+    { id: "first-tie", workspaceId: WORKSPACE_ID, status: "reverted" as const, summary: "first tied edit", createdAt: LATER,
+      actorId: "human", intentRef: "intent-1", appliedAt: NOW, revertedAt: LATER },
+    { id: "second-tie", workspaceId: WORKSPACE_ID, status: "applied" as const, summary: "second tied edit", createdAt: LATER },
+  ];
+  changeSets.listByWorkspace = async input => {
+    assert.deepEqual(input, { workspaceId: WORKSPACE_ID });
+    return records;
+  };
+  const list = buildChangeSetsRegistrations(deps as ChangeSetToolDeps).find(registration => registration.descriptor.id === "change_sets_list");
+  assert.ok(list);
+
+  assert.deepEqual(await list.handler(executionContext(undefined)), { changeSets: [
+    { id: "first-tie", workspaceId: WORKSPACE_ID, actorId: "human", status: "reverted", summary: "first tied edit", intentRef: "intent-1", createdAt: LATER, appliedAt: NOW, revertedAt: LATER },
+    { id: "second-tie", workspaceId: WORKSPACE_ID, actorId: null, status: "applied", summary: "second tied edit", intentRef: null, createdAt: LATER, appliedAt: null, revertedAt: null },
+    { id: "older", workspaceId: WORKSPACE_ID, actorId: null, status: "applied", summary: "older edit", intentRef: null, createdAt: NOW, appliedAt: null, revertedAt: null },
+  ] });
+  assert.deepEqual(records.map(record => record.id), ["older", "first-tie", "second-tie"], "listing must not reorder the repo's array");
 });

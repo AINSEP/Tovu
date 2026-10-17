@@ -212,6 +212,25 @@ test("consumeConfirmationToken: an unknown token is rejected as not_found", asyn
   });
 });
 
+test("consumeConfirmationToken: a removed subscription leaves its valid token unconsumed and never requests consent", async () => {
+  const spy = makeCallOrderSpy();
+  const { deps, subscriptionRepo } = makeDeps(spy.capability);
+  const rawToken = await issueRawToken(deps);
+  const [issued] = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
+  assert.ok(issued);
+  await subscriptionRepo.remove({ workspaceId: WS, id: "sub-1" });
+
+  await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), err => {
+    assert.ok(err instanceof NewsletterConfirmTokenInvalidError);
+    assert.equal(err.message, "subscription was not found");
+    assert.equal(err.reason, "not_found");
+    return true;
+  });
+  assert.deepEqual(spy.calls, []);
+  assert.deepEqual(await deps.tokenRepo.findById({ workspaceId: WS, id: issued.id }), issued);
+  assert.equal(await subscriptionRepo.findById({ workspaceId: WS, id: "sub-1" }), null);
+});
+
 test("consumeConfirmationToken: an unbound consentCapability is a hard error (ADR-PIPE-011 — never stub to succeed)", async () => {
   const { deps } = makeDeps(null); // no consentCapability
   const rawToken = await issueRawToken(deps);
@@ -248,6 +267,7 @@ test("issueConfirmationToken: clickable URLs preserve custom ports/base paths an
     ["https", 8443, undefined, "https://acme.test:8443/newsletter/confirm"],
     ["https", 443, undefined, "https://acme.test/newsletter/confirm"],
     ["http", 80, undefined, "http://acme.test/newsletter/confirm"],
+    ["http", 8080, "/site", "http://acme.test:8080/site/newsletter/confirm"],
     ["https", 443, "/site", "https://acme.test/site/newsletter/confirm"],
   ] as const) {
     const { deps } = makeDeps(makeCallOrderSpy().capability);

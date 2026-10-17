@@ -8,11 +8,11 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { describeSiteBinding, listSites, type SiteBinding, type ListSitesOptional } from "#src/platform/site-dir/index";
+import { describeSiteBinding, duplicateSite, listSites, type SiteBinding, type ListSitesOptional } from "#src/platform/site-dir/index";
 
 import { buildRegistrations as buildSitesListRegistrations } from "../list-tool.js";
 import { buildSitesRegistrations } from "../tool-registrations.js";
-import type { SitesToolDeps } from "../deps.js";
+import { resolveSitesDeps, type SitesToolDeps } from "../deps.js";
 
 /**
  * @file `sites_duplicate_site` and `sites_list` act on the site this process SERVES
@@ -99,6 +99,20 @@ function duplicateDeps(fixture: ReturnType<typeof setupTrees>, calls: Array<{ so
     },
   };
 }
+
+test("site dependency resolution defaults to the shared site-dir implementations and the served binding's base", async (t) => {
+  const fixture = setupTrees(t);
+  const resolved = resolveSitesDeps({
+    workspaceId: WORKSPACE_ID,
+    authorize: async () => ({ allowed: true, reason: "test" }),
+    siteBinding: fixture.binding,
+  });
+
+  assert.equal(resolved.listSites, listSites);
+  assert.equal(resolved.duplicateSite, duplicateSite);
+  assert.equal(resolved.switcherBase, fixture.served);
+  assert.equal(resolved.switcherCompatible, true);
+});
 
 test("sites_duplicate_site: the source is found and the copy is made under the served tree's sites/", async (t) => {
   const fixture = setupTrees(t);

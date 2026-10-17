@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -42,6 +43,14 @@ describeEachDialect<{ repo: Repo; kernel: ContentKernel }>(
       await repo.save(replaced);
       assert.deepEqual(await repo.findByKey({ workspaceId: WS, key: "recipe" }), replaced);
       assert.equal((await repo.listByWorkspace({ workspaceId: WS })).length, 1);
+    });
+
+    test("saving a legacy record with no tombstone marker clears the previous marker to NULL", async () => {
+      const { repo } = makeRepo();
+      await repo.save(contentType("recipe", { status: "tombstone", tombstonedAt: "2026-09-28T00:00:00.000Z" }));
+      const { tombstonedAt: _omitted, ...legacy } = contentType("recipe", { version: 2 });
+      await repo.save(legacy);
+      assert.deepEqual(await repo.findByKey({ workspaceId: WS, key: "recipe" }), contentType("recipe", { version: 2, tombstonedAt: null }));
     });
 
     test("findByKey misses an unknown key and another workspace's row", async () => {

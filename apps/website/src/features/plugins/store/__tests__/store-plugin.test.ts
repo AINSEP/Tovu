@@ -13,6 +13,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { contentKernel } from "../../../../platform/db/content-kernel.js";
+import { checkNamespaceAdoption } from "../../plugin-identity.js";
 import { activateStore, bootstrapStore, SEED_PRODUCTS } from "../store-plugin.js";
 
 function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
@@ -22,6 +23,21 @@ function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
   db.pragma("journal_mode = WAL");
   return { db, dbPath, dir };
 }
+
+test("store: activation refuses a retained namespace owned by different provenance before creating or seeding tables", async (t) => {
+  const { db, dbPath, dir } = tempDb();
+  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const provenance = { sourceUrl: "https://previous.example/store", publisher: "previous-owner" };
+  await checkNamespaceAdoption({ db, pluginId: "store", provenance });
+
+  await assert.rejects(activateStore({ db, dbPath }), {
+    message: "store dataModule declaration failed: IDENTITY_ADOPTION_REQUIRES_CONSENT — pluginId 'store' has retained data from a previously-seen, provenance-mismatched artifact — explicit operator consent is required before adopting this namespace",
+  });
+  assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('p_store__products', 'p_store__orders')").all(), []);
+  assert.deepEqual(db.prepare("SELECT source_url, publisher, signature FROM _plugin_identity WHERE plugin_id = 'store'").get(), {
+    source_url: provenance.sourceUrl, publisher: provenance.publisher, signature: null,
+  });
+});
 
 test("store: activation declares p_store__products (via the never-brick seam) and seeds it", async () => {
   const { db, dbPath, dir } = tempDb();

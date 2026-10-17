@@ -102,3 +102,32 @@ for (const signed of [false, true]) {
     }
   });
 }
+
+test("identical signed provenance stays unchanged without reminting the identity", async (t) => {
+  const { db, dir } = openDb();
+  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const provenance = { sourceUrl: "https://example.com/signed", publisher: "acme", signature: "sig-original" };
+  await checkNamespaceAdoption({ db, pluginId: "signed-plugin", provenance });
+  const before = await getPluginIdentity({ db, pluginId: "signed-plugin" });
+  assert.deepEqual(before?.provenance, provenance);
+
+  assert.deepEqual(await checkNamespaceAdoption({ db, pluginId: "signed-plugin", provenance: { ...provenance } }), {
+    allowed: true, track: "unchanged",
+  });
+  assert.deepEqual(await getPluginIdentity({ db, pluginId: "signed-plugin" }), before);
+});
+
+test("adding a signature to an unsigned identity requires consent and preserves its unsigned provenance", async (t) => {
+  const { db, dir } = openDb();
+  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const provenance = { sourceUrl: "https://example.com/a", publisher: "acme" };
+  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance });
+  const before = await getPluginIdentity({ db, pluginId: "plugin-a" });
+
+  assert.deepEqual(await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { ...provenance, signature: "new-signature" } }), {
+    allowed: false,
+    track: "consent-required",
+    reason: "pluginId 'plugin-a' has retained data from a previously-seen, provenance-mismatched artifact — explicit operator consent is required before adopting this namespace",
+  });
+  assert.deepEqual(await getPluginIdentity({ db, pluginId: "plugin-a" }), before);
+});

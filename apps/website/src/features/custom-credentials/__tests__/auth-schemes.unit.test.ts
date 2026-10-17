@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -94,6 +95,17 @@ test("a source directory without the file contributes nothing and is not an erro
   } finally {
     await forceRemove(root);
   }
+});
+
+test("a source scheme file that is a directory propagates its read error instead of contributing nothing", async t => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-unreadable-auth-schemes-"));
+  t.after(() => forceRemove(root));
+  await mkdir(path.join(root, CREDENTIAL_SCHEMES_FILENAME));
+
+  await assert.rejects(loadCredentialSchemeRegistryFromSource({ pluginId: "unreadable", packageRoot: root }, {}), {
+    code: "EISDIR",
+    message: "EISDIR: illegal operation on a directory, read",
+  });
 });
 
 // ---------------------------------------------------------------------------------------------

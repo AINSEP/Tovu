@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -64,6 +65,10 @@ function recordingOutbox(): { outbox: OutboxPort; events: CapturedEvent[] } {
 
 const clock = { nowMs: () => Date.parse("2026-07-30T12:00:00.000Z") };
 const WS = "workspace-1";
+
+test("isTrashed treats even an empty string as a present deletion marker", () => {
+  assert.equal(isTrashed({ deletedAt: "" }), true);
+});
 
 function seed(overrides: Partial<PostRecord> = {}): PostRecord {
   return buildPostRecord({

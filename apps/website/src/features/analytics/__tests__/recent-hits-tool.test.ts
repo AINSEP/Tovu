@@ -50,6 +50,20 @@ test("top ten summaries sort by count, with deterministic ties", async () => {
   assert.deepEqual(result.summary.byReferrerHost, Array.from({ length: 10 }, (_, n) => ({ referrerHost: `h${String(n).padStart(2, "0")}`, hits: 1 })));
 });
 
+test("tied referrer counts put direct visits before named hosts regardless of input order", async () => {
+  for (const referrers of [[null, "example.test"], ["example.test", null]]) {
+    const { deps, tool } = harness();
+    deps.analyticsSink = createLocalAnalyticsSink({}, { initialHits: referrers.map(referrerHost => hit("/a", { referrerHost })) });
+    const result = await tool.handler(ctx({ summarize: true })) as { summary: unknown };
+    assert.deepEqual(result.summary, {
+      hits: 2,
+      byPath: [{ path: "/a", hits: 2 }],
+      byReferrerHost: [{ referrerHost: null, hits: 1 }, { referrerHost: "example.test", hits: 1 }],
+      byDeviceClass: { desktop: 2 },
+    });
+  }
+});
+
 test("permission denied prevents sink reads; malformed optional fields are readable refusals", async () => {
   const { deps, tool } = harness(false);
   deps.analyticsSink.list = async () => assert.fail("denied sink read");
