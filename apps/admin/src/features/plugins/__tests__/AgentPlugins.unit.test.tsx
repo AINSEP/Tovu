@@ -122,7 +122,7 @@ describe("AgentPlugins", () => {
     renderAgentPlugins();
     const installedTab = screen.getByRole("button", { name: "Installed" });
     const downloadedTab = screen.getByRole("button", { name: "Downloaded" });
-    const marketplaceTab = screen.getByRole("button", { name: "Marketplace" });
+    const marketplaceTab = screen.getByRole("button", { name: /^Marketplace/ });
     expect(installedTab).toHaveAttribute("aria-pressed", "true");
     expect(installedTab.compareDocumentPosition(downloadedTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(downloadedTab.compareDocumentPosition(marketplaceTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -368,7 +368,9 @@ describe("AgentPlugins", () => {
   it("keeps Marketplace explicitly future-only, with no listing and no install control", async () => {
     renderAgentPlugins();
 
-    await userEvent.click(screen.getByRole("button", { name: "Marketplace" }));
+    const marketplaceTab = screen.getByRole("button", { name: /^Marketplace/ });
+    expect(marketplaceTab).toHaveTextContent("Soon");
+    await userEvent.click(marketplaceTab);
 
     expect(screen.getByRole("note")).toHaveTextContent(
       "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.",

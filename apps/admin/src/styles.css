@@ -4023,15 +4023,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   padding-inline: 0;
 }
 
-/* The "Add a plugin" tab's "Soon" tag (`add-plugin-tab-soon.ts`), carried as that tab's `navHint`
-   since `@jini-ai/ui`'s tab has no tag slot. This screen's only nav hint, so it is drawn as the
-   sidebar's `.cms-item .soon` pill beside the label rather than as a grey sub-line under it. Jini
-   tokens for the light-pinned island (see this block's header). */
+/* The "Add a plugin" and "Marketplace" tabs' "Soon" tags (`add-plugin-tab-soon.ts`), carried as each
+   tab's `navHint` since `@jini-ai/ui`'s tab has no tag slot. This screen uses nav hints for nothing
+   else, so they are drawn as the sidebar's `.cms-item .soon` pill beside the label rather than as a
+   grey sub-line under it. Jini tokens for the light-pinned island (see this block's header).
+   `display` is set because Jini hides nav hints in its phone tab strip, which dropped the pill there. */
 .agent-plugins-section .jini-tabbed-dialog-nav-text { flex-direction: row; align-items: center; gap: 0.4rem; }
 .agent-plugins-section .jini-tabbed-dialog-nav-text small {
+  display: inline-block;
   font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--jini-text-muted); border: 1px solid var(--jini-border); padding: 1px 5px; border-radius: 5px;
 }
+
+/* "Add a plugin" card (owner, 2026-10-17): the drop zone ran the full ~1300px column on a wide
+   screen. Capped at the shared `--form-measure` every single-column form uses (see `.form-measure`)
+   and centered in the tab. Scoped here: Skills and Plugins render the same card and keep theirs. */
+.agent-plugins-section .install-tab-card { width: 100%; max-width: var(--form-measure); margin-inline: auto; }
 
 /* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
    box: that treatment means "this control does nothing yet" everywhere else in this admin, which

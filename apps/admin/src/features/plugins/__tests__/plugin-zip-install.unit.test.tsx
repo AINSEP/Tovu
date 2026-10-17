@@ -56,7 +56,7 @@ it("renders a styled ZIP drop zone (no raw file input) and requires the same ful
   const port = createFakePluginInstallPort({ preview });
   function Harness() {
     const controller = usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} });
-    return <AddPluginPanel controller={controller} canInstall />;
+    return <AddPluginPanel controller={controller} />;
   }
   render(<Harness />); const user = userEvent.setup();
   const picker = screen.getByLabelText("Upload .zip (max 32 MiB)") as HTMLInputElement;

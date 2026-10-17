@@ -85,8 +85,13 @@ it("the header no longer carries an Install plugin button; the tab offers fields
   expect(screen.queryByRole("button", { name: "Install plugin" })).toBeNull();
   expect(screen.getByRole("tab", { name: /Add a plugin/ })).toBeTruthy();
   cleanup();
+  // Hosted (no local installs): the tab is greyed out and tagged "Soon", and ?tab=add shows Installed.
   renderAddTab(createFakePluginInstallPort({ preview }), []);
-  expect(await screen.findByText("Local folder installs are disabled on this server.")).toBeTruthy();
+  const tab = await screen.findByRole("tab", { name: /^Add a plugin/ });
+  expect(tab).toBeDisabled();
+  expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+  expect(screen.getByRole("tab", { name: "Installed" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.queryByText("Local folder installs are disabled on this server.")).toBeNull();
   expect(screen.queryByRole("textbox", { name: "Folder on this server" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Preview plugin" })).toBeNull();
 });

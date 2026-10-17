@@ -12,18 +12,11 @@ import type { PluginInstallController } from "./hooks/use-plugin-install.hooks";
  * server path is tucked away because it was a bare path with no button and read as broken (owner,
  * 2026-10-06). All state, async work and consent invalidation live in `use-plugin-install.hooks.ts`.
  *
- * `canInstall` is the server's `installSources` answer: when local installs are switched off the
- * card says so instead of offering fields that would only be refused.
+ * Only rendered where the server allows local installs (`installSources`): elsewhere `Plugins.tsx`
+ * greys the tab out with a "Soon" tag instead of offering fields that would only be refused.
  */
-export function AddPluginPanel({ controller: c, canInstall }: { controller: PluginInstallController; canInstall: boolean }) {
+export function AddPluginPanel({ controller: c }: { controller: PluginInstallController }) {
   const { t } = c;
-  if (!canInstall) {
-    return (
-      <InstallTabCard titleId="plugins-add-title" title={t("Add a plugin")} lede={t("Local folder installs are disabled on this server.")}>
-        <p className="field-hint">{t("Install a plugin by placing its files in this site's plugin install directory.")}</p>
-      </InstallTabCard>
-    );
-  }
   return (
     <InstallTabCard titleId="plugins-add-title" title={t("Add a plugin")} lede={t("It stays off in every workspace until you turn it on.")}>
       <InstallTabOption heading={t("Upload a .zip or a folder")}>

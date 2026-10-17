@@ -11,7 +11,7 @@ import { useId, useState } from "react";
 import type { AdminAgentPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
-import { addPluginTabSoonTag } from "./add-plugin-tab-soon";
+import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
@@ -437,6 +437,7 @@ export function AgentPlugins({
     {
       id: "marketplace",
       label: t("Marketplace"),
+      navHint: marketplaceTabSoonTag(locale),
       icon: <MarketplaceIcon />,
       title: t("Agent Plugin Marketplace"),
       subtitle: t("A future place to discover portable Agent Plugins."),

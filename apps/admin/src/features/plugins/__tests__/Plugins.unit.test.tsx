@@ -99,8 +99,22 @@ describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order,
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Add a plugin", "Marketplace"]);
+    // This response carries no `installSources` — a hosted server — so Add is greyed out and tagged
+    // "Soon" (owner, 2026-10-17); Marketplace is tagged "Soon" everywhere but stays clickable.
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Add a pluginSoon", "MarketplaceSoon"]);
     expect(within(tablist).getByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
+    expect(within(tablist).getByRole("tab", { name: /^Add a plugin/ })).toBeDisabled();
+    expect(within(tablist).getByRole("tab", { name: /^Marketplace/ })).not.toBeDisabled();
+  });
+
+  it("on a server that refuses local installs, ?tab=add falls back to Installed", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="add" />);
+
+    const tablist = await screen.findByRole("tablist");
+    expect(within(tablist).getByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Add a plugin" })).not.toBeInTheDocument();
   });
 });
 

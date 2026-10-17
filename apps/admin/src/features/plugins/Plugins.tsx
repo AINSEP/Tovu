@@ -10,7 +10,7 @@ import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
 import { AddPluginPanel } from "./AddPluginPanel";
 import { UploadIcon } from "./agent-plugins-visuals";
-import { addPluginTabSoonTag } from "./add-plugin-tab-soon";
+import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
 import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
@@ -45,7 +45,10 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  *    enabled rows.
  *  - **Add a plugin** — the shared `InstallTabCard` (`AddPluginPanel.tsx`): a server folder or one
  *    `.zip`, previewed before install. Replaced the header "Install plugin" popup (owner, 2026-10-06),
- *    so all three install screens (Skills, Agent Plugins, Plugins) share one tab and card.
+ *    so all three install screens (Skills, Agent Plugins, Plugins) share one tab and card. On a
+ *    server that refuses local installs (`installSources` without "folder", e.g. tovu.dev) the tab is
+ *    greyed out and tagged "Soon" instead (owner, 2026-10-17): it has no destination there, so it is
+ *    disabled and `?tab=add` falls back to Installed.
  *  - **Marketplace** — a designed empty state; nothing is fetched, listed, or installable (REQ-02:
  *    install is a filesystem operation, placing files under this site's plugin install directory,
  *    not an HTTP one — `api.spec.md` §1 lists no install/marketplace route for this family either).
@@ -68,11 +71,12 @@ export interface PluginsProps {
 const PLUGINS_TAB_IDS = ["installed", "downloaded", "add", "marketplace"] as const;
 type PluginsTabId = (typeof PLUGINS_TAB_IDS)[number];
 
-/** Falls back to the Installed tab for an absent or unrecognized `?tab=` value. Delegates to the
- *  shared `../../lib/resolve-active-tab-id` guard every other URL-deep-linked tabbed admin screen
- *  uses. */
-function resolvePluginsTabId(tabId: string | null | undefined): PluginsTabId {
-  return resolveActiveTabId({ tabId: tabId, validIds: PLUGINS_TAB_IDS, defaultId: "installed" });
+/** Falls back to the Installed tab for an absent or unrecognized `?tab=` value, and for `add` when
+ *  this server refuses local installs (that tab is disabled). Delegates to the shared
+ *  `../../lib/resolve-active-tab-id` guard every other URL-deep-linked tabbed admin screen uses. */
+function resolvePluginsTabId(tabId: string | null | undefined, canInstall: boolean): PluginsTabId {
+  const validIds = canInstall ? PLUGINS_TAB_IDS : PLUGINS_TAB_IDS.filter((id) => id !== "add");
+  return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: "installed" });
 }
 
 /** The Installed tab's own row list — the Enable/Disable toggle unchanged from the pre-split table,
@@ -267,28 +271,30 @@ function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanel
   );
 }
 
-/** Marketplace: a designed empty state — see this file's header for why nothing is listed. */
+/** Marketplace: a designed empty state — see this file's header for why nothing is listed. Same
+ *  capped, centered card as Agent Plugins' Marketplace (owner, 2026-10-17: it ran the full column),
+ *  so it reuses that screen's `agent-plugins-marketplace-*` classes rather than a second copy. */
 function MarketplacePanel({ controller }: PluginsTabPanelProps) {
   const { t } = controller;
   return (
-    <div className="card">
-      <div className="empty-state" role="note">
-        <p>{t("Nothing to browse yet")}</p>
-        <p className="page-description">
-          {t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}
-        </p>
-        {controller.canInstallFolder ? null : (
-          <p className="page-description">{t("Install a plugin by placing its files in this site's plugin install directory.")}</p>
-        )}
-      </div>
+    <div className="agent-plugins-marketplace-empty" role="note">
+      <span className="agent-plugins-marketplace-glyph">
+        <MarketplaceTabIcon size={28} />
+      </span>
+      <h3>{t("Nothing to browse yet")}</h3>
+      <p>{t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}</p>
+      {controller.canInstallFolder ? null : (
+        <p>{t("Install a plugin by placing its files in this site's plugin install directory.")}</p>
+      )}
     </div>
   );
 }
 
 /** Add a plugin: the shared install card. Without an install controller (a test hook that omits
- *  it) the tab is empty. */
+ *  it) the tab is empty; on a server that refuses local installs the tab is disabled and never
+ *  resolves here. */
 function AddPanel({ controller }: PluginsTabPanelProps) {
-  return controller.install ? <AddPluginPanel controller={controller.install} canInstall={controller.canInstallFolder === true} /> : null;
+  return controller.install ? <AddPluginPanel controller={controller.install} /> : null;
 }
 
 const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProps>> = {
@@ -313,7 +319,7 @@ export function Plugins({ tabId, usePluginsHook = useWiredPlugins }: PluginsProp
   // see `LoadedPlugins`'s own error notice below, and `use-plugins.hooks.ts`'s `reload()` header.
   if (error && !plugins) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
-  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId)} />;
+  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId, controller.canInstallFolder === true)} />;
 }
 
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
@@ -329,12 +335,13 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
   );
   const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
   const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];
+  const canInstall = controller.canInstallFolder === true;
 
   const tabs: TabBarTab[] = [
     { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — plugins this site has turned on" },
     { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
-    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag(locale), icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
-    { id: "marketplace", label: t("Marketplace"), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
+    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag(locale, canInstall ? undefined : true), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
+    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag(locale), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
   ];
 
   return (
