@@ -270,6 +270,27 @@ describe("useExternalEntryRefresh — checkForExternalChange", () => {
 });
 
 describe("useExternalEntryRefresh — dismissExternalChange", () => {
+  it("dismissing before an entry loads does not suppress a later conflict", async () => {
+    const fresh = deferred<TestRow>();
+    const env = setup({ dirty: true, fetchLatest: () => fresh.promise });
+    env.rerender({ loaded: null });
+    act(() => {
+      env.result.current.dismissExternalChange();
+      env.result.current.checkForExternalChange();
+    });
+    expect(env.result.current.pendingExternalVersion).toBeNull();
+    expect(env.fetchLatest).not.toHaveBeenCalled();
+
+    env.rerender({ loaded: { id: "a", version: 1 } });
+    act(() => env.result.current.checkForExternalChange());
+    await act(async () => {
+      fresh.resolve({ id: "a", version: 2 });
+      await fresh.promise;
+    });
+    expect(env.result.current.pendingExternalVersion).toBe(2);
+    expect(env.applyLatest).not.toHaveBeenCalled();
+  });
+
   it("hides the notice and suppresses it for the same basis; a new basis re-enables it", async () => {
     const first = deferred<TestRow>();
     const fetchLatest = vi.fn().mockReturnValueOnce(first.promise);
@@ -526,6 +547,20 @@ describe("useExternalEntryRefresh — loadExternalChange", () => {
 });
 
 describe("useExternalEntryRefresh — pendingExternalVersion", () => {
+  it("hides a known newer version while the loaded entry is absent", async () => {
+    const fresh = deferred<TestRow>();
+    const env = setup({ dirty: true, fetchLatest: () => fresh.promise });
+    act(() => env.result.current.checkForExternalChange());
+    await act(async () => {
+      fresh.resolve({ id: "a", version: 2 });
+      await fresh.promise;
+    });
+    expect(env.result.current.pendingExternalVersion).toBe(2);
+
+    env.rerender({ loaded: null });
+    expect(env.result.current.pendingExternalVersion).toBeNull();
+  });
+
   it("clears itself when loaded.version catches up", async () => {
     const { promise, resolve } = deferred<TestRow>();
     const fetchLatest = vi.fn().mockReturnValue(promise);

@@ -1,8 +1,14 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import type { ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
 import type { DetectedAgent } from "@jini-ai/ui";
 import { useSelectedAgentAuthWarning } from "../hooks/use-selected-agent-auth-warning.hooks";
+import { resetLocalAgentDetectionCache } from "@/lib/execution-settings";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetLocalAgentDetectionCache();
+});
 
 const claudeMissing: DetectedAgent = { id: "claude", label: "Claude Code", installed: true, authStatus: "missing" };
 const claudeOk: DetectedAgent = { ...claudeMissing, authStatus: "ok" };
@@ -91,4 +97,52 @@ test("D-21b: a slow first scan cannot overwrite a newer rescan's result", async 
   await act(async () => { await result.current.runtimeAccess.rescanAgents(); });
   await act(async () => { resolveFirst([claudeMissing]); await new Promise((resolve) => setTimeout(resolve, 0)); });
   expect(result.current.warning).toBeNull();
+});
+
+test("D-21b: rescan falls back to detection when the port has no forced-rescan capability", async () => {
+  let detected: DetectedAgent[] = [claudeMissing];
+  const port = { detectLocalAgents: async () => detected };
+  const calls: string[] = [];
+  const runtimeAccess = fakeRuntimeAccess(calls);
+  const { result } = renderHook(() => useSelectedAgentAuthWarning({
+    mode: "local-cli", agentId: "claude", locale: "en", runtimeAccess,
+  }, { port }));
+  await waitFor(() => expect(result.current.warning).toBe(WARNING));
+
+  detected = [claudeOk];
+  let pickerAnswer: unknown;
+  await act(async () => { pickerAnswer = await result.current.runtimeAccess.rescanAgents(); });
+
+  expect(pickerAnswer).toEqual([{ id: "claude", label: "Claude Code", available: true }]);
+  await waitFor(() => expect(result.current.warning).toBeNull());
+});
+
+test("D-21b: an older scan's failure cannot clear a newer confirmed sign-in warning", async () => {
+  let rejectFirst!: (error: Error) => void;
+  const first = new Promise<DetectedAgent[]>((_resolve, reject) => { rejectFirst = reject; });
+  const port = { detectLocalAgents: () => first, rescanLocalAgents: async () => [claudeMissing] };
+  const { result } = render(port, { mode: "local-cli", agentId: "claude", locale: "en" });
+  await act(async () => { await result.current.runtimeAccess.rescanAgents(); });
+  await waitFor(() => expect(result.current.warning).toBe(WARNING));
+
+  await act(async () => { rejectFirst(new Error("old detection failed")); });
+
+  expect(result.current.warning).toBe(WARNING);
+});
+
+test("D-21b: the default port reads authentication status through the real execution adapter", async () => {
+  resetLocalAgentDetectionCache();
+  vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+    expect(String(url)).toMatch(/\/assistant\/execution\/detect-agents$/);
+    expect(init?.method).toBe("POST");
+    return new Response(JSON.stringify({ data: [claudeMissing] }), {
+      status: 200, headers: { "content-type": "application/json" },
+    });
+  });
+  const runtimeAccess = fakeRuntimeAccess([]);
+  const { result } = renderHook(() => useSelectedAgentAuthWarning({
+    mode: "local-cli", agentId: "claude", locale: "en", runtimeAccess,
+  }));
+
+  await waitFor(() => expect(result.current.warning).toBe(WARNING));
 });

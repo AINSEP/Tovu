@@ -6,6 +6,7 @@ import {
   publishAgentScreenRoute,
   readAgentScreenContext,
   resetAgentScreenContext,
+  type AgentScreenEntry,
 } from "../agent-screen-context";
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "../playground-render-target-bus";
 import { useAgentScreenEntry, useAgentScreenRoute } from "@/hooks/use-agent-screen-context.hooks";
@@ -83,6 +84,19 @@ describe("agent screen context store", () => {
 });
 
 describe("useAgentScreenRoute / useAgentScreenEntry", () => {
+  it("publishes an entry without optional metadata and removes old metadata on a switch", () => {
+    renderHook(() => useAgentScreenRoute({ path: "/pages/x", section: "pages", view: "page-editor" }));
+    const editor = renderHook(
+      ({ entry }) => useAgentScreenEntry(entry),
+      { initialProps: { entry: LANDING_ENTRY as AgentScreenEntry } },
+    );
+    expect(readAgentScreenContext()?.entry).toEqual(LANDING_ENTRY);
+
+    const entry = { kind: "page", id: "draft", title: "New draft" };
+    editor.rerender({ entry });
+    expect(readAgentScreenContext()?.entry).toStrictEqual(entry);
+  });
+
   it("publishes the entry while the editor is mounted and clears it on unmount", () => {
     renderHook(() => useAgentScreenRoute({ path: "/pages/x", section: "pages", view: "page-editor" }));
     const editor = renderHook(({ entry }) => useAgentScreenEntry(entry), { initialProps: { entry: LANDING_ENTRY } });

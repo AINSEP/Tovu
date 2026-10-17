@@ -1,7 +1,8 @@
 /** Chart plan step 6: existing cache invalidation and settings notifications replace whole snapshots. */
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
+import type { ChartProvider } from "@jini-ai/ui/charts";
 import { FetchQueryProvider } from "@/lib/fetch-query/provider";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
@@ -9,6 +10,65 @@ import { createFakeChartRegistryPort } from "../chart-registry-dependencies.hook
 import { useAdminChartRegistry } from "../use-chart-registry.hooks";
 
 afterEach(() => { cleanup(); resetSettingsRefreshBus(); resetContentRefreshBus(); });
+
+it("loads the admitted module only when its chart is rendered and tears its renderer down", async () => {
+  const importedUrls: string[] = [];
+  const port = createFakeChartRegistryPort({ snapshot: {
+    generation: "renderable", siteProvider: "plugin.test", providers: [
+      { id: "plugin.test", kinds: ["bar"], javascript: "/admitted/chart.js" },
+    ],
+  } });
+  const provider: ChartProvider = {
+    mount({ element, spec }) {
+      element.textContent = `Rendered ${spec.kind}: ${spec.data[0]!.value}`;
+      return {
+        update({ spec: next }) { element.textContent = `Rendered ${next.kind}: ${next.data[0]!.value}`; },
+        destroy() { element.replaceChildren(); },
+      };
+    },
+  };
+  const importModule = async ({ url }: { url: string }) => {
+    if (url !== "/admitted/chart.js") throw new Error(`Unexpected chart module: ${url}`);
+    importedUrls.push(url);
+    return provider;
+  };
+  const { result } = renderHook(() => useAdminChartRegistry({ principalId: "owner", port }, { importModule }), {
+    wrapper: ({ children }) => <FetchQueryProvider adapter="builtin">{children}</FetchQueryProvider>,
+  });
+  await waitFor(() => expect(result.current.generation).toBe("renderable"));
+  expect(importedUrls).toEqual([]);
+
+  const entry = result.current.registry.resolveById({ id: "recharts.bar-chart" });
+  expect(entry?.provider).toBe("plugin.test");
+  const Component = entry!.Component;
+  const view = render(<Component data={[{ name: "Jan", value: 7 }]} categoryKey="name" valueKey="value" />);
+  await waitFor(() => expect(view.container.querySelector("[data-chart-renderer]")?.textContent).toBe("Rendered bar: 7"));
+  expect(importedUrls).toEqual(["/admitted/chart.js"]);
+  const renderer = view.container.querySelector("[data-chart-renderer]")!;
+  const frame = renderer.firstElementChild!;
+  view.unmount();
+  expect(frame.textContent).toBe("");
+});
+
+it("ignores unrelated settings and refreshes charts when the changed scope is unknown", async () => {
+  const port = createFakeChartRegistryPort({ snapshot: { generation: "initial", siteProvider: "core.table", providers: [] } });
+  let reads = 0;
+  const readSnapshot = port.readSnapshot.bind(port);
+  port.readSnapshot = async (input, options) => { reads += 1; return readSnapshot(input, options); };
+  const { result } = renderHook(() => useAdminChartRegistry({ principalId: "owner", port }), {
+    wrapper: ({ children }) => <FetchQueryProvider adapter="builtin">{children}</FetchQueryProvider>,
+  });
+  await waitFor(() => expect(result.current.generation).toBe("initial"));
+  const initialReads = reads;
+  port.snapshot = { generation: "changed", siteProvider: "core.table", providers: [] };
+  await act(async () => { publishSettingsRefresh(["core.unrelated"]); });
+  expect(reads).toBe(initialReads);
+  expect(result.current.generation).toBe("initial");
+
+  act(() => publishSettingsRefresh());
+  await waitFor(() => expect(result.current.generation).toBe("changed"));
+  expect(reads).toBeGreaterThan(initialReads);
+});
 
 it.each(["builtin", "tanstack"] as const)("%s: boot, plugin toggle and site default use one stable registry generation", async (adapter) => {
   const port = createFakeChartRegistryPort({ snapshot: { generation: "first", siteProvider: "plugin.recharts", providers: [

@@ -89,6 +89,12 @@ describe("nextPushToTalkState", () => {
 });
 
 describe("describePushToTalkIndicator", () => {
+  it("shows the resting indicator after release while microphone permission is still pending", () => {
+    expect(describePushToTalkIndicator({ status: "cancelling" })).toEqual({
+      label: "Hold to talk", ariaLive: "polite", isRecording: false,
+    });
+  });
+
   it("is unmistakable: isRecording is true in exactly the recording state, false everywhere else", () => {
     const statuses: PushToTalkState[] = [
       { status: "idle" },

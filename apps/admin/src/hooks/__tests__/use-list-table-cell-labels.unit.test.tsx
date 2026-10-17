@@ -33,6 +33,22 @@ describe("labelListTableCells", () => {
     expect(root.querySelector("td")?.hasAttribute("data-label")).toBe(false);
   });
 
+  it("clears stale labels from body columns beyond the available headers", () => {
+    const root = table(`<table class="list-table">
+      <thead><tr><th>Title</th></tr></thead>
+      <tbody><tr><td>Article</td><td data-label="Removed column">Extra value</td></tr></tbody></table>`);
+    labelListTableCells(root);
+    expect(Array.from(root.querySelectorAll("td")).map((cell) => cell.getAttribute("data-label")))
+      .toEqual(["Title", null]);
+  });
+
+  it("leaves body cells unchanged when the table head has no rows", () => {
+    const root = table(`<table class="list-table"><thead></thead>
+      <tbody><tr><td data-label="Existing">value</td></tr></tbody></table>`);
+    labelListTableCells(root);
+    expect(root.querySelector("td")?.getAttribute("data-label")).toBe("Existing");
+  });
+
   it("leaves tables without a header row, and non-list tables, alone", () => {
     const root = table(`<table class="list-table"><tbody><tr><td>x</td></tr></tbody></table>
       <table><thead><tr><th>H</th></tr></thead><tbody><tr><td>y</td></tr></tbody></table>`);

@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { useInfoTip } from "@jini-ai/ui/admin-widgets";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockHeaderTip } from "../DockHeaderTip";
+import { useDockHeaderTip } from "../DockHeaderTip.hooks";
 import { DockSettingsMenu } from "../DockSettingsMenu";
 import { activateDockMenuItem, dockSettingsMenuSections, shouldShowHeaderTip } from "../dock-header-rules";
 import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
@@ -158,6 +160,41 @@ describe("DockSettingsMenu", () => {
 });
 
 describe("DockHeaderTip", () => {
+  it("uses the injected tooltip controller with bottom placement", async () => {
+    const useTip = vi.fn(useInfoTip);
+    render(<DockHeaderTip label="Chats" useTip={() => useDockHeaderTip({}, { useTip })}>
+      <button type="button" aria-label="Chats">c</button>
+    </DockHeaderTip>);
+
+    await userEvent.setup().hover(screen.getByRole("button", { name: "Chats" }));
+
+    expect(useTip).toHaveBeenCalledWith({}, { placement: "bottom" });
+    expect(bubble()).toHaveTextContent("Chats");
+    expect(bubble()).toHaveClass("info-tip-bubble-below");
+  });
+
+  it("opens on focus, keeps the tip for other keys, and dismisses on Escape or blur", async () => {
+    const user = userEvent.setup();
+    render(<DockHeaderTip label="Chats"><button type="button" aria-label="Chats">c</button></DockHeaderTip>);
+    const button = screen.getByRole("button", { name: "Chats" });
+
+    fireEvent.keyDown(button, { key: "Escape" });
+    expect(bubble()).toBeNull();
+    await user.tab();
+    expect(button).toHaveFocus();
+    expect(bubble()).toHaveTextContent("Chats");
+    await user.keyboard("{ArrowRight}");
+    expect(bubble()).toHaveTextContent("Chats");
+    await user.keyboard("{Escape}");
+    expect(bubble()).toBeNull();
+
+    await user.tab();
+    await user.tab({ shift: true });
+    expect(bubble()).toHaveTextContent("Chats");
+    await user.tab();
+    expect(bubble()).toBeNull();
+  });
+
   it("shows the white bubble under the button on hover and hides it on leave and on click", async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();

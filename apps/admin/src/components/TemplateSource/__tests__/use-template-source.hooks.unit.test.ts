@@ -32,6 +32,13 @@ describe("templateAssetUrl", () => {
 });
 
 describe("useTemplateSource", () => {
+  it("loads an empty template from an unseeded fake port", async () => {
+    const port = createFakeTemplateSourcePort();
+    const { result } = renderHook(() => useTemplateSource("basic", "static", 2, "empty.html", port));
+
+    await waitFor(() => expect(result.current).toEqual({ status: "loaded", html: "" }));
+  });
+
   it("never calls the port for a non-static theme tier", () => {
     const port = createFakeTemplateSourcePort({ html: "<p>x</p>" });
     const fetchSpy = vi.spyOn(port, "fetchTemplateSource");

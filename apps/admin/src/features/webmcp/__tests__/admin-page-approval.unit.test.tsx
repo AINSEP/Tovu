@@ -7,8 +7,7 @@ import { AdminPageApprovalDialog } from "../AdminPageApprovalDialog";
 import { WEBMCP_DICT, t } from "../webmcp-i18n";
 
 afterEach(cleanup);
-function fixture() {
-  const approvals = createAdminPageApprovalStore({}, { createId: () => "approval-1" });
+function fixture(approvals = createAdminPageApprovalStore({}, { createId: () => "approval-1" })) {
   const tools: WebMcpToolRegistration[] = [];
   const controller = new AbortController();
   const driver: PageDriver = {
@@ -25,6 +24,28 @@ function fixture() {
   const respond = (approved: boolean, approvalId = "approval-1") => tool("admin.respond_page_approval").execute({ approvalId, approved });
   return { approvals, driver, controller, tool, request, respond };
 }
+
+it("uses the default UUID to identify the pending action and consume its approval once", async () => {
+  const approvalId = "7aece7ae-34ce-4f82-9214-82c11ea355f0";
+  const randomUUID = vi.spyOn(crypto, "randomUUID").mockReturnValue(approvalId);
+  const f = fixture(createAdminPageApprovalStore({}));
+  try {
+    const proposal = await f.request();
+    expect(proposal).toEqual({
+      status: "approval_required", approvalId, capabilityId: "page.click",
+      args: { handle: "post-delete-confirm" }, responseTool: "admin.respond_page_approval",
+    });
+    expect(f.approvals.getSnapshot().pending?.approvalId).toBe(approvalId);
+    expect(f.driver.click).not.toHaveBeenCalled();
+    await f.respond(true, approvalId);
+    expect(f.driver.click).toHaveBeenCalledExactlyOnceWith({ handle: "post-delete-confirm" });
+    expect(f.approvals.getSnapshot().pending).toBeNull();
+    await expect(f.respond(true, approvalId)).rejects.toThrow("Page approval is missing or expired");
+  } finally {
+    f.controller.abort();
+    randomUUID.mockRestore();
+  }
+});
 
 it("returns an answerable approval and shows the same exact action to the human before executing", async () => {
   const f = fixture();

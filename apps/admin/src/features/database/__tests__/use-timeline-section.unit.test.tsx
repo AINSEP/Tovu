@@ -157,6 +157,33 @@ describe("applyFilters", () => {
 });
 
 describe("loadMore", () => {
+  it("discards an old page's rejection after filters change without showing its error", async () => {
+    let rejectOld!: (error: Error) => void;
+    const oldPage = new Promise<{ items: AdminLedgerRow[]; nextCursor: string | null }>((_resolve, reject) => { rejectOld = reject; });
+    const filteredRow = { ...ROW_WITH_RESTORE_POINT, id: "filtered" };
+    const port = {
+      getDatabaseTimeline: async ({ kind, cursor }: { kind?: string; cursor?: string } = {}) => {
+        if (cursor === "c2") return oldPage;
+        if (kind === "core.backup") return { items: [filteredRow], nextCursor: null };
+        return { items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" };
+      },
+    };
+    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.nextCursor).toBe("c2"));
+    act(() => { void result.current.loadMore(); });
+    expect(result.current.loadingMore).toBe(true);
+
+    act(() => result.current.setKind("core.backup"));
+    act(() => result.current.applyFilters({ preventDefault: () => {} } as React.FormEvent));
+    await waitFor(() => expect(result.current.rows).toEqual([filteredRow]));
+    await act(async () => { rejectOld(new Error("old filter is unavailable")); });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.rows).toEqual([filteredRow]);
+    expect(result.current.nextCursor).toBeNull();
+    expect(result.current.loadingMore).toBe(false);
+  });
+
   it("discards an old filter's page and releases its loading lock without unlocking a newer request", async () => {
     const getDatabaseTimeline = vi.fn().mockResolvedValueOnce({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
     const { result } = renderHook(() => useTimelineSection({ port: { getDatabaseTimeline } }), { wrapper });

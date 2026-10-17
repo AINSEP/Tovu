@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useDashboard } from "../hooks/use-dashboard.hooks";
@@ -119,6 +119,22 @@ describe("useDashboard — injected port", () => {
 describe("useDashboard — default-password banner (password-banner plan, 2026-09-24, Slice 3)", () => {
   afterEach(() => {
     localStorage.removeItem(DISMISSED_KEY);
+  });
+
+  it("does not persist a dismissal before the password status identifies the user", async () => {
+    localStorage.removeItem(DISMISSED_KEY);
+    let resolveStatus!: (status: { usesDefaultPassword: boolean; principalId: string }) => void;
+    const status = new Promise<{ usesDefaultPassword: boolean; principalId: string }>((resolve) => { resolveStatus = resolve; });
+    const port = { ...createFakeDashboardPort(), getPasswordStatus: () => status };
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    act(() => result.current.dismissDefaultPasswordBanner());
+    expect(localStorage.getItem(DISMISSED_KEY)).toBeNull();
+    expect(result.current.showDefaultPasswordBanner).toBe(false);
+
+    await act(async () => { resolveStatus({ usesDefaultPassword: true, principalId: "late-user" }); });
+    await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
+    expect(localStorage.getItem(DISMISSED_KEY)).toBeNull();
   });
 
   it("shows once the port reports usesDefaultPassword: true", async () => {

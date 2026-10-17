@@ -5,6 +5,26 @@ import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/cont
 import { COMMON_I18N } from '../../../lib/i18n-common';
 
 describe('Forms host ports', () => {
+  it('navigates within the admin shell and forwards history replacement', () => {
+    const originalUrl = window.location.href;
+    const originalState = window.history.state;
+    const ports = createFormsHostPorts({ transport: { request: vi.fn(), url: ({ path }) => path } });
+    try {
+      window.history.replaceState(null, '', '/admin/forms');
+      ports.formsNavigation!.navigate({ base: '/admin', routePath: '/forms/contact?tab=submissions' });
+      expect(window.location.pathname).toBe('/admin/forms/contact');
+      expect(window.location.search).toBe('?tab=submissions');
+
+      const historyLength = window.history.length;
+      ports.formsNavigation!.navigate({ base: '/admin', routePath: '/forms/feedback' }, { replace: true });
+      expect(window.location.pathname).toBe('/admin/forms/feedback');
+      expect(window.location.search).toBe('');
+      expect(window.history.length).toBe(historyLength);
+    } finally {
+      window.history.replaceState(originalState, '', originalUrl);
+    }
+  });
+
   it('preserves encoded routes, envelopes, authoring patches and the generic Trash POST', async () => {
     const request = vi.fn<(input: Parameters<FormsTransportPort['request']>[0]) => Promise<unknown>>()
       .mockResolvedValue({ data: [], nextCursor: null });

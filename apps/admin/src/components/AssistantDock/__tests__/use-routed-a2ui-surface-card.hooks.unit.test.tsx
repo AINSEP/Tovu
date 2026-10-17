@@ -62,6 +62,10 @@ describe("surfaceIdOf", () => {
     expect(surfaceIdOf("a string event")).toBeUndefined();
     expect(surfaceIdOf(42)).toBeUndefined();
   });
+
+  it("skips a truthy non-object body and reads the next recognized surface", () => {
+    expect(surfaceIdOf({ createSurface: "invalid body", updateComponents: { surfaceId: "updated" } })).toBe("updated");
+  });
 });
 
 describe("latestSurfaceIdIn", () => {
@@ -117,6 +121,17 @@ describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
 
     expect(() => result.current.handleAgentAction("run-1", { ok: true })).not.toThrow();
   });
+
+  it.each([null, "action", 7])("relays a non-object action %j without marking the surface refused", (message) => {
+    const received: unknown[] = [];
+    const { result } = renderHook(() => useRoutedA2uiSurfaceCard({
+      ...baseProps, onAgentAction: (_runId, action) => { received.push(action); },
+    }));
+
+    expect(result.current.handleAgentAction("run-1", message)).toBeUndefined();
+    expect(received).toEqual([message]);
+    expect(result.current.hasError).toBe(false);
+  });
 });
 
 // One turn's event stream can open several surfaces (a failed render retried under a new
@@ -147,6 +162,16 @@ describe("useRoutedA2uiSurfaceCard dismiss", () => {
     rerender({ ...base, events: [...first, { updateComponents: { surfaceId: "s1" } }] });
 
     expect(result.current.dismissed).toBe(true);
+  });
+
+  it("clears a dismissal so the current surface can be shown again", () => {
+    const { result } = renderHook(() => useRoutedA2uiSurfaceCard({ ...base, events: first }));
+    act(() => result.current.setDismissed(true));
+    expect(result.current.dismissed).toBe(true);
+
+    act(() => result.current.setDismissed(false));
+
+    expect(result.current.dismissed).toBe(false);
   });
 });
 

@@ -19,7 +19,8 @@ import type { ChartRegistryPort } from "./chart-registry-port.hooks";
  * @example useAdminChartRegistry({ principalId, port });
  */
 export function useAdminChartRegistry(
-  { principalId, port }: { principalId: string; port: ChartRegistryPort }, _options: Record<string, never> = {},
+  { principalId, port }: { principalId: string; port: ChartRegistryPort },
+  { importModule }: Pick<NonNullable<Parameters<typeof loadChartProvider>[1]>, "importModule"> = {},
 ): AdminChartRegistrySnapshot {
   const portRef = useRef(port);
   portRef.current = port;
@@ -38,7 +39,7 @@ export function useAdminChartRegistry(
     if (!snapshot) return CORE_CHART_SNAPSHOT;
     const providers = createChartProviderRegistry({ providers: snapshot.providers.map((provider) => ({
       id: provider.id, kinds: provider.kinds, enabled: true,
-      load: () => loadChartProvider({ url: provider.javascript }),
+      load: () => loadChartProvider({ url: provider.javascript }, { importModule }),
     })) });
     return {
       generation: snapshot.generation,
@@ -47,7 +48,7 @@ export function useAdminChartRegistry(
     };
     // The server generation covers every declaration, asset URL and site preference. Cache refetches
     // returning that same generation must not replace Component closures or remount interpreters.
-  }, [generation]);
+  }, [generation, importModule]);
 }
 
 /** Production binding; the un-wired hook remains available to direct port-based tests. */
