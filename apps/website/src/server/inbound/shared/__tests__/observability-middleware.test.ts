@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import type { Logger } from "@jini-ai/core/primitives";
 
 import { applyRequestTracking } from "../observability-middleware.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
@@ -101,12 +102,13 @@ test("a 500 response from a matched route is recorded with its real status code"
 
 test("two concurrent in-flight requests are tracked independently — one request's outcome never contaminates another's", async (t) => {
   const { port, calls } = createSpyObservabilityPort();
+  const logs: Record<string, unknown>[] = [];
   const firstStarted = Promise.withResolvers<void>();
   const secondStarted = Promise.withResolvers<void>();
   let welcomeResponse: express.Response | undefined;
   let errorResponse: express.Response | undefined;
   const app = express();
-  applyRequestTracking(app, { observability: port });
+  applyRequestTracking(app, { observability: port, logger: { info: (_input, options) => { logs.push(options!.meta!); } } });
   app.get("/welcome", (_req, res) => { welcomeResponse = res; firstStarted.resolve(); });
   app.post("/error", (_req, res) => { errorResponse = res; secondStarted.resolve(); });
   t.after(() => {
@@ -115,9 +117,9 @@ test("two concurrent in-flight requests are tracked independently — one reques
   });
   const baseUrl = await startTestServer(app, t);
   const signal = AbortSignal.timeout(3000);
-  const first = fetch(`${baseUrl}/welcome`, { signal });
+  const first = fetch(`${baseUrl}/welcome`, { signal, headers: { "x-request-id": "first-request" } });
   await Promise.race([firstStarted.promise, first.then(() => assert.fail("first handler must hold its response"))]);
-  const second = fetch(`${baseUrl}/error`, { method: "POST", signal });
+  const second = fetch(`${baseUrl}/error`, { method: "POST", signal, headers: { "x-request-id": "second-request" } });
   await Promise.race([secondStarted.promise, second.then(() => assert.fail("second handler must hold its response"))]);
   assert.equal(calls.length, 0, "both spans must remain open before either response finishes");
   errorResponse!.status(500).json({ ok: false });
@@ -139,6 +141,62 @@ test("two concurrent in-flight requests are tracked independently — one reques
     { input: { method: "POST", path: "/error" }, outcome: { statusCode: 500, routePattern: "/error" } },
     { input: { method: "GET", path: "/welcome" }, outcome: { statusCode: 200, routePattern: "/welcome" } },
   ]);
+  assert.deepEqual(logs, [
+    { requestId: "second-request", method: "POST", routePattern: "/error", statusCode: 500 },
+    { requestId: "first-request", method: "GET", routePattern: "/welcome", statusCode: 200 },
+  ]);
+});
+
+test("todo-1495: completion logging joins the response and async request context without logging request data", async (t) => {
+  const entries: Array<{ message: string; options: Parameters<Logger["info"]>[1] }> = [];
+  const app = express();
+  applyRequestTracking(app, {
+    observability: createNoopObservabilityPort({}),
+    logger: { info: ({ message }, options) => { entries.push({ message, options }); } },
+  });
+  app.get("/posts/:id", async (_req, res) => {
+    await Promise.resolve();
+    res.json({ requestId: res.locals.requestId });
+  });
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}/posts/private-id?token=secret`, {
+    headers: { "x-request-id": "proxy-request-1495", authorization: "Bearer secret" },
+  });
+  assert.equal(res.headers.get("x-request-id"), "proxy-request-1495");
+  assert.deepEqual(await res.json(), { requestId: "proxy-request-1495" });
+  assert.deepEqual(entries, [{
+    message: "http.request.completed",
+    options: { meta: { requestId: "proxy-request-1495", method: "GET", routePattern: "/posts/:id", statusCode: 200 } },
+  }]);
+});
+
+test("todo-1495: unmatched requests log the minted response id and a fixed route label", async (t) => {
+  const entries: Array<{ message: string; options: Parameters<Logger["info"]>[1] }> = [];
+  const app = express();
+  applyRequestTracking(app, {
+    observability: createNoopObservabilityPort({}),
+    logger: { info: ({ message }, options) => { entries.push({ message, options }); } },
+  });
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}/private-path?token=secret`, { headers: { "x-request-id": "unsafe id" } });
+  await res.text();
+  const requestId = res.headers.get("x-request-id");
+  assert.match(requestId!, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(entries, [{
+    message: "http.request.completed",
+    options: { meta: { requestId, method: "GET", routePattern: "unmatched", statusCode: 404 } },
+  }]);
+});
+
+test("todo-1495: the default binding uses Jini's existing console logger", async (t) => {
+  const info = t.mock.method(console, "info", () => {});
+  const baseUrl = await startTestServer(buildTestApp(createNoopObservabilityPort({})), t);
+  const res = await fetch(`${baseUrl}/welcome`, { headers: { "x-request-id": "default-logger" } });
+  await res.text();
+  assert.deepEqual(info.mock.calls.map(call => call.arguments), [[
+    "http.request.completed",
+    { requestId: "default-logger", method: "GET", routePattern: "/welcome", statusCode: 200 },
+  ]]);
 });
 
 test("the rest of the request runs inside the tracker's scope, so spans a handler starts are the request span's children", async (t) => {
