@@ -108,7 +108,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
       contentHandles.push(handle); return handle;
     }) as typeof openSqliteFileKernel,
     openChat: ((file, optional) => {
-      assert.equal(optional?.readonly, true); assert.equal(optional?.fileMustExist, true);
+      assert.deepEqual(optional, { readonly: true, fileMustExist: true, timeout: 5000 });
       const handle = openNativeSqlite(file, optional); chatHandles.push(handle); return handle;
     }) as typeof openNativeSqlite,
   };

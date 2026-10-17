@@ -353,8 +353,8 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
               WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
             if (owners.length !== 1) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
             if (!fs.existsSync(paths.chatDbPath)) throw new ToolInputError({ message: "This site's chat database is missing. Open the site in Tovu first." });
-            chat = openChat(paths.chatDbPath, { readonly: true, fileMustExist: true });
-            chat.pragma('busy_timeout = 5000');
+            const chatOptions = { readonly: true, fileMustExist: true, timeout: 5000 };
+            chat = openChat(paths.chatDbPath, chatOptions);
             const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
             if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
             journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
