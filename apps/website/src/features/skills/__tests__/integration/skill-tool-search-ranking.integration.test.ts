@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -163,7 +164,11 @@ test("the skill tool IS present in registry.list({}) and describable by exact id
     assert.equal(described.id, "skill_incident_response");
     assert.equal(described.source, "skill");
     assert.equal(described.description, "Use when handling production incidents, defining severity and escalation, writing runbooks, or facilitating blameless post-mortems and SLO-driven follow-up.");
-    assert.deepEqual(described.inputSchema, { type: "object", additionalProperties: false, required: [], properties: {} });
+    // a8bd03a3d added the optional supporting-file input to skill tools.
+    const { properties, ...inputSchema } = described.inputSchema as { properties: Record<string, { type: string }> };
+    assert.deepEqual(inputSchema, { type: "object", additionalProperties: false, required: [] });
+    assert.deepEqual(Object.keys(properties), ["file"]);
+    assert.equal(properties.file.type, "string");
   });
 });
 

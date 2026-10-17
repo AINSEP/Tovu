@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
 import assert from "node:assert/strict";
 import test from "node:test";

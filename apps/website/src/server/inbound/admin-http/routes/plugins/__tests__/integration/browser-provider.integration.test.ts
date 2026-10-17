@@ -1,4 +1,5 @@
 /** Chart plan step 5: real authenticated bootstrap, exact retained assets and workspace isolation. */
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";

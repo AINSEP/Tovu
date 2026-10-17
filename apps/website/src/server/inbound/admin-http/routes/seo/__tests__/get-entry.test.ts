@@ -1,3 +1,4 @@
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";

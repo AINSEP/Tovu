@@ -1,4 +1,5 @@
 /** t08: extraction parity through the existing route handler, without binding a port. */
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderPostPreview } from "../template-preview-render.js";
