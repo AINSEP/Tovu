@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";

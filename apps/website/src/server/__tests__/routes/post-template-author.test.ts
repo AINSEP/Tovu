@@ -1,4 +1,5 @@
 /** Owner dispatch 2026-10-10 (author): static post headers and authored bylines share one credit. */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";

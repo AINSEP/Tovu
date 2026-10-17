@@ -10,6 +10,7 @@ export const toolMetadata = {
       keywords: "describe_site_capabilities capabilities capability capable what can this site do features abilities possible available tools admin screens content types",
       queries: [
         "What can this site do?", "What is this site capable of?", "What features and tools does this site have?", "What can I do with this site?", "What is possible here?",
+        "What can you do on this site?", "What can this website do for me?",
       ],
     },
     approval: { class: 'read', confirmation: 'direct' },

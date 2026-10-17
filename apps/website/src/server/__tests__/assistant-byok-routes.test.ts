@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../../assistant/permanent-delete-tool-gate.js";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
 import { set as setSiteSetting } from "../../features/settings/index.js";

@@ -164,15 +164,16 @@ test("Stop during uncertain backoff finalizes once and keeps partial text", asyn
 });
 
 test("three attempts, five active recovery minutes, and thirty-minute staleness each finalize once", async () => {
-  for (const [change, notice] of [
-    [{ recoveryCount: 3 }, EXHAUSTED_NOTICE], [{ recoveryDeadline: TIME }, EXHAUSTED_NOTICE],
-    [{ lastProgressAt: TIME - 30 * 60_000 }, SAVED_WORK_NOTICE],
+  for (const [change, expectedEvent] of [
+    [{ recoveryCount: 3 }, { kind: "status", label: EXHAUSTED_NOTICE, detail: "Tried 3 times" }],
+    [{ recoveryDeadline: TIME }, { kind: "status", label: EXHAUSTED_NOTICE, detail: "Recovery window ended" }],
+    [{ lastProgressAt: TIME - 30 * 60_000 }, { kind: "status", label: SAVED_WORK_NOTICE }],
   ] as const) {
     const h = harness(change);
     await h.recovery.recover({ messageId: "answer", trigger: "boot" }, {});
     await h.recovery.recover({ messageId: "answer", trigger: "boot" }, {});
     assert.equal(h.settlements.length, 1);
-    assert.deepEqual(h.settlements[0]!.events.at(-1), { kind: "status", label: notice });
+    assert.deepEqual(h.settlements[0]!.events.at(-1), expectedEvent);
     assert.equal(h.settlements[0]!.content, INCIDENT_PARTIAL);
   }
 });
@@ -209,7 +210,7 @@ test("three failed continuation dispatches exhaust once without losing saved tex
   assert.equal(await recovery.recover({ messageId: "answer", trigger: "boot" }, {}), "terminal");
   assert.equal(h.settlements.length, 1);
   assert.equal(h.settlements[0]!.content, INCIDENT_PARTIAL);
-  assert.deepEqual(h.settlements[0]!.events.at(-1), { kind: "status", label: EXHAUSTED_NOTICE });
+  assert.deepEqual(h.settlements[0]!.events.at(-1), { kind: "status", label: EXHAUSTED_NOTICE, detail: "Tried 3 times" });
 });
 
 test("a stream timeout keeps an uncertain attempt waiting while its five-minute budget remains", async () => {

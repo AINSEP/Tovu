@@ -44,7 +44,7 @@ test("a quiet stream without live proof waits five minutes, finalizes once and k
   await h.elapse({ ms: 299_999 }, {}); assert.equal(h.message.runStatus, "running");
   await h.elapse({ ms: 1 }, {}); await h.finalizer.idle();
   assert.equal(h.message.runStatus, "failed"); assert.equal(h.message.content, "Partial answer");
-  assert.deepEqual(h.message.events, [{ kind: "text", text: "Partial answer" }, { kind: "status", label: EXHAUSTED_NOTICE }]);
+  assert.deepEqual(h.message.events, [{ kind: "text", text: "Partial answer" }, { kind: "status", label: EXHAUSTED_NOTICE, detail: "Recovery window ended" }]);
   assert.equal(h.message.endedAt, 301_000); assert.equal(launches, 0); assert.equal(h.finalizer.activeCount(), 0); assert.equal(h.timers.size, 0);
 });
 

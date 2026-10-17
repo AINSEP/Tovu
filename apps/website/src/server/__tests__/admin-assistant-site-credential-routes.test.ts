@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { assistantVaultRepo } from "#src/assistant/assistant-vault";
 import assert from "node:assert/strict";
 import test from "node:test";

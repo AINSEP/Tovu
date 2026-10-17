@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
 import test from "node:test";

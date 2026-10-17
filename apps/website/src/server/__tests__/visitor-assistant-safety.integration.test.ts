@@ -1,6 +1,7 @@
 /** visitorsafe, 2026-10-10: wire-level access, safe diagnostics and Gemini output budget.
  * No module mocks: real route/provider adapters, in-memory repos, injected operator-log sink.
  */
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import express from "express";

@@ -1,4 +1,5 @@
 /** Owner wcmp, 2026-10-09: comparison is development-only and admin-session gated. */
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";

@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import { MAX_AUTHORIZATION_STATE_LENGTH } from "@jini-ai/oauth";
 import assert from "node:assert/strict";
