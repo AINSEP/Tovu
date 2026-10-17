@@ -66,7 +66,7 @@ export interface AgentPluginsController {
   onToggleEnabled: (plugin: AdminAgentPlugin) => Promise<void>;
   /** Adds (or replaces) the row the "Add a plugin" upload answered with, so no list re-fetch. */
   onInstalled: (plugin: AdminAgentPlugin) => void;
-  /** Plugin ids whose row detail panel (keywords, portable components, MCP servers) is open. */
+  /** Plugin ids whose row detail panel (skills, MCP servers) is open. */
   expandedIds: ReadonlySet<string>;
   /** Opens or closes one row's detail panel. */
   onToggleExpanded: (pluginId: string) => void;

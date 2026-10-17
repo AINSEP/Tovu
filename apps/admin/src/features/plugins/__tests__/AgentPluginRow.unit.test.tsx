@@ -32,7 +32,13 @@ it.each([
   expect(glyph?.querySelector("path")).toHaveAttribute("d", expectedOutline);
 });
 
-function renderExpandedRow(plugin: { summary?: string | null; description: string | null; keywords?: string[] }) {
+function renderExpandedRow(plugin: {
+  summary?: string | null;
+  description: string | null;
+  keywords?: string[];
+  skills?: { name: string; summary: string }[];
+  mcpServerIds?: string[];
+}) {
   render(<ul><AgentPluginRow
     plugin={{ pluginId: "tovu-theme", version: "1.0.0", enabled: true, keywords: [], skills: [], mcpServerIds: [], ...plugin }}
     t={(key) => key}
@@ -89,4 +95,34 @@ it("renders description text as text, never as markup", () => {
 
   expect(row.querySelector("img")).toBeNull();
   expect(row.querySelector(".agent-plugin-detail-description p")).toHaveTextContent("<img src=x onerror=alert(1)>");
+});
+
+it("hides the Skills and MCP servers chips when their only entry just repeats the plugin's own id", () => {
+  // 20 of 21 bundled plugins carry exactly one skill named after the plugin (owner, 2026-10-17:
+  // "the tag just repeats the name of the plugin"), so that chip row tells the reader nothing.
+  const row = renderExpandedRow({
+    description: null,
+    skills: [{ name: "tovu-theme", summary: "Builds themes." }],
+    mcpServerIds: ["tovu-theme"],
+  });
+
+  expect(within(row).queryByText("Skills")).toBeNull();
+  expect(within(row).queryByText("Portable components")).toBeNull();
+  expect(within(row).queryByText("MCP servers")).toBeNull();
+  expect(row.querySelector(".agent-plugin-chips")).toBeNull();
+});
+
+it("keeps the Skills and MCP servers chips when they say something the plugin's name does not", () => {
+  const row = renderExpandedRow({
+    description: null,
+    skills: [{ name: "tovu-theme", summary: "Builds themes." }, { name: "theme-import", summary: "Imports a site." }],
+    mcpServerIds: ["theme-api"],
+  });
+
+  expect(within(row).getByText("Skills")).toBeVisible();
+  expect(within(row).getByText("theme-import")).toBeVisible();
+  expect(within(row).getByText("tovu-theme", { selector: "code" })).toBeVisible();
+  expect(within(row).getByText("MCP servers")).toBeVisible();
+  expect(within(row).getByText("theme-api")).toBeVisible();
+  expect(within(row).queryByText("Portable components")).toBeNull();
 });

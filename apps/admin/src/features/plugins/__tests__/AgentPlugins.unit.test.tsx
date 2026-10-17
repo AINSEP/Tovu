@@ -247,7 +247,7 @@ describe("AgentPlugins", () => {
 
     const summary = within(row("Site Compliance")).getByRole("button", { name: "Site Compliance v1.0.0" });
     expect(summary).toHaveAttribute("aria-expanded", "false");
-    expect(within(row("Site Compliance")).getByText("site-compliance")).not.toBeVisible();
+    expect(row("Site Compliance").querySelector(".agent-plugin-row-detail")).not.toBeVisible();
 
     function useExpanded(): AgentPluginsController {
       return fakeController({ expandedIds: new Set(["site-compliance"]) });
@@ -262,8 +262,10 @@ describe("AgentPlugins", () => {
     // Keywords are the assistant's search data, not owner copy (owner, 2026-10-17): not shown.
     expect(within(expandedRow).queryByText("Keywords")).not.toBeInTheDocument();
     expect(within(expandedRow).queryByText("gdpr")).not.toBeInTheDocument();
-    expect(within(expandedRow).getByText("Portable components")).toBeVisible();
-    expect(within(expandedRow).getByText("site-compliance")).toBeVisible();
+    // Its one skill is named after the plugin itself, so a Skills chip would only repeat the name
+    // (owner, 2026-10-17) — the row hides it.
+    expect(within(expandedRow).queryByText("Skills")).not.toBeInTheDocument();
+    expect(within(expandedRow).queryByText("Portable components")).not.toBeInTheDocument();
 
     // An MCP server id is shown only by the package that declares one — an empty "MCP servers"
     // heading would assert the question was asked and answered "none".
@@ -278,8 +280,6 @@ describe("AgentPlugins", () => {
       selector: ".agent-plugin-detail-description p",
     });
     expect(fullDescription).toBeVisible();
-    const componentsLabel = within(expandedRow).getByText("Portable components");
-    expect(fullDescription.compareDocumentPosition(componentsLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("puts the full description in a hover tooltip on the row's clamped summary line", () => {

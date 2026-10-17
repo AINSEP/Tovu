@@ -21,7 +21,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
  *
  * The fix is hierarchy, not deletion: NOTHING that card showed is gone. The row carries only what
  * an operator scans a list for — is it on, what is it, which version — and the rest (keywords,
- * portable components, MCP server ids) moves into a per-row detail panel that opens on demand.
+ * skills, MCP server ids) moves into a per-row detail panel that opens on demand.
  * Collapsed, a row is two lines.
  *
  * ---------------------------------------------------------------------------
@@ -154,9 +154,11 @@ function AgentPluginRowStateArea({
 
 /** One labelled chip list inside the detail panel. Rendered only when the package actually declares
  *  the thing — an empty "MCP servers" heading would assert that the question was asked and answered
- *  "none", which is not the same as a package that declares none. */
-function DetailChips({ label, values }: { label: string; values: readonly string[] }) {
-  if (values.length === 0) return null;
+ *  "none", which is not the same as a package that declares none. Also skipped when its one chip is
+ *  just the plugin's own id: 20 of 21 bundled plugins ship exactly one skill named after themselves,
+ *  so that chip only repeated the row's name (owner, 2026-10-17). */
+function DetailChips({ label, values, ownId }: { label: string; values: readonly string[]; ownId: string }) {
+  if (values.length === 0 || (values.length === 1 && values[0] === ownId)) return null;
   return (
     <div className="agent-plugin-detail-group">
       <span className="agent-plugin-detail-label">{label}</span>
@@ -296,8 +298,8 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             2026-10-17: a "Technical details" wall of tool ids and a 40-chip keyword cloud read as
             noise). Both still reach the assistant unchanged through `search_agent_plugin_local`,
             and the eye button's package viewer shows the raw manifest for anyone who wants it. */}
-        <DetailChips label={t("Portable components")} values={plugin.skills.map((skill) => skill.name)} />
-        <DetailChips label={t("MCP servers")} values={plugin.mcpServerIds} />
+        <DetailChips label={t("Skills")} values={plugin.skills.map((skill) => skill.name)} ownId={plugin.pluginId} />
+        <DetailChips label={t("MCP servers")} values={plugin.mcpServerIds} ownId={plugin.pluginId} />
       </div>
     </li>
   );
