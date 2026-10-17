@@ -20,23 +20,21 @@ import { summarizeReport } from "./summary.js";
 import { tiptapToBlocks } from "./tiptap-blocks.js";
 
 /**
- * Hook point for the entry's meta description. `ContentEntryDraft` has no such field yet (SDK
- * 0.2.0), so today this always yields `undefined` and the `meta-description-length` check skips;
- * the moment the host adds a `metaDescription` string to the draft, it is picked up here with no
- * other change.
+ * Read the host's optional meta description. Missing descriptions still skip the length check;
+ * the plugin must not invent an override when the host has none.
  *
  * @param entry - The read-only draft the filter received.
  * @returns The meta description when the draft carries one as a string, else `undefined`.
  */
 export function readMetaDescription(entry: Readonly<ContentEntryDraft>): string | undefined {
-  const { metaDescription } = entry as Readonly<ContentEntryDraft> & { readonly metaDescription?: unknown };
+  const { metaDescription } = entry;
   return typeof metaDescription === "string" ? metaDescription : undefined;
 }
 
 /**
  * Scores one entry draft into the plugin's `ext` patch.
  *
- * @param entry - The read-only draft (`title`, `bodyJson`, optional future `metaDescription`).
+ * @param entry - The read-only draft (`title`, `bodyJson`, optional `metaDescription`).
  * @returns `{ score, wordCount, readingTimeMinutes, readability, summary, report }`.
  * @complexity O(size of bodyJson).
  */

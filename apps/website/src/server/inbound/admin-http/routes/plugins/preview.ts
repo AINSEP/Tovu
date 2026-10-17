@@ -9,6 +9,7 @@ import type { PluginsRouteRegistrar } from "./deps.js";
 interface PreviewDraft {
   readonly postId?: string;
   readonly title: string;
+  readonly metaDescription?: string;
   readonly slug?: string;
   readonly bodyJson: Readonly<Record<string, unknown>>;
 }
@@ -18,9 +19,8 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 
 const isOptionalString = (value: unknown): boolean => value === undefined || typeof value === "string";
 
-/** The body's draft, or `null` when it is not one. `metaDescription` is accepted for the editor's
- *  sake but not forwarded: the SDK's `ContentEntryDraft` has no such field yet (AW-7 DX log A1/B6),
- *  so a filter could only read it by cast. @complexity O(1). */
+/** The body's draft, including the editor's unsaved meta description, or `null` when invalid.
+ * @complexity O(1). */
 function parsePreviewDraft(body: unknown): PreviewDraft | null {
   if (!isPlainObject(body)) return null;
   const { postId, title, slug, bodyJson, metaDescription } = body;
@@ -29,6 +29,7 @@ function parsePreviewDraft(body: unknown): PreviewDraft | null {
   return {
     title,
     bodyJson,
+    ...(metaDescription === undefined ? {} : { metaDescription: metaDescription as string }),
     ...(postId === undefined ? {} : { postId: postId as string }),
     ...(slug === undefined ? {} : { slug: slug as string }),
   };
@@ -135,6 +136,7 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
         id: draft.postId ?? "preview",
         workspaceId: deps.workspaceId,
         title: draft.title,
+        ...(draft.metaDescription === undefined ? {} : { metaDescription: draft.metaDescription }),
         slug: draft.slug ?? "",
         status: "draft",
         bodyJson: draft.bodyJson,

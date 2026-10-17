@@ -90,3 +90,12 @@ test("metaDescription hook point: read from the entry only when it is a string, 
   const without = JSON.parse(String(buildContentAnalyzerPatch(entry()).report)) as typeof report;
   assert.equal(without.checks.find((c) => c.id === "meta-description-length")?.status, "skip");
 });
+
+test("the SDK-typed preview description reaches the installed beforeSave filter", async () => {
+  const { sdk, captured } = fakeSdk();
+  await contentAnalyzerPlugin.definition.setup(sdk);
+  const draft: ContentEntryDraft = { ...entry(), metaDescription: "m".repeat(100) };
+  const patch = await captured[0]!.filter(draft, { pluginId: "content-analyzer", workspaceId: draft.workspaceId });
+  const report = JSON.parse(String(patch.report)) as { checks: Array<{ id: string; status: string }> };
+  assert.equal(report.checks.find(check => check.id === "meta-description-length")?.status, "pass");
+});

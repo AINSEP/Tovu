@@ -17,6 +17,7 @@ import {
   type ToolRegistry,
 } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
+import { filterReadOnlyToolCatalog } from "@jini-ai/daemon/read-only-tools";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -667,7 +668,7 @@ export function createByokToolSurface(
     };
 
     return deleteScope.fresh({ run: () => {
-      const visibleCatalog = deleteScope.catalog({ catalog });
+      const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog }) });
       if (call.name === "search_tools") return runSearchTools(visibleCatalog, visibleRegistry, args, catalogAudit);
       if (call.name === "describe_tool") return runDescribeTool(visibleCatalog, args, catalogAudit);
       return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);

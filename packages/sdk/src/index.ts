@@ -95,6 +95,8 @@ export interface ContentEntryDraft {
   readonly id: string;
   readonly workspaceId: string;
   readonly title: string;
+  /** Per-entry meta description when available; omitted when the host has no override. */
+  readonly metaDescription?: string;
   readonly slug: string;
   readonly status: "draft" | "published";
   readonly bodyJson: Readonly<Record<string, unknown>>;

@@ -58,14 +58,14 @@ const DRAFT = { title: "Hello", bodyJson: { type: "doc", content: [] } };
 
 test("a draft is previewed through the one plugin and its validated fields come back unsaved", async (t) => {
   const h = await boot(t);
-  assert.deepEqual(await h.post({ ...DRAFT, postId: "post-1", slug: "hello", metaDescription: "ignored today" }), {
+  assert.deepEqual(await h.post({ ...DRAFT, postId: "post-1", slug: "hello", metaDescription: "Draft description" }), {
     status: 200,
     body: { pluginId: "content-analyzer", fields: { score: 84, report: "{}" } },
   });
   assert.deepEqual(h.authorizations, [{ principalId: "owner", permission: "content.write", workspaceId: WS }]);
   assert.deepEqual(h.calls, [{
     pluginId: "content-analyzer",
-    entry: { id: "post-1", workspaceId: WS, title: "Hello", slug: "hello", status: "draft", bodyJson: DRAFT.bodyJson, ext: {} },
+    entry: { id: "post-1", workspaceId: WS, title: "Hello", metaDescription: "Draft description", slug: "hello", status: "draft", bodyJson: DRAFT.bodyJson, ext: {} },
   }]);
 });
 
@@ -73,6 +73,13 @@ test("a draft with no postId or slug previews as an unsaved draft", async (t) =>
   const h = await boot(t);
   assert.equal((await h.post(DRAFT)).status, 200);
   assert.deepEqual(h.calls.map((call) => [call.entry.id, call.entry.slug]), [["preview", ""]]);
+  assert.equal(Object.hasOwn(h.calls[0]!.entry, "metaDescription"), false);
+});
+
+test("an explicitly empty meta description reaches the plugin so it can report the missing copy", async (t) => {
+  const h = await boot(t);
+  assert.equal((await h.post({ ...DRAFT, metaDescription: "" })).status, 200);
+  assert.equal(h.calls[0]!.entry.metaDescription, "");
 });
 
 test("another workspace's path is 404 and runs nothing", async (t) => {

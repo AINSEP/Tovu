@@ -328,11 +328,11 @@ test("a model that calls a REAL tool id as the tool NAME is told how to reach it
 // assertion does not depend on any other domain's own risk wiring.
 // ---------------------------------------------------------------------------
 
-test("READ-ONLY PARITY: a read-only-constrained principal cannot dispatch a write tool via execute_delegated_tool — the handler must never run", async () => {
+test("READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch a write tool — the handler must never run", async () => {
   const s = surface();
   let writeCalls = 0;
   s.registry.register({
-    descriptor: { id: "fake_write_tool_readonly_probe", readOnly: false, inputSchema: { type: "object" } },
+    descriptor: { id: "fake_write_tool_readonly_probe", description: "Conformance visibility probe", readOnly: false, inputSchema: { type: "object" } },
     policy: { authorize: () => "allow" },
     handler: async () => {
       writeCalls += 1;
@@ -341,6 +341,15 @@ test("READ-ONLY PARITY: a read-only-constrained principal cannot dispatch a writ
   });
 
   const readOnlyPrincipal = constrainPrincipalToReadOnlyTools(PRINCIPAL);
+  // First prove the same live registration is advertised to an unrestricted caller.
+  const ordinary = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "fake_write_tool_readonly_probe" }));
+  assert.notEqual(ordinary.isError, true);
+  const hidden = await s.executeMetaTool(readOnlyPrincipal, RUN, call("describe_tool", { id: "fake_write_tool_readonly_probe" }));
+  assert.equal(hidden.isError, true);
+  const searched = await s.executeMetaTool(readOnlyPrincipal, RUN, call("search_tools", { query: "Conformance visibility probe", limit: 30 }));
+  assert.notEqual(searched.isError, true);
+  const { hits } = JSON.parse(textOf(searched)) as { hits: Array<{ id: string }> };
+  assert.equal(hits.some(hit => hit.id === "fake_write_tool_readonly_probe"), false);
   const result = await s.executeMetaTool(readOnlyPrincipal, RUN, call("execute_delegated_tool", { toolId: "fake_write_tool_readonly_probe", input: {} }));
 
   // `mapToolExecutionResult`'s `case "denied"` collapses every denial reason (ToolPolicy or this
