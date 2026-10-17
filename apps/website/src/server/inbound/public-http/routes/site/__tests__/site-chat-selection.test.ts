@@ -1,4 +1,5 @@
 /** wcmp: real site settings resolved for public pages and static exports. */
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";

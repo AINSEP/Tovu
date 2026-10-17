@@ -3,6 +3,7 @@
  * REAL repo content (landing fixtures, seeded legal pages, every theme page template) through every
  * render-time HTML transform a page body or widget passes, count elements per tag+namespace and
  * attributes per tag, and fail when anything disappears that is not on the reviewed DENY list below. */
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";

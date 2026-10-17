@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import fs from "node:fs";

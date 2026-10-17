@@ -1,3 +1,5 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { isolatedCatalogEnv } from "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -53,7 +55,7 @@ for (const role of ["owner", "workspace-client"] as const) {
         process.send('ready');
       `], {
         stdio: ["ignore", "ignore", "ignore", "ipc"],
-        env: { ...process.env, TOVU_SITE_DIR: dir, TOVU_DATABASE_JOURNAL_DB: journalPath },
+        env: { ...process.env, ...isolatedCatalogEnv, TOVU_SITE_DIR: dir, TOVU_DATABASE_JOURNAL_DB: journalPath },
       });
       const exited = once(child, "exit");
       try {

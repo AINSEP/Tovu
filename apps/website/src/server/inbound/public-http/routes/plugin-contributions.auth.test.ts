@@ -1,4 +1,5 @@
 /** Real operator/member session owners: a member bearer cannot reach an admin plugin route. */
+import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';

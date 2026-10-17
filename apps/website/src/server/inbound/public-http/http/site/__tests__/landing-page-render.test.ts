@@ -1,6 +1,7 @@
 /** Owner report 2026-10-12 (tovu.dev): the landing carousel's play button did nothing. The page's own
  * inline scripts and its button SVG icons were removed on the way to the public page, so render the
  * REAL landing body through the full public render paths and pin that both survive byte-exact. */
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";

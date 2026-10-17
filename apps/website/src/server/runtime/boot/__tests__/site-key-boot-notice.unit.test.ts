@@ -1,3 +1,5 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { isolatedCatalogEnv } from "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
@@ -311,7 +313,7 @@ test("F3588: a real no-key local boot call prints the notice on stderr, from the
   try {
     // cwd is the empty HOME, so every path handed to the child is absolute.
     const tsconfig = process.env.TSX_TSCONFIG_PATH;
-    const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: home, ...(tsconfig ? { TSX_TSCONFIG_PATH: path.resolve(tsconfig) } : {}) };
+    const env: NodeJS.ProcessEnv = { ...isolatedCatalogEnv, PATH: process.env.PATH, HOME: home, ...(tsconfig ? { TSX_TSCONFIG_PATH: path.resolve(tsconfig) } : {}) };
     const moduleUrl = new URL("../site-key-boot-notice.ts", import.meta.url).href;
     const child = spawnSync(
       process.execPath,

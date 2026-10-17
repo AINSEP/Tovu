@@ -4,6 +4,7 @@
  * content types to `content.db` through the deferred ports `deps.ts` hands the plugin runtime.
  * (`app.ts`'s hermetic root is covered end to end by `testimonials-faq-sample.integration.test.ts`.)
  */
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";

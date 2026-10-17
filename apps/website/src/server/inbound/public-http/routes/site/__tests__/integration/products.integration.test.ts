@@ -1,3 +1,4 @@
+import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import assert from "node:assert/strict";
