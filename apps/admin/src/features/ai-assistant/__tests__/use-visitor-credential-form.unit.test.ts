@@ -424,7 +424,10 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
     expect(listExecutionModels).not.toHaveBeenCalled();
   });
 
-  it("a FAILED discovery refresh must not overwrite an existing discovery result or the connection result", async () => {
+  it.each([
+    [new Error("discovery flaked"), "discovery flaked"],
+    [null, "Model discovery failed"],
+  ])("a failed discovery refresh shows %s while preserving the successful connection result", async (failure, message) => {
     // Fake timers so the earlier debounced typed-key discovery (triggered as a side effect of
     // setting `apiKey` below) settles deterministically BEFORE `runTestConnection` runs — otherwise
     // its own leftover 'loading' state, not runTestConnection's refresh, is what the assertions
@@ -443,16 +446,15 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
     });
     expect(result.current.discovery).toEqual({ status: "ok", models: ["existing-model"] });
 
-    listExecutionModels.mockRejectedValueOnce(new Error("discovery flaked"));
+    listExecutionModels.mockRejectedValueOnce(failure);
     await act(async () => {
       await result.current.runTestConnection();
     });
 
-    // The whole point of the "quiet" refresh: its own failure is swallowed, the operator's actual
-    // question ("is the connection good?") keeps its real answer, and the discovery result that was
-    // already there is left completely alone rather than clobbered by the failed refresh attempt.
+    // A successful connection and a refused model-list request are separate outcomes; both
+    // must be visible so the operator can report the actual discovery failure.
     expect(result.current.connectionTest).toEqual({ status: "ok", message: "Connected" });
-    expect(result.current.discovery).toEqual({ status: "ok", models: ["existing-model"] });
+    expect(result.current.discovery).toEqual({ status: "error", message });
   });
 
   it("on a not-ok result, reports the server's message as a connection error", async () => {

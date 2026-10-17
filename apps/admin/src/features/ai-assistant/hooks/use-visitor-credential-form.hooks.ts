@@ -304,7 +304,9 @@ async function runVisitorKeyTest(deps: {
  * {@link saveVisitorCredential}. The debounced effect can't recover from a transient discovery
  * failure on its own (nothing about the credential changed afterwards), so without this the
  * operator would be stuck looking at a stale error next to a connection that just went green. Only
- * called by {@link runVisitorTestConnection} below, on a successful test.
+ * called by {@link runVisitorTestConnection} below, on a successful test. A failed refresh reports
+ * its reason through discovery's existing error state while preserving the successful connection
+ * result; the provider can accept a connection but refuse its model-list endpoint.
  */
 async function refreshVisitorDiscoveryAfterTest(deps: {
   port: ExecutionPort;
@@ -316,9 +318,10 @@ async function refreshVisitorDiscoveryAfterTest(deps: {
   try {
     const models = await port.listModels?.(config);
     if (models) setDiscovery({ status: "ok", models });
-  } catch {
-    // Leave whatever discovery state already exists — the connection result is the answer the
-    // operator asked for, and failing to also refresh the list must not overwrite it.
+  } catch (error) {
+    // The connection result is the answer the operator asked for, so keep it. The separate
+    // discovery state must still explain why the model list could not be refreshed.
+    setDiscovery({ status: "error", message: describeProbeError(error, "Model discovery failed") });
   }
 }
 
