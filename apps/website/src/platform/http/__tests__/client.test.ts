@@ -769,3 +769,47 @@ test("a DNS failure is NOT an EgressRefusedError — the type must mean 'this pr
   assert.equal(error, dnsFailure);
   assert.equal(error instanceof EgressRefusedError, false, `a DNS failure must not be typed as a refusal (got ${(error as Error).message})`);
 });
+
+test("a neutral platform refusal receives Tovu's caller-safe copy without exposing the private diagnostic", async () => {
+  const failure = new EgressRefusedError({ message: "internal policy refused 10.0.0.9" });
+  const client = createHostHttpClient({
+    policy: makePolicy(), transport: { requestPinned: async () => { throw failure; } },
+  }, { dns });
+  await assert.rejects(client.send(makeRequest()), (error: unknown) => {
+    assert.ok(error instanceof EgressRefusedError);
+    assert.notEqual(error, failure);
+    assert.equal(error.message, "internal policy refused 10.0.0.9");
+    assert.equal(error.callerSafeMessage, "egress to the requested host was refused by this site's outbound network policy");
+    return true;
+  });
+});
+
+test("an explicit caller-safe refusal is propagated with its class and identity intact", async () => {
+  const failure = new EgressRefusedError({ message: "server-only refusal" }, { callerSafeMessage: "This host is disabled." });
+  const client = createHostHttpClient({
+    policy: makePolicy(), transport: { requestPinned: async () => { throw failure; } },
+  }, { dns });
+  await assert.rejects(client.send(makeRequest()), error => error === failure);
+});
+
+test("omitting all optional ports can send to a public literal without a DNS lookup", async () => {
+  const transport = new ScriptedTransport([{ status: 202, headers: {}, bodyText: "accepted" }]);
+  const client = createHostHttpClient({ policy: makePolicy(), transport });
+  const response = await client.send(makeRequest({ url: "https://8.8.8.8/" }));
+  assert.equal(response.status, 202);
+  assert.equal(response.bodyText, "accepted");
+  assert.deepEqual(transport.calls[0]!.peer, { ip: "8.8.8.8", port: 443, authority: "8.8.8.8", tlsServerName: undefined });
+});
+
+test("an injected deadline clock bounds the request sent through the Tovu transport adapter", async () => {
+  const deadline = new AbortController().signal;
+  const deadlines: number[] = [];
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "bounded" }]);
+  const client = createHostHttpClient({ policy: makePolicy(), transport }, {
+    dns, clock: { nowMs: () => 100, timeoutSignal: ({ timeoutMs }) => { deadlines.push(timeoutMs); return deadline; } },
+  });
+  assert.equal((await client.send(makeRequest({ totalDeadlineMs: 250 }))).bodyText, "bounded");
+  assert.deepEqual(deadlines, [250]);
+  assert.equal(transport.calls[0]!.req.signal, deadline);
+  assert.equal(transport.calls[0]!.req.headers["User-Agent"], "Tovu/0.1.0");
+});

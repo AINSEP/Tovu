@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -118,4 +119,17 @@ test("content-type: an inbound entity for a seeded widget key is refused at prec
   assert.equal(await handler.precheck(entity), reason);
   await assert.rejects(handler.apply({ entity, expectedVersion: 3, principalId: "operator-1", idempotencyKey: "idem-widget" }), { message: reason });
   assert.equal((await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "widget" }))?.status, "active");
+});
+
+test("content-type publishing updates fields when the label and lifecycle status stay the same", async () => {
+  const { source, dest, sourceRepo, destRepo } = await sites([contentType()]);
+  await roundTrip(source, dest);
+  const before = (await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" }))!;
+  const fields = [...contentType().fields, { name: "cuisine", kind: "text", required: false, queryable: false } as const];
+  await sourceRepo.save(contentType({ fields, version: 4 }));
+  const entities = await packAll(source);
+  await applyReport(await plan(entities, dest, ["content-type:recipe"]), entities, dest);
+  assert.deepEqual(await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "recipe" }), {
+    ...before, fields, version: before.version + 1,
+  });
 });

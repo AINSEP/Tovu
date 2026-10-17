@@ -71,3 +71,24 @@ test("a value YAML reads as a non-string (flow sequence/map) falls back to the s
   assert.equal(readFrontmatterField("---\nname: x\ndescription: [Beta]\n---\nbody", "description"), "[Beta]");
   assert.equal(readFrontmatterField("---\nname: {x}\ndescription: d\n---\nbody", "name"), "{x}");
 });
+
+test("quoted whitespace and empty strings have no usable frontmatter value", () => {
+  for (const value of ['""', "''", '"  \\t  "']) {
+    assert.equal(readFrontmatterField(`---\ndescription: ${value}\n---`, "description"), undefined);
+  }
+});
+
+test("malformed YAML without the requested field has no regex fallback value", () => {
+  assert.equal(readFrontmatterField("---\nname: [unfinished\n---", "description"), undefined);
+});
+
+test("malformed YAML preserves quote trimming and whitespace normalization in the fallback", () => {
+  assert.equal(readFrontmatterField('---\nname: [unfinished\ndescription: "  Keep   this value  "\n---', "description"), "Keep this value");
+  assert.equal(readFrontmatterField('---\nname: [unfinished\ndescription: "   "\n---', "description"), undefined);
+});
+
+test("empty, scalar and sequence YAML documents do not expose frontmatter fields", () => {
+  for (const block of ["", "plain scalar", "- description\n- not a mapping"]) {
+    assert.equal(readFrontmatterField(`---\n${block}\n---`, "description"), undefined);
+  }
+});

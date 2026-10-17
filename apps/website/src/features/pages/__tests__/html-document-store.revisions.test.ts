@@ -1,8 +1,10 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { SYSTEM_ACTOR_ID } from "../../post/post.js";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
 import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -168,6 +170,44 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await assert.rejects(store.ensureHtmlFormat("<p>loser</p>"), PageConcurrentEditError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow()), winningRow);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
+  });
+
+  test("conversion retains an existing pre-conversion revision and uses the system actor when none is supplied", async () => {
+    const { db, repo } = harness();
+    const id = "already-revisioned";
+    await insertPage(db, { id });
+    const original = await repo.findById({ workspaceId: WS, id });
+    assert.ok(original);
+    await repo.appendRevision({ workspaceId: WS, postId: id, seq: 1, op: "update", stateJson: original,
+      actorId: "original-editor", recordedAt: "2026-09-01T00:00:00.000Z" });
+    const before = await repo.listRevisions({ workspaceId: WS, postId: id });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions: repo });
+    await store.ensureHtmlFormat("<p>converted</p>");
+    const revisions = await repo.listRevisions({ workspaceId: WS, postId: id });
+    assert.equal(revisions.length, 2);
+    assert.deepEqual(revisions[0], before[0]);
+    assert.equal(revisions[1].seq, 2);
+    assert.equal(revisions[1].actorId, SYSTEM_ACTOR_ID);
+    assert.equal(revisions[1].stateJson.bodyHtml, "<p>converted</p>");
+    assert.equal(store.capturedVersion(), 2);
+  });
+
+  test("a page deleted before the conversion transaction leaves no phantom revision", async () => {
+    const { db, repo } = harness();
+    const id = "deleted-before-conversion";
+    await insertPage(db, { id });
+    const revisions = {
+      findById: repo.findById.bind(repo), listRevisions: repo.listRevisions.bind(repo), appendRevision: repo.appendRevision.bind(repo),
+      transaction: async <T>(fn: () => Promise<T>): Promise<T> => {
+        await repo.hardDelete({ workspaceId: WS, id });
+        return repo.transaction(fn);
+      },
+    };
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
+    await assert.rejects(store.ensureHtmlFormat("<p>cannot land</p>"), PageConcurrentEditError);
+    assert.equal(await repo.findById({ workspaceId: WS, id }), null);
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
+    assert.equal(store.capturedVersion(), null);
   });
 
 });

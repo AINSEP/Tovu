@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createHttpClient } from "../client.js";
+import { createDefaultHttpClient, createHttpClient } from "../client.js";
 import { EgressRefusedError } from "../index.js";
 import { createNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
 import type { EgressPolicy, HttpRequest, HttpResponse, HttpTransportAdapter } from "../ports.js";
@@ -51,4 +51,18 @@ test("a refused egress is tracked as a failed call and still surfaces Tovu's ref
 test("without an observability port the client sends exactly as before", async () => {
   const client = createHttpClient({ transport: transport(204), policy }, { dns });
   assert.equal((await client.send(request("https://api.example.com/"))).status, 204);
+});
+
+test("the default native client records a refused literal target without contacting it", async () => {
+  const { port, calls } = recordingPort();
+  const client = createDefaultHttpClient(policy, { observability: port });
+  await assert.rejects(client.send(request("https://127.0.0.1/private")), (error: unknown) => {
+    assert.ok(error instanceof EgressRefusedError);
+    assert.equal(error.callerSafeMessage, "egress to '127.0.0.1' rejected: resolved address is loopback");
+    return true;
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.method, "POST");
+  assert.equal(calls[0]!.url, "https://127.0.0.1/private");
+  assert.ok(calls[0]!.outcome!.error instanceof EgressRefusedError);
 });

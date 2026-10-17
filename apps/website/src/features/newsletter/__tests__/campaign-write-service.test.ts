@@ -3,6 +3,7 @@
  * AC-01/08/11, EC-06) at the real DB-transaction boundary (Article V — integration coverage for a P1
  * chokepoint, not just in-memory).
  */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -326,4 +327,24 @@ test("saveCampaign / cancelCampaign / scheduleCampaign: an unknown campaign id i
   );
   assert.equal(await deps.campaignRepo.findById({ workspaceId: WS, id: "missing-1" }), null);
   assert.deepEqual(await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: "missing-1" }), []);
+});
+
+test("saveCampaign: an omitted preheader creates null and clears a prior preview on edit", async () => {
+  const deps = makeMemoryDeps();
+  const { preheader: _preheader, ...fields } = validFields;
+  const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields } });
+  assert.equal(created.campaign.preheader, null);
+  const preview = await saveCampaign({ deps, input: {
+    workspaceId: WS, id: created.campaign.id, actorId: "actor-1", expectedVersion: 1,
+    fields: { ...fields, preheader: "Old preview" },
+  } });
+  assert.equal(preview.campaign.preheader, "Old preview");
+  const edited = await saveCampaign({ deps, input: {
+    workspaceId: WS, id: created.campaign.id, actorId: "actor-2", expectedVersion: 2, fields,
+  } });
+  assert.deepEqual(edited.campaign, { ...preview.campaign, preheader: null, version: 3 });
+  assert.deepEqual(await deps.campaignRepo.findById({ workspaceId: WS, id: created.campaign.id }), edited.campaign);
+  assert.equal(edited.revisionSeq, 3);
+  const revisions = await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: created.campaign.id });
+  assert.deepEqual(revisions[2], { workspaceId: WS, campaignId: created.campaign.id, seq: 3, state: edited.campaign, actorId: "actor-2", recordedAt: clock.nowIso() });
 });

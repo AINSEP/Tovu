@@ -153,3 +153,51 @@ test("capture records a fatal uncaught exception without handling it, tagged wit
   assert.match(last.message, new RegExp(`^\\[uncaughtException\\] Error: fatal-${process.pid}`));
   assert.equal(process.listenerCount("uncaughtExceptionMonitor"), listenersBefore);
 });
+
+test("a disabled sink drops later entries even if the filesystem recovers", () => {
+  const options = { failAppend: true };
+  const mem = memoryFs(options);
+  const sink = createRotatingLogFileSink({ filePath: "/l/server.log" }, { fs: mem.port });
+  sink.write(entry(1));
+  options.failAppend = false;
+  sink.write(entry(2));
+  assert.equal(sink.isHealthy(), false);
+  assert.deepEqual([...mem.files], []);
+  assert.deepEqual(mem.dirs, ["/l"]);
+});
+
+test("the tail reader ignores non-entries without losing valid adjacent entries", () => {
+  const mem = memoryFs();
+  const invalid = [null, 7, { ...entry(2), seq: "2" }, { ...entry(3), at: 3 },
+    { ...entry(4), level: false }, { ...entry(5), source: null }, { ...entry(6), message: [] }];
+  mem.files.set("/l/server.log", [entry(1), ...invalid, entry(7)].map(value => JSON.stringify(value)).join("\n"));
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port }), [entry(1), entry(7)]);
+});
+
+test("the tail reader can recover a rotated file when the current file is absent", () => {
+  const mem = memoryFs();
+  mem.files.set("/l/server.log.1", `${JSON.stringify(entry(1))}\n`);
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port }), [entry(1)]);
+});
+
+test("a current file that fills the byte budget excludes the rotated file and its own first fragment", () => {
+  const mem = memoryFs();
+  mem.files.set("/l/server.log.1", `${JSON.stringify(entry(1))}\n`);
+  mem.files.set("/l/server.log", [2, 3, 4].map(seq => `${JSON.stringify(entry(seq))}\n`).join(""));
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: Math.floor(lineBytes * 1.5) }), [entry(4)]);
+});
+
+test("files disappearing between stat and read are treated as empty tails", () => {
+  const mem = memoryFs();
+  mem.files.set("/l/server.log", `${JSON.stringify(entry(2))}\n`);
+  mem.files.set("/l/server.log.1", `${JSON.stringify(entry(1))}\n`);
+  const disappearing: LogFileFsPort = { ...mem.port, readTail: () => null };
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: disappearing }), []);
+});
+
+test("the default filesystem reader returns null for an absent log pair", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-missing-logs-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.equal(readLogFileTail({ filePath: path.join(dir, "missing.log") }), null);
+  assert.equal(nodeLogFileFs.readTail(path.join(dir, "missing.log"), 100), null);
+});

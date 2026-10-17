@@ -35,3 +35,39 @@ test("unquoted CMS names retain domains and versions but stop at sentence punctu
   }
   assert.equal(title("Create a page called What?Now!Next"), "Page: What?Now!Next");
 });
+
+test("single-quoted article names and quoted names without an introducer stay complete", () => {
+  assert.equal(title("Write an article named: 'A Better Editor'"), "Article: A Better Editor");
+  assert.equal(title('Edit the post "A Better Editor"'), "Blog post: A Better Editor");
+});
+
+test("long content names use a complete write or edit action", () => {
+  const name = "A complete content title ".repeat(10);
+  assert.equal(title(`Create a page called "${name}"`), "Write page");
+  assert.equal(title(`Write an article named "${name}"`), "Write article");
+  assert.equal(title(`Revise the post "${name}"`), "Edit blog post");
+});
+
+test("dangling name introducers are removed from the fallback title", () => {
+  for (const introducer of ["titled", "called", "named"]) {
+    assert.equal(deriveContentConversationTitle({
+      prompt: `Create a page ${introducer}`,
+      deriveFallback: () => `Create a page ${introducer}`,
+    }, {}), "Create a page");
+  }
+});
+
+test("an empty quoted name does not become a content title", () => {
+  assert.equal(deriveContentConversationTitle({
+    prompt: 'Edit the page "   "', deriveFallback: () => "Edit the page",
+  }), "Edit the page");
+});
+
+test("resource slugs longer than the limit delegate to the fallback", () => {
+  assert.equal(title("a".repeat(64)), "a".repeat(64));
+  const prompt = "a".repeat(65);
+  assert.equal(deriveContentConversationTitle({ prompt, deriveFallback: ({ prompt: received }) => {
+    assert.equal(received, prompt);
+    return "Resource overview";
+  } }), "Resource overview");
+});

@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryMenuRepo, MenuConflictError, MenuVersionConflictError, type NavMenuEntry } from "../index.js";
@@ -98,4 +99,50 @@ test("save re-wraps only a compare-and-set conflict as MenuVersionConflictError;
 
   const disk = new Error("disk full");
   await assert.rejects(failing(disk).save(menu(), { expectedVersion: 1 }), (error: unknown) => error === disk);
+});
+
+test("live reads return null for absent ids and slugs", async () => {
+  const repo = new TrashAwareInMemoryMenuRepo({});
+  assert.equal(await repo.findById({ workspaceId: "ws", id: "missing" }), null);
+  assert.equal(await repo.findBySlug({ workspaceId: "ws", slug: "missing" }), null);
+});
+
+test("saving a live menu preserves its slug and writes the new version", async () => {
+  const repo = new TrashAwareInMemoryMenuRepo({});
+  await repo.save(menu());
+  const edited = menu({ title: "Edited navigation", version: 8 });
+  await repo.save(edited, { expectedVersion: 7 });
+  assert.deepEqual(await repo.findBySlug({ workspaceId: "ws", slug: "nav" }), edited);
+  assert.deepEqual(await repo.list({ workspaceId: "ws" }), [edited]);
+});
+
+test("a live slug conflict passes through without being replaced by a Trash-specific refusal", async () => {
+  const inner = new InMemoryMenuRepo({}, { initialRows: [menu()] });
+  const conflict = new MenuConflictError({ message: "slug 'nav' is already held by a live menu" });
+  inner.save = async record => { assert.equal(record.id, "m2"); throw conflict; };
+  const repo = new TrashAwareInMemoryMenuRepo({}, { inner });
+  await assert.rejects(repo.save(menu({ id: "m2" })), error => error === conflict);
+  assert.deepEqual(await repo.list({ workspaceId: "ws" }), [menu()]);
+});
+
+for (const expectedVersion of [null, 7]) {
+  test(`a trashed menu refuses compare-and-set ${expectedVersion} without losing its restore state`, async () => {
+    const repo = new TrashAwareInMemoryMenuRepo({});
+    const trashed = { ...menu({ status: "trash" }), priorStatus: "draft" as const };
+    await repo.saveAny(trashed);
+    await assert.rejects(repo.save(menu({ title: "Revived" }), { expectedVersion }), MenuVersionConflictError);
+    assert.deepEqual(await repo.findAnyById({ workspaceId: "ws", id: "m1" }), trashed);
+  });
+}
+
+test("transaction returns the callback result after its menu write", async () => {
+  const repo = new TrashAwareInMemoryMenuRepo({});
+  const saved = menu();
+  assert.deepEqual(await repo.transaction({ fn: async () => { await repo.save(saved); return { id: saved.id }; } }), { id: "m1" });
+  assert.deepEqual(await repo.findById({ workspaceId: "ws", id: "m1" }), saved);
+});
+
+test("transaction propagates a callback failure", async () => {
+  const repo = new TrashAwareInMemoryMenuRepo({});
+  await assert.rejects(repo.transaction({ fn: async () => { throw new Error("transaction refused"); } }), { message: "transaction refused" });
 });

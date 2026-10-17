@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -594,4 +595,43 @@ test("PUT and PATCH also run immediately with no confirmation", async () => {
     assert.equal(httpClient.calls[0]!.method, method);
     assert.equal(surfaceExchanges.size(), 0, `${method} must never open a confirmation exchange`);
   }
+});
+
+
+test("a grant revoked while DELETE approval is open refuses the approved request without decrypting", async () => {
+  const { deps, sealer, httpClient, writeDeps, setAllow } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { pending, exchangeId } = await raiseDialog(tool(buildRegistrations(deps, exchanges), TOOL_ID));
+  setAllow(false);
+  assert.deepEqual(exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: TOOL_ID }), { ok: true });
+  await assert.rejects(pending, /not authorized/);
+  assert.equal(sealer.openCalls, 0);
+  assert.deepEqual(httpClient.calls, []);
+  assert.equal(exchanges.size(), 0);
+});
+
+test("an abort during approved DELETE reauthorization prevents decryption and sending", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const controller = new AbortController();
+  let authorizations = 0;
+  const authorize = deps.authorize;
+  const routeDeps = { ...deps, authorize: async (input: Parameters<typeof authorize>[0]) => {
+    const result = await authorize(input);
+    if (++authorizations === 2) controller.abort();
+    return result;
+  } };
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const emitted: unknown[] = [];
+  const pending = call(tool(buildRegistrations(routeDeps, exchanges), TOOL_ID), { signal: controller.signal,
+    emitSurface: async surface => void emitted.push(surface) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  assert.deepEqual(exchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: PRINCIPAL_ID,
+    params: { decision: "confirm" } }, { toolId: TOOL_ID }), { ok: true });
+  assert.deepEqual(await pending, { executed: false, cancelled: false, reason: "abandoned" });
+  assert.equal(authorizations, 2);
+  assert.equal(sealer.openCalls, 0);
+  assert.deepEqual(httpClient.calls, []);
 });

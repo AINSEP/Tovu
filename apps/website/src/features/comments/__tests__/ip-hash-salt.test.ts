@@ -65,3 +65,14 @@ test("the default production entropy is 32 random bytes, different per call", as
   assert.match(first.salt, /^[0-9a-f]{64}$/);
   assert.notEqual(first.salt, second.salt);
 });
+
+test("the default production warning explains the ephemeral salt without disclosing it", async t => {
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (line: string) => { warnings.push(line); });
+  const result = await resolveCommentsIpHashSalt(
+    { env: {}, mode: "production", workspaceId: WORKSPACE, keyring: missingKeyring },
+    { randomHex: () => "private-ephemeral-salt" },
+  );
+  assert.deepEqual(result, { salt: "private-ephemeral-salt", source: "ephemeral" });
+  assert.deepEqual(warnings, ["[comments] COMMENTS_IP_SALT is unset and no site key resolved: using a random per-process salt, so comment IP hashes will not match across restarts. Set COMMENTS_IP_SALT."]);
+});

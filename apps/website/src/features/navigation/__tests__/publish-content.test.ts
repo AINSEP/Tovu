@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -584,4 +585,63 @@ test("repointReferences retries a single conflict from fresh state, preserving t
   assert.deepEqual(landed?.doc.items, [{ ...entryRefItem("a", "new"), label: "Concurrent label", children: undefined }, { id: "added", label: "Contact", target: { kind: "url", href: "/contact" }, children: undefined }]);
   const recorded = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: result.changeSetIds[0] });
   assert.deepEqual(recorded?.items[0].inversePayload, { items: [{ ...entryRefItem("a", "old"), label: "Concurrent label" }, { id: "added", label: "Contact", target: { kind: "url", href: "/contact" } }] });
+});
+
+
+test("referencesTo returns no holders without a menu port", async () => {
+  assert.deepEqual(await contributeMenusPublish().build(makePublishDeps({})).referencesTo!(["old"]), []);
+});
+
+for (const missing of ["menu", "changeSets", "authorize", "outbox"] as const) {
+  test(`repointReferences refuses a missing ${missing} dependency before changing menus`, async () => {
+    const row = menuRow({ id: "missing-deps", doc: { type: "menu", version: 1, items: [entryRefItem("a", "old")] } });
+    const repo = new InMemoryMenuRepo({}, { initialRows: [row] });
+    const wired = makeRepointDeps({ menuRepo: repo });
+    const deps: PublishContentDeps = missing === "menu" ? { ...wired, ports: {} } : { ...wired, [missing]: undefined };
+    await assert.rejects(contributeMenusPublish().build(deps).repointReferences!({
+      replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "op", runId: "run",
+    }), /menu\.repointReferences\(\) requires PublishContentDeps/);
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: row.id }), row);
+  });
+}
+
+for (const outcome of ["removed", "already-repaired"] as const) {
+  test(`repointReferences skips a menu ${outcome} after its list snapshot`, async () => {
+    const row = menuRow({ id: "changed-since-list", doc: { type: "menu", version: 1, items: [entryRefItem("a", "old")] } });
+    const repo = new InMemoryMenuRepo({}, { initialRows: [row] });
+    const list = repo.list.bind(repo);
+    repo.list = async request => {
+      const snapshot = await list(request);
+      if (outcome === "removed") await repo.remove({ workspaceId: WORKSPACE_ID, id: row.id });
+      else await repo.save({ ...row, version: 2, doc: { ...row.doc, items: [entryRefItem("a", "new")] } });
+      return snapshot;
+    };
+    const deps = makeRepointDeps({ menuRepo: repo });
+    assert.deepEqual(await contributeMenusPublish().build(deps).repointReferences!({
+      replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "op", runId: "run",
+    }), { changeSetIds: [], linksUpdated: 0, notUpdated: [] });
+    const stored = await repo.findById({ workspaceId: WORKSPACE_ID, id: row.id });
+    if (outcome === "removed") assert.equal(stored, null);
+    else assert.deepEqual(stored, { ...row, version: 2, doc: { ...row.doc, items: [entryRefItem("a", "new")] } });
+    assert.deepEqual(await deps.outbox!.claimPending({ batchSize: 10, nowIso: "2026-09-24T00:00:00.000Z" }), []);
+  });
+}
+
+test("apply refuses a missing outbox before writing a menu", async () => {
+  const repo = new InMemoryMenuRepo({});
+  const deps = { ...makePublishDeps({ menuRepo: repo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) }), outbox: undefined };
+  await assert.rejects(contributeMenusPublish().build(deps).apply({
+    entity: packedEntity("incoming", menuState()), expectedVersion: undefined, principalId: "op", idempotencyKey: "missing-outbox",
+  }), /menu\.apply\(\) requires PublishContentDeps\.outbox/);
+  assert.deepEqual(await repo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("apply defaults omitted locations to an empty list", async () => {
+  const repo = new InMemoryMenuRepo({});
+  const deps = makePublishDeps({ menuRepo: repo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) });
+  const { locations: _locations, ...state } = menuState();
+  await contributeMenusPublish().build(deps).apply({
+    entity: packedEntity("incoming", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "no-locations",
+  });
+  assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE_ID, id: "incoming" }))?.locations, []);
 });

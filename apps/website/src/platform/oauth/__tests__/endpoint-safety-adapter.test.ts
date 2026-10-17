@@ -115,3 +115,19 @@ for (const key of ["authorization_endpoint", "token_endpoint", "registration_end
     }
   });
 }
+
+test("issuer policy rejects password-only userinfo on the issuer origin", () => {
+  const policy = createTovuIssuerBoundDiscoveryPolicy({ guard: createTovuOAuthGuard({}) });
+  assert.throws(() => policy.assertMetadata({ issuer: "https://auth.example/tenant", document: {
+    token_endpoint: "https://:secret@auth.example/token",
+  } }), { code: "OAUTH_UNSAFE_ENDPOINT", message: "OAuth metadata token_endpoint does not share the issuer's origin" });
+});
+
+test("host copy preserves unreachable errors unless their cause is specifically a clipped OAuth response", async () => {
+  for (const cause of [undefined, new Error("socket closed"), new OAuthError({
+    code: "OAUTH_INVALID_REQUEST", message: "invalid request", operatorAction: "Check the request.",
+  })]) {
+    const error = new OAuthError({ code: "OAUTH_PROVIDER_UNREACHABLE", message: "unreachable", operatorAction: "Try again." }, { cause });
+    await assert.rejects(withTovuOAuthCopy({ call: async () => { throw error; } }), caught => caught === error);
+  }
+});

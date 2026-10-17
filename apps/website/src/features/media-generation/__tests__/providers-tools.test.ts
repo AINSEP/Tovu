@@ -1,4 +1,5 @@
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-credentials/credential-save-tool.js";
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
@@ -14,7 +15,7 @@ import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '..
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { buildMediaGenerationRegistrations, type MediaGenerationToolDeps } from '../tool-registrations.js';
-import { saveMediaCredential, buildMediaProviderRegistrations, mediaProvidersAgentToolCatalog, mediaProvidersDerivedRisk } from '../providers-tools.js';
+import { saveMediaCredential, buildMediaProviderRegistrations, contributeMediaProviderTools, mediaProvidersAgentToolCatalog, mediaProvidersDerivedRisk } from '../providers-tools.js';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import type { Express, Request, Response } from 'express';
 import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../assistant/mcp-ui-tool-calls-route.js';
@@ -293,4 +294,92 @@ test('t10 media abort during sealing writes nothing', async () => {
   assert.equal(emitted.length, 1);
   assert.equal(f.surfaces.size(), 0);
   assertNoSecret(emitted);
+});
+
+test('media credential reasons longer than 1000 characters refuse before authorization or a form', async () => {
+  const f = fixture();
+  // Exercise the domain adapter directly: the public credential dispatcher has its own validation.
+  await assert.rejects(saveMediaCredential({ deps: f.deps, surfaces: { surfaceExchanges: f.surfaces }, ctx: {
+    executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
+    input: { provider: 'openai', reason: 'x'.repeat(1001) }, signal: new AbortController().signal,
+  } }), { message: 'Credential setup reason must be at most 1000 characters.' });
+  assert.deepEqual(f.auth, []);
+  assert.equal(f.surfaces.size(), 0);
+  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+});
+
+test('a configured media provider can preserve its exact key with an empty submission', async () => {
+  const f = fixture();
+  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } });
+  const before = await f.repo.listByWorkspaceId('ws-t10');
+  const { pending, emitted } = await form(f);
+  submit(f, { apiKey: '' });
+  assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true,
+    tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
+  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), before);
+  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+    { apiKey: SECRET, baseUrl: null, model: null });
+  assert.equal(emitted.length, 2);
+  assert.equal(f.surfaces.size(), 0);
+  assertNoSecret(emitted);
+});
+
+test('preserving a migrated media credential with unknown length reports success without a hint', async () => {
+  const f = fixture();
+  await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { openai: { apiKey: SECRET } } });
+  const [row] = await f.repo.vault.list({ workspaceId: 'ws-t10', kind: 'media-provider', ownerKey: 'tovu', principalId: null });
+  assert.ok(row, 'the saved credential must exist before its legacy hint metadata is restored');
+  await f.repo.vault.put({ record: { ...row, tokenLength: null, last4: null, revision: row.revision + 1 }, expectedRevision: row.revision });
+  const { pending, emitted } = await form(f);
+  submit(f, { apiKey: '' });
+  assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: null,
+    connection: 'not_tested', message: 'Saved, not tested.' });
+  assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
+    { apiKey: SECRET, baseUrl: null, model: null });
+  assert.equal(emitted.length, 2);
+  assert.match(JSON.stringify(emitted[1]), /Saved, not tested\./);
+  assertNoSecret(emitted);
+});
+
+test('non-Error media persistence failures use fixed safe outcomes and leave no credential', async t => {
+  const warnings: string[] = [];
+  t.mock.method(console, 'warn', (line: string) => { warnings.push(line); });
+  const f = fixture();
+  f.repo.replaceWorkspace = async () => { throw `storage echoed ${SECRET}`; };
+  const { pending, emitted } = await form(f);
+  submit(f, { apiKey: SECRET });
+  assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
+  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.deepEqual(warnings.map(line => JSON.parse(line)), [{ toolId: 'credential_save', exchangeId: 'exchange-t10', saved: false }]);
+  assert.equal(emitted.length, 2);
+  assert.match(JSON.stringify(emitted[1]), /Nothing was saved\. Check the key and the server credential store, then try again\./);
+  assert.equal(f.surfaces.size(), 0);
+  assertNoSecret(emitted);
+});
+
+test('media token policy failures return the allowlisted message without saving', async () => {
+  const f = fixture();
+  const { pending, emitted } = await form(f);
+  submit(f, { apiKey: 'x'.repeat(8193) });
+  assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false,
+    message: 'The token exceeds the 8192-character limit. Copy only the token.' });
+  assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+  assert.equal(emitted.length, 2);
+  assert.equal(f.surfaces.size(), 0);
+});
+
+test('the media provider contributor builds a working read-only provider catalog', async () => {
+  const f = fixture();
+  const contributor = contributeMediaProviderTools();
+  assert.equal(contributor.domain, 'media-providers');
+  assert.deepEqual(contributor.risk, mediaProvidersDerivedRisk);
+  const registrations = contributor.build(f.deps as unknown as Parameters<typeof contributor.build>[0], { surfaceExchanges: f.surfaces });
+  assert.equal(registrations.length, 1);
+  const registration = registrations.find(item => item.descriptor.id === 'media_list_providers');
+  assert.ok(registration, 'the contributor must provide the provider-list tool');
+  const result = await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
+    input: {}, signal: new AbortController().signal }) as { providers: Array<{ id: string; configured: boolean }> };
+  assert.equal(result.providers.find(provider => provider.id === 'openai')?.configured, false);
+  assert.equal(result.providers.some(provider => provider.id === 'tavily'), false);
+  assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'media.read', workspaceId: 'ws-t10', entityType: 'media' }]);
 });

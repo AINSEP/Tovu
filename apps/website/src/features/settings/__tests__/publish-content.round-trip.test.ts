@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -21,8 +22,8 @@ import {
   sqliteContentSite,
   WORKSPACE_ID,
 } from "../../publish-content/__tests__/round-trip-harness.js";
-import { clear, set, type SettingDefinitionRecord, type SettingValueSchema } from "../index.js";
-import { contributeSiteSettingPublish } from "../publish-content.js";
+import { clear, resolveDefinitionRaw, set, type SettingDefinitionRecord, type SettingValueSchema } from "../index.js";
+import { contributeSiteSettingPublish, pointsAtThisComputer } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -348,4 +349,87 @@ test("active theme: a denied theme.set cannot switch an installed theme", async 
   const report = await plan(entities, destinationDeps, ["active-theme:site"]);
   await assert.rejects(applyReport(report, entities, destinationDeps), /not authorized.*theme.set/);
   assert.deepEqual(await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), original);
+});
+
+test("share-image local detection rejects malformed absolute URLs and every supported local host", () => {
+  for (const value of [null, undefined, 42, {}, "", MEDIA_ID, `${MEDIA_ID}:public`, "/uploads/image.png", "https://cdn.example.com/image.png"]) {
+    assert.equal(pointsAtThisComputer(value), false, JSON.stringify(value));
+  }
+  for (const value of ["https://[broken", " http://localhost/image.png ", "https://sub.localhost/image.png", "http://box.local/image.png", "http://127.0.0.2/x", "http://0.0.0.0/x", "http://[::1]/x", "http://10.1.2.3/x", "http://192.168.0.2/x", "http://172.16.0.2/x", "http://172.31.0.2/x"]) {
+    assert.equal(pointsAtThisComputer(value), true, value);
+  }
+  assert.equal(pointsAtThisComputer("http://172.32.0.2/x"), false);
+});
+
+test("share-image references carry only UUID media identities, and other settings never add references", async (t) => {
+  const { source, destination, sourceDeps } = await sites();
+  t.after(() => { source.db.$client.close(); destination.db.$client.close(); });
+  await write(source, "core.site:title", "Title");
+  const [title] = await packAll(sourceDeps);
+  assert.ok(title);
+  const handler = contributeSiteSettingPublish().build(sourceDeps);
+  assert.deepEqual(handler.references!(title), []);
+  for (const value of [null, 7, "", "slug:public", "https://cdn.example.com/image.png"]) {
+    assert.deepEqual(handler.references!({ ...title, id: "site.seo:default_og_image", state: { value } }), [], String(value));
+  }
+});
+
+test("a share image targeting this computer is refused again at apply without writing a value or revision", async (t) => {
+  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  t.after(() => { source.db.$client.close(); destination.db.$client.close(); });
+  await write(source, "site.seo:default_og_image", "https://cdn.example.com/image.png");
+  const [image] = await packAll(sourceDeps);
+  assert.ok(image);
+  const entity = { ...image, state: { ...image.state, value: "http://localhost/image.png" } };
+  const handler = contributeSiteSettingPublish().build(destinationDeps);
+  await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "local-image" }), {
+    message: "site-setting 'site.seo:default_og_image' points at this computer",
+  });
+  assert.equal(await workspaceValue(destination, "site.seo.default_og_image"), undefined);
+  assert.deepEqual(await destination.settings.listRevisions({ settingId: "site.seo.default_og_image" }), []);
+});
+
+for (const change of [{ secret: true }, { scopes: 4 }, { status: "deprecated" as const }]) {
+  test(`allowlisted settings still refuse ineligible definitions: ${JSON.stringify(change)}`, async (t) => {
+    const { source, destination, sourceDeps, destinationDeps } = await sites();
+    t.after(() => { source.db.$client.close(); destination.db.$client.close(); });
+    await write(source, "core.site:title", "Title");
+    const [entity] = await packAll(sourceDeps);
+    assert.ok(entity);
+    const def = await resolveDefinitionRaw({ repo: destination.settings }, { namespace: "core.site", key: "title", workspaceId: WORKSPACE_ID });
+    assert.ok(def);
+    await destination.settings.saveDefinition({ ...def, ...change });
+    const handler = contributeSiteSettingPublish().build(destinationDeps);
+    assert.equal(await handler.inspect(entity.id), null);
+    assert.equal(await handler.precheck(entity), "site-setting 'core.site:title' is not one this site publishes");
+    await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "ineligible" }), {
+      message: "site-setting 'core.site:title' is not one this site publishes",
+    });
+    assert.equal(await workspaceValue(destination, "core.site.title"), undefined);
+    assert.deepEqual(await destination.settings.listRevisions({ settingId: "core.site.title" }), []);
+  });
+}
+
+test("an allowlisted setting with no destination definition is refused", async (t) => {
+  const { source, destination, sourceDeps } = await sites();
+  const empty = sqliteContentSite();
+  t.after(() => { source.db.$client.close(); destination.db.$client.close(); empty.db.$client.close(); });
+  await write(source, "core.site:title", "Title");
+  const [entity] = await packAll(sourceDeps);
+  assert.ok(entity);
+  const handler = contributeSiteSettingPublish().build(makeSite(empty.ports));
+  assert.equal(await handler.inspect(entity.id), null);
+  assert.equal(await handler.precheck(entity), "site-setting 'core.site:title' is not one this site publishes");
+});
+
+test("an omitted incoming setting value is written as null through the revision ledger", async (t) => {
+  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  t.after(() => { source.db.$client.close(); destination.db.$client.close(); });
+  await write(source, "site.seo:default_description", "Source description");
+  const [description] = await packAll(sourceDeps);
+  assert.ok(description);
+  const handler = contributeSiteSettingPublish().build(destinationDeps);
+  await handler.apply({ entity: { ...description, state: { label: "Default description" } }, expectedVersion: undefined, principalId: "owner", idempotencyKey: "unset-value" });
+  assert.equal(await workspaceValue(destination, "site.seo.default_description"), null);
+  assert.deepEqual((await destination.settings.listRevisions({ settingId: "site.seo.default_description" })).map(row => row.op), ["set"]);
 });

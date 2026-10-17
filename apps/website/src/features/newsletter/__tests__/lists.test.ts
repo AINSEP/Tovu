@@ -103,3 +103,44 @@ test("archiveList: unknown list id is rejected", async () => {
   const deps = makeDeps();
   await assert.rejects(archiveList({ deps, input: { workspaceId: WS, id: "nope" } }), NewsletterListNotFoundError);
 });
+
+test("saveList: updating a missing list fails without creating a replacement", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    saveList({ deps, input: { workspaceId: WS, id: "missing", name: "Missing", slug: "missing" } }),
+    (error: unknown) => {
+      assert.ok(error instanceof NewsletterListNotFoundError);
+      assert.equal(error.message, "list missing was not found");
+      return true;
+    },
+  );
+  assert.deepEqual(await deps.listRepo.list({ workspaceId: WS }), []);
+});
+
+test("saveList: changing a slug preserves unrelated lists and the edited list's identity", async () => {
+  const deps = makeDeps();
+  const { list: unrelated } = await saveList({ deps, input: { workspaceId: WS, name: "Readers", slug: "readers" } });
+  const { list: original } = await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
+  const { list } = await saveList({ deps, input: { workspaceId: WS, id: original.id, name: "Partners", slug: "partners" } });
+  const expected = { ...original, name: "Partners", slug: "partners" };
+  assert.deepEqual(list, expected);
+  assert.deepEqual(await deps.listRepo.findById({ workspaceId: WS, id: original.id }), expected);
+  assert.deepEqual(await deps.listRepo.findById({ workspaceId: WS, id: unrelated.id }), unrelated);
+});
+
+test("saveList: renaming to another list's slug rejects without changing either list", async () => {
+  const deps = makeDeps();
+  const { list: first } = await saveList({ deps, input: { workspaceId: WS, name: "Readers", slug: "readers" } });
+  const { list: second } = await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
+  await assert.rejects(
+    saveList({ deps, input: { workspaceId: WS, id: second.id, name: "Renamed", slug: "readers" } }),
+    (error: unknown) => {
+      assert.ok(error instanceof NewsletterConflictError);
+      assert.equal(error.message, "a list with slug 'readers' already exists");
+      assert.equal(error.id, first.id);
+      return true;
+    },
+  );
+  assert.deepEqual(await deps.listRepo.findById({ workspaceId: WS, id: first.id }), first);
+  assert.deepEqual(await deps.listRepo.findById({ workspaceId: WS, id: second.id }), second);
+});

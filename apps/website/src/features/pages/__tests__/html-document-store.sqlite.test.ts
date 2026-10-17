@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -422,5 +423,50 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     assert.equal(result.version, 6);
     assert.deepEqual(await readRow(db, "sql-tool"), { bodyHtml: '<section data-agent-element="hero" data-agent-role="region"><p>new</p></section>', version: 6, bodyFormat: "html" });
   });
+
+  test("ensureHtmlFormat refuses a missing page without capturing a version", async () => {
+    const db = makeKernel();
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { kernel: db, clock });
+    await assert.rejects(store.ensureHtmlFormat("<p>seed</p>"), { message: "page 'missing' was not found" });
+    assert.equal(store.capturedVersion(), null);
+  });
+
+  test("write refuses a page permanently removed after read", async () => {
+    const db = makeKernel();
+    await insertHtmlPage(db, { id: "removed", html: "<p>base</p>" });
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "removed" }, { kernel: db, clock });
+    await store.read();
+    await db.run(q => q.deleteFrom("posts").where("id", "=", "removed").execute());
+    await assert.rejects(store.write("<p>new</p>"), { message: "page 'removed' was edited elsewhere since this turn started — re-read and retry" });
+    assert.equal(store.capturedVersion(), 1);
+    assert.equal(await db.run(q => q.selectFrom("posts").select("id").where("id", "=", "removed").executeTakeFirst()), undefined);
+  });
+
+  for (const change of ["edit", "trash", "delete"] as const) {
+    test(`write CAS refuses a concurrent ${change} after its freshness read`, async () => {
+      const db = makeKernel();
+      await insertHtmlPage(db, { id: "cas-race", html: "<p>base</p>" });
+      let race = false;
+      const kernel: ContentKernel = { ...db, run: async fn => {
+        const result = await db.run(fn);
+        if (race) {
+          race = false;
+          // Commit the competing mutation after the SELECT result, before the guarded UPDATE.
+          if (change === "delete") await db.run(q => q.deleteFrom("posts").where("id", "=", "cas-race").execute());
+          else await setRow(db, "cas-race", change === "trash" ? { deleted_at: "2026-09-24T00:00:00.000Z" } : { version: 2, body_html: "<p>winner</p>" });
+        }
+        return result;
+      } };
+      const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "cas-race" }, { kernel, clock });
+      await store.read();
+      race = true;
+      await assert.rejects(store.write("<p>loser</p>"), change === "trash"
+        ? { message: "ENTITY_IN_TRASH: page 'cas-race' is in the Trash. Restore it from the Trash before changing it." }
+        : PageConcurrentEditError);
+      assert.equal(store.capturedVersion(), 1);
+      if (change === "delete") assert.equal(await db.run(q => q.selectFrom("posts").select("id").where("id", "=", "cas-race").executeTakeFirst()), undefined);
+      else assert.equal((await readRow(db, "cas-race")).bodyHtml, change === "edit" ? "<p>winner</p>" : "<p>base</p>");
+    });
+  }
 
 });

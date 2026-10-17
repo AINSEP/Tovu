@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../credential-save-tool.js";
 import assert from "node:assert/strict";
@@ -581,4 +582,45 @@ test("token rotation: abort wins over a buffered submit without re-sealing", asy
   assert.deepEqual(result, { saved: false, reason: "abandoned" });
   assert.equal(sealer.sealCalls, 0);
   assert.equal(store.size(), 0);
+});
+
+
+test("token rotation aborted during its fresh username read keeps the existing credential untouched", async () => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  const seeded = await seedNameCom(writeDeps, { token: "old-private-token", username: "keep-user" });
+  const controller = new AbortController();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const emitted: unknown[] = [];
+  const pending = call(tool(buildRegistrations(deps, exchanges), TOOL_ID), { signal: controller.signal,
+    emitSurface: async surface => void emitted.push(surface) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  const read = repo.findById.bind(repo);
+  const before = await read({ workspaceId: WORKSPACE_ID, id: seeded.id });
+  repo.findById = async input => {
+    const row = await read(input);
+    controller.abort();
+    return row;
+  };
+  sealer.sealCalls = 0;
+  assert.deepEqual(exchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: PRINCIPAL_ID,
+    params: { token: "new-private-token" } }, { toolId: TOOL_ID }), { ok: true });
+  assert.deepEqual(await pending, { saved: false, reason: "abandoned" });
+  assert.equal(sealer.sealCalls, 0);
+  assert.deepEqual(await read({ workspaceId: WORKSPACE_ID, id: seeded.id }), before);
+  assert.equal(exchanges.size(), 0);
+});
+
+
+test("the API rotation adapter itself rejects token fields before opening a form", async () => {
+  const { deps, sealer, authorizeCalls } = fakeRouteDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const rotate = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges: exchanges } }).rotate;
+  await assert.rejects(rotate({ executionId: "reject-secret-input", principal: { id: PRINCIPAL_ID }, run: { id: "run" },
+    input: { label: "name.com", token: "must-not-be-read" }, signal: new AbortController().signal }),
+    /accepts only 'label'.*unexpected field\(s\): token/);
+  assert.deepEqual(authorizeCalls, []);
+  assert.equal(sealer.openCalls, 0);
+  assert.equal(sealer.sealCalls, 0);
+  assert.equal(exchanges.size(), 0);
 });

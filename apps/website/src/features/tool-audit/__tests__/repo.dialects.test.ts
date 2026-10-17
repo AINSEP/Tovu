@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -29,6 +30,16 @@ async function rows(kernel: ContentKernel, workspaceId: string) {
 }
 
 describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], make: (kernel) => kernel }, (makeKernel) => {
+  test("a failed write reports the original error through the default logger and stores no event", async (t) => {
+    const kernel = makeKernel();
+    const failure = new Error("audit storage unavailable");
+    const messages: unknown[][] = [];
+    t.mock.method(console, "error", (...args: unknown[]) => { messages.push(args); });
+    const broken: ContentKernel = { ...kernel, run: async () => { throw failure; } };
+    await assert.doesNotReject(() => new SqlToolAttemptAuditSink(broken).append(event()));
+    assert.deepEqual(messages, [["[tool-audit] append failed", failure]]);
+    assert.deepEqual(await rows(kernel, "ws-1"), []);
+  });
   test("daemon options preserve cross-site detail and explicit null clears legacy detail", async () => {
     const kernel = makeKernel(), sink = new SqlToolAttemptAuditSink(kernel);
     await sink.append(event(), { detail: "cross-site read: B (B)" });

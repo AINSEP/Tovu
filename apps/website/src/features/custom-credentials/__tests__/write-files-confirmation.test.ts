@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -298,4 +299,59 @@ test("insufficient permission is refused before any decrypt or network call", as
   assert.equal(result.executed, true);
   assert.deepEqual(httpClient.calls.filter(c => c.method !== "GET").map(c => c.method), ["POST", "POST", "POST", "PATCH"]);
   assert.equal(store.size(), 0);
+});
+
+
+test("write_files refuses an unknown label before decrypting or contacting a provider", async () => {
+  const { deps, sealer, httpClient } = fakeRouteDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  await assert.rejects(call(tool(buildRegistrations(deps, exchanges), TOOL_ID)), /no custom credential labeled 'github'/);
+  assert.equal(sealer.openCalls, 0);
+  assert.deepEqual(httpClient.calls, []);
+});
+
+test("write_files reports a missing provider without decrypting the saved credential", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedGithub(writeDeps);
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildRegistrations({ ...deps,
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }) }, exchanges);
+  await assert.rejects(call(tool(registrations, TOOL_ID)), /custom_credential_write_files: .*source control/);
+  assert.equal(sealer.openCalls, 0);
+  assert.deepEqual(httpClient.calls, []);
+});
+
+test("write_files refuses a credential deleted between the summary lookup and decrypting resolution", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedGithub(writeDeps);
+  const load = deps.loadSourceControlProviders;
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildRegistrations({ ...deps, loadSourceControlProviders: async workspaceId => {
+    const rows = await writeDeps.repo.listByWorkspace({ workspaceId });
+    assert.equal(rows.length, 1);
+    await writeDeps.repo.delete({ workspaceId, id: rows[0].id });
+    return load(workspaceId);
+  } }, exchanges);
+  await assert.rejects(call(tool(registrations, TOOL_ID)), /no custom credential labeled 'github'/);
+  assert.equal(sealer.openCalls, 0);
+  assert.deepEqual(httpClient.calls, []);
+  assert.deepEqual(await writeDeps.repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("write_files stops after planning when its run was aborted during reconnaissance", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedGithub(writeDeps);
+  const controller = new AbortController();
+  const send = httpClient.send.bind(httpClient);
+  httpClient.send = async request => {
+    const response = await send(request);
+    if (request.url.includes("/contents?ref=main")) controller.abort();
+    return response;
+  };
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(tool(buildRegistrations(deps, exchanges), TOOL_ID), { signal: controller.signal });
+  assert.deepEqual(result, { executed: false, cancelled: false, reason: "abandoned" });
+  assert.equal(sealer.openCalls, 1);
+  assert.equal(httpClient.calls.length, 3);
+  assert.ok(httpClient.calls.every(request => request.method === "GET"));
 });

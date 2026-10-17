@@ -518,13 +518,65 @@ test("missing and non-string session tokens are refused without throwing", async
 /** Sign malformed payloads with the fixture's real key derivation so MAC rejection cannot mask
  * the payload validation being tested. */
 async function signedSessionPayload(payload: unknown): Promise<string> {
-  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return signedSessionText(JSON.stringify(payload));
+}
+
+async function signedSessionText(text: string): Promise<string> {
+  const encoded = Buffer.from(text, "utf8").toString("base64url");
   const key = await testKeyring(DEST_ROOT).derive({
     workspaceId: WORKSPACE as never,
     purpose: "publish-trust-session-key",
     info: "session-hmac",
   });
   return `${encoded}.${createHmac("sha256", key).update(encoded).digest("base64url")}`;
+}
+
+test("a correctly authenticated non-JSON session body is refused after MAC verification", async () => {
+  const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
+  assert.deepEqual(await verifyPublishSession(deps, {
+    token: await signedSessionText("{unfinished"), expectedAudience: TARGET_INSTALL,
+  }), { ok: false, reason: "session token payload is not JSON" });
+});
+
+for (const payload of ["plain text", 42, true]) {
+  test(`an authenticated primitive session payload ${JSON.stringify(payload)} is refused`, async () => {
+    const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
+    assert.deepEqual(await verifyPublishSession(deps, {
+      token: await signedSessionPayload(payload), expectedAudience: TARGET_INSTALL,
+    }), { ok: false, reason: "session token payload is not an object" });
+  });
+}
+
+test("an absent challenge response is refused without consuming the issued nonce", async () => {
+  const clock = movableClock();
+  const { store, grant, response, challenge } = await handshake({ clock });
+  for (const missing of [undefined, null]) {
+    assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
+      grant, targetInstallationId: TARGET_INSTALL, response: missing as unknown as typeof response,
+    }), { ok: false, reason: "no nonce supplied" });
+  }
+  assert.deepEqual(await store.takeOnce(response.nonce), challenge);
+});
+
+test("an unusable verification clock refuses and consumes an otherwise valid challenge", async () => {
+  const clock = movableClock();
+  const { store, grant, response } = await handshake({ clock });
+  assert.deepEqual(await verifyChallengeResponse({ store, clock: { nowIso: () => "invalid" } }, {
+    grant, targetInstallationId: TARGET_INSTALL, response,
+  }), { ok: false, reason: "nonce has expired" });
+  assert.equal(await store.takeOnce(response.nonce), null);
+});
+
+for (const capabilities of [undefined, null, "publish_content.read", {}]) {
+  test(`non-array challenge capabilities ${JSON.stringify(capabilities)} refuse and burn the nonce`, async () => {
+    const clock = movableClock();
+    const { store, grant, response } = await handshake({ clock });
+    assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
+      grant, targetInstallationId: TARGET_INSTALL,
+      response: { ...response, capabilities: capabilities as unknown as string[] },
+    }), { ok: false, reason: "no capabilities requested" });
+    assert.equal(await store.takeOnce(response.nonce), null);
+  });
 }
 
 test("a signed null session payload is refused without throwing", async () => {

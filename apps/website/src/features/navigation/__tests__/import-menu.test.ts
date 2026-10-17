@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, type MenuRepoPort, type NavMenuEntry } from "../index.js";
@@ -19,6 +20,30 @@ function harness() {
     outbox: { enqueue: async (event: DomainEvent) => { events.push(structuredClone(event)); } } as OutboxPort };
   return { deps, events };
 }
+
+test("import removes a dropped location even when its binding was already absent", async () => {
+  const { deps, events } = harness();
+  await deps.repo.save(menu({ locations: ["missing-binding"] }));
+  const result = await importMenuEntity({ deps, input: { workspaceId: "destination", record: menu(), expectedVersion: 4 } });
+  assert.deepEqual(result.menu.locations, []);
+  assert.deepEqual(result.displacedMenus, []);
+  assert.equal(await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey: "missing-binding" }), null);
+  assert.deepEqual(events.map(event => event.name), ["navigation.menu.updated"]);
+  assert.equal((await deps.repo.findById({ workspaceId: "destination", id: "incoming" }))?.version, 5);
+});
+
+test("import still enforces insert-if-absent when its own identity appears during the slug lookup", async () => {
+  const { deps, events } = harness();
+  const record = menu();
+  const findBySlug = deps.repo.findBySlug.bind(deps.repo);
+  deps.repo.findBySlug = async request => {
+    await deps.repo.save({ ...record, title: "Concurrent create" });
+    return findBySlug(request);
+  };
+  await assert.rejects(importMenuEntity({ deps, input: { workspaceId: "destination", record } }), MenuVersionConflictError);
+  assert.equal((await deps.repo.findById({ workspaceId: "destination", id: record.id }))?.title, "Concurrent create");
+  assert.deepEqual(events, []);
+});
 
 // F4.4/F6.3: each OCC guard alone can reject; deleting it would overwrite or create a row.
 for (const scenario of ["create-existing", "update-missing", "stale-update", "slug-collision"] as const) {

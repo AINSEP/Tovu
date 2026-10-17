@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -239,4 +240,38 @@ test("collection-entry: a tombstoned owning type blocks planning and no entry is
   ]);
   await applyReport(report, entities, dest);
   assert.deepEqual(await dst.entries.listByWorkspaceExcludingTypes({ workspaceId: WORKSPACE_ID, excludeTypes: [] }), []);
+});
+
+test("collection-entry: a missing owning type may arrive after precheck, and omitted publishedAt imports as null", async () => {
+  const { source, dst } = await sites();
+  const contentTypes = new InMemoryContentTypeRepo();
+  const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes, terms: dst.terms } }, "late-owner");
+  const handler = contributeCollectionEntryPublish().build(dest);
+  const packed = (await packAll(source)).find(entity => entity.id === "e-cake");
+  assert.ok(packed);
+  const state = { ...packed.state };
+  delete state.publishedAt;
+  const entity = { ...packed, state };
+  assert.equal(await handler.precheck(entity), null);
+  assert.equal(await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: entity.id }), null);
+  await contentTypes.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Recipes", fields: [{ name: "servings", kind: "integer", required: false, queryable: false }], status: "active", version: 1, tombstonedAt: null });
+  await handler.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "late-owner-cake" });
+  const stored = await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: entity.id });
+  assert.ok(stored);
+  assert.equal(stored.type, "recipe");
+  assert.equal(stored.slug, "cake");
+  assert.equal(stored.status, "draft");
+  assert.equal(stored.publishedAt, null);
+});
+
+test("collection-entry references include its owning collection and assigned terms", async () => {
+  const { source, dest } = await sites();
+  const handler = contributeCollectionEntryPublish().build(dest);
+  const packed = (await packAll(source)).find(entity => entity.id === "e-soup");
+  assert.ok(packed);
+  assert.ok(handler.references);
+  assert.deepEqual(handler.references({ ...packed, state: { ...packed.state, termIds: ["t-vegan"] } }), [
+    { entityType: "content-type", key: "recipe" },
+    { entityType: "term", key: "t-vegan" },
+  ]);
 });

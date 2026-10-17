@@ -123,4 +123,18 @@ test("InMemoryChangeSetRepo: listByWorkspace sorts correctly by createdAt descen
   assert.equal(list[2].id, "cs-older");
 });
 
+test("InMemoryChangeSetRepo: a missing id in a populated workspace returns null", async () => {
+  const record = makeRecord();
+  const repo = new InMemoryChangeSetRepo([record]);
+  assert.equal(await repo.findById({ workspaceId: record.workspaceId, id: "missing" }), null);
+  assert.deepEqual(await repo.findById({ workspaceId: record.workspaceId, id: record.id }), { changeSet: record, items: [] });
+});
+
+test("InMemoryChangeSetRepo: newest-first listing also sorts headers inserted newest first", async () => {
+  const newest = makeRecord({ id: "newest", createdAt: "2026-07-18T00:00:00.000Z" });
+  const oldest = makeRecord({ id: "oldest", createdAt: "2026-07-14T00:00:00.000Z" });
+  const middle = makeRecord({ id: "middle", createdAt: "2026-07-16T00:00:00.000Z" });
+  const repo = new InMemoryChangeSetRepo([newest, oldest, middle]);
+  assert.deepEqual(await repo.listByWorkspace({ workspaceId: "workspace-1" }), [newest, middle, oldest]);
+});
 

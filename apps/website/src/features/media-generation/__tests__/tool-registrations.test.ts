@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createHttpClient, EgressRefusedError } from "@jini-ai/platform/http/guarded";
 import type { HttpResponse } from "#src/platform/http/index";
@@ -535,6 +536,69 @@ test("the ToolPolicy layer is a pass-through 'allow' — enforcement is this fil
   const registration = wired("media_generate_asset", deps);
   const decision = registration.policy.authorize({ principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, tool: registration.descriptor, input: {} });
   assert.equal(decision, "allow");
+});
+
+test("a punctuation-only prompt uses a safe fallback title", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "!@#$%^&*()" })) as {
+    media: { id: string; title: string; publicUrl: string | null };
+  };
+  assert.equal(out.media.title, "generated-image");
+  assert.equal(out.media.publicUrl, null, "no public transform is registered");
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: out.media.id });
+  assert.ok(stored);
+  assert.equal(stored.title, "generated-image");
+});
+
+test("a saved key without a base URL reaches the generator without inventing one", async () => {
+  const fixture = fakeRouteDeps();
+  await saveMediaProviderCredentials(
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
+    { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "key-without-base-url" } } },
+  );
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({
+    prompt: "Abstract shape", model: "gpt-image-2", allowStubFallback: false,
+  })) as { media: { id: string } };
+  assert.deepEqual(fixture.generateCalls[0]!.credentials, { apiKey: "key-without-base-url" });
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: out.media.id });
+  assert.ok(stored);
+  assert.equal(stored.title, "Abstract-shape");
+});
+
+test("an explicit stub opt-in lets the generator decide what to do without credentials", async () => {
+  const calls: ProviderCredentials[] = [];
+  const fixture = fakeRouteDeps({ generateMedia: async (_request, credentials, options) => {
+    calls.push(credentials);
+    assert.equal(options.allowStubFallback, true);
+    return { bytes: FAKE_PNG_BYTES, providerNote: "test placeholder", providerId: options.providerId, usedStubFallback: true, warnings: [] };
+  } });
+  const result = await wired("media_generate_asset", fixture.deps).handler(executionContext({
+    prompt: "Placeholder", model: "gpt-image-2", allowStubFallback: true,
+  })) as { media: { id: string; placeholder: boolean } };
+  assert.deepEqual(calls, [{}]);
+  assert.equal(result.media.placeholder, true);
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
+  assert.ok(stored);
+  assert.equal(stored.title, "Placeholder");
+  assert.equal(stored.source.sha256, createHash("sha256").update(FAKE_PNG_BYTES).digest("hex"));
+});
+
+test("the production credential environment is used when the optional environment port is omitted", async (t) => {
+  const previous = process.env.OPENAI_API_KEY;
+  t.after(() => {
+    if (previous === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previous;
+  });
+  process.env.OPENAI_API_KEY = "test-process-openai-key";
+  const fixture = fakeRouteDeps();
+  const deps: RegistryDepsWithoutLimiter & { env?: NodeJS.ProcessEnv } = { ...fixture.deps };
+  delete deps.env;
+  const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "Environment fixture", model: "gpt-image-2" })) as { media: { id: string } };
+  assert.deepEqual(fixture.generateCalls[0]!.credentials, { apiKey: "test-process-openai-key" });
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
+  assert.ok(stored);
+  assert.equal(stored.title, "Environment-fixture");
 });
 
 
