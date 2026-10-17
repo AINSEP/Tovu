@@ -59,6 +59,31 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
   });
 });
 
+describe("Studio Soon navigation", () => {
+  it("places Admin Themes immediately between Themes and Design System with its own Soon route and icon", () => {
+    const studio = getNav().find((group) => group.label === "Studio")!;
+    const themesIndex = studio.items.findIndex((item) => item.id === "themes");
+    expect(themesIndex).toBeGreaterThanOrEqual(0);
+    expect(studio.items.slice(themesIndex, themesIndex + 3).map((item) => item.id)).toEqual([
+      "themes", "admin-themes", "design-system",
+    ]);
+    expect(studio.items[themesIndex + 1]).toMatchObject({
+      label: "Admin Themes", href: "/admin-themes", soon: true, soonPreviewable: true,
+    });
+    expect(studio.items[themesIndex + 1].icon).toBeTruthy();
+    expect(studio.items[themesIndex + 1].icon).not.toBe(studio.items[themesIndex].icon);
+  });
+
+  it("makes every announced Soon row previewable through the shared nav model", () => {
+    const soonItems = getNav().flatMap((group) => group.items).filter((item) => item.soon);
+    expect(soonItems.length).toBeGreaterThan(0);
+    for (const item of soonItems) {
+      expect(item.soonPreviewable, item.id).toBe(true);
+      expect(item.href, item.id).toMatch(/^\//);
+    }
+  });
+});
+
 describe("Add-Ons nav section", () => {
   // 2026-09-10, second pass (owner call): renamed BACK from "Integrations" to "Add-Ons", and
   // narrowed from four rows to three — `providers` and `integrations` (four tabs total between
@@ -181,7 +206,8 @@ describe("Commerce nav section", () => {
     // Owner's stated rationale: "All of these should be coming soon... because they're obviously
     // not active now" — but a section where some rows are clickable-preview and others are inert
     // would read as a bug, so every row matches Payments' existing `soonPreviewable: true` rather
-    // than defaulting to the disabled-non-link shape `skills`/`newsletter`/`design-system` use.
+    // than defaulting to a disabled non-link. Tovu's shared nav adapter now applies that same
+    // preview policy to all Soon rows, including Design System's placeholder.
     const commerce = getNav().find((group) => group.label === "Commerce");
     expect(commerce).toBeDefined();
 

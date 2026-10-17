@@ -524,6 +524,17 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     },
   },
   {
+    id: "admin-themes",
+    render: () => <Placeholder sectionId="admin-themes" agentHandle="admin-themes" />,
+    nav: {
+      label: "Admin Themes",
+      group: "Studio",
+      soon: true,
+      // An admin window with a palette swatch, distinct from site Themes' overlapping circles.
+      icon: '<rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M2.5 6.5h13M6.5 6.5V15"/><circle cx="11" cy="10.5" r="2"/>',
+    },
+  },
+  {
     id: "design-system",
     render: () => <Placeholder sectionId="design-system" agentHandle="design-system" />,
     nav: {

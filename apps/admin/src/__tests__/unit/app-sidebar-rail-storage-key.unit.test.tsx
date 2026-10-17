@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import { render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";
@@ -111,6 +111,50 @@ it("reads a rail preference an operator already saved before this migration", as
 
   expect(container.querySelector(".cms-nav")).toHaveClass("is-rail");
 });
+
+it.each([
+  ["Design System", "design-system", "Studio"],
+  ["Appearance", "admin-appearance", "Studio"],
+  ["Admin Themes", "admin-themes", "Studio"],
+  ["Authentication", "authentication", "People"],
+  ["Comments", "comments", "People"],
+])("clicking Soon item %s navigates and highlights it without collapsing the sidebar or group", async (label, id, group) => {
+  localStorage.setItem(LEGACY_KEY, "0");
+  window.history.replaceState(null, "", "/admin/activity-log");
+  // The default test media stub returns false for every query, which would silently skip the
+  // empty-click rail listener. Exercise the actual desktop path that misclassified inert rows.
+  const matchMedia = vi.spyOn(window, "matchMedia");
+  const defaultMatchMedia = matchMedia.getMockImplementation()!;
+  matchMedia.mockImplementation((query) => ({ ...defaultMatchMedia(query), matches: query === "(min-width: 901px)" }));
+  try {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
+    const nav = container.querySelector<HTMLElement>(".cms-nav")!;
+    expect(nav).not.toHaveClass("is-rail");
+    expect(within(nav).getByRole("button", { name: group })).toHaveAttribute("aria-expanded", "true");
+
+    // Click the label, not a queried link: the broken code renders this label inside an inert
+    // div, and this must catch its rail collapse rather than fail before dispatching the click.
+    await user.click(within(nav).getByText(label, { exact: true }));
+
+    expect(nav).not.toHaveClass("is-rail");
+    expect(within(nav).getByRole("button", { name: group })).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(window.location.pathname).toBe(`/admin/${id}`));
+    expect(container.querySelector("main")).toHaveAttribute("data-agent-page", id);
+    const link = within(nav).getByRole("link", { name: new RegExp(`^${label}\\s*Soon$`) });
+    expect(link).toHaveAttribute("href", `/admin/${id}`);
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link).toHaveClass("is-soon", "active");
+    if (group === "Studio") {
+      const main = within(container.querySelector("main")!);
+      expect(main.getByRole("heading", { name: label, level: 1 })).toBeVisible();
+      expect(main.getByText(`${label} is coming soon.`)).toBeVisible();
+    }
+  } finally {
+    matchMedia.mockImplementation(defaultMatchMedia);
+  }
+}, 15000);
 
 /** `App` mounts the assistant dock, whose agents list reads through the app's query cache — render
  *  under the same provider `main.tsx` wraps `App` in. */

@@ -76,9 +76,9 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // Webhooks) moved into `providers` (now labelled "Integrations"), and its own id/route stayed for
   // the `/:subscriptionId` deliveries drill-down and the retired index route's redirect — see
   // `panels.tsx`'s own comment on both panels for the full history.
-  it("has 46 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(46);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(46);
+  it("has 47 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(47);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(47);
   });
 });
 
@@ -93,6 +93,7 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "members", component: Members },
   { id: "comments", component: Comments },
   { id: "skills", component: Skills },
+  { id: "admin-themes", component: Placeholder, extraProps: { sectionId: "admin-themes" } },
   { id: "design-system", component: Placeholder, extraProps: { sectionId: "design-system" } },
   { id: "admin-appearance", component: Placeholder, extraProps: { sectionId: "admin-appearance" } },
   { id: "playground", component: Playground },

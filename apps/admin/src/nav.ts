@@ -56,6 +56,8 @@ let cachedNav: readonly AdminNavGroup[] | undefined;
  * The nav model shared by `App.tsx` (passed to `Sidebar`) and `components/Placeholder.tsx` (its own
  * lookup). See the file header for why this is a lazy, memoized function rather than a module-level
  * constant.
+ * All announced Tovu sections have a routable page. Opt into Jini's existing Soon-link rendering
+ * here so a placeholder stays navigable and its click cannot look like blank rail space.
  *
  * @complexity O(1) amortized — `buildNav` (`O(n log n)` in panel count) runs once; every call after
  * the first returns the cached array.
@@ -63,7 +65,11 @@ let cachedNav: readonly AdminNavGroup[] | undefined;
 export function getNav(): readonly AdminNavGroup[] {
   if (!cachedNav) cachedNav = buildNav({ panels: ADMIN_PANELS }).map((group) => ({
     ...group,
-    items: group.items.map((item) => ({ ...item, href: ADDONS_PANEL_PATHS[item.id] ?? item.href })),
+    items: group.items.map((item) => ({
+      ...item,
+      href: ADDONS_PANEL_PATHS[item.id] ?? item.href,
+      soonPreviewable: item.soon || item.soonPreviewable,
+    })),
   }));
   return cachedNav;
 }
