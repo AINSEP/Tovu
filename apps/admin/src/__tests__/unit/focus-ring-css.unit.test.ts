@@ -12,6 +12,7 @@ import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /** From `process.cwd()` for the reason `sidebar-accordion-css.unit.test.ts` gives. */
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
+const themeStylesheet = readFileSync(resolve(process.cwd(), "src/admin-themes/classic/admin.css"), "utf8");
 
 /** Rules whose selector ends in a bare `:focus` (not `:focus-visible`/`:focus-within`). */
 function bareFocusSelectors(css: string): string[] {
@@ -22,7 +23,7 @@ function bareFocusSelectors(css: string): string[] {
 
 describe("admin focus ring", () => {
   it("defines the ring as the brand primary", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(/--focus-ring\s*:\s*var\(--primary\)\s*;/);
+    expect(effectiveDeclarationsFor(themeStylesheet, ":root")).toMatch(/--focus-ring\s*:\s*var\(--primary\)\s*;/);
   });
 
   it("colours every focus-visible outline with the ring token, whichever rule drew it", () => {

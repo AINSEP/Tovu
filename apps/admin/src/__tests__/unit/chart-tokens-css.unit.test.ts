@@ -14,7 +14,7 @@ import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
  * own surface and ink. A pure-CSS invariant (jsdom resolves no custom properties), so it is asserted
  * as text over the stylesheet, like `narrow-content-column-css`.
  */
-const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
+const stylesheet = readFileSync(resolve(process.cwd(), "src/admin-themes/classic/admin.css"), "utf8");
 const NEUTRAL_TOKENS = ["grid", "axis", "cursor", "surface", "text"].map((slot) => `--jini-chart-${slot}`);
 const SERIES_TOKENS = ["1", "2", "3", "4", "5", "6"].map((slot) => `--jini-chart-${slot}`);
 

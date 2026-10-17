@@ -13,6 +13,7 @@ import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 /** From `process.cwd()` for the reason `sidebar-accordion-css.unit.test.ts` gives. */
 const root = resolve(process.cwd(), "src");
 const stylesheet = readFileSync(resolve(root, "styles.css"), "utf8");
+const themeStylesheet = readFileSync(resolve(root, "admin-themes/classic/admin.css"), "utf8");
 const sheets = [
   "styles.css",
   ...readdirSync(resolve(root, "styles"))
@@ -24,24 +25,24 @@ const RING = /var\(--selected-ring\)/;
 
 describe("admin selection ring", () => {
   it("defines the ring as the brand primary", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(/--selected-ring\s*:\s*var\(--primary\)\s*;/);
+    expect(effectiveDeclarationsFor(themeStylesheet, ":root")).toMatch(/--selected-ring\s*:\s*var\(--primary\)\s*;/);
   });
 
   it("maps Jini's primary inputs to the brand primary, so every --jini-accent* token is orange", () => {
-    const rootDeclarations = effectiveDeclarationsFor(stylesheet, ":root");
+    const rootDeclarations = effectiveDeclarationsFor(themeStylesheet, ":root");
     expect(rootDeclarations).toMatch(/--jini-theme-light-primary\s*:\s*var\(--primary\)\s*;/);
     expect(rootDeclarations).toMatch(/--jini-theme-dark-primary\s*:\s*var\(--primary\)\s*;/);
   });
 
   it("selected-item text is the primary in light, the lighter primary in dark, and the primary again on the light-pinned Settings panel", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
-    expect(effectiveDeclarationsFor(stylesheet, ':root[data-theme="dark"]')).toMatch(/--selected-text\s*:\s*var\(--primary-strong\)\s*;/);
+    expect(effectiveDeclarationsFor(themeStylesheet, ":root")).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
+    expect(effectiveDeclarationsFor(themeStylesheet, ':root[data-theme="dark"]')).toMatch(/--selected-text\s*:\s*var\(--primary-strong\)\s*;/);
     const settings = sheets.find((sheet) => sheet.path === "styles/settings.css")!.css;
     expect(effectiveDeclarationsFor(settings, '.settings-ui-section[data-theme="light"]')).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
   });
 
   it("the active sidebar label is the selected-text orange, nudged toward --fg for contrast on its tinted row", () => {
-    expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(
+    expect(effectiveDeclarationsFor(themeStylesheet, ":root")).toMatch(
       /--selected-text-on-tint\s*:\s*color-mix\(in oklab, var\(--selected-text\) \d+%, var\(--fg\)\)\s*;/,
     );
     const declaration = effectiveDeclarationsFor(stylesheet, ".cms-item.active").match(/(?:^|; )color: ([^;]+);/);

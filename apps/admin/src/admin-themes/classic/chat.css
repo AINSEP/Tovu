@@ -1,0 +1,82 @@
+/* Classic chat values. The scoped aliases in styles/assistant.css beat the package's
+   injected pane/popover defaults; themes never select those components themselves. */
+/* `@jini-ai/chat`'s injected default theme (see the header comment in styles/assistant.css) redefines its
+   `--jini-chat-*` custom properties on TWO separate mount points on this page: the docked
+   `.jini-chat-pane` and `.jini-runtime-popover` (doubled class, not `.admin-chat-dock
+   .jini-runtime-popover`: this popover likely portals out of `.admin-chat-dock` — which sets
+   `overflow: hidden` — to escape that clipping, so an ancestor-scoped selector could silently never
+   match; the doubled class raises specificity to beat the injected theme's plain
+   `.jini-runtime-popover` without depending on DOM nesting). Eight of `.jini-chat-pane`'s twelve
+   overrides are identical at both mount points, so the structural bridge groups those selectors
+   instead of copying them twice. The input values below preserve that split; the original four
+   pane-only properties (background, the "strong" border step and accent pair), plus subsequently
+   added bubble/danger/radius values, feed its pane-only block. */
+:root {
+  --jini-theme-chat-panel: var(--surface);
+  /* REVERTED to `var(--surface-2)` (owner report, 2026-09-01: "the chat input should be gray,
+     the chat pane should be white — it's hard to see where the input is"). The earlier flattening
+     to `--surface` came from an owner report that the *pane* read grey, but the pane background is
+     `--jini-chat-bg`/`--jini-chat-panel`, not this token — `--jini-chat-subtle` only paints the
+     UNFOCUSED composer box, the suggestion pills and the message-status strip. Flattening it made
+     the composer invisible against the pane without fixing what was actually reported. The pane
+     stays pure white either way. */
+  --jini-theme-chat-subtle: var(--surface-2);
+  --jini-theme-chat-text: var(--fg);
+  --jini-theme-chat-text-strong: var(--fg);
+  --jini-theme-chat-muted: var(--muted);
+  --jini-theme-chat-faint: var(--faint);
+  /* Sourced from `--chat-border-seam`/`--chat-border-strong-seam` (:root tokens, `admin-themes/classic/admin.css`) —
+     NOT from `var(--border)`/`var(--border-strong)` directly, and that indirection is load-bearing,
+     not stylistic. Those two token names are exactly what the package's own injected default theme
+     (`CHAT_PANE_STYLES`, `chat/src/react/features/chat-pane/styles.ts`) redefines on `.jini-chat-pane`
+     itself (`--border: var(--jini-chat-border)`) — pointing this block at `--border` directly would
+     close a cycle between the two stylesheets: `--jini-chat-border` would depend on `--border`, which
+     the package's own rule makes depend on `--jini-chat-border` right back. Per the CSS
+     custom-properties spec, a cyclic reference makes every property in the cycle invalid at
+     computed-value time, which is why every `--border*`/`--jini-chat-border*` token on `.jini-chat-pane`
+     and its descendants used to compute to nothing (confirmed live: the composer's border rendered
+     `0px none`) before this seam existed. `--chat-border-seam`/`--chat-border-strong-seam` break the
+     cycle by re-deriving `--border`/`--border-strong` at :root, an ancestor the package's rule never
+     reaches, so this block's own declarations no longer feed back into themselves — and because the
+     alias lives at :root rather than scoped to `.admin-chat-dock`, `.jini-runtime-popover` (which
+     portals outside that subtree) resolves the exact same alias instead of needing its own direct
+     `var(--border)` reference. */
+  --jini-theme-chat-border: var(--chat-border-seam);
+  --jini-theme-chat-border-soft: var(--chat-border-seam);
+}
+
+:root {
+  --jini-theme-chat-bg: var(--surface);
+  --jini-theme-chat-border-strong: var(--chat-border-strong-seam);
+  --jini-theme-chat-accent: var(--accent-text);
+  --jini-theme-chat-accent-soft: var(--surface-2);
+  /* Sent bubbles keep their contrast independently of the host's light/dark accent palette. */
+  --jini-theme-chat-user-bubble: #1a1b1c;
+  --jini-theme-chat-user-bubble-ink: #fff;
+  /* Jini 2cf1b246 stopped hardcoding `--danger`/`--radius`/`--radius-lg` on `.jini-chat-pane` and
+     introduced these three namespaced seams (package defaults: `#e5484d`, `8px`, `12px`) instead —
+     consumed as `--danger: var(--jini-chat-danger)` etc. on that same element. Pane-only, not in
+     the shared block above: verified against the package's source
+     (`packages/chat/src/react/features/chat-pane/styles.ts`) that every consumer of all three
+     (`.jini-message-error`, `.jini-working-dir-trigger.invalid`, `.op-status-error`, `.op-card`) is
+     scoped under `.jini-chat-pane`, and `.jini-runtime-popover`'s own local var block never
+     declares any of the three — the portal genuinely does not need this treatment, unlike the
+     border pair above.
+
+     `--jini-theme-chat-danger` goes through `--chat-danger-seam` (classic/admin.css :root), not `var(--danger)`
+     directly, for the exact reason the border pair does: the package's own rule on this same
+     element sets `--danger: var(--jini-chat-danger)`, so a direct reference here would close a
+     cycle identical to the one that used to make every `--border*` token compute to nothing (see
+     this file's header comment and the seam's own comment in classic/admin.css). */
+  --jini-theme-chat-danger: var(--chat-danger-seam);
+  /* `--r-sm`/`--r-md` are genuine Tovu radius steps (classic/admin.css `:root`, a real sm/md/lg/pill
+     scale), not invented for this seam — closest-magnitude match to the package's 8px/12px pair
+     (7px and 11px) while preserving its base-vs-lg ordering. No cycle risk here: unlike `--danger`,
+     Tovu's radius tokens are never redefined by the package's own rule, so there is nothing for
+     these to cycle against. `--radius-lg` has no live consumer inside `.jini-chat-pane` today (only
+     `.op-card` reads `--radius`) but is wired anyway so the seam is complete rather than
+     half-honored. */
+  --jini-theme-chat-radius: var(--r-sm);
+  --jini-theme-chat-radius-lg: var(--r-md);
+}
+

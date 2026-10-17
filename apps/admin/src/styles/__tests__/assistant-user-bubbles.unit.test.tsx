@@ -4,9 +4,11 @@ import type { CSSProperties } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { ChatPane, registerMidRunUserMessageRenderer, type ChatTransport } from "@jini-ai/chat/react";
+import { effectiveDeclarationsFor } from "../../__tests__/unit/css-declarations.test-helper";
 
 // Vitest rewrites import.meta.url to the jsdom origin; resolve from the test's filesystem path.
 const adminCss = readFileSync(path.resolve(__dirname, "../assistant.css"), "utf8");
+const themeCss = readFileSync(path.resolve(__dirname, "../../admin-themes/classic/chat.css"), "utf8");
 let unregister: (() => void) | undefined;
 
 afterEach(() => { cleanup(); unregister?.(); });
@@ -36,8 +38,12 @@ it.each([
   const bubbles = container.querySelectorAll('.jini-message-user .jini-message-content');
   expect(bubbles).toHaveLength(3);
   const pane = container.querySelector('.jini-chat-pane')!;
-  expect(getComputedStyle(pane).getPropertyValue('--jini-chat-user-bubble')).toBe('#1a1b1c');
-  expect(getComputedStyle(pane).getPropertyValue('--jini-chat-user-bubble-ink')).toBe('#fff');
+  // Raw style injection does not load @import, and jsdom does not resolve var(); check both ends.
+  expect(getComputedStyle(pane).getPropertyValue('--jini-chat-user-bubble')).toBe('var(--jini-theme-chat-user-bubble)');
+  expect(getComputedStyle(pane).getPropertyValue('--jini-chat-user-bubble-ink')).toBe('var(--jini-theme-chat-user-bubble-ink)');
+  const themeDeclarations = effectiveDeclarationsFor(themeCss, ':root');
+  expect(themeDeclarations).toMatch(/--jini-theme-chat-user-bubble:\s*#1a1b1c\s*;/);
+  expect(themeDeclarations).toMatch(/--jini-theme-chat-user-bubble-ink:\s*#fff\s*;/);
   const rules = Array.from(container.querySelector<HTMLStyleElement>('.jini-chat-pane style')!.sheet!.cssRules) as CSSStyleRule[];
   const rule = rules.find(rule => rule.selectorText === '.jini-chat-pane .jini-message-user .jini-message-content')!;
   // The package rule consumes the host tokens for both DOM shapes; jsdom does not resolve var().
