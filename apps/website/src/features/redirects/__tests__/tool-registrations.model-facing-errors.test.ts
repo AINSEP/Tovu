@@ -95,7 +95,7 @@ test("redirects_create: an invalid pattern is REDIRECTS_VALIDATION with the chok
   const { deps } = makeDeps();
   assert.equal(
     await rejectionMessage(handler(deps, "redirects_create")(ctx({ matchType: "regex", fromPattern: "/a.*", toTarget: "/b", statusCode: 301 }))),
-    "REDIRECTS_VALIDATION: matchType 'regex' is not enabled in v1 (REQ-22)",
+    "REDIRECTS_VALIDATION: matchType 'regex' is not enabled in v1",
   );
 });
 

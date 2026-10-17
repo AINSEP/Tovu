@@ -1,4 +1,5 @@
 /** t08: preview tool auth, passthrough, output projection and real rendering. */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildPostPreviewRegistrations, postPreviewDerivedRisk } from "../preview-tool.js";

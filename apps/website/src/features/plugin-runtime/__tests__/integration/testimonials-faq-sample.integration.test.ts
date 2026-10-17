@@ -4,6 +4,7 @@
  * its two content types, and a page's collection markers render the FAQ as an accordion with
  * FAQPage JSON-LD and the testimonials as a carousel.
  */
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
