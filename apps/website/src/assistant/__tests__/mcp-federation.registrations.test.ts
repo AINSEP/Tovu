@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { createFederationRuntime } from "../external-mcp-federation-runtime.js";
 import assert from "node:assert/strict";

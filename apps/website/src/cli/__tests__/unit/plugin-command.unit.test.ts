@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /** Owner-approved folder-install plan: command shape, explicit consent and byte-only authoring. */
 import assert from "node:assert/strict";
