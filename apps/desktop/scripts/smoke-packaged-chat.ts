@@ -3,7 +3,8 @@
  * Uses only the shipped server/native SQLite module; requires a logged-in Claude CLI on this Mac.
  * Never mirrors child output, response bodies, cookies, tokens, or transcript evidence.
  */
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { userInfo } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
@@ -136,6 +137,12 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
   // withIsolatedSmokeTargets removes this profile with the copied app after all children stop.
   const homeDir = path.join(directory, "home");
   await mkdir(path.join(homeDir, "Documents"), { recursive: true });
+  if (process.platform === "darwin") {
+    // Claude CLI login lives in the user's Keychain; everything Tovu writes stays in the temp home.
+    const libraryDir = path.join(homeDir, "Library");
+    await mkdir(libraryDir, { recursive: true });
+    await symlink(path.join(userInfo().homedir, "Library", "Keychains"), path.join(libraryDir, "Keychains"));
+  }
   const gateEnv: NodeJS.ProcessEnv = { ...process.env,
     HOME: homeDir, USERPROFILE: homeDir,
     APPDATA: path.join(homeDir, "AppData", "Roaming"),
