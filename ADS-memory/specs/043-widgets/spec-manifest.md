@@ -72,6 +72,7 @@ brownfield code — recorded here per the Spec Agent's read-before-write instruc
 
 ## Validation Notes
 
+- Supplementary slice: `cross-surface-embeds.spec.md` — DRAFT; not part of the accepted package.
 - Validator last run: **not run** — this package was authored directly by the Coordinator, not
   dispatched through the formal Spec Agent + provider-local validator flow. Disclosed, not hidden.
 - Validator result: N/A

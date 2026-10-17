@@ -67,6 +67,7 @@
 
 ## Validation Notes
 
+- Supplementary slices: `theme-bundles.spec.md` and `theme-tiers-liquid-isolation.spec.md` — DRAFT; not part of the accepted package.
 - Validator last run: 2026-07-07T03:40:00Z (`validate_spec_package.py --phase spec --update-hash`)
 - Validator result: PASS — strict Speckit package passed mechanical validation
 - Validator manual waiver: N/A

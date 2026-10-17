@@ -19,3 +19,15 @@
 | RT fixes | **APPLIED** | 2026-07-07 | All 5 ADVISORY resolved (RT-001 behavior.spec Drizzle cleanup, RT-002 present-but-corrupt-db→SITE_CORRUPT, RT-003 ENOSPC/EACCES EC-10, RT-004 shutdown drain, **RT-005 schemaVersion now index+tag** for divergence detection — new `.site-meta.json.schemaTag`, noted in ADR-015). Re-validated PASS. RT-006 (Art. I CLI framework growth) remains an Architect note. |
 | Software Architect | **DRAFTED (v1.1.0)** | 2026-07-28 | `adr.md` (ADR-PIPE-003), `implementation-outline.md`, and `critical-internal-constraints.md` produced, then revised to v1.1.0 at owner direction: `commander` adopted in v1 (not deferred behind the original two-tier growth trigger), justified by SPEC-005's committed subcommand growth + Tovu-Runner's planned programmatic CLI invocation. Article I re-derived as COMPLIES (was EXCEPTION). |
 | Architecture Sign-Off | **APPROVED** | 2026-07-28 | Owner Leon Aburime approved ADR-PIPE-003 v1.1.0. Cleared for TDD dispatch. |
+
+
+## Review evidence reconciliation — 2026-10-17
+
+This records located evidence, not current acceptance. See [feature-review-gates.md](../../2026-10-17-todotriage-c2/feature-review-gates.md) (TRIAGE s3-23 / s3-25).
+
+| Stage | Recorded outcome | Evidence date | Current disposition |
+|---|---|---|---|
+| Code Inspection / historical Code Review | CHANGES REQUIRED | 2026-07-28 | [CR-003](../../code-review/CR-003-site-install-dir-2026-07-28.md), Required CR-R01–08. Current source differs; no fresh accepted disposition recorded here. |
+| Security | One High; explicit sign-off required | 2026-07-28 | [SEC-003](../../security/SEC-003-site-install-dir-2026-07-28.md), SEC-003-01. No current acceptance inferred from later source changes. |
+
+The prior TODO statement that these stages never ran is incorrect. Their historical reports exist and failed; current closure remains unverified. No tests or executable review gates ran in this reconciliation.

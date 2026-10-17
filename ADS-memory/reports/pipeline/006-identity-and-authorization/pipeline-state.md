@@ -23,3 +23,16 @@
 ## Next Step
 
 Both open amendments (0.6.0 admin-CRUD-completion, 0.7.0 `CREATE_PRINCIPAL` surface) need **one combined Red-Team pass over the new material only**, then an **owner DRAFT→APPROVED checkpoint**, before TDD can certify against ADR-PIPE-006 and Programmer can build the API-key issuance plumbing. Separately, ADR-PIPE-006 itself still needs **human architecture sign-off** (independent of the spec checkpoint above — both gates must clear).
+
+
+## Review evidence reconciliation — 2026-10-17
+
+TRIAGE s3-21 / s3-25: [combined amendment review](../../2026-10-17-todotriage-c2/identity-amendment-review.md) and [feature review gates](../../2026-10-17-todotriage-c2/feature-review-gates.md).
+
+| Stage | Recorded outcome | Evidence |
+|---|---|---|
+| Combined 0.6.0 / 0.7.0 amendment review | BLOCKED; written probes recorded, independent Red-Team completion not asserted | Read-only document validator computes sha256:d8e88380dd6cb68792986a50429178ff99a871dd160e24fd9551da90d74bce4b; recorded July hash above is stale. Later REQ-16 / AC-28 username amendment requires synchronized package identity before certification. |
+| Code Inspection | NOT RECORDED / current acceptance unverified | Spec Red-Team results do not substitute for feature implementation inspection. |
+| Security | NOT RECORDED / current acceptance unverified | No feature-specific accepted implementation security result located in this reconciliation. |
+
+No approval or recorded hash above was overwritten. Owner spec checkpoint and separate ADR-PIPE-006 / ADR-048 sign-off remain owed. Document validation exited 1 (hash mismatch plus four disclosed DRAFT/readiness violations); application tests/typecheck/builds/network review commands were not run.
