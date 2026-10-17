@@ -1,10 +1,12 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
-import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
+import { createCustomCredential, CustomCredentialNotFoundError, type CustomCredentialWriteDeps } from "../store.js";
+import { withCustomCredentialSetup } from "../credential-recovery.js";
 import { makeCredentialedRequest, verifyCustomCredential, type CredentialedRequestDeps } from "../credentialed-request.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { isIssuedToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
@@ -331,4 +333,63 @@ test("verifyCustomCredential: an 'unreachable' (500) result carries no authDiagn
 
   assert.equal(result.status, "unreachable");
   assert.equal("authDiagnostic" in result, false);
+});
+
+test("missing credentials still offer setup when the request URL cannot supply a valid origin", async () => {
+  const result = await withCustomCredentialSetup({ label: "Example provider", url: "not an absolute URL",
+    invoke: async () => { throw new CustomCredentialNotFoundError("credential not found"); },
+  }, {});
+  assert.deepEqual(result, { executed: false, credentialSetup: {
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", label: "Example provider" },
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  } });
+  assert.equal(isIssuedToolFailureDiagnostic({ value: result.credentialSetup }, {}), true);
+});
+
+test("credential recovery propagates unrelated failures unchanged", async () => {
+  const error = new Error("credential storage is unavailable");
+  await assert.rejects(withCustomCredentialSetup({ label: "Example provider", invoke: async () => { throw error; } }),
+    thrown => thrown === error);
+});
+
+for (const authDiagnostic of [
+  { usernameStored: true, schemeSent: "Bearer" },
+  { usernameStored: false, schemeSent: "Basic" },
+]) {
+  test(`a rejected request offers rotation for ${authDiagnostic.schemeSent} with usernameStored=${authDiagnostic.usernameStored}`, async () => {
+    const output = { status: 401, bodyText: "provider rejection", authDiagnostic };
+    const result = await withCustomCredentialSetup({ label: "Example provider", invoke: async () => output });
+    assert.deepEqual(result, { ...output, credentialSetup: {
+      setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", target: "Example provider" },
+      hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+    } });
+    assert.equal(isIssuedToolFailureDiagnostic({ value: (result as { credentialSetup: unknown }).credentialSetup }, {}), true);
+    assert.equal("credentialSetup" in output, false, "provider output is not mutated");
+  });
+}
+
+for (const authDiagnostic of [undefined, { usernameStored: false }, { usernameStored: false, schemeSent: "Bearer" }]) {
+  test(`a rejected request without a stored username or Basic scheme keeps its original diagnostic (${JSON.stringify(authDiagnostic)})`, async () => {
+    const output = { status: 401, bodyText: "provider rejection", authDiagnostic };
+    assert.equal(await withCustomCredentialSetup({ label: "Example provider", invoke: async () => output }), output);
+  });
+}
+
+test("verification rejection offers rotation while preserving the provider result", async () => {
+  const output = { status: "invalid", message: "The server rejected this token." };
+  assert.deepEqual(await withCustomCredentialSetup({ label: "Example provider", verification: true, invoke: async () => output }), {
+    ...output, credentialSetup: { setupToolId: "credential_save", remedyToolId: "credential_save",
+      prefill: { kind: "api", target: "Example provider" },
+      hint: "A missing or rejected credential may be fixed by saving it through the secure card." },
+  });
+});
+
+test("only verification results treat the invalid status as a rotation signal", async () => {
+  const output = { status: "invalid" };
+  assert.equal(await withCustomCredentialSetup({ label: "Example provider", verification: false, invoke: async () => output }), output);
+});
+
+test("successful verification preserves its exact provider result without a setup card", async () => {
+  const output = { status: "valid", message: "Connected." };
+  assert.equal(await withCustomCredentialSetup({ label: "Example provider", verification: true, invoke: async () => output }), output);
 });

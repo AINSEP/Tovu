@@ -1,8 +1,12 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 
-import type { ServerLogEntry } from "#src/platform/server-logs/index";
+import { attachServerLogFile, type ServerLogEntry } from "#src/platform/server-logs/index";
 import { serverLogsAgentToolCatalog } from "../../agent-tools.js";
 import { buildServerLogsRegistrations, serverLogsDerivedRisk } from "../../tool-registrations.js";
 import type { ServerLogSourcePort } from "../../read-server-logs.js";
@@ -31,6 +35,27 @@ test("returns the filtered lines through the shared readServerLogs", async () =>
 
 test("an unusable filter is a ToolInputError naming the field", async () => {
   await assert.rejects(() => tool().handler(ctx({ limit: 9999 })), { name: "ToolInputError", message: "limit must be an integer from 1 to 500" });
+});
+
+test("unexpected failures reading a filter propagate unchanged without reading logs", async () => {
+  const failure = new Error("filter property unavailable");
+  const input = { get level() { throw failure; } };
+  const unread: ServerLogSourcePort = { read: () => assert.fail("failed filters must not read logs") };
+  await assert.rejects(() => tool(true, unread).handler(ctx(input)), error => error === failure && error.message === "filter property unavailable");
+});
+
+test("omitting the source reads the attached process log", async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-tool-server-log-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const filePath = path.join(dir, "server.log");
+  const entry: ServerLogEntry = { ...ENTRIES[1], message: "process log fallback fixture" };
+  const detach = attachServerLogFile({ filePath });
+  t.after(detach);
+  // Attach first: any boot-buffer flush must precede the controlled persisted fixture.
+  fs.writeFileSync(filePath, `${JSON.stringify(entry)}\n`);
+  const registration = buildServerLogsRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "fixture grant" }) })[0]!;
+  const result = await registration.handler(ctx({ contains: "process log fallback fixture" }));
+  assert.deepEqual(result, { entries: [entry], matched: 1, buffered: 1, truncated: false, capturing: true });
 });
 
 test("permission denial precedes reading any log line", async () => {

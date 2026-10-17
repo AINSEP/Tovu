@@ -1,5 +1,6 @@
+import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from '../../../assistant/external-mcp-store.memory.js';
@@ -8,7 +9,7 @@ import { probeExternalMcpServer } from '../../../server/runtime/services/externa
 import { buildExternalMcpRegistrations } from '../../external-mcp/tool-registrations.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
-import { SealedDatabaseDestinationStore } from '../../database-transfer/destination-store.js';
+import { SealedDatabaseDestinationStore, type SavedDatabaseDestination } from '../../database-transfer/destination-store.js';
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
 import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
@@ -135,3 +136,99 @@ test('Jini protocol HTTP 403 is an auth verdict at the connection-check boundary
   const result = await probeExternalMcpServer({ ...deps, connect: async () => { throw new McpProtocolError({ message: "mcp-federation: the server answered 'initialize' with HTTP 403" }); } }, 'fixture');
   assert.deepEqual(result, { ok: false, status: 401, body: { error: 'The server rejected this token.', code: 'MCP_AUTH_REJECTED' } });
 });
+
+async function reportDestinationResult({ t, result, payload, get = async () => null, localeForExchange }: {
+  t: TestContext; result: unknown; payload?: SurfaceEmission['payload'];
+  get?: () => Promise<SavedDatabaseDestination | null>;
+  localeForExchange?: (required: { exchangeId: string }) => Promise<string>;
+}) {
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock,
+    idGenerator: { newId: () => 'destination-report' }, defaultChannel: 'mcp-ui' });
+  const emitted: SurfaceEmission[] = [];
+  const exchange = exchanges.open({ binding: { toolId: SET_DESTINATION_TOOL_ID, principalId: 'owner' },
+    emit: async emission => { emitted.push(emission); } });
+  t.after(() => exchange.close({}));
+  const readWorkspaces: string[] = [];
+  const report = createDestinationExchangeReporter({ workspaceId, store: {
+    get: async id => { readWorkspaces.push(id); return get(); },
+    save: async () => { assert.fail('reporting must not save a destination'); },
+    lastRun: async () => { assert.fail('reporting must not read a transfer run'); },
+    recordRun: async () => { assert.fail('reporting must not record a transfer run'); },
+  } }, { localeForExchange });
+  // Queue a real, bound human answer before receive; no scheduling delay is required.
+  assert.deepEqual(exchanges.deliver({ exchangeId: exchange.id, principalId: 'owner', params: {} },
+    { toolId: SET_DESTINATION_TOOL_ID }), { ok: true });
+  const output = await report({ exchange, confirmationEmission: { channel: 'mcp-ui',
+    payload: payload ?? { resource: buildDestinationForm(exchange.id) } },
+    handle: async answer => {
+      assert.deepEqual(answer, { status: 'received', params: {} });
+      return { result };
+    },
+  });
+  assert.equal(exchanges.size(), 0, 'the report closes its exchange');
+  assert.deepEqual(readWorkspaces, readWorkspaces.length === 0 ? [] : [workspaceId]);
+  return { output, emitted, reads: readWorkspaces.length };
+}
+
+for (const payload of [{}, { resource: {} }, { resource: { resource: {} } },
+  { resource: { resource: { uri: 'ui://another/form' } } }]) {
+  test(`destination reporting leaves unrelated surfaces unchanged (${JSON.stringify(payload)})`, async t => {
+    const result = { saved: true };
+    const report = await reportDestinationResult({ t, result, payload });
+    assert.equal(report.output, result);
+    assert.equal(report.emitted.length, 1);
+    assert.equal(report.reads, 0);
+  });
+}
+
+for (const result of [null, 7, {}, { saved: false }, { saved: false, message: 42 }]) {
+  test(`destination reporting preserves results without a displayable save outcome (${JSON.stringify(result)})`, async t => {
+    const report = await reportDestinationResult({ t, result });
+    assert.equal(report.output, result);
+    assert.equal(report.emitted.length, 1);
+    assert.equal(report.reads, 0);
+  });
+}
+
+test('destination save failures translate their message and render a failure card without opening the saved address', async t => {
+  const result = { saved: false, message: CREDENTIAL_MESSAGES.blank, code: 'blank' };
+  const report = await reportDestinationResult({ t, result, localeForExchange: async required => {
+    assert.deepEqual(required, { exchangeId: 'destination-report' });
+    return 'de';
+  } });
+  assert.deepEqual(report.output, { saved: false, message: 'Gib ein Token ein. Nur Leerzeichen sind kein Token.', code: 'blank' });
+  assert.equal(result.message, CREDENTIAL_MESSAGES.blank, 'translation does not mutate the handler result');
+  assert.equal(report.reads, 0);
+  assert.equal(report.emitted.length, 2);
+  assert.match(JSON.stringify(report.emitted[1]), /Destination not saved/);
+  assert.match(JSON.stringify(report.emitted[1]), /Gib ein Token ein\. Nur Leerzeichen sind kein Token\./);
+});
+
+test('successful destination reporting derives its hint from the stored value and uses the exchange locale', async t => {
+  const hint = { last4: 'a9F2', length: 12 };
+  const result = { saved: true, tokenHint: { last4: 'fake', length: 99 }, connection: 'unchecked' };
+  const report = await reportDestinationResult({ t, result, get: async () => ({
+    connectionString: 'postgres://owner:private-password@example.test/db', tokenHint: hint,
+    description: { host: 'example.test', port: '5432', database: 'db', user: 'owner' }, savedAt: clock.nowIso(),
+  }), localeForExchange: async () => 'de' });
+  assert.deepEqual(report.output, { saved: true, tokenHint: hint, connection: 'connected' });
+  assert.equal(report.reads, 1);
+  assert.equal(report.emitted.length, 2);
+  assert.match(JSON.stringify(report.emitted[1]), /…a9F2, 12 Zeichen\. Verbunden\./);
+  assert.equal(JSON.stringify(report).includes('private-password'), false);
+  assert.deepEqual(result.tokenHint, { last4: 'fake', length: 99 });
+});
+
+for (const unavailable of ['missing', 'unreadable']) {
+  test(`a ${unavailable} saved destination omits the hint without losing a successful result`, async t => {
+    const report = await reportDestinationResult({ t, result: { saved: true }, get: async () => {
+      if (unavailable === 'unreadable') throw new Error('private storage details');
+      return null;
+    } });
+    assert.deepEqual(report.output, { saved: true, tokenHint: null, connection: 'connected' });
+    assert.equal(report.reads, 1);
+    assert.equal(report.emitted.length, 2);
+    assert.match(JSON.stringify(report.emitted[1]), /Connected\./);
+    assert.equal(JSON.stringify(report).includes('private storage details'), false);
+  });
+}

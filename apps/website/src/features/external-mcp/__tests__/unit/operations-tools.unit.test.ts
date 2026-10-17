@@ -1,8 +1,9 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildExternalMcpRegistrations, externalMcpDerivedRisk } from "../../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildExternalMcpOperationsRegistrations, externalMcpOperationsDerivedRisk } from "../../operations-tools.js";
+import { buildExternalMcpOperationsRegistrations, contributeExternalMcpOperationsTools, externalMcpOperationsDerivedRisk } from "../../operations-tools.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -95,4 +96,50 @@ test("the configuration check also declares its potential OAuth refresh writes",
   const registrations = buildExternalMcpRegistrations(f.deps as never, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
   assert.equal(registrations.find(r => r.descriptor.id === "external_mcp_test_connection")!.descriptor.readOnly, false);
   assert.equal(externalMcpDerivedRisk.get("external_mcp_test_connection"), "mutates-durable-state");
+});
+
+for (const input of [undefined, null]) {
+  test(`admissions accepts ${String(input)} as omitted arguments`, async () => {
+    const f = fixture();
+    const handler = f.registrations.find(r => r.descriptor.id === "external_mcp_get_admissions")!.handler;
+    const result = await handler({ executionId: "exec", principal: { id: "owner" }, input,
+      signal: new AbortController().signal } as never);
+    assert.deepEqual(result, { connections: [{ connectionId: "hosted", report: { admitted: [], refused: [] }, isPreset: false }],
+      configFailures: [{ connectionId: "broken", reason: "disabled" }] });
+  });
+}
+
+for (const input of [{}, { id: 42 }, { id: "x".repeat(65) }]) {
+  test(`probe rejects a missing, non-string or oversized id before authorization (${JSON.stringify(input)})`, async () => {
+    const f = fixture();
+    await assert.rejects(f.call("external_mcp_probe_connection", input), { name: "ToolInputError",
+      message: "external_mcp_probe_connection: pass a non-empty saved server id. Use content_read.external_mcp to find it." });
+    assert.deepEqual(f.calls, []);
+  });
+}
+
+test("probe trims surrounding spaces and accepts the maximum saved-id length", async () => {
+  const f = fixture();
+  const id = "x".repeat(64);
+  assert.deepEqual(await f.call("external_mcp_probe_connection", { id: ` ${id.slice(0, 62)} ` }), { tools: [], probedAt: NOW });
+  assert.equal(f.calls[1], id.slice(0, 62));
+  assert.deepEqual(await f.call("external_mcp_probe_connection", { id }), { tools: [], probedAt: NOW });
+  assert.equal(f.calls[3], id);
+});
+
+test("the operations contributor builds working registrations with its injected services", async () => {
+  const f = fixture();
+  const contributor = contributeExternalMcpOperationsTools(f.operations);
+  assert.equal(contributor.domain, "external-mcp-operations");
+  assert.equal(contributor.risk, externalMcpOperationsDerivedRisk);
+  const registrations = contributor.build(f.deps as never, {
+    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
+      idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
+  });
+  const registration = registrations.find(r => r.descriptor.id === "external_mcp_get_admissions")!;
+  assert.deepEqual(await registration.handler({ executionId: "exec", principal: { id: "owner" }, input: {},
+    signal: new AbortController().signal } as never), {
+    connections: [{ connectionId: "hosted", report: { admitted: [], refused: [] }, isPreset: false }],
+    configFailures: [{ connectionId: "broken", reason: "disabled" }],
+  });
 });

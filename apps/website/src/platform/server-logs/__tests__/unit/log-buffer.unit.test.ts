@@ -44,6 +44,25 @@ test("many evictions compact without losing order", () => {
   assert.deepEqual(buffer.entries().map(e => e.message), Array.from({ length: 10 }, (_, i) => String(4_990 + i)));
 });
 
+test("a long live tail survives eviction before and after compaction", () => {
+  const buffer = createLogBuffer({ redact: identity }, { maxEntries: 2_048, now: fixedClock });
+  for (let i = 0; i < 5_000; i += 1) buffer.append({ level: "info", source: "server", message: String(i) });
+  assert.deepEqual(buffer.entries().map(e => [e.seq, e.message]),
+    Array.from({ length: 2_048 }, (_, i) => [2_953 + i, String(2_952 + i)]));
+  assert.equal(buffer.appendedCount(), 5_000);
+});
+
+test("omitting options uses the current clock and the default retention and message limits", t => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-05T12:00:00.000Z") });
+  const buffer = createLogBuffer({ redact: identity });
+  assert.deepEqual(buffer.append({ level: "info", source: "server", message: "x".repeat(8_001) }), {
+    seq: 1, at: "2026-10-05T12:00:00.000Z", level: "info", source: "server",
+    message: `${"x".repeat(8_000)}… [truncated 1 chars]`,
+  });
+  for (let i = 0; i < 2_000; i += 1) buffer.append({ level: "info", source: "server", message: String(i) });
+  assert.deepEqual(buffer.entries().map(e => e.message), Array.from({ length: 2_000 }, (_, i) => String(i)));
+});
+
 // Obviously fake fixtures in real credential SHAPES, assembled at runtime so no literal resembles a key.
 const FAKE_SECRETS: Record<string, string> = {
   anthropic: "sk-ant-api03-" + "x".repeat(90),

@@ -1,3 +1,4 @@
+import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
@@ -18,6 +19,59 @@ async function ledger({ register = true }: { register?: boolean } = {}) {
   const write = (key: string, value: boolean | string) => set({ deps: { repo: settingsRepo, clock, ids, principals, authorize: async () => ({ allowed: true, reason: 'test' }) }, input: { namespace: SITE_CONSENT_NAMESPACE, key, value, scope: 'workspace', workspaceId: 'site-a', callerPrincipalId: 'owner' } });
   return { deps, settingsRepo, write };
 }
+
+/** Simulate an out-of-band persisted value; ordinary settings writes reject malformed schemas. */
+async function persistUnchecked(settingsRepo: InMemorySettingsRepo, key: string, value: string | boolean | number) {
+  const definition = await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key, workspaceId: null });
+  assert.ok(definition);
+  await settingsRepo.saveWorkspaceValue({
+    settingId: definition.settingId, scope: 'workspace', workspaceId: 'site-a', principalId: null,
+    valueJson: value, state: 'set', defVersion: definition.version, seq: 0,
+    updatedBy: 'external-writer', updatedAt: clock.nowIso(), originPluginId: null,
+  });
+}
+
+test('enabled consent falls back for definitions missing during a partial registration', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  const definitions = (await settingsRepo.listActiveDefinitions({ workspaceId: null })).filter(definition => definition.key === 'enabled');
+  const partial = new InMemorySettingsRepo({ definitions, workspaceValues: await settingsRepo.listWorkspaceValues({ workspaceId: 'site-a' }) });
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo: partial, workspaceId: 'site-a' }, {}).get({}, {}), { ...SITE_CONSENT_DEFAULTS, enabled: true });
+});
+
+test('a malformed persisted enabled flag is refused instead of enabling or disabling consent', async () => {
+  const { settingsRepo } = await ledger();
+  await persistUnchecked(settingsRepo, 'enabled', 'true');
+  await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Invalid cookie consent setting: enabled.' });
+});
+
+test('a persisted copy value with the wrong type fails visibly', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  await persistUnchecked(settingsRepo, 'title', 42);
+  await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Invalid cookie consent setting: title.' });
+});
+
+test('an unknown persisted region mode is refused', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  await persistUnchecked(settingsRepo, 'regionMode', 'unknown');
+  await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Choose automatic, opt-in, or opt-out cookie consent region mode.' });
+});
+
+test('explicit opt-in mode is returned without replacing it with the automatic default', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  await write('regionMode', 'opt-in');
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, enabled: true, regionMode: 'opt-in' });
+});
+
+test('a policy version beyond 128 characters is refused even within the general copy limit', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  await write('policyVersion', 'v'.repeat(129));
+  await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Cookie consent policy version must contain 1–128 characters.' });
+});
 
 test('settings stay OFF by default, use the existing ledger and isolate site choices', async () => {
   const { deps, settingsRepo, write } = await ledger();

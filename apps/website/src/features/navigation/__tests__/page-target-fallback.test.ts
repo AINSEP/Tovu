@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPostRepo } from "#src/features/post/index";
@@ -17,4 +18,17 @@ test("a routing miss uses only a safe last-known URL, scoped to the requested wo
     assert.equal(await resolve({ target: { ...target, lastKnownHref } as unknown as typeof target, context }), null);
   }
   assert.equal(await resolve({ target: { kind: "entryRef", entryId: "missing" }, context }), null);
+});
+
+test("a URL target is left to the menu's URL resolver", async () => {
+  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo([]) }, {});
+  assert.equal(await resolve({ target: { kind: "url", href: "/about" }, context: { workspaceId: "ws" } }), null);
+});
+
+test("a missing entry with a whitespace-only URL snapshot stays unresolved", async () => {
+  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo([]) });
+  assert.equal(await resolve({
+    target: { kind: "entryRef", entryId: "missing", lastKnownHref: " \t\n " },
+    context: { workspaceId: "ws" },
+  }), null);
 });

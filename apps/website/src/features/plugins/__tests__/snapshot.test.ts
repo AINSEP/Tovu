@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -61,21 +62,36 @@ test("snapshotDb: the empty-string temp-db identifier also no-ops (never a `.sna
   db.close();
 });
 
-test("snapshotDb: a real file-backed dbPath is unaffected — still snapshots to a real sibling file", async () => {
+test("snapshotDb: a real file-backed dbPath is unaffected — still snapshots to a real sibling file", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-snapshot-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const dbPath = path.join(dir, "content.db");
   const db = new Database(dbPath);
+  t.after(() => db.close());
   db.pragma("journal_mode = WAL");
   db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY)`).run();
 
-  const result = await snapshotDb({ db, dbPath, label: "test-plugin" });
+  db.prepare("INSERT INTO posts (id) VALUES (?)").run("before-ddl");
+  const result = await snapshotDb({ db, dbPath, label: "test-plugin" }, {});
 
   assert.ok(result, "a real snapshot path was returned");
   assert.ok(result!.startsWith(dbPath), "sibling of the real db file, per the existing naming convention");
   assert.ok(fs.existsSync(result!), "the snapshot file actually exists on disk");
 
-  db.close();
-  fs.rmSync(dir, { recursive: true, force: true });
+  db.prepare("INSERT INTO posts (id) VALUES (?)").run("after-snapshot");
+  const snapshot = new Database(result!, { readonly: true });
+  t.after(() => snapshot.close());
+  assert.deepEqual(snapshot.prepare("SELECT id FROM posts").all(), [{ id: "before-ddl" }]);
+});
+
+test("discardCommittedSnapshot deletes the committed backup and tolerates a second cleanup", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-discard-committed-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const snapshotPath = path.join(dir, "content.db.snapshot-plugin");
+  fs.writeFileSync(snapshotPath, "committed backup");
+  await discardCommittedSnapshot(snapshotPath);
+  assert.equal(fs.existsSync(snapshotPath), false);
+  await assert.doesNotReject(() => discardCommittedSnapshot(snapshotPath));
 });
 
 

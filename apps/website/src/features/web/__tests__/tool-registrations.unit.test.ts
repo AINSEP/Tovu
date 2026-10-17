@@ -1,5 +1,6 @@
 /** The `web` domain's wiring: catalog -> registration, the handler's own permission gate, and the
  *  contributor shape the composition root installs. Fakes are DI ports; no module mocks. */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { withBatchInput, BATCHABLE_TOOLS } from "../../../assistant/batch-tool-inputs.js";
@@ -8,6 +9,44 @@ import type { HttpRequest } from "#src/platform/http/index";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "../agent-tools.js";
 import { buildWebRegistrations, contributeWebTools, webDerivedRisk } from "../tool-registrations.js";
 import type { WebFetchPorts } from "../web-page.js";
+
+test("the contributor uses its supplied clock, observer and workspace-host limiter", async () => {
+  const sent: HttpRequest[] = [];
+  const keys: string[] = [];
+  const observed: unknown[] = [];
+  const contributor = contributeWebTools({ httpClient: ports(sent).httpClient, htmlToMarkdown: () => "" }, {
+    nowMs: () => Date.parse("2026-10-08T00:00:00.000Z"),
+    observeFetch: event => observed.push(event),
+    rateLimiter: { check: async ({ key }) => {
+      keys.push(key);
+      return keys.length === 1 ? { allowed: true } : { allowed: false, retryAfterSeconds: 7 };
+    } },
+  });
+  const [registration] = contributor.build({ workspaceId: "custom-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
+  const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
+  assert.deepEqual([result.content, result.fetchedAt], ["hello", "2026-10-08T00:00:00.000Z"]);
+  await assert.rejects(registration!.handler(ctx({ url: "https://a.example/" })), { message: "web_fetch_page: too many fetches from a.example in the last minute. Retry in 7 seconds." });
+  assert.deepEqual(keys, ["custom-ws|a.example", "custom-ws|a.example"]);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(observed, [
+    { origin: "https://a.example", durationMs: 0, outcome: "response", status: 200 },
+    { origin: "https://a.example", durationMs: 0, outcome: "rate-limited" },
+  ]);
+});
+
+test("the contributor defaults to system time and structured fetch logging", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-08T00:00:00.000Z") });
+  const logs: string[] = [];
+  t.mock.method(console, "info", (message: string) => logs.push(message));
+  const contributor = contributeWebTools({ httpClient: ports([]).httpClient, htmlToMarkdown: () => "" });
+  const [registration] = contributor.build({ workspaceId: "defaults-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
+  const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
+  assert.equal(result.fetchedAt, "2026-10-08T00:00:00.000Z");
+  assert.deepEqual(logs.map(line => JSON.parse(line)), [{
+    timestamp: "2026-10-08T00:00:00.000Z", level: "info", service: "web", message: "web_fetch_page",
+    context: { origin: "https://a.example", durationMs: 0, outcome: "response", status: 200 },
+  }]);
+});
 
 const ctx = (input: unknown, principalId = "admin-1"): ToolExecutionContext => ({
   executionId: "exec-web", principal: { id: principalId } as ToolExecutionContext["principal"], run: { id: "run-1" } as ToolExecutionContext["run"],

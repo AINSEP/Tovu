@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runContentFromEvents, runEventsForSave, translateRunAgentPayload, translateRunFrame } from "../../assistant-run-events.js";
+import {
+  asString, isDaemonRunId, parseFrame, parseUsageEvent, readSseFrames, readTerminalOutcome,
+  readTerminalReason, runContentFromEvents, runEventsForSave, terminalFailureError,
+  terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload, translateRunFrame,
+  type RunFrameCarry,
+} from "../../assistant-run-events.js";
 
 /**
  * @file The run stream → chat event translation, for what the live activity line needs and what the
@@ -17,6 +22,67 @@ import { runContentFromEvents, runEventsForSave, translateRunAgentPayload, trans
 function stdoutFrame(lines: readonly unknown[]): string {
   return JSON.stringify({ runId: "r1", kind: "stdout", payload: { chunk: lines.map((l) => `${JSON.stringify(l)}\n`).join("") } });
 }
+
+test("asString preserves text, serializes structured values and renders null as empty text", () => {
+  assert.equal(asString("hello"), "hello");
+  assert.equal(asString({ answer: 42 }), '{"answer":42}');
+  assert.equal(asString(null), "");
+});
+
+test("parseUsageEvent preserves numeric usage without coercing missing or malformed fields", () => {
+  assert.deepEqual(parseUsageEvent({ type: "usage", usage: { input_tokens: 7, output_tokens: 11 }, costUsd: 0.25 }),
+    { kind: "usage", inputTokens: 7, outputTokens: 11, costUsd: 0.25 });
+  assert.deepEqual(parseUsageEvent({ type: "usage", usage: { input_tokens: "7" } }), { kind: "usage" });
+});
+
+test("terminal notices use Tovu's actionable copy and keep failures distinct from cancellation", () => {
+  const raw = JSON.stringify({ payload: { status: "failed", code: 2, signal: null, resumable: true } });
+  assert.deepEqual(readTerminalOutcome(raw), { status: "failed", code: "2", signal: "none", resumable: "yes" });
+  assert.deepEqual(terminalOutcomeNotice(raw), {
+    kind: "status", label: "Run failed — the agent process exited without answering",
+    detail: "exit code 2, signal none, resumable yes. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for `[agent-daemon] run <id> ended`.",
+  });
+  assert.equal(terminalFailureError(raw)?.message,
+    "The agent process exited without answering (exit code 2, signal none, resumable yes).");
+  assert.equal(terminalFailureError(JSON.stringify({ payload: { status: "canceled" } })), null);
+  assert.deepEqual(terminalReasonNotice("max_tool_turns"), {
+    kind: "status", label: "Stopped early — tool-step limit reached",
+    detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
+  });
+  assert.equal(terminalReasonNotice("stop"), null);
+  assert.equal(readTerminalReason('{"payload":{"reason":"stop"}}', true), "stop");
+  assert.equal(readTerminalReason('{"reason":"end_turn"}', false), "end_turn");
+});
+
+test("SSE helpers preserve named frames across chunk boundaries", async () => {
+  assert.deepEqual(parseFrame("event: agent\ndata: hello"), { event: "agent", data: "hello" });
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      controller.enqueue(encoder.encode("event: agent\nda"));
+      controller.enqueue(encoder.encode("ta: hello\n\ndata: done\n\n"));
+      controller.close();
+    },
+  });
+  const frames = [];
+  for await (const frame of readSseFrames(body)) frames.push(frame);
+  assert.deepEqual(frames, [{ event: "agent", data: "hello" }, { event: "message", data: "done" }]);
+  assert.equal(body.locked, false);
+});
+
+test("only daemon run ids qualify for daemon lookup", () => {
+  assert.equal(isDaemonRunId("run-123"), true);
+  assert.equal(isDaemonRunId("byok:123"), false);
+  assert.equal(isDaemonRunId("agui:123"), false);
+});
+
+test("a connection carry suppresses the remainder of a split stdout echo and keeps later output", () => {
+  const carry: RunFrameCarry = {};
+  const chunk = (text: string) => JSON.stringify({ payload: { chunk: text } });
+  assert.deepEqual(translateRunFrame("stdout", chunk('{"type":"assistant","message":"par'), carry).events, []);
+  assert.deepEqual(translateRunFrame("stdout", chunk('tial"}\nvisible output\n'), carry).events,
+    [{ kind: "raw", line: "visible output\n" }]);
+});
 
 test("translateRunFrame: an api_retry heartbeat becomes a typed status event with the attempt numbers", () => {
   const retry = { type: "system", subtype: "api_retry", attempt: 4, max_retries: 10, retry_delay_ms: 518, error_status: 529, error: "overloaded" };

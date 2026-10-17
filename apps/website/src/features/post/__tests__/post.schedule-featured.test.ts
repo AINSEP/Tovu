@@ -1,8 +1,9 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { isLiveAt, isScheduledAt } from "#src/contracts/core/scheduled-publish";
+import { comparePostsByDisplayDate, currentIso, isLiveAt, isScheduledAt, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import {
   createPost,
   findPublishedPostById,
@@ -120,4 +121,38 @@ test("isScheduledAt/isLiveAt: a draft is never scheduled; trash is never live", 
   assert.equal(isScheduledAt({ status: "published", publishAt: AFTER }, BEFORE), true);
   assert.equal(isLiveAt({ status: "published", publishAt: null }, BEFORE), true);
   assert.equal(isLiveAt({ status: "published", deletedAt: BEFORE }, AFTER), false);
+});
+
+test("published rows without a schedule are live, including at the go-live instant", () => {
+  for (const publishAt of [undefined, null, BEFORE, GO_LIVE]) {
+    const record = { status: "published", publishAt };
+    assert.equal(isScheduledAt(record, GO_LIVE), false);
+    assert.equal(isLiveAt(record, GO_LIVE), true);
+  }
+  assert.equal(isLiveAt({ status: "draft", publishAt: BEFORE }, GO_LIVE), false);
+  assert.equal(isLiveAt({ status: "published", publishAt: AFTER }, GO_LIVE), false);
+});
+
+test("display dates prefer the go-live time and otherwise use the last update", () => {
+  assert.equal(postDisplayDateIso({ publishAt: GO_LIVE, updatedAt: BEFORE }), GO_LIVE);
+  assert.equal(postDisplayDateIso({ publishAt: null, updatedAt: BEFORE }), BEFORE);
+  assert.equal(postDisplayDateIso({ updatedAt: BEFORE }), BEFORE);
+});
+
+test("display ordering puts newest dates first and breaks ties by ascending id", () => {
+  const a = { id: "a", publishAt: GO_LIVE, updatedAt: AFTER };
+  const b = { id: "b", updatedAt: GO_LIVE };
+  const older = { id: "z", updatedAt: BEFORE };
+  assert.equal(comparePostsByDisplayDate(a, older), -1);
+  assert.equal(comparePostsByDisplayDate(older, a), 1);
+  assert.equal(comparePostsByDisplayDate(a, b), -1);
+  assert.equal(comparePostsByDisplayDate(b, a), 1);
+  assert.equal(comparePostsByDisplayDate(a, { ...a }), 0);
+  assert.deepEqual([older, b, a].sort(comparePostsByDisplayDate).map(row => row.id), ["a", "b", "z"]);
+});
+
+test("currentIso uses the current instant in the stored UTC format", t => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date(GO_LIVE) });
+  t.after(() => t.mock.timers.reset());
+  assert.equal(currentIso(), GO_LIVE);
 });

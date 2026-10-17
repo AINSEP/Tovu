@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SiteBackupPlanStore, type SiteBackupPlanContent } from "../plan-store.js";
+import { DEFAULT_MAX_PLANS, DEFAULT_PLAN_TTL_MS, SiteBackupPlanStore, type SiteBackupPlanContent } from "../plan-store.js";
 
 /**
  * @file `plan-store.ts`'s proof: a plan is single-use, bound to the principal and workspace that made
@@ -81,4 +81,28 @@ test("expired plans are swept on save, so they never push out a live one", () =>
   const fresh = store.save({ ...OWNER, content: CONTENT });
   assert.equal(store.take({ planId: live.planId, ...OWNER }).ok, true, "the live plan survived: the expired one made the room");
   assert.equal(store.take({ planId: fresh.planId, ...OWNER }).ok, true);
+});
+
+test("default plans use UUID ids, a ten-minute lifetime and a two-plan cap", (t) => {
+  t.mock.method(Date, "now", () => 1_000);
+  const store = new SiteBackupPlanStore();
+  const first = store.save({ ...OWNER, content: CONTENT });
+  const second = store.save({ ...OWNER, content: CONTENT });
+  const third = store.save({ ...OWNER, content: CONTENT });
+  assert.equal(DEFAULT_PLAN_TTL_MS, 600_000);
+  assert.equal(DEFAULT_MAX_PLANS, 2);
+  assert.equal(first.expiresAtMs, 601_000);
+  assert.match(first.planId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.equal(new Set([first.planId, second.planId, third.planId]).size, 3);
+  assert.deepEqual(store.take({ ...OWNER, planId: first.planId }), { ok: false, code: "PLAN_NOT_FOUND" });
+  assert.deepEqual(store.take({ ...OWNER, planId: second.planId }), { ok: true, plan: second });
+  assert.deepEqual(store.take({ ...OWNER, planId: third.planId }), { ok: true, plan: third });
+});
+
+test("a zero configured cap keeps only the plan just returned instead of looping on an empty store", () => {
+  const { store } = makeStore({ maxPlans: 0 });
+  const first = store.save({ ...OWNER, content: CONTENT });
+  const second = store.save({ ...OWNER, content: CONTENT });
+  assert.deepEqual(store.take({ ...OWNER, planId: first.planId }), { ok: false, code: "PLAN_NOT_FOUND" });
+  assert.deepEqual(store.take({ ...OWNER, planId: second.planId }), { ok: true, plan: second });
 });
