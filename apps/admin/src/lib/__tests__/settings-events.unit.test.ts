@@ -60,6 +60,19 @@ afterEach(() => {
 });
 
 describe("subscribeToSettingsChanges", () => {
+  it("does not announce the first open as a change, but refreshes on reconnect", () => {
+    const publishSettings = vi.fn();
+    const dispose = subscribeToSettingsChanges("boot", { publishSettings });
+    const source = FakeEventSource.instances[0]!;
+    source.emit("open");
+    expect(publishSettings).not.toHaveBeenCalled();
+    source.emit("open");
+    expect(publishSettings).toHaveBeenCalledTimes(1);
+    source.emit("settings-changed", JSON.stringify({ namespaces: ["core.language"] }));
+    expect(publishSettings).toHaveBeenLastCalledWith(["core.language"]);
+    dispose();
+  });
+
   it("opens the workspace's events URL, encoded, with credentials", () => {
     subscribeToSettingsChanges("ws with spaces");
 

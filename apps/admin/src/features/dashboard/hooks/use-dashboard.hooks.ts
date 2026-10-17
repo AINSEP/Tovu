@@ -9,6 +9,7 @@ import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
 import type { DashboardPort } from "./dashboard-port.hooks";
+import { useAdminBootScope } from "@/lib/admin-boot-scope";
 
 /** Password-banner plan (2026-09-24), Slice 3 — per-browser dismiss for the default-password nag.
  *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
@@ -168,8 +169,9 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   }, [port, locale]);
   const themeQuery = useFetchQuery({ key: ["themes", "presentation"], fetch: themeQueryFetch }, { staleTime: 0 });
   // Failed advisory status reads mean no banner, not a stat error or evidence of a safe state.
-  const passwordQueryFetch = useQueryFetchCallback(() => port.getPasswordStatus(), [port, locale]);
-  const passwordQuery = useFetchQuery({ key: ["identity", "password-status"], fetch: passwordQueryFetch }, { staleTime: 0 });
+  const { principalId, queryScope } = useAdminBootScope();
+  const passwordQueryFetch = useQueryFetchCallback(() => port.getPasswordStatus({ principalId }), [port, principalId]);
+  const passwordQuery = useFetchQuery({ key: ["identity", "password-status", queryScope], fetch: passwordQueryFetch });
   // Site-key plan §A.6 — same advisory shape as the password status read:
   // a failed fetch means no banner, not an error card.
   const siteKeyQueryFetch = useQueryFetchCallback(() => port.getSiteKeyState(), [port, locale]);

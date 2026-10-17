@@ -2,6 +2,7 @@ import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useRef } from "react";
 import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { useAdminBootScope } from "../lib/admin-boot-scope";
 
 export interface AdminAppearancePort {
   loadAppearance(): Promise<AppearanceConfig>;
@@ -38,9 +39,10 @@ function applyAccent({ accentColor, root }: { accentColor: string; root: HTMLEle
 
 /** Follow the operator's appearance ledger on every admin page, using the existing refresh bus. */
 export function useAdminAppearance(_required: object, { port = defaultPort, root = document.documentElement } = {}) {
+  const { queryScope, checking } = useAdminBootScope();
   const previewVersion = useRef(previewVersions.get(root));
   const fetchAppearance = useCallback(() => port.loadAppearance(), [port]);
-  const query = useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE], fetch: fetchAppearance }, { staleTime: 0 });
+  const query = useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE, queryScope], fetch: fetchAppearance }, { enabled: !checking, staleTime: Infinity });
   const invalidate = useInvalidate();
   useEffect(() => port.subscribeToSettingsRefresh(() => {
     previewVersion.current = previewVersions.get(root);

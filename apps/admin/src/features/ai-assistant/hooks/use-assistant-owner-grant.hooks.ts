@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useConfirmRequest } from "@jini-ai/admin/react";
 import { describeApiError } from "@/lib/api";
 import { subscribeToSettingsRefresh, publishSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { useAdminBootScope } from "@/lib/admin-boot-scope";
 type Grant = { enabled: boolean; canEdit: boolean };
 interface SiteGrantPort<T extends Grant> {
   read(required: Record<string, never>, optional?: Record<string, never>): Promise<T>;
@@ -14,9 +15,11 @@ interface SiteGrantPort<T extends Grant> {
  * @example useAssistantOwnerGrantSettings({ port, namespace, key });
  * @complexity O(1) hook state plus bounded API payload; one read per invalidation. */
 export function useAssistantOwnerGrantSettings<T extends Grant>(required: { port: SiteGrantPort<T>; namespace: string; key: readonly string[] }, _optional = {}) {
+  const { queryScope, checking } = useAdminBootScope();
+  const key = useMemo(() => [...required.key, queryScope], [required.key, queryScope]);
   const fetchSettings = useCallback(() => required.port.read({}), [required.port]);
-  const query = useFetchQuery({ key: required.key, fetch: fetchSettings }, { staleTime: 0 });
-  const loader = useCachedLoader({ key: required.key, fetch: fetchSettings }, { staleTime: 0 });
+  const query = useFetchQuery({ key, fetch: fetchSettings }, { enabled: !checking, staleTime: Infinity });
+  const loader = useCachedLoader({ key, fetch: fetchSettings }, { staleTime: Infinity });
   const refetch = query.refetch;
   useEffect(() => subscribeToSettingsRefresh(namespaces => {
     if (namespaces === null || namespaces.includes(required.namespace)) refetch();

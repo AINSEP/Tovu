@@ -240,7 +240,7 @@ describe("useSiteSectionAvailability", () => {
   ] as const)("desktop=$desktop, switchingEnabled=$switchingEnabled → $expected", async ({ desktop, switchingEnabled, expected, gate }) => {
     const user: AdminUser = { id: "u1", username: "admin" };
     vi.spyOn(api, "listSites").mockResolvedValue(sitesSnapshot(switchingEnabled));
-    const { result } = renderHook(() => useSiteSectionAvailability(user, { desktop }));
+    const { result } = renderHook(() => useSiteSectionAvailability(user, { desktop }), { wrapper: FetchQueryProvider });
 
     await waitFor(() => expect(result.current).toBe(expected));
     const nav = withoutSiteSection([{ items: [
@@ -260,7 +260,7 @@ describe("useSiteSectionAvailability", () => {
       const availability = useSiteSectionAvailability(user, { desktop: true });
       frames.push({ availability, gate: resolveSiteSectionRouteGate("sites", availability) });
       return availability;
-    });
+    }, { wrapper: FetchQueryProvider });
 
     // Check the first render itself: an effect that hides Sites later must fail this assertion.
     expect(frames[0]).toEqual({ availability: "unavailable", gate: "redirect" });
@@ -282,7 +282,7 @@ describe("useSiteSectionAvailability", () => {
 
     const { result, rerender } = renderHook<SiteSectionAvailability, { user: AdminUser | null }>(
       ({ user }) => useSiteSectionAvailability(user),
-      { initialProps: { user: alice } },
+      { initialProps: { user: alice }, wrapper: FetchQueryProvider },
     );
 
     await waitFor(() => expect(result.current).toBe("available"));

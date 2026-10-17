@@ -24,7 +24,8 @@ import { navigate } from "@/lib/router";
 import { ApiError, authenticatedAdminRequest } from "@/lib/api";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
-import { useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useAdminBootScope } from "@/lib/admin-boot-scope";
 import type { CachedLoader } from "@jini-ai/core/fetch";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
@@ -165,6 +166,16 @@ export function useExecutionConfig(
 ): UseExecutionConfig {
   const io = useRef(port);
   io.current = port;
+  const { queryScope } = useAdminBootScope();
+  const configKey = useMemo(() => ["settings", EXECUTION_NAMESPACE, queryScope, "dock"], [queryScope]);
+  const credentialKey = useMemo(() => ["admin-execution-credential", queryScope, "presence"], [queryScope]);
+  const loadConfig = useCallback(async () => ({ config: await io.current.loadConfig(), loadedAt: io.current.now() }), []);
+  const loadCredential = useCallback(() => io.current.loadCredential(), []);
+  // The provider retains reads across StrictMode replay and ordinary dock remounts. Explicit
+  // refreshes revoke them; focus/pre-send reads keep the existing five-second freshness bound.
+  const configLoader = useCachedLoader({ key: configKey, fetch: loadConfig }, { staleTime: Infinity });
+  const credentialLoader = useCachedLoader({ key: credentialKey, fetch: loadCredential }, { staleTime: Infinity });
+  const invalidate = useInvalidate();
   /**
    * Refreshed from `execution-settings.ts`'s ledger+localStorage-backed store — the SAME source
    * the Execution-mode settings tab reads/writes — so a mode chosen there is reflected here without
@@ -246,14 +257,14 @@ export function useExecutionConfig(
     // Retried while the API is unreachable: the dock mounts once per session, so a load during
     // a dev-API restart must recover without a page reload. A local write or newer refresh makes
     // this response obsolete; unlike the old boolean guard, it does not block ALL future reads.
-    const pending = retryWhileUnreachable({ load: () => io.current.loadConfig(), signal: controller.signal })
-      .then((config) => {
+    const pending = retryWhileUnreachable({ load: () => configLoader.load(), signal: controller.signal })
+      .then(({ config, loadedAt }) => {
         if (controller.signal.aborted || generation !== refreshGeneration.current || writesAtStart !== localWriteRef.current) {
           return executionConfigRef.current;
         }
         executionConfigRef.current = config;
         setExecutionConfigState(config);
-        lastLoadedAt.current = io.current.now();
+        lastLoadedAt.current = loadedAt;
         return config;
       })
       .finally(() => {
@@ -264,17 +275,18 @@ export function useExecutionConfig(
       });
     activeRefresh.current = pending;
     return pending;
-  }, []);
+  }, [configLoader]);
 
   const readExecutionConfigForSend = useCallback(async () => {
     // A focus/SSE/Settings refresh may still be in flight when Send is clicked. Await the newest
     // read and use its ref immediately, without relying on React to render the picker first.
     if (!activeRefresh.current && (lastLoadedAt.current === null || io.current.now() - lastLoadedAt.current >= EXECUTION_CONFIG_MAX_AGE_MS)) {
+      invalidate({ key: configKey });
       refreshExecutionConfig();
     }
     while (activeRefresh.current) await activeRefresh.current;
     return executionConfigRef.current;
-  }, [refreshExecutionConfig]);
+  }, [refreshExecutionConfig, invalidate, configKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -288,21 +300,24 @@ export function useExecutionConfig(
         if (!isAbortError(error)) console.error("[AssistantDock] failed to load execution config", error);
       });
     };
-    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    const revalidate = () => { invalidate({ key: configKey }); refresh(); };
+    const onVisible = () => { if (document.visibilityState === "visible") revalidate(); };
     refresh();
-    window.addEventListener("focus", refresh);
+    window.addEventListener("focus", revalidate);
     document.addEventListener("visibilitychange", onVisible);
     const unsubscribe = subscribeToSettingsRefresh((scope) => {
-      if (!scope || scope.includes(EXECUTION_NAMESPACE)) refresh();
+      if (!scope || scope.includes(EXECUTION_NAMESPACE)) {
+        revalidate();
+      }
     });
     return () => {
       controller.abort();
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", revalidate);
       document.removeEventListener("visibilitychange", onVisible);
       unsubscribe();
       activeRefresh.current = null;
     };
-  }, [refreshExecutionConfig]);
+  }, [refreshExecutionConfig, invalidate, configKey]);
 
   /**
    * Whether a BYOK credential is stored server-side for this admin — see {@link UseExecutionConfig.hasStoredAdminKey}'s
@@ -324,7 +339,7 @@ export function useExecutionConfig(
     // Same restart-survival and cancellation handling as the ledger load above; `hasStoredAdminKey`
     // stays `null` (unknown) while retrying rather than claiming "not configured".
     const refresh = () => {
-      void retryWhileUnreachable({ load: () => io.current.loadCredential(), signal: controller.signal })
+      void retryWhileUnreachable({ load: () => credentialLoader.load(), signal: controller.signal })
         .then((view) => {
           if (!controller.signal.aborted) setHasStoredAdminKey(view.isSet);
         })
@@ -337,13 +352,14 @@ export function useExecutionConfig(
     refresh();
     const unsubscribe = subscribeToSettingsRefresh((scope) => {
       if (scope && !scope.includes(EXECUTION_NAMESPACE)) return;
+      invalidate({ key: credentialKey });
       refresh();
     });
     return () => {
       controller.abort();
       unsubscribe();
     };
-  }, []);
+  }, [credentialLoader, invalidate, credentialKey]);
 
   /**
    * Persists a mode switch made from THIS dock's own picker back through the same
@@ -1139,7 +1155,9 @@ async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<
 }
 
 function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
-  return useCachedLoader({ key: AGENTS_QUERY_KEY, fetch: fetchAgents }, { staleTime: Infinity });
+  const { queryScope } = useAdminBootScope();
+  const key = useMemo(() => [...AGENTS_QUERY_KEY, queryScope], [queryScope]);
+  return useCachedLoader({ key, fetch: fetchAgents }, { staleTime: Infinity });
 }
 
 /**
@@ -1395,7 +1413,7 @@ export function useComposerDiscoverySelect(
  * @param input.messages - The full transcript as of this `onMessagesChange` event.
  * @param input.settledRunMessageId - The last message id already published for, or `null`.
  * @returns `publish` (whether to announce now) and `nextSettledRunMessageId`
- *   (what the caller's ref should hold next — unchanged when `publish` is `false`).
+ *   (what the caller's ref should hold next; a live retry clears its earlier completion mark).
  * @example
  * const { publish, nextSettledRunMessageId } = shouldPublishOnMessagesChange({
  *   messages,
@@ -1409,7 +1427,11 @@ export function shouldPublishOnMessagesChange(
   if (!last || last.role !== "assistant") {
     return { publish: false, nextSettledRunMessageId: settledRunMessageId };
   }
-  if (!isTerminalRunStatus({ status: last.runStatus }) || settledRunMessageId === last.id) {
+  if (!isTerminalRunStatus({ status: last.runStatus })) {
+    // Retry reuses a saved assistant message's id; its next real completion must still publish.
+    return { publish: false, nextSettledRunMessageId: settledRunMessageId === last.id ? null : settledRunMessageId };
+  }
+  if (settledRunMessageId === last.id) {
     return { publish: false, nextSettledRunMessageId: settledRunMessageId };
   }
   return { publish: true, nextSettledRunMessageId: last.id };
@@ -1473,7 +1495,8 @@ export function shouldPublishContentOnToolProgress(
  * Owns `settledRunMessageId` internally (a `useRef`, not exposed) — last assistant message id seen
  * in a terminal state, so a run's completion fires the settings refresh below exactly once.
  * `onMessagesChange` runs on every delta of a streaming reply, and the terminal message keeps
- * arriving in later calls after it settles.
+ * arriving in later calls after it settles. A restored pane seeds these markers from its saved
+ * history: hydration is not a new run completion or a newly returned tool call.
  *
  * A finished run may have written a setting — `settings_set_ui_preference` is agent-callable — so
  * the mounted settings tabs re-read. Without this the write lands in `content.db` and the open tab
@@ -1492,19 +1515,27 @@ export function shouldPublishContentOnToolProgress(
  * scope (rather than a namespace or resource list) for the same reason: this publisher does not know
  * what changed, and saying so is more honest than guessing.
  *
- * @param input.chats - {@link UseAssistantChats} — only `.onMessagesChange` is read.
+ * @param input.chats - The persistence callback and optional pane/history metadata, which seeds
+ *   the existing publication markers on restoration.
  * @returns The memoized `onMessagesChange` callback.
  * @example
  * const handleMessagesChange = useMessagesChangeHandler({ chats });
  */
 export function useMessagesChangeHandler(
-  { chats }: { chats: Pick<UseAssistantChats, "onMessagesChange"> },
+  { chats }: { chats: Pick<UseAssistantChats, "onMessagesChange"> & Partial<Pick<UseAssistantChats, "paneKey" | "initialMessages">> },
 ): (messages: ChatMessage[]) => void {
   const settledRunMessageId = useRef<string | null>(null);
   const publishedToolProgress = useRef<ToolProgressMark | null>(null);
+  const history = useRef<Partial<Pick<UseAssistantChats, "paneKey" | "initialMessages">>>({});
 
   return useCallback(
     (messages: ChatMessage[]) => {
+      if (history.current.paneKey !== chats.paneKey || history.current.initialMessages !== chats.initialMessages) {
+        history.current = { paneKey: chats.paneKey, initialMessages: chats.initialMessages };
+        const initialMessages = chats.initialMessages ?? [];
+        settledRunMessageId.current = shouldPublishOnMessagesChange({ messages: initialMessages, settledRunMessageId: null }).nextSettledRunMessageId;
+        publishedToolProgress.current = shouldPublishContentOnToolProgress({ messages: initialMessages, publishedToolProgress: null }).nextPublishedToolProgress;
+      }
       window.__tovuAssistantMessages = messages;
       // Persistence is selective, not per-delta — see `lib/assistant-chats.ts`'s
       // `persistableMessages` for why a streaming reply is written once rather than per token.

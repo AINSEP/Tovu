@@ -25,7 +25,7 @@ export function useAdminChartRegistry(
   portRef.current = port;
   const key = useMemo(() => ["plugins", "chart-providers", principalId] as const, [principalId]);
   const fetchSnapshot = useCallback(() => portRef.current.readSnapshot({}), []);
-  const query = useFetchQuery({ key, fetch: fetchSnapshot }, { staleTime: 0, refetchOnWindowFocus: true });
+  const query = useFetchQuery({ key, fetch: fetchSnapshot }, { refetchOnWindowFocus: true });
   const invalidate = useInvalidate();
   const refresh = useCallback(() => { invalidate({ key }); }, [invalidate, key]);
   useContentRefreshSubscription("plugins", refresh);

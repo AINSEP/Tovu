@@ -5,6 +5,7 @@ import type { AdminSitesSnapshot } from "@/lib/api";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { KEYS, SITES_RESOURCE } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
+import { useAdminBootScope } from "@/lib/admin-boot-scope";
 
 /** Shared Sites read/refresh lifecycle for the screen and its sidebar label.
  * @returns The cached server snapshot, including the current live binding and list status.
@@ -12,9 +13,11 @@ import type { SitesPort } from "./sites-port.hooks";
  */
 export function useSitesSnapshot(
   { port }: { port: Pick<SitesPort, "listSites"> },
-  { enabled = true }: { enabled?: boolean } = {},
+  { enabled = true, principalId }: { enabled?: boolean; principalId?: string | null } = {},
 ): QueryResult<AdminSitesSnapshot> {
-  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listSites() }, { enabled });
+  const scope = useAdminBootScope();
+  const queryScope = principalId == null ? scope.queryScope : `principal:${principalId}`;
+  const list = useFetchQuery({ key: [...KEYS.list, queryScope], fetch: () => port.listSites() }, { enabled: enabled && !scope.checking });
   // Stable identity (not an inline arrow) so the subscription effect does not resubscribe every
   // render — same note as `Jini redirects/react/hooks/use-redirects.hooks.ts`'s own `invalidateList`.
   const invalidate = useInvalidate();

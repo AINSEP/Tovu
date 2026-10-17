@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { defaultAdminLocalePort, DEFAULT_LOCALE } from "./admin-locale-dependencies.hooks";
 import type { AdminLocalePort } from "./admin-locale-port.hooks";
+import { useAdminBootScope } from "../lib/admin-boot-scope";
 
 /**
  * Fetches the operator's stored `core.language.locale`, defaulting to `DEFAULT_LOCALE` ("en")
@@ -47,13 +48,15 @@ import type { AdminLocalePort } from "./admin-locale-port.hooks";
  * @returns The current locale, `DEFAULT_LOCALE` until the initial fetch resolves.
  */
 export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): string {
+  const { queryScope, checking } = useAdminBootScope();
   // Capture the injected port at mount: callers may construct a fake on every render.
   const initialPort = useRef(port).current;
   const queryFetch = useQueryFetchCallback(() => initialPort.loadLanguage(), [initialPort]);
   // Refresh notifications can overlap unordered loadLanguage reads (F3, plan-components.md,
   // 2026-09-20). Invalidating the shared key revokes an older read's ownership; settlement order
   // must not let a slower earlier fetch override the latest language change.
-  const query = useFetchQuery({ key: ["settings", "core.language"], fetch: queryFetch }, { staleTime: 0 });
+  // Settings are event-driven: later screen mounts reuse this principal's completed boot read.
+  const query = useFetchQuery({ key: ["settings", "core.language", queryScope], fetch: queryFetch }, { enabled: !checking, staleTime: Infinity });
   const invalidate = useInvalidate();
   // Every consumer observes the same cache; refreshes cannot overwrite a newer replacement.
   useEffect(() => initialPort.subscribeToSettingsRefresh(() => invalidate({ key: ["settings", "core.language"] })), [initialPort, invalidate]);

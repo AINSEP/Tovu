@@ -60,6 +60,7 @@ export function subscribeToSettingsChanges(workspaceId: string, {
 } = {}): () => void {
   let cursor = "";
   let themeRevision = "";
+  let opened = false;
   type Frame = { kind: "settings-changed" | "theme-preview-refresh" | "open"; data: string; id: string };
   return startBrowserStream<Frame>({
     // Workspace and principal are both disclosure boundaries; never share across identities.
@@ -89,9 +90,14 @@ export function subscribeToSettingsChanges(workspaceId: string, {
     receive: ({ frame }) => {
       if (frame.id) cursor = frame.id;
       if (frame.kind === "open") {
-        // A new follower may have no cursor yet. Re-read on attach so a handoff cannot leave
-        // stale values even when no settings frame preceded it. Theme's durable marker replays.
-        publishSettings();
+        // A new leader/follower connection may have no cursor yet. Re-read after boot so a
+        // handoff cannot leave stale values even when no settings frame preceded it.
+        // Theme's durable marker replays independently.
+        // The FIRST attach belongs to boot's fresh reads, not a change. Later opens still cover
+        // reconnects/leadership handoffs, including those for which no cursor was received.
+        // A prior frame can supply the resume cursor even if that source never emitted open.
+        if (opened || cursor) publishSettings();
+        opened = true;
         return;
       }
       if (frame.kind === "theme-preview-refresh") {

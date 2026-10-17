@@ -84,7 +84,7 @@ it("a pending shell read cannot repaint an accent the operator has just previewe
     useAdminAppearance({}, { port });
     useSettingsAppearance({ ready, accentColor: "#e11d48" }, {});
     // Observe the same read reaching React before asserting that the preview survived it.
-    return useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE], fetch: port.loadAppearance }, { staleTime: 0 });
+    return useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE, "anonymous"], fetch: port.loadAppearance }, { staleTime: Infinity });
   }, { initialProps: { ready: false } });
   await waitFor(() => expect(resolve).toBeTypeOf("function"));
   rerender({ ready: true });

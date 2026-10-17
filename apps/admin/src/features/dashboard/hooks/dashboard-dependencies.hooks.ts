@@ -16,9 +16,10 @@ export const defaultDashboardPort: DashboardPort = {
   listMedia: () => api.listMedia(),
   listCommentsQueue: (options) => api.listCommentsQueue(options),
   getPresentation: () => api.getPresentation(),
-  getPasswordStatus: async () => {
-    const [status, me] = await Promise.all([api.getPasswordStatus(), api.me()]);
-    return { usesDefaultPassword: status.usesDefaultPassword, principalId: me.user.id };
+  getPasswordStatus: async ({ principalId } = {}) => {
+    // App already authenticated this principal. Standalone dashboard consumers still resolve it.
+    const [status, id] = await Promise.all([api.getPasswordStatus(), principalId ?? api.me().then(me => me.user.id)]);
+    return { usesDefaultPassword: status.usesDefaultPassword, principalId: id };
   },
   getSiteKeyState: async () => {
     const status = await api.getSiteKeyStatus();

@@ -30,7 +30,7 @@ export interface DashboardPort {
    *  of this port already documents above. `principalId` is the caller's own id (from `/auth/me`),
    *  so the per-browser Dismiss is remembered per user — another account signing in on the same
    *  browser still gets its own nag. */
-  getPasswordStatus(): Promise<{ usesDefaultPassword: boolean; principalId: string }>;
+  getPasswordStatus(input?: { principalId?: string | null }): Promise<{ usesDefaultPassword: boolean; principalId: string }>;
   /** Site-key plan (2026-09-24) §A.6 — a seventh independent read, same "each source owns its own
    *  error slot, advisory, swallowed on failure" shape `getPasswordStatus` above documents. Narrowed
    *  to just `state` (`GET .../system/site-key`'s full response also carries `active`/`source`/

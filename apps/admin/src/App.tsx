@@ -5,6 +5,7 @@ import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks"
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
+import { AdminBootScopeContext } from "./lib/admin-boot-scope";
 import { useMemo, type ReactNode } from "react";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
@@ -529,6 +530,7 @@ function resolveAgentBridgeHook(override: typeof useAgentPageBridge | undefined)
   return override ?? useAgentPageBridge;
 }
 
+/** Keep the session owner mounted while every reader observes the same boot/identity boundary. */
 export function App(props: AppProps) {
   // No `AppProps = {}` default on the parameter itself (2026-08-14 — the sixth branch this file's
   // debt-list note flagged as untried): every real call site is JSX (`<App />`), and JSX's own
@@ -537,6 +539,13 @@ export function App(props: AppProps) {
   // a plain function call could be. `AppProps`' five fields are all optional, so `{}` satisfies the
   // type and this compiles the same as before for every existing call site.
   const useSession = resolveSessionHook(props.useSession);
+  const session = useSession();
+  return <AdminBootScopeContext.Provider value={{ principalId: session.user?.id ?? null, checking: session.checking }}>
+    <AdminShell {...props} session={session} />
+  </AdminBootScopeContext.Provider>;
+}
+
+function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSession> }) {
   const useDrawer = resolveDrawerHook(props.useDrawer);
   const useLinkInterceptor = resolveLinkInterceptorHook(props.useLinkInterceptor);
   const useChatDock = resolveChatDockHook(props.useChatDock);
@@ -544,7 +553,7 @@ export function App(props: AppProps) {
 
   // `effectivePermissions` stays `undefined` until known — the nav filter and route gate below read
   // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
-  const { user, checking, handleLogin, logout, effectivePermissions } = useSession();
+  const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
   // Confirmation-modal state around `logout` above — see `useLogoutConfirm`'s own doc comment
   // (`App.hooks.tsx`) for why this is its own hook rather than a `useSession()` field. Called
   // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),

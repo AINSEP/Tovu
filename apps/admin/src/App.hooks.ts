@@ -35,6 +35,7 @@ import {
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "./lib/tab-event-source";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
+import { useSitesSnapshot } from "./features/sites/hooks/use-sites-snapshot.hooks";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "./lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
@@ -375,11 +376,9 @@ export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
  * Activate and explained why, while the nav item and the route stayed live everywhere. This hook is
  * the first half.
  *
- * A plain `useState`/`useEffect` pair rather than `useFetchQuery`, matching
- * {@link useAdminAssistantAvailability} directly above it: the session-keyed visibility answer
- * stays independent of the Sites screen's cached snapshot (`features/sites/rules.ts`). Outside the
- * shell, the cost is one extra `GET .../system/sites` on the Sites screen itself, where the screen's
- * own query runs anyway — a directory listing, on the one screen that was always going to make it.
+ * Shares `useSitesSnapshot` with the screen and sidebar label: visibility is a projection of the
+ * same authorized directory listing, so those mounts must not issue independent boot requests.
+ * The principal key keeps one session's visibility answer out of another session's first paint.
  *
  * Fails CLOSED, the opposite of `useAdminAssistantAvailability`'s fail-open posture, because the
  * server's own default is the opposite: absent the var the capability is off, and
@@ -401,34 +400,14 @@ export function useSiteSectionAvailability(
   user: AdminUser | null,
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ): SiteSectionAvailability {
-  // Keyed to the SESSION OBJECT that asked, not a bare flag — an answer belongs to the `user` that
-  // was current when its read settled. Logout, a 401, and a new login each set a NEW `user`
-  // reference (`useAdminSession`; nothing re-creates the same one mid-session), so the derived
-  // return below reads `unknown` for every one of those until that session's own read settles.
-  // Without this, `setAvailability` alone survived logout/401 (both are just `setUser(null)`, with
-  // no reload) and kept painting the PREVIOUS session's answer — including into the first frame of
-  // whoever logs in next, before their own request has even started.
-  const [answer, setAnswer] = useState<{ user: AdminUser; value: "available" | "unavailable" } | null>(null);
-
-  useEffect(() => {
-    if (!user || desktop) return;
-    let cancelled = false;
-    api
-      .listSites()
-      .then((snapshot) => {
-        if (!cancelled) setAnswer({ user, value: snapshot.switchingEnabled === true ? "available" : "unavailable" });
-      })
-      .catch(() => {
-        // Fails closed — see this function's own doc comment.
-        if (!cancelled) setAnswer({ user, value: "unavailable" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user, desktop]);
-
+  // Identity belongs in the query key: logout/401 must not paint the previous user's answer,
+  // and an ordinary remount in this session should reuse the already authorized snapshot.
+  const snapshot = useSitesSnapshot({ port: api }, { enabled: !!user && !desktop, principalId: user?.id });
   if (desktop) return "unavailable";
-  return answer !== null && answer.user === user ? answer.value : "unknown";
+  if (!user) return "unknown";
+  if (snapshot.error) return "unavailable";
+  if (!snapshot.data) return "unknown";
+  return snapshot.data.switchingEnabled === true ? "available" : "unavailable";
 }
 
 /** {@link withoutSiteSection}'s predicate, hoisted out of the `.filter` call so the id comparison is

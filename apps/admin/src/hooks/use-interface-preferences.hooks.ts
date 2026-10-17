@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { DEFAULT_INTERFACE, INTERFACE_NAMESPACE, loadInterface, type InterfaceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { useAdminBootScope } from "../lib/admin-boot-scope";
 
 /**
  * @file Settings → User Interface's preferences, read live for the admin shell. `App.tsx` turns them
@@ -41,8 +42,9 @@ export const defaultInterfacePreferencesPort: InterfacePreferencesPort = {
  * @complexity O(1) per load.
  */
 export function useInterfacePreferences(port: InterfacePreferencesPort = defaultInterfacePreferencesPort): InterfaceConfig {
+  const { queryScope, checking } = useAdminBootScope();
   const queryFetch = useQueryFetchCallback(() => port.loadInterface(), [port]);
-  const query = useFetchQuery({ key: ["settings", INTERFACE_NAMESPACE], fetch: queryFetch }, { staleTime: 0 });
+  const query = useFetchQuery({ key: ["settings", INTERFACE_NAMESPACE, queryScope], fetch: queryFetch }, { enabled: !checking, staleTime: Infinity });
   const invalidate = useInvalidate();
   useEffect(() => port.subscribeToSettingsRefresh(() => invalidate({ key: ["settings", INTERFACE_NAMESPACE] })), [port, invalidate]);
   return query.data ?? DEFAULT_INTERFACE;
