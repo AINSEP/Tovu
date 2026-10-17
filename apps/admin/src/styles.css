@@ -4035,10 +4035,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   color: var(--jini-text-muted); border: 1px solid var(--jini-border); padding: 1px 5px; border-radius: 5px;
 }
 
-/* "Add a plugin" card (owner, 2026-10-17): the drop zone ran the full ~1300px column on a wide
-   screen. Capped at the shared `--form-measure` every single-column form uses (see `.form-measure`)
-   and centered in the tab. Scoped here: Skills and Plugins render the same card and keep theirs. */
-.agent-plugins-section .install-tab-card { width: 100%; max-width: var(--form-measure); margin-inline: auto; }
+/* "Add a plugin" card on Agent Plugins and Plugins (owner, 2026-10-17): the drop zone ran the full
+   ~1300px column on a wide screen. Capped at the shared `--form-measure` every single-column form
+   uses (see `.form-measure`) and centered in the tab. Scoped to these two pages: Skills renders the
+   same card and keeps its own width. */
+.agent-plugins-section .install-tab-card,
+.plugins-page .install-tab-card { width: 100%; max-width: var(--form-measure); margin-inline: auto; }
 
 /* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
    box: that treatment means "this control does nothing yet" everywhere else in this admin, which

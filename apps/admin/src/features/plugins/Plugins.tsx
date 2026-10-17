@@ -345,7 +345,7 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
   ];
 
   return (
-    <div className="page">
+    <div className="page plugins-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Integrations")}</p>
