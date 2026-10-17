@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Copies any website into Tovu: its pages, blog posts, images, menu and look.\n\nThe assistant reads the site, shows you a plan of everything it will create, and only starts once you say yes. Old links keep working through redirects.",
+      "summary": "Copies an existing website into Tovu: pages, posts, images, menus and look. You approve the plan before anything is created.",
       "id": "tovu/site-import",
       "provides": [
         "site-import"

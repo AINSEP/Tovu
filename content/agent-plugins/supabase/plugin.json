@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Gives your site a database for sign-ups, form entries and other data, set up from chat.\n\nYou sign in (or sign up) at Supabase in your browser and the assistant does the rest: it finds or creates the database and explains everything in plain words. Supabase's free plan allows two active databases, and the assistant tells you if you reach that limit.",
+      "summary": "Gives your site a database for sign-ups and form entries. You sign in to Supabase and the assistant sets up the rest.",
       "id": "tovu/supabase",
       "provides": [
         "database:supabase"

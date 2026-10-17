@@ -8,7 +8,7 @@
   "extensions": {
     "tovu": {
       "displayName": "Fly.io",
-      "summary": "Deploys the Tovu server itself to fly.io: one machine only (SQLite), secrets never in fly.toml, deploying ships code, not content. Contributes Fly operations, server config generation and the FlyV1 credential scheme.",
+      "summary": "Puts the Tovu server itself online on Fly.io.",
       "id": "tovu/fly",
       "provides": [
         "deploy-ops:fly",

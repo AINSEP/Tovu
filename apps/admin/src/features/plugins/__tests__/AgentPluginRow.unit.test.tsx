@@ -32,7 +32,7 @@ it.each([
   expect(glyph?.querySelector("path")).toHaveAttribute("d", expectedOutline);
 });
 
-function renderExpandedRow(plugin: { summary?: string | null; description: string | null }) {
+function renderExpandedRow(plugin: { summary?: string | null; description: string | null; keywords?: string[] }) {
   render(<ul><AgentPluginRow
     plugin={{ pluginId: "tovu-theme", version: "1.0.0", enabled: true, keywords: [], skills: [], mcpServerIds: [], ...plugin }}
     t={(key) => key}
@@ -48,10 +48,11 @@ function renderExpandedRow(plugin: { summary?: string | null; description: strin
   return screen.getByRole("listitem", { name: "Tovu Theme" });
 }
 
-it("shows the human summary as paragraphs and keeps the agent-facing description behind Technical details", () => {
+it("shows the human summary as paragraphs and never renders the agent-facing description or keywords", () => {
   const row = renderExpandedRow({
     summary: "Builds a theme for your site.\n\nOr turns an existing website into one.",
     description: "Encodes apiVersion 2's render/pages layout.\n\nNo new tools.",
+    keywords: ["apiVersion", "sentinel"],
   });
 
   // The clamped one-liner identifies the row by the summary, not the jargon.
@@ -65,14 +66,13 @@ it("shows the human summary as paragraphs and keeps the agent-facing description
     "Or turns an existing website into one.",
   ]);
 
-  const technical = row.querySelector("details.agent-plugin-detail-technical");
-  expect(technical).not.toBeNull();
-  expect(technical).not.toHaveAttribute("open");
-  expect(within(technical as HTMLElement).getByText("Technical details").tagName).toBe("SUMMARY");
-  expect([...(technical as HTMLElement).querySelectorAll("p")].map((p) => p.textContent)).toEqual([
-    "Encodes apiVersion 2's render/pages layout.",
-    "No new tools.",
-  ]);
+  // The description and keywords are the assistant's search data, not owner copy (owner,
+  // 2026-10-17): no "Technical details" toggle, no keyword chips, no jargon anywhere in the row.
+  expect(row.querySelector("details")).toBeNull();
+  expect(within(row).queryByText("Technical details")).toBeNull();
+  expect(within(row).queryByText("Keywords")).toBeNull();
+  expect(row).not.toHaveTextContent("apiVersion");
+  expect(row).not.toHaveTextContent("sentinel");
 });
 
 it("without a summary, renders the description itself as paragraphs and no Technical details toggle", () => {

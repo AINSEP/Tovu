@@ -292,18 +292,12 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             the row is the only path assistive tech and touch have, so the full text repeats here,
             unclamped, first — before every other per-plugin fact this panel already held. */}
         <PlainTextBlocks text={blurb} className="agent-plugin-detail-description" />
-        {/* With a summary above, the agent-facing description is still the package's full account
-            of itself — kept one click away rather than dropped, collapsed so it no longer opens
-            the panel with a wall of tool ids. */}
-        {blurb !== plugin.description && plugin.description ? (
-          <details className="agent-plugin-detail-technical">
-            <summary>{t("Technical details")}</summary>
-            <PlainTextBlocks text={plugin.description} className="agent-plugin-detail-technical-body" />
-          </details>
-        ) : null}
+        {/* The agent-facing `description` and the search `keywords` are NOT rendered here (owner,
+            2026-10-17: a "Technical details" wall of tool ids and a 40-chip keyword cloud read as
+            noise). Both still reach the assistant unchanged through `search_agent_plugin_local`,
+            and the eye button's package viewer shows the raw manifest for anyone who wants it. */}
         <DetailChips label={t("Portable components")} values={plugin.skills.map((skill) => skill.name)} />
         <DetailChips label={t("MCP servers")} values={plugin.mcpServerIds} />
-        <DetailChips label={t("Keywords")} values={plugin.keywords} />
       </div>
     </li>
   );

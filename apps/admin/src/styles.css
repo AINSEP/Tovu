@@ -4238,21 +4238,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   font-size: 12.5px; line-height: 1.5; color: var(--jini-text);
 }
 /* `PlainTextBlocks` paragraphs and `- ` lists: the author's blank lines become real gaps instead
-   of one wall of text. Shared by the summary and the Technical details body below. */
-:is(.agent-plugin-detail-description, .agent-plugin-detail-technical-body) { display: grid; gap: 8px; max-width: 68ch; }
-:is(.agent-plugin-detail-description, .agent-plugin-detail-technical-body) :is(p, ul) { margin: 0; }
-:is(.agent-plugin-detail-description, .agent-plugin-detail-technical-body) ul { padding-left: 1.2em; }
-/* The agent-facing description, one click away under a summary. Muted and smaller: it is
-   reference text for the curious, not what the row is about. */
-.agent-plugin-detail-technical > summary {
-  width: fit-content; cursor: pointer;
-  font-size: 12px; font-weight: 600; color: var(--jini-text-muted);
-}
-.agent-plugin-detail-technical > summary:hover { color: var(--jini-text); }
-.agent-plugin-detail-technical-body {
-  margin-top: 8px;
-  font-size: 12px; line-height: 1.5; color: var(--jini-text-muted);
-}
+   of one wall of text. */
+.agent-plugin-detail-description { display: grid; gap: 8px; max-width: 68ch; }
+.agent-plugin-detail-description :is(p, ul) { margin: 0; }
+.agent-plugin-detail-description ul { padding-left: 1.2em; }
 .agent-plugin-detail-group { display: flex; flex-direction: column; gap: 7px; }
 .agent-plugin-detail-label {
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
@@ -4758,8 +4747,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   /* Themes (Chrome check, 2026-10-11): at 390px its strip scrolled with the Code tab entirely off
      screen and nothing said more tabs were there. Same right-edge fade the AI Assistant /
      Observability strips use (above); the 32px end padding lets the last tab scroll clear of the
-     fade. Not when the operator chose wrapping tabs, where nothing is hidden. */
-  .admin-layout:not(.wraps-tabs) .themes-page > .tab-bar {
+     fade. Not when the operator chose wrapping tabs, where nothing is hidden.
+     Every `.tab-bar`, not just Themes' (2026-10-17): Plugins and Agent Plugins grew a fourth tab, so
+     at 360px Marketplace sat fully off screen with the same missing cue. On a strip that fits, the
+     fade covers only the empty end padding, so it is invisible there. Agent Plugins' strip is the
+     Jini tabbed-dialog one; its cue is in the `@container admin-content` rule below. */
+  .admin-layout:not(.wraps-tabs) .tab-bar {
     padding-right: 32px;
     mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
   }
@@ -4779,6 +4772,13 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     box-shadow: inset 0 -1px 0 var(--jini-border);
   }
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
+  /* The right-edge "more tabs" fade `.tab-bar` uses on phones (2026-10-17): at 360px Agent Plugins'
+     Marketplace tab sat fully off screen with nothing saying the strip scrolls. Invisible on a strip
+     that fits; off when the operator chose wrapping tabs. */
+  .admin-layout:not(.wraps-tabs) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+    padding-right: 32px;
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
+  }
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
     flex-shrink: 0;
     margin-bottom: 0;

@@ -241,13 +241,13 @@ describe("AgentPlugins", () => {
     expect(uninstall).toHaveAccessibleDescription(/ship with Tovu can.t be uninstalled: they come back on the next restart\. To remove one you added, ask the assistant\./);
   });
 
-  it("keeps every per-plugin fact, moving keywords and components behind the row's own expander", async () => {
+  it("moves components behind the row's own expander and leaves keywords out", async () => {
     const { rerender } = renderAgentPlugins();
     await userEvent.click(screen.getByRole("button", { name: "Downloaded" }));
 
     const summary = within(row("Site Compliance")).getByRole("button", { name: "Site Compliance v1.0.0" });
     expect(summary).toHaveAttribute("aria-expanded", "false");
-    expect(within(row("Site Compliance")).getByText("compliance")).not.toBeVisible();
+    expect(within(row("Site Compliance")).getByText("site-compliance")).not.toBeVisible();
 
     function useExpanded(): AgentPluginsController {
       return fakeController({ expandedIds: new Set(["site-compliance"]) });
@@ -259,9 +259,9 @@ describe("AgentPlugins", () => {
 
     const expandedRow = row("Site Compliance");
     expect(within(expandedRow).getByRole("button", { name: "Site Compliance v1.0.0" })).toHaveAttribute("aria-expanded", "true");
-    expect(within(expandedRow).getByText("Keywords")).toBeVisible();
-    expect(within(expandedRow).getByText("compliance")).toBeVisible();
-    expect(within(expandedRow).getByText("gdpr")).toBeVisible();
+    // Keywords are the assistant's search data, not owner copy (owner, 2026-10-17): not shown.
+    expect(within(expandedRow).queryByText("Keywords")).not.toBeInTheDocument();
+    expect(within(expandedRow).queryByText("gdpr")).not.toBeInTheDocument();
     expect(within(expandedRow).getByText("Portable components")).toBeVisible();
     expect(within(expandedRow).getByText("site-compliance")).toBeVisible();
 

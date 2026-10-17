@@ -24,7 +24,7 @@
         "site-guide"
       ],
       "displayName": "How Tovu works",
-      "summary": "Teaches the assistant the building blocks of your site before it starts designing. Uses the site's current forms, widgets, themes and plugins, and respects the caller's permissions."
+      "summary": "Teaches the assistant how your site is put together, so it builds with what you already have."
     }
   }
 }

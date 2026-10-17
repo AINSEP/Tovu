@@ -8,7 +8,7 @@
   "extensions": {
     "tovu": {
       "displayName": "Railway",
-      "summary": "Generates railway.json for the Tovu server. Follow the output notes to create the volume and set secrets before deploying. Config generation only.",
+      "summary": "Writes the settings file for running the Tovu server on Railway. You follow its notes to finish the deploy.",
       "id": "tovu/railway",
       "provides": [
         "deploy-config:railway"

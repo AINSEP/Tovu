@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Sends your site's emails, like sign-in links and form notifications, through Resend, an email delivery service.\n\nThe assistant helps you set it up: get a key from Resend, confirm the web address your emails come from, and save the key in Tovu.",
+      "summary": "Sends your site's emails, like sign-in links and form notifications, through Resend.",
       "id": "tovu/resend",
       "provides": [
         "outbound-mail"

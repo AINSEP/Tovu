@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Teaches the assistant about Jev, a fast, low-cost AI model from TypeSafe. Jev answers multiple-choice and scoring questions and says how sure it is, which makes it good for sorting, routing and scoring things automatically. It does not write text.\n\nThe assistant can't use Jev from chat yet. Turn this on when you want help planning or writing software that uses Jev. You'll need your own TypeSafe key.",
+      "summary": "Helps you plan and write software that uses Jev, TypeSafe's fast AI model for sorting and scoring. Needs your own TypeSafe key.",
       "id": "tovu/jev",
       "provides": [
         "skill-discovery"

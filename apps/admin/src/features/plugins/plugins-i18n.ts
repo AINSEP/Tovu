@@ -50,7 +50,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Could not install the plugin. Try again.": "No se pudo instalar el plugin. Inténtalo de nuevo.",
     "Choose one .zip file.": "Elige un solo archivo .zip.",
     // Agent Plugin row: the agent-facing description behind its owner-facing summary (2026-10-06).
-    "Technical details": "Detalles técnicos",
     // Plugin conflict detection (2026-10-04): conflict lines, quarantine headline, PLUGIN_CONFLICT.
     "Turned off automatically": "Desactivado automáticamente",
     "Quarantined after {count} consecutive failures": "En cuarentena tras {count} fallos consecutivos",
@@ -289,7 +288,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Jenis-jenis konten",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Plugin ini tidak berisi kode; tidak ada bagiannya yang berjalan di komputer ini. Mengaktifkannya hanya menambahkan apa yang dideklarasikannya.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Detail teknis",
     "Plugin details": "Detail plugin",
     ID: "ID",
     Access: "Akses",
@@ -466,7 +464,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Inhaltstypen",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Dieses Plugin enthält keinen Code; nichts davon läuft auf diesem Computer. Beim Aktivieren fügt es nur hinzu, was es deklariert.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Technische Details",
     "Plugin details": "Plugin-Details",
     ID: "ID",
     Access: "Zugriff",
@@ -628,7 +625,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "内容类型列表",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "此插件不含代码；它不会在这台计算机上运行任何内容。启用后只会添加它声明的内容。",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "技术详情",
     "Plugin details": "插件详情",
     ID: "ID",
     Access: "访问权限",
@@ -805,7 +801,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "內容類型清單",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "此外掛不含程式碼；它不會在這台電腦上執行任何內容。啟用後只會新增它宣告的內容。",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "技術詳細資料",
     "Plugin details": "外掛詳細資料",
     ID: "ID",
     Access: "存取權限",
@@ -982,7 +977,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Tipos de conteúdo",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Este plugin não tem código; nada dele é executado neste computador. Ativá-lo apenas adiciona o que ele declara.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Detalhes técnicos",
     "Plugin details": "Detalhes do plugin",
     ID: "ID",
     Access: "Acesso",
@@ -1174,7 +1168,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Типы контента",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Этот плагин не содержит кода; ничего из него не выполняется на этом компьютере. При включении он добавляет только то, что объявляет.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Технические сведения",
     "Plugin details": "Сведения о плагине",
     ID: "ID",
     Access: "Доступ",
@@ -1351,7 +1344,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "انواع محتوا",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "این افزونه هیچ کدی ندارد؛ هیچ بخشی از آن روی این رایانه اجرا نمی‌شود. روشن کردن آن فقط چیزهایی را که اعلام می‌کند اضافه می‌کند.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "جزئیات فنی",
     "Plugin details": "جزئیات افزونه",
     ID: "شناسه",
     Access: "دسترسی",
@@ -1528,7 +1520,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "أنواع المحتوى",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "لا تحتوي هذه الإضافة على أي شيفرة؛ لا يعمل منها شيء على هذا الكمبيوتر. تفعيلها يضيف فقط ما تعلنه.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "التفاصيل التقنية",
     "Plugin details": "تفاصيل الإضافة",
     ID: "المعرّف",
     Access: "الوصول",
@@ -1705,7 +1696,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "コンテンツタイプ一覧",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "このプラグインにはコードがありません。このコンピューター上で実行されるものはありません。有効にすると、宣言された内容だけが追加されます。",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "技術的な詳細",
     "Plugin details": "プラグインの詳細",
     ID: "ID",
     Access: "アクセス",
@@ -1882,7 +1872,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "콘텐츠 유형 목록",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "이 플러그인에는 코드가 없으며 이 컴퓨터에서 실행되는 것은 없습니다. 켜면 선언한 항목만 추가됩니다.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "기술 세부 정보",
     "Plugin details": "플러그인 세부 정보",
     ID: "ID",
     Access: "접근 권한",
@@ -2059,7 +2048,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Typy treści",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Ta wtyczka nie zawiera kodu; nic z niej nie działa na tym komputerze. Włączenie jej dodaje tylko to, co deklaruje.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Szczegóły techniczne",
     "Plugin details": "Szczegóły wtyczki",
     ID: "ID",
     Access: "Dostęp",
@@ -2236,7 +2224,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Tartalomtípusok",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Ez a bővítmény nem tartalmaz kódot; semmi sem fut belőle ezen a számítógépen. Bekapcsoláskor csak azt adja hozzá, amit deklarál.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Technikai részletek",
     "Plugin details": "Bővítmény részletei",
     ID: "Azonosító",
     Access: "Hozzáférés",
@@ -2413,7 +2400,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Types de contenu",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Ce plugin ne contient aucun code ; rien ne s’exécute sur cet ordinateur. L’activer ajoute seulement ce qu’il déclare.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Détails techniques",
     "Plugin details": "Détails du plugin",
     ID: "ID",
     Access: "Accès",
@@ -2590,7 +2576,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Типи контенту",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Цей плагін не містить коду; нічого з нього не виконується на цьому комп’ютері. Увімкнення лише додає те, що він оголошує.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Технічні відомості",
     "Plugin details": "Відомості про плагін",
     ID: "ID",
     Access: "Доступ",
@@ -2767,7 +2752,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "İçerik türleri",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Bu eklenti kod içermez; hiçbir parçası bu bilgisayarda çalışmaz. Açmak yalnızca bildirdiklerini ekler.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Teknik ayrıntılar",
     "Plugin details": "Eklenti ayrıntıları",
     ID: "Kimlik",
     Access: "Erişim",
@@ -2944,7 +2928,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "รายการประเภทเนื้อหา",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "ปลั๊กอินนี้ไม่มีโค้ด จึงไม่มีสิ่งใดทำงานบนคอมพิวเตอร์เครื่องนี้ การเปิดใช้จะเพิ่มเฉพาะสิ่งที่ปลั๊กอินประกาศไว้",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "รายละเอียดทางเทคนิค",
     "Plugin details": "รายละเอียดปลั๊กอิน",
     ID: "รหัส",
     Access: "สิทธิ์การเข้าถึง",
@@ -3121,7 +3104,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "Tipi di contenuto",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "Questo plugin non contiene codice; nulla viene eseguito su questo computer. Attivarlo aggiunge solo ciò che dichiara.",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "Dettagli tecnici",
     "Plugin details": "Dettagli del plugin",
     ID: "ID",
     Access: "Accesso",
@@ -3298,7 +3280,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "कंटेंट टाइप सूची",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "इस प्लगइन में कोई कोड नहीं है; इसका कुछ भी इस कंप्यूटर पर नहीं चलता। इसे चालू करने पर केवल वही जुड़ता है जो यह घोषित करता है।",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "तकनीकी विवरण",
     "Plugin details": "प्लगइन विवरण",
     ID: "आईडी",
     Access: "पहुँच",
@@ -3475,7 +3456,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "مواد کی اقسام",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "اس پلگ ان میں کوئی کوڈ نہیں؛ اس کا کچھ بھی اس کمپیوٹر پر نہیں چلتا۔ اسے فعال کرنے سے صرف وہی شامل ہوتا ہے جس کا یہ اعلان کرتا ہے۔",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "تکنیکی تفصیلات",
     "Plugin details": "پلگ ان کی تفصیلات",
     ID: "شناخت",
     Access: "رسائی",
@@ -3652,7 +3632,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Content types": "কনটেন্ট টাইপসমূহ",
     "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.": "এই প্লাগইনে কোনো কোড নেই; এর কিছুই এই কম্পিউটারে চলে না। চালু করলে এটি কেবল যা ঘোষণা করে তা-ই যোগ করে।",
     // Plugin row detail panel (PL-2, 2026-10-06): the facts every row lists, healthy or not.
-    "Technical details": "প্রযুক্তিগত বিবরণ",
     "Plugin details": "প্লাগইনের বিবরণ",
     ID: "আইডি",
     Access: "প্রবেশাধিকার",

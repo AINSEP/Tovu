@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Checks your site for privacy, cookie-consent and accessibility risks, based on what is actually on your pages and in your settings.\n\nEach finding points to the exact page and spot it is about, and where it can't tell, it says so. It flags risks; it does not certify that your site is legally compliant.",
+      "summary": "Checks your site for privacy, cookie and accessibility risks and shows where each one is. It flags risks; it doesn't certify compliance.",
       "id": "tovu/site-compliance",
       "provides": [
         "site-compliance"

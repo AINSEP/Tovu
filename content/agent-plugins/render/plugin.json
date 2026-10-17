@@ -8,7 +8,7 @@
   "extensions": {
     "tovu": {
       "displayName": "Render",
-      "summary": "Generates render.yaml for the Tovu server with a persistent disk, health check and manually supplied secrets. Config generation only; follow the output notes to deploy.",
+      "summary": "Writes the settings file for running the Tovu server on Render. You follow its notes to finish the deploy.",
       "id": "tovu/render",
       "provides": [
         "deploy-config:render"
