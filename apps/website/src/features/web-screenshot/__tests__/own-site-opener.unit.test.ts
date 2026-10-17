@@ -45,6 +45,13 @@ test("an unknown themeId is refused with the installed ids, and nothing is boote
   assert.deepEqual(opened, []);
 });
 
+test("an unknown themeId reports none when every installed theme is invalid, and nothing is booted", async () => {
+  const { open, opened } = harness([theme("broken", "invalid")]);
+  await assert.rejects(open({}, { themeId: "missing" }), (error: unknown) => error instanceof ToolInputError
+    && error.message === "web_screenshot_page: themeId 'missing' is not an installed theme. Installed themes: none.");
+  assert.deepEqual(opened, []);
+});
+
 test("an installed but invalid theme is refused rather than silently rendered as the default theme", async () => {
   const { open, opened } = harness([theme("tovu-starter"), theme("broken", "invalid")]);
   await assert.rejects(open({}, { themeId: "broken" }), /themeId 'broken' is installed but invalid \(it fails theme validation\), so the site would render a different theme instead/);

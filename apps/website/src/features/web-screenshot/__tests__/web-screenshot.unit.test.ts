@@ -48,6 +48,20 @@ function ports(capture: PageCapturePort, events: WebScreenshotEvent[] = []): Web
   return { capture, encodeTiles: encodeScreenshotTiles, nowMs: () => Date.parse("2026-10-08T12:00:00.000Z"), observe: (event) => events.push(event) };
 }
 
+test("the tile encoder defaults to quality 70 when options are omitted", async () => {
+  const png = await solidPng(32, 20);
+  const tiles = await encodeScreenshotTiles({ png, maxWidth: 32, tileHeight: 20 });
+  assert.deepEqual(tiles.map(({ top, width, height }) => ({ top, width, height })), [{ top: 0, width: 32, height: 20 }]);
+  assert.deepEqual(tiles[0]!.bytes, await sharp(png).jpeg({ quality: 70 }).toBuffer());
+});
+
+test("the tile encoder defaults to quality 70 when options contain no quality", async () => {
+  const png = await solidPng(32, 20);
+  const tiles = await encodeScreenshotTiles({ png, maxWidth: 32, tileHeight: 20 }, {});
+  assert.equal(tiles.length, 1);
+  assert.deepEqual(tiles[0]!.bytes, await sharp(png).jpeg({ quality: 70 }).toBuffer());
+});
+
 type Envelope = { content: Array<{ type: string; text?: string; mimeType?: string; data?: string }> };
 const factsOf = (result: Envelope) => JSON.parse(result.content[0]!.text!) as Record<string, unknown>;
 const imagesOf = (result: Envelope) => result.content.slice(1);

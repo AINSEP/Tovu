@@ -88,3 +88,11 @@ test("encodeJpeg downscales to maxWidth, keeps the aspect ratio, never enlarges,
   const kept = await encodeJpeg({ image: png, maxWidth: 4000 });
   assert.deepEqual([kept.width, kept.height], [1280, 800]);
 });
+
+test("encodeJpeg honors an explicit quality instead of its default", async () => {
+  const png = await sharp({ create: { width: 32, height: 20, channels: 3, background: { r: 200, g: 10, b: 10 } } }).png().toBuffer();
+  const encoded = await encodeJpeg({ image: png, maxWidth: 32 }, { quality: 35 });
+  assert.deepEqual([encoded.width, encoded.height], [32, 20]);
+  assert.deepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 35 }).toBuffer());
+  assert.notDeepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 72 }).toBuffer());
+});

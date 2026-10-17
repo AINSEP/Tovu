@@ -502,3 +502,55 @@ for (const [tool, input] of WRITES) {
     });
   }
 }
+
+for (const [tool, input] of WRITES) {
+  test(`${tool} refuses a negative expectedVersion without changing the page`, async () => {
+    const { repo, call } = harness();
+    await seedPage(repo, "page-1", "Landing");
+    await call("pages_write_html", { id: "page-1", html: FAULT_PAGE });
+    const before = structuredClone(await repo.findById({ workspaceId: WS, id: "page-1" }));
+
+    await assert.rejects(call(tool, { ...input, expectedVersion: -1 }), {
+      name: "ToolInputError",
+      message: "'expectedVersion' must be a non-negative integer when present",
+    });
+
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: "page-1" }), before);
+  });
+}
+
+test("a region edit on legacy HTML without handles explains that there are no regions and preserves the page", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "legacy", "Legacy");
+  // Legacy markup enters through the store: the tools correctly refuse to author untagged HTML.
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "legacy" }, { repo, clock });
+  await store.ensureHtmlFormat("<p>Keep this legacy copy.</p>");
+  const before = structuredClone(await repo.findById({ workspaceId: WS, id: "legacy" }));
+
+  await assert.rejects(call("pages_write_region", { id: "legacy", handle: "hero", html: "Replacement" }), {
+    name: "ToolInputError",
+    message:
+      'Nothing was written: page \'legacy\' has no region with data-agent-element="hero" — it has none at all. ' +
+      "Call pages_read_html to see the current handles, and target one of those; if the section you want does not exist " +
+      "yet, add it with pages_write_html.",
+  });
+
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "legacy" }), before);
+});
+
+test("an unclosed region is refused with repair guidance and its stored HTML survives", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "unclosed", "Unclosed");
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "unclosed" }, { repo, clock });
+  await store.ensureHtmlFormat('<section data-agent-element="hero"><p>Keep the unclosed section.</p>');
+  const before = structuredClone(await repo.findById({ workspaceId: WS, id: "unclosed" }));
+
+  await assert.rejects(call("pages_write_region", { id: "unclosed", handle: "hero", html: "Replacement" }), {
+    name: "ToolInputError",
+    message:
+      'Nothing was written: the <section> carrying data-agent-element="hero" in page \'unclosed\' has no closing ' +
+      "tag in the stored markup, so it delimits no content to replace. Repair the page with pages_write_html.",
+  });
+
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "unclosed" }), before);
+});

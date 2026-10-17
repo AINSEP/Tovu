@@ -3,7 +3,7 @@ import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import type { NormalizedHit } from "../index.js";
 import { createLocalAnalyticsSink } from "../jini-adapters.js";
-import { buildAnalyticsRegistrations, analyticsDerivedRisk } from "../tool-registrations.js";
+import { buildAnalyticsRegistrations, contributeAnalyticsTools, analyticsDerivedRisk } from "../tool-registrations.js";
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
 const hit = (path: string, overrides: Partial<NormalizedHit> = {}): NormalizedHit => ({ workspaceId: "ws", occurredAt: "2026-10-01T00:00:00Z", kind: "pageview", path, referrerHost: null, deviceClass: "desktop", browserFamily: "Firefox", eventName: null, eventProps: null, utm: { source: null, medium: null, campaign: null, term: null, content: null }, visitorHash: "secret", sessionId: "session", osFamily: null, country: null, region: null, ...overrides });
@@ -75,4 +75,22 @@ test("permission denied prevents sink reads; malformed optional fields are reada
 test("analytics registration is readOnly", () => {
   assert.equal(isReadOnlyTool({ descriptor: harness().tool.descriptor }), true);
   assert.equal(analyticsDerivedRisk.get("analytics_list_recent_hits"), "none");
+});
+
+test("the analytics contributor builds its read-only recent-hits tool with the supplied dependencies", async () => {
+  const { deps } = harness();
+  const contributor = contributeAnalyticsTools();
+  assert.equal(contributor.domain, "analytics");
+  assert.equal(contributor.build, buildAnalyticsRegistrations);
+  assert.equal(contributor.risk, analyticsDerivedRisk);
+  // The feature needs only its own dependency slice of the assistant's larger build contract.
+  const build = contributor.build as typeof buildAnalyticsRegistrations;
+  const registrations = build(deps);
+  assert.equal(registrations.length, 1);
+  const tool = registrations[0]!;
+  assert.equal(isReadOnlyTool({ descriptor: tool.descriptor }), true);
+  assert.deepEqual(await tool.handler(ctx({ limit: 1 })), { hits: [{
+    occurredAt: "2026-10-01T00:00:00Z", kind: "event", path: "/a", referrerHost: "google.com",
+    deviceClass: "desktop", browserFamily: "Firefox", eventName: "click",
+  }] });
 });
