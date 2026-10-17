@@ -1,5 +1,5 @@
 // Test infrastructure only: reuse the process-owned temporary catalog and its exit cleanup.
-import { isolatedCatalogEnv } from "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { isolatedCatalogEnv } from "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
 /**
  * @file Shared env-builder for any test that spawns a real Node child process while

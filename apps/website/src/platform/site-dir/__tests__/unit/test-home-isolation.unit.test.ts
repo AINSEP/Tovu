@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { assertTestHomeIsolation, createSitesWorkspace } from "../../sites-home.js";
 import { siteKeySources } from "../../../../features/webhooks/site-key-sources.js";
-import { childProcessCoverageEnv } from "../../../../contracts/core/child-process-coverage-env.js";
+import { childProcessCoverageEnv } from "../../../../contracts/core/__tests__/helpers/child-process-coverage-env.js";
 
 /** Sweep s01: fail before owner settings/key I/O; exercise the real resolvers without mocks. */
 const ISOLATION_ERROR = "Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.";

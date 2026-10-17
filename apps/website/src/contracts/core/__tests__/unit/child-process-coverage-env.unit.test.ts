@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { childProcessCoverageEnv } from "../../child-process-coverage-env.js";
+import { childProcessCoverageEnv } from "../helpers/child-process-coverage-env.js";
 
 /**
  * @file Direct coverage for `childProcessCoverageEnv`: it must redirect `NODE_V8_COVERAGE` to the

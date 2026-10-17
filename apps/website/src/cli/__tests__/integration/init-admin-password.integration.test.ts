@@ -1,4 +1,4 @@
-import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";

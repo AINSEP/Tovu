@@ -12,7 +12,7 @@ import test, { after } from "node:test";
 
 import Database from "better-sqlite3";
 
-import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 
 import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 

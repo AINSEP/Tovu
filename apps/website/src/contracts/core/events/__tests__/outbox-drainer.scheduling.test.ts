@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { childProcessCoverageEnv } from '../../child-process-coverage-env.js';
+import { childProcessCoverageEnv } from '../../__tests__/helpers/child-process-coverage-env.js';
 import { InMemoryEventBus, InMemoryOutbox } from '../memory-bus.js';
 import { startOutboxDrainer } from '../outbox-drainer.js';
 

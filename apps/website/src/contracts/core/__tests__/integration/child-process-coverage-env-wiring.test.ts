@@ -6,7 +6,7 @@ import ts from "typescript";
 
 /**
  * @file Pins that every test file known to spawn a real Node child process actually calls
- * `childProcessCoverageEnv` (`core/child-process-coverage-env.ts`), not merely that the helper
+ * `childProcessCoverageEnv` (`core/__tests__/helpers/child-process-coverage-env.ts`), not merely that the helper
  * itself works in isolation (that is `child-process-coverage-env.unit.test.ts`'s job).
  *
  * The gap this closes: a helper that exists but isn't wired into its call sites leaves every one
@@ -44,7 +44,7 @@ const NODE_CHILD_SPAWNING_FILES = [
   "apps/website/src/__tests__/integration/port-in-use.integration.test.ts",
 ];
 
-const IMPORTS_HELPER = /from\s+["']#src\/contracts\/core\/child-process-coverage-env["']/;
+const IMPORTS_HELPER = /from\s+["']#src\/contracts\/core\/__tests__\/helpers\/child-process-coverage-env["']/;
 function uncoveredSpawns(source: string): string[] {
   const parsed = ts.createSourceFile("test.ts", source, ts.ScriptTarget.Latest, true);
   const bindings = new Map<string, ts.Expression>();
