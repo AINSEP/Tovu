@@ -108,6 +108,23 @@ test("copy inventory retains every eligible kind, labels custom host compatibili
   } finally { await f.close(); }
 });
 
+test("copy inventory keeps source keys without publishHosts when deploy targets cannot load", async () => {
+  const f = await fixture();
+  try {
+    await save(f.source, "custom", "Vercel");
+    const copy = createLocalCredentialCopy({ ...f.required, loadDeployTargets: async () => {
+      throw new Error("private-registry-error");
+    } }, f.options);
+    const sources = await copy.list({});
+    assert.deepEqual(sources.map(source => ({ siteId: source.siteId,
+      keys: source.keys.map(({ kind, id, label, provider }) => ({ kind, id, label, provider })) })), [
+      { siteId: "source", keys: [{ kind: "custom", id: "Vercel", label: "Vercel", provider: null }] },
+    ]);
+    assert.equal(Object.hasOwn(sources[0].keys[0], "publishHosts"), false);
+    assert.equal(f.handles.opened, f.handles.closed);
+  } finally { await f.close(); }
+});
+
 for (const placement of ["inSite", "appData"] as const) test(`${placement}: copied keys reopen under the target key/AAD, preserving IDs; source stays byte-identical`, async () => {
   const f = await fixture(placement);
   try {

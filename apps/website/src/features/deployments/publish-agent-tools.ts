@@ -17,7 +17,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * Preview and capability reads use isConfigured and cached verification without probing providers
  * or resolving usable credentials. Capability summaries may unseal server-side only for safe
  * length/tail hints under the owner's policy; tokens/ciphertext never reach the model.
- * Configured means a saved row exists; ready additionally requires successful verification.
+ * Configured means a saved row or allowed environment credential exists; ready additionally
+ * requires successful verification.
  * Permission enforcement happens at call time, beyond ADR-014's catalog visibility filter.
  *
  * Execution follows the shared human approval policy, validates targets/readiness and the active
@@ -104,12 +105,16 @@ const NO_INPUT_SCHEMA = {
  * @complexity O(1) — fixed string interpolation, no iteration.
  * @overallScore 100
  */
-function buildCapabilityGuidance(
-  providerId: string,
-  readiness: { configured: true } | { configured: false; reason: string },
-  verification: { status: "valid" | "invalid" | "unreachable"; checkedAt: string; message: string } | undefined
-): string | undefined {
+function buildCapabilityGuidance({ providerId, readiness, verification, credentialOrigin }: {
+  providerId: string;
+  readiness: { configured: true } | { configured: false; reason: string };
+  verification: { status: "valid" | "invalid" | "unreachable"; checkedAt: string; message: string } | undefined;
+  credentialOrigin: "saved" | "environment" | null;
+}, _options = {}): string | undefined {
   if (!readiness.configured) return readiness.reason;
+  if (credentialOrigin === "environment") {
+    return `This ${providerId} credential comes from a server environment variable; no key is stored for this site.`;
+  }
   if (verification === undefined) {
     return `This ${providerId} credential is saved but has not been verified against ${providerId} yet — verify it in the Static Site tab before relying on it.`;
   }
@@ -198,7 +203,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for every static-publish host the turned-on hosting plugins provide, WITHOUT exposing any credential. Server-side unsealing derives only safe length and last-4 hints; short tokens expose length alone. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenHint: the server-derived length and last4, with no characters exposed for tokens shorter than 12; tokenTail: the same safe last4 or an empty string, so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). When a publish credential is missing, local installation owners also receive credentialSources: registered site names with matching credential labels and publishHosts, never secret values. An empty keys list means no matching key was found there; a reasonCode means that source could not be inspected. If the owner named a source with no matching key, name the sites that do have one and ask before changing the source; use credential_copy_from_project for its human selection card. Do not copy an unrelated host token or silently choose another site. Custom credentials labelled with a token-only host or its vendor (case-insensitive) are recognised, with vendor defaults taking precedence. If no existing key can be reused, or a credential was rejected, call credential_save with kind publish-host in this turn to open its secure card, then retry once after a successful save. The admin's Static Site tab (Deployment panel → Static Site → Publish) is an alternative for manual setup.",
+      "Reports live publish readiness for every static-publish host the turned-on hosting plugins provide, WITHOUT exposing any credential. Server-side unsealing derives only safe length and last-4 hints; short tokens expose length alone. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is configured AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This reports configuration, not saved-key presence; credentialOrigin is 'saved' when savedCredentials is nonempty, 'environment' when only the server environment configures it, or null when neither exists. It is kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where no usable credential is configured for this provider and the human needs to configure one); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenHint: the server-derived length and last4, with no characters exposed for tokens shorter than 12; tokenTail: the same safe last4 or an empty string, so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). When a host lacks a saved key, local installation owners also receive credentialSources, including for environment-configured hosts: registered site names with matching credential labels and publishHosts, never secret values. An empty keys list means that site has no saved key for a host lacking a saved key; a reasonCode means that source could not be inspected. If the owner named a source with no matching key, name the sites that do have one and ask before changing the source; use credential_copy_from_project for its human selection card. Do not copy an unrelated host token or silently choose another site. Custom credentials labelled with a token-only host or its vendor (case-insensitive) are recognised, with vendor defaults taking precedence. If no existing key can be reused, or a credential was rejected, call credential_save with kind publish-host in this turn to open its secure card, then retry once after a successful save. The admin's Static Site tab (Deployment panel → Static Site → Publish) is an alternative for manual setup.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -510,9 +515,10 @@ function buildProviderCapabilityResult(spec: {
   readonly defaultCredential: { readonly accountLabel: string | null } | undefined;
   readonly lastPublish: Awaited<ReturnType<PublishHistoryStore["getLast"]>>;
   readonly savedCredentials: ReturnType<typeof mapSavedCredentials>;
+  readonly credentialOrigin: "saved" | "environment" | null;
   readonly guidance: string | undefined;
-}) {
-  const { descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance } = spec;
+}, _options = {}) {
+  const { descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, credentialOrigin, guidance } = spec;
   return {
     providerId: descriptor.id,
     label: descriptor.label,
@@ -521,6 +527,7 @@ function buildProviderCapabilityResult(spec: {
     configFields: descriptor.configFields.map(({ name, label, required, help }) => ({ name, label, required, ...(help !== undefined ? { help } : {}) })),
     ready,
     credentialConfigured: readiness.configured,
+    credentialOrigin,
     verified,
     verifiedAt: verification?.checkedAt ?? null,
     // The verified credential's own public account login/username (GitHub `login`, Vercel
@@ -566,9 +573,10 @@ async function buildProviderCapability(loaded: LoadedDeployTarget, ctx: Provider
   const verification = readiness.configured ? ctx.deps.publishCredentialVerificationCache.get({ workspaceId: ctx.deps.workspaceId, target: providerId }) : undefined;
   const verified = verification ? verification.status : null;
   const ready = readiness.configured && verified === "valid";
-  const guidance = buildCapabilityGuidance(providerId, readiness, verification);
+  const credentialOrigin = savedCredentials.length ? "saved" : readiness.configured ? "environment" : null;
+  const guidance = buildCapabilityGuidance({ providerId, readiness, verification, credentialOrigin });
 
-  return buildProviderCapabilityResult({ descriptor: loaded.descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance });
+  return buildProviderCapabilityResult({ descriptor: loaded.descriptor, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, credentialOrigin, guidance });
 }
 
 /** Every dependency {@link handlePublishConfirmationAnswer} needs to run the confirmed publish and
@@ -945,13 +953,13 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
       // Cross-site labels belong only to the local installation owner. Reuse the copy inventory;
       // discovery never opens a token, chooses a source or authorizes a copy.
-      const missing = new Set(providers.filter(provider => !provider.credentialConfigured).map(provider => provider.providerId));
-      if (missing.size && deps.localCredentialCopy?.localHost && ctx.principal.id === await deps.ownerPrincipalId) {
+      const missingSaved = new Set(providers.filter(provider => provider.savedCredentials.length === 0).map(provider => provider.providerId));
+      if (missingSaved.size && deps.localCredentialCopy?.localHost && ctx.principal.id === await deps.ownerPrincipalId) {
         try {
           const sources = summarizeCredentialSources({ sources: await deps.localCredentialCopy.list({}) });
           return { executionMode: deps.publishExecutionMode, providers,
             credentialSources: sources.map(source => ({ ...source,
-              keys: source.keys.filter(key => key.publishHosts.some(host => missing.has(host))) })) };
+              keys: source.keys.filter(key => key.publishHosts.some(host => missingSaved.has(host))) })) };
         } catch {
           return { executionMode: deps.publishExecutionMode, providers, credentialSourcesUnavailable: true };
         }

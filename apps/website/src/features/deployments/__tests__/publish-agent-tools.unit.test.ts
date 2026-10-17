@@ -131,6 +131,40 @@ test("missing publish keys report matching registered-site labels only to the lo
   assert.equal(lists, 1);
 });
 
+for (const allConfigured of [false, true]) test(`environment-configured Vercel retains saved-key sources (all hosts configured: ${allConfigured})`, async () => {
+  const { deps } = fakeDeps({ credentialSource: {
+    isConfigured: async ({ target }) => allConfigured || target === "vercel"
+      ? { configured: true } : { configured: false, reason: "not configured" },
+    resolve: async () => assert.fail("capabilities must not resolve credentials"),
+  } });
+  deps.publishExecutionMode = "self-hosted-cli";
+  deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
+  deps.localCredentialCopy = { localHost: true, copy: async () => assert.fail("discovery must not copy"), list: async () => [
+    { siteId: "luv", name: "luvira", keys: [
+      { kind: "custom", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", publishHosts: ["vercel"] },
+    ] },
+    { siteId: "dev", name: "tovu-dev", keys: [] },
+  ] };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
+    providers: { providerId: string; credentialConfigured: boolean; credentialOrigin: string | null; savedCredentials: unknown[]; guidance?: string }[];
+    credentialSources: unknown[];
+  };
+  const vercel = result.providers.find(provider => provider.providerId === "vercel")!;
+  assert.equal(vercel.credentialConfigured, true);
+  assert.equal(vercel.credentialOrigin, "environment");
+  assert.deepEqual(vercel.savedCredentials, []);
+  assert.match(vercel.guidance!, /server environment variable/i);
+  assert.match(vercel.guidance!, /no key is stored/i);
+  assert.doesNotMatch(vercel.guidance!, /saved/i);
+  if (!allConfigured) assert.equal(result.providers.find(provider => provider.providerId === "github-pages")!.credentialOrigin, null);
+  assert.deepEqual(result.credentialSources, [
+    { siteId: "luv", name: "luvira", keys: [{ kind: "custom", label: "Vercel", provider: null, publishHosts: ["vercel"] }] },
+    { siteId: "dev", name: "tovu-dev", keys: [] },
+  ]);
+  assert.doesNotMatch(JSON.stringify(result.credentialSources), /vercel-id|TAIL/);
+});
+
 test("unavailable cross-site inventory is explicit and cannot leak raw source errors", async () => {
   const { deps } = fakeDeps();
   deps.publishExecutionMode = "hosted-api-only";
@@ -152,10 +186,11 @@ test("capabilities recognize custom Vercel tokens without opening them or claimi
   deps.siteAssistantSecretSealer = { seal: async () => { assert.fail("capabilities must not seal"); }, open: async () => { assert.fail("capabilities must not open"); } };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
-    providers: { providerId: string; credentialConfigured: boolean; ready: boolean; verified: string | null; savedCredentials: { id: string }[] }[];
+    providers: { providerId: string; credentialConfigured: boolean; credentialOrigin: string | null; ready: boolean; verified: string | null; savedCredentials: { id: string }[] }[];
   };
   const vercel = result.providers.find(provider => provider.providerId === "vercel")!;
   assert.equal(vercel.credentialConfigured, true);
+  assert.equal(vercel.credentialOrigin, "saved");
   assert.equal(vercel.ready, false);
   assert.equal(vercel.verified, null);
   assert.deepEqual(vercel.savedCredentials.map(row => row.id), [saved.id]);

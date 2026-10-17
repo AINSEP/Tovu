@@ -96,7 +96,12 @@ export function createLocalCredentialCopy(required: {
     /** Safe source choices; per-source refusals do not hide other usable sources. */
     async list(_required: Record<string, never>, _options = {}): Promise<CredentialCopyChoice[]> {
       const choices: CredentialCopyChoice[] = [];
-      const deployTargets = await required.loadDeployTargets?.(required.targetWorkspaceId);
+      let deployTargets: DeployTargetRegistry | undefined;
+      try {
+        deployTargets = await required.loadDeployTargets?.(required.targetWorkspaceId);
+      } catch {
+        // Host compatibility is optional enrichment; a registry failure must not hide copyable keys.
+      }
       for (const source of sources()) {
         try {
           const keys = await readSource({ source, read: async ({ rows }) => rows.filter(row =>
