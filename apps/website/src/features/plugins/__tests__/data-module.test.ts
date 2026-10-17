@@ -9,6 +9,7 @@
  * `plugin-identity.test.ts`, and `migration-recovery.test.ts` for the T2-T8 mechanics' own
  * dedicated coverage; this file covers the end-to-end `declareDataModule` orchestration.
  */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -17,7 +18,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { pluginKernel, type PluginKernel } from "../plugin-store.js";
 import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
@@ -536,4 +538,99 @@ test("dataModule reports a committed migration as successful despite a post-comm
     db.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+const invalidDeclarations: { name: string; decl: DataModuleDecl; code: string; message: string }[] = [
+  { name: "an invalid table identifier", decl: { ...productsDecl, tables: [{ name: "bad-table", columns: productsDecl.tables[0].columns }] }, code: "BAD_TABLE_NAME", message: "invalid table name: bad-table" },
+  { name: "an empty table list", decl: { ...productsDecl, tables: [] }, code: "EMPTY", message: "declaration lists no tables" },
+  { name: "a table with no columns", decl: { ...productsDecl, tables: [{ name: "products", columns: [] }] }, code: "NO_COLUMNS", message: "table products declares no columns" },
+  { name: "an invalid column identifier", decl: { ...productsDecl, tables: [{ name: "products", columns: [{ name: "bad-name", type: "TEXT" }] }] }, code: "BAD_COLUMN", message: "invalid column name: bad-name" },
+  { name: "an invalid index identifier", decl: { ...productsDecl, tables: [{ ...productsDecl.tables[0], indexes: [{ name: "bad-index", columns: ["id"] }] }] }, code: "BAD_INDEX_NAME", message: "invalid index name: bad-index" },
+  { name: "an index without columns", decl: { ...productsDecl, tables: [{ ...productsDecl.tables[0], indexes: [{ name: "empty", columns: [] }] }] }, code: "EMPTY_INDEX", message: "index empty on table products declares no columns" },
+];
+for (const { name, decl, code, message } of invalidDeclarations) {
+  test(`dataModule rejects ${name} before any database writes`, async (t) => {
+    const db = new Database(":memory:");
+    t.after(() => db.close());
+    const result = await declareDataModule({ db, dbPath: ":memory:", decl });
+    assert.deepEqual(result, { ok: false, created: [], altered: [], snapshotPath: null, error: { code, message } });
+    assert.deepEqual(db.prepare("SELECT name FROM sqlite_master").all(), []);
+  });
+}
+
+for (const freeBytes of [12, null]) {
+  test(`dataModule refuses insufficient disk headroom (${freeBytes === null ? "unknown" : freeBytes} free bytes) before snapshots or DDL`, async (t) => {
+    const { db, dbPath, dir } = openWithCore();
+    t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+    const files = fs.readdirSync(dir).sort();
+    const result = await declareDataModule({ db, dbPath, decl: productsDecl }, {
+      checkHeadroom: ({ dbPath: requestedPath }) => {
+        assert.equal(requestedPath, dbPath);
+        return { ok: false, requiredBytes: 200, freeBytes };
+      },
+    });
+    assert.deepEqual(result, { ok: false, created: [], altered: [], snapshotPath: null,
+      error: { code: "INSUFFICIENT_DISK_HEADROOM", message: `dataModule declare refused: needs ~200 bytes free, only ${freeBytes ?? "unknown"} available` } });
+    assert.equal(tableExists(db, "p_hello__products"), false);
+    assert.equal(tableExists(db, "_plugin_migrations"), false);
+    assert.equal(tableExists(db, "_plugin_migration_journal"), false);
+    assert.deepEqual(db.prepare("SELECT * FROM posts").all(), [{ id: "p1", title: "hello" }]);
+    assert.deepEqual(fs.readdirSync(dir).sort(), files);
+  });
+}
+
+test("dataModule skips disk measurement for in-memory declarations and fully reconciled repeats", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  const options = { checkHeadroom: () => { throw new Error("in-memory declarations must not measure disk space"); } };
+  const first = await declareDataModule({ db, dbPath: ":memory:", decl: productsDecl }, options);
+  assert.deepEqual(first, { ok: true, created: ["p_hello__products"], altered: [], snapshotPath: null });
+  const second = await declareDataModule({ db, dbPath: ":memory:", decl: productsDecl }, options);
+  assert.deepEqual(second, { ok: true, created: [], altered: [], snapshotPath: null });
+  assert.equal(tableExists(db, "p_hello__products"), true);
+});
+
+test("dataModule accepts Tier-3 declarations with explicitly false nullable, key and index flags", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  const decl: DataModuleDecl = { ...productsDecl, pluginTier: "tier-3", tables: [{ name: "products", columns: [
+    { name: "id", type: "TEXT", notNull: false, primaryKey: false },
+  ], indexes: [{ name: "by_id", columns: ["id"], unique: false }] }] };
+  assert.deepEqual(await declareDataModule({ db, dbPath: ":memory:", decl }), {
+    ok: true, created: ["p_hello__products"], altered: [], snapshotPath: null,
+  });
+  // The second declaration compares false (rather than omitted) against the live shape.
+  assert.deepEqual(await declareDataModule({ db, dbPath: ":memory:", decl }), {
+    ok: true, created: [], altered: [], snapshotPath: null,
+  });
+  db.prepare("INSERT INTO p_hello__products (id) VALUES (NULL), ('duplicate'), ('duplicate')").run();
+  assert.deepEqual(db.prepare("SELECT id FROM p_hello__products ORDER BY rowid").all(), [
+    { id: null }, { id: "duplicate" }, { id: "duplicate" },
+  ]);
+});
+
+test("dataModule rolls back migration bookkeeping when a created table cannot be verified", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.prepare("CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)").run();
+  db.prepare("INSERT INTO posts VALUES ('p1', 'keep')").run();
+  const kernel = pluginKernel(db);
+  let droppedCreate = false;
+  // A driver that acknowledges CREATE without applying it must not leave committed migration
+  // bookkeeping. All other statements, including the transaction/rollback, use the real kernel.
+  const fault: PluginKernel = { ...kernel, execute: async statement => {
+    const text = await kernel.run(executor => statement.compile(executor).sql);
+    if (text.startsWith('CREATE TABLE "p_hello__products" ')) {
+      droppedCreate = true;
+      return;
+    }
+    await kernel.execute(statement);
+  } };
+  const result = await declareDataModule({ db: fault, dbPath: ":memory:", decl: productsDecl });
+  assert.equal(droppedCreate, true, "the driver fault must intercept the requested CREATE");
+  assert.deepEqual(result, { ok: false, created: [], altered: [], snapshotPath: null, recoveryPoint: undefined,
+    error: { code: "DDL_FAILED", message: "post-DDL verification failed: p_hello__products not found after DDL" } });
+  assert.equal(tableExists(db, "p_hello__products"), false);
+  assert.equal(tableExists(db, "_plugin_migrations"), false, "bookkeeping creation rolls back with the unverified DDL");
+  assert.deepEqual(db.prepare("SELECT * FROM posts").all(), [{ id: "p1", title: "keep" }]);
 });

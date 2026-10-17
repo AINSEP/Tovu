@@ -1,6 +1,7 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, VaultError } from "@jini-ai/platform/secrets/credential-sets";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -8,15 +9,22 @@ import type { KeyringPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
   createCustomCredential,
+  deleteCustomCredential,
+  describeCredential,
   describeCredentialByLabel,
   listCustomCredentials,
   updateCustomCredential,
   CustomCredentialDuplicateLabelError,
   CustomCredentialSecretStoreUnconfiguredError,
+  CustomCredentialNotFoundError,
+  CustomCredentialValidationError,
   resolveCustomCredentialByLabel,
   type CustomCredentialWriteDeps,
 } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { CREDENTIAL_MESSAGES } from "../../../contracts/core/credential-token.js";
+import type { CreateCustomCredentialInput } from "../store.js";
+import type { CustomCredentialSetRecord } from "../types.js";
 
 /**
  * @file `resolveCustomCredentialByLabel` — the first real decrypting reader for
@@ -203,4 +211,251 @@ test("resolveCustomCredentialByLabel throws CustomCredentialSecretStoreUnconfigu
       return true;
     }
   );
+});
+
+const validCreateInput: CreateCustomCredentialInput = {
+  workspaceId: WORKSPACE, label: "validation", category: "general", baseUrl: "https://example.com",
+  connection: { token: "fixture-token-1234" },
+};
+const categoryMessage = "category must be one of: source-control, hosting, media, ai, ops, general";
+
+// Each fixture isolates one rejection; otherwise an earlier guard could mask a broken validator.
+const invalidMetadata: { name: string; patch: Partial<CreateCustomCredentialInput>; message: string }[] = [
+  { name: "a non-string label", patch: { label: 4 }, message: "label must be a non-empty string" },
+  { name: "a whitespace label", patch: { label: " \t " }, message: "label must be a non-empty string" },
+  { name: "a label over 200 characters", patch: { label: "x".repeat(201) }, message: "label must be 200 characters or fewer" },
+  { name: "a non-string category", patch: { category: null }, message: categoryMessage },
+  { name: "credentials in a category", patch: { category: "https://user:private@example.com" }, message: CREDENTIAL_MESSAGES.plain },
+  { name: "a non-string base URL", patch: { baseUrl: 4 }, message: "baseUrl must be a non-empty string" },
+  { name: "a whitespace base URL", patch: { baseUrl: " " }, message: "baseUrl must be a non-empty string" },
+  { name: "a relative base URL", patch: { baseUrl: "/api" }, message: "baseUrl must be a valid absolute URL" },
+  { name: "a non-HTTP base URL", patch: { baseUrl: "file:///api" }, message: "baseUrl must use http or https" },
+  { name: "a non-array host list", patch: { additionalHosts: null }, message: "additionalHosts must be an array of absolute http/https URLs" },
+  { name: "a non-string host entry", patch: { additionalHosts: ["https://valid.example", 4] }, message: "additionalHosts[1] must be a non-empty string" },
+  { name: "a whitespace host entry", patch: { additionalHosts: [" "] }, message: "additionalHosts[0] must be a non-empty string" },
+  { name: "a relative host entry", patch: { additionalHosts: ["/api"] }, message: "additionalHosts[0] must be a valid absolute URL" },
+  { name: "a non-HTTP host entry", patch: { additionalHosts: ["ftp://example.com"] }, message: "additionalHosts[0] must use http or https" },
+  { name: "credentials in a host entry", patch: { additionalHosts: ["https://user:private@example.com"] }, message: CREDENTIAL_MESSAGES.plain },
+];
+for (const { name, patch, message } of invalidMetadata) {
+  test(`create rejects ${name} without persisting a credential`, async () => {
+    const deps = makeWriteDeps();
+    await assert.rejects(createCustomCredential(deps, { ...validCreateInput, ...patch }),
+      error => error instanceof CustomCredentialValidationError && error.message === message);
+    assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), []);
+  });
+  test(`update rejects ${name} and preserves the saved credential`, async () => {
+    const deps = makeWriteDeps();
+    const saved = await createCustomCredential(deps, validCreateInput);
+    const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: saved.id });
+    await assert.rejects(updateCustomCredential(deps, { ...patch, workspaceId: WORKSPACE, id: saved.id }),
+      error => error instanceof CustomCredentialValidationError && error.message === message);
+    assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), saved);
+    assert.deepEqual((await deps.repo.findById({ workspaceId: WORKSPACE, id: saved.id }))?.sealed, before?.sealed);
+  });
+}
+
+for (const connection of [null, [], "token", 4]) {
+  test(`create rejects a ${JSON.stringify(connection)} connection with a typed shape error`, async () => {
+    const deps = makeWriteDeps();
+    await assert.rejects(createCustomCredential(deps, { ...validCreateInput, connection }),
+      error => error instanceof CustomCredentialValidationError && error.message === "connection must be an object");
+    assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), []);
+  });
+  test(`update rejects a ${JSON.stringify(connection)} connection instead of treating it as a blank-token patch`, async () => {
+    const deps = makeWriteDeps();
+    const saved = await createCustomCredential(deps, validCreateInput);
+    await assert.rejects(updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection }),
+      error => error instanceof CustomCredentialValidationError && error.message === "connection must be an object");
+    assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), saved);
+  });
+}
+
+for (const username of [null, 4, " "]) {
+  test(`create rejects the invalid connection username ${JSON.stringify(username)}`, async () => {
+    const deps = makeWriteDeps();
+    await assert.rejects(createCustomCredential(deps, { ...validCreateInput, connection: { token: "fixture-token-1234", username } }),
+      error => error instanceof CustomCredentialValidationError && error.message === "'username' must be a non-empty string when provided");
+    assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), []);
+  });
+}
+for (const username of [4, "https://user:private@example.com"]) {
+  test(`update rejects the invalid username patch ${JSON.stringify(username)}`, async () => {
+    const deps = makeWriteDeps();
+    const saved = await createCustomCredential(deps, validCreateInput);
+    const message = typeof username === "string" ? CREDENTIAL_MESSAGES.plain : "'username' must be a non-empty string, or null to clear it";
+    await assert.rejects(updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, username }),
+      error => error instanceof CustomCredentialValidationError && error.message === message);
+    assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), saved);
+  });
+}
+test("create rejects credentials embedded in a connection username", async () => {
+  const deps = makeWriteDeps();
+  await assert.rejects(createCustomCredential(deps, { ...validCreateInput,
+    connection: { token: "fixture-token-1234", username: "https://user:private@example.com" } }),
+    error => error instanceof CustomCredentialValidationError && error.message === CREDENTIAL_MESSAGES.plain);
+  assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), []);
+});
+
+test("create accepts a 200-character label and normalizes HTTP host origins without losing ports", async () => {
+  const deps = makeWriteDeps();
+  const saved = await createCustomCredential(deps, { ...validCreateInput, label: "x".repeat(200),
+    baseUrl: "http://example.com:8080/api", additionalHosts: ["http://OTHER.example:8081/a", "http://other.example:8081/b"] });
+  assert.equal(saved.label, "x".repeat(200));
+  assert.equal(saved.baseUrl, "http://example.com:8080/api");
+  assert.deepEqual(saved.additionalHosts, ["http://other.example:8081"]);
+  assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), saved);
+});
+
+test("metadata updates replace host lists, change category and base URL, and preserve the token", async () => {
+  const deps = makeWriteDeps();
+  const saved = await createCustomCredential(deps, { ...validCreateInput, additionalHosts: ["https://old.example"] });
+  const changed = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id,
+    category: "hosting", baseUrl: "http://new.example/api", additionalHosts: ["http://extra.example/path"] });
+  assert.equal(changed.category, "hosting");
+  assert.equal(changed.baseUrl, "http://new.example/api");
+  assert.deepEqual(changed.additionalHosts, ["http://extra.example"]);
+  await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, additionalHosts: [] });
+  assert.deepEqual(await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: saved.label }), {
+    id: saved.id, category: "hosting", baseUrl: "http://new.example/api", additionalHosts: [],
+    connection: { token: "fixture-token-1234" },
+  });
+});
+
+test("describe and delete are scoped by workspace, and deleting an absent credential is idempotent", async () => {
+  const deps = makeWriteDeps();
+  const saved = await createCustomCredential(deps, validCreateInput);
+  assert.equal(await describeCredential(deps, { workspaceId: "other", id: saved.id }), null);
+  await deleteCustomCredential(deps, { workspaceId: "other", id: saved.id });
+  assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), saved);
+  await deleteCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id });
+  await deleteCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id });
+  assert.equal(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), null);
+  assert.equal(await describeCredentialByLabel(deps, { workspaceId: WORKSPACE, label: saved.label }), null);
+  assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), []);
+});
+
+test("updating a missing credential returns the typed not-found error", async () => {
+  const deps = makeWriteDeps();
+  await assert.rejects(updateCustomCredential(deps, { workspaceId: WORKSPACE, id: "missing" }),
+    error => error instanceof CustomCredentialNotFoundError && error.message === "no custom credential 'missing' in this workspace");
+});
+
+test("a legacy sealed DTO without token hints can be described without unlocking it", async () => {
+  const repo = new InMemoryCustomCredentialSetRepo();
+  const deps = makeWriteDeps({ repo });
+  const saved = await createCustomCredential(deps, validCreateInput);
+  const record = await repo.findById({ workspaceId: WORKSPACE, id: saved.id });
+  assert.ok(record);
+  // The compatibility DTO has no hint metadata. Reinsert under the same identity so the real
+  // ciphertext's AAD remains valid; reads must not invent a hint or require a key.
+  await repo.delete({ workspaceId: WORKSPACE, id: saved.id });
+  await repo.insert({ ...record });
+  const described = await describeCredential({ repo }, { workspaceId: WORKSPACE, id: saved.id });
+  assert.deepEqual(described, { ...saved, tokenHint: null });
+});
+
+for (const operation of ["insert", "update"] as const) {
+  test(`a non-unique ${operation} failure propagates without replacing saved state`, async () => {
+    const failure = new Error("credential repository is offline");
+    class FailingRepo extends InMemoryCustomCredentialSetRepo {
+      fail = false;
+      override async insert(record: CustomCredentialSetRecord): Promise<void> {
+        if (this.fail && operation === "insert") throw failure;
+        await super.insert(record);
+      }
+      override async update(record: CustomCredentialSetRecord): Promise<void> {
+        if (this.fail && operation === "update") throw failure;
+        await super.update(record);
+      }
+    }
+    const repo = new FailingRepo();
+    const deps = makeWriteDeps({ repo });
+    const saved = await createCustomCredential(deps, validCreateInput);
+    repo.fail = true;
+    const pending = operation === "insert"
+      ? createCustomCredential(deps, { ...validCreateInput, label: "second" })
+      : updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, label: "renamed" });
+    await assert.rejects(pending, error => error === failure);
+    assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), [saved]);
+  });
+}
+
+/** One real repository with a controlled write between metadata selection and the vault read. */
+class AfterSelectionRepo extends InMemoryCustomCredentialSetRepo {
+  afterSelection?: (required: { records: readonly CustomCredentialSetRecord[] }) => Promise<void>;
+  override async listByWorkspace(input: { workspaceId: string }): Promise<CustomCredentialSetRecord[]> {
+    const records = await super.listByWorkspace(input);
+    const write = this.afterSelection;
+    this.afterSelection = undefined;
+    await write?.({ records });
+    return records;
+  }
+}
+
+test("a credential deleted after label selection resolves to null", async () => {
+  const repo = new AfterSelectionRepo();
+  const deps = makeWriteDeps({ repo });
+  await createCustomCredential(deps, validCreateInput);
+  repo.afterSelection = async ({ records }) => { for (const record of records) await repo.delete(record); };
+  assert.equal(await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: validCreateInput.label as string }), null);
+  assert.deepEqual(await listCustomCredentials(deps, { workspaceId: WORKSPACE }), []);
+});
+
+test("resolution pairs a concurrently rotated token with its current origins and username", async () => {
+  const repo = new AfterSelectionRepo();
+  const deps = makeWriteDeps({ repo });
+  const saved = await createCustomCredential(deps, validCreateInput);
+  repo.afterSelection = async () => {
+    await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, category: "ops",
+      baseUrl: "http://current.example/api", additionalHosts: ["http://extra.example/path"],
+      connection: { token: "current-token-5678", username: "current-user" } });
+  };
+  assert.deepEqual(await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: saved.label }), {
+    id: saved.id, category: "ops", baseUrl: "http://current.example/api", additionalHosts: ["http://extra.example"],
+    connection: { token: "current-token-5678", username: "current-user" },
+  });
+});
+
+test("a payload cleared in the vault after label selection fails closed", async () => {
+  const repo = new AfterSelectionRepo();
+  const deps = makeWriteDeps({ repo });
+  const saved = await createCustomCredential(deps, validCreateInput);
+  repo.afterSelection = async ({ records }) => {
+    const row = records[0]?.vaultRecord;
+    assert.ok(row);
+    await repo.vault.put({ record: { ...row, sealed: null, revision: row.revision + 1 }, expectedRevision: row.revision });
+  };
+  await assert.rejects(resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: saved.label }),
+    error => error instanceof CustomCredentialSecretStoreUnconfiguredError && error.message === CREDENTIAL_MESSAGES.storage);
+  assert.equal((await repo.vault.find({ workspaceId: WORKSPACE, id: saved.id }))?.sealed, null);
+});
+
+for (const payload of [{}, { token: 7 }]) {
+  test(`a decrypted payload ${JSON.stringify(payload)} fails closed with the safe storage error`, async () => {
+    const repo = new InMemoryCustomCredentialSetRepo();
+    const deps = makeWriteDeps({ repo });
+    const saved = await createCustomCredential(deps, validCreateInput);
+    const record = await repo.findById({ workspaceId: WORKSPACE, id: saved.id });
+    assert.ok(record?.vaultRecord);
+    const row = record.vaultRecord;
+    // Real encryption/AAD and the real vault parser run; only the stored payload is malformed.
+    const sealed = await deps.sealer.seal({ plaintext: JSON.stringify(payload), key: await deps.keyring.activeKey({}), aad: buildVaultAad(row) });
+    await repo.vault.put({ record: { ...row, sealed, revision: row.revision + 1 }, expectedRevision: row.revision });
+    await assert.rejects(resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: saved.label }),
+      error => error instanceof CustomCredentialSecretStoreUnconfiguredError && error.message === CREDENTIAL_MESSAGES.storage);
+  });
+}
+
+test("a read adapter returning legacy DTOs without vault context reports unknown hints", async () => {
+  class LegacyReadRepo extends InMemoryCustomCredentialSetRepo {
+    override async findById(input: { workspaceId: string; id: string }): Promise<CustomCredentialSetRecord | null> {
+      const record = await super.findById(input);
+      // Legacy adapters expose only the historical enumerable DTO, not private vault metadata.
+      return record ? { ...record } : null;
+    }
+  }
+  const deps = makeWriteDeps({ repo: new LegacyReadRepo() });
+  const saved = await createCustomCredential(deps, validCreateInput);
+  assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), { ...saved, tokenHint: null });
 });

@@ -262,7 +262,7 @@ import {
   listIndexes,
   listTables,
 } from "../../platform/db/kernel/dialect.js";
-import { checkDiskHeadroom } from "./disk-headroom.js";
+import { checkDiskHeadroom, type HeadroomCheck } from "./disk-headroom.js";
 import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, stageJournalPhase } from "./migration-journal.js";
 import type { JournalPhase } from "./migration-journal.js";
 import { checkNamespaceAdoption } from "./plugin-identity.js";
@@ -764,7 +764,8 @@ async function runPreflightChecks(
   kernel: PluginKernel,
   dbPath: string,
   decl: DataModuleDecl,
-  recoverable: boolean
+  recoverable: boolean,
+  checkHeadroom: (required: { dbPath: string }, optional?: Record<string, never>) => HeadroomCheck
 ): Promise<{ ok: true } | { ok: false; error: { code: string; message: string } }> {
   const adoption = await checkNamespaceAdoption({ db: kernel, pluginId: decl.pluginId, provenance: decl.provenance });
   if (!adoption.allowed) {
@@ -773,7 +774,7 @@ async function runPreflightChecks(
   // Headroom is for the snapshot file, so only a recoverable (file-backed SQLite) database needs it.
   // `checkDiskHeadroom` itself also no-ops to `ok: true` for an in-memory `dbPath` (BUG FIX 2026-07-28).
   if (!recoverable) return { ok: true };
-  const headroom = checkDiskHeadroom(dbPath);
+  const headroom = checkHeadroom({ dbPath });
   if (!headroom.ok) {
     return {
       ok: false,
@@ -888,10 +889,13 @@ async function applyTableAlteration(
  *
  * `db` is the storage kernel (or a SQLite connection, bridged to its kernel). `dbPath` names the
  * SQLite file behind it, for the snapshot; it is ignored for a Postgres/PGlite kernel.
+ * `checkHeadroom` replaces only disk measurement; the existing disk-headroom adapter is the default.
  */
 export async function declareDataModule(
   required: { db: PluginStore; dbPath: string; decl: DataModuleDecl },
-  _optional: Record<string, never> = {}
+  { checkHeadroom = ({ dbPath }, _optional = {}) => checkDiskHeadroom(dbPath) }: {
+    checkHeadroom?: (required: { dbPath: string }, optional?: Record<string, never>) => HeadroomCheck;
+  } = {}
 ): Promise<DeclareResult> {
   const { dbPath, decl } = required;
   const kernel = pluginKernel(required.db);
@@ -917,7 +921,7 @@ export async function declareDataModule(
   // Snapshot + journal exist for next-boot restore of a whole SQLite file (this file's header,
   // STORAGE KERNEL): nothing to restore for an in-memory db or a Postgres/PGlite kernel.
   const recoverable = kernel.dialect === "sqlite" && !isInMemoryDbPath(dbPath);
-  const preflight = await runPreflightChecks(kernel, dbPath, decl, recoverable);
+  const preflight = await runPreflightChecks(kernel, dbPath, decl, recoverable, checkHeadroom);
   if (!preflight.ok) {
     return { ok: false, created: [], altered: [], snapshotPath: null, error: preflight.error };
   }
