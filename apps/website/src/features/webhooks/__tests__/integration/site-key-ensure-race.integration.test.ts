@@ -1,3 +1,5 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { isolatedCatalogEnv } from "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -28,6 +30,7 @@ interface ChildOutcome {
 function runChild(args: readonly string[]): Promise<ChildOutcome> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, ["--import", "tsx", CHILD_FIXTURE, ...args], {
+      env: { ...process.env, ...isolatedCatalogEnv },
       stdio: ["ignore", "ignore", "pipe"],
     });
     let stderr = "";

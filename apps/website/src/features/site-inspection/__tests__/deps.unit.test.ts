@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "../deps.js";

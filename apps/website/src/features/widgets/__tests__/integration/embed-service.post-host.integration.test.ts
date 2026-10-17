@@ -412,7 +412,7 @@ test("an unknown widgetEntryId against a valid post host still rejects with the 
     () => insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: post.id, baseVersion: post.version, widgetEntryId: "does-not-exist" } }),
     (err: unknown) => {
       assert.ok(err instanceof WidgetInstanceNotFoundError);
-      assert.equal(err.message, `embed references widget 'does-not-exist', which does not exist in workspace '${WORKSPACE_ID}' (REQ-16/17)`);
+      assert.equal(err.message, `embed references widget 'does-not-exist', which does not exist in workspace '${WORKSPACE_ID}'`);
       return true;
     }
   );

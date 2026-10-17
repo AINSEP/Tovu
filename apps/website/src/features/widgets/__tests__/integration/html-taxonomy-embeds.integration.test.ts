@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";

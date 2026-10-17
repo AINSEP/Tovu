@@ -251,7 +251,7 @@ test("widgets_insert_embed with an unknown widgetEntryId against a valid post ho
   if (result.ok) return;
   assert.deepEqual(result.error, {
     code: "BAD_REQUEST",
-    message: `WIDGETS_INSTANCE_NOT_FOUND: embed references widget 'nope', which does not exist in workspace '${WORKSPACE_ID}' (REQ-16/17)`,
+    message: `WIDGETS_INSTANCE_NOT_FOUND: embed references widget 'nope', which does not exist in workspace '${WORKSPACE_ID}'`,
   });
 });
 
