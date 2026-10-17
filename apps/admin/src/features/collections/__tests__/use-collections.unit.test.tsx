@@ -176,6 +176,10 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("starts with an empty registry when no seed is supplied", async () => {
     const port = createFakeCollectionsPort();
     expect(await port.listContentTypes()).toEqual({ items: [] });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+
+    await waitFor(() => expect(result.current.types).toEqual([]));
+    expect(result.current.error).toBeNull();
   });
 
   it("rejects a lifecycle change for an unknown key without changing the registry", async () => {

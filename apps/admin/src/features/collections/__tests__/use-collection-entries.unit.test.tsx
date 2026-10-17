@@ -56,9 +56,14 @@ describe("useCollectionEntries", () => {
 
   it("rejects an entry read with the configured error even when matching entries exist", async () => {
     const error = new Error("entries unavailable");
-    const port = createFakeCollectionEntriesPort({ entries: [RECIPE_ENTRY], listEntriesError: error });
+    const port = createFakeCollectionEntriesPort({ types: [RECIPE_TYPE], entries: [RECIPE_ENTRY], listEntriesError: error });
 
     await expect(port.listEntries({ type: "recipe" })).rejects.toBe(error);
+    const { result } = renderHook(() => useCollectionEntries({ contentTypeKey: "recipe" }, { port, locale: "en", t: (k) => k }), { wrapper });
+
+    await waitFor(() => expect(result.current.error).toBe("entries unavailable"));
+    expect(result.current.entries).toBeNull();
+    expect(result.current.contentType).toBeUndefined();
   });
 
   it("provides empty catalogues when the fake is created without seed options", async () => {

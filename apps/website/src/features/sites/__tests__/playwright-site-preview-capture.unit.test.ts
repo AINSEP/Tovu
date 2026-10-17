@@ -4,10 +4,12 @@ import test from "node:test";
 import sharp from "sharp";
 
 import { createPlaywrightSitePreviewCapture, type PreviewBrowser, type PreviewBrowserLauncher } from "../site-preview/playwright-site-preview-capture.js";
+import { importPlaywrightChromium } from "../../../platform/headless-browser/lazy-browser.js";
+import { playwrightModuleLoader } from "../../../platform/headless-browser/playwright-loader.js";
 
 /**
  * @file `playwright-site-preview-capture.ts` — the headless capture adapter, against a structural
- * fake browser (no Chromium; only the external SDK is mocked for default-wiring coverage).
+ * fake browser (no Chromium; injected launcher and real Sharp encoding).
  */
 
 function fakeLauncher({ failAt, png = Buffer.from("png") }: { failAt?: "launch" | "goto"; png?: Buffer } = {}) {
@@ -59,12 +61,11 @@ test("captures the public root at 1280x800 after a settle, resizes to 640, and r
   ]);
 });
 
-test("default Playwright loading and Sharp resizing store a 640px JPEG and release the browser", async t => {
+test("default Sharp resizing stores a 640px JPEG and releases the injected browser", async t => {
   const png = await sharp({ create: { width: 1280, height: 800, channels: 3, background: "red" } }).png().toBuffer();
   const { launcher, calls } = fakeLauncher({ png });
-  // Only the external SDK is replaced; the host loader and JPEG encoder stay real.
-  t.mock.module("playwright", { namedExports: { chromium: launcher } });
-  const port = createPlaywrightSitePreviewCapture();
+  // Only the launcher is replaced; the JPEG encoder stays real. Host loading is checked separately below.
+  const port = createPlaywrightSitePreviewCapture({}, { loadLauncher: async () => launcher });
   t.after(() => port.close());
   const jpeg = await port.capture({ url: "https://localhost:3101/" });
   assert.ok(jpeg);
@@ -76,6 +77,15 @@ test("default Playwright loading and Sharp resizing store a 640px JPEG and relea
     "context:1280x800:true", "goto:https://localhost:3101/:load:15000", "settle:1200", "shot:png", "context-close",
     "browser-close",
   ]);
+});
+
+test("default Chromium loading delegates to the host module loader", async t => {
+  const chromium = { launch: async () => assert.fail("loading must not launch a browser") };
+  const load = t.mock.method(playwrightModuleLoader, "load", async () => ({ chromium }));
+
+  assert.equal(await importPlaywrightChromium(), chromium);
+  assert.equal(load.mock.callCount(), 1);
+  assert.deepEqual(load.mock.calls[0]?.arguments, [{ moduleName: "playwright" }]);
 });
 
 test("the default logger warns when a capture fails and returns a placeholder", async t => {

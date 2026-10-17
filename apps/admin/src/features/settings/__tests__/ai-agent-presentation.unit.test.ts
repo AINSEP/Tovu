@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import type { DetectedAgent, ExecutionPort } from '@jini-ai/ui';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
@@ -45,19 +46,31 @@ describe('D-21 AI agent presentation', () => {
   it('lets a pending detection finish after unmount without publishing another presentation', async () => {
     let complete!: (agents: readonly DetectedAgent[]) => void;
     const detected = new Promise<readonly DetectedAgent[]>(resolve => { complete = resolve; });
-    const port = { ...fakePort([]), detectLocalAgents: () => detected };
+    const port = { ...fakePort([]), detectLocalAgents: vi.fn<ExecutionPort['detectLocalAgents']>().mockResolvedValueOnce([claude]).mockReturnValueOnce(detected) };
     const presentations: (string | null)[] = [];
-    const { result, unmount } = renderHook(() => {
-      const presentation = useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true });
-      presentations.push(presentation.warning);
-      return presentation;
-    });
-    const pending = result.current.port.detectLocalAgents();
-    unmount();
-    const countAtUnmount = presentations.length;
-    await act(async () => { complete([claude]); await expect(pending).resolves.toEqual([claude]); });
-    expect(presentations).toHaveLength(countAtUnmount);
-    expect(presentations).toEqual([null]);
+    // React suppresses renders after unmount; observe the publication sink before React can discard it.
+    const publish = vi.fn();
+    const state = vi.spyOn(React, 'useState').mockReturnValueOnce([[], publish]);
+    try {
+      const { result, unmount } = renderHook(() => {
+        const presentation = useAiAgentPresentation({ port, config: DEFAULT_EXECUTION_CONFIG, locale: 'en' }, { desktop: true });
+        presentations.push(presentation.warning);
+        return presentation;
+      });
+      await act(async () => { await result.current.port.detectLocalAgents(); });
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(publish.mock.calls[0][0]([])).toEqual([claude]);
+
+      const pending = result.current.port.detectLocalAgents();
+      unmount();
+      const countAtUnmount = presentations.length;
+      await act(async () => { complete([claude]); await expect(pending).resolves.toEqual([claude]); });
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(presentations).toHaveLength(countAtUnmount);
+      expect(presentations).toEqual([null]);
+    } finally {
+      state.mockRestore();
+    }
   });
 
   it('words desktop and server scope exactly, reusing host bridge presence', () => {

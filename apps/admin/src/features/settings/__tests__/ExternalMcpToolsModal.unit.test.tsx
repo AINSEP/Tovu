@@ -67,6 +67,23 @@ it("updates the modal Escape receiver, ignores interior clicks, and detaches on 
   expect(closed).toEqual(["first", "second", "second", "second"]);
 });
 
+it("closes without restoring focus to a non-HTML opener", async () => {
+  stubProbe(async () => Response.json({ tools: [] }));
+  const trigger = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  trigger.id = "tools-trigger";
+  trigger.setAttribute("tabindex", "0");
+  document.body.append(trigger);
+  trigger.focus();
+  expect(document.activeElement).toBe(trigger);
+
+  // Saved grants become absent-tool rows even after an empty probe; keep this settle point empty.
+  const { unmount } = render(<ExternalMcpToolsModal {...pickerProps} allowedToolNames="" writeAllowedToolNames="" name="Atlas" onClose={vi.fn()} />, { wrapper });
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close" }));
+  await screen.findByText("This server advertises no tools.");
+  unmount();
+  expect(document.activeElement).toBe(document.body);
+});
+
 it("shows probe loading, an error rather than an empty list, then an empty list after retry", async () => {
   // Reject: merge unreachable and empty states, or never wire Refresh to refetch.
   const held = deferred<Response>();
