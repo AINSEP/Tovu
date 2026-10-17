@@ -5,13 +5,7 @@ Your website in one folder you own, with a built-in AI assistant that edits it f
 <p align="center">
   <a href="https://tovu.dev"><img src=".github/readme/tovu-hero.webp" width="960" alt="Tovu in 30 seconds: write, edit and publish pages, ask the assistant to make changes, make images with AI, publish anywhere"></a>
   <br>
-  <a href=".github/readme/tovu-promo.mp4">Watch the full video with sound</a>
-</p>
-
-## See what it can do
-
-<p align="center">
-  <a href=".github/readme/tovu-capabilities.mp4"><img src=".github/readme/tovu-capabilities.webp" width="960" alt="Four tasks typed into the admin chat: write and publish a post, build a contact page, make images and write an article, chart sales by month"></a>
+  <a href="https://tovu.dev">Watch the full video with sound on tovu.dev</a>
 </p>
 
 ## Download the app
