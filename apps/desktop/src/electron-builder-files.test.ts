@@ -207,10 +207,12 @@ test("npm's own node_modules ships as a SEPARATE extraResources entry, not folde
   );
 });
 
-test("production extraResources copies the npm CLIs, dependencies and Tovu payload", async () => {
+test("production extraResources copies Electron notices, npm CLIs, dependencies and Tovu payload", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-builder-fixture-"));
   const output = path.join(root, "resources");
   const required: Array<readonly [string, string]> = [
+    ["node_modules/electron/dist/LICENSE", "licenses/LICENSE.electron.txt"],
+    ["node_modules/electron/dist/LICENSES.chromium.html", "licenses/LICENSES.chromium.html"],
     ["staging/npm/bin/npx-cli.js", "npm/bin/npx-cli.js"],
     ["staging/npm/bin/npm-cli.js", "npm/bin/npm-cli.js"],
     ["staging/npm/package.json", "npm/package.json"],

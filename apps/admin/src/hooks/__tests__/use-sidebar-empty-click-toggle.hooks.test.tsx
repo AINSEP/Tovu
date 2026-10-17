@@ -28,6 +28,10 @@ function SidebarDom(props: { toggleRail: () => void; isDesktop?: () => boolean }
           </svg>
           <span data-testid="link-text">Pages</span>
         </a>
+        <div className="cms-item" data-testid="soon-item">
+          <svg data-testid="soon-icon"><path data-testid="soon-icon-path" d="M0 0" /></svg>
+          <span data-testid="soon-text">Soon</span>
+        </div>
         <button type="button" className="cms-section-toggle" data-testid="heading-button">
           People
         </button>
@@ -79,6 +83,18 @@ describe("useSidebarEmptyClickToggle", () => {
     click(getByTestId("nav"));
     expect(toggleRail).not.toHaveBeenCalled();
   });
+
+  it.each(["soon-item", "soon-icon", "soon-icon-path", "soon-text"])(
+    "does not treat an inert navigation row or its children as blank space (%s)",
+    (id) => {
+      const toggleRail = vi.fn();
+      const { getByTestId } = render(<SidebarDom toggleRail={toggleRail} />);
+      click(getByTestId(id));
+      expect(toggleRail).not.toHaveBeenCalled();
+      click(getByTestId("section"));
+      expect(toggleRail).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("does not toggle at the end of a text-selection drag inside the nav", () => {
     const toggleRail = vi.fn();

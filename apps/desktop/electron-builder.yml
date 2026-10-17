@@ -61,6 +61,12 @@ files:
 # `packaged-paths.ts`'s `payloadRoot` be a single directory that `resolveCliEntry` and
 # `buildServeEnv` join against identically in dev and packaged mode.
 extraResources:
+  # electron-builder's macOS branding removes these from the extracted Electron distribution.
+  # Copy the installed runtime's originals into Resources so upgrades ship matching notices.
+  - from: node_modules/electron/dist/LICENSE
+    to: licenses/LICENSE.electron.txt
+  - from: node_modules/electron/dist/LICENSES.chromium.html
+    to: licenses/LICENSES.chromium.html
   - from: staging/tovu-payload/dist
     to: tovu/dist
     filter:

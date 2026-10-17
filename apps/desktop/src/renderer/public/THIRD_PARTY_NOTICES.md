@@ -1,5 +1,14 @@
 # Desktop third-party notices
 
+## Electron and Chromium
+
+The desktop packaging configuration copies the installed Electron runtime's license
+to `licenses/LICENSE.electron.txt` and its Chromium third-party notices to
+`licenses/LICENSES.chromium.html` inside the app's resources directory
+(`Contents/Resources/` on macOS).
+These files cover the runtime; a comprehensive inventory of the shell, renderer,
+site payload and bundled npm dependencies remains to be generated.
+
 ## Bundled fonts (unmodified Google Fonts variable TrueType files)
 
 All three fonts are licensed under SIL Open Font License 1.1. Complete copyright

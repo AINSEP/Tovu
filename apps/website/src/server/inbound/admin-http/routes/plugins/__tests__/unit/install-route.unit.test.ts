@@ -105,6 +105,20 @@ test("ZIP routes need an application/zip body", async t => {
   assert.deepEqual(h.calls, []);
 });
 
+test("local-install opt-in does not admit dev-link sources on preview or install", async t => {
+  const h = await boot(t, { env: "1" });
+  for (const kind of ["dev-link", "link", "symlink"]) {
+    for (const suffix of ["/preview", ""]) {
+      const response = await h.json(suffix, { source: { kind, path: "/srv/plugin" }, expectedDigest: DIGEST });
+      assert.deepEqual(await read(response), {
+        status: 400,
+        body: { code: "PLUGIN_INSTALL_INPUT_INVALID", error: "A folder source is required." },
+      });
+    }
+  }
+  assert.deepEqual(h.calls, [], "unsupported link sources never reach the installer");
+});
+
 test("installer errors map to 409 conflicts, 500 recovery, 400 other refusals and an opaque 500", async t => {
   const cases: Array<[unknown, number, Record<string, string>]> = [
     ...["PLUGIN_SHADOWS_BUILT_IN", "PLUGIN_ID_CONFLICT", "PLUGIN_IN_TRASH", "PLUGIN_ENABLED", "PLUGIN_VERSION_EXISTS", "PLUGIN_DOWNGRADE", "PLUGIN_CHANGED_SINCE_PREVIEW", "PLUGIN_INSTALL_BUSY"]

@@ -12,10 +12,10 @@ import { useEffect } from "react";
  * Enter/Space click lands on a `<button>` and is therefore skipped below.
  */
 
-/** Anything a click on is that control's click, never a rail toggle. `[tabindex]` covers custom
+/** Nav rows, including inert Soon items, are never blank space. `[tabindex]` covers custom
  *  focusable widgets; `label` covers form labels that forward clicks to an input. */
 export const SIDEBAR_CONTROL_SELECTOR =
-  'a, button, input, select, textarea, summary, label, [role="button"], [role="link"], [tabindex]';
+  '.cms-item, a, button, input, select, textarea, summary, label, [role="button"], [role="link"], [tabindex]';
 
 /** Same breakpoint as `styles.css`'s `.cms-nav.is-rail` block: below it the nav is the mobile
  *  drawer, which has no rail, so a toggle there would only flip a preference nobody can see. */
