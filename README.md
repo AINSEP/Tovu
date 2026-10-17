@@ -1,48 +1,55 @@
 # Tovu
 
-Tovu is a content platform you actually own. The database, your uploads, themes, and plugins live in one directory on a machine you control — copy it, back it up, put it in git, or hand it to someone else. No hosted plan, no lock-in, no per-seat pricing. It ships with a built-in AI assistant that can edit pages, write content, and reshape the site on request.
+Your website in one folder you own, with a built-in AI assistant that edits it for you.
 
-Tovu is at MVP. Everything runs on your own machine.
+<p align="center">
+  <a href="https://tovu.dev"><img src=".github/readme/tovu-hero.webp" width="960" alt="Tovu in 30 seconds: write, edit and publish pages, ask the assistant to make changes, make images with AI, publish anywhere"></a>
+  <br>
+  <a href=".github/readme/tovu-promo.mp4">Watch the full video with sound</a>
+</p>
 
-## Layout
+## Download the app
 
-- `apps/website` — the CMS runtime: the public site, the per-site admin API, the content model. This is the main package (see root `package.json`).
-- `apps/admin` — the admin UI (React + Vite) served at `/admin`.
-- `apps/desktop` — the Electron desktop app. An additive shell around the same server the web mode runs.
-- `apps/site-chat` — the assistant chat UI embedded in the site.
-- `packages/sdk` — `@tovu/sdk`, the public SDK for plugin authors (the only supported import surface for plugin `server/index.mjs` entries).
-- `sites/` — site data, not source: `sites/<name>/` holds one site's `content.db`, uploads, themes, plugins, and build output. Gitignored per-site; upgrading Tovu never touches this directory.
+No terminal needed. Download, open, and you land in your site's admin.
 
-Tovu is built on [Jini](https://github.com/AINSEP/Jini) (`@jini-ai/*` packages) — the agent/runtime framework underneath the CMS and assistant.
+| Your computer | Download |
+| --- | --- |
+| Mac with Apple chip (M1 or newer) | [Tovu-mac-arm64.dmg](https://github.com/AINSEP/Tovu/releases/latest/download/Tovu-mac-arm64.dmg) |
+| Mac with Intel chip | [Tovu-mac-x64.dmg](https://github.com/AINSEP/Tovu/releases/latest/download/Tovu-mac-x64.dmg) |
+| Windows (64-bit) | [Tovu-windows-x64-setup.exe](https://github.com/AINSEP/Tovu/releases/latest/download/Tovu-windows-x64-setup.exe) |
+
+All versions: [GitHub Releases](https://github.com/AINSEP/Tovu/releases/latest).
 
 ## What it does
 
-Pages, posts, media, menus, forms, and collections. Themes you can switch without touching content, since content and presentation are separate. Plugins and agent plugins. A built-in assistant you can ask to write or restyle content. Publishing to a live site, plus static export/deploy.
+- Pages, posts, media, menus and forms, with themes you can switch any time.
+- Ask the assistant to write a page, restyle the site or make images, in plain words.
+- Everything lives in one folder on your computer: copy it, back it up, move it.
+- Publish to a live site or export a static site.
 
-Full docs: **https://tovu.fly.dev/docs**
+Guides: **[tovu.dev/docs](https://tovu.dev/docs)**
 
-## Quick start
+## Run from source
 
-Easiest: download the desktop app (no terminal) — `/download` on the site, or [GitHub Releases](https://github.com/AINSEP/Tovu/releases). Open it; you're taken straight to your site's admin.
-
-From source:
+Needs [Node.js](https://nodejs.org) 24 or newer.
 
 ```
 npm install
 npm start
 ```
 
-`npm start` builds whatever a fresh checkout is missing and prints one line: the URL your site is running on.
+It prints the address your site is running on.
 
-Other useful commands:
+## For developers
 
-- `npm run dev` — development mode (watches and rebuilds).
-- `npm run desktop` — run the desktop (Electron) app from source.
+- `apps/website` — the site and admin server
+- `apps/admin` — the admin screens
+- `apps/desktop` — the desktop app
+- `packages/sdk` — the plugin SDK
+- `sites/` — your sites' data (not source code)
 
-## Requirements
-
-- Node >= 24.0.0 (see `engines` in `package.json`).
+Built on [Jini](https://github.com/AINSEP/Jini). `npm run dev` runs in watch mode; `npm run desktop` runs the desktop app from source.
 
 ## License
 
-Apache-2.0 (see `LICENSE`).
+Apache-2.0 (see [LICENSE](LICENSE)).
