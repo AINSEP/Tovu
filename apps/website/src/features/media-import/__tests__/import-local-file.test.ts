@@ -15,6 +15,7 @@ import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { applyBatchInputs, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */
 const TOOL = "media_import_local_file";
@@ -70,6 +71,45 @@ function rejection(message: string) {
     return true;
   };
 }
+
+test("local import batches eleven images, preserves per-item errors and keeps the shared cap", async (t) => {
+  const f = await setup(t);
+  fs.writeFileSync(path.join(f.rootPath, "photo.png"), PNG);
+  const registration = applyBatchInputs({ registrations: [f.registration()] })[0]!;
+  const schema = registration.descriptor.inputSchema as { required?: unknown; properties: { items: { maxItems: number } } };
+  assert.equal(schema.required, undefined);
+  assert.equal(schema.properties.items.maxItems, DEFAULT_MAX_BATCH_ITEMS);
+  assert.match(registration.descriptor.description ?? "", /Batch:.*items:/);
+  const ctx: ToolExecutionContext = { input: {}, executionId: "exec-batch", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal };
+  await assert.rejects(registration.handler({ ...ctx, input: { items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ root: "repo", path: "photo.png" })) } }), /the most one call takes is 25/);
+  await f.noWrites();
+  assert.equal(f.resolutions(), 0);
+  const items = Array.from({ length: 11 }, (_, index) => ({ path: "photo.png", title: `Photo ${index}`, alt: `Alt ${index}` }));
+  const result = await registration.handler({ ...ctx, input: { root: "repo", items: [...items.slice(0, 5), { path: "../outside.png" }, ...items.slice(5)] } }) as BatchResult;
+  assert.deepEqual({ batch: result.batch, total: result.total, succeeded: result.succeeded, failed: result.failed }, { batch: true, total: 12, succeeded: 11, failed: 1 });
+  assert.deepEqual(result.results.map(item => item.index), Array.from({ length: 12 }, (_, index) => index));
+  const failed = result.results[5]!;
+  assert.equal(failed.ok, false);
+  if (!failed.ok) {
+    assert.match(failed.error, /path|escape|outside/i);
+    assert.doesNotMatch(failed.error, /Schema for/);
+  }
+  const imported = result.results.filter(item => item.ok).map(item => (item.result as Result).media);
+  assert.deepEqual(imported.map(media => media.title), items.map(item => item.title));
+  assert.deepEqual(imported.map(media => media.alt), items.map(item => item.alt));
+  assert.equal((await f.deps.mediaRepo.list({ workspaceId: "ws-local" })).length, 11);
+  assert.equal(f.authorizeCalls.length, 12);
+});
+
+test("batching local imports cannot bypass each item's upload permission", async (t) => {
+  const f = await setup(t, { allow: false });
+  const registration = applyBatchInputs({ registrations: [f.registration()] })[0]!;
+  const result = await registration.handler({ input: { root: "repo", items: [{ path: "a.png" }, { path: "b.png" }] }, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal }) as BatchResult;
+  assert.deepEqual(result.results.map(item => item.ok), [false, false]);
+  assert.equal(f.authorizeCalls.length, 2);
+  assert.equal(f.resolutions(), 0);
+  await f.noWrites();
+});
 
 test("local imports stamp the authenticated owner, ignoring caller attribution", async (t) => {
   const fixture = await setup(t);

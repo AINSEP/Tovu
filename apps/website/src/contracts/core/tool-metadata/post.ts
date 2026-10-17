@@ -87,8 +87,9 @@ export const toolMetadata = {
   },
   "content_post_update": {
     search: {
-      keywords: "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title",
+      keywords: "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title template layout assign",
       queries: [
+        "Change which theme template this page uses.",
         "Unpublish this page for now, hide the page and take it offline.",
         "Can you change the title of this page?",
         "I need to fix a typo in the latest blog post title.",

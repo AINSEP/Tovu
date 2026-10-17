@@ -105,6 +105,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
             featuredMediaId?: string | null;
             author?: string | null;
             showAuthor?: boolean;
+            templateChoice?: string | null;
           }
         | undefined;
       if (!inverse) {
@@ -130,6 +131,8 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
         }),
         ...(inverse.author !== undefined ? { author: inverse.author } : {}),
         ...(inverse.showAuthor !== undefined ? { showAuthor: inverse.showAuthor } : {}),
+        // Older pre-images omit this key; keep their current choice instead of clearing it.
+        ...(inverse.templateChoice !== undefined ? { templateChoice: inverse.templateChoice } : {}),
         title: inverse.title,
         slug: inverse.slug,
         bodyJson: inverse.bodyJson as JsonObject,

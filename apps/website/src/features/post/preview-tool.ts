@@ -7,19 +7,21 @@ import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord, type PostRepoPort } from "./post.js";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "#src/features/site-inspection/page-body";
+import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 
 /** Renderer injected at the server composition root; the feature has no server/assistant value edge. */
-export interface PostPreviewToolDeps { workspaceId: string; authorize: AuthorizeFn; postRepo: PostRepoPort }
+export interface PostPreviewToolDeps extends PostTemplateDeps { authorize: AuthorizeFn; postRepo: PostRepoPort }
 export interface PostPreviewInput { post: PostRecord; templateChoice?: string | null | undefined; bodyJson?: JsonObject | undefined; bodyHtml?: string | undefined }
 export interface PostPreviewRenderer {
   renderPostPreview(deps: PostPreviewToolDeps, input: PostPreviewInput): Promise<{ html: string; templateChoice: string | null }>;
 }
 export const postPreviewAgentToolCatalog = [{
   name: "content_post_preview",
-  description: "Renders a post or page — including a draft, or edits you haven't saved — through its theme template, exactly as it would look once published. Use before publishing to check a draft, or to try a different template. Changes nothing. For a published page as visitors get it, use fetch_published_page (local) or fetch_live_url (live). Returns postId, title, status, templateChoice, bodyBytes, truncated and body, or matches with offsets/snippets and matchCount when find is supplied. Pass textOnly for text without markup. Refuses an unknown id/slug, invalid options, or a template preview when no theme is active.",
+  description: "Renders a post or page by id (or slug; postId is a legacy alias) — including a draft, or edits you haven't saved — through its theme template, exactly as it would look once published. Use before publishing to check a draft, or to try a different template. Changes nothing. For a published page as visitors get it, use fetch_published_page (local) or fetch_live_url (live). Returns postId, title, status, templateChoice, availableTemplates, bodyBytes, truncated and body, or matches with offsets/snippets and matchCount when find is supplied. Set a saved template with content_post_update's template field using one of availableTemplates. Pass textOnly for text without markup. Refuses an unknown id/slug, invalid options, or a template preview when no theme is active.",
   sideEffects: "none" as const, authorization: { permission: "content.read" },
-  inputSchema: { type: "object", additionalProperties: false, required: ["postId"], properties: {
-    postId: { type: "string", minLength: 1, description: "Post/page id or slug, any status except Trash." },
+  inputSchema: { type: "object", additionalProperties: false, anyOf: [{ required: ["id"] }, { required: ["postId"] }], properties: {
+    id: { type: "string", minLength: 1, description: "Post/page id or slug, any status except Trash. Takes precedence over postId." },
+    postId: { type: "string", minLength: 1, description: "Legacy alias for id. Prefer id." },
     templateChoice: { type: "string", description: "Optional pending choice. Omit to use the saved choice; empty string opts out of a template." },
     bodyJson: { type: "object", description: "Optional unsaved document body." },
     bodyHtml: { type: "string", description: "Optional unsaved HTML body for an HTML-format page." },
@@ -33,16 +35,22 @@ export const postPreviewDerivedRisk: DerivedRiskByToolId = new Map([
 ]);
 const CATALOG = indexCatalogById({ catalog: postPreviewAgentToolCatalog });
 
-/** Explicit field checks preserve empty HTML/template opt-outs, while refusing malformed edits. */
-function readPreviewInput(input: Record<string, unknown>): { postId: string; overrides: Omit<PostPreviewInput, "post"> } {
-  if (typeof input.postId !== "string" || input.postId.length === 0) throw new ToolInputError({ message: "content_post_preview: postId must be a non-empty id or slug." });
+/**
+ * Reads id (or its legacy postId alias) and unsaved edits without changing the input. A supplied
+ * id wins even when invalid, so a stale alias cannot redirect a preview to a different record.
+ * Empty HTML/template opt-outs are preserved; malformed fields throw ToolInputError.
+ * @complexity O(1) field checks.
+ */
+function readPreviewInput(input: Record<string, unknown>, _options: Record<string, never> = {}): { postId: string; overrides: Omit<PostPreviewInput, "post"> } {
+  const id = input.id === undefined ? input.postId : input.id;
+  if (typeof id !== "string" || id.trim().length === 0) throw new ToolInputError({ message: "content_post_preview: id must be a non-empty id or slug (postId is a legacy alias)." });
   for (const key of ["templateChoice", "bodyHtml"] as const) if (input[key] !== undefined && typeof input[key] !== "string") throw new ToolInputError({ message: `content_post_preview: ${key} must be a string.` });
   if (input.bodyJson !== undefined && (typeof input.bodyJson !== "object" || input.bodyJson === null || Array.isArray(input.bodyJson))) throw new ToolInputError({ message: "content_post_preview: bodyJson must be a JSON object." });
   const overrides: Omit<PostPreviewInput, "post"> = {};
   if (input.templateChoice !== undefined) overrides.templateChoice = input.templateChoice as string;
   if (input.bodyHtml !== undefined) overrides.bodyHtml = input.bodyHtml as string;
   if (input.bodyJson !== undefined) overrides.bodyJson = input.bodyJson as JsonObject;
-  return { postId: input.postId, overrides };
+  return { postId: id, overrides };
 }
 
 /** Builds the read-only preview handler; authorization precedes lookup and any render read. */
@@ -60,8 +68,9 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
         throw error;
       }
       const rendered = await renderer.renderPostPreview(deps, { post, ...overrides });
+      const availableTemplates = await readPostTemplateOptions({ deps, kind: post.kind });
       const shaped: ShapedPageBody = shapePageBody(rendered.html, options);
-      return { postId: post.id, title: post.title, status: post.status, templateChoice: rendered.templateChoice, ...shaped };
+      return { postId: post.id, title: post.title, status: post.status, templateChoice: rendered.templateChoice, availableTemplates, ...shaped };
     },
   } });
 }

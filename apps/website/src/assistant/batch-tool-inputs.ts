@@ -48,6 +48,7 @@ export const BATCHABLE_TOOLS: readonly BatchableTool[] = [
   { toolId: "content_post_update" },
   { toolId: "pages_write_html" },
   { toolId: "media_import_from_url" },
+  { toolId: "media_import_local_file" },
   { toolId: "theme_import_file_from_url" },
   { toolId: "theme_read_file", maxItems: 20 },
   { toolId: "theme_write_file" },

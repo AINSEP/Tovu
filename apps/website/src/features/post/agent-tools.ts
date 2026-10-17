@@ -904,10 +904,10 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     name: "content_post_update",
     description:
       "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson, status, publishAt, " +
-      "featuredImage, author and showAuthor you omit keep their current stored values (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
+      "featuredImage, author, showAuthor and template you omit keep their current stored values (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
       "from the stored row before calling it). Send at least one writable field, or the call is rejected. This is also how a " +
       "post/page is published or unpublished: {id, kind, status:'published'} (or 'draft') alone is enough — there is no separate " +
-      "set-status tool. Schedule with status:'published' plus a future publishAt; a scheduled result has scheduled:true and " +
+      "set-status tool. Set template to a filename from content_post_preview.availableTemplates; choices are validated against the active theme and content kind. An empty string selects no template; null resets the choice. Schedule with status:'published' plus a future publishAt; a scheduled result has scheduled:true and " +
       "publicUrl null: tell the user when it will be published. A published result also has publishedWhere: whether it is on " +
       "this local site only or on the live site — never call a local-only publish live. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
       "content_read.content_post's identical disclosed asymmetry — not rejected the other way around), if a sent slug is " +
@@ -942,6 +942,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         featuredImage: { ...FEATURED_IMAGE_SCHEMA, description: `Optional — omit to leave the featured image unchanged. ${FEATURED_IMAGE_SCHEMA.description}` },
         author: { type: ["string", "null"], description: "Optional display credit — omit to keep the stored name; null or an empty string clears it. Does not change ownership or permissions." },
         showAuthor: { type: "boolean", description: "Optional — omit to keep the byline setting; true shows the stored author, false hides it." },
+        template: { type: ["string", "null"], description: "Optional — omit to keep the saved template. Use a filename from content_post_preview.availableTemplates for this post/page; invalid choices return the valid list. Empty string selects no template; null resets the choice to the renderer's default behavior." },
         // OPTIONAL, and it must stay optional: making it required would break every caller that
         // predates it, and the domain guard itself is opt-in (`updatePost` treats an absent basis as
         // "no basis sent" and keeps its original last-write-wins behavior).

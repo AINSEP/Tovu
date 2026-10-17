@@ -14,6 +14,10 @@ import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
+import type { DiscoveredTheme } from "../../theme/index.js";
+import { createPostReverters } from "../reverters.js";
+import { postAgentToolCatalog } from "../agent-tools.js";
 
 
 /**
@@ -88,6 +92,59 @@ async function storedPost(postRepo: InMemoryPostRepo) {
   return row;
 }
 
+test("a template-only patch persists the page choice, exposes it on reads and records a working undo", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { kind: "page", templateChoice: "old.html", bodyFormat: "html", bodyHtml: "<p>Keep this page body</p>" });
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: WORKSPACE_ID, activeThemeId: "chosen", updatedAt: NOW }] });
+  deps.themes = [{ status: "valid", manifest: { id: "chosen", templates: ["page.html"] } } as DiscoveredTheme];
+  const tools = registrationsFor(deps);
+  const before = await storedPost(postRepo);
+  const result = await call(tool(tools, "content_post_update"), { id: "p1", kind: "page", template: "page.html", expectedVersion: 1 }) as { post: { template: string } };
+  assert.equal(result.post.template, "page.html");
+  assert.deepEqual(await storedPost(postRepo), { ...before, templateChoice: "page.html", version: 2 });
+  const read = await call(tool(tools, "content_post_get"), { id: "p1", kind: "page" }) as { post: { template: string } };
+  assert.equal(read.post.template, "page.html");
+  const changes = await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
+  assert.equal(changes.length, 1);
+  const change = await deps.changeSets.findById({ workspaceId: WORKSPACE_ID, id: changes[0]!.id });
+  assert.ok(change);
+  assert.equal((change.items[0]!.inversePayload as { templateChoice: string }).templateChoice, "old.html");
+  await createPostReverters({ ...deps, forgetRemoved: deps.forgetRemovedPost }).update.applyInverse({ workspaceId: WORKSPACE_ID, item: change.items[0]! });
+  assert.equal((await storedPost(postRepo)).templateChoice, "old.html");
+  assert.equal((await storedPost(postRepo)).version, 3);
+});
+
+test("the existing update tool advertises the optional template field and how to discover choices", () => {
+  const definition = postAgentToolCatalog.find(entry => entry.name === "content_post_update");
+  assert.ok(definition);
+  const schema = definition.inputSchema as { required: string[]; properties: { template: { type: string[] } } };
+  assert.deepEqual(schema.required, ["id", "kind"]);
+  assert.deepEqual(schema.properties.template.type, ["string", "null"]);
+  assert.match(definition.description, /content_post_preview.availableTemplates/);
+});
+
+test("template omission keeps the saved choice; empty and null choices retain their distinct meanings", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { kind: "page", templateChoice: "old.html" });
+  const update = tool(registrationsFor(deps), "content_post_update");
+  await call(update, { id: "p1", kind: "page", title: "New title" });
+  assert.equal((await storedPost(postRepo)).templateChoice, "old.html");
+  for (const template of ["", null]) {
+    const result = await call(update, { id: "p1", kind: "page", template }) as { post: { template: string | null } };
+    assert.equal(result.post.template, template);
+    assert.equal((await storedPost(postRepo)).templateChoice, template);
+  }
+});
+
+test("template-only patches retain the existing version-conflict guard", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { kind: "page", templateChoice: "old.html", version: 2 });
+  const before = await storedPost(postRepo);
+  await assert.rejects(call(tool(registrationsFor(deps), "content_post_update"), { id: "p1", kind: "page", template: "", expectedVersion: 1 }), /VERSION_CONFLICT/);
+  assert.deepEqual(await storedPost(postRepo), before);
+  assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+});
+
 /* ------------------------------------------------------------------------------------------------
  * (a) Title-only update
  * ---------------------------------------------------------------------------------------------- */
@@ -157,7 +214,7 @@ test("content_post_update: {id, kind} alone is REJECTED — nothing to change", 
     () => call(tool(registrations, "content_post_update"), { id: "p1", kind: "post" }),
     (err: unknown) =>
       err instanceof Error &&
-      err.message === "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author or showAuthor. Nothing was changed."
+      err.message === "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author, showAuthor or template. Nothing was changed."
   );
 
   const after = await storedPost(postRepo);

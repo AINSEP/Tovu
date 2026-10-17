@@ -100,6 +100,7 @@ import {
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
 import { extractPlainTextFromHtml } from "./html-plain-text.js";
+import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./search.js";
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.
 export { contributeContentStatsTools, type ContentStatsToolDeps } from "./content-stats-tool.js";
@@ -141,7 +142,7 @@ export type DuplicatePagesHtmlStoreFactory = (scope: { workspaceId: string; post
  * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
  * structurally by passing its existing `RouteDeps` object; nothing there changes.
  */
-export interface PostToolDeps {
+export interface PostToolDeps extends PostTemplateDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: Clock;
@@ -423,6 +424,7 @@ function postCommandDeps(routeDeps: PostToolDeps) {
 
 /** What a Posts/Pages tool returns to the model — see {@link toPostToolView}. */
 interface PostToolView {
+  template?: string | null;
   author: string | null;
   showAuthor: boolean;
   id: string;
@@ -472,6 +474,7 @@ function toPostToolView(post: PostRecord): PostToolView {
     version: post.version,
     author: post.author ?? null,
     showAuthor: post.showAuthor ?? false,
+    ...(post.templateChoice !== undefined ? { template: post.templateChoice } : {}),
     ...scheduleView(post),
   };
 }
@@ -926,10 +929,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // and clears on `null`, so these need no fill-in from `existing` the way the four above do.
         const author = input.author === undefined ? undefined : normalizePostAuthor({ author: input.author });
         const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
+        const templateChoice = input.template;
+        if (templateChoice !== undefined && templateChoice !== null && typeof templateChoice !== "string") {
+          throw new ToolInputError({ message: "content_post_update: template must be a filename from content_post_preview.availableTemplates, an empty string for no template, or null to reset the choice. Nothing was changed." });
+        }
         const publishAt = optionalPublishAt(input);
         const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
-        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined && publishAt === undefined && featuredMediaId === undefined && author === undefined && showAuthor === undefined) {
-          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author or showAuthor. Nothing was changed." });
+        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined && publishAt === undefined && featuredMediaId === undefined && author === undefined && showAuthor === undefined && templateChoice === undefined) {
+          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author, showAuthor or template. Nothing was changed." });
         }
         // Validated, not cast — see `expected-version.ts`. `expectedVersion` is optional on
         // `UpdatePostInput`, so anything this handler failed to recognize would coerce to "no basis
@@ -970,6 +977,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
                 // mirroring posts/update.ts's own kind-blind captureInverse).
                 throw new PostNotFoundError(`page '${id}' was not found`);
+              }
+              if (typeof templateChoice === "string" && templateChoice !== "") {
+                const availableTemplates = await readPostTemplateOptions({ deps: routeDeps, kind: existing.kind });
+                if (!availableTemplates.includes(templateChoice)) {
+                  throw new ToolInputError({ message: `content_post_update: template '${templateChoice}' is not available for this ${existing.kind} in the active theme. Valid templates: ${JSON.stringify(availableTemplates)}. Use one of these filenames, an empty string for no template, or null to reset the choice. Nothing was changed.` });
+                }
               }
               // S7 — fill every field the caller omitted from the stored row. This runs BEFORE the
               // html-body guard just below on purpose: an omitted `bodyJson` must merge in as
@@ -1022,6 +1035,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 featuredMediaId: existing.featuredMediaId ?? null,
                 author: existing.author ?? null,
                 showAuthor: existing.showAuthor ?? false,
+                ...(templateChoice !== undefined ? { templateChoice: existing.templateChoice ?? null } : {}),
               };
             },
             execute: () => {
@@ -1057,6 +1071,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   author,
                   showAuthor,
                   expectedVersion: basisVersion,
+                  templateChoice,
                   actorId: ctx.principal.id,
                   // See content_post_create's identical delegatedBy* comment just above.
                   delegatedByWorkspaceId: routeDeps.workspaceId,

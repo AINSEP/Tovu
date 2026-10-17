@@ -41,6 +41,8 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
+import type { DiscoveredTheme } from "../../theme/index.js";
 
 
 const WORKSPACE_ID = "ws-post-model-facing";
@@ -125,6 +127,52 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 function updateInput(overrides: Record<string, unknown>): Record<string, unknown> {
   return { id: "p1", kind: "post", title: "Untitled", slug: "shared-post", bodyJson: EMPTY_DOC, status: "draft", ...overrides };
 }
+
+test("invalid templates reach the model as BAD_REQUEST with valid choices and no writes", async () => {
+  const { deps, postRepo } = makeRouteDeps();
+  await seedPost(postRepo, { kind: "page", templateChoice: "shared.html" });
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: WORKSPACE_ID, activeThemeId: "chosen", updatedAt: NOW }] });
+  deps.themes = [{ status: "valid", manifest: { id: "chosen", templates: ["post.html", "page.html", "shared.html"], templateFor: { "post.html": ["post"], "page.html": ["page"] } } } as DiscoveredTheme];
+  const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+  const harness = await buildHarness(deps);
+  for (const template of ["post.html", "../page.html", "missing.html", 7, {}]) {
+    // kind:'post' can address a page, so validation must use the stored kind, not the caller's hint.
+    const result = await call(harness, "content_post_update", { id: "p1", kind: "post", template });
+    assert.equal(result.ok, false, JSON.stringify(result));
+    if (result.ok) return;
+    assert.equal(result.error.code, "BAD_REQUEST");
+    assert.match(result.error.message, /template/);
+    assert.match(result.error.message, /Nothing was changed/);
+    if (typeof template === "string") assert.match(result.error.message, /Valid templates: \["page.html","shared.html"\]/);
+    assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }), before);
+    assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  }
+});
+
+test("a named template with no active theme reports an empty valid list to the model", async () => {
+  const { deps, postRepo } = makeRouteDeps();
+  await seedPost(postRepo, { kind: "page" });
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: WORKSPACE_ID, activeThemeId: "none", updatedAt: NOW }] });
+  deps.themes = [];
+  const result = await call(await buildHarness(deps), "content_post_update", { id: "p1", kind: "page", template: "page.html" });
+  assert.equal(result.ok, false, JSON.stringify(result));
+  if (result.ok) return;
+  assert.equal(result.error.code, "BAD_REQUEST");
+  assert.match(result.error.message, /Valid templates: \[\]/);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.version, 1);
+});
+
+test("template permission denial prevents presentation lookup and any saved change", async () => {
+  const { deps, postRepo } = makeRouteDeps({ allow: false });
+  await seedPost(postRepo);
+  deps.presentationRepo = { findByWorkspaceId: async () => { assert.fail("permission must be checked before theme lookup"); } } as never;
+  deps.themes = [];
+  const result = await call(await buildHarness(deps), "content_post_update", { id: "p1", kind: "post", template: "page.html" });
+  assert.equal(result.ok, false, JSON.stringify(result));
+  if (result.ok) return;
+  assert.match(result.error.message, /not authorized/);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.version, 1);
+});
 
 /* ------------------------------------------------------------------------------------------------
  * Not-found: the arm that used to be redacted on every read and on delete
