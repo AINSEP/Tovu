@@ -59,3 +59,30 @@ test("trash sends the exact type string for every registry kind, unmodified", as
   expect(body(0)).toEqual({ type: "widget", id: "x" });
   expect(body(4)).toEqual({ type: "form_submission", id: "x" });
 });
+
+test.each([undefined, {}, { cursor: "", limit: 0, entityTypes: [] }])(
+  "listTrash omits empty filters (%j)", async (options) => {
+    const { calls } = stubFetchCapturing();
+    await api.listTrash(options);
+    expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/trash");
+    expect(calls[0].init?.method).toBe("GET");
+  },
+);
+
+test("listTrash encodes the cursor, limit and comma-separated entity types", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.listTrash({ cursor: "next/+?", limit: 25, entityTypes: ["post", "menu"] });
+  expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/trash?cursor=next%2F%2B%3F&limit=25&entityTypes=post%2Cmenu");
+});
+
+test("restore names entities by kind and id while purge sends only trash row ids", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.restoreTrashItems({ items: [{ entityType: "post", entityId: "post-1" }] });
+  await api.purgeTrashItems({ ids: ["trash-1"] });
+  expect(calls.map(({ url, init }) => [url, init?.method])).toEqual([
+    ["/api/admin/v1/workspaces/workspace-local/trash/restore", "POST"],
+    ["/api/admin/v1/workspaces/workspace-local/trash/purge", "POST"],
+  ]);
+  expect(body(0)).toEqual({ items: [{ entityType: "post", entityId: "post-1" }] });
+  expect(body(1)).toEqual({ ids: ["trash-1"] });
+});

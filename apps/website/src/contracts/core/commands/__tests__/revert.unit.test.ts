@@ -37,6 +37,15 @@ const WS = "ws-1";
 const clock = { nowMs: () => Date.parse("2026-08-21T00:00:00.000Z") };
 const idGen = { newId: () => "id-1" };
 
+test("conflicts constructed without version metadata expose explicit nulls", () => {
+  const error = new RevertConflictError("version unavailable", "widget", "entity-1");
+  assert.equal(error.message, "version unavailable");
+  assert.equal(error.entityType, "widget");
+  assert.equal(error.entityId, "entity-1");
+  assert.equal(error.currentVersion, null);
+  assert.equal(error.currentActorId, null);
+});
+
 function fakeReverter(opts: {
   currentVersion: number | null;
   currentActor?: string | null;
@@ -542,4 +551,25 @@ test("checks every item's version before applying any inverse or emitting/saving
   assert.deepEqual(enqueued, []);
   const persisted = await changeSets.findById({ workspaceId: WS, id: changeSet.id });
   assert.deepEqual(persisted?.changeSet, changeSet);
+});
+
+test("a change set deleted during inverse application cannot be saved back as reverted", async () => {
+  const stored = new InMemoryChangeSetRepo([baseChangeSet()], [baseItem()]);
+  let deleted = false;
+  let saved = false;
+  const changeSets: ChangeSetRepoPort = {
+    insert: stored.insert.bind(stored),
+    findById: async (input) => deleted ? null : stored.findById(input),
+    findByIdempotencyKey: stored.findByIdempotencyKey.bind(stored),
+    listByWorkspace: stored.listByWorkspace.bind(stored),
+    save: async () => { saved = true; },
+  };
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", fakeReverter({ currentVersion: 1, onApplyInverse: () => { deleted = true; } }));
+  await assert.rejects(revertChangeSet({ deps: { changeSets, registry, clock, idGen },
+    input: { workspaceId: WS, changeSetId: "cs-1" } }, {}), {
+    name: "Error", message: "change set 'cs-1' was already reverted concurrently",
+  });
+  assert.equal(deleted, true);
+  assert.equal(saved, false);
 });

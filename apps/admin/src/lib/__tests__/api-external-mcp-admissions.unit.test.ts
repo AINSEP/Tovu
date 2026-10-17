@@ -41,6 +41,17 @@ function okJson(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
+test("admissions preserve reported configuration failures instead of dropping them", async () => {
+  const configFailures = [{ connectionId: "server-one", reason: "decrypt-failed" }];
+  vi.stubGlobal("fetch", async () => okJson({ connections: [], configFailures }));
+  await expect(api.getExternalMcpAdmissions()).resolves.toEqual({ connections: [], configFailures });
+});
+
+test("an explicitly empty configuration failure report remains distinguishable from an absent report", async () => {
+  vi.stubGlobal("fetch", async () => okJson({ connections: [], configFailures: [] }));
+  await expect(api.getExternalMcpAdmissions()).resolves.toEqual({ connections: [], configFailures: [] });
+});
+
 /** The real wire body `admin-external-mcp-admissions-routes.test.ts` pins as "relayed verbatim" —
  *  one roster connection with an admitted tool, a refusal, and both drift lists populated, plus one
  *  preset connection with nothing admitted, so every field this function must unwrap is exercised

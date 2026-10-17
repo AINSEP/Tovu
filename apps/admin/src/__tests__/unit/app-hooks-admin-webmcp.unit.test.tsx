@@ -18,6 +18,7 @@ const documentContextDescriptor = Object.getOwnPropertyDescriptor(document, "mod
 const navigatorContextDescriptor = Object.getOwnPropertyDescriptor(navigator, "modelContext");
 
 afterEach(() => {
+  vi.restoreAllMocks();
   act(() => setBrowserAgentEnabled({ enabled: true }));
   createBridge.mockClear();
   for (const [target, descriptor] of [[document, documentContextDescriptor], [navigator, navigatorContextDescriptor]] as const) {
@@ -40,6 +41,81 @@ afterEach(() => {
  */
 
 describe("registerAdminWebMcpTool", () => {
+  it("a disabled browser-agent setting refuses new registrations", () => {
+    act(() => setBrowserAgentEnabled({ enabled: false }));
+    const registerTool = vi.fn();
+    registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal, { registerTool });
+    expect(registerTool).not.toHaveBeenCalled();
+  });
+
+  it("an unattached frontend bridge logs its failure and is still closed on unmount", async () => {
+    const failure = new Error("frontend session unavailable");
+    const close = vi.fn();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    createBridge.mockReturnValueOnce({
+      ready: Promise.reject(failure), bindToken: () => "", close,
+      bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
+    });
+    const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+    await act(async () => result.current.setContentEl(document.createElement("main")));
+    expect(error).toHaveBeenCalledWith("[admin] page control never attached", failure);
+    expect(result.current.agentBridge).not.toBeNull();
+    unmount();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it.each(["synchronous", "asynchronous"] as const)("a %s host registration failure warns without breaking the shell", async (mode) => {
+    const failure = new Error("browser host refused registration");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const registerTool = () => {
+      if (mode === "synchronous") throw failure;
+      return Promise.reject(failure);
+    };
+    expect(() => registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal, { registerTool })).not.toThrow();
+    await Promise.resolve();
+    expect(warn).toHaveBeenCalledExactlyOnceWith("[admin] WebMCP publish registration failed", failure);
+  });
+
+  it("a host failure after registration was aborted does not log a stale warning", async () => {
+    const controller = new AbortController();
+    let rejectRegistration!: (error: Error) => void;
+    const registration = new Promise<void>((_, reject) => { rejectRegistration = reject; });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    registerAdminWebMcpTool({ "admin.": vi.fn() }, controller.signal, { registerTool: () => registration });
+    controller.abort();
+    rejectRegistration(new Error("closed host"));
+    await Promise.resolve();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("a host that aborts while throwing does not log a stale warning", () => {
+    const controller = new AbortController();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    registerAdminWebMcpTool({ "admin.": vi.fn() }, controller.signal, { registerTool: () => {
+      controller.abort();
+      throw new Error("closed host");
+    } });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("an already-aborted registration never reaches the browser host", () => {
+    const controller = new AbortController();
+    controller.abort();
+    const registerTool = vi.fn();
+    registerAdminWebMcpTool({ "admin.": vi.fn() }, controller.signal, { registerTool });
+    expect(registerTool).not.toHaveBeenCalled();
+  });
+
+  it("a retained publish callback refuses execution after its registration closes", async () => {
+    const registerTool = vi.fn();
+    const executor = vi.fn();
+    const controller = new AbortController();
+    registerAdminWebMcpTool({ "admin.": executor }, controller.signal, { registerTool });
+    controller.abort();
+    await expect(registerTool.mock.calls[0][0].execute({})).rejects.toThrow("WebMCP admin access is disabled or closed");
+    expect(executor).not.toHaveBeenCalled();
+  });
+
   it("registers exactly one WebMCP tool, named admin.publish_content, when a model context is given", () => {
     const registerTool = vi.fn();
     const executors = { "admin.": vi.fn() };

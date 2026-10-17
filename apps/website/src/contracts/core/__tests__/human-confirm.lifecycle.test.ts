@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
 
-import { requireHumanConfirm, type HumanConfirmSpec } from '../human-confirm.js';
+import { approvalToolHandler, humanConfirmedToolHandler, notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm, type HumanConfirmSpec } from '../human-confirm.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -98,5 +98,118 @@ test('a failed surface delivery rejects with the original error and closes its e
     emitSurface: async () => { throw failure; },
   }), (error) => error === failure);
   assert.deepEqual(h.answer({ decision: 'confirm' }), { ok: false, reason: 'unknown-or-closed' });
+  assert.equal(h.store.size(), 0);
+});
+
+test('a headless call is refused before an exchange is opened', async (t) => {
+  const h = harness(t);
+  await assert.rejects(requireHumanConfirm({ ctx: h.ctx, surfaces: { surfaceExchanges: h.store }, spec: h.spec }), {
+    message: 'FIXTURE_NO_CONFIRMATION_CHANNEL: fixture_confirm_action: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.',
+  });
+  assert.equal(h.store.size(), 0);
+});
+
+test('a confirmation expires without granting the action', async (t) => {
+  const h = harness(t);
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: { surfaceExchanges: h.store }, spec: h.spec }, { emitSurface: h.emitSurface });
+  await turn();
+  t.mock.timers.tick(100);
+  assert.deepEqual(await pending, { confirmed: false, reason: 'expired' });
+  assert.equal(h.store.size(), 0);
+  assert.deepEqual(h.answer({ decision: 'confirm' }), { ok: false, reason: 'unknown-or-closed' });
+});
+
+test('the card renders its description, warning, danger styling and custom cancel label', async (t) => {
+  const h = harness(t);
+  const spec = { ...h.spec, description: 'Only the selected file', warning: 'This cannot be undone', danger: true, cancelLabel: 'Keep file' };
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: { surfaceExchanges: h.store }, spec }, { emitSurface: h.emitSurface });
+  await turn();
+  const { resource } = h.emitted[0].payload as { resource: { resource: { text: string } } };
+  assert.match(resource.resource.text, /Only the selected file/);
+  assert.match(resource.resource.text, /This cannot be undone/);
+  assert.match(resource.resource.text, /Keep file/);
+  assert.match(resource.resource.text, /class="[^"]*mcpui-button-danger[^"]*"/);
+  h.answer({ decision: 'cancel' });
+  assert.deepEqual(await pending, { confirmed: false, reason: 'declined' });
+});
+
+for (const [reason, result] of [
+  ['declined', { cancelled: true, note: 'The user cancelled. Nothing was changed.' }],
+  ['expired', { cancelled: false, reason: 'expired', note: 'The user did not answer the confirmation dialog before it expired. Nothing was changed.' }],
+  ['abandoned', { cancelled: false, reason: 'abandoned', note: 'The confirmation dialog was closed because the run ended. Nothing was changed.' }],
+] as const) test(`a ${reason} confirmation returns the precise model-facing refusal`, () => {
+  assert.deepEqual(notConfirmedResult({ confirmed: false, reason }), result);
+});
+
+test('allowed input keys pass and the first unexpected key is named even when it is empty', () => {
+  assert.equal(refuseUnexpectedKeys({ id: 'file' }, ['id']), undefined);
+  assert.equal(refuseUnexpectedKeys({}, []), undefined);
+  assert.throws(() => refuseUnexpectedKeys({ id: 'file', confirm: true, token: 'forged' }, ['id']), {
+    message: "'confirm' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.",
+  });
+  assert.throws(() => refuseUnexpectedKeys({ '': true }, []), {
+    message: "'' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.",
+  });
+});
+
+test('the compatibility handler prepares, asks and runs with the authenticated human confirmer', async (t) => {
+  const h = harness(t);
+  const handler = humanConfirmedToolHandler({ surfaceExchanges: h.store }, {
+    flag: 'removed',
+    prepare: async (ctx) => ({ file: ctx.input.file }),
+    dialog: (prepared) => ({ ...h.spec, details: [{ label: 'File', value: String(prepared.file) }] }),
+    run: async (_ctx, prepared, confirmer) => ({ removed: prepared.file, confirmer }),
+  });
+  const pending = handler({ ...h.ctx, input: { file: 'notes.txt' } }, { emitSurface: h.emitSurface });
+  await turn();
+  assert.equal(h.emitted.length, 1);
+  h.answer({ decision: 'confirm' });
+  assert.deepEqual(await pending, { removed: 'notes.txt', confirmer: { id: 'operator-9', kind: 'user' } });
+});
+
+test('the default approval handler reports cancellation under executed and never runs the effect', async (t) => {
+  const h = harness(t);
+  let effects = 0;
+  const handler = approvalToolHandler({ surfaces: { surfaceExchanges: h.store },
+    prepare: async () => 'file', describe: () => h.spec,
+    run: async () => { effects++; },
+  });
+  const pending = handler(h.ctx, { emitSurface: h.emitSurface });
+  await turn();
+  h.answer({ decision: 'cancel' });
+  assert.deepEqual(await pending, { executed: false, cancelled: true, note: 'The user cancelled. Nothing was changed.' });
+  assert.equal(effects, 0);
+});
+
+test('an approval that does not require asking runs with its prepared value and no card', async (t) => {
+  const h = harness(t);
+  const handler = approvalToolHandler({ surfaces: { surfaceExchanges: h.store },
+    prepare: async () => ({ file: 'notes.txt' }), describe: () => h.spec,
+    run: async ({ prepared, confirmer }) => ({ ...prepared, confirmer }),
+  }, { ask: ({ prepared }) => prepared.file !== 'notes.txt' });
+  assert.deepEqual(await handler(h.ctx), { file: 'notes.txt', confirmer: { id: 'operator-9', kind: 'user' } });
+  assert.equal(h.store.size(), 0);
+});
+
+test('a remembered approval uses the prepared key and skips a new card', async (t) => {
+  const h = harness(t);
+  const handler = approvalToolHandler({ surfaces: { surfaceExchanges: h.store },
+    prepare: async () => ({ key: 'chat:42' }), describe: () => h.spec,
+    run: async ({ prepared }) => ({ approved: prepared.key }),
+  }, { rememberKey: ({ prepared }) => prepared.key, remembered: {
+    has: async ({ key }) => key === 'chat:42',
+    grant: async () => { throw new Error('existing grant must not be rewritten'); },
+  } });
+  assert.deepEqual(await handler(h.ctx), { approved: 'chat:42' });
+  assert.equal(h.store.size(), 0);
+});
+
+test('custom declined results handle an abort before preparation', async (t) => {
+  const h = harness(t, true);
+  const handler = approvalToolHandler({ surfaces: { surfaceExchanges: h.store },
+    prepare: async () => { throw new Error('aborted work must not prepare'); },
+    describe: () => h.spec, run: async () => { throw new Error('aborted work must not run'); },
+  }, { declined: ({ reason, prepared }) => ({ refused: reason, prepared: prepared ?? null }) });
+  assert.deepEqual(await handler(h.ctx), { refused: 'abandoned', prepared: null });
   assert.equal(h.store.size(), 0);
 });

@@ -79,3 +79,30 @@ it("explicit sign-out suppresses late 401 auto sign-in in this tab", async () =>
   expect(result.current.user).toBeNull();
   expect(f.calls).toEqual(["me", "bootstrap", "me", "logout"]);
 });
+
+it("an old login's identity read cannot replace the later login's permissions", async () => {
+  const f = fixture("example.com");
+  const { result } = renderHook(() => useAdminSession({}, f.options));
+  await waitFor(() => expect(result.current.checking).toBe(false));
+  let resolveOld!: (value: Awaited<ReturnType<typeof f.options.sessionApi.me>>) => void;
+  const oldRead = new Promise<Awaited<ReturnType<typeof f.options.sessionApi.me>>>((resolve) => { resolveOld = resolve; });
+  f.options.sessionApi.me = () => oldRead;
+  act(() => result.current.handleLogin({ id: "first", username: "First" }));
+  f.options.sessionApi.me = async () => ({ user: { id: "second", username: "Second" }, effectivePermissions: ["second.read"] });
+  await act(async () => result.current.handleLogin({ id: "second", username: "Second" }));
+  expect(result.current.effectivePermissions).toEqual(["second.read"]);
+  await act(async () => { resolveOld({ user: { id: "first", username: "First" }, effectivePermissions: ["first.admin"] }); await oldRead; });
+  expect(result.current.user).toEqual({ id: "second", username: "Second" });
+  expect(result.current.effectivePermissions).toEqual(["second.read"]);
+});
+
+it("a failed post-login identity refresh retains the signed-in identity and unknown permissions", async () => {
+  const f = fixture("example.com");
+  const { result } = renderHook(() => useAdminSession({}, f.options));
+  await waitFor(() => expect(result.current.checking).toBe(false));
+  f.options.sessionApi.me = async () => { throw new Error("identity refresh unavailable"); };
+  await act(async () => result.current.handleLogin({ id: "new-user", username: "New user" }));
+  expect(result.current.user).toEqual({ id: "new-user", username: "New user" });
+  expect(result.current.effectivePermissions).toBeUndefined();
+  expect(result.current.checking).toBe(false);
+});

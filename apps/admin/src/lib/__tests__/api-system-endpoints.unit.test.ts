@@ -2,6 +2,73 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
 
+test("getMailStatus reads whether delivery is available without sending a write", async () => {
+  const fetch = vi.fn(async (_url: string, _init?: RequestInit) => okJson({ mailDeliveryAvailable: false }));
+  vi.stubGlobal("fetch", fetch);
+  await expect(api.getMailStatus()).resolves.toEqual({ mailDeliveryAvailable: false });
+  expect(fetch.mock.calls[0]?.[0]).toBe("/api/admin/v1/workspaces/workspace-local/system/mail-status");
+  expect(fetch.mock.calls[0]?.[1]?.method ?? "GET").toBe("GET");
+});
+
+test("credential copying reads source summaries and posts an explicit overwrite choice", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.listCredentialCopySources({});
+  await api.copyCredentials({ sourceSiteId: "source", ids: ["credential"], overwrite: false });
+  const controller = new AbortController();
+  await api.copyCredentials({ sourceSiteId: "source", ids: [], overwrite: true }, { signal: controller.signal });
+  expect(calls.map(({ url, init }) => [url, init?.method])).toEqual([
+    ["/api/admin/v1/workspaces/workspace-local/system/credential-copy", "GET"],
+    ["/api/admin/v1/workspaces/workspace-local/system/credential-copy", "POST"],
+    ["/api/admin/v1/workspaces/workspace-local/system/credential-copy", "POST"],
+  ]);
+  expect(body(1)).toEqual({ sourceSiteId: "source", ids: ["credential"], overwrite: false });
+  expect(body(2)).toEqual({ sourceSiteId: "source", ids: [], overwrite: true });
+  expect(calls[2].init?.signal).toBe(controller.signal);
+});
+
+test("getServerLogs omits unspecified filters and encodes the supplied filters", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getServerLogs();
+  await api.getServerLogs({ limit: 0, level: undefined, contains: "error & retry" });
+  expect(calls.map(({ url }) => url)).toEqual([
+    "/api/admin/v1/workspaces/workspace-local/system/server-logs",
+    "/api/admin/v1/workspaces/workspace-local/system/server-logs?limit=0&contains=error+%26+retry",
+  ]);
+});
+
+test("site configuration and home requests keep their distinct paths and payloads", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.getSitesConfig();
+  await api.setSitesConfig({});
+  await api.setSitesHome({ path: "/temporary/Sites" });
+  await api.listTokenSignInPlugins();
+  expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
+    ["/api/admin/v1/workspaces/workspace-local/system/sites/config", "GET"],
+    ["/api/admin/v1/workspaces/workspace-local/system/sites/config", "PUT"],
+    ["/api/admin/v1/workspaces/workspace-local/system/sites/home", "PUT"],
+    ["/api/admin/v1/workspaces/workspace-local/system/sites/token-sign-in-plugins", "GET"],
+  ]);
+  expect(body(1)).toEqual({});
+  expect(body(2)).toEqual({ path: "/temporary/Sites" });
+});
+
+test("switching a local site requests an immediate restart through its activate route", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.manageLocalSite({ name: "my/site", action: "switch", confirmed: true });
+  expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/system/sites/my%2Fsite/activate");
+  expect(calls[0].init?.method).toBe("POST");
+  expect(body()).toEqual({ restartNow: true });
+});
+
+test.each(["restore", "delete", "stop"] as const)("local site %s uses the correct active or trash route", async (action) => {
+  const { calls, body } = stubFetchCapturing();
+  await api.manageLocalSite({ name: "my/site", action, confirmed: false, checked: true });
+  const path = action === "stop" ? "my%2Fsite/stop" : `trash/my%2Fsite/${action}`;
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/system/sites/${path}`);
+  expect(calls[0].init?.method).toBe("POST");
+  expect(body()).toEqual({ confirmed: false, checked: true });
+});
+
 /**
  * @file Coverage-gap-fill pass (2026-09-05) for `api.ts`'s System-resource endpoint wrappers
  * (`/workspaces/${WORKSPACE_ID}/system/...` paths) that had no test exercising the real request

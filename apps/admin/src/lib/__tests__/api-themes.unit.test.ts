@@ -51,6 +51,23 @@ function stubFetchCapturing(response: Response = okJson({})): {
 
 const BASE = "/api/admin/v1/workspaces/workspace-local";
 
+test("saveThemeOriginal sends an empty POST to the encoded theme's original endpoint", async () => {
+  const saved = { themeId: "my/theme", saved: true };
+  const { calls, body } = stubFetchCapturing(okJson(saved));
+  await expect(api.saveThemeOriginal("my/theme")).resolves.toEqual(saved);
+  expect(calls[0].url).toBe(`${BASE}/themes/my%2Ftheme/original`);
+  expect(calls[0].init?.method).toBe("POST");
+  expect(body()).toEqual({});
+});
+
+test.each([undefined, "", "custom-id"])("duplicateTheme preserves an explicit id and omits an unspecified one (%s)", async (newId) => {
+  const { calls, body } = stubFetchCapturing();
+  await api.duplicateTheme("my/theme", "Copy", newId);
+  expect(calls[0].url).toBe(`${BASE}/themes/my%2Ftheme/duplicate`);
+  expect(calls[0].init?.method).toBe("POST");
+  expect(body()).toEqual(newId === undefined ? { newName: "Copy" } : { newName: "Copy", newId });
+});
+
 test("getThemeDetail GETs one theme's explore surface by id", async () => {
   const detail = {
     id: "basic",

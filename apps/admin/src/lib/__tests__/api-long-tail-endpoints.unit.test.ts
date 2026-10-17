@@ -2,6 +2,68 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import { ApiError, api } from "../api";
 
+test("external MCP approvals list and revoke use separately encoded server and tool names", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.listExternalMcpToolApprovals();
+  await api.revokeExternalMcpToolApproval("server/one", "tool/name");
+  expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
+    ["/api/admin/v1/workspaces/workspace-local/mcp-servers/tool-approvals", "GET"],
+    ["/api/admin/v1/workspaces/workspace-local/mcp-servers/server%2Fone/tool-approvals/tool%2Fname", "DELETE"],
+  ]);
+});
+
+test("publish destination reads and connects the workspace singleton with an optional site URL", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.getPublishDestination();
+  await api.connectPublishDestination();
+  await api.connectPublishDestination({ siteUrl: "https://live.example" });
+  expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
+    ["/api/admin/v1/workspaces/workspace-local/publish-content/destination", "GET"],
+    ["/api/admin/v1/workspaces/workspace-local/publish-content/destination/connect", "POST"],
+    ["/api/admin/v1/workspaces/workspace-local/publish-content/destination/connect", "POST"],
+  ]);
+  expect(body(1)).toEqual({});
+  expect(body(2)).toEqual({ siteUrl: "https://live.example" });
+});
+
+test("publish peers are read from the workspace peer collection", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.listPublishContentPeers();
+  expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/publish-content/peers");
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
+});
+
+test("publish plans omit a body when unfiltered and retain each explicitly supplied selection", async () => {
+  const { calls, body } = stubFetchCapturing();
+  const scope = { entityTypes: ["post"] };
+  await api.planPublishContent({ peerId: "peer/one" });
+  await api.planPublishContent({ peerId: "peer/one", selectedEntityKeys: [] });
+  await api.planPublishContent({ peerId: "peer/one", overwriteEntityKeys: [] });
+  await api.planPublishContent({ peerId: "peer/one", scope });
+  await api.planPublishContent({ peerId: "peer/one", selectedEntityKeys: ["post:p1"], overwriteEntityKeys: ["post:p1"], scope });
+  expect(calls.every(({ url, init }) => url === "/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/plan" && init?.method === "POST")).toBe(true);
+  expect(calls[0].init?.body).toBeUndefined();
+  expect(body(1)).toEqual({ selectedEntityKeys: [] });
+  expect(body(2)).toEqual({ overwriteEntityKeys: [] });
+  expect(body(3)).toEqual({ scope });
+  expect(body(4)).toEqual({ selectedEntityKeys: ["post:p1"], overwriteEntityKeys: ["post:p1"], scope });
+});
+
+test("publish confirmation and execution retain their distinct authorization payloads", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.confirmPublishContent({ peerId: "peer/one", planId: "plan", planHash: "hash" });
+  await api.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved" });
+  await api.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved", overwriteEntityKeys: [] }, {});
+  expect(calls.map(({ url, init }) => [url, init?.method])).toEqual([
+    ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/confirm", "POST"],
+    ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/execute", "POST"],
+    ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/execute", "POST"],
+  ]);
+  expect(body(0)).toEqual({ planId: "plan", planHash: "hash" });
+  expect(body(1)).toEqual({ bundleId: "bundle", confirmationToken: "approved" });
+  expect(body(2)).toEqual({ bundleId: "bundle", confirmationToken: "approved", overwriteEntityKeys: [] });
+});
+
 /**
  * @file Long-tail `api.ts` endpoint coverage (2026-09-05) — every endpoint method NOT already
  * exercised by a hook/screen test AND NOT already covered by

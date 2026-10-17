@@ -338,3 +338,177 @@ it('translates a menu load fallback while preserving a real server error message
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(result.current.error).toBe('Impossible de charger le menu');
 });
+
+it("edits and removes nested items without changing their siblings or the loaded tree", async () => {
+  const leaf = { id: "leaf", label: "Leaf", target: { kind: "url" as const, href: "/leaf" } };
+  const sibling = { ...leaf, id: "sibling", label: "Sibling" };
+  const parent = { ...leaf, id: "parent", children: [leaf, sibling] };
+  const other = { ...leaf, id: "other" };
+  const port = createFakeMenusPort({ menus: [{ ...MENU, items: [parent, other] }] });
+  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+
+  act(() => result.current.changeAt([0, 0], (item) => ({ ...item, label: "Changed" })));
+  expect(result.current.items[0]?.children).toEqual([{ ...leaf, label: "Changed" }, sibling]);
+  expect(result.current.items[1]).toEqual(other);
+  expect(parent.children).toEqual([leaf, sibling]);
+  act(() => result.current.removeAt([0, 0]));
+  expect(result.current.items).toEqual([{ ...parent, children: [sibling] }, other]);
+  act(() => result.current.removeAt([1]));
+  expect(result.current.items).toEqual([{ ...parent, children: [sibling] }]);
+});
+
+it("empty edit and removal paths preserve the tree and absent child paths preserve existing items", async () => {
+  const port = createFakeMenusPort({ menus: [MENU] });
+  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => {
+    result.current.changeAt([], () => { throw new Error("empty path must not edit an item"); });
+    result.current.removeAt([]);
+  });
+  expect(result.current.items).toEqual(MENU.items);
+  act(() => result.current.changeAt([0, 0], () => { throw new Error("missing child must not be edited"); }));
+  expect(result.current.items).toEqual([{ ...MENU.items[0], children: [] }]);
+  act(() => result.current.removeAt([0, 0]));
+  expect(result.current.items).toEqual([{ ...MENU.items[0], children: [] }]);
+});
+
+it("adds nested children and reorders siblings while respecting the first and last positions", async () => {
+  const first = { ...MENU.items[0]!, id: "first" };
+  const second = { ...first, id: "second" };
+  const parent = { ...first, id: "parent", children: [first, second] };
+  const other = { ...first, id: "other" };
+  const port = createFakeMenusPort({ menus: [{ ...MENU, items: [parent, other] }] });
+  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => result.current.moveAt([0, 0], -1));
+  expect(result.current.items).toEqual([parent, other]);
+  act(() => result.current.moveAt([9, 0], 1));
+  expect(result.current.items).toEqual([parent, other]);
+  act(() => result.current.moveAt([1, 0], 1));
+  expect(result.current.items).toEqual([parent, other]);
+  act(() => result.current.moveAt([0, 1], 1));
+  expect(result.current.items).toEqual([parent, other]);
+  act(() => result.current.moveAt([0, 0], 1));
+  expect(result.current.items).toEqual([{ ...parent, children: [second, first] }, other]);
+  act(() => result.current.moveAt([1], -1));
+  expect(result.current.items).toEqual([other, { ...parent, children: [second, first] }]);
+  act(() => result.current.addChildAt([0, 0]));
+  expect(result.current.items[0]).toEqual({ ...other, children: [] });
+  act(() => result.current.addChildAt([1, 0]));
+  expect(result.current.items[1]?.children?.[0]?.children).toEqual([
+    { id: expect.any(String), label: "", target: { kind: "url", href: "" } },
+  ]);
+  act(() => result.current.addChildAt([]));
+  expect(result.current.items).toHaveLength(3);
+  expect(result.current.items[2]).toEqual({ id: expect.any(String), label: "", target: { kind: "url", href: "" } });
+  expect(parent.children).toEqual([first, second]);
+});
+
+it("a failed previous load cannot clear the next menu's loading state or set its error", async () => {
+  let rejectOld!: (error: Error) => void;
+  let resolveCurrent!: (value: { menu: AdminMenu }) => void;
+  const oldLoad = new Promise<{ menu: AdminMenu }>((_, reject) => { rejectOld = reject; });
+  const currentLoad = new Promise<{ menu: AdminMenu }>((resolve) => { resolveCurrent = resolve; });
+  const port = createFakeMenusPort();
+  port.getMenu = (id) => id === "old" ? oldLoad : currentLoad;
+  const deps = { port, navigate: vi.fn(), t: (key: string) => key };
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor(id, deps), { initialProps: { id: "old" } });
+  rerender({ id: "m1" });
+  await act(async () => { rejectOld(new Error("old request failed")); await oldLoad.catch(() => {}); });
+  expect(result.current.loading).toBe(true);
+  expect(result.current.error).toBeNull();
+  await act(async () => { resolveCurrent({ menu: MENU }); await currentLoad; });
+  expect(result.current.loading).toBe(false);
+  expect(result.current.menu).toEqual(MENU);
+  expect(result.current.error).toBeNull();
+});
+
+it("save while the initial menu is pending leaves the store untouched and releases the saving guard", async () => {
+  let resolveLoad!: (value: { menu: AdminMenu }) => void;
+  const port = createFakeMenusPort({ menus: [MENU] });
+  port.getMenu = () => new Promise((resolve) => { resolveLoad = resolve; });
+  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.saving).toBe(false);
+  expect(port.menus).toEqual([MENU]);
+  expect(result.current.message).toBeNull();
+  await act(async () => { resolveLoad({ menu: MENU }); });
+  await act(async () => { await result.current.save(); });
+  expect(port.menus[0]?.version).toBe(2);
+});
+
+it("copying an unsaved menu does not write an embed or show success feedback", async () => {
+  const writes: string[] = [];
+  const clipboard = { writeText: async (text: string) => { writes.push(text); } };
+  const { result } = renderHook(() => useMenuEditor(null, { port: createFakeMenusPort(), navigate: vi.fn(), t: (key) => key, clipboard }));
+  await act(async () => { await result.current.copyHtmlEmbed(); });
+  expect(writes).toEqual([]);
+  expect(result.current.copyFeedback).toBeNull();
+});
+
+it("new menu items use the injected browser UUID without reading fallback entropy", () => {
+  const port = createFakeMenusPort();
+  const { result } = renderHook(() => useMenuEditor(null, { port, navigate: vi.fn(), t: (key) => key,
+    itemIdSource: { crypto: { randomUUID: () => "00000000-0000-4000-8000-000000000001" },
+      nowMs: () => { throw new Error("UUID creation must not read the clock"); },
+      random: () => { throw new Error("UUID creation must not read fallback randomness"); },
+    },
+  }));
+  act(() => result.current.addRootItem());
+  expect(result.current.items).toEqual([{ id: "00000000-0000-4000-8000-000000000001", label: "", target: { kind: "url", href: "" } }]);
+});
+
+it.each([undefined, {}])("new menu items use the clock and entropy fallback when UUID support is missing (%j)", (crypto) => {
+  const port = createFakeMenusPort();
+  const { result } = renderHook(() => useMenuEditor(null, { port, navigate: vi.fn(), t: (key) => key,
+    itemIdSource: { crypto, nowMs: () => 1000, random: () => 0.5 },
+  }));
+  act(() => result.current.addChildAt([]));
+  expect(result.current.items).toEqual([{ id: "item-1000-i", label: "", target: { kind: "url", href: "" } }]);
+});
+
+it.each(["success", "failure"] as const)("a late clipboard %s cannot set feedback on another menu", async (outcome) => {
+  const other = { ...MENU, id: "m2", slug: "other", title: "Other" };
+  const port = createFakeMenusPort({ menus: [MENU, other] });
+  let resolveCopy!: () => void;
+  let rejectCopy!: (error: Error) => void;
+  const copying = new Promise<void>((resolve, reject) => { resolveCopy = resolve; rejectCopy = reject; });
+  const writes: string[] = [];
+  const clipboard = { writeText: (text: string) => { writes.push(text); return copying; } };
+  const deps = { port, clipboard, navigate: vi.fn(), t: (key: string) => key };
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor(id, deps), { initialProps: { id: "m1" } });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  let pending!: Promise<void>;
+  act(() => { pending = result.current.copyHtmlEmbed(); });
+  rerender({ id: "m2" });
+  await waitFor(() => expect(result.current.menu?.id).toBe("m2"));
+  await act(async () => {
+    if (outcome === "success") resolveCopy();
+    else rejectCopy(new Error("clipboard denied"));
+    await pending;
+  });
+  expect(writes).toEqual([`<div data-embed-config='{"type":"menu","id":"main","mode":"html"}'></div>`]);
+  expect(result.current.copyFeedback).toBeNull();
+  expect(result.current.menu).toEqual(other);
+});
+
+it("a failed save for a previous menu cannot put an error on the current menu", async () => {
+  const other = { ...MENU, id: "m2", title: "Other", slug: "other" };
+  const port = createFakeMenusPort({ menus: [MENU, other] });
+  let rejectSave!: (error: Error) => void;
+  port.updateMenuTree = () => new Promise((_, reject) => { rejectSave = reject; });
+  const deps = { port, navigate: vi.fn(), t: (key: string) => key };
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor(id, deps), { initialProps: { id: "m1" } });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  let saving!: Promise<void>;
+  act(() => { saving = result.current.save(); });
+  rerender({ id: "m2" });
+  await waitFor(() => expect(result.current.menu?.id).toBe("m2"));
+  await act(async () => { rejectSave(new Error("old menu save failed")); await saving; });
+  expect(result.current.error).toBeNull();
+  expect(result.current.message).toBeNull();
+  expect(result.current.saving).toBe(false);
+  expect(result.current.menu).toEqual(other);
+  expect(port.menus).toEqual([MENU, other]);
+});

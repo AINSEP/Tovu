@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -9,7 +10,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { createEntry, publishEntry, updateEntry } from "../../index.js";
 import type { EntryRecord } from "../../index.js";
 import type { CollectionListQuery } from "../../public-list.js";
-import { entryRepoFor, type SqlEntryRepo } from "../../repo.js";
+import { entryRepoFor, SqlEntryRepo } from "../../repo.js";
 
 /**
  * @file The entry repo contract, by the same assertions on EVERY dialect (SQLite and PGlite): one
@@ -103,6 +104,43 @@ describeEachDialect<Fixture>(
   "EntryRepoPort",
   { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: entryRepoFor(kernel), kernel }) },
   (make) => {
+    test("trash-aware lookups return null for a missing or foreign-workspace row", async () => {
+      const { repo } = make();
+      await createPublished({ repo, idSeed: "r-1", slug: "soup", siteFields: {} });
+      assert.equal(await repo.findAnyById({ workspaceId: "ws-1", id: "absent" }), null);
+      assert.equal(await repo.findAnyById({ workspaceId: "ws-2", id: "r-1" }), null);
+      assert.equal(await repo.findAnyBySlug({ workspaceId: "ws-1", type: "recipe", slug: "absent" }), null);
+      assert.equal(await repo.findAnyBySlug({ workspaceId: "ws-2", type: "recipe", slug: "soup" }), null);
+    });
+
+    test("workspace lists narrow by type and default updatedAt ordering to descending", async () => {
+      const { repo } = make();
+      const early = await createPublished({ repo, idSeed: "r-early", slug: "early", siteFields: {} });
+      const late = await createPublished({ repo, idSeed: "r-late", slug: "late", siteFields: {} });
+      await repo.save({ ...early, updatedAt: "2026-09-22T00:00:00.000Z" });
+      await repo.save({ ...late, updatedAt: "2026-09-24T00:00:00.000Z" });
+      await createPublished({ repo, idSeed: "widget", slug: "widget", type: "widget", fields: [], siteFields: {} });
+      assert.deepEqual(slugs(await repo.listByWorkspace({ workspaceId: "ws-1" }, { type: "recipe", status: "published", orderBy: "updatedAt" })), ["late", "early"]);
+      assert.deepEqual(slugs(await repo.listByWorkspaceExcludingTypes({ workspaceId: "ws-1", excludeTypes: ["widget"], status: "published", orderBy: "updatedAt", orderDirection: "asc", limit: 1 })), ["early"]);
+      assert.deepEqual(await repo.listByWorkspace({ workspaceId: "ws-1" }, { type: "absent" }), []);
+    });
+
+    test("display paging applies an explicit offset after stable ordering", async () => {
+      const { repo } = make();
+      for (const id of ["r-3", "r-1", "r-2"]) await createPublished({ repo, idSeed: id, slug: id, title: "Same", siteFields: {} });
+      const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: listQuery({ offset: 1, limit: 1 }) });
+      assert.deepEqual(rows.map((row) => row.id), ["r-2"]);
+    });
+
+    test("a database failure is propagated unchanged rather than translated into a slug conflict", async () => {
+      const { repo, kernel } = make();
+      const entry = await createPublished({ repo, idSeed: "r-1", slug: "soup", siteFields: {} });
+      const failure = new Error("database connection closed");
+      const unavailable: ContentKernel = { ...kernel, run: async () => { throw failure; } };
+      await assert.rejects(new SqlEntryRepo(unavailable).save({ ...entry, title: "Must not save" }), (error) => error === failure);
+      assert.equal((await repo.findById({ workspaceId: "ws-1", id: entry.id }))?.title, entry.title);
+    });
+
     test("workspace-scoping boundary: an entry created in ws-1 is invisible to ws-2's lookups", async () => {
       const { repo } = make();
       const created = await createEntry({

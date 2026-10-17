@@ -47,14 +47,20 @@ export interface MenuEditorDependencies {
   navigate: (path: string, options?: { replace?: boolean }) => void;
   t: Translate;
   clipboard?: { writeText: (text: string) => Promise<void> };
+  /** Draft item IDs retain their browser UUID / timestamp fallback with controllable entropy. */
+  itemIdSource?: {
+    crypto?: Partial<Pick<Crypto, "randomUUID">>;
+    nowMs: () => number;
+    random: () => number;
+  };
 }
 
-function newItemId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function newItemId({ source }: { source: NonNullable<MenuEditorDependencies["itemIdSource"]> }): string {
+  return source.crypto?.randomUUID?.() ?? `item-${source.nowMs()}-${source.random().toString(36).slice(2)}`;
 }
 
-function newItem(): AdminMenuItem {
-  return { id: newItemId(), label: "", target: { kind: "url", href: "" } };
+function newItem({ source }: { source: NonNullable<MenuEditorDependencies["itemIdSource"]> }): AdminMenuItem {
+  return { id: newItemId({ source }), label: "", target: { kind: "url", href: "" } };
 }
 
 // ---------------------------------------------------------------------------
@@ -87,13 +93,13 @@ function removeAtPath(items: AdminMenuItem[], path: number[]): AdminMenuItem[] {
   );
 }
 
-function addChildAtPath(items: AdminMenuItem[], path: number[]): AdminMenuItem[] {
-  if (path.length === 0) return [...items, newItem()];
+function addChildAtPath(items: AdminMenuItem[], path: number[], createItem: () => AdminMenuItem): AdminMenuItem[] {
+  if (path.length === 0) return [...items, createItem()];
   const [index, ...rest] = path;
   return items.map((item, i) => {
     if (i !== index) return item;
-    if (rest.length === 0) return { ...item, children: [...(item.children ?? []), newItem()] };
-    return { ...item, children: addChildAtPath(item.children ?? [], rest) };
+    if (rest.length === 0) return { ...item, children: [...(item.children ?? []), createItem()] };
+    return { ...item, children: addChildAtPath(item.children ?? [], rest, createItem) };
   });
 }
 
@@ -180,7 +186,9 @@ export interface MenuEditorController {
   t: Translate;
 }
 
-export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard }: MenuEditorDependencies): MenuEditorController {
+export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard,
+  itemIdSource = { crypto: globalThis.crypto, nowMs: Date.now, random: Math.random },
+}: MenuEditorDependencies): MenuEditorController {
   const isNew = menuId === null;
   const fetchMenu = useCallback(async () => {
     try { return await port.getMenu(menuId!); }
@@ -313,13 +321,13 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     setItems((prev) => removeAtPath(prev, path));
   }
   function addChildAt(path: number[]) {
-    setItems((prev) => addChildAtPath(prev, path));
+    setItems((prev) => addChildAtPath(prev, path, () => newItem({ source: itemIdSource })));
   }
   function moveAt(path: number[], direction: -1 | 1) {
     setItems((prev) => moveAtPath(prev, path, direction));
   }
   function addRootItem() {
-    setItems((prev) => [...prev, newItem()]);
+    setItems((prev) => [...prev, newItem({ source: itemIdSource })]);
   }
   function changeMode(next: AdminMenuMode) {
     // `pageItemsForSave` fills each page link's public path from the catalogue, so the starter

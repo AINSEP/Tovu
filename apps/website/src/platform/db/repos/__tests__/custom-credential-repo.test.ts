@@ -1,3 +1,4 @@
+import "../../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
@@ -9,6 +10,8 @@ import type { CustomCredentialSetRecord } from "#src/features/custom-credentials
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlCustomCredentialSetRepo } from "../custom-credential-repo.js";
+import { InMemoryVaultRepo, VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { CustomCredentialVaultRepo, customVaultRecord, customVaultScope } from "#src/features/custom-credentials/vault-repo";
 
 /** Existing characterization suite now exercises Jini's vault-backed facade on both dialects.
  * The step is activated on disposable fixtures only; production migration registration is untouched.
@@ -34,6 +37,144 @@ function makeRecord(overrides: Partial<CustomCredentialSetRecord> = {}): CustomC
     updatedAt: NOW,
     ...overrides,
   };
+}
+
+function vaultRow(overrides: Partial<VaultRecord> = {}): VaultRecord {
+  const record = makeRecord();
+  return { ...customVaultScope(record), id: record.id, provider: null, label: record.label,
+    sealed: record.sealed, isDefault: true, revision: 1, last4: "tail", tokenLength: 20,
+    meta: { category: record.category, baseUrl: record.baseUrl, additionalHosts: [], username: null },
+    createdAt: NOW, updatedAt: NOW, ...overrides };
+}
+
+for (const patch of [{ kind: "vendor" }, { ownerKey: "foreign" }, { principalId: "foreign" },
+  { binding: "https://foreign.example" }, { provider: "foreign" }] as const) {
+  test(`custom records reject a foreign ${Object.keys(patch)[0]} before exposing credential data`, () => {
+    assert.throws(() => customVaultRecord({ row: vaultRow(patch) }, {}), {
+      name: "VaultError", message: "Secrets vault: context",
+    });
+  });
+}
+
+test("custom records reject a missing sealed envelope", () => {
+  assert.throws(() => customVaultRecord({ row: vaultRow({ sealed: null }) }), {
+    name: "VaultError", message: "Secrets vault: invalid-record",
+  });
+});
+
+test("custom record summaries hide the envelope revision and preserve an explicit create CAS", () => {
+  const row = vaultRow();
+  const record = customVaultRecord({ row, expectedRevision: null });
+  assert.deepEqual(record, makeRecord());
+  assert.equal(record.vaultRecord, row);
+  assert.equal(record.vaultExpectedRevision, null);
+  assert.equal(Object.hasOwn(record, "username"), false);
+  assert.equal(Object.keys(record).includes("vaultRecord"), false);
+  assert.equal(JSON.stringify(record).includes("vaultExpectedRevision"), false);
+  assert.deepEqual(customVaultScope({ workspaceId: WORKSPACE }, {}), {
+    workspaceId: WORKSPACE, kind: "custom", ownerKey: "tovu", principalId: null, binding: null,
+  });
+});
+
+test("legacy metadata without a username produces a summary without a username field", () => {
+  const row = vaultRow();
+  delete row.meta.username;
+  const record = customVaultRecord({ row });
+  assert.deepEqual(record, makeRecord());
+  assert.equal(Object.hasOwn(record, "username"), false);
+  assert.equal(Object.hasOwn(record, "vaultExpectedRevision"), false);
+});
+
+test("a revision-bearing DTO without a prepared row uses its explicit create CAS", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const repo = new CustomCredentialVaultRepo({ vault });
+  const record = makeRecord({ vaultExpectedRevision: null });
+  await repo.update(record);
+  const row = await vault.find(record);
+  assert.ok(row);
+  assert.equal(row.revision, 1);
+  assert.equal(row.last4, null);
+  assert.equal(row.tokenLength, null);
+  assert.deepEqual(await repo.findById(record), makeRecord());
+});
+
+test("custom credentials list by label rather than by vault id", async () => {
+  const vault = new InMemoryVaultRepo({});
+  await vault.put({ record: vaultRow({ id: "a", label: "Zulu" }), expectedRevision: null });
+  await vault.put({ record: vaultRow({ id: "z", label: "Alpha" }), expectedRevision: null });
+  const rows = await new CustomCredentialVaultRepo({ vault }).listByWorkspace({ workspaceId: WORKSPACE });
+  assert.deepEqual(rows.map(({ id, label }) => ({ id, label })), [{ id: "z", label: "Alpha" }, { id: "a", label: "Zulu" }]);
+});
+
+test("custom lookups ignore a different vault kind and leave that row intact on delete", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const saved = await vault.put({ record: vaultRow({ kind: "vendor" }), expectedRevision: null });
+  const repo = new CustomCredentialVaultRepo({ vault }, {});
+  assert.equal(await repo.findById(saved), null);
+  await repo.delete(saved);
+  assert.deepEqual(await vault.find(saved), saved);
+});
+
+test("a DTO metadata update preserves the unchanged envelope's hints and provenance", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const original = vaultRow();
+  original.meta.migration = { originalLabel: "Original" };
+  const saved = await vault.put({ record: original, expectedRevision: null });
+  const repo = new CustomCredentialVaultRepo({ vault });
+  await repo.update(makeRecord({ label: "Renamed", username: "operator", updatedAt: LATER }));
+  const after = await vault.find(saved);
+  assert.deepEqual(after, { ...saved, label: "Renamed", revision: 2, updatedAt: LATER,
+    meta: { ...saved.meta, username: "operator" } });
+});
+
+for (const part of ["keyId", "ciphertext", "nonce", "alg"] as const) {
+  test(`a custom DTO with a different envelope ${part} clears the previous hint`, async () => {
+    const vault = new InMemoryVaultRepo({});
+    const saved = await vault.put({ record: vaultRow(), expectedRevision: null });
+    const sealed = { ...makeRecord().sealed, [part]: "changed" } as CustomCredentialSetRecord["sealed"];
+    await new CustomCredentialVaultRepo({ vault }).update(makeRecord({ sealed }));
+    assert.deepEqual(await vault.find(saved), { ...saved, revision: 2, sealed, last4: null, tokenLength: null });
+  });
+}
+
+test("prepared custom writes preserve their caller's CAS and reject stale updates", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const repo = new CustomCredentialVaultRepo({ vault });
+  const initial = vaultRow();
+  await repo.insert(customVaultRecord({ row: initial, expectedRevision: null }));
+  const stored = await vault.find(initial);
+  assert.ok(stored);
+  const next = { ...stored, revision: 2, label: "Prepared", updatedAt: LATER };
+  const prepared = customVaultRecord({ row: next, expectedRevision: 1 });
+  await repo.update(prepared);
+  assert.deepEqual(await vault.find(initial), next);
+  await repo.insert(makeRecord({ id: "sibling", label: "Another label" }));
+  await assert.rejects(repo.update(prepared), { name: "VaultError", message: "Secrets vault: conflict" });
+  assert.deepEqual(await vault.find(initial), next);
+});
+
+for (const patch of [{ workspaceId: OTHER_WORKSPACE }, { id: "other-id" }]) {
+  test(`prepared custom writes cannot change the DTO ${Object.keys(patch)[0]}`, async () => {
+    const vault = new InMemoryVaultRepo({});
+    const prepared = customVaultRecord({ row: vaultRow(), expectedRevision: null });
+    Object.assign(prepared, patch);
+    await assert.rejects(new CustomCredentialVaultRepo({ vault }).update(prepared), {
+      name: "VaultError", message: "Secrets vault: context",
+    });
+    assert.deepEqual(await vault.list(customVaultScope({ workspaceId: WORKSPACE })), []);
+    assert.deepEqual(await vault.list(customVaultScope({ workspaceId: OTHER_WORKSPACE })), []);
+  });
+}
+
+for (const error of [new Error("storage unavailable"), new VaultError({ code: "invalid-record" }), new VaultError({ code: "conflict" })]) {
+  test(`custom writes preserve ${error.message} when it is not a duplicate label`, async () => {
+    class FailingVault extends InMemoryVaultRepo {
+      override async put(): Promise<VaultRecord> { throw error; }
+    }
+    const vault = new FailingVault({});
+    await assert.rejects(new CustomCredentialVaultRepo({ vault }).insert(makeRecord()), (caught) => caught === error);
+    assert.deepEqual(await vault.list(customVaultScope({ workspaceId: WORKSPACE })), []);
+  });
 }
 
 describeEachDialect(
