@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file Contract tests for `assistant/content-read-tool.ts` — the 2026-09-08 `content_read`
  * collapse (Option A / arm D1 of `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md`).

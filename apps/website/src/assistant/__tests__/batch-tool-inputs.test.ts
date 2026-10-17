@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file `items: [...]` batch inputs (2026-10-08, owner: "prefer batching the requests, not asking me
  * 50 times"). Pinned here:

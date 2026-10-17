@@ -1,3 +1,4 @@
+import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 /**
  * @file Contract tests for `content_read.<resource>` read-one-by-id (2026-10-08, CRUD gap step 1 —
