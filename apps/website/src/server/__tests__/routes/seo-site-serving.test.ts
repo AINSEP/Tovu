@@ -221,9 +221,16 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
-  // SPEC-050: until `core.site.title` is registered every workspace renders the legacy title, so the
-  // workspace-name assertion below would race the boot chain.
+  // SPEC-050: wait for `core.site.title` registration before writing the owner value below.
   await deps.siteTitleReady;
+
+  const cookie = await loginAsOwner(baseUrl);
+  const setting = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ namespace: "core.site", key: "title", scope: "workspace", valueJson: "Owner Title" }),
+  });
+  assert.equal(setting.status, 200);
 
   const res = await fetch(`${baseUrl}/pricing`);
   assert.equal(res.status, 200);
@@ -235,10 +242,8 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   assert.equal(titleMatches.length, 1, "the theme's own hardcoded <title> must be suppressed, not doubled up");
   assert.match(
     html,
-    // SPEC-050: the resolved `core.site.title` for a workspace with no owner value. The in-memory
-    // root is a new site with no site directory (EC-03), so that value is `workspaces.name`.
-    /<title>Local Tovu Workspace<\/title>/,
-    "the fold's site-level title (no backing entry, same shape as home) must win over the theme's stale 'Pricing — Basic'"
+    /<title>Owner Title<\/title>/,
+    "the owner's site-level title (no backing entry, same shape as home) must win over the theme's 'Pricing — Basic'"
   );
   // Must be THIS page's own path, not silently reusing home's hardcoded "/" — the exact defect a
   // naive "just pass buildExtraHead's home args again" fix would have reintroduced.
@@ -295,6 +300,71 @@ function themeWithTemplateFixture(): DiscoveredTheme {
     status: "valid",
     errors: [],
   } as unknown as DiscoveredTheme;
+}
+
+for (const ownerTitle of [undefined, "Owner Title"]) {
+  test(`static theme titles: ${ownerTitle === undefined ? "no Site title preserves Theme Own Title" : "Owner Title replaces Theme Own Title"}`, async (t) => {
+    const theme = themeWithTemplateFixture();
+    const themeHtml = "<html><head><title>Theme Own Title</title></head><body><main data-theme-title-probe>theme page</main></body></html>";
+    theme.pages.index = themeHtml;
+    theme.pages["theme-probe"] = themeHtml;
+    theme.manifest.publishedPages = ["theme-probe"];
+    const deps = createRouteDeps();
+    deps.themes = [theme];
+    const presentation = await deps.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID });
+    await deps.presentationRepo.save({ ...presentation!, activeThemeId: theme.manifest.id });
+    const home = await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "/" });
+    assert.ok(home, "the seeded root entry must exist so both home branches can be exercised");
+    await deps.postRepo.save({ ...home, status: "draft" });
+    const baseUrl = await startTestServer(createApp(deps), t);
+    await deps.seoReady;
+    await deps.siteTitleReady;
+    const cookie = await loginAsOwner(baseUrl);
+    if (ownerTitle !== undefined) {
+      const setting = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/value`, {
+        method: "PUT",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ namespace: "core.site", key: "title", scope: "workspace", valueJson: ownerTitle }),
+      });
+      assert.equal(setting.status, 200);
+    }
+
+    const assertThemePage = async (pathname: string): Promise<void> => {
+      const response = await fetch(`${baseUrl}${pathname}`);
+      assert.equal(response.status, 200);
+      const html = await response.text();
+      assert.match(html, /data-theme-title-probe/, "must exercise the theme's static document");
+      assert.equal(countRealTitleTags(html), 1);
+      assert.ok(html.includes(`<title>${ownerTitle ?? "Theme Own Title"}</title>`));
+      assert.ok(html.includes(`<link rel="canonical" href="http://localhost:3000${pathname}"/>`));
+      assert.match(html, /application\/rss\+xml/);
+    };
+    await assertThemePage("/");
+    await assertThemePage("/theme-probe");
+
+    // A root entry changes home's branch, while /theme-probe remains entry-less.
+    await deps.postRepo.save({ ...home, status: "published", templateChoice: "blog-post.html" });
+    await assertThemePage("/theme-probe");
+    const backedHome = await fetch(`${baseUrl}/`);
+    assert.equal(backedHome.status, 200);
+    const backedHtml = await backedHome.text();
+    assert.match(backedHtml, /data-tpl="blog-post"/);
+    assert.equal(countRealTitleTags(backedHtml), 1);
+    assert.ok(backedHtml.includes(`<title>${ownerTitle ?? home.title}</title>`));
+    const seo = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${home.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ title: "Explicit Home SEO Title" }),
+    });
+    assert.equal(seo.status, 200);
+    const response = await fetch(`${baseUrl}/`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /data-tpl="blog-post"/);
+    assert.equal(countRealTitleTags(html), 1);
+    assert.match(html, /<title>Explicit Home SEO Title<\/title>/);
+    assert.match(html, /property="og:title" content="Explicit Home SEO Title"/);
+  });
 }
 
 /**

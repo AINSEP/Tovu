@@ -3119,6 +3119,23 @@ test("injectExtraHeadIntoStaticPage: extraHead without a title leaves the theme'
   assert.equal((out.match(/-->/g) ?? []).length, 1, "and the comment is untouched");
 });
 
+test("injectExtraHeadIntoStaticPage: preserving an authored title skips comment mentions and keeps the other head elements", () => {
+  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, SEO_HEAD, { preserveThemeTitle: true });
+  const withoutComments = out.replace(/<!--[\s\S]*?-->/g, "");
+  assert.deepEqual(withoutComments.match(/<title>[\s\S]*?<\/title>/g), ["<title>Theme Title</title>"]);
+  assert.ok(out.includes('<link rel="canonical" href="/contact"/>'));
+  assert.ok(out.includes("a <title> placeholder"));
+  assert.ok(out.includes('rel="stylesheet"'));
+});
+
+test("injectExtraHeadIntoStaticPage: a theme with only a comment mentioning title still receives the fold's fallback title", () => {
+  const html = HEAD_COMMENT_MENTIONING_TITLE.replace("<title>Theme Title</title>", "");
+  const out = injectExtraHeadIntoStaticPage(html, SEO_HEAD, { preserveThemeTitle: true });
+  const withoutComments = out.replace(/<!--[\s\S]*?-->/g, "");
+  assert.deepEqual(withoutComments.match(/<title>[\s\S]*?<\/title>/g), ["<title>Contact</title>"]);
+  assert.ok(out.includes('<link rel="canonical" href="/contact"/>'));
+});
+
 // A head comment that names `</head>` and `</body>` literally (kUInetic's pre-JS cloak note did) must
 // not be taken for the document's closing tags: the splice used to insert before the FIRST match, so
 // the chat mount and its script landed inside the comment and the site FAB never loaded.

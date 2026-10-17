@@ -89,12 +89,18 @@ async function getHtml(baseUrl: string, pathname: string): Promise<string> {
   return res.text();
 }
 
-test("EC-03 (REQ-05): the in-memory root is a new site with no site directory, so S1-S3 and the header/footer chrome render workspaces.name", async (t) => {
+test("EC-03 (REQ-05): static pages keep their own titles without an owner value; pageShell and chrome render workspaces.name", async (t) => {
   const site = await bootSite(t);
   await unpublishHomePage(site.deps);
 
-  assertSingleTitle(await getHtml(site.baseUrl, "/"), IN_MEMORY_WORKSPACE_NAME, "S1 GET /");
-  assertSingleTitle(await getHtml(site.baseUrl, "/pricing"), IN_MEMORY_WORKSPACE_NAME, "S2 GET /pricing");
+  const theme = site.deps.themes.find((theme) => theme.manifest.id === "tovu-theme");
+  assert.ok(theme);
+  const [homeTitle] = realTitles(theme.pages.index ?? "");
+  const [pricingTitle] = realTitles(theme.pages.pricing ?? "");
+  assert.ok(homeTitle, "the static home fixture must have its own title");
+  assert.ok(pricingTitle, "the static marketing fixture must have its own title");
+  assertSingleTitle(await getHtml(site.baseUrl, "/"), homeTitle, "S1 GET /");
+  assertSingleTitle(await getHtml(site.baseUrl, "/pricing"), pricingTitle, "S2 GET /pricing");
   const products = await getHtml(site.baseUrl, "/products");
   assertSingleTitle(products, IN_MEMORY_WORKSPACE_NAME, "S3 GET /products");
   assert.ok(products.includes(`<a class="wordmark" href="/">${IN_MEMORY_WORKSPACE_NAME}</a>`), "B: header wordmark");

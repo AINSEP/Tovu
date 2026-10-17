@@ -3181,10 +3181,22 @@ function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: 
  * One splice implementation, not a second parallel one — see those call sites' own docs for which
  * static-tier renders were deliberately left OUT (the admin theme-preview iframe and the 404/
  * diagnostic pages) and why.
+ *
+ * `preserveThemeTitle` lets entry-less static routes keep an authored title when no explicit Site
+ * title is set. The fold still supplies all other head elements, and its title is kept when the
+ * theme has none. Entry-bearing callers retain the default fold-wins policy.
+ * @example injectExtraHeadIntoStaticPage(html, extraHead, { preserveThemeTitle: true })
  */
-export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | undefined): string {
+export function injectExtraHeadIntoStaticPage(
+  html: string,
+  extraHead: string | undefined,
+  options: { preserveThemeTitle?: boolean } = {},
+): string {
   if (!extraHead) return html;
   const withoutOwnTitle = extraHead.includes("<title>") ? removeThemeOwnTitleElement(html) : html;
+  if (options.preserveThemeTitle && withoutOwnTitle !== html) {
+    return insertBeforeUncommentedTag(html, /<\/head>/gi, removeThemeOwnTitleElement(extraHead));
+  }
   return insertBeforeUncommentedTag(withoutOwnTitle, /<\/head>/gi, extraHead);
 }
 

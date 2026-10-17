@@ -1935,10 +1935,14 @@ export async function resolveMarketingPageOrOverride(
   // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
   // canonical fallback — never home's `"/"`.
   const extraHead = await buildExtraHead(deps, "page", await resolveSiteTitleForRender(deps), undefined, postPublicPath({ slug: slug }));
+  // The display-name fallback must not displace an authored theme title. If the explicit-title
+  // read fails, retain the existing fold-wins behavior rather than failing the page render.
+  const preserveThemeTitle = await deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId })
+    .then((title) => title === undefined, () => false);
   // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
   // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
   // the widget even with the setting on, because `pageShell`'s own injection never ran here.
-  const html = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead), siteAssistantEnabled);
+  const html = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead, { preserveThemeTitle }), siteAssistantEnabled);
   return { kind: "responded", html };
 }
 
@@ -2634,6 +2638,9 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
       // `renderStaticTierHomePage` stays in place for its one other caller
       // (`middleware/theme-page-preview.ts`'s admin preview route, which never reaches this handler).
       if (theme !== null && theme.manifest.tier === "static" && theme.pages.index !== undefined) {
+        // Same explicit-only policy as marketing pages; entry-bearing homes returned above.
+        const preserveThemeTitle = await deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId })
+          .then((title) => title === undefined, () => false);
         const rendered = await finishStaticTierDocument(deps, {
           theme,
           pageId: "index",
@@ -2642,7 +2649,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
           staticMenus,
           postPreviewsAccess: { resolver: memberAccessResolver, context: memberContext },
         });
-        const homeHtml = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
+        const homeHtml = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead, { preserveThemeTitle }), siteAssistantEnabled);
         const homePerVisitor = resolvePerVisitorResponse(req, res);
         res
           .set("Cache-Control", homePerVisitor.cacheControl)
