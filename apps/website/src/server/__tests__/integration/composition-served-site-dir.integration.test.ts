@@ -10,6 +10,7 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
 import { installFirstPartyPublishContentTypes } from "../../runtime/composition/publish-content-manifest.js";
 import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -84,6 +85,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
   const siteA = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-served-site-a-"));
   const probePluginId = "served-site-probe";
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
+  let closeStore: (() => Promise<void>) | undefined;
 
   const layoutEnv = ["TOVU_AGENT_PLUGINS_DIR", "TOVU_SKILLS_DIR"] as const;
   const originalLayoutEnv = new Map(layoutEnv.map(name => [name, process.env[name]]));
@@ -92,15 +94,24 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     for (const name of layoutEnv) delete process.env[name];
     plantSitePlugin(path.join(siteA, "plugins"), probePluginId);
     // No uploadsDir/themesDir overrides: their defaults are under test too.
-    deps = await createSiteRouteDeps(path.join(siteA, "content.db"), { siteBinding: bindingFor(siteA) });
+    deps = await createSiteRouteDeps(path.join(siteA, "content.db"), {
+      siteBinding: bindingFor(siteA),
+      onStoreOpened: store => { closeStore = () => store.close(); },
+    });
   });
 
   after(async () => {
-    await settleBoot(deps);
-    fs.rmSync(siteA, { recursive: true, force: true });
-    for (const name of layoutEnv) {
-      const previous = originalLayoutEnv.get(name);
-      if (previous === undefined) delete process.env[name]; else process.env[name] = previous;
+    try {
+      await settleBoot(deps);
+      // Store close also drains export-app boot work and stops retention sweeps before deletion.
+      await closeStore?.();
+      // The contribution fixture installs frozen (0555) package directories; removal must restore write permission.
+      await removeFrozenPackageTree({ root: siteA });
+    } finally {
+      for (const name of layoutEnv) {
+        const previous = originalLayoutEnv.get(name);
+        if (previous === undefined) delete process.env[name]; else process.env[name] = previous;
+      }
     }
   });
 
@@ -253,11 +264,13 @@ test("stock seed: blob hydration and the publish-content seed hash read the SERV
   liveDb.insert(workspaces).values({ id: workspaceId, name: "Served", slug: "served", createdAt: now }).run();
 
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
+  let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
       createSiteRouteDeps(path.join(siteA, "content.db"), {
         db: liveDb,
         workspaceId,
+        onStoreOpened: store => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
@@ -275,6 +288,9 @@ test("stock seed: blob hydration and the publish-content seed hash read the SERV
     assert.equal(typeof seedHash, "string", `the seed hash must come from stock/${siteName}/content.seed.db, got ${String(seedHash)}`);
   } finally {
     await settleBoot(deps);
+    await closeStore?.();
+    // A supplied content DB remains the caller's responsibility after the store closes.
+    liveDb.$client.close();
     fs.rmSync(siteA, { recursive: true, force: true });
     fs.rmSync(stockRoot, { recursive: true, force: true });
   }
@@ -289,9 +305,11 @@ test("stock seed: a first boot with no content.db hydrates it from the SERVED si
   seedDb.$client.close();
 
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
+  let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
       createSiteRouteDeps(path.join(siteA, "content.db"), {
+        onStoreOpened: store => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
@@ -301,6 +319,7 @@ test("stock seed: a first boot with no content.db hydrates it from the SERVED si
     assert.ok(found, "content.db must be hydrated from the served site's own stock seed");
   } finally {
     await settleBoot(deps);
+    await closeStore?.();
     fs.rmSync(siteA, { recursive: true, force: true });
     fs.rmSync(stockRoot, { recursive: true, force: true });
   }

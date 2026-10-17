@@ -10,6 +10,7 @@
  * catalog plus `*`, and every gated `/api/admin` route even with an operator session minted for it.
  * The seeded owner, asked the same questions, is allowed — the control that keeps the test honest.
  */
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
