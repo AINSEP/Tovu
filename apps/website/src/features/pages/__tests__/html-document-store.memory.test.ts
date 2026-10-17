@@ -1,10 +1,11 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
-import { PageKindMismatchError, PageConcurrentEditError } from "../html-document-store.sqlite.js";
+import { PageKindMismatchError, PageConcurrentEditError, PageNotFoundError } from "../html-document-store.sqlite.js";
 
 /**
  * @file CIC-1 certification for `InMemoryPagesHtmlDocumentStore` — the store `pages_write_region`'s
@@ -221,4 +222,118 @@ test("conversion, replacement, and removal reindex exact HTML embed references w
   await store.write("<p>no embed</p>");
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), []);
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "other-page" }), [sibling]);
+});
+
+
+for (const operation of ["read", "convert"] as const) {
+  test(`${operation} refuses a missing page without capturing a version`, async () => {
+    const { repo } = await harness();
+    const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { repo, clock });
+    await assert.rejects(operation === "read" ? store.read() : store.ensureHtmlFormat("<p>seed</p>"),
+      { message: "page 'missing' was not found" });
+    assert.equal(store.capturedVersion(), null);
+  });
+}
+
+test("read refuses an unconverted document page", async () => {
+  const { repo } = await harness();
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
+  await assert.rejects(store.read(), PageNotFoundError);
+  assert.equal(store.capturedVersion(), null);
+});
+
+test("write before read refuses to change the row or ledger", async () => {
+  const { repo } = await harness();
+  const scope = { workspaceId: WS, postId: "page-1" };
+  const page = { workspaceId: WS, id: scope.postId };
+  const before = await repo.findById(page);
+  assert.ok(before);
+  const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
+  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  await assert.rejects(store.write("<p>bad</p>"), { message: "PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on" });
+  assert.deepEqual(await repo.findById(page), before);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
+});
+
+for (const change of ["deleted", "converted-to-doc"] as const) {
+  test(`write rejects a page ${change} after reading it`, async () => {
+    const { repo } = await harness();
+    const scope = { workspaceId: WS, postId: "page-1" };
+    const page = { workspaceId: WS, id: scope.postId };
+    const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+    await store.ensureHtmlFormat("<p>base</p>");
+    const captured = store.capturedVersion();
+    const row = await repo.findById(page);
+    assert.ok(row);
+    if (change === "deleted") await repo.hardDelete(page);
+    else await repo.save({ ...row, bodyFormat: "doc", bodyHtml: null });
+    const before = await repo.findById(page);
+    const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
+    await assert.rejects(store.write("<p>new</p>"), { message: "page 'page-1' was edited elsewhere since this turn started — re-read and retry" });
+    assert.deepEqual(await repo.findById(page), before);
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
+    assert.equal(store.capturedVersion(), captured);
+  });
+}
+
+test("converting an already HTML page captures its version without reseeding or revisioning", async () => {
+  const { repo } = await harness();
+  const scope = { workspaceId: WS, postId: "page-1" };
+  const page = { workspaceId: WS, id: scope.postId };
+  const first = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  await first.ensureHtmlFormat("<p>keep</p>");
+  const before = await repo.findById(page);
+  assert.ok(before);
+  const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
+  const reopened = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  await reopened.ensureHtmlFormat("<p>discard</p>");
+  assert.equal(reopened.capturedVersion(), 2);
+  assert.deepEqual(await repo.findById(page), before);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
+});
+
+test("conversion refuses a trashed document before changing the body or revision ledger", async () => {
+  const { repo } = await harness();
+  const scope = { workspaceId: WS, postId: "page-1" };
+  const page = { workspaceId: WS, id: scope.postId };
+  await repo.softDelete({ ...page, deletedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z", version: 1 });
+  const before = await repo.findById(page);
+  assert.ok(before);
+  const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
+  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  await assert.rejects(store.ensureHtmlFormat("<p>new</p>"), { message: TRASH_MESSAGE });
+  assert.deepEqual(await repo.findById(page), before);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
+});
+
+test("a page removed after the successful CAS does not receive a phantom revision", async () => {
+  const { repo } = await harness();
+  const scope = { workspaceId: WS, postId: "page-1" };
+  const page = { workspaceId: WS, id: scope.postId };
+  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  await store.ensureHtmlFormat("<p>base</p>");
+  const save = repo.saveIfVersion.bind(repo);
+  repo.saveIfVersion = async input => {
+    const result = await save(input);
+    await repo.hardDelete(page);
+    return result;
+  };
+  await store.write("<p>new</p>");
+  assert.equal(await repo.findById(page), null);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), []);
+  assert.equal(store.capturedVersion(), 3);
+});
+
+
+test("read refuses a stored HTML record whose body is absent", async () => {
+  const { repo } = await harness();
+  const scope = { workspaceId: WS, postId: "page-1" };
+  const page = { workspaceId: WS, id: scope.postId };
+  const row = await repo.findById(page);
+  assert.ok(row);
+  // The memory port accepts PostRecord's nullable body; unlike SQL it has no CHECK constraint.
+  await repo.save({ ...row, bodyFormat: "html", bodyHtml: null });
+  const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  await assert.rejects(store.read(), PageNotFoundError);
+  assert.equal(store.capturedVersion(), null);
 });

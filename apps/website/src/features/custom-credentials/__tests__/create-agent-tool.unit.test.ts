@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../credential-save-tool.js";
 import assert from "node:assert/strict";
@@ -547,4 +548,68 @@ test("create: abort during sealing writes nothing and closes the exchange", asyn
   assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
   assert.equal(emitted.length, 1);
   assert.equal(exchanges.size(), 0);
+});
+
+
+for (const [name, fields, expectedMessage] of [
+  ["non-string label", { label: 42, baseUrl: "https://api.example.com" }, "label must be a non-empty string"],
+  ["non-string URL", { label: "example", baseUrl: false }, "baseUrl must be a non-empty string"],
+  ["blank label", { label: "   ", baseUrl: "https://api.example.com" }, "label must be a non-empty string"],
+] as const) {
+  test(`create rejects a submitted ${name} without sealing or saving`, async () => {
+    const { deps, repo, sealer } = fakeRouteDeps();
+    const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const { pending, exchangeId, emitted } = await raiseForm(tool(buildRegistrations(deps, exchanges), TOOL_ID));
+    assert.deepEqual(exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID,
+      params: { ...fields, category: null, username: 42, token: "submitted-private-token" } }, { toolId: TOOL_ID }), { ok: true });
+    assert.deepEqual(await pending, { created: false, reason: "invalid", message: expectedMessage });
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+    assert.equal(sealer.sealCalls, 0);
+    assert.equal(emitted.length, 2);
+    assert.doesNotMatch(JSON.stringify(emitted), /submitted-private-token/);
+    assert.equal(exchanges.size(), 0);
+  });
+}
+
+test("create defaults non-string category and username without inventing a username", async () => {
+  const { deps, repo, sealer } = fakeRouteDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { pending, exchangeId } = await raiseForm(tool(buildRegistrations(deps, exchanges), TOOL_ID));
+  assert.deepEqual(exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID,
+    params: { label: "example", baseUrl: "https://api.example.com", category: 42, username: false, token: "private-token" } }, { toolId: TOOL_ID }), { ok: true });
+  const result = await pending as { created: boolean; credential: { category: string } };
+  assert.equal(result.created, true);
+  assert.equal(result.credential.category, "general");
+  const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "example" });
+  assert.deepEqual(resolved?.connection, { token: "private-token" });
+});
+
+test("the API creation adapter accepts omitted input and fails closed without an emitter", async () => {
+  const { deps, repo, sealer } = fakeRouteDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const adapter = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges: exchanges } }).create;
+  await assert.rejects(adapter({ executionId: "omitted-input", principal: { id: PRINCIPAL_ID }, run: { id: "run" },
+    input: undefined, signal: new AbortController().signal }), /no interactive confirmation channel/);
+  assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  assert.equal(sealer.sealCalls, 0);
+  assert.equal(exchanges.size(), 0);
+});
+
+
+test("a secret-shaped submitted label is refused without echoing it in the outcome", async () => {
+  const { deps, repo, sealer } = fakeRouteDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { pending, exchangeId, emitted } = await raiseForm(tool(buildRegistrations(deps, exchanges), TOOL_ID));
+  const secretLabel = `ghp_${"a".repeat(36)}`;
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {
+    label: secretLabel, baseUrl: "https://api.example.com", token: "submitted-token",
+  } }, { toolId: TOOL_ID });
+  const result = await pending as { created: boolean; reason: string; message: string };
+  assert.equal(result.created, false);
+  assert.equal(result.reason, "invalid");
+  assert.equal(result.message, "Put credentials in the secret field, not in this field.");
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(secretLabel));
+  assert.doesNotMatch(JSON.stringify(emitted), new RegExp(secretLabel));
+  assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  assert.equal(sealer.sealCalls, 0);
 });
