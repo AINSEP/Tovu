@@ -108,6 +108,18 @@ describe("sortMediaByOrder", () => {
     sortMediaByOrder(ITEMS_IN_INSERTION_ORDER, "alphabetical");
     expect(ITEMS_IN_INSERTION_ORDER).toEqual(original);
   });
+
+  it.each(["created", "alphabetical"] as const)("preserves stable input order for equal %s keys", order => {
+    const first = makeItem({ id: "same", title: "Same", caption: "First snapshot" });
+    const second = makeItem({ id: "same", title: "Same", caption: "Second snapshot" });
+    const input = [second, first];
+    const sorted = sortMediaByOrder(input, order);
+    expect(sorted).toEqual([second, first]);
+    expect(sorted[0]).toBe(second);
+    expect(sorted[1]).toBe(first);
+    expect(sorted).not.toBe(input);
+    expect(input).toEqual([second, first]);
+  });
 });
 
 function renderScreen(props: React.ComponentProps<typeof Media> = {}) {

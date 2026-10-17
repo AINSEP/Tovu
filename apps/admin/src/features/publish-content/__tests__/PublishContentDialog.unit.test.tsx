@@ -33,6 +33,16 @@ import { usePublishContentConfirm } from "../hooks/use-publish-content-confirm.h
 
 const t = (key: string) => key;
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 /** Every test but the arming ones below clicks Publish the moment it appears; the arming delay has
  *  its own describe block ("the confirm is its own control"), run at the real default. */
 const NO_ARM_DELAY = 0;
@@ -1375,14 +1385,6 @@ describe("PublishContentDialog — Overwrite on live, review fixes", () => {
     return reportRow(entityId).querySelector("input[data-publish-row-overwrite]");
   }
 
-  function deferred<T>() {
-    let resolve!: (value: T) => void;
-    const promise = new Promise<T>((r) => {
-      resolve = r;
-    });
-    return { promise, resolve };
-  }
-
   it("a ticked row keeps its checked box after the re-plan turns it forced, and unticking restores the skip", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: TWO_CLASH_REPORT });
     const user = await planFrom(port);
@@ -1946,4 +1948,314 @@ describe("PublishContentDialog — a row that trashes on live says so", () => {
     const updatePill = within(reportRow("media-kept")).getByText("Will publish — update");
     expect(updatePill.className).toBe("status status-active");
   });
+});
+
+describe("PublishContentDialog — destination reads and incomplete connections", () => {
+  it("reports a peer-list failure without offering an unrelated connect action", async () => {
+    const port = createFakePublishContentPort({ listPeersError: new Error("Targets are unavailable") });
+    renderDialog(port);
+    await screen.findByText("Targets are unavailable");
+    expect(port.calls.getDestination).toBe(0);
+    expect(port.calls.planPublish).toEqual([]);
+    expect(primaryButton()).toBeDisabled();
+  });
+
+  it("reports a destination-check failure and sends no plan", async () => {
+    const port = createFakePublishContentPort({ destinationError: new Error("Destination is unavailable") });
+    renderDialog(port);
+    await screen.findByText("Destination is unavailable");
+    expect(port.calls.getDestination).toBe(1);
+    expect(primaryButton()).toBeDisabled();
+    expect(port.calls.planPublish).toEqual([]);
+  });
+
+  it("uses the destination-check fallback when an API error carries no message", async () => {
+    const port = createFakePublishContentPort({ destinationError: new ApiError("", 500) });
+    renderDialog(port);
+    await screen.findByText("Could not check whether this install can publish yet.");
+    expect(primaryButton()).toBeDisabled();
+  });
+
+  it("a connection response without a site shows the failure and offers a retry", async () => {
+    const destination = { connected: false, site: null, candidateUrl: "https://live.example.test", message: "Connect this site?", nextStep: null };
+    const port = createFakePublishContentPort({ destination, connectResult: destination });
+    const user = userEvent.setup();
+    renderDialog(port);
+    await screen.findByText(destination.message);
+    await user.click(primaryButton());
+    await screen.findByText("Could not connect.");
+    expect(primaryButton().textContent).toBe("Connect");
+    expect(primaryButton()).toBeEnabled();
+    expect(port.calls.planPublish).toEqual([]);
+    await user.click(primaryButton());
+    expect(port.calls.connectDestination).toHaveLength(2);
+  });
+
+  for (const outcome of ["resolve", "reject"] as const) {
+    it(`ignores an old peer-list ${outcome} after the port is replaced`, async () => {
+      const previous = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["listPeers"]>>>();
+      const oldPort = createFakePublishContentPort();
+      const port = { ...oldPort, listPeers: () => previous.promise };
+      const replacement = createFakePublishContentPort({ peers: ONE_PEER });
+      const { result, rerender } = renderHook(({ currentPort }) => usePublishContentConfirm({ onCancel: () => {}, t, port: currentPort, confirmArmDelayMs: NO_ARM_DELAY }), { initialProps: { currentPort: port } });
+      rerender({ currentPort: replacement });
+      await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+      await act(async () => {
+        if (outcome === "resolve") previous.resolve({ peers: [] });
+        else previous.reject(new Error("obsolete peer failure"));
+        await previous.promise.catch(() => undefined);
+      });
+      expect(result.current.selectedPeerId).toBe("peer-prod");
+      expect(result.current.peers).toEqual(ONE_PEER);
+      expect(result.current.errorMessage).toBeNull();
+      expect(oldPort.calls.getDestination).toBe(0);
+    });
+
+    it(`ignores an old destination ${outcome} after a connected port replaces it`, async () => {
+      const previous = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["getDestination"]>>>();
+      const port = { ...createFakePublishContentPort(), getDestination: vi.fn(() => previous.promise) };
+      const replacement = createFakePublishContentPort({ peers: ONE_PEER });
+      const { result, rerender } = renderHook(({ currentPort }) => usePublishContentConfirm({ onCancel: () => {}, t, port: currentPort, confirmArmDelayMs: NO_ARM_DELAY }), { initialProps: { currentPort: port } });
+      await waitFor(() => expect(port.getDestination).toHaveBeenCalledTimes(1));
+      rerender({ currentPort: { ...replacement, getDestination: vi.fn(replacement.getDestination) } });
+      await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+      await act(async () => {
+        if (outcome === "resolve") previous.resolve({ connected: false, site: null, candidateUrl: "https://old.example.test", message: "Obsolete offer", nextStep: null });
+        else previous.reject(new Error("obsolete destination failure"));
+        await previous.promise.catch(() => undefined);
+      });
+      expect(result.current.errorMessage).toBeNull();
+      expect(result.current.connectOffer).toBeNull();
+      expect(result.current.peers).toEqual(ONE_PEER);
+    });
+  }
+});
+
+describe("PublishContentDialog — criteria report edge cases", () => {
+  it("reports skipped rows without reasons, excluding already-current and unselected writable rows", async () => {
+    const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["page", "post"], rows: [
+      { entityType: "page", entityId: "home", entityLabel: "Home", outcome: "created", writes: true, reason: null },
+      { entityType: "post", entityId: "news", entityLabel: "News", outcome: "created", writes: true, reason: null },
+      { entityType: "post", entityId: "blocked", entityLabel: "Blocked post", outcome: "blocked", writes: false, reason: null },
+      { entityType: "post", entityId: "current", entityLabel: "Current post", outcome: "unchanged", writes: false, reason: null },
+    ] };
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report });
+    const onPlanned = vi.fn<(result: PublishRequestResult) => void>();
+    render(<PublishContentDialog onCancel={() => {}} t={t} port={port} criteria={{ types: ["page"] }} onPlanned={onPlanned} confirmArmDelayMs={NO_ARM_DELAY} />);
+    await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
+    expect(onPlanned.mock.calls[0][0]).toEqual({ opened: true, planned: true, site: "tovu.com (production)", willPublish: ["Home"], willOverwrite: [], leftAlone: [{ label: "Blocked post", reason: "No reason recorded." }], unmatchedItems: [], unknownTypes: [], nextStep: "Check the list in the Publish dialog, then click Publish." });
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
+  });
+});
+
+describe("PublishContentDialog — narrowed confirmation and stale work", () => {
+  it("puts a newly refused narrowed plan on screen without confirming it", async () => {
+    const base = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const port = { ...base, planPublish: async (input: Parameters<typeof base.planPublish>[0]) => {
+      const plan = await base.planPublish(input);
+      return input.selectedEntityKeys === undefined ? plan : { ...plan, details: { ...plan.details, refused: true, refusalReason: "Live requires an upgrade" } };
+    } };
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+    await act(async () => result.current.onPrimary());
+    await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+    act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+    await act(async () => result.current.onPrimary());
+    await waitFor(() => expect(result.current.refusalReason).toBe("Live requires an upgrade"));
+    expect(result.current.phase.kind).toBe("planned");
+    expect(result.current.primaryDisabled).toBe(true);
+    expect(base.calls.confirmPublish).toEqual([]);
+    expect(base.calls.executePublish).toEqual([]);
+  });
+
+  it("a failed narrowing request reports the error and never confirms the original full plan", async () => {
+    const base = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const port = { ...base, planPublish: async (input: Parameters<typeof base.planPublish>[0]) => {
+      if (input.selectedEntityKeys !== undefined) throw new Error("Narrowed bundle unavailable");
+      return base.planPublish(input);
+    } };
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+    await act(async () => result.current.onPrimary());
+    await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+    act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+    await act(async () => result.current.onPrimary());
+    expect(result.current.errorMessage).toBe("Narrowed bundle unavailable");
+    expect(result.current.phase.kind).toBe("failed");
+    expect(result.current.dismissible).toBe(true);
+    expect(base.calls.confirmPublish).toEqual([]);
+    expect(base.calls.executePublish).toEqual([]);
+  });
+
+  it("the hook itself refuses confirmation after every selectable row is unchecked", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+    await act(async () => result.current.onPrimary());
+    act(() => result.current.onToggleAll());
+    expect(result.current.selectedKeys.size).toBe(0);
+    await act(async () => result.current.onPrimary());
+    expect(result.current.phase.kind).toBe("planned");
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
+  });
+
+  for (const outcome of ["resolve", "reject"] as const) {
+    it(`a connect ${outcome} after unmount cannot start planning`, async () => {
+      const previous = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["connectDestination"]>>>();
+      const base = createFakePublishContentPort({ destination: { connected: false, site: null, candidateUrl: "https://live.example.test", message: "Connect?", nextStep: null } });
+      const port = { ...base, connectDestination: vi.fn(() => previous.promise) };
+      const { result, unmount } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+      await waitFor(() => expect(result.current.connectOffer?.candidateUrl).toBe("https://live.example.test"));
+      act(() => result.current.onPrimary());
+      expect(port.connectDestination).toHaveBeenCalledTimes(1);
+      unmount();
+      await act(async () => {
+        if (outcome === "resolve") previous.resolve({ connected: true, site: ONE_PEER[0], candidateUrl: null, message: "Connected", nextStep: null });
+        else previous.reject(new Error("late connection failure"));
+        await previous.promise.catch(() => undefined);
+      });
+      expect(base.calls.planPublish).toEqual([]);
+      expect(base.calls.confirmPublish).toEqual([]);
+    });
+
+    it(`a superseded overwrite ${outcome} cannot replace the latest unticked plan`, async () => {
+      const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["post"], rows: [
+        { entityType: "post", entityId: "new", entityLabel: "New", outcome: "created", writes: true, reason: null },
+        { entityType: "post", entityId: "conflict", entityLabel: "Conflict", outcome: "conflict", writes: false, reason: "Edited on live", canOverwrite: true },
+      ] };
+      const previous = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["planPublish"]>>>();
+      const base = createFakePublishContentPort({ peers: ONE_PEER, report });
+      const port = { ...base, planPublish: async (input: Parameters<typeof base.planPublish>[0]) => input.overwriteEntityKeys ? previous.promise : base.planPublish(input) };
+      const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+      await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+      await act(async () => result.current.onPrimary());
+      await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+      act(() => result.current.onToggleOverwrite("post:conflict"));
+      expect(result.current.primaryDisabled).toBe(true);
+      await act(async () => result.current.onToggleOverwrite("post:conflict"));
+      expect(result.current.overwriteKeys.size).toBe(0);
+      await act(async () => {
+        if (outcome === "resolve") previous.resolve(await base.planPublish({ peerId: "peer-prod", overwriteEntityKeys: ["post:conflict"] }));
+        else previous.reject(new Error("obsolete overwrite failure"));
+        await previous.promise.catch(() => undefined);
+      });
+      expect(result.current.phase.kind).toBe("planned");
+      expect(result.current.rows.find(row => row.key === "post:conflict")?.outcome).toBe("conflict");
+      expect(result.current.overwriteKeys.size).toBe(0);
+      expect(result.current.errorMessage).toBeNull();
+      expect(result.current.primaryDisabled).toBe(false);
+      expect(base.calls.confirmPublish).toEqual([]);
+    });
+  }
+});
+
+it("loads publish targets through the default API port when no port is supplied", async () => {
+  const requests: string[] = [];
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = new URL(String(input), "http://localhost:3000");
+    requests.push(url.pathname + url.search);
+    if (url.pathname === "/api/admin/v1/workspaces/workspace-local/publish-content/peers") {
+      return new Response(JSON.stringify({ peers: ONE_PEER }), { headers: { "content-type": "application/json" } });
+    }
+    if (url.pathname === "/api/admin/v1/workspaces/workspace-local/settings/effective") {
+      return new Response(JSON.stringify({ data: [] }), { headers: { "content-type": "application/json" } });
+    }
+    throw new Error(`Unexpected API request: ${url.pathname}`);
+  });
+  try {
+    const { result, unmount } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+    expect(result.current.peers).toEqual(ONE_PEER);
+    expect(result.current.phase).toEqual({ kind: "idle" });
+    expect(requests.filter(request => request.includes("/publish-content/"))).toEqual(["/api/admin/v1/workspaces/workspace-local/publish-content/peers"]);
+    unmount();
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+it("a narrowed plan answering after unmount cannot start confirmation", async () => {
+  const pending = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["planPublish"]>>>();
+  const base = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+  const port = { ...base, planPublish: async (input: Parameters<typeof base.planPublish>[0]) => input.selectedEntityKeys ? pending.promise : base.planPublish(input) };
+  const { result, unmount } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+  await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+  await act(async () => result.current.onPrimary());
+  await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+  act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+  act(() => result.current.onPrimary());
+  expect(result.current.phase.kind).toBe("confirming");
+  unmount();
+  await act(async () => {
+    pending.resolve(await base.planPublish({ peerId: "peer-prod", selectedEntityKeys: [`post:${HELLO_WORLD}`, `media:${UNNAMED_MEDIA}`] }));
+    await pending.promise;
+  });
+  expect(base.calls.confirmPublish).toEqual([]);
+  expect(base.calls.executePublish).toEqual([]);
+});
+
+it("selecting the already chosen peer keeps the reviewed plan and selection", async () => {
+  const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+  const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+  await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+  await act(async () => result.current.onPrimary());
+  await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+  act(() => result.current.onToggleRow(`post:${ABOUT_US}`));
+  const reviewed = result.current.phase;
+  act(() => result.current.onSelectPeer("peer-prod"));
+  expect(result.current.phase).toBe(reviewed);
+  expect(result.current.selectedKeys.has(`post:${ABOUT_US}`)).toBe(false);
+  expect(port.calls.planPublish).toEqual([{ peerId: "peer-prod" }]);
+});
+
+it("peer selection handlers cannot change the target while planning", async () => {
+  const pending = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["planPublish"]>>>();
+  const base = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+  const port = { ...base, planPublish: () => pending.promise };
+  const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+  await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+  act(() => result.current.onPrimary());
+  expect(result.current.phase.kind).toBe("planning");
+  act(() => result.current.onSelectPeer("peer-staging"));
+  expect(result.current.selectedPeerId).toBe("peer-prod");
+  await act(async () => {
+    pending.resolve(await base.planPublish({ peerId: "peer-prod" }));
+    await pending.promise;
+  });
+  expect(result.current.phase.kind).toBe("planned");
+  expect(result.current.selectedPeerId).toBe("peer-prod");
+});
+
+it("overwrite handlers called before a plan exists cannot stage an overwrite", async () => {
+  const port = createFakePublishContentPort({ peers: ONE_PEER, report: MIXED_REPORT });
+  const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+  await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+  act(() => result.current.onToggleOverwrite("post:post-edited-there"));
+  act(() => result.current.onToggleAllOverwrite());
+  expect(result.current.phase).toEqual({ kind: "idle" });
+  expect(result.current.overwriteKeys.size).toBe(0);
+  expect(port.calls.planPublish).toEqual([]);
+});
+
+it("a direct confirm callback waits for an outstanding overwrite replan", async () => {
+  const pending = deferred<Awaited<ReturnType<ReturnType<typeof createFakePublishContentPort>["planPublish"]>>>();
+  const report: PublishContentReport = { ...MIXED_REPORT, rows: MIXED_REPORT.rows.map(row => row.outcome === "conflict" ? { ...row, canOverwrite: true } : row) };
+  const base = createFakePublishContentPort({ peers: ONE_PEER, report });
+  const port = { ...base, planPublish: async (input: Parameters<typeof base.planPublish>[0]) => input.overwriteEntityKeys ? pending.promise : base.planPublish(input) };
+  const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: NO_ARM_DELAY }));
+  await waitFor(() => expect(result.current.selectedPeerId).toBe("peer-prod"));
+  await act(async () => result.current.onPrimary());
+  await waitFor(() => expect(result.current.phase.kind).toBe("planned"));
+  act(() => result.current.onToggleOverwrite("post:post-edited-there"));
+  await act(async () => result.current.onPrimary());
+  expect(base.calls.confirmPublish).toEqual([]);
+  expect(base.calls.executePublish).toEqual([]);
+  await act(async () => {
+    pending.resolve(await base.planPublish({ peerId: "peer-prod", overwriteEntityKeys: ["post:post-edited-there"] }));
+    await pending.promise;
+  });
+  expect(result.current.rows.find(row => row.key === "post:post-edited-there")?.outcome).toBe("forced");
+  expect(result.current.primaryDisabled).toBe(false);
 });

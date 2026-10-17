@@ -50,4 +50,8 @@ describe("formatByteSize", () => {
   it("defaults to en-US formatting when no locale option is given", () => {
     expect(formatByteSize({ bytes: 9_961_472 })).toBe(formatByteSize({ bytes: 9_961_472 }, { locale: "en-US" }));
   });
+
+  it("uses the English default when the options object has no locale", () => {
+    expect(formatByteSize({ bytes: 9_961_472 }, {})).toBe("9.5 MB");
+  });
 });

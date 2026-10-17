@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type AdminPolicyPermission } from "@/lib/api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
+import { createFakeRolesPort, defaultRolesPort } from "../hooks/roles-dependencies.hooks";
 import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
 
 /**
@@ -41,6 +41,93 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false };
 const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, isFrozen: false };
+
+describe("roles port contracts", () => {
+  it("the default createPolicy port sends its name and description through the API client", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ policy: POLICY }));
+    await expect(defaultRolesPort.createPolicy({ name: "Content" }, { description: "d" })).resolves.toEqual({ policy: POLICY });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/admin/v1/workspaces/workspace-local/policies");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body)).toEqual({ name: "Content", description: "d" });
+  });
+
+  it("the default updatePolicy port preserves the target and partial update", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ policy: { ...POLICY, name: "Renamed" } }));
+    await expect(defaultRolesPort.updatePolicy({ policyId: "policy/one" }, { name: "Renamed" })).resolves.toEqual({ policy: { ...POLICY, name: "Renamed" } });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/admin/v1/workspaces/workspace-local/policies/policy%2Fone");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("PATCH");
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body)).toEqual({ name: "Renamed" });
+  });
+
+  it("the default permission port reads and deletes through the authenticated policy endpoints", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ policyPermissions: [] }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await expect(defaultRolesPort.listPolicyPermissions("policy/one")).resolves.toEqual({ policyPermissions: [] });
+    await expect(defaultRolesPort.removePolicyPermission({ policyId: "policy/one", policyPermissionId: "permission/one" })).resolves.toEqual({});
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+      ["/api/admin/v1/workspaces/workspace-local/policies/policy%2Fone/permissions", "GET"],
+      ["/api/admin/v1/workspaces/workspace-local/policies/policy%2Fone/permissions/permission%2Fone", "DELETE"],
+    ]);
+  });
+
+  it("an unseeded fake starts empty and keeps created and renamed records in its list results", async () => {
+    const port = createFakeRolesPort();
+    expect(await port.listRoles()).toEqual({ roles: [] });
+    expect(await port.listPolicies()).toEqual({ policies: [] });
+    const { role } = await port.createRole("Writer");
+    const { policy } = await port.createPolicy({ name: "Read" });
+    expect(role).toEqual({ id: "fake-role-1", workspaceId: "fake-ws", name: "Writer", isBuiltin: false });
+    expect(policy).toEqual({ id: "fake-policy-1", workspaceId: "fake-ws", name: "Read", description: undefined, isBuiltin: false, isFrozen: false });
+    await port.updateRole({ roleId: role.id, name: "Editor" });
+    await port.updatePolicy({ policyId: policy.id });
+    expect(await port.listRoles()).toEqual({ roles: [{ ...role, name: "Editor" }] });
+    expect(await port.listPolicies()).toEqual({ policies: [policy] });
+    await port.deleteRole(role.id);
+    await port.deletePolicy(policy.id);
+    expect(port.roles).toEqual([]);
+    expect(port.policies).toEqual([]);
+  });
+
+  it("fake writes to missing roles and policies reject without changing siblings", async () => {
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    await expect(port.updateRole({ roleId: "absent", name: "Overwrite" })).rejects.toThrow("fake role not found: absent");
+    await expect(port.deleteRole("absent")).rejects.toThrow("fake role not found: absent");
+    await expect(port.updatePolicy({ policyId: "absent" }, { name: "Overwrite" })).rejects.toThrow("fake policy not found: absent");
+    await expect(port.deletePolicy("absent")).rejects.toThrow("fake policy not found: absent");
+    await expect(port.listPolicyPermissions("absent")).rejects.toThrow("fake policy not found: absent");
+    await expect(port.writePolicyPermission({ policyId: "absent", permission: "content.read" })).rejects.toThrow("fake policy not found: absent");
+    expect(port.roles).toEqual([ROLE]);
+    expect(port.policies).toEqual([POLICY]);
+    expect(port.policyPermissions).toEqual([]);
+  });
+
+  it("permission removal proves policy membership and leaves another policy's row intact", async () => {
+    const permission: AdminPolicyPermission = { id: "permission", workspaceId: "w1", policyId: "other", permission: "content.read", resourceType: null, constraintJson: null };
+    const port = createFakeRolesPort({ policies: [POLICY, { ...POLICY, id: "other" }], initialPolicyPermissions: [permission] });
+    await expect(port.removePolicyPermission({ policyId: POLICY.id, policyPermissionId: permission.id })).rejects.toThrow("policy permission 'permission' was not found on policy 'p1'");
+    await expect(port.removePolicyPermission({ policyId: "absent", policyPermissionId: permission.id })).rejects.toThrow("fake policy not found: absent");
+    expect(await port.listPolicyPermissions(POLICY.id)).toEqual({ policyPermissions: [] });
+    expect(await port.listPolicyPermissions("other")).toEqual({ policyPermissions: [permission] });
+    expect(port.policyPermissions).toEqual([permission]);
+  });
+
+  for (const operation of ["createRole", "updateRole", "deleteRole", "createPolicy", "updatePolicy", "deletePolicy", "listPermissions"] as const) {
+    it(`the fake propagates configured ${operation} failures without changing its state`, async () => {
+      const failure = new Error(`${operation} denied`);
+      const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY], [`${operation}Error`]: failure });
+      const actions = {
+        createRole: () => port.createRole("New"), updateRole: () => port.updateRole({ roleId: ROLE.id, name: "New" }),
+        deleteRole: () => port.deleteRole(ROLE.id), createPolicy: () => port.createPolicy({ name: "New" }),
+        updatePolicy: () => port.updatePolicy({ policyId: POLICY.id }, { name: "New" }), deletePolicy: () => port.deletePolicy(POLICY.id),
+        listPermissions: () => port.listPolicyPermissions(POLICY.id),
+      };
+      await expect(actions[operation]()).rejects.toBe(failure);
+      expect(port.roles).toEqual([ROLE]);
+      expect(port.policies).toEqual([POLICY]);
+      expect(port.policyPermissions).toEqual([]);
+    });
+  }
+});
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 

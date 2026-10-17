@@ -106,4 +106,44 @@ describe("agent failure reasons", () => {
     }
     expect(suggestedFailureAgent({ hint, agents: [{ id: "antigravity", name: "Antigravity", available: true }] }, {})?.id).toBe("antigravity");
   });
+
+  it("ignores malformed external errors and informational events", () => {
+    expect(extractAgentFailure({ events: undefined })).toBeNull();
+    for (const data of [undefined, null, "error text", { message: 42 }, {}]) {
+      expect(extractAgentFailure({ events: [{ kind: "ext", name: "error", data }] })).toBeNull();
+    }
+    expect(extractAgentFailure({ events: [
+      { kind: "ext", name: "other", data: { message: "failed" } },
+      { kind: "status", label: "Loading", detail: "working" },
+      { kind: "raw", line: "{}\nfield: value\n...\nStopped." },
+    ] })).toBeNull();
+  });
+
+  it("uses the last meaningful line without an error keyword and retains status details", () => {
+    expect(extractAgentFailure({ events: [{ kind: "raw", line: "First message\nLast message" }] }))
+      .toEqual({ reason: "Last message", details: "First message\nLast message" });
+    expect(extractAgentFailure({ events: [{ kind: "status", label: "Failed", detail: "password=secret" }] }))
+      .toEqual({ reason: "Failed password=[REDACTED]", details: "Failed password=[REDACTED]" });
+  });
+
+  it("ignores empty hint patterns and requires an available matching alternative", () => {
+    const failure = { reason: "denied", details: "" };
+    const hint = { category: "auth" as const, patterns: ["", "DENIED"], hint: "Sign in" };
+    expect(matchAgentFailureHint({ failure, hints: [{ ...hint, patterns: [""] }] })).toBeUndefined();
+    expect(matchAgentFailureHint({ failure, hints: [hint] })).toBe(hint);
+    expect(suggestedFailureAgent({ hint: undefined, agents: [] })).toBeUndefined();
+    expect(suggestedFailureAgent({ hint, agents: [] })).toBeUndefined();
+    expect(suggestedFailureAgent({ hint: { ...hint, suggestedAgentId: "missing" }, agents: [{ id: "other", name: "Other", available: true }] })).toBeUndefined();
+  });
+
+  it("preserves user messages and supplies a generic failure when events are absent", () => {
+    const user: ChatMessage = { id: "user", role: "user", content: "hello" };
+    expect(projectAgentFailureMessage({ message: user })).toBe(user);
+    expect(projectAgentFailureMessage({ message: { id: "empty", role: "assistant", content: "", runStatus: "failed" } }).events)
+      .toEqual([{ kind: "status", code: "run_terminal", label: GENERIC_AGENT_FAILURE }]);
+  });
+
+  it("redacts credentials with default options while preserving ordinary whitespace", () => {
+    expect(redactAgentFailure({ text: "  Error: token=secret\n" })).toBe("  Error: token=[REDACTED]\n");
+  });
 });

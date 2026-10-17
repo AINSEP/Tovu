@@ -73,3 +73,55 @@ it("redacts rejected starts before either handlers or the caller can render them
   expect(h.seen).toEqual([{ kind: "ext", name: AGENT_FAILURE_EVENT, data: {
     reason: "Error: rejected Bearer [REDACTED]", details: "Error: rejected Bearer [REDACTED]" } }]);
 });
+
+it.each([new Error("Error: password=secret"), "Error: password=secret"])("redacts rejected reattachments for the caller and event sink: %s", async failure => {
+  const h = harness();
+  const transport = withAgentFailureSurface({ transport: { ...h.transport, async reattachRun() { throw failure; } } });
+  await expect(transport.reattachRun("run", h.sink)).rejects.toThrow("Error: password=[REDACTED]");
+  expect(h.errors).toEqual(["Error: password=[REDACTED]"]);
+  expect(h.seen).toEqual([{ kind: "ext", name: AGENT_FAILURE_EVENT, data: {
+    reason: "Error: password=[REDACTED]", details: "Error: password=[REDACTED]",
+  } }]);
+});
+
+it("redacts a rejected non-Error start", async () => {
+  const h = harness();
+  const transport = withAgentFailureSurface({ transport: { ...h.transport, async startRun() { throw "Error: token=secret"; } } });
+  await expect(transport.startRun({ history: [], signal: new AbortController().signal }, h.sink)).rejects.toThrow("Error: token=[REDACTED]");
+  expect(h.errors).toEqual(["Error: token=[REDACTED]"]);
+});
+
+it("keeps the selected agent through an eventless checkpoint and does not duplicate a final error", async () => {
+  const h = harness();
+  await h.transport.startRun({ history: [], agentId: "chosen", signal: new AbortController().signal }, h.sink);
+  h.emit().onCheckpoint?.({ id: "checkpoint", role: "assistant", content: "", runStatus: "running" });
+  expect(h.checkpoints[0]).toMatchObject({ agentId: "chosen", events: [] });
+  h.emit().onEvent({ kind: "status", label: "Working", detail: "token=secret" });
+  expect(h.seen).toEqual([{ kind: "status", label: "Working", detail: "token=[REDACTED]" }]);
+  h.emit().onError(new Error("Error: denied"));
+  h.emit().onDone([{ kind: "raw", line: "Context" }, { kind: "status", label: "Error: denied" }]);
+  expect(h.completed[0]).toEqual([
+    { kind: "raw", line: "Context" }, { kind: "status", label: "Error: denied" },
+    { kind: "ext", name: AGENT_FAILURE_EVENT, data: { reason: "Error: denied", details: "Context\nError: denied", agentId: "chosen" } },
+  ]);
+});
+
+it("keeps a generic failure when the transport error contains no meaningful output", async () => {
+  const h = harness();
+  await h.transport.reattachRun("run", h.sink);
+  h.emit().onError(new Error(""));
+  h.emit().onDone([]);
+  expect(h.seen).toEqual([]);
+  expect(h.errors).toEqual([""]);
+  expect(h.completed[0]?.at(-1)).toEqual({ kind: "status", code: "run_terminal", label: GENERIC_AGENT_FAILURE });
+});
+
+it("completes successful runs using the authoritative final events without a failure card", async () => {
+  const h = harness();
+  await h.transport.startRun({ history: [], signal: new AbortController().signal }, h.sink);
+  h.emit().onEvent({ kind: "raw", line: "Earlier partial output" });
+  const progress: AgentEvent = { kind: "ext", name: "progress", data: { complete: true } };
+  h.emit().onDone([progress, { kind: "status", label: "Complete" }]);
+  expect(h.completed).toEqual([[progress, { kind: "status", label: "Complete" }]]);
+  expect(h.errors).toEqual([]);
+});

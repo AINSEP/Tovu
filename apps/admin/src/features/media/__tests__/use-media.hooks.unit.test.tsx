@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "@/lib/api";
+import { api, ApiError, type AdminMedia } from "@/lib/api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
-import { MEDIA_RESOURCE } from "../rules";
+import { MEDIA_RESOURCE, describeApiError, visibleMediaError } from "../rules";
 
 /**
  * @file `useMedia` — the Media grid screen's list/upload/trash/purge cycle, driven against the
@@ -26,6 +26,31 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("media error presentation", () => {
+  it("uses the supplied fallback for empty API errors and non-Error failures", () => {
+    expect(describeApiError(new ApiError("", 503, "UNAVAILABLE"), "Try again")).toBe("Try again");
+    expect(describeApiError("unstructured failure", "Try again")).toBe("Try again");
+    expect(describeApiError(new Error("network unavailable"), "Try again")).toBe("network unavailable");
+  });
+
+  it("prioritizes trash over purge and list failures even after media has loaded", () => {
+    expect(visibleMediaError({ trashError: new Error("Trash refused"), purgeError: new Error("Purge refused"),
+      listError: new Error("Refresh failed"), hasMedia: true, deleteFallback: "Delete failed", listFallback: "Load failed" })).toBe("Trash refused");
+  });
+
+  it("shows the purge fallback ahead of the list error when trash succeeded", () => {
+    expect(visibleMediaError({ trashError: null, purgeError: new ApiError("", 503, "UNAVAILABLE"),
+      listError: new Error("Refresh failed"), hasMedia: true, deleteFallback: "Delete failed", listFallback: "Load failed" })).toBe("Delete failed");
+  });
+
+  it("shows an initial list failure but keeps a background refresh failure off loaded media", () => {
+    const input = { trashError: null, purgeError: null, listError: new Error("Offline"), deleteFallback: "Delete failed", listFallback: "Load failed" };
+    expect(visibleMediaError({ ...input, hasMedia: false })).toBe("Offline");
+    expect(visibleMediaError({ ...input, hasMedia: true })).toBeNull();
+    expect(visibleMediaError({ ...input, listError: null, hasMedia: false })).toBeNull();
+  });
 });
 
 describe("useMedia — injected port (no fetch stub)", () => {

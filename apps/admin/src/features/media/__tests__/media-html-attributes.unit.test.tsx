@@ -70,6 +70,20 @@ describe("isAllowedMediaHtmlAttributeName", () => {
 });
 
 describe("parseMediaHtmlAttributes", () => {
+  it.each(["vbscript:msgbox(1)", "data:text/html,<script>alert(1)</script>"])("rejects the unsafe URL scheme %s on an allowed attribute", value => {
+    expect(parseMediaHtmlAttributes(`poster="${value}"`)).toEqual({
+      attributes: {}, errors: [{ reason: "unsafe-url", attribute: "poster" }],
+      error: { reason: "unsafe-url", attribute: "poster" },
+    });
+  });
+
+  it("discards accepted attributes when the draft ends with an unmatched quote", () => {
+    expect(parseMediaHtmlAttributes('loading="lazy" "')).toEqual({
+      attributes: {}, errors: [{ reason: "malformed", attribute: '"' }],
+      error: { reason: "malformed", attribute: '"' },
+    });
+  });
+
   it("returns no attributes and no error for an empty (or whitespace-only) draft", () => {
     expect(parseMediaHtmlAttributes("")).toEqual({ attributes: {}, errors: [], error: null });
     expect(parseMediaHtmlAttributes("   ")).toEqual({ attributes: {}, errors: [], error: null });
