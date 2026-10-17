@@ -651,6 +651,32 @@ test("startTovuServer times out and kills the child when no boot line ever arriv
   assert.deepEqual(child.killed, ["SIGTERM"]);
 });
 
+test("startTovuServer's default boot budget outlasts a 60 s cold boot", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const child = fakeChild();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror: silentMirror(), spawnFn: () => child,
+    stopGraceMs: 100,
+  });
+  let settled = false;
+  started.then(() => { settled = true; }, () => { settled = true; });
+
+  // The old 60s default times out and sends SIGTERM here; the 180s budget allows this boot.
+  t.mock.timers.tick(90_000);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(settled, false);
+  assert.deepEqual(child.killed, []);
+
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  assert.equal(handle.port, 3601);
+
+  const stopped = handle.stop();
+  child.emit("exit", 0, null);
+  await stopped;
+});
+
 async function assertPidGone(pid: number): Promise<void> {
   const deadline = Date.now() + 3000;
   while (Date.now() < deadline) {

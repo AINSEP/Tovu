@@ -1054,7 +1054,7 @@ test("registerSiteIpcHandlers registers exactly the real channels declared in SI
 
 test("handleDelete waits for an in-flight handleStart on the same site instead of rm-ing under it", async () => {
   // D-05/SEC-02. Start a site, then immediately delete it: the child spends up to
-  // DEFAULT_READY_TIMEOUT_MS (60s) booting before `openSiteServer` publishes it into `openSites`,
+  // DEFAULT_READY_TIMEOUT_MS (180s) booting before `openSiteServer` publishes it into `openSites`,
   // so a delete that does not queue behind the start sees no entry, skips the stop, and erases the
   // directory the `tovu serve` is booting in.
   const siteDir = writeSite(path.join(tempDir(), "started-then-deleted"), "site-a");

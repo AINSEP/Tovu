@@ -76,8 +76,13 @@ const CLI_ERROR_LINE = /^tovu: (\S+): (.*)$/m;
  * How long to wait for the boot line before giving up. `bootSiteDir` runs migrations on a cold site
  * dir, which is the slow case; the daemon spawn happens *after* the line is printed and so is not
  * on this clock.
+ * Three minutes accommodates cold-dir migrations plus source-mode tsx compilation under machine
+ * load, which overran 60s in desktop E2E on 2026-10-16; a slow user machine's first boot would hit
+ * the same wall. The child prints nothing before the boot line, so an output-reset idle timer
+ * would not help; an exit or spawn error still fails at once, so the longer budget only applies
+ * to a child that is still alive.
  */
-const DEFAULT_READY_TIMEOUT_MS = 60_000;
+const DEFAULT_READY_TIMEOUT_MS = 180_000;
 
 /** Grace given to `serve.ts`'s own SIGTERM drain (BR-07) before the process group is force-killed. */
 const DEFAULT_STOP_GRACE_MS = 5_000;
@@ -833,7 +838,7 @@ interface TovuServerHandle {
  * @param input.siteDir the site directory to serve — owns `content.db`, `uploads/` and `themes/`.
  * @param input.port port to bind; allocated from the OS when omitted.
  * @param input.spawnFn injectable `child_process.spawn` (test seam).
- * @param input.readyTimeoutMs boot-line deadline; defaults to 60s.
+ * @param input.readyTimeoutMs boot-line deadline; defaults to 180s.
  * @param input.stopGraceMs SIGTERM-to-SIGKILL window and subsequent exit-event wait; each defaults to 5s.
  * @param input.mirror where the child's output is echoed; defaults to this process's own streams.
  * @param input.desktopCredential `{username, password}` seeding the shell's own owner account, so

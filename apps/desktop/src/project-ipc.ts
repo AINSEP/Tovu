@@ -768,7 +768,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * **Runs through the SAME `serializer` key `handleStart` uses, and that is what makes the paragraph
  * above true** (D-05/SEC-02). It used to be false for one interleaving: `openSiteServer` publishes
  * into `openSites` only AFTER `startSiteBackend` resolves, and that can take the full
- * `DEFAULT_READY_TIMEOUT_MS` (60s) while `tovu serve` boots. Start a site, go back to All, delete
+ * `DEFAULT_READY_TIMEOUT_MS` (180s) while `tovu serve` boots. Start a site, go back to All, delete
  * it, and the delete saw no entry, skipped the stop, and recursively erased the directory the child
  * was booting in — then the start completed and published a running entry for a project that no
  * longer existed. Serializing the two verbs against each other is the whole fix: the delete now
