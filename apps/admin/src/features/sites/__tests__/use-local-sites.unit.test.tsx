@@ -1,5 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
@@ -7,6 +8,7 @@ import { useLocalSites } from "../hooks/use-local-sites.hooks";
 import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
 import type { AdminSitesSnapshot } from "@/lib/api";
 import type { IntervalTimers, VisibilitySource } from "@/lib/visible-interval";
+import { KEYS } from "../rules";
 
 function fixture(): AdminSitesSnapshot {
   return { sites: [], switchingEnabled: true, localManagementEnabled: true, canSwitchNow: true,
@@ -14,6 +16,25 @@ function fixture(): AdminSitesSnapshot {
 }
 const t = (key: string) => key;
 function wrapper({ children }: { children: React.ReactNode }) { return <FetchQueryProvider>{children}</FetchQueryProvider>; }
+
+function pollingFakes() {
+  const active = new Map<() => void, number>();
+  const listeners = new Set<() => void>();
+  let visibilityState: DocumentVisibilityState = "visible";
+  const visibility: VisibilitySource = {
+    get visibilityState() { return visibilityState; },
+    addEventListener: (_type, listener) => { listeners.add(listener); },
+    removeEventListener: (_type, listener) => { listeners.delete(listener); },
+  };
+  const timers: IntervalTimers = {
+    setInterval: (callback, ms) => { active.set(callback, ms); return callback; },
+    clearInterval: (handle) => { active.delete(handle as () => void); },
+  };
+  return { active, listeners, visibility, timers,
+    tick: (ms: number) => { for (const [callback, period] of [...active]) if (period === ms) callback(); },
+    setVisibility: (state: DocumentVisibilityState) => { visibilityState = state; for (const listener of [...listeners]) listener(); },
+  };
+}
 
 describe("local site card controller", () => {
   it("polls only while a local-management host is visible and releases timers and listeners", () => {
@@ -84,11 +105,73 @@ describe("local site card controller", () => {
   });
   it("warns before Switch now and reports a host that could only save the default", async () => {
     const snapshot = fixture(); const confirms: string[] = [];
+    const polling = pollingFakes();
     const port = createFakeSitesPort(snapshot, { manageLocalSite: async () => ({ restarting: false }) });
-    const { result } = renderHook(() => useLocalSites({ port, snapshot, t }, { confirm: (message) => { confirms.push(message); return true; } }), { wrapper });
+    const { result } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: (message) => { confirms.push(message); return true; } }), { wrapper });
     await act(async () => { await result.current.run("alpha", "switch"); });
     expect(confirms).toEqual(["Switch now? Unsaved changes will be lost."]);
     expect(result.current.error).toBe("This host could not switch now. The default is saved for the next launch.");
+    expect([...polling.active.values()]).toEqual([3000]);
+  });
+
+  it("invalidates the list every 300 ms after restart acceptance until the live site matches", async () => {
+    const snapshot = fixture();
+    const polling = pollingFakes();
+    const list = vi.fn(async () => snapshot);
+    const port = createFakeSitesPort(list, { manageLocalSite: async () => ({ restarting: true }) });
+    const { result, rerender, unmount } = renderHook(() => {
+      const query = useFetchQuery({ key: KEYS.list, fetch: port.listSites });
+      const controller = useLocalSites({ port, snapshot, t }, { ...polling, confirm: () => true });
+      return { controller, loaded: query.data !== undefined };
+    }, { wrapper });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    expect(list).toHaveBeenCalledTimes(1);
+    await act(async () => { await result.current.controller.run("alpha", "switch"); });
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    expect([...polling.active.values()]).toEqual([300]);
+    await act(async () => { polling.tick(300); });
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
+    // A persisted next-launch choice is not evidence that the new server is serving it.
+    snapshot.persistedSiteName = "alpha"; rerender();
+    expect([...polling.active.values()]).toEqual([300]);
+    snapshot.currentSite = { ...snapshot.currentSite, name: "alpha" }; rerender();
+    expect([...polling.active.values()]).toEqual([3000]);
+    await act(async () => { polling.tick(300); });
+    expect(list).toHaveBeenCalledTimes(3);
+    await act(async () => { polling.tick(3000); });
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(4));
+    unmount();
+    expect(polling.active.size).toBe(0);
+    expect(polling.listeners.size).toBe(0);
+  });
+
+  it.each(["deadline", "hidden deadline", "unmount"])("cleans up restart polling on %s", async (stop) => {
+    const snapshot = fixture();
+    const polling = pollingFakes();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const port = createFakeSitesPort(snapshot, { manageLocalSite: async () => ({ restarting: true }) });
+    const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { ...polling, confirm: () => true }), { wrapper });
+    try {
+      await act(async () => { await result.current.run("alpha", "switch"); });
+      expect([...polling.active.values()]).toEqual([300]);
+      if (stop !== "unmount") {
+        clock.mockReturnValue(60_999);
+        act(() => polling.tick(300));
+        expect([...polling.active.values()]).toEqual([300]);
+        if (stop === "hidden deadline") {
+          act(() => polling.setVisibility("hidden"));
+          expect(polling.active.size).toBe(0);
+        }
+        clock.mockReturnValue(61_000);
+        act(() => { if (stop === "hidden deadline") polling.setVisibility("visible"); else polling.tick(300); });
+        expect([...polling.active.values()]).toEqual([3000]);
+      }
+    } finally {
+      unmount();
+      clock.mockRestore();
+    }
+    expect(polling.active.size).toBe(0);
+    expect(polling.listeners.size).toBe(0);
   });
 });
 

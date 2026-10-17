@@ -141,7 +141,7 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
   readPersistedActiveSite?: typeof readPersistedActiveSiteReal;
   /** The `npm run dev` restart channel for Activate's `restartNow`. Defaults to
-   *  `devRestartPortFromEnv()` (`null` outside `dev.mjs`); a test passes a fake or `null`. */
+   *  `devRestartPortFromEnv({ delayMs: 0 })` (`null` outside `dev.mjs`); a test passes a fake or `null`. */
   devRestart?: DevRestartPort | null;
 };
 
@@ -185,7 +185,8 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
   const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding });
-  const devRestart = deps.devRestart === undefined ? devRestartPortFromEnv() : deps.devRestart;
+  // HTTP sends its JSON response before the timer fires; only chat needs a reply grace period.
+  const devRestart = deps.devRestart === undefined ? devRestartPortFromEnv({ delayMs: 0 }) : deps.devRestart;
   const sitePreviews = deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined;
   registerSitePreviewRoutes({ app, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, sitePreviews } });
   registerLocalSitesRoutes({ app, deps: { ...deps, localSiteSupervisor, isSiteSwitcherEnabled,
@@ -353,7 +354,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
       const activated = activateSite(
         { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), restartNow, dirOverridden: deps.siteBinding.dirOverridden },
-        { listSites, persistActiveSite: deps.persistActiveSite, devRestart: deps.devRestart === undefined ? devRestartPortFromEnv() : deps.devRestart },
+        { listSites, persistActiveSite: deps.persistActiveSite, devRestart },
       );
       if (!activated.ok) {
         sendRefusal(res, activated);

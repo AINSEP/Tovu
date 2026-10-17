@@ -14,7 +14,10 @@ export const LOCAL_SITE_CONFIRM_KEYS = {
   switch: "Switch now? Unsaved changes will be lost.",
 };
 
-/** DI confirms allow cancellation and double-click tests without mocking browser modules. */
+/** DI confirms allow cancellation and double-click tests without mocking browser modules.
+ * Restart refreshes use the live binding, stop after 60 seconds, and release on unmount.
+ * @complexity O(1) state and work per tick; invalidation reuses the cached Sites read.
+ */
 export function useLocalSites(
   { port, snapshot, t }: { port: SitesPort; snapshot: AdminSitesSnapshot | undefined; t: Translate },
   { confirm = nativeConfirm, visibility = document, timers }: {
@@ -29,14 +32,25 @@ export function useLocalSites(
   const [busyName, setBusyName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [switchTarget, setSwitchTarget] = useState<{ name: string; deadline: number } | null>(null);
   const busy = useRef(false);
   const enabled = snapshot?.localManagementEnabled === true;
+  const activeSiteName = snapshot?.currentSite.name;
   const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  // Poll only local-management hosts. A crash/ready transition is host state, not a content event.
+  // Background polling is for local-management hosts. A crash/ready transition is host state,
+  // not a content event; an accepted switch also needs refreshes while its host restarts.
   useEffect(() => {
-    if (!enabled) return;
-    return startVisibleInterval(refresh, 3000, visibility, timers);
-  }, [enabled, refresh, visibility, timers]);
+    if (switchTarget && activeSiteName === switchTarget.name) {
+      setSwitchTarget(null);
+      return;
+    }
+    if (!enabled && !switchTarget) return;
+    // Replace the slow poll while a restart is pending; a saved default alone is not completion.
+    return startVisibleInterval(() => {
+      if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
+      refresh();
+    }, switchTarget ? 300 : 3000, visibility, timers);
+  }, [enabled, switchTarget, activeSiteName, refresh, visibility, timers]);
   const run = useCallback(async (name: string, action: AdminLocalSiteAction) => {
     if (busy.current || !port.manageLocalSite) return;
     if (action === "switch" ? snapshot?.canSwitchNow !== true : !enabled) return;
@@ -48,8 +62,12 @@ export function useLocalSites(
       const key = LOCAL_SITE_CONFIRM_KEYS[confirmable];
       if (key && !(await confirm(t(key), { action: confirmable }))) return;
       const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
-      if (action === "switch" && (result as { restarting?: boolean })?.restarting !== true) {
-        setError(t("This host could not switch now. The default is saved for the next launch."));
+      if (action === "switch") {
+        if ((result as { restarting?: boolean })?.restarting === true) {
+          setSwitchTarget({ name, deadline: Date.now() + 60_000 });
+        } else {
+          setError(t("This host could not switch now. The default is saved for the next launch."));
+        }
       }
       refresh();
     } catch (failure) {

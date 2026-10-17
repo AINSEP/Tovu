@@ -400,11 +400,11 @@ function readRepoEnvFile() {
 
 /**
  * Polls `requestFile` and calls `onRequest(reason)` each time the server writes it. The file is
- * deleted on sight so one request is one restart. Polling (500ms), not `fs.watch`: it behaves the
+ * deleted on sight so one request is one restart. Polling (100ms), not `fs.watch`: it behaves the
  * same on every platform and the file may not exist yet.
  */
 function watchRestartRequests(requestFile, onRequest) {
-  watchFile(requestFile, { interval: 500 }, (current) => {
+  watchFile(requestFile, { interval: 100 }, (current) => {
     if (current.mtimeMs === 0) return; // missing — including right after we deleted it
     let reason = "requested by the server";
     try {
