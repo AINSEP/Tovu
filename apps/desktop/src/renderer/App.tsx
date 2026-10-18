@@ -747,19 +747,7 @@ function SiteWorkspace({
             partition={project.partition}
             allowpopups={'' as unknown as boolean}
           />
-          {/* Covers the guest from the moment it mounts until its FIRST real content answers —
-              `did-finish-load`, not the server merely accepting the connection. Without this an
-              operator who just watched a 40-75s boot finish saw a blank pane next, indistinguishable
-              from a hang, for however long the admin's own bundle then took to answer. `stalled`
-              wins once `useWebviewLoadFailure`'s own guess kicks in (`STALL_TIMEOUT_MS`, 8s): that
-              overlay says the wait may be abnormal, which this one must not claim while it is still
-              well within an ordinary load. */}
-          {!workspace.loaded && !workspace.stalled && (
-            <div className="workspace__overlay workspace__overlay--loading" role="status">
-              <Spinner />
-              <p>Loading {project.displayName}…</p>
-            </div>
-          )}
+          <WorkspaceLoadingOverlay workspace={workspace} project={project} />
           {workspace.stalled && (
             <div className="workspace__overlay">
               <SiteStartPanel
@@ -787,6 +775,28 @@ function SiteWorkspace({
       )}
     </section>
   );
+}
+
+/** The first-content loading overlay, sharing the guest's existing load state. */
+function WorkspaceLoadingOverlay({ workspace, project }: {
+  workspace: ReturnType<typeof useSiteWorkspace>;
+  project: SiteRecord;
+}, _options = {}) {
+  return <>
+    {/* Covers the guest from the moment it mounts until its FIRST real content answers —
+        `did-finish-load`, not the server merely accepting the connection. Without this an
+        operator who just watched a 40-75s boot finish saw a blank pane next, indistinguishable
+        from a hang, for however long the admin's own bundle then took to answer. `stalled`
+        wins once `useWebviewLoadFailure`'s own guess kicks in (`STALL_TIMEOUT_MS`, 8s): that
+        overlay says the wait may be abnormal, which this one must not claim while it is still
+        well within an ordinary load. */}
+    {!workspace.loaded && !workspace.stalled && (
+      <div className="workspace__overlay workspace__overlay--loading" role="status">
+        <Spinner />
+        <p>Loading {project.displayName}…</p>
+      </div>
+    )}
+  </>;
 }
 
 /**

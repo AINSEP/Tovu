@@ -131,7 +131,7 @@ test("main's refusal is surfaced verbatim, never paraphrased", () => {
 
 test("a running record with a local stopping status omits Open in browser throughout the rendered card", () => {
   const ast = ts.createSourceFile("SiteGrid.tsx", gridSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const names = ["SiteCard", "CardActions", "SiteCardMenu"];
+  const names = ["SiteCard", "CardOverlays", "CardActions", "SiteCardMenu"];
   const declarations = names.map((name) => {
     const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
     assert.ok(node, `expected ${name}`);

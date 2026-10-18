@@ -12,19 +12,10 @@ export function SitesFolders({ useSettings = useSiteFolders }: { useSettings?: t
 }
 
 /** Kept outside the dropdown: closing its menu never unmounts a draft or a dialog.
- * Self-contained markup on purpose (inline SVG, CSS-drawn icons, no local helpers): the component
- * tests evaluate this function with `SettingsDialogShell` and its display hook bound; other
- * identifiers would be undefined there. `jini-tooltip` tips render through the TooltipLayer in main.tsx. */
+ * `jini-tooltip` tips render through the TooltipLayer in main.tsx. */
 export function SitesFoldersDialog({ settings, showTrigger }: { settings: ReturnType<typeof useSiteStorageSettings>; showTrigger?: boolean }) {
   const view = useSitesFoldersDialog({ settings }, { showTrigger });
-  const warning = settings.folders.warning && <div role="alert" className="sites-settings__warning">
-    <p>{settings.folders.warning.message}</p>
-    <div className="sites-settings__warning-actions">
-      <button type="button" className="button button--quiet" disabled={settings.busy} onClick={view.onUseAppData}>Store databases in app-data</button>
-      <button type="button" className="button button--quiet" disabled={view.homeDisabled} onClick={view.onUseLocalHome}>Choose a local folder</button>
-    </div>
-    {settings.warningError && <p className="sites-settings__error">{settings.warningError}</p>}
-  </div>;
+  const warning = <SitesFoldersWarning settings={settings} view={view} />;
   return <>
     {view.showTrigger && <button type="button" className="button button--quiet" onClick={settings.show}>Sites settings</button>}
     {view.showOutsideWarning && warning}
@@ -98,4 +89,19 @@ export function SitesFoldersDialog({ settings, showTrigger }: { settings: Return
           </footer>
         </form> }]} />}
   </>;
+}
+
+/** The same sync warning appears outside a closed dialog or inside its form when open. */
+function SitesFoldersWarning({ settings, view }: {
+  settings: ReturnType<typeof useSiteStorageSettings>;
+  view: ReturnType<typeof useSitesFoldersDialog>;
+}, _options = {}) {
+  return settings.folders.warning && <div role="alert" className="sites-settings__warning">
+    <p>{settings.folders.warning.message}</p>
+    <div className="sites-settings__warning-actions">
+      <button type="button" className="button button--quiet" disabled={settings.busy} onClick={view.onUseAppData}>Store databases in app-data</button>
+      <button type="button" className="button button--quiet" disabled={view.homeDisabled} onClick={view.onUseLocalHome}>Choose a local folder</button>
+    </div>
+    {settings.warningError && <p className="sites-settings__error">{settings.warningError}</p>}
+  </div>;
 }

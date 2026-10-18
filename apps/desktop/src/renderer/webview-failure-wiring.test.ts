@@ -95,6 +95,7 @@ test("useSiteWorkspace passes loaded straight through from useWebviewLoadFailure
 });
 
 test("SiteWorkspace covers the guest with its own loading state until loaded (or stalled) says otherwise", () => {
+  assert.match(appTsx, /<WorkspaceLoadingOverlay workspace=\{workspace\} project=\{project\} \/>/);
   assert.match(
     appTsx,
     /\{!workspace\.loaded && !workspace\.stalled && \(/,

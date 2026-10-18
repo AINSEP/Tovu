@@ -264,32 +264,59 @@ function SiteCard({
         />
       </div>
 
-      {overlay === 'rename' && <CardRenameOverlay project={project} rename={rename} />}
-      {overlay === 'confirm' && (
-        <CardConfirmOverlay
-          project={project}
-          copy={copy}
-          busy={deleting}
-          error={deleteError}
-          onCancel={onCancelDelete}
-          onConfirm={onConfirmDelete}
-        />
-      )}
-      {/* Stop for a site another process serves (`npm run dev`) — owner 2026-10-13. The overlay
-          closes on confirm; the card's own button then reads "Stopping…" and any refusal shows
-          on the card's error line, exactly as an ordinary Stop's does. */}
-      {overlay === 'stop' && (
-        <CardConfirmOverlay
-          project={project}
-          copy={externalStopConfirm({ project }) ?? copy}
-          busy={false}
-          error={null}
-          onCancel={() => power.cancelStop?.()}
-          onConfirm={async () => power.confirmStop?.(project)}
-        />
-      )}
+      <CardOverlays
+        project={project}
+        overlay={overlay}
+        rename={rename}
+        copy={copy}
+        deleting={deleting}
+        deleteError={deleteError}
+        power={power}
+        onCancelDelete={onCancelDelete}
+        onConfirmDelete={onConfirmDelete}
+      />
     </article>
   );
+}
+
+/** Inline card panels share the same inert-card boundary and add no wrapper to the DOM. */
+function CardOverlays({ project, overlay, rename, copy, deleting, deleteError, power, onCancelDelete, onConfirmDelete }: {
+  project: SiteRecord;
+  overlay: CardOverlayMode;
+  rename: SiteRenameState;
+  copy: DeleteActionCopy;
+  deleting: boolean;
+  deleteError: string | null;
+  power: SitePower;
+  onCancelDelete: () => void;
+  onConfirmDelete: (id: string) => Promise<void>;
+}, _options = {}) {
+  return <>
+    {overlay === 'rename' && <CardRenameOverlay project={project} rename={rename} />}
+    {overlay === 'confirm' && (
+      <CardConfirmOverlay
+        project={project}
+        copy={copy}
+        busy={deleting}
+        error={deleteError}
+        onCancel={onCancelDelete}
+        onConfirm={onConfirmDelete}
+      />
+    )}
+    {/* Stop for a site another process serves (`npm run dev`) — owner 2026-10-13. The overlay
+        closes on confirm; the card's own button then reads "Stopping…" and any refusal shows
+        on the card's error line, exactly as an ordinary Stop's does. */}
+    {overlay === 'stop' && (
+      <CardConfirmOverlay
+        project={project}
+        copy={externalStopConfirm({ project }) ?? copy}
+        busy={false}
+        error={null}
+        onCancel={() => power.cancelStop?.()}
+        onConfirm={async () => power.confirmStop?.(project)}
+      />
+    )}
+  </>;
 }
 
 /**

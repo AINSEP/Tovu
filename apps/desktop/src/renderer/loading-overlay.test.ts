@@ -6,6 +6,17 @@ import { elements, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 import type { SiteWorkspace as WorkspaceState } from './use-site-workspace.hooks.js';
 
+test('first-content loading keeps the same wrapper, live status and stalled precedence', () => {
+  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  const overlay = sourceFunction(source, 'WorkspaceLoadingOverlay', { Spinner: () => null });
+  for (const loaded of [false, true]) for (const stalled of [false, true]) {
+    const html = renderToStaticMarkup(overlay({ workspace: { loaded, stalled }, project: { displayName: 'Bakery' } }));
+    assert.equal(html, !loaded && !stalled
+      ? '<div class="workspace__overlay workspace__overlay--loading" role="status"><p>Loading Bakery…</p></div>'
+      : '');
+  }
+});
+
 // The overlay shows for both the Admin and Site views, so it must not call the site "the admin".
 test('the loading overlay on the Site view says "Loading <site>…"', () => {
   const project = {
@@ -33,7 +44,7 @@ test('the loading overlay on the Site view says "Loading <site>…"', () => {
     SITE_SURFACES: ['admin', 'site'],
     NavIcon: () => null,
     ExpandToggle: sourceFunction(source, 'ExpandToggle'),
-    Spinner: sourceFunction(source, 'Spinner'),
+    WorkspaceLoadingOverlay: sourceFunction(source, 'WorkspaceLoadingOverlay', { Spinner: sourceFunction(source, 'Spinner') }),
   });
   const overlays = elements(SiteWorkspace({
     project, hidden: false, expanded: false, onToggleExpanded: noop,

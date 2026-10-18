@@ -28,6 +28,7 @@ import { hookHarness, sourceFunction } from "./source-test-harness.js";
 
 import {
   appPresentation,
+  buildCreateProjectInput,
   computeCanCreate,
   countRunningSites,
   menuFocusIndex,
@@ -39,6 +40,27 @@ import {
 } from "./App.hooks.js";
 import type { SiteRecord } from "../contracts/project.js";
 import type { SetStateAction } from "react";
+
+test("creation selects only the chosen database endpoint and credential without trimming secrets", () => {
+  const input = {
+    displayName: "New site", database: "sqlite" as const, customProviderLabel: " Neon ",
+    supabaseUrl: " https://db.example ", customConnection: " postgres://db ",
+    supabaseKey: " supabase secret ", customCredential: " custom secret ",
+  };
+  assert.deepEqual(buildCreateProjectInput(input), { displayName: "New site", database: { kind: "sqlite" } });
+  assert.deepEqual(buildCreateProjectInput({ ...input, database: "supabase" }), {
+    displayName: "New site", database: { kind: "supabase", endpoint: "https://db.example", credential: " supabase secret " },
+  });
+  assert.deepEqual(buildCreateProjectInput({ ...input, database: "custom" }), {
+    displayName: "New site", database: { kind: "custom", label: "Neon", endpoint: "postgres://db", credential: " custom secret " },
+  });
+  for (const database of ["supabase", "custom"] as const) {
+    assert.deepEqual(buildCreateProjectInput({ ...input, database, customProviderLabel: " ",
+      supabaseUrl: " ", customConnection: " ", supabaseKey: "", customCredential: "" }), {
+      displayName: "New site", database: { kind: database },
+    });
+  }
+});
 
 /** The form's real gate: `useCreateWebsiteForm` computes `slug` from the typed name and hands it
  *  straight to `computeCanCreate`, so an empty slug is a permanently disabled "Create website". */

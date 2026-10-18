@@ -211,6 +211,24 @@ export async function runPowerToggle(
   return null;
 }
 
+/** Decide whether this press is inert, asks permission, or performs the existing power action.
+ * Pure: reads the synchronous lock without changing it; no effects or errors.
+ * @complexity O(1) time and space.
+ */
+export function powerToggleIntent({ action, project, inFlight, confirmed }: {
+  action: SitePowerAction | null | undefined;
+  project: SiteRecord;
+  inFlight: ReadonlySet<string>;
+  confirmed: boolean;
+}, _options = {}): SitePowerAction | 'confirm-stop' | null {
+  // `null` covers both "nothing to do for this status" and "a transition is already running",
+  // so a second click during a stop cannot queue a second one behind it.
+  if (action === undefined || action === null || inFlight.has(project.id)) return null;
+  // Another process serves this site, so Stop ends THAT process: ask first. See `externalStopConfirm`.
+  if (action === 'stop' && project.externalUrl && !confirmed) return 'confirm-stop';
+  return action;
+}
+
 /**
  * @param onSiteUpdated applies the refreshed record main resolves with. Optional, and the card is
  *   still correct without it — the 4 s poll would catch up — but up to four seconds of showing a
@@ -245,22 +263,20 @@ export function useSitePower(
   const toggle = useCallback(
     async (project: SiteRecord, { confirmed = false }: { confirmed?: boolean } = {}) => {
       const action = powerControl(statusOf(project), { external: Boolean(project.externalUrl) && !project.externalLauncher })?.action;
-      // `null` covers both "nothing to do for this status" and "a transition is already running",
-      // so a second click during a stop cannot queue a second one behind it.
-      if (action === undefined || action === null || inFlight.has(project.id)) return;
-      // Another process serves this site, so Stop ends THAT process: ask first. See `externalStopConfirm`.
-      if (action === 'stop' && project.externalUrl && !confirmed) {
+      const intent = powerToggleIntent({ action, project, inFlight, confirmed });
+      if (intent === null) return;
+      if (intent === 'confirm-stop') {
         setConfirmingStopId(project.id);
         return;
       }
 
       const id = project.id;
       inFlight.add(id);
-      setPending((current) => ({ ...current, [id]: action }));
+      setPending((current) => ({ ...current, [id]: intent }));
       setErrors((current) => withoutKey(current, id));
 
       try {
-        const error = await runPowerToggle({ action, id, bridge: runnerInventoryBridge() }, { onSiteUpdated, onStarted });
+        const error = await runPowerToggle({ action: intent, id, bridge: runnerInventoryBridge() }, { onSiteUpdated, onStarted });
         if (error !== null) setErrors((current) => ({ ...current, [id]: error }));
       } finally {
         // Cleared on BOTH arms: a start that failed leaves the site stopped, which is what the

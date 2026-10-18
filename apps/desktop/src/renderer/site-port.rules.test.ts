@@ -48,6 +48,7 @@ const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts',
 test('the rendered card keeps the running address in the status title, never in its copy', () => {
   const SiteCard = sourceFunction(gridSource, 'SiteCard', {
     cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation, siteCardStatus,
+    CardOverlays: sourceFunction(gridSource, 'CardOverlays'),
     useSitePreview: () => null, CardActions: () => null, SiteCardMenu: () => null, MissingFolderNotice: () => null,
   });
   for (const [status, port, title] of [

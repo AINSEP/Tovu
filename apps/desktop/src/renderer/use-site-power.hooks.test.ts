@@ -13,12 +13,57 @@ import test from 'node:test';
 
 import fs from 'node:fs';
 
-import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
+import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, powerToggleIntent, runPowerToggle } from './use-site-power.hooks.js';
 import { cardOverlay } from './SiteGrid.hooks.js';
 import { hookHarness, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 const RECORD = { id: '/sites/a', status: 'running', port: 4321 } as unknown as SiteRecord;
+
+test('toggle intent preserves no-op, synchronous lock and external-stop confirmation precedence', () => {
+  const project = { ...RECORD, externalUrl: 'http://localhost:4321', externalLauncher: 'npm-run-dev' as const };
+  const inFlight = new Set<string>();
+  for (const action of [undefined, null]) {
+    assert.equal(powerToggleIntent({ action, project, inFlight, confirmed: false }), null);
+  }
+  assert.equal(powerToggleIntent({ action: 'stop', project, inFlight, confirmed: false }), 'confirm-stop');
+  assert.equal(powerToggleIntent({ action: 'stop', project, inFlight, confirmed: true }), 'stop');
+  assert.equal(powerToggleIntent({ action: 'stop', project: RECORD, inFlight, confirmed: false }), 'stop');
+  assert.equal(powerToggleIntent({ action: 'start', project, inFlight, confirmed: false }), 'start');
+  assert.equal(inFlight.size, 0, 'deciding never acquires a lock');
+  inFlight.add(project.id);
+  for (const action of ['start', 'stop'] as const) for (const confirmed of [false, true]) {
+    assert.equal(powerToggleIntent({ action, project, inFlight, confirmed }), null);
+  }
+  assert.deepEqual([...inFlight], [project.id], 'deciding never releases the existing lock');
+});
+
+test('rapid Start clicks use the synchronous lock and settle updates before opening the site', async () => {
+  const source = fs.readFileSync(new URL('./use-site-power.hooks.ts', import.meta.url), 'utf8');
+  const harness = hookHarness();
+  let resolve!: (record: SiteRecord) => void;
+  const calls: string[] = [];
+  const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
+    powerControl, powerToggleIntent, runPowerToggle, IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
+    runnerInventoryBridge: () => ({ startSite: () => {
+      calls.push('start'); return new Promise<SiteRecord>((done) => { resolve = done; });
+    } }),
+  });
+  const project = { ...RECORD, status: 'stopped' as const };
+  const render = () => harness.render(() => usePower(
+    (record: SiteRecord) => calls.push(`updated:${record.status}`), { onStarted: () => calls.push('open') },
+  ));
+  const firstRender = render();
+  const starting = firstRender.toggle(project);
+  await firstRender.toggle(project);
+  assert.deepEqual(calls, ['start'], 'an old render closure cannot queue a second Start');
+  assert.equal(render().statusOf(project), 'starting');
+  resolve(RECORD);
+  await starting;
+  assert.deepEqual(calls, ['start', 'updated:running', 'open']);
+  assert.equal(render().statusOf(project), 'stopped', 'settling drops the local override; main owns the record');
+  assert.equal(render().errorOf(project.id), null);
+});
 
 // ---------------------------------------------------------------------------------------------
 // powerControl
@@ -236,7 +281,7 @@ test('Stop on an external site asks first: only Confirm reaches the bridge, Canc
   const harness = hookHarness();
   const stops: string[] = [];
   const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
-    powerControl, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
+    powerControl, powerToggleIntent, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
     runnerInventoryBridge: () => ({ stopSite: async (id: string) => { stops.push(id); return { ...DEV_SITE, status: 'stopped' }; } }),
   });
   const render = () => harness.render(() => usePower());

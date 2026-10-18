@@ -35,7 +35,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
-import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
+import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, powerToggleIntent, runPowerToggle } from './use-site-power.hooks.js';
 
 const grid = fs.readFileSync(path.join(import.meta.dirname, 'SiteGrid.tsx'), 'utf8');
 const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
@@ -261,6 +261,7 @@ test('delete still goes through the confirm overlay — a menu entry makes that 
   assert.match(grid, /overlay === 'confirm' && \(/);
   assert.match(grid, /<SiteCard\b[^>]*onRequestDelete=\{requestDelete\}[^>]*onCancelDelete=\{cancelDelete\}[^>]*onConfirmDelete=\{confirmDelete\}/);
   assert.match(cardBody(), /<CardActions\b[^>]*onRequestDelete=\{onRequestDelete\}/);
+  assert.match(cardBody(), /<CardOverlays\b[^>]*onCancelDelete=\{onCancelDelete\}[^>]*onConfirmDelete=\{onConfirmDelete\}/);
   assert.match(cardBody(), /<CardConfirmOverlay\b[^>]*onCancel=\{onCancelDelete\}[^>]*onConfirm=\{onConfirmDelete\}/);
   const harness = hookHarness();
   const useDelete = sourceFunction(appHooks, 'useDeleteConfirmation', { ...harness.bindings, dismissOnEscape, humanSiteError, document: { addEventListener() {}, removeEventListener() {} } });
@@ -287,7 +288,7 @@ test('the pending mark is cleared on BOTH arms, so a failed start cannot stick o
   // to drive the failure arm, so the clearing is asserted structurally: it must not sit inside the
   // success branch.
   const toggle = power.slice(power.indexOf('const toggle = useCallback('), power.indexOf('const restartControlOf = useCallback('));
-  assert.match(toggle, /const error = await runPowerToggle\(\{ action, id, bridge: runnerInventoryBridge\(\) \}, \{ onSiteUpdated, onStarted \}\);/);
+  assert.match(toggle, /const error = await runPowerToggle\(\{ action: intent, id, bridge: runnerInventoryBridge\(\) \}, \{ onSiteUpdated, onStarted \}\);/);
   assert.match(toggle, /if \(error !== null\) setErrors/);
   const clear = toggle.indexOf('setPending((current) => withoutKey(current, id));');
   assert.notEqual(clear, -1, 'the pending mark must be cleared');
@@ -295,7 +296,7 @@ test('the pending mark is cleared on BOTH arms, so a failed start cannot stick o
   const harness = hookHarness();
   let reject!: (error: Error) => void;
   const usePower = sourceFunction(power, 'useSitePower', { ...harness.bindings,
-    powerControl, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS,
+    powerControl, powerToggleIntent, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS,
     withoutKey: sourceFunction(power, 'withoutKey'),
     runnerInventoryBridge: () => ({ startSite: () => new Promise((_resolve, fail) => { reject = fail; }) }),
   });

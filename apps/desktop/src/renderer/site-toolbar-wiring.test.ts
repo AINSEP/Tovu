@@ -117,7 +117,7 @@ test('rendered toolbar buttons pair each accessible name with its own command an
     const workspace = { running: true, history, goBack: () => calls.push('back'), goForward: () => calls.push('forward'), reload: () => calls.push('reload'),
       failed: false, loaded: true, stalled: false, surface: 'admin', displayUrl: 'http://localhost/admin/', src: 'http://localhost/admin/', guestRef: () => {}, reloadNonce: 0 };
     const deps = { React, useSiteWorkspace: () => workspace, useComposedGuestRef: () => () => {},
-      SITE_SURFACES: ['admin', 'site'], NavIcon: () => null, ExpandToggle: () => null, Spinner: () => null, SiteStartPanel: () => null };
+      SITE_SURFACES: ['admin', 'site'], NavIcon: () => null, ExpandToggle: () => null, WorkspaceLoadingOverlay: () => null, SiteStartPanel: () => null };
     const SiteWorkspace = new Function(...Object.keys(deps), `${executable}; return SiteWorkspace;`)(...Object.values(deps));
     const tree = SiteWorkspace({ project: { id: 's1', status: 'running' }, hidden: false, expanded: false });
     const buttons = new Map<string, Record<string, any>>();

@@ -1402,6 +1402,21 @@ export function computeCanCreate(input: {
   return input.database === 'supabase' ? input.supabaseReady : input.customReady;
 }
 
+/** Select and trim only the selected database's endpoint; SQLite has none.
+ * Pure: no side effects or errors. Time and space are O(n) in the chosen endpoint's length.
+ */
+function createProjectDatabaseEndpoint(input: {
+  database: DatabaseProviderKind;
+  supabaseUrl: string;
+  customConnection: string;
+}, _options = {}): string | undefined {
+  return input.database === 'supabase'
+    ? input.supabaseUrl.trim()
+    : input.database === 'custom'
+      ? input.customConnection.trim()
+      : undefined;
+}
+
 /** Pure — takes every value it needs as an explicit argument rather than closing over component
  *  state, so the submit handler that calls it stays a thin orchestrator. */
 export function buildCreateProjectInput(input: {
@@ -1413,12 +1428,7 @@ export function buildCreateProjectInput(input: {
   supabaseKey: string;
   customCredential: string;
 }): CreateSiteInput {
-  const endpoint =
-    input.database === 'supabase'
-      ? input.supabaseUrl.trim()
-      : input.database === 'custom'
-        ? input.customConnection.trim()
-        : undefined;
+  const endpoint = createProjectDatabaseEndpoint(input);
   const credentialValue =
     input.database === 'supabase' ? input.supabaseKey : input.database === 'custom' ? input.customCredential : '';
 
