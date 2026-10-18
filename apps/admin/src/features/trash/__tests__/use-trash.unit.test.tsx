@@ -579,7 +579,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
     expect(result.current.items).toEqual([item(), item({ id: "next" })]);
     expect(result.current.loadingMore).toBe(false);
     act(() => { void result.current.loadMore(); });
-    expect(cursorCalls).toHaveLength(2, "an exhausted cursor must not fetch another page");
+    expect(cursorCalls, "an exhausted cursor must not fetch another page").toHaveLength(2);
   });
 
   it("two loadMore calls in the same tick send one request and append the page once", async () => {

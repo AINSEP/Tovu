@@ -128,7 +128,13 @@ it("the dock measures the active layout, switches observers on a breakpoint chan
     expect(observers[0]?.target).toBe(dock);
     const deliver = (index: number, width: number, height: number) => {
       const state = observers[index]!;
-      state.callback([{ target: dock, contentRect: new DOMRect(0, 0, width, height) } as ResizeObserverEntry], {} as ResizeObserver);
+      state.callback([{
+        target: dock,
+        contentRect: new DOMRect(0, 0, width, height),
+        borderBoxSize: [],
+        contentBoxSize: [],
+        devicePixelContentBoxSize: [],
+      }], {} as ResizeObserver);
     };
     act(() => deliver(0, 390, 240));
     expect(result.current.dockWidthPx).toBe(390);

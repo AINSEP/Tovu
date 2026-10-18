@@ -40,10 +40,10 @@ test("an unclassified descriptor with metadata still fails closed", () => {
 });
 
 test("extension classification preserves unrelated metadata without mutating the registration", () => {
-  const original = registration("opaque-result", { label: "Kept" });
+  const original = registration("opaque-result", { search: { keywords: "Kept" } });
   const classified = withExtensionApprovalPolicy({ registration: original, family: "plugin-capability-result" }, {});
-  assert.deepEqual(classified.descriptor.metadata, { label: "Kept", approval: { class: "read", confirmation: "direct" } });
-  assert.deepEqual(original.descriptor.metadata, { label: "Kept" });
+  assert.deepEqual(classified.descriptor.metadata, { search: { keywords: "Kept" }, approval: { class: "read", confirmation: "direct" } });
+  assert.deepEqual(original.descriptor.metadata, { search: { keywords: "Kept" } });
   assert.equal(classified.handler, original.handler);
   assert.equal(classified.policy, original.policy);
 });

@@ -7,7 +7,7 @@ than implementing another version here.
 ## Contract to adopt
 
 Source: `development/todos.md:1514`, triage s4-59 (2026-10-17).
-Status: analytics pilot migrated in source; compatible Jini decoder adopted by the admin transport. Tests are written but have not been run.
+Status: analytics pilot migrated in source; compatible Jini decoder adopted by the admin transport. Tests pass (committed 56a29e396).
 
 `@jini-ai/protocol` owns `ApiErrorResponse` and `ApiError`:
 

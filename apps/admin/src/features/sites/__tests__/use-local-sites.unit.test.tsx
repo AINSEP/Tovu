@@ -72,8 +72,9 @@ describe("local site card controller", () => {
     const writes: unknown[] = [];
     const snapshot = fixture();
     const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return {}; } });
+    const initialProps: { snapshot: AdminSitesSnapshot | undefined } = { snapshot: undefined };
     const { result, rerender, unmount } = renderHook(({ snapshot }: { snapshot: AdminSitesSnapshot | undefined }) =>
-      useLocalSites({ port, snapshot, t }, polling), { wrapper, initialProps: { snapshot: undefined } });
+      useLocalSites({ port, snapshot, t }, polling), { wrapper, initialProps });
     await act(async () => {
       await result.current.run("alpha", "switch");
       await result.current.run("alpha", "start");
