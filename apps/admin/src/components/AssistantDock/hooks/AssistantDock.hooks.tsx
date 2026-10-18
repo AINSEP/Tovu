@@ -1121,18 +1121,42 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
   return readAgentsResponse({ inventory, label: `GET ${AGENTS_URL}` });
 }
 
-/**
- * The client-side cache key for `/api/agents`. `staleTime: Infinity` because the server already
- * memoizes the inventory for the daemon's lifetime (`apps/website/src/assistant/agents.ts`
- * `cachedAgents`) — a re-read would return the same list — and the one way to change it, a rescan,
- * writes its answer straight into this cache.
- */
+/** The client-side cache key for `/api/agents`, scoped to the current admin boot below. */
 const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
+
+// Match @jini-ai/agent-runtime/src/model-discovery.ts:8; its export requires Node APIs.
+const AGENTS_STALE_TIME_MS = 15 * 60_000;
+const AGENTS_RETRY_TIME_MS = 30_000;
+const AGENTS_PENDING_DELAYS_MS = [1_000, 2_000, 4_000] as const;
+
+// Keys are snapshots owned by the boot-scoped query cache, so deadlines cannot leak across boots.
+const agentsDeadlines = new WeakMap<ChatPaneAgent[], { expiresAt: number; pendingStep: number }>();
+
+/** Records the server catalog's lifetime, capped at the browser's 15-minute maximum.
+ * Pending snapshots advance through a short backoff before the normal failure cooldown.
+ * Completed snapshots retaining an expired catalog use the 30-second retry cooldown. */
+function rememberAgentsDeadline(
+  { agents, pendingStep = 0 }: { agents: ChatPaneAgent[]; pendingStep?: number },
+  _options: Record<string, never> = {},
+): void {
+  const now = Date.now();
+  const pending = agents.some(agent => agent.discoveryPending);
+  const lifetime = pending ? (AGENTS_PENDING_DELAYS_MS[pendingStep] ?? AGENTS_RETRY_TIME_MS) : AGENTS_STALE_TIME_MS;
+  const expiresAt = pending ? now + lifetime : agents.reduce((deadline, agent) => {
+    if (!agent.modelCatalog || agent.discoveryPending) return deadline;
+    const catalogExpiry = Date.parse(agent.modelCatalog.expiresAt);
+    const failureDeadline = agent.modelCatalog.freshness === "fresh" ? deadline : now + AGENTS_RETRY_TIME_MS;
+    const catalogDeadline = catalogExpiry <= now ? now + AGENTS_RETRY_TIME_MS : catalogExpiry;
+    return Math.min(deadline, failureDeadline, Number.isFinite(catalogDeadline) ? catalogDeadline : failureDeadline);
+  }, now + lifetime);
+  agentsDeadlines.set(agents, { expiresAt, pendingStep: pending ? pendingStep + 1 : 0 });
+}
 
 /** Writes a fresh inventory into the cache and everything that reads it. */
 function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAgent[]): ChatPaneAgent[] {
   recordAgents(agents);
   loader.replace({ value: agents });
+  rememberAgentsDeadline({ agents: loader.peek() ?? agents });
   return agents;
 }
 
@@ -1154,10 +1178,40 @@ async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<
   return replaceAgents(loader, rescanned ?? (await fetchAgents()));
 }
 
-function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
+/** Shares GET ownership through Jini's boot-scoped cache; accepted snapshot deadlines govern reads.
+ * Structural sharing can publish a different array from the transport result. Overlapping readers
+ * and late pre-Rescan GETs must not extend a newer snapshot's deadline. Exposes that same deadline
+ * so pane retries can wait out a pending cooldown instead of spending their budget on cached reads. */
+function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> & { refreshAt(): number | undefined } {
   const { queryScope } = useAdminBootScope();
   const key = useMemo(() => [...AGENTS_QUERY_KEY, queryScope], [queryScope]);
-  return useCachedLoader({ key, fetch: fetchAgents }, { staleTime: Infinity });
+  const loader = useCachedLoader({ key, fetch: fetchAgents }, { staleTime: AGENTS_STALE_TIME_MS });
+  return useMemo(() => ({
+    peek: loader.peek,
+    replace: loader.replace,
+    refreshAt: () => {
+      const cached = loader.peek();
+      return cached && agentsDeadlines.get(cached)?.expiresAt;
+    },
+    load: () => {
+      const cached = loader.peek();
+      const previous = cached && agentsDeadlines.get(cached);
+      if (cached && previous && Date.now() < previous.expiresAt) return Promise.resolve(cached);
+      // Bypass freshness only for a due read; retain idle data and join requests without invalidation.
+      return loader.load(undefined, { staleTime: 0 }).then(agents => {
+        const accepted = loader.peek() ?? agents;
+        if (!agentsDeadlines.has(accepted) || agentsDeadlines.get(accepted) === previous) {
+          rememberAgentsDeadline({ agents: accepted, pendingStep: previous?.pendingStep ?? 0 });
+        }
+        return accepted;
+      }, error => {
+        if (cached && agentsDeadlines.get(cached) === previous) {
+          agentsDeadlines.set(cached, { expiresAt: Date.now() + AGENTS_RETRY_TIME_MS, pendingStep: previous?.pendingStep ?? 0 });
+        }
+        throw error;
+      });
+    },
+  }), [loader]);
 }
 
 /**
@@ -1190,15 +1244,18 @@ async function readDaemonOnline(): Promise<boolean> {
  * `AssistantDockProps`.
  *
  * `listAgents` reads through the shared query cache ({@link useAgentsLoader}), so a remounted pane,
- * a conversation switch, or a second screen gets the inventory without another request. A non-2xx
- * or empty answer REJECTS and is never cached (see {@link readAgentsResponse}): `ChatPane` then
+ * a conversation switch, or a second screen gets completed inventory without another request.
+ * Due reads join one GET for this boot. Pending snapshots use bounded backoff in Jini;
+ * `getAgentsRefreshAt` aligns those retries with the shared cache, including across pane remounts.
+ * completed catalogs honor server expiry, with a 15-minute maximum and 30-second failure cooldown.
+ * A non-2xx or empty answer REJECTS and is never cached (see {@link readAgentsResponse}): `ChatPane` then
  * shows "Connecting to the assistant…" and retries until the daemon answers.
  *
  * `rescanAgents` writes its answer into that cache. It falls back to a plain re-fetch of the same
  * `/api/agents` GET whenever the rescan POST itself gives no usable answer; when that fails too it
  * rejects, and `ChatPane` keeps whatever agents are currently known instead of going blank.
  *
- * @returns The memoized `{ listAgents, rescanAgents, daemonOnline }` object `ChatPane` reads.
+ * @returns The memoized inventory, refresh-deadline, rescan and health access `ChatPane` reads.
  * @example
  * const runtimeAccess = useRuntimeAccess();
  */
@@ -1214,6 +1271,7 @@ export function useRuntimeAccess(): ChatPaneRuntimeAccess {
   return useMemo(
     () => ({
       listAgents: () => loader.load().then(recordAgents),
+      getAgentsRefreshAt: loader.refreshAt,
       rescanAgents: () => rescanAgentsInto(loader),
       // A health probe must reach loopback even when the browser reports no internet connection.
       daemonOnline,

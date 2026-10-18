@@ -1,6 +1,7 @@
 import { runInNewContext } from "node:vm";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useChatPaneRuntimeInventory, type ChatPaneAgent } from "@jini-ai/chat/react";
 
 // Partial mock (`importOriginal`, same pattern `AssistantDock.hooks.unit.test.tsx` uses for
 // `execution-settings`): every existing test in this file needs the REAL bundled projection to
@@ -276,6 +277,122 @@ describe("extractResumeCapableAgentIds", () => {
   });
 });
 
+describe("runtime inventory — shared loader and pending retry integration", () => {
+  const base = Date.parse("2026-10-18T12:00:00Z");
+  const pending: ChatPaneAgent = {
+    id: "antigravity", name: "Antigravity", discoveryPending: true,
+    models: [{ id: "previous-model", label: "Previous model" }],
+  };
+  const completed: ChatPaneAgent = {
+    ...pending, discoveryPending: false,
+    models: [{ id: "gemini-4-argon-high", label: "Gemini 4 Argon High" }],
+    modelCatalog: { source: "cli", freshness: "fresh", coverage: "account", fetchedAt: new Date(base).toISOString(),
+      expiresAt: new Date(base + 60 * 60_000).toISOString(), launchFingerprint: "agy-test" },
+  };
+
+  /** Keeps both production owners real: the pane retry hook and Tovu's boot-scoped loader. */
+  function InventoryPane({ name }: { name: string }) {
+    const access = useRuntimeAccess();
+    const { agents } = useChatPaneRuntimeInventory({ access, pollIntervalMs: 60_000 });
+    return <output data-testid={name}>{agents[0]?.models?.[0]?.id}</output>;
+  }
+
+  /** Only the HTTP boundary is faked; completion depends on elapsed server discovery time. */
+  function installDiscoveryResponse({ completesAt }: { completesAt: number }) {
+    vi.useFakeTimers();
+    vi.setSystemTime(base);
+    const inventoryGet = vi.fn(async () => new Response(JSON.stringify({
+      agents: [Date.now() >= base + completesAt ? completed : pending],
+    })));
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+      if (url === "/api/agents" && init?.method === "GET") return inventoryGet();
+      if (url === "/api/agents" && init?.method === undefined) return Promise.resolve(new Response("{}"));
+      throw new Error(`Unexpected request: ${init?.method} ${url}`);
+    }));
+    return inventoryGet;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+    resetResumeCapableAgentIds();
+  });
+
+  it.each([
+    { completesAt: 9_000, displayedAt: 37_000 },
+    { completesAt: 75_000, displayedAt: 97_000 },
+    { completesAt: 14 * 60_000, displayedAt: 15 * 60_000 },
+  ])("automatically displays a catalog completed at $completesAt ms in both readers", async ({ completesAt, displayedAt }) => {
+    const inventoryGet = installDiscoveryResponse({ completesAt });
+    const view = render(<FetchQueryProvider><InventoryPane name="first" /><InventoryPane name="second" /></FetchQueryProvider>);
+    await act(async () => {});
+    expect(screen.getByTestId("first")).toHaveTextContent("previous-model");
+    expect(inventoryGet).toHaveBeenCalledTimes(1);
+
+    // These are eligible GET times, including the loader's 30s cooldown after its short backoff.
+    let elapsed = 0;
+    for (const due of [1_000, 3_000, 7_000, 37_000, 67_000, 97_000, 157_000, 277_000, 517_000, 900_000]) {
+      if (due > displayedAt) break;
+      const requests = inventoryGet.mock.calls.length;
+      await act(async () => vi.advanceTimersByTime(due - elapsed - 1));
+      expect(inventoryGet).toHaveBeenCalledTimes(requests);
+      await act(async () => vi.advanceTimersByTime(1));
+      expect(inventoryGet).toHaveBeenCalledTimes(requests + 1);
+      elapsed = due;
+    }
+
+    expect(screen.getByTestId("first")).toHaveTextContent("gemini-4-argon-high");
+    expect(screen.getByTestId("second")).toHaveTextContent("gemini-4-argon-high");
+    const requests = inventoryGet.mock.calls.length;
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(inventoryGet).toHaveBeenCalledTimes(requests);
+    view.unmount();
+  });
+
+  it("remounts during a pending cooldown and displays completion with one GET when eligible", async () => {
+    const inventoryGet = installDiscoveryResponse({ completesAt: 9_000 });
+    const view = render(<FetchQueryProvider><InventoryPane name="first" /></FetchQueryProvider>);
+    await act(async () => {});
+    for (const delay of [1_000, 2_000, 4_000]) {
+      await act(async () => vi.advanceTimersByTime(delay));
+    }
+    expect(inventoryGet).toHaveBeenCalledTimes(4);
+    view.rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
+    await act(async () => vi.advanceTimersByTime(1_000));
+    view.rerender(<FetchQueryProvider><InventoryPane name="remounted" /><InventoryPane name="second" /></FetchQueryProvider>);
+    await act(async () => {});
+    expect(screen.getByTestId("remounted")).toHaveTextContent("previous-model");
+    expect(inventoryGet).toHaveBeenCalledTimes(4);
+    await act(async () => vi.advanceTimersByTime(28_999));
+    expect(inventoryGet).toHaveBeenCalledTimes(4);
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(inventoryGet).toHaveBeenCalledTimes(5);
+    expect(screen.getByTestId("remounted")).toHaveTextContent("gemini-4-argon-high");
+    expect(screen.getByTestId("second")).toHaveTextContent("gemini-4-argon-high");
+    view.unmount();
+  });
+
+  it("stops permanently pending discovery after the finite window despite focus and health events", async () => {
+    const inventoryGet = installDiscoveryResponse({ completesAt: Infinity });
+    const view = render(<FetchQueryProvider><InventoryPane name="first" /></FetchQueryProvider>);
+    await act(async () => {});
+    let elapsed = 0;
+    for (const due of [1_000, 3_000, 7_000, 37_000, 67_000, 97_000, 157_000, 277_000, 517_000, 900_000]) {
+      await act(async () => vi.advanceTimersByTime(due - elapsed));
+      elapsed = due;
+    }
+    expect(inventoryGet).toHaveBeenCalledTimes(11);
+    await act(async () => vi.advanceTimersByTime(30 * 60_000));
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(inventoryGet).toHaveBeenCalledTimes(11);
+    expect(screen.getByTestId("first")).toHaveTextContent("previous-model");
+    view.unmount();
+  });
+});
+
 describe("useRuntimeAccess — resume-capable agentId tracking", () => {
   afterEach(() => {
     resetResumeCapableAgentIds();
@@ -298,6 +415,251 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
     await result.current.listAgents();
 
     expect(getResumeCapableAgentIds()).toEqual(new Set(["claude"]));
+  });
+
+  it("listAgents() refreshes pending discovery to the live catalog and caches the completed inventory", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-18T12:00:00Z"));
+    try {
+      const fallback: ChatPaneAgent = {
+        id: "codex", name: "Codex", discoveryPending: true,
+        models: [{ id: "gpt-5", label: "GPT-5" }],
+      };
+      const discovered: ChatPaneAgent = {
+        id: "codex", name: "Codex", discoveryPending: false,
+        models: [{ id: "gpt-6.1-sol", label: "GPT-6.1 Sol" }],
+        modelCatalog: {
+          source: "cli", freshness: "fresh", coverage: "account",
+          fetchedAt: "2026-10-18T12:00:00Z", expiresAt: "2026-10-18T13:00:00Z",
+          launchFingerprint: "codex-test",
+        },
+      };
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ agents: [fallback] }) })
+        .mockResolvedValue({ ok: true, json: async () => ({ agents: [discovered] }) });
+      vi.stubGlobal("fetch", fetchMock);
+      const { result, rerender } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+
+      const initial = await result.current.listAgents();
+      expect(initial.find(agent => agent.id === "codex")?.discoveryPending).toBe(true);
+      expect(initial.find(agent => agent.id === "codex")?.modelCatalog).toBeUndefined();
+
+      vi.setSystemTime(new Date("2026-10-18T12:00:00.999Z"));
+      expect(await result.current.listAgents()).toEqual([fallback]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(new Date("2026-10-18T12:00:01Z"));
+      const refreshed = await result.current.listAgents();
+      expect(refreshed.find(agent => agent.id === "codex")?.modelCatalog).toEqual(discovered.modelCatalog);
+      expect(refreshed.find(agent => agent.id === "codex")?.models).toContainEqual({ id: "gpt-6.1-sol", label: "GPT-6.1 Sol" });
+      expect(refreshed.find(agent => agent.id === "codex")?.discoveryPending).toBe(false);
+
+      rerender();
+      for (let read = 0; read < 3; read += 1) {
+        expect(await result.current.listAgents()).toEqual([discovered]);
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/agents", expect.objectContaining({ method: "GET" }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("identical pending responses retain their backoff across immediate TanStack reads", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const base = Date.parse("2026-10-18T12:00:00Z");
+    vi.setSystemTime(base);
+    const pending = { id: "codex", name: "Codex", discoveryPending: true };
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ agents: [pending] }))));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      expect(await result.current.listAgents()).toEqual([pending]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      for (const [due, nextDue, requests] of [[1_000, 3_000, 2], [3_000, 7_000, 3], [7_000, 37_000, 4]] as const) {
+        vi.setSystemTime(base + due);
+        expect(await result.current.listAgents()).toEqual([pending]);
+        expect(await result.current.listAgents()).toEqual([pending]);
+        expect(fetchMock).toHaveBeenCalledTimes(requests);
+
+        vi.setSystemTime(base + nextDue - 1);
+        expect(await result.current.listAgents()).toEqual([pending]);
+        expect(fetchMock).toHaveBeenCalledTimes(requests);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a completed response retaining an expired catalog after host failure waits 30 seconds before one shared refresh", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const base = Date.parse("2026-10-18T12:00:00Z");
+    vi.setSystemTime(base);
+    const retained: ChatPaneAgent = {
+      id: "codex", name: "Codex", discoveryPending: false,
+      modelCatalog: { source: "cli", freshness: "fresh", coverage: "account", fetchedAt: new Date(base).toISOString(),
+        expiresAt: new Date(base + 1_000).toISOString(), launchFingerprint: "test" },
+    };
+    const recovered = { ...retained, name: "Recovered Codex", modelCatalog: {
+      ...retained.modelCatalog!, expiresAt: new Date(base + 60 * 60_000).toISOString(),
+    } };
+    let finish!: (response: Response) => void;
+    let started!: () => void;
+    const didStart = new Promise<void>(resolve => { started = resolve; });
+    const response = new Promise<Response>(resolve => { finish = resolve; });
+    const fetchMock = vi.fn().mockImplementation(() => {
+      if (Date.now() < base + 1_000 + 30_000) return Promise.resolve(new Response(JSON.stringify({ agents: [retained] })));
+      started();
+      return response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => [useRuntimeAccess(), useRuntimeAccess()], { wrapper: FetchQueryProvider });
+      expect(await result.current[0]!.listAgents()).toEqual([retained]);
+      vi.setSystemTime(base + 1_000);
+      expect(await result.current[0]!.listAgents()).toEqual([retained]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      expect(await result.current[1]!.listAgents()).toEqual([retained]);
+      vi.setSystemTime(base + 1_000 + 29_999);
+      expect(await result.current[0]!.listAgents()).toEqual([retained]);
+      expect(await result.current[1]!.listAgents()).toEqual([retained]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      vi.setSystemTime(base + 1_000 + 30_000);
+      const first = result.current[0]!.listAgents();
+      await didStart;
+      const second = result.current[1]!.listAgents();
+      await act(async () => {});
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/agents", expect.objectContaining({ method: "GET" }));
+      finish(new Response(JSON.stringify({ agents: [recovered] })));
+      expect(await first).toEqual([recovered]);
+      expect(await second).toEqual([recovered]);
+      expect(await result.current[0]!.listAgents()).toEqual([recovered]);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("overlapping readers join one pending refresh and leave newer Rescan data in place", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-18T12:00:00Z"));
+    const pending = { id: "codex", name: "Codex", discoveryPending: true };
+    const old = { id: "codex", name: "Codex", discoveryPending: false };
+    const newer = { id: "codex", name: "Rescanned Codex", discoveryPending: false };
+    let finish!: (response: Response) => void;
+    let started!: () => void;
+    const didStart = new Promise<void>(resolve => { started = resolve; });
+    const response = new Promise<Response>(resolve => { finish = resolve; });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ agents: [pending] })))
+      .mockImplementation((_url, init) => {
+        if (init.method === "POST") return Promise.resolve(new Response(JSON.stringify({ agents: [newer] })));
+        started();
+        return response;
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => [useRuntimeAccess(), useRuntimeAccess()], { wrapper: FetchQueryProvider });
+      await result.current[0]!.listAgents();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(new Date("2026-10-18T12:00:01Z"));
+      const first = result.current[0]!.listAgents();
+      await didStart;
+      const second = result.current[1]!.listAgents();
+      await act(async () => {});
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(await result.current[1]!.rescanAgents()).toEqual([newer]);
+      finish(new Response(JSON.stringify({ agents: [old] })));
+      expect(await first).toEqual([newer]);
+      expect(await second).toEqual([newer]);
+      expect(await result.current[0]!.listAgents()).toEqual([newer]);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["offline-fallback", "stale"] as const)("completed %s catalogs retry at 30 seconds", async (freshness) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const base = Date.parse("2026-10-18T12:00:00Z");
+    vi.setSystemTime(base);
+    const fallback: ChatPaneAgent = {
+      id: "codex", name: "Codex", discoveryPending: false,
+      modelCatalog: { source: "cli", freshness, coverage: "account", fetchedAt: new Date(base).toISOString(),
+        expiresAt: new Date(base + 30_000).toISOString(), launchFingerprint: "test" },
+    };
+    const fresh = { id: "codex", name: "Recovered Codex", discoveryPending: false };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ agents: [fallback] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ agents: [fresh] })));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      expect(await result.current.listAgents()).toEqual([fallback]);
+      vi.setSystemTime(base + 29_999);
+      expect(await result.current.listAgents()).toEqual([fallback]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(base + 30_000);
+      expect(await result.current.listAgents()).toEqual([fresh]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("listAgents() reuses completed inventory within 15 minutes and refetches after expiry", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const fetchedAt = new Date("2026-10-18T12:00:00Z");
+    vi.setSystemTime(fetchedAt);
+    const previous = { id: "codex", name: "Codex", discoveryPending: false, models: [{ id: "gpt-5", label: "GPT-5" }] };
+    const fresh = { id: "codex", name: "Codex", discoveryPending: false, models: [{ id: "gpt-6.1-sol", label: "GPT-6.1 Sol" }] };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ agents: [previous] }) })
+      .mockResolvedValue({ ok: true, json: async () => ({ agents: [fresh] }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      expect(await result.current.listAgents()).toEqual([previous]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(fetchedAt.getTime() + 15 * 60_000 - 1);
+      expect(await result.current.listAgents()).toEqual([previous]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(fetchedAt.getTime() + 15 * 60_000 + 1);
+      const refreshed = await result.current.listAgents();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(refreshed).toEqual([fresh]);
+      expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/agents", expect.objectContaining({ method: "GET" }));
+      for (let read = 0; read < 3; read += 1) {
+        expect(await result.current.listAgents()).toEqual([fresh]);
+      }
+      vi.setSystemTime(fetchedAt.getTime() + 30 * 60_000);
+      expect(await result.current.listAgents()).toEqual([fresh]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rescanAgents() returns its fresh response and replaces the previous cached inventory", async () => {
+    const previous = { id: "codex", name: "Codex", models: [{ id: "gpt-5", label: "GPT-5" }] };
+    const fresh = { id: "codex", name: "Codex", models: [{ id: "gpt-6.1-sol", label: "GPT-6.1 Sol" }] };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ agents: [previous] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ agents: [fresh] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+
+    expect(await result.current.listAgents()).toEqual([previous]);
+    expect(await result.current.rescanAgents()).toEqual([fresh]);
+    expect(await result.current.listAgents()).toEqual([fresh]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/agents/rescan", expect.objectContaining({ method: "POST" }));
   });
 
   it("rescanAgents() also refreshes the resume-capable set from its own response", async () => {

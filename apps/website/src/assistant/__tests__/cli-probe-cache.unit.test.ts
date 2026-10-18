@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCliProbeCache } from "../cli-probe-cache.js";
+import { MODEL_CATALOG_TTL_MS, MODEL_NEGATIVE_TTL_MS } from "@jini-ai/agent-runtime/model-discovery";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -59,3 +60,70 @@ test("failed background probes retain the cache and require an explicit Rescan t
   await cache.read({ force: true }); await cache.settled({});
   assert.deepEqual(await cache.read({}), ["recovered"]);
 });
+
+for (const initialFailure of [true, false]) {
+  test(`${initialFailure ? "initial" : "post-expiry"} rejection retains the snapshot and retries after the supplied cooldown`, async (t) => {
+    let now = 0;
+    t.mock.method(Date, "now", () => now);
+    let calls = 0;
+    const cache = createCliProbeCache({
+      initial: () => ["initial"],
+      probe: async () => {
+        calls++;
+        if (calls === (initialFailure ? 1 : 2)) throw new Error("private stderr");
+        return [calls === 1 ? "previous" : "recovered"];
+      },
+    }, { expiresAt: () => now + MODEL_CATALOG_TTL_MS, retryAfterMs: MODEL_NEGATIVE_TTL_MS });
+    await cache.read({});
+    await cache.settled({});
+    if (!initialFailure) {
+      now = MODEL_CATALOG_TTL_MS;
+      await cache.read({});
+      await cache.settled({});
+    }
+    const failedAt = now;
+    const failedCalls = calls;
+    const retained = initialFailure ? ["initial"] : ["previous"];
+    for (const elapsed of [0, MODEL_NEGATIVE_TTL_MS - 1]) {
+      now = failedAt + elapsed;
+      assert.deepEqual(await cache.read({}), retained);
+      await cache.settled({});
+      assert.equal(calls, failedCalls);
+    }
+    now = failedAt + MODEL_NEGATIVE_TTL_MS;
+    assert.deepEqual(await cache.read({}), retained);
+    await cache.settled({});
+    assert.equal(calls, failedCalls + 1);
+    assert.deepEqual(await cache.read({}), ["recovered"]);
+  });
+}
+
+for (const [freshness, ttl] of [["offline-fallback", MODEL_NEGATIVE_TTL_MS], ["fresh", MODEL_CATALOG_TTL_MS]] as const) {
+  test(`${freshness} inventory refreshes lazily at its catalog expiry`, async (t) => {
+    let now = 0;
+    t.mock.method(Date, "now", () => now);
+    let calls = 0;
+    const previous = { freshness, expiresAt: new Date(ttl).toISOString(), models: ["previous"] };
+    const cache = createCliProbeCache({
+      initial: () => previous,
+      probe: async () => ++calls === 1 ? previous : {
+        freshness: "fresh" as const, expiresAt: new Date(now + MODEL_CATALOG_TTL_MS).toISOString(), models: ["recovered"],
+      },
+    }, { expiresAt: ({ snapshot }) => Date.parse(snapshot.expiresAt) });
+    assert.deepEqual(await cache.read({}), previous);
+    await cache.settled({});
+    now = ttl - 1;
+    assert.deepEqual(await cache.read({}), previous);
+    await cache.settled({});
+    assert.equal(calls, 1);
+    now++;
+    // Reads retain the settled snapshot while one background discovery updates it.
+    assert.deepEqual(await cache.read({}), previous);
+    await cache.read({});
+    await cache.settled({});
+    assert.equal(calls, 2);
+    assert.deepEqual((await cache.read({})).models, ["recovered"]);
+    assert.equal((await cache.read({})).freshness, "fresh");
+    assert.equal(cache.isPending({}), false);
+  });
+}

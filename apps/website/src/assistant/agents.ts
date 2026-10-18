@@ -9,6 +9,7 @@
  */
 import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createCliProbeCache } from "./cli-probe-cache.js";
+import { MODEL_NEGATIVE_TTL_MS } from "@jini-ai/agent-runtime/model-discovery";
 import type { AgentSummary } from "@jini-ai/daemon/http";
 
 /**
@@ -147,6 +148,11 @@ export function createAssistantDetectionCache(
         modelsSource: "fallback", ...(launch.selectedPath ? { path: launch.selectedPath } : {}) };
     }),
     probe: ({ force }) => detect({}, { force }),
+  }, {
+    retryAfterMs: MODEL_NEGATIVE_TTL_MS,
+    // Catalogs own their retry/refresh lifetimes; executable detection stays cached in Jini.
+    expiresAt: ({ snapshot }) => Math.min(Infinity, ...snapshot.flatMap(agent =>
+      agent.available && agent.modelCatalog ? [Date.parse(agent.modelCatalog.expiresAt)] : [])),
   });
 }
 /** Tovu's picker and settings projection over one host-owned Jini runtime.
