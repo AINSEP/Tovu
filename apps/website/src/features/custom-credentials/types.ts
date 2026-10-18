@@ -5,14 +5,10 @@ import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/crede
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 /**
- * @file Domain types for `custom_credential_sets` — the admin Access Tokens page's "Add custom
- * provider" capability (2026-08-17). Structurally the simplest of this codebase's three credential
- * tables: no `providerId` union (an operator-typed `label` IS the provider identity — see
- * `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc), no `isDefault` group invariant, no
- * `accountLabel` probe. Every row is already its own independent, standalone credential.
- *
- * Architectural role: domain contracts only, with no I/O. `store.ts` validates feature input;
- * Jini's vault owns serialization, sealing and persistence through the memory/SQL facades.
+ * @file Custom API credential contracts over the unified vendor vault kind. Display labels name
+ * credentials; explicit worksFor IDs declare compatibility independently of allowed API origins.
+ * Jini owns sealing, persistence, defaults and copying; these DTOs preserve the custom permission
+ * boundary and origin restrictions used by authenticated requests.
  */
 
 /** The Access Tokens page's own category-filter ids, minus `"all"` — mirrors
@@ -41,6 +37,7 @@ export interface CustomProviderConnectionInput {
 
 /** Historical sealed-row DTO retained for feature callers; private context carries vault CAS. */
 export interface CustomCredentialSetRecord {
+  readonly worksFor?: readonly string[];
   /** Non-enumerable adapter context; not part of any public summary. */
   readonly vaultRecord?: VaultRecord;
   readonly vaultExpectedRevision?: number | null;
@@ -69,6 +66,8 @@ export interface CustomCredentialSetRecord {
  *  secret when it moved onto its own plaintext column, and the whole point of moving it was that
  *  the read model can return it without the sealer being opened. */
 export interface CustomCredentialSummary {
+  readonly credentialType: "custom";
+  readonly worksFor: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   readonly id: UUID;
   readonly label: string;

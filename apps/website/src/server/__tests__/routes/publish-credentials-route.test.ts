@@ -663,21 +663,28 @@ async function resolveSeededOwnerPrincipal(deps: RouteDeps) {
   return ownerPrincipal;
 }
 
-/** Wraps a real repo so its SECOND-and-later `findById` call returns `null` while the FIRST call
+/** Wraps a real repo so its SECOND-and-later vault inventory reads return no rows while the FIRST
  *  still delegates to the real store -- models a row vanishing between two reads inside the same
  *  request. Same `Proxy`-over-the-real-repo shape `route-async-guards.test.ts`'s own
- *  `withThrowingMethods` uses for a sibling class of problem (only `findById` is touched; every
+ *  `withThrowingMethods` uses for a sibling class of problem (only vault.list is touched; every
  *  other method keeps its real, working behavior). */
 function repoThatVanishesRowOnSecondRead(real: VendorCredentialSetRepoPort): VendorCredentialSetRepoPort {
-  let findByIdCalls = 0;
-  return new Proxy(real, {
+  assert.ok(real.vault);
+  let listCalls = 0;
+  const vault = new Proxy(real.vault, {
     get(target, prop, receiver) {
-      if (prop === "findById") {
-        return async (input: { workspaceId: string; id: string }) => {
-          findByIdCalls += 1;
-          return findByIdCalls === 1 ? target.findById(input) : null;
+      if (prop === "list") {
+        return async (input: Parameters<typeof target.list>[0]) => {
+          listCalls += 1;
+          return listCalls === 1 ? target.list(input) : [];
         };
       }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+  return new Proxy(real, {
+    get(target, prop, receiver) {
+      if (prop === "vault") return vault;
       return Reflect.get(target, prop, receiver);
     },
   });
@@ -781,13 +788,13 @@ test("publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct 
 /**
  * `verifyAfterSave`'s `return result ?? undefined;` (~line 224) -- only observably different on
  * `POST .../:id/verify`, and only when the row vanishes between the route's own existence check
- * (`describeCredential`) and `verifyPublishCredentialById`'s own concurrent repo reads (a real repo
+ * (`describeCredential`) and `verifyPublishCredentialById`'s own vault inventory (a real repo
  * race, not a local impossibility -- the reason this is KEPT and tested, not deleted).
  * `repoThatVanishesRowOnSecondRead` (above) models exactly that: the route's own `describeCredential`
- * call is the wrapped repo's first `findById` (delegates to the real store, finds the row) --
- * `verifyPublishCredentialById`'s `Promise.all([repo.findById(...), resolveForPublish(...)])` fires
- * two more concurrent `findById` calls, both landing on the wrapper's "second and later" branch and
- * both returning `null`, so `verifyPublishCredentialById` returns `null` before any network probe.
+ * call includes the wrapped vault's first vendor list (delegates to the real store, finds the row).
+ * The rollout custom list and `verifyPublishCredentialById`'s `resolveForPublish` inventory land on
+ * the wrapper's "second and later" branch and return no rows, so verification returns `null` before
+ * any network probe. The fixture follows the read model rather than the retired DTO lookup seam.
  *
  * The response's JSON body is the load-bearing assertion, not just the 200 status: `JSON.stringify`
  * DROPS a key whose value is `undefined` but KEEPS one whose value is `null`. With the guard intact
@@ -822,4 +829,27 @@ test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, for
   const body = (await verified.json()) as { verification?: unknown };
   assert.equal(body.verification, undefined);
   assert.equal(JSON.stringify(body).includes("verification"), false);
+});
+
+test("publish: worksFor round trips, omission preserves and metadata-only clear needs no key", async (t) => {
+  const deps = { ...createRouteDeps() };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  stubVerificationFetch(t, baseUrl);
+  const headers = { cookie, "content-type": "application/json" };
+  const path = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  const created = await fetch(path, { method: "POST", headers, body: JSON.stringify({ label: "Production access", worksFor: ["VERCEL", "vercel"], connection: { providerId: "vercel", token: "synthetic-works-for-key" } }) });
+  assert.equal(created.status, 201);
+  const saved = (await created.json()).credential;
+  assert.equal(saved.credentialType, "vendor");
+  assert.deepEqual(saved.worksFor, ["vercel"]);
+  const renamed = await fetch(`${path}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ label: "Renamed" }) });
+  assert.equal(renamed.status, 200);
+  assert.deepEqual((await renamed.json()).credential.worksFor, ["vercel"]);
+  // Metadata edits must retain the existing envelope even if no key can be acquired.
+  deps.siteAssistantSecretKeyring.activeKey = async () => { throw new Error("must not acquire key"); };
+  const cleared = await fetch(`${path}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ worksFor: [] }) });
+  assert.equal(cleared.status, 200);
+  assert.deepEqual((await cleared.json()).credential.worksFor, []);
+  const otherPath = path.replace("/system/publish/", "/system/custom/");
+  assert.equal((await fetch(`${otherPath}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ worksFor: ["netlify"] }) })).status, 404);
 });

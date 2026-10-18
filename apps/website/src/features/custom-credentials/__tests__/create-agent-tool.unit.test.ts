@@ -180,7 +180,7 @@ test("custom_credential_create has a catalog entry gated on the WRITE permission
   const schema = entry!.inputSchema as { required: unknown[]; additionalProperties: boolean; properties: Record<string, unknown> };
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual([...schema.required], ["kind"]);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target", "worksFor"]);
   assert.ok(!("token" in schema.properties));
   assert.ok(!("username" in schema.properties));
   assert.ok(!("connection" in schema.properties));
@@ -612,4 +612,18 @@ test("a secret-shaped submitted label is refused without echoing it in the outco
   assert.doesNotMatch(JSON.stringify(emitted), new RegExp(secretLabel));
   assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
   assert.equal(sealer.sealCalls, 0);
+});
+
+test("secure API card saves explicit works-for independent of its label", { timeout: 5000 }, async t => {
+  const { deps } = fakeRouteDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+  const { pending, exchangeId, ui } = await raiseForm(createTool, { label: "Production access", worksFor: ["vercel"] }, { signal: t.signal });
+  assert.match(ui.resource.text, /Works for/);
+  assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "Production access", baseUrl: "https://api.vercel.com", category: "hosting", worksFor: ["vercel"], token: "synthetic-card-token" } }, { toolId: TOOL_ID }), { ok: true });
+  const result = await pending as { created: boolean; credential: { worksFor: string[]; credentialType: string } };
+  assert.equal(result.created, true);
+  assert.deepEqual(result.credential.worksFor, ["vercel"]);
+  assert.equal(result.credential.credentialType, "custom");
+  assert.doesNotMatch(JSON.stringify(result), /synthetic-card-token/);
 });

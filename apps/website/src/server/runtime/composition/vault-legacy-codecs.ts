@@ -379,8 +379,18 @@ export function legacyVaultAad({ record, legacy }: { record: VaultRecord; legacy
         return legacy.aadVersion === 0 ? undefined : buildMediaProviderCredentialAad({ ...input, providerId: legacy.provider });
       }
       break;
+    case "secrets_vault_custom_v1":
+      if (record.kind === "vendor" && record.meta.credentialType === "custom" && record.ownerKey === "tovu" &&
+        record.provider === null && record.principalId === null && record.binding === null && legacy.provider === null &&
+        legacy.principalId === null && legacy.serverId === null && legacy.id === record.id && legacy.aadVersion === 1) {
+        // Pin the former vault encoding, not the active builder's future version.
+        return formatAad({ kind: "secrets-vault", version: "v1", parts: [JSON.stringify([
+          record.workspaceId, record.id, "custom", "tovu", null, null,
+        ])] });
+      }
+      break;
     case "custom_credential_sets":
-      if (record.kind === "custom" && legacy.aadVersion === 1) return buildCustomCredentialAad(input);
+      if ((record.kind === "custom" || (record.kind === "vendor" && record.meta.credentialType === "custom")) && legacy.aadVersion === 1) return buildCustomCredentialAad(input);
       break;
     case "publish_content_peers":
       if (record.kind === "publish-peer" && legacy.aadVersion === 1) return buildPublishContentPeerAad({ ...input, aadVersion: legacy.aadVersion });
@@ -445,7 +455,8 @@ export function normalizeLegacyVaultPayload(
   if (record.kind === "database-destination") return { payload: { connectionString: plaintext }, meta, provider };
   const payload = JSON.parse(plaintext) as VaultMeta;
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new VaultError({ code: "invalid-record" });
-  if (record.kind === "custom" && payload.username !== undefined) {
+  const isCustom = record.kind === "custom" || (record.kind === "vendor" && meta.credentialType === "custom");
+  if (isCustom && payload.username !== undefined) {
     // A saved column value wins. A NULL column never meant a clear: the legacy clear re-sealed
     // without the username, and the old read fell back to the sealed copy (`column ?? sealed`).
     // NULL + sealed username is an un-backfilled row, so the sealed login moves to metadata.
@@ -454,7 +465,7 @@ export function normalizeLegacyVaultPayload(
     }
     delete payload.username;
   }
-  let tokenField = policy.tokenField({ kind: record.kind, provider });
+  let tokenField = isCustom ? "token" : policy.tokenField({ kind: record.kind, provider });
   if (legacy.table === "publish_credential_sets") {
     const target = legacyTargetProvider({ record, legacy, policy });
     provider = target.provider;

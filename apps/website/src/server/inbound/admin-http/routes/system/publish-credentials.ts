@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import {
   createAccountLabelHealScheduler,
   createPublishCredential,
+  invalidatePublishCredentialCompatibility,
   deletePublishCredential,
   describeCredential,
   healAccountLabel,
@@ -264,12 +265,15 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
+      const registry = await deps.loadDeployTargets(deps.workspaceId);
       const credential = await createPublishCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         label: body.label,
         connection: body.connection,
         isDefault: body.isDefault,
+        worksFor: body.worksFor,
       });
+      invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       // Only when `connection` was actually supplied — matches `updatePublishCredential`'s own
       // "connection omitted => nothing changed to verify" reasoning below. `createPublishCredential`
       // always requires a connection, so this is always true here; kept as an explicit check (rather
@@ -285,13 +289,17 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
+      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const credential = await updatePublishCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         id: req.params.id,
         ...(body.label !== undefined ? { label: body.label } : {}),
         ...(body.connection !== undefined ? { connection: body.connection } : {}),
         ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
+        ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
       });
+      if (before && body.worksFor !== undefined) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
       // A label-only/isDefault-only rename verifies nothing new — the connection (and therefore
       // whatever a previous verification already found) is unchanged, so re-checking here would
       // just repeat the same network call for no new information.
@@ -329,7 +337,10 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // (not errors) for a missing row, matching this route's own documented 204-always contract.
       // A THROWN error here is a different case (e.g. the repo itself is unreachable) — not the
       // idempotent-missing-row path above, so it still needs a response, not a silent no-op.
+      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       await deletePublishCredential({ ...readDeps, transaction: deps.contentKernel }, { workspaceId: deps.workspaceId, id: req.params.id });
+      if (before) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
       res.status(204).end();
     } catch (err) {
       sendStoreError(res, err);

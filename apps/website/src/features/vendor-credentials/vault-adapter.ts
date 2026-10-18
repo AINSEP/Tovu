@@ -9,7 +9,8 @@ type Record = SourceControlCredentialSetRecord | VendorCredentialSetRecord;
 type Kind = "vendor" | "source-control";
 const registry = createTovuVaultKinds({ policy: {
   // Credential catalogs/connection shapes remain validated by the feature stores. This adapter
-  // registers their only plain metadata field with the common safe-field policy.
+  // registers their plain metadata with the common safe-field policy; subtype filtering
+  // keeps custom API keys outside vendor-only DTO assumptions.
   validateMeta: ({ meta }) => meta,
   legacyPublishCredential: () => undefined,
   tokenField: () => undefined,
@@ -31,11 +32,12 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
   }
   private record(row: VaultRecord | null, _options = {}): R | null {
     if (!row || row.kind !== this.kind || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null) return null;
-    const meta = registry.metaParsers[this.kind]({ meta: row.meta });
+    const meta = registry.metaParsers[this.kind]({ meta: row.meta, provider: row.provider });
+    if (this.kind === "vendor" && meta.credentialType !== "vendor") return null;
     if (!row.sealed || row.provider === null) throw new VaultError({ code: "invalid-record" });
     // Keep the hint out of sealed-row DTO enumeration; public store summaries opt in explicitly.
     const record = { workspaceId: row.workspaceId, id: row.id, label: row.label, sealed: row.sealed,
-      ...(this.vendor ? { vendorId: row.provider, tokenTail: row.tokenLength !== null && row.tokenLength >= 12 ? row.last4 ?? "" : "" } : { providerId: row.provider }),
+      ...(this.vendor ? { vendorId: row.provider, credentialType: "vendor", worksFor: meta.worksFor as string[], tokenTail: row.tokenLength !== null && row.tokenLength >= 12 ? row.last4 ?? "" : "" } : { providerId: row.provider }),
       isDefault: row.isDefault, accountLabel: meta.accountLabel ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt } as R;
     Object.defineProperty(record, "tokenHint", { value: credentialHint({ record: row }), enumerable: false });
     return record;
@@ -48,10 +50,10 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
     return this.record(await this.vault.findDefault({ ...this.scope(input), provider: input.providerId }));
   }
   async listByProvider(input: { workspaceId: string; providerId: string }, _options = {}): Promise<R[]> {
-    return (await this.vault.list(this.scope({ ...input, provider: input.providerId }))).map(row => this.record(row)!);
+    return (await this.vault.list(this.scope({ ...input, provider: input.providerId }))).flatMap(row => { const record = this.record(row); return record ? [record] : []; });
   }
   async listByWorkspace(input: { workspaceId: string }, _options = {}): Promise<R[]> {
-    return (await this.vault.list(this.scope(input))).map(row => this.record(row)!);
+    return (await this.vault.list(this.scope(input))).flatMap(row => { const record = this.record(row); return record ? [record] : []; });
   }
   /** Compatibility for callers holding sealed DTOs; the Jini repo owns defaults and CAS. */
   async insert(record: R, _options = {}): Promise<void> { await this.write({ record, expectedRevision: null }); }
@@ -63,7 +65,7 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
   private async write({ record, expectedRevision, existing }: { record: R; expectedRevision: number | null; existing?: VaultRecord }, _options = {}): Promise<void> {
     await this.vault.put({ expectedRevision, record: { ...this.scope(record), id: record.id,
       provider: "vendorId" in record ? record.vendorId : record.providerId, label: record.label, sealed: record.sealed,
-      meta: registry.metaParsers[this.kind]({ meta: { ...existing?.meta, accountLabel: record.accountLabel } }),
+      meta: registry.metaParsers[this.kind]({ meta: { ...existing?.meta, ...(this.kind === "vendor" ? { credentialType: "vendor", worksFor: ("worksFor" in record ? record.worksFor : undefined) ?? existing?.meta.worksFor ?? ["vendorId" in record ? record.vendorId : record.providerId] } : {}), accountLabel: record.accountLabel } }),
       last4: existing?.sealed?.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce ? existing.last4 : null,
       tokenLength: existing?.sealed?.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce ? existing.tokenLength : null,
       isDefault: record.isDefault, revision: (expectedRevision ?? 0) + 1, createdAt: record.createdAt, updatedAt: record.updatedAt } });
@@ -79,7 +81,7 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
     if (!row || !this.record(row)) return;
     if (input.expectedSealed && ["keyId", "ciphertext", "nonce", "alg"].some(key =>
       row.sealed![key as keyof SealedSecret] !== input.expectedSealed![key as keyof SealedSecret])) return;
-    const meta = registry.metaParsers[this.kind]({ meta: { ...row.meta, accountLabel: input.accountLabel } });
+    const meta = registry.metaParsers[this.kind]({ meta: { ...row.meta, accountLabel: input.accountLabel }, provider: row.provider });
     try {
       await this.vault.patchMeta({ ...input, expectedRevision: row.revision, patch: { accountLabel: meta.accountLabel! }, updatedAt: row.updatedAt });
     } catch (error) {
@@ -90,7 +92,7 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
 }
 
 /** Host-bound service: feature routes own permission checks; this policy limits their vault
- * access to Tovu's two credential kinds. Encryption failures retain each store's typed error. */
+ * access to Tovu's credential kinds, including unmigrated custom rows. Encryption failures retain each store's typed error. */
 export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sealer: SecretSealerPort;
   keyring?: KeyringPort; clock?: Clock; idGen?: { newId(): string }; storageError: () => Error }, _options = {}): SecretsVaultService {
   if (!required.repo.vault) throw new VaultError({ code: "invalid-record" });
@@ -99,7 +101,7 @@ export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sea
   };
   return new SecretsVaultService({ repo: required.repo.vault, metaParsers: registry.metaParsers,
     authorize: async ({ context }) => {
-      if (!["vendor", "source-control"].includes(context.kind) || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
+      if (!["vendor", "custom", "source-control"].includes(context.kind) || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
     },
     keyring: { activeKey: () => protect(() => {
       if (!required.keyring) throw required.storageError();
@@ -111,7 +113,7 @@ export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sea
   });
 }
 
-export function credentialScope({ workspaceId, kind, id }: { workspaceId: string; kind: Kind; id?: string }, _options = {}) {
+export function credentialScope({ workspaceId, kind, id }: { workspaceId: string; kind: Kind | "custom"; id?: string }, _options = {}) {
   return { workspaceId, kind, ownerKey: "tovu", principalId: null, binding: null, ...(id === undefined ? {} : { id }) };
 }
 /** Safe read-model hints require no open and never hydrate summaries one credential at a time. */

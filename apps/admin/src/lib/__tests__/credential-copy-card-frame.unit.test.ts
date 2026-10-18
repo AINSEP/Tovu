@@ -21,7 +21,7 @@ it.each([false, true])("copy forms and outcomes grow from content rather than re
     localCredentialCopy: {
       localHost: true,
       list: async () => [{ siteId: "source", name: "plannie", ...(needsUpgrade ? { reasonCode: "source-needs-upgrade" } : {}),
-        keys: [{ kind: "vendor", id: "one", label: "OpenAI", provider: "openai" }] }],
+        keys: [{ kind: "vendor", id: "one", label: "OpenAI", provider: "openai", worksFor: [] }] }],
       copy: async () => [{ kind: "vendor", id: "one", status: "copied" }],
     },
   };

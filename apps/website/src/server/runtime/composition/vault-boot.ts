@@ -102,7 +102,7 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
   let meta: VaultMeta;
   try {
     normalized = normalizeLegacyVaultPayload({ record, legacy, plaintext, policy: input.registry.policy });
-    meta = input.registry.metaParsers[record.kind]({ meta: normalized.meta });
+    meta = input.registry.metaParsers[record.kind]({ meta: normalized.meta, provider: normalized.provider });
     assertCredentialFreeField({ value: record.label, field: "label" });
   } catch (error) {
     throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
@@ -178,7 +178,9 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
     const report = await input.kernel.transaction(async () => {
       await input.kernel.lockKey(`secrets_vault:${input.workspaceId}`);
       const repo = new SqlSecretsVaultRepo({ kernel: input.kernel as StorageKernel<SecretsVaultDatabase> });
-      const report: VaultBootReport = { green: false, flagged: [], kinds: Object.fromEntries(VAULT_KINDS.map(kind => [kind,
+      // Unopened sites retain the old kind until 0013 is activated for their database. Count it
+      // without changing authenticated identity; only an explicit legacyAad marker requests resealing.
+      const report: VaultBootReport = { green: false, flagged: [], kinds: Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind,
         { rows: 0, envelopes: 0, attempted: 0, succeeded: 0, dropped: 0, blocked: 0, legacyRemaining: 0, unopenable: 0 }])) as VaultBootReport["kinds"] };
       const identities = await input.kernel.query<{ id: string }>(sql`SELECT id FROM secrets_vault WHERE workspace_id=${input.workspaceId} ORDER BY id`);
       for (const { id } of identities) {
@@ -200,7 +202,7 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
           } else {
             // Ordinary feature reads have no legacy fallback; readiness proves that exact path.
             const { normalization: _flag, ...meta } = record.meta;
-            try { input.registry.metaParsers[record.kind]({ meta }); } catch { throw new RowBlocked("invalid-meta"); }
+            try { input.registry.metaParsers[record.kind]({ meta, provider: record.provider }); } catch { throw new RowBlocked("invalid-meta"); }
             if (record.sealed) {
               try { await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
               try {

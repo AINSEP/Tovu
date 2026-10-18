@@ -31,6 +31,7 @@ function makeAccessTokens(groups: readonly AccessTokenProviderGroupState[] | und
     setCategory: () => {},
     totalCount: 0,
     matchCount: 0,
+    worksForOptions: [],
     setExistingField: () => {},
     replaceToken: async () => {},
     removeToken: async () => {},
@@ -39,7 +40,7 @@ function makeAccessTokens(groups: readonly AccessTokenProviderGroupState[] | und
     closeAddForm: () => {},
     setAddField: () => {},
     createToken: async () => {},
-    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null },
+    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null },
     setCustomAddField: () => {},
     resetCustomAddForm: () => {},
     createCustomCredential: async () => false,
@@ -75,10 +76,10 @@ function row(overrides: Partial<AccessTokenRow> = {}): AccessTokenRow {
 }
 
 function rowState(overrides: Partial<AccessTokenExistingRowState> = {}): AccessTokenExistingRowState {
-  return { row: row(), name: "Production", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null, ...overrides };
+  return { row: row(), name: "Production", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null, ...overrides };
 }
 
-const BLANK_ADD_FORM: AccessTokenAddFormState = { visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null };
+const BLANK_ADD_FORM: AccessTokenAddFormState = { visible: false, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null };
 
 /** One Tier-1 provider group — `rows` empty means "Not connected". */
 function providerGroup(kind: AccessTokenKind, providerId: string, rows: AccessTokenExistingRowState[] = []): AccessTokenProviderGroupState {

@@ -28,7 +28,7 @@ export const credentialSaveCatalog: AgentToolDefinition[] = [{
   description: 'Save, add, connect or rotate a credential through a secure human form. The person types the API key, token or password in a masked card; it is sealed server-side and never enters chat or model input. This one call waits for submit, cancel, expiry or abandonment. ' +
     'Choose kind: api for any third-party API, Stripe, Mailchimp, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for GitHub/GitLab repository commit and backup tokens; publish-host for static site hosting or S3 storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in. ' +
     'Examples: create an API credential with {kind:"api",label:"Stripe",baseUrl:"https://api.stripe.com",category:"general"}; rotate a saved API token with {kind:"api",target:"github"} (target is the exact saved label, username is preserved); save an image generation key with {kind:"media-provider",target:"openai"}; connect repository backups with {kind:"source-control",target:"github",label:"default"}; save a hosting connection with {kind:"publish-host",target:"s3",prefill:{bucket:"my-site",region:"us-east-1"}}; use a plugin token with {kind:"agent-plugin-token",target:"supabase"}. ' +
-    'Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. API creation accepts optional label/baseUrl/category prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. ' +
+    'Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. API creation accepts optional label/baseUrl/category/worksFor prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. ' +
     'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write. Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. After success retry the original request once.',
   sideEffects: 'mutates-durable-state',
   authorization: { permission: 'resolved-per-kind' },
@@ -39,6 +39,7 @@ export const credentialSaveCatalog: AgentToolDefinition[] = [{
       target: { type: 'string', minLength: 1, description: 'Existing API credential label to rotate, media/source-control/publish provider id, or installed plugin id.' },
       label: { type: 'string', description: 'Optional new API or source-control credential label; never a secret.' },
       baseUrl: { type: 'string', description: 'API creation only: non-secret base URL prefill.' },
+      worksFor: { type: "array", items: { type: "string" }, description: "API creation only: explicit host or vendor IDs to preselect in the secure form." },
       category: { type: 'string', enum: [...CUSTOM_CREDENTIAL_CATEGORIES], description: 'API creation only: category prefill.' },
       reason: { type: 'string', maxLength: 1000, description: 'Media only: non-secret reason shown on the form.' },
       prefill: { type: 'object', additionalProperties: { type: 'string' }, description: 'Publish only: provider-declared non-secret credential fields. Never tokens, keys or passwords.' },
@@ -60,7 +61,7 @@ function selectSave({ input, adapters }: { input: Record<string, unknown>; adapt
   const selectedKind = kind as CredentialKind;
   const { kind: _kind, ...metadata } = input;
   const fields: Record<CredentialKind, readonly string[]> = {
-    api: ['target', 'label', 'baseUrl', 'category'],
+    api: ['target', 'label', 'baseUrl', 'category', 'worksFor'],
     'media-provider': ['target', 'reason'],
     'source-control': ['target', 'label'],
     'publish-host': ['target', 'prefill'],

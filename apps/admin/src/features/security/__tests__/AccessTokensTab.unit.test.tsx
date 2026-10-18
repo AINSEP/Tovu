@@ -48,6 +48,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     setCategory: () => {},
     totalCount: 0,
     matchCount: 0,
+    worksForOptions: [],
     setExistingField: () => {},
     replaceToken: async () => {},
     removeToken: async () => {},
@@ -56,7 +57,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     closeAddForm: () => {},
     setAddField: () => {},
     createToken: async () => {},
-    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null },
+    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null },
     setCustomAddField: () => {},
     resetCustomAddForm: () => {},
     createCustomCredential: async () => false,
@@ -81,6 +82,33 @@ function makeOtherCredentials(overrides: Partial<OtherCredentialsController> = {
 }
 
 describe("AccessTokensTab search box", () => {
+  it("saves and clears Works for with the token and required account fields left blank", async () => {
+    const user = userEvent.setup();
+    let saved: AdminPublishCredentialSummary = {
+      credentialType: "vendor", worksFor: ["plugin-off"],
+      id: "cf-works-for", providerId: "cloudflare-pages", label: "Production", configured: true,
+      isDefault: true, accountLabel: null, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
+    };
+    const update = vi.fn<AccessTokensPort["publish"]["update"]>(async (_id, input) => {
+      saved = { ...saved, worksFor: input.worksFor ?? saved.worksFor };
+      return saved;
+    });
+    const port = createFakeAccessTokensPort({
+      publishTargets: { list: async () => [CLOUDFLARE_PAGES_TARGET] },
+      publish: { list: async () => ({ credentials: [saved], executionMode: "self-hosted-cli" }), update },
+    });
+    render(<AccessTokensTab useAccessTokensHook={() => useAccessTokens(port, key => key, "en")} useOtherCredentialsHook={() => makeOtherCredentials()} />);
+    await user.click(await screen.findByText("Replace token", { exact: true }));
+    await user.click(screen.getByRole("button", { name: "plugin-off", pressed: true }));
+    await user.click(screen.getByRole("button", { name: "Save — Production" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith("cf-works-for", { worksFor: [] }));
+    expect(screen.getByLabelText("API token", { exact: true })).toHaveValue("");
+    expect(screen.getByLabelText("Account ID", { exact: true })).toHaveValue("");
+    await user.click(screen.getByRole("button", { name: "Cloudflare Pages", pressed: false }));
+    await user.click(screen.getByRole("button", { name: "Save — Production" }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("cf-works-for", { worksFor: ["cloudflare-pages"] }));
+  });
+
   it("renders the autocomplete=off attribute guard on the search field", () => {
     render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens()} useOtherCredentialsHook={() => makeOtherCredentials()} />);
 
@@ -100,7 +128,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
         groups: [{
           info,
           rows: [],
-          addForm: { visible: true, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null },
+          addForm: { visible: true, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null },
         }],
       })}
       useOtherCredentialsHook={() => makeOtherCredentials()}
@@ -115,6 +143,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
   it("clears the mounted Account ID input after saving a replacement token", async () => {
     const user = userEvent.setup();
     const saved: AdminPublishCredentialSummary = {
+    credentialType: "vendor", worksFor: [],
       id: "cf-1",
       providerId: "cloudflare-pages",
       label: "Production",

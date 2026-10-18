@@ -4,12 +4,11 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "../../../platform/db/kernel/dialect.js";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
-import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/vault-adapter.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import type { DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishConnectionInput, PublishCredentialSummary, PublishProviderId } from "./types.js";
-import { listCustomPublishCredentials, resolveCustomPublishCredential } from "./custom-tokens.js";
 
 /** Publish credentials map deploy hosts to vendor accounts. Feature validation and human-gated
  * verification remain here; Jini's vault owns sealing, defaults and persistence. Create/update
@@ -31,91 +30,111 @@ export class PublishCredentialSecretStoreUnconfiguredError extends Error {}
 
 export class PublishCredentialNotFoundError extends Error {}
 
-/**
- * Vendor -> the host its rows are shown and resolved under: the first host in registry order that
- * declares that vendor. A vendor no host declares (a source-control-only vendor) is absent, so its
- * rows are not publish credentials.
- *
- * @complexity O(t) targets.
+/** Deploy descriptors adapt into Jini's compatibility and selection policy. Required companion
+ * fields exclude token-only custom keys before any default is selected. No I/O; O(hosts).
  */
-function hostsByVendor(registry: DeployTargetRegistry): Map<string, PublishProviderId> {
-  const hosts = new Map<string, PublishProviderId>();
-  for (const { descriptor } of registry.list()) {
-    if (descriptor.credential !== undefined && !hosts.has(descriptor.credential.vendorId)) hosts.set(descriptor.credential.vendorId, descriptor.id);
-  }
-  return hosts;
+export function publishHostsForCredential({ credential, registry }: {
+  credential: Pick<VaultSummary, "kind" | "provider" | "label" | "meta">; registry: DeployTargetRegistry;
+}, _options = {}): string[] {
+  return matchingCredentialProviderIds({ credential, providers: registry.list().flatMap(({ descriptor }) => {
+    const spec = descriptor.credential;
+    return spec ? [{ id: descriptor.id, vendorId: spec.vendorId,
+      acceptsCustomToken: !spec.fields.some(field => field.required && field.name !== spec.tokenField) }] : [];
+  }) });
+}
+/** Compatibility edits invalidate only hosts whose eligibility changed, through the existing cache
+ * port. Catalog adaptation and custom token shape rules are shared with runtime matching.
+ * @complexity O(hosts × compatibility IDs); no credential reads, opens or provider requests.
+ */
+export function invalidatePublishCredentialCompatibility({ workspaceId, registry, cache, before, after }: {
+  workspaceId: string; registry: DeployTargetRegistry;
+  cache: { delete(input: { workspaceId: string; target: string }): void };
+  before?: { credentialType: "vendor" | "custom"; worksFor: string[] };
+  after?: { credentialType: "vendor" | "custom"; worksFor: string[] };
+}, _options = {}): void {
+  const hosts = (value: typeof before) => value ? publishHostsForCredential({ registry,
+    credential: { kind: "vendor", provider: null, label: "", meta: { credentialType: value.credentialType, worksFor: value.worksFor } } }) : [];
+  const previous = new Set(hosts(before));
+  const next = new Set(hosts(after));
+  for (const target of new Set([...previous, ...next])) if (previous.has(target) !== next.has(target)) cache.delete({ workspaceId, target });
 }
 
-async function toSummary(record: VendorCredentialSetRecord, providerId: PublishProviderId, _deps: PublishCredentialReadDeps): Promise<PublishCredentialSummary> {
-  const tokenHint = record.tokenHint ?? null;
-  return { id: record.id, providerId, vendorId: record.vendorId, label: record.label, configured: true,
-    isDefault: record.isDefault, tokenTail: tokenHint?.last4 ?? "", tokenHint, accountLabel: record.accountLabel,
-    createdAt: record.createdAt, updatedAt: record.updatedAt };
+function providerContract({ registry, providerId }: { registry: DeployTargetRegistry; providerId: string }, _options = {}) {
+  const spec = registry.get(providerId)?.descriptor.credential;
+  return spec ? { id: providerId, vendorId: spec.vendorId,
+    acceptsCustomToken: !spec.fields.some(field => field.required && field.name !== spec.tokenField) } : null;
 }
-function vaultSummary({ summary, providerId }: { summary: VaultSummary; providerId: PublishProviderId }, _options = {}): PublishCredentialSummary {
+function vaultSummary({ summary, providerId, publishHosts = [], defaultFor = [] }: {
+  summary: VaultSummary; providerId: PublishProviderId; publishHosts?: string[]; defaultFor?: string[];
+}, _options = {}): PublishCredentialSummary {
   const tokenHint = credentialHint({ record: summary });
-  return { id: summary.id, providerId, vendorId: summary.provider!, label: summary.label, configured: true,
-    isDefault: summary.isDefault, tokenTail: tokenHint?.last4 ?? "", tokenHint, accountLabel: summary.meta.accountLabel as string | null,
+  return { id: summary.id, providerId, vendorId: summary.provider ?? providerId, label: summary.label, configured: true,
+    credentialType: summary.meta.credentialType as "vendor" | "custom", worksFor: [...summary.meta.worksFor as string[]],
+    publishHosts, defaultFor, isDefault: defaultFor.includes(providerId), tokenTail: tokenHint?.last4 ?? "", tokenHint,
+    accountLabel: typeof summary.meta.accountLabel === "string" ? summary.meta.accountLabel : null,
     createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
 function vault(deps: PublishCredentialReadDeps & Partial<PublishCredentialWriteDeps>, _options = {}) {
   return credentialVault({ ...deps, sealer: deps.sealer!, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
-
 export interface PublishCredentialReadDeps {
   repo: VendorCredentialSetRepoPort;
   sealer?: SecretSealerPort;
-  /** This workspace's deploy registry: which vendor each host's credential belongs to. */
   loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
 
-/**
- * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured site key. Returns `null` if no row exists for `(workspaceId, id)`, or the row's
- * vendor is no deploy host's (not an error — the caller decides whether that is a 404).
- * Matching custom tokens use the same metadata-only read model for per-ID verification.
- *
- * @complexity O(1) for vendor rows; O(custom keys × hosts) for custom fallback.
+/** One authorized, metadata-only inventory for both subtypes. No secret is opened, and an injected
+ * port cannot widen the workspace/owner/binding. Jini parses every canonical row before matching.
+ * @complexity O(rows + metadata); two scoped reads during rollout, no per-row queries.
  */
-export async function describeCredential(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<PublishCredentialSummary | null> {
-  const record = await deps.repo.findById(input);
-  if (!record) return (await listCustomPublishCredentials({ deps, workspaceId: input.workspaceId,
-    registry: await deps.loadDeployTargets(input.workspaceId) })).find(row => row.id === input.id) ?? null;
-  const providerId = hostsByVendor(await deps.loadDeployTargets(input.workspaceId)).get(record.vendorId);
-  return providerId === undefined ? null : toSummary(record, providerId, deps);
+async function inventory({ deps, workspaceId }: { deps: PublishCredentialReadDeps; workspaceId: string }, _options = {}): Promise<VaultSummary[]> {
+  const service = vault(deps);
+  const unified = await service.list(credentialScope({ workspaceId, kind: "vendor" }));
+  const legacy = await service.list(credentialScope({ workspaceId, kind: "custom" }));
+  return [...unified, ...legacy]
+    .filter(row => row.workspaceId === workspaceId && (row.kind === "vendor" || row.kind === "custom") && row.ownerKey === "tovu" &&
+      row.principalId === null && row.binding === null && row.configured);
 }
 
-/**
- * The read model for saved vendor connections. Capability discovery can opt into custom token
- * candidates; their edit/delete lifecycle stays on the existing custom-key card. Same "never decrypts" contract as
- * {@link describeCredential}.
- *
- * @complexity O(n + t), or O(n × t) when including custom token candidates.
+/** Safe publish inventory; empty compatibility stays editable on vendor cards. Display host
+ * fallback is used only for editing, never for runtime eligibility. Defaults are selected per host.
+ * @complexity O(rows × hosts), one metadata inventory and one catalog load.
  */
-export async function listPublishCredentials(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; includeCustomTokens?: boolean }): Promise<PublishCredentialSummary[]> {
+export async function listPublishCredentials(deps: PublishCredentialReadDeps, input: { workspaceId: UUID }): Promise<PublishCredentialSummary[]> {
   const registry = await deps.loadDeployTargets(input.workspaceId);
-  const hosts = hostsByVendor(registry);
-  const records = await deps.repo.listByWorkspace(input);
-  const vendor = await Promise.all(records.flatMap(record => {
-    const providerId = hosts.get(record.vendorId);
-    return providerId === undefined ? [] : [toSummary(record, providerId, deps)];
-  }));
-  return input.includeCustomTokens
-    ? [...vendor, ...await listCustomPublishCredentials({ deps, workspaceId: input.workspaceId, registry })] : vendor;
+  const rows = await inventory({ deps, workspaceId: input.workspaceId });
+  const defaults = new Map<string, string>();
+  for (const { descriptor } of registry.list()) {
+    const provider = providerContract({ registry, providerId: descriptor.id });
+    const selected = provider && selectCredentialForProvider({ credentials: rows, provider });
+    if (selected) defaults.set(descriptor.id, selected.id);
+  }
+  return rows.flatMap(row => {
+    const publishHosts = publishHostsForCredential({ credential: row, registry });
+    const providerId = publishHosts[0] ?? (row.meta.credentialType === "vendor"
+      ? registry.list().find(target => target.descriptor.credential?.vendorId === row.provider)?.descriptor.id : undefined);
+    if (providerId === undefined) return [];
+    const defaultFor = [...defaults].filter(([, id]) => id === row.id).map(([host]) => host);
+    const summary = vaultSummary({ summary: row, providerId, publishHosts, defaultFor });
+    return [{ ...summary, vendorId: row.provider ?? registry.get(providerId)!.descriptor.credential!.vendorId }];
+  });
 }
 
-/**
- * Whether `providerId` has a vendor default or one unambiguous matching custom token. Never decrypts — what a readiness
- * check (`isConfigured`) reads.
- *
- * @complexity O(1) for vendor defaults; O(custom keys × hosts) for custom fallback.
- */
+/** Metadata-only ID projection; custom keys keep their existing custom edit/permission boundary. */
+export async function describeCredential(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<PublishCredentialSummary | null> {
+  return (await listPublishCredentials(deps, input)).find(row => row.id === input.id) ?? null;
+}
+
+/** Configuration requires a compatible selected candidate, not merely a provider-group default. */
 export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<boolean> {
-  const spec = (await deps.loadDeployTargets(input.workspaceId)).get(input.providerId)?.descriptor.credential;
-  if (spec === undefined) return false;
-  if (await deps.repo.findDefaultByVendor({ workspaceId: input.workspaceId, vendorId: spec.vendorId })) return true;
-  return (await listCustomPublishCredentials({ deps, workspaceId: input.workspaceId,
-    registry: await deps.loadDeployTargets(input.workspaceId), providerId: input.providerId })).some(row => row.isDefault);
+  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const provider = providerContract({ registry, providerId: input.providerId });
+  return provider !== null && selectCredentialForProvider({ credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider }) !== null;
+}
+
+function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
+  try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) assertPlainField({ value: id, field: "worksFor" }); return ids; }
+  catch (error) { if (error instanceof VaultError) throw new PublishCredentialValidationError("worksFor must be an array of provider IDs"); throw error; }
 }
 
 export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
@@ -243,6 +262,7 @@ export interface CreatePublishCredentialInput {
    *  `VendorCredentialSetRepoPort`'s own header). Omitted/`false` still auto-defaults if this turns
    *  out to be the vendor's FIRST saved connection; Jini owns atomic auto-defaulting. */
   isDefault?: unknown;
+  worksFor?: unknown;
 }
 
 /** Label conflicts keep the feature's error contract; stale CAS failures stay conflicts. */
@@ -265,10 +285,10 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   const { providerId, ...fields } = validated.connection;
   const summary = await saveConnection({ deps, providerId, input: {
     ...credentialScope({ workspaceId: input.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
-    provider: validated.spec.vendorId, label, meta: { accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
+    provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], isDefault,
   } });
-  return vaultSummary({ summary, providerId });
+  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
 }
 
 export interface UpdatePublishCredentialInput {
@@ -287,6 +307,7 @@ export interface UpdatePublishCredentialInput {
    *  `createPublishCredential`/another `updatePublishCredential` call with `isDefault: true` to
    *  promote a different row instead. */
   isDefault?: unknown;
+  worksFor?: unknown;
 }
 
 /** Preserve only a provider change between compatible token-only contracts. Companion-field
@@ -328,7 +349,7 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const existing = await deps.repo.findById(input);
   const registry = await deps.loadDeployTargets(input.workspaceId);
-  const host = existing ? hostsByVendor(registry).get(existing.vendorId) : undefined;
+  const host = existing ? registry.list().find(target => target.descriptor.credential?.vendorId === existing.vendorId)?.descriptor.id : undefined;
   if (!existing || host === undefined) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
@@ -339,19 +360,19 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     const validated = await updatedConnection({ deps, input, existing, registry, host });
     const { providerId, ...fields } = validated.connection;
     const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
-      expectedRevision: row.revision, provider: validated.spec.vendorId, label, meta: { ...row.meta, accountLabel: null },
+      expectedRevision: row.revision, provider: validated.spec.vendorId, label, meta: { ...row.meta, worksFor: input.worksFor === undefined ? row.meta.worksFor : validatedWorksFor({ value: input.worksFor }), accountLabel: null },
       payload: { vendorId: validated.spec.vendorId, ...fields }, hintToken: fields[validated.spec.tokenField],
       ...(requestedDefault === true ? { isDefault: true } : {}) } });
-    return vaultSummary({ summary, providerId });
+    return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
   }
   // Payload omission preserves ciphertext/hints; the vault atomically promotes/selects defaults.
   const providerId = move?.providerId ?? host;
   const provider = move?.spec.vendorId ?? existing.vendorId;
   const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
     expectedRevision: row.revision, provider, label,
-    meta: { ...row.meta, accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null },
+    meta: { ...row.meta, worksFor: input.worksFor === undefined ? row.meta.worksFor : validatedWorksFor({ value: input.worksFor }), accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
-  return vaultSummary({ summary, providerId });
+  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
 }
 
 /** Legacy rows were folded by 0012. Delete only the vault row; reboot has no source to recopy. */
@@ -377,66 +398,46 @@ export interface PublishCredentialResolveDeps extends PublishCredentialReadDeps 
   sealer: SecretSealerPort;
 }
 
-/**
- * The ONLY decrypting read by id — see this file's header. Resolves a credential set's full
- * `PublishConnectionInput` (labelled with the host its vendor is shown under), ready for a real
- * publish call. Distinguishes "no such publish credential" (`null`, a normal outcome — a
- * caller-supplied id that does not exist, or a row whose vendor no deploy host declares) from a
- * genuine decrypt failure (thrown — a publish credential resolves for a human-triggered write with
- * real external effect, so a decrypt failure must surface, not degrade).
- *
- * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed.
- * @complexity O(1) for vendor rows; O(custom keys × hosts) for custom fallback, one decrypt.
+/** Resolve exactly one compatible row. Recheck metadata from the same read as its payload so
+ * concurrent compatibility edits cannot pair an ineligible secret with an old selection.
+ * @throws PublishCredentialSecretStoreUnconfiguredError on crypto or payload failure.
+ * @complexity O(rows × hosts + payload), one metadata inventory and one selected open.
  */
-export async function resolveForPublish(
-  deps: PublishCredentialResolveDeps,
-  input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId }
+export async function resolveForPublish(deps: PublishCredentialResolveDeps,
+  input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId },
 ): Promise<{ providerId: PublishProviderId; vendorId: string; label: string; isDefault: boolean; connection: PublishConnectionInput } | null> {
-  const record = await deps.repo.findById(input);
-  if (!record) {
-    const summary = (await listCustomPublishCredentials({ deps, workspaceId: input.workspaceId,
-      registry: await deps.loadDeployTargets(input.workspaceId), providerId: input.providerId })).find(row => row.id === input.id);
-    if (!summary) return null;
-    const connection = await resolveCustomPublishCredential({ deps, workspaceId: input.workspaceId, summary,
-      storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
-    return connection ? { providerId: summary.providerId, vendorId: summary.vendorId, label: summary.label,
-      isDefault: summary.isDefault, connection } : null;
-  }
-  const providerId = hostsByVendor(await deps.loadDeployTargets(input.workspaceId)).get(record.vendorId);
-  if (providerId === undefined) return null;
-  const connection = await decryptRecord(deps, record, providerId);
-  return { providerId, vendorId: record.vendorId, label: record.label, isDefault: record.isDefault, connection };
+  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const rows = await inventory({ deps, workspaceId: input.workspaceId });
+  const candidate = rows.find(row => row.id === input.id);
+  const providerId = input.providerId ?? (candidate && publishHostsForCredential({ credential: candidate, registry })[0]);
+  if (!candidate || !providerId) return null;
+  const provider = providerContract({ registry, providerId });
+  if (!provider || !selectCredentialForProvider({ credentials: rows, provider, id: input.id })) return null;
+  try {
+    const resolved = await vault(deps).get({ ...credentialScope({ workspaceId: input.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id });
+    if (!resolved || !selectCredentialForProvider({ credentials: [resolved.summary], provider, id: input.id })) return null;
+    if (!resolved.payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+    const spec = registry.get(providerId)!.descriptor.credential!;
+    const { vendorId: _vendorId, ...fields } = resolved.payload as Record<string, string>;
+    const connection = resolved.summary.meta.credentialType === "custom"
+      ? { providerId, [spec.tokenField]: fields.token! } : { ...fields, providerId };
+    if (typeof connection[spec.tokenField] !== "string" || !connection[spec.tokenField]!.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+    return { providerId, vendorId: provider.vendorId, label: resolved.summary.label,
+      isDefault: selectCredentialForProvider({ credentials: rows, provider })?.id === input.id, connection };
+  } catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }
 
-/**
- * Contract v2 Correction B — the host-scoped sibling of {@link resolveForPublish}: resolves the
- * DEFAULT credential set of `providerId`'s vendor instead of a caller-supplied `id`. This is what a
- * real publish attempt actually has (a target host, never a specific saved connection's id). `null`
- * — "not configured" — when the host takes no saved credential or its vendor has no default.
- *
- * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed.
- * @complexity O(1) for vendor defaults; O(custom keys × hosts) for custom fallback, one decrypt.
- */
-export async function resolveDefaultForPublish(
-  deps: PublishCredentialResolveDeps,
-  input: { workspaceId: UUID; providerId: PublishProviderId }
+/** The same selection policy serves implicit publishing, readiness and explicit-ID resolution. */
+export async function resolveDefaultForPublish(deps: PublishCredentialResolveDeps,
+  input: { workspaceId: UUID; providerId: PublishProviderId },
 ): Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null> {
-  const spec = (await deps.loadDeployTargets(input.workspaceId)).get(input.providerId)?.descriptor.credential;
-  if (spec === undefined) return null;
-  try {
-    const resolved = await vault(deps).findDefault({ ...credentialScope({ workspaceId: input.workspaceId, kind: "vendor" }), provider: spec.vendorId });
-    if (!resolved) {
-      const summary = (await listCustomPublishCredentials({ deps, workspaceId: input.workspaceId,
-        registry: await deps.loadDeployTargets(input.workspaceId), providerId: input.providerId })).find(row => row.isDefault);
-      if (!summary) return null;
-      const connection = await resolveCustomPublishCredential({ deps, workspaceId: input.workspaceId, summary,
-        storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
-      return connection ? { id: summary.id, label: summary.label, connection: { ...connection, providerId: input.providerId } } : null;
-    }
-    if (!resolved.payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-    const { vendorId: _vendorId, ...fields } = resolved.payload as Record<string, string>;
-    return { id: resolved.summary.id, label: resolved.summary.label, connection: { ...fields, providerId: input.providerId } };
-  } catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
+  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const provider = providerContract({ registry, providerId: input.providerId });
+  if (!provider) return null;
+  const selected = selectCredentialForProvider({ credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider });
+  if (!selected) return null;
+  const resolved = await resolveForPublish(deps, { ...input, id: selected.id });
+  return resolved ? { id: selected.id, label: resolved.label, connection: resolved.connection } : null;
 }
 
 /**

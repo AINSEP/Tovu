@@ -160,6 +160,7 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "fly.io",
+    worksFor: ["vercel"],
     category: "ops",
     baseUrl: "https://api.fly.io",
     additionalHosts: ["https://api.machines.dev"],
@@ -182,6 +183,8 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
     [
       {
         id: "cred-1",
+        credentialType: "custom",
+        worksFor: ["vercel"],
         label: "fly.io",
         category: "ops",
         baseUrl: "https://api.fly.io",
@@ -193,6 +196,8 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
       },
       {
         id: "cred-2",
+        credentialType: "custom",
+        worksFor: [],
         label: "name.com",
         category: "hosting",
         baseUrl: "https://api.name.com",
@@ -234,6 +239,7 @@ test("never exposes the secret value: neither field name nor its plaintext value
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "fly.io",
+    worksFor: ["vercel"],
     category: "ops",
     baseUrl: "https://api.fly.io",
     connection: { token: "super-secret-flyio-token-do-not-leak", username: "leona" },
@@ -260,6 +266,7 @@ test("reports a saved username without ever opening the sealer", async () => {
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "fly.io",
+    worksFor: ["vercel"],
     category: "ops",
     baseUrl: "https://api.fly.io",
     connection: { token: "flyio-secret-token", username: "leona@example.com" },
@@ -300,6 +307,7 @@ test("a denied principal is refused and the repo is never read", async (t) => {
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "fly.io",
+    worksFor: ["vercel"],
     category: "ops",
     baseUrl: "https://api.fly.io",
     connection: { token: "flyio-secret-token" },
@@ -339,6 +347,7 @@ async function listOneFullRow(): Promise<Record<string, unknown>> {
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "fly.io",
+    worksFor: ["vercel"],
     category: "ops",
     baseUrl: "https://api.fly.io",
     additionalHosts: ["https://api.machines.dev"],
@@ -387,4 +396,11 @@ test("make_request's url description points the model at this tool for a credent
   assert.match(urlDescription, /content_read\.custom_credential/);
   assert.match(urlDescription, /\bbaseUrl\b/);
   assert.match(urlDescription, /\badditionalHosts\b/);
+});
+
+test("discovery exposes explicit worksFor independently of the label", async () => {
+  const row = await listOneFullRow();
+  assert.equal(row.label, "fly.io");
+  assert.equal(row.credentialType, "custom");
+  assert.deepEqual(row.worksFor, ["vercel"]);
 });

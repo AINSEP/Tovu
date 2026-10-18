@@ -6,6 +6,7 @@ import type { OtherCredentialStoreInfo } from "./rules";
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
 const SECURITY_DICT: Record<string, Record<string, string>> = {
   en: {
+    "Works for": "Works for",
     "Copy keys from another project…": "Copy keys from another project…",
     "Source project": "Source project", "Choose a project": "Choose a project", "Loading projects…": "Loading projects…",
     "Overwrite existing": "Overwrite existing", "Copy": "Copy", "Start project": "Start project", "No keys to copy.": "No keys to copy.",
@@ -46,6 +47,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Your credentials need their original site key — use the card above.",
   },
   es: {
+    "Works for": "Compatible con",
     "Copy keys from another project…": "Copiar claves de otro proyecto…",
     "Source project": "Proyecto de origen",
     "Choose a project": "Elige un proyecto",
@@ -107,6 +109,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Tus credenciales necesitan su clave del sitio original; usa la tarjeta de arriba.",
   },
   de: {
+    "Works for": "Geeignet für",
     "Copy keys from another project…": "Schlüssel aus einem anderen Projekt kopieren…",
     "Source project": "Quellprojekt",
     "Choose a project": "Projekt auswählen",
@@ -168,6 +171,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Ihre Zugangsdaten benötigen den ursprünglichen Website-Schlüssel – verwenden Sie die Karte oben.",
   },
   fr: {
+    "Works for": "Compatible avec",
     "Copy keys from another project…": "Copier les clés d’un autre projet…",
     "Source project": "Projet source",
     "Choose a project": "Choisir un projet",
@@ -229,6 +233,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Vos identifiants nécessitent leur clé du site d'origine ; utilisez la carte ci-dessus.",
   },
   it: {
+    "Works for": "Compatibile con",
     "Copy keys from another project…": "Copia chiavi da un altro progetto…",
     "Source project": "Progetto di origine",
     "Choose a project": "Scegli un progetto",
@@ -290,6 +295,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Le tue credenziali richiedono la chiave del sito originale: usa la scheda sopra.",
   },
   "pt-BR": {
+    "Works for": "Compatível com",
     "Copy keys from another project…": "Copiar chaves de outro projeto…",
     "Source project": "Projeto de origem",
     "Choose a project": "Escolha um projeto",
@@ -351,6 +357,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Suas credenciais precisam da chave do site original; use o cartão acima.",
   },
   pl: {
+    "Works for": "Działa z",
     "Copy keys from another project…": "Kopiuj klucze z innego projektu…",
     "Source project": "Projekt źródłowy",
     "Choose a project": "Wybierz projekt",
@@ -412,6 +419,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Twoje dane uwierzytelniające wymagają oryginalnego klucza witryny — użyj karty powyżej.",
   },
   hu: {
+    "Works for": "Használható ehhez",
     "Copy keys from another project…": "Kulcsok másolása másik projektből…",
     "Source project": "Forrásprojekt",
     "Choose a project": "Válassz projektet",
@@ -473,6 +481,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "A hitelesítő adatokhoz az eredeti webhelykulcs kell — használja a fenti kártyát.",
   },
   tr: {
+    "Works for": "Şunlarla çalışır",
     "Copy keys from another project…": "Başka bir projeden anahtarları kopyala…",
     "Source project": "Kaynak proje",
     "Choose a project": "Bir proje seçin",
@@ -572,6 +581,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Kimlik bilgileriniz için özgün site anahtarı gerekiyor; yukarıdaki kartı kullanın.",
   },
   ru: {
+    "Works for": "Подходит для",
     "Copy keys from another project…": "Копировать ключи из другого проекта…",
     "Source project": "Исходный проект",
     "Choose a project": "Выберите проект",
@@ -671,6 +681,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Для ваших учётных данных нужен исходный ключ сайта — используйте карточку выше.",
   },
   uk: {
+    "Works for": "Підходить для",
     "Copy keys from another project…": "Копіювати ключі з іншого проєкту…",
     "Source project": "Вихідний проєкт",
     "Choose a project": "Виберіть проєкт",
@@ -770,6 +781,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Для ваших облікових даних потрібен початковий ключ сайту — скористайтеся карткою вище.",
   },
   id: {
+    "Works for": "Berfungsi untuk",
     "Copy keys from another project…": "Salin kunci dari proyek lain…",
     "Source project": "Proyek sumber",
     "Choose a project": "Pilih proyek",
@@ -869,6 +881,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Kredensial Anda memerlukan kunci situs aslinya; gunakan kartu di atas.",
   },
   ar: {
+    "Works for": "يعمل مع",
     "Copy keys from another project…": "نسخ المفاتيح من مشروع آخر…",
     "Source project": "المشروع المصدر",
     "Choose a project": "اختر مشروعًا",
@@ -968,6 +981,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "تحتاج بيانات اعتمادك إلى مفتاح الموقع الأصلي — استخدم البطاقة أعلاه.",
   },
   fa: {
+    "Works for": "قابل استفاده برای",
     "Copy keys from another project…": "کپی کلیدها از پروژه‌ای دیگر…",
     "Source project": "پروژه مبدأ",
     "Choose a project": "یک پروژه انتخاب کنید",
@@ -1067,6 +1081,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "اطلاعات ورود شما به کلید اصلی سایت نیاز دارد؛ از کارت بالا استفاده کنید.",
   },
   hi: {
+    "Works for": "इनके लिए",
     "Copy keys from another project…": "दूसरे प्रोजेक्ट से कुंजियाँ कॉपी करें…",
     "Source project": "स्रोत प्रोजेक्ट",
     "Choose a project": "प्रोजेक्ट चुनें",
@@ -1166,6 +1181,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "आपकी सहेजी गई क्रेडेंशियल को मूल साइट कुंजी चाहिए — ऊपर दिए कार्ड का उपयोग करें।",
   },
   bn: {
+    "Works for": "এগুলোর জন্য",
     "Copy keys from another project…": "অন্য প্রকল্প থেকে কী কপি করুন…",
     "Source project": "উৎস প্রকল্প",
     "Choose a project": "একটি প্রকল্প বেছে নিন",
@@ -1265,6 +1281,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "আপনার পরিচয়পত্রের জন্য মূল সাইট কী দরকার — উপরের কার্ড ব্যবহার করুন।",
   },
   ur: {
+    "Works for": "ان کے لیے",
     "Copy keys from another project…": "دوسرے پروجیکٹ سے کلیدیں کاپی کریں…",
     "Source project": "ماخذ پروجیکٹ",
     "Choose a project": "پروجیکٹ منتخب کریں",
@@ -1364,6 +1381,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "آپ کی اسناد کو سائٹ کی اصل کلید چاہیے — اوپر والا کارڈ استعمال کریں۔",
   },
   ja: {
+    "Works for": "対応先",
     "Copy keys from another project…": "別のプロジェクトからキーをコピー…",
     "Source project": "コピー元プロジェクト",
     "Choose a project": "プロジェクトを選択",
@@ -1463,6 +1481,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "保存済み認証情報には元のサイトキーが必要です。上のカードを使用してください。",
   },
   ko: {
+    "Works for": "호환 대상",
     "Copy keys from another project…": "다른 프로젝트에서 키 복사…",
     "Source project": "원본 프로젝트",
     "Choose a project": "프로젝트 선택",
@@ -1562,6 +1581,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "저장된 자격 증명에 원래 사이트 키가 필요합니다. 위의 카드를 사용하세요.",
   },
   th: {
+    "Works for": "ใช้งานกับ",
     "Copy keys from another project…": "คัดลอกคีย์จากโปรเจกต์อื่น…",
     "Source project": "โปรเจกต์ต้นทาง",
     "Choose a project": "เลือกโปรเจกต์",
@@ -1661,6 +1681,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "ข้อมูลรับรองของคุณต้องใช้คีย์เว็บไซต์เดิม ใช้การ์ดด้านบน",
   },
   "zh-CN": {
+    "Works for": "适用于",
     "Copy keys from another project…": "从另一个项目复制密钥…",
     "Source project": "源项目",
     "Choose a project": "选择项目",
@@ -1760,6 +1781,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "您的凭据需要原来的站点密钥；请使用上方卡片。",
   },
   "zh-TW": {
+    "Works for": "適用於",
     "Copy keys from another project…": "從另一個專案複製金鑰…",
     "Source project": "來源專案",
     "Choose a project": "選擇專案",

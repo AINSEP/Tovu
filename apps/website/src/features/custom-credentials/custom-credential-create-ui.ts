@@ -1,3 +1,4 @@
+import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
@@ -46,6 +47,7 @@ export interface CreateCredentialPrefill {
   readonly label?: string;
   readonly baseUrl?: string;
   readonly category?: string;
+  readonly worksFor?: string[];
 }
 
 /** Shared by the form and its later outcome document — see this file's header, "Why the URI carries
@@ -65,10 +67,12 @@ export interface CreateCredentialPrefill {
  * @complexity O(1) — a fixed five-field form (`CUSTOM_CREDENTIAL_CATEGORIES.length` is a small,
  *   compile-time-fixed constant, so the category options list is effectively O(1) too).
  */
-export function buildCreateForm(spec: { prefill: CreateCredentialPrefill }, _optional = {}): SecretCardForm & { preferredFrameSize: readonly [string, string] } {
-  const { prefill } = spec;
+export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; providers?: readonly { id: string; vendorId: string; label?: string }[] }, _optional = {}): SecretCardForm & { preferredFrameSize: readonly [string, string] } {
+  const { prefill, providers = [] } = spec;
+  const worksFor = prefill.worksFor ?? suggestCredentialWorksFor({ label: prefill.label ?? "", providers });
+  const options = [...new Set([...providers.flatMap(provider => [provider.id, provider.vendorId]), ...worksFor])];
   return {
-    title: "Save a new custom credential",
+    title: "Save an API credential",
     description:
       "Fill in the credential's label, base URL, and category, and type its token directly into the field below. " +
       "The token is sealed on the server the moment you submit — the assistant never sees it, and it is never " +
@@ -105,6 +109,14 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill }, _opt
         // category for e.g. a fly.io token had nothing sensible to pick. Still freely changeable before
         // submit; a bad/unrecognized prefill still starts unselected, per this file's own header.
         value: prefill.category ?? "general",
+      },
+      {
+        kind: "multi-enum",
+        name: "worksFor",
+        label: "Works for",
+        hint: "Choose the hosts or vendors this credential can be used with. The label is a display name.",
+        options: options.map(id => ({ value: id })),
+        value: worksFor,
       },
       {
         kind: "string",

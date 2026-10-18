@@ -1,3 +1,4 @@
+import { unifyVaultCredentials } from "#src/platform/db/migrations/0013_unify_vault_credentials";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
@@ -26,6 +27,7 @@ const registry = createTovuVaultKinds({ policy });
 async function prepared(dialect: "sqlite" | "pglite") {
   const fixture = await vaultFixture(dialect);
   await fixture.kernel.transaction(() => vaultStep.up(fixture.kernel, { note: () => {} }));
+  await fixture.kernel.transaction(() => unifyVaultCredentials({ checksum: "b".repeat(64) }).up(fixture.kernel, { note: () => {} }));
   const input: VaultBootInput = { ...fixture, workspaceId: "ws", siteId: `vault-boot-${dialect}`, clock, registry };
   const repo = new SqlSecretsVaultRepo({ kernel: fixture.kernel as StorageKernel<SecretsVaultDatabase> });
   return { ...fixture, input, repo };
@@ -54,14 +56,14 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         const record = (await repo.find({ workspaceId: "ws", id }))!;
         assert.equal(record.meta.legacyAad, undefined);
         assert.equal(record.meta.normalization, undefined);
-        assert.equal(record.revision, 2);
+        assert.equal(record.revision, record.kind === "vendor" ? 3 : 2);
         assert.equal(record.updatedAt, new Date(clock.nowMs()).toISOString());
         const opened = await service.get(record);
         assert.ok(opened);
-        plaintexts.set(record.kind === "vendor" ? String((record.meta.migration as VaultMeta).table) : record.kind, opened.payload);
+        plaintexts.set(record.meta.credentialType === "custom" ? "custom" : record.kind === "vendor" ? String((record.meta.migration as VaultMeta).table) : record.kind, opened.payload);
         if (record.sealed) {
           const legacy = record.meta.migration as unknown as VaultLegacyContext;
-          const fixture = envelopes.find(entry => entry.table === legacy.table && entry.kind === record.kind)!;
+          const fixture = envelopes.find(entry => entry.table === legacy.table && entry.kind === (record.meta.credentialType === "custom" ? "custom" : record.kind))!;
           assert.notEqual(record.sealed.ciphertext, fixture.sealed.ciphertext);
           assert.notEqual(record.sealed.nonce, fixture.sealed.nonce);
           assert.ok(await sealer.open({ sealed: record.sealed }, { aad: buildVaultAad(record) }));
@@ -133,6 +135,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
           sealed_key_id: sealed.keyId, sealed_ciphertext: sealed.ciphertext, sealed_nonce: sealed.nonce, sealed_alg: sealed.alg });
       }
       await kernel.transaction(() => vaultStep.up(kernel, { note: () => {} }));
+      await kernel.transaction(() => unifyVaultCredentials({ checksum: "b".repeat(64) }).up(kernel, { note: () => {} }));
       const input: VaultBootInput = { ...fixture, workspaceId: "ws", siteId: `vault-boot-username-${dialect}`, clock, registry };
       const repo = new SqlSecretsVaultRepo({ kernel: kernel as StorageKernel<SecretsVaultDatabase> });
       assert.equal((await normalizeVaultAtBoot(input)).green, true);
@@ -352,7 +355,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         assert.deepEqual(row.sealed, original.sealed);
         assert.deepEqual(row.meta.legacyAad, original.meta.legacyAad);
         assert.equal(row.meta.normalization, "missing-key");
-        assert.equal(row.revision, 2);
+        assert.equal(row.revision, row.kind === "vendor" ? 3 : 2);
       }
       const flagged = await kernel.query(sql`SELECT * FROM secrets_vault ORDER BY id`);
       const retry = await normalizeVaultAtBoot({ ...input, keyring: noKey });
@@ -434,7 +437,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.ok(report.flagged.some(flag => flag.id === "custom" && flag.reason === "conflict"));
       const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
       assert.deepEqual(row.sealed, original.sealed);
-      assert.equal(row.revision, 2);
+      assert.equal(row.revision, row.kind === "vendor" ? 3 : 2);
       assert.ok(row.meta.legacyAad);
       assert.equal((await normalizeVaultAtBoot(input)).green, true);
     } finally { await kernel.close(); }
@@ -448,9 +451,9 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await kernel.execute(sql`UPDATE secrets_vault SET meta=${JSON.stringify(meta)} WHERE workspace_id='ws' AND id='custom'`);
       const report = await normalizeVaultAtBoot(input);
       assert.equal(report.green, false);
-      assert.deepEqual(report.flagged, [{ id: "custom", kind: "custom", reason: "invalid-meta" }]);
+      assert.deepEqual(report.flagged, [{ id: "custom", kind: "vendor", reason: "invalid-meta" }]);
       assert.deepEqual((await repo.find({ workspaceId: "ws", id: "custom" }))!.sealed, original.sealed);
-      assert.equal(report.kinds.custom.legacyRemaining, 1);
+      assert.equal(report.kinds.vendor.legacyRemaining, 1);
     } finally { await kernel.close(); }
   });
 
@@ -479,8 +482,12 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       const report = await normalizeVaultAtBoot({ ...input, keyring: noKey });
       assert.equal(report.green, false);
       assert.equal(report.flagged.length, 10);
-      assert.equal(report.kinds.custom.legacyRemaining, 0);
-      assert.equal(report.kinds.custom.unopenable, 1);
+      assert.equal(report.kinds.vendor.legacyRemaining, 0);
+      assert.equal(report.kinds.vendor.unopenable, 2);
+      assert.deepEqual(report.flagged.filter(row => row.kind === "vendor"), [
+        { id: "collision", kind: "vendor", reason: "missing-key" },
+        { id: "custom", kind: "vendor", reason: "missing-key" },
+      ]);
       const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
       assert.equal(row.meta.normalization, "missing-key");
       assert.deepEqual(row.sealed, original.sealed);
@@ -499,10 +506,10 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         record: { ...original, sealed, revision: original.revision + 1 } });
       const report = await normalizeVaultAtBoot(input);
       assert.equal(report.green, false);
-      assert.deepEqual(report.flagged, [{ id: "custom", kind: "custom", reason: "unopenable" }]);
-      assert.equal(report.kinds.custom.blocked, 1);
-      assert.equal(report.kinds.custom.unopenable, 1);
-      assert.equal(report.kinds.custom.legacyRemaining, 0);
+      assert.deepEqual(report.flagged, [{ id: "custom", kind: "vendor", reason: "unopenable" }]);
+      assert.equal(report.kinds.vendor.blocked, 1);
+      assert.equal(report.kinds.vendor.unopenable, 1);
+      assert.equal(report.kinds.vendor.legacyRemaining, 0);
       const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
       assert.equal(row.meta.normalization, "unopenable");
       assert.deepEqual(row.sealed, invalid.sealed);
@@ -519,9 +526,9 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         record: { ...original, sealed, revision: original.revision + 1 } });
       const report = await normalizeVaultAtBoot(input);
       assert.equal(report.green, false);
-      assert.deepEqual(report.flagged, [{ id: "custom", kind: "custom", reason: "invalid-meta" }]);
-      assert.equal(report.kinds.custom.blocked, 1);
-      assert.equal(report.kinds.custom.legacyRemaining, 1);
+      assert.deepEqual(report.flagged, [{ id: "custom", kind: "vendor", reason: "invalid-meta" }]);
+      assert.equal(report.kinds.vendor.blocked, 1);
+      assert.equal(report.kinds.vendor.legacyRemaining, 1);
       const row = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
       assert.equal(row.meta.normalization, "invalid-meta");
       assert.deepEqual(row.sealed, invalid.sealed);
@@ -535,13 +542,13 @@ test("Tovu parsers call injected policy on reads/complete patches, retain proven
   const registered = createTovuVaultKinds({ policy: { ...policy, validateMeta: ({ kind, meta }) => { calls.push(kind); return meta; } } });
   assert.equal(registered.isCopyableKind["personal-execution"], false);
   assert.equal(registered.isCopyableKind["mcp-auth"], false);
-  const parse = registered.metaParsers.custom;
-  assert.deepEqual(parse({ meta: { category: "general", baseUrl: "https://api.example.test", additionalHosts: [], username: null, migration: { mappedId: "id" } } }).migration, { mappedId: "id" });
-  assert.deepEqual(calls, ["custom"]);
+  const parse = registered.metaParsers.vendor;
+  assert.deepEqual(parse({ meta: { credentialType: "custom", worksFor: [], category: "general", baseUrl: "https://api.example.test", additionalHosts: [], username: null, migration: { mappedId: "id" } } }).migration, { mappedId: "id" });
+  assert.deepEqual(calls, ["vendor"]);
   for (const meta of [null, [], { category: "unknown" }, { category: "general", baseUrl: "https://name:password@example.test" },
     { category: "general", additionalHosts: ["https://example.test/path"] }, { category: "general", legacyAad: {} },
-    { category: "general", unexpected: "field" }]) assert.throws(() => parse({ meta }));
-  assert.deepEqual(Object.keys(registered.metaParsers).sort(), [...VAULT_KINDS].sort());
+    { category: "general", unexpected: "field" }]) assert.throws(() => parse({ meta: meta && !Array.isArray(meta) ? { credentialType: "custom", worksFor: [], ...meta } : meta }));
+  assert.deepEqual(Object.keys(registered.metaParsers).sort(), [...VAULT_KINDS, "custom"].sort());
 });
 
 test("legacy codec checks versions, personal/MCP identity and exact peer version format", () => {
@@ -561,6 +568,7 @@ test("host boot wiring emits flagged coverage before returning when the site key
   const fixture = await vaultFixture("sqlite");
   try {
     await fixture.kernel.transaction(() => vaultStep.up(fixture.kernel, { note: () => {} }));
+  await fixture.kernel.transaction(() => unifyVaultCredentials({ checksum: "b".repeat(64) }).up(fixture.kernel, { note: () => {} }));
     let reported: Awaited<ReturnType<typeof normalizeSiteVaultAtBoot>> | undefined;
     const report = await normalizeSiteVaultAtBoot({ kernel: fixture.kernel, workspaceId: "ws", clock }, {
       keyring: { ...fixture.keyring, activeKey: async () => { throw new Error("missing site key"); },

@@ -11,8 +11,8 @@ import { createFakeOtherCredentialsPort } from "../hooks/other-credentials-depen
 
 const t = (key: string) => key;
 const sources: AdminCredentialCopySource[] = [
-  { siteId: "a", name: "Alpha", keys: [{ kind: "vendor", id: "one", label: "Main", provider: "OpenAI", last4: "1234" }] },
-  { siteId: "b", name: "Beta", keys: [{ kind: "custom", id: "two", label: "Work", provider: "Example", last4: "5678" }] },
+  { siteId: "a", name: "Alpha", keys: [{ kind: "vendor", id: "one", label: "Main", provider: "OpenAI", worksFor: [], last4: "1234" }] },
+  { siteId: "b", name: "Beta", keys: [{ kind: "custom", id: "two", label: "Work", provider: "Example", worksFor: [], last4: "5678" }] },
 ];
 function port(choices = sources): CopyKeysPort {
   return {
@@ -36,6 +36,15 @@ async function open(api: CopyKeysPort, startSite?: (input: { id: string }) => Pr
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("CopyKeysDialog", () => {
+  it("shows works-for ids and falls back to publish hosts only for an empty list", async () => {
+    await open(port([{ ...sources[0]!, keys: [
+      { ...sources[0]!.keys[0]!, worksFor: ["github", "plugin-off"], publishHosts: ["ignored-host"] },
+      { kind: "vendor", id: "fallback", label: "Legacy", provider: null, worksFor: [], publishHosts: ["netlify"] },
+    ] }]));
+    expect(screen.getByRole("checkbox", { name: /Main.*Works for: github, plugin-off/ })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Legacy.*Works for: netlify/ })).toBeInTheDocument();
+    expect(screen.queryByText(/ignored-host/)).not.toBeInTheDocument();
+  });
   it("stays hidden until opened and closes when cancelled", async () => {
     const api = port();
     const user = userEvent.setup();
@@ -78,7 +87,7 @@ describe("CopyKeysDialog", () => {
 
   it("labels keys with their kind when the provider is absent", async () => {
     await open(port([{ ...sources[0]!, keys: [
-      { kind: "custom", id: "one", label: "Main", provider: null, last4: "1234" },
+      { kind: "custom", id: "one", label: "Main", provider: null, worksFor: [], last4: "1234" },
     ] }]));
     expect(screen.getByLabelText("Main · custom · …1234")).toBeInTheDocument();
   });
@@ -251,7 +260,7 @@ describe("CopyKeysDialog", () => {
   });
 
   it("removes unchecked keys, bounds selection at 100, and refuses concurrent submissions and cancellation", async () => {
-    const keys = Array.from({ length: 101 }, (_, index) => ({ kind: "custom" as const, id: `k${index}`, label: `Key ${index}`, provider: null }));
+    const keys = Array.from({ length: 101 }, (_, index) => ({ kind: "custom" as const, id: `k${index}`, label: `Key ${index}`, provider: null, worksFor: [] }));
     const api = port([{ ...sources[0]!, keys }]);
     let finish!: (value: { results: [] }) => void;
     vi.mocked(api.copyCredentials).mockImplementation(() => new Promise(resolve => { finish = resolve; }));

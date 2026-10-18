@@ -1,3 +1,6 @@
+import { invalidatePublishCredentialCompatibility } from "../deployments/publish-credentials/index.js";
+import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
+import type { DeployTargetRegistry } from "../deployments/deploy-targets/types.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { withCustomCredentialSetup, type CredentialSetupFailure } from "./credential-recovery.js";
@@ -129,6 +132,8 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   /** The git-host providers `custom_credential_write_files` writes through (the installed, enabled
    *  Agent Plugins supplied by composition — the bundled `github` one today). */
   readonly loadSourceControlProviders: LoadSourceControlProviders;
+  readonly loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  readonly publishCredentialVerificationCache?: { delete(input: { workspaceId: string; target: string }): void };
   /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
   readonly observability?: ObservabilityPort;
   /** The self-describing token scheme rules `custom_credential_make_request`/`_verify` apply
@@ -614,7 +619,13 @@ async function saveSetToken(
  * @complexity O(1) — three fixed field reads.
  */
 function readCreateCredentialPrefill(input: Record<string, unknown>): CreateCredentialPrefill {
-  const prefill: { label?: string; baseUrl?: string; category?: string } = {};
+  const prefill: { label?: string; baseUrl?: string; category?: string; worksFor?: string[] } = {};
+  if (input.worksFor !== undefined) {
+    try {
+      prefill.worksFor = normalizeCredentialWorksFor({ value: input.worksFor });
+      for (const value of prefill.worksFor) assertCredentialFreeField({ value, field: "worksFor" });
+    } catch { throw new ToolInputError({ message: "worksFor must be an array of non-secret host or vendor IDs." }); }
+  }
   for (const field of ["label", "baseUrl", "category"] as const) {
     if (typeof input[field] === "string" && (input[field] as string).trim() !== "") {
       assertCredentialFreeField({ value: input[field] as string, field });
@@ -643,6 +654,7 @@ type CreateCredentialResult =
  *  pure decision-making, and neither has to read the other's reasoning to verify its own.
  *  @complexity O(1) — five fixed field reads. */
 interface RawCreateCredentialFields {
+  readonly worksFor: unknown;
   readonly label: string;
   readonly baseUrl: string;
   readonly category: string;
@@ -659,6 +671,7 @@ interface RawCreateCredentialFields {
  */
 function readRawCreateCredentialFields(params: Record<string, unknown>): RawCreateCredentialFields {
   return {
+    worksFor: params.worksFor ?? [],
     label: typeof params["label"] === "string" ? params["label"] : "",
     baseUrl: typeof params["baseUrl"] === "string" ? params["baseUrl"] : "",
     category: typeof params["category"] === "string" ? params["category"] : "",
@@ -670,6 +683,7 @@ function readRawCreateCredentialFields(params: Record<string, unknown>): RawCrea
 /** {@link deriveCreateCredentialSubmission}'s output — the fully-defaulted shape the rest of
  *  {@link saveCreateCard} actually acts on. */
 interface CreateCredentialSubmission {
+  readonly worksFor: unknown;
   readonly label: string;
   readonly baseUrl: string;
   readonly category: string;
@@ -711,6 +725,7 @@ function safeCredentialLabel({ label }: { label: string }): string {
 
 function deriveCreateCredentialSubmission(raw: RawCreateCredentialFields): CreateCredentialSubmission {
   return {
+    worksFor: raw.worksFor,
     label: raw.label,
     baseUrl: raw.baseUrl,
     category: raw.category.trim() === "" ? "general" : raw.category,
@@ -784,7 +799,8 @@ async function saveCreateCard(
     delete: input => store.delete(input),
   };
   // Only persistence sits in the engine's save boundary, so failure copy stays truthful.
-  return await createCustomCredential(
+  const registry = routeDeps.loadDeployTargets && routeDeps.publishCredentialVerificationCache ? await routeDeps.loadDeployTargets(routeDeps.workspaceId) : undefined;
+  const saved = await createCustomCredential(
     {
       repo,
       sealer: routeDeps.siteAssistantSecretSealer,
@@ -795,11 +811,14 @@ async function saveCreateCard(
     {
       workspaceId: routeDeps.workspaceId,
       label: submission.label,
+      worksFor: submission.worksFor,
       category: submission.category,
       baseUrl: submission.baseUrl,
       connection: { token: submission.token, ...(submission.username !== undefined ? { username: submission.username } : {}) },
     }
   );
+  if (registry && routeDeps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: routeDeps.workspaceId, registry, cache: routeDeps.publishCredentialVerificationCache, after: saved });
+  return saved;
 }
 
 /** Bind API creation and rotation to their existing authorization, errors and sealed store.
@@ -893,6 +912,15 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       const prefill = readCreateCredentialPrefill(input);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
+      const providers: { id: string; vendorId: string }[] = [];
+      // Catalogs enrich a create-time prefill only. An unavailable plugin must not prevent saving
+      // an API key or erase explicitly supplied compatibility IDs.
+      try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.(routeDeps.workspaceId))?.list() ?? []) {
+        if (descriptor.credential) providers.push({ id: descriptor.id, vendorId: descriptor.credential.vendorId });
+      } } catch { /* The API key form still works without hosting plugins. */ }
+      try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders(routeDeps.workspaceId)).list()) {
+        providers.push({ id: descriptor.id, vendorId: descriptor.id });
+      } } catch { /* Source-control catalog enrichment is optional too. */ }
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       // Fail closed rather than degrade — the only place a token can enter is the rendered form.
       // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.
@@ -904,7 +932,7 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       const card = defineSecretCardTool<{ prefill: CreateCredentialPrefill }, CustomCredentialSummary, CreateCredentialResult>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ prefill }),
-        form: ({ prep }) => buildCreateForm({ prefill: prep.prefill }),
+        form: ({ prep }) => buildCreateForm({ prefill: prep.prefill, providers }),
         save: ({ values, signal }) => {
           const submission = deriveCreateCredentialSubmission(readRawCreateCredentialFields(values));
           displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });

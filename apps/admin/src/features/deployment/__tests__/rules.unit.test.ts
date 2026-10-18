@@ -370,6 +370,7 @@ describe("publishTargetById / fieldLabelParts", () => {
 describe("credentialsForProvider", () => {
   function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
     return {
+    credentialType: "vendor", worksFor: [],
       id: "cred-1",
       providerId: "github-pages",
       label: "label",
@@ -398,6 +399,7 @@ describe("credentialsForProvider", () => {
 describe("withPromotedDefault", () => {
   function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
     return {
+    credentialType: "vendor", worksFor: [],
       id: "cred-1",
       providerId: "github-pages",
       label: PUBLISH_CREDENTIAL_ROW_LABEL,
@@ -423,6 +425,7 @@ describe("withPromotedDefault", () => {
 describe("defaultCredentialForProvider", () => {
   function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
     return {
+    credentialType: "vendor", worksFor: [],
       id: "cred-1",
       providerId: "github-pages",
       label: PUBLISH_CREDENTIAL_ROW_LABEL,

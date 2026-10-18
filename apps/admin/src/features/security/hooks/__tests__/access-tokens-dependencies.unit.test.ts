@@ -78,6 +78,7 @@ const { createFakeAccessTokensPort, defaultAccessTokensPort } = await import("..
 
 function publishCredential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
   return {
+    credentialType: "vendor", worksFor: [],
     id: "cred-1",
     providerId: "github-pages",
     label: "Production",
@@ -105,6 +106,7 @@ function sourceControlCredential(overrides: Partial<AdminSourceControlCredential
 
 function customCredential(overrides: Partial<AdminCustomCredentialSummary> = {}): AdminCustomCredentialSummary {
   return {
+    credentialType: "custom", worksFor: [],
     id: "cc-1",
     label: "Internal API",
     category: "general",
@@ -118,6 +120,16 @@ function customCredential(overrides: Partial<AdminCustomCredentialSummary> = {})
 }
 
 describe("defaultAccessTokensPort.publish", () => {
+  it("forwards works-for metadata edits and clears without a connection", async () => {
+    const publish = publishCredential({ worksFor: ["github"] });
+    updatePublishCredential.mockResolvedValue({ credential: publish });
+    await expect(defaultAccessTokensPort.publish.update(publish.id, { worksFor: ["github"] })).resolves.toEqual(publish);
+    expect(updatePublishCredential).toHaveBeenCalledWith(publish.id, { worksFor: ["github"] });
+    const custom = customCredential({ worksFor: [] });
+    updateCustomCredential.mockResolvedValue({ credential: custom });
+    await expect(defaultAccessTokensPort.custom.update(custom.id, { worksFor: [] })).resolves.toEqual(custom);
+    expect(updateCustomCredential).toHaveBeenCalledWith(custom.id, { worksFor: [] });
+  });
   it("list delegates to api.listPublishCredentials, returning the snapshot unchanged", async () => {
     const snapshot = { credentials: [publishCredential()], executionMode: "self-hosted-cli" as const };
     listPublishCredentials.mockResolvedValue(snapshot);

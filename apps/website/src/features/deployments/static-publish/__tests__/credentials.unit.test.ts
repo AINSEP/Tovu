@@ -1,3 +1,5 @@
+import { createCustomCredential } from "#src/features/custom-credentials/store";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -685,4 +687,18 @@ test("db source: a plugin-only host's saved token field becomes the resolved tok
   await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "main", connection: { providerId: "fixture-host", apiKey: "secret-k", zone: "eu" } });
   const source = createDbPublishCredentialSource(writeDeps);
   assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "secret-k", zone: "eu" });
+});
+
+test("saved API keys publish by worksFor, never by their label", async () => {
+  for (const [label, worksFor, expected] of [["Production access", ["vercel"], true], ["Vercel", [], false]] as const) {
+    const deps = makeWriteDeps();
+    const saved = await createCustomCredential({ ...deps, repo: new CustomCredentialVaultRepo({ vault: deps.repo.vault! }) }, {
+      workspaceId: WORKSPACE, label, worksFor: [...worksFor], category: "hosting", baseUrl: "https://api.vercel.com", connection: { token: "synthetic-static-publish-key" },
+    });
+    const source = createDbPublishCredentialSource(deps);
+    assert.equal((await source.resolve({ workspaceId: WORKSPACE, target: "vercel" })).ok, expected);
+    assert.equal((await source.resolve({ workspaceId: WORKSPACE, target: "vercel", credentialId: saved.id })).ok, expected);
+    assert.equal((await source.resolve({ workspaceId: OTHER_WORKSPACE, target: "vercel", credentialId: saved.id })).ok, false);
+    assert.equal((await source.resolve({ workspaceId: WORKSPACE, target: "github-pages", credentialId: saved.id })).ok, false);
+  }
 });

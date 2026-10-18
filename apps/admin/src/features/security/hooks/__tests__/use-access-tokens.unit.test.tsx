@@ -62,6 +62,8 @@ const T = (key: string): string => key;
 
 function publishCredential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
   return {
+    credentialType: "vendor",
+    worksFor: [],
     id: "cred-1",
     providerId: "github-pages",
     label: "Production",
@@ -76,6 +78,8 @@ function publishCredential(overrides: Partial<AdminPublishCredentialSummary> = {
 
 function customCredential(overrides: Partial<AdminCustomCredentialSummary> = {}): AdminCustomCredentialSummary {
   return {
+    credentialType: "custom",
+    worksFor: [],
     id: "custom-1",
     label: "fly.io deploy",
     category: "hosting",
@@ -117,6 +121,96 @@ function findRow(groups: readonly AccessTokenProviderGroupState[] | undefined, i
 function findGroup(groups: readonly AccessTokenProviderGroupState[] | undefined, kind: string, providerId: string): AccessTokenProviderGroupState | undefined {
   return (groups ?? []).find((g) => g.info.kind === kind && g.info.providerId === providerId);
 }
+
+describe("Works for metadata", () => {
+  it.each(["publish", "custom"] as const)("sends the explicit selection when creating a %s credential", async kind => {
+    const saved = kind === "publish" ? publishCredential({ worksFor: ["github", "netlify"] }) : customCredential({ worksFor: ["github", "netlify"] });
+    const create = vi.fn().mockResolvedValue(saved);
+    const port = fakePort({ publish: { create }, custom: { create } });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    if (kind === "publish") {
+      const ref = { kind: "publish" as const, providerId: "netlify" };
+      act(() => result.current.setAddField(ref, { name: "Production access", token: "test-token", worksFor: ["github", "netlify"] }));
+      await act(() => result.current.createToken(ref));
+    } else {
+      act(() => result.current.setCustomAddField({ name: "Production access", token: "test-token", baseUrl: "https://api.example.com", worksFor: ["github", "netlify"] }));
+      await act(() => result.current.createCustomCredential());
+    }
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ label: "Production access", worksFor: ["github", "netlify"] }));
+  });
+
+  it.each([
+    ["publish", "GITHUB", "github"], ["publish", "NETLIFY", "netlify"],
+    ["custom", "GITHUB", "github"], ["custom", "NETLIFY", "netlify"],
+  ] as const)("prefills the %s label %s and respects an explicit clear", async (kind, label, id) => {
+    const port = fakePort();
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    const ref = { kind: "publish" as const, providerId: "netlify" };
+    if (kind === "publish") {
+      act(() => result.current.setAddField(ref, { name: label }));
+      expect(findGroup(result.current.groups, "publish", "netlify")?.addForm.worksFor).toEqual([id]);
+      act(() => result.current.setAddField(ref, { worksFor: [] }));
+      act(() => result.current.setAddField(ref, { token: "test-token" }));
+      act(() => result.current.setAddField(ref, { name: "VERCEL" }));
+      expect(findGroup(result.current.groups, "publish", "netlify")?.addForm.worksFor).toEqual([]);
+    } else {
+      act(() => result.current.setCustomAddField({ name: label }));
+      expect(result.current.customAddForm.worksFor).toEqual([id]);
+      act(() => result.current.setCustomAddField({ worksFor: [] }));
+      act(() => result.current.setCustomAddField({ baseUrl: "https://api.example.com" }));
+      act(() => result.current.setCustomAddField({ name: "VERCEL" }));
+      expect(result.current.customAddForm.worksFor).toEqual([]);
+    }
+  });
+
+  it.each(["github production", " GitHub", "unknown-provider"])("does not prefill the non-exact label %s", async name => {
+    const port = fakePort();
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    act(() => result.current.setCustomAddField({ name }));
+    expect(result.current.customAddForm.worksFor).toEqual([]);
+  });
+
+  it.each(["publish", "custom"] as const)("edits and clears %s compatibility without re-entering a token", async kind => {
+    const saved = kind === "publish" ? publishCredential({ worksFor: ["plugin-off"] }) : customCredential({ worksFor: ["plugin-off"] });
+    const update = vi.fn().mockImplementation(async (_id: string, patch: object) => ({ ...saved, ...patch }));
+    const port = fakePort({
+      publish: { list: async () => ({ credentials: kind === "publish" ? [saved as AdminPublishCredentialSummary] : [], executionMode: "self-hosted-cli" }), update },
+      custom: { list: async () => ({ credentials: kind === "custom" ? [saved as AdminCustomCredentialSummary] : [] }), update },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(findRow(result.current.groups, saved.id)).toBeDefined());
+    expect(result.current.worksForOptions).toEqual(expect.arrayContaining([
+      { value: "github-pages", label: "GitHub Pages" }, { value: "github", label: "GitHub" },
+    ]));
+    act(() => result.current.setExistingField(saved.id, { worksFor: ["plugin-off", "github"] }));
+    expect(findRow(result.current.groups, saved.id)?.readyToSave).toBe(true);
+    await act(() => result.current.replaceToken(findRow(result.current.groups, saved.id)!.row));
+    expect(update).toHaveBeenLastCalledWith(saved.id, { worksFor: ["plugin-off", "github"] });
+    expect(findRow(result.current.groups, saved.id)?.worksFor).toEqual(["plugin-off", "github"]);
+    act(() => result.current.setExistingField(saved.id, { worksFor: [] }));
+    await act(() => result.current.replaceToken(findRow(result.current.groups, saved.id)!.row));
+    expect(update).toHaveBeenLastCalledWith(saved.id, { worksFor: [] });
+    expect(findRow(result.current.groups, saved.id)?.readyToSave).toBe(false);
+  });
+
+  it.each(["publish", "custom"] as const)("preserves unknown %s ids during an unrelated rename", async kind => {
+    const saved = kind === "publish" ? publishCredential({ worksFor: ["plugin-off"] }) : customCredential({ worksFor: ["plugin-off"] });
+    const update = vi.fn().mockImplementation(async (_id: string, patch: object) => ({ ...saved, ...patch }));
+    const port = fakePort({
+      publish: { list: async () => ({ credentials: kind === "publish" ? [saved as AdminPublishCredentialSummary] : [], executionMode: "self-hosted-cli" }), update },
+      custom: { list: async () => ({ credentials: kind === "custom" ? [saved as AdminCustomCredentialSummary] : [] }), update },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(findRow(result.current.groups, saved.id)).toBeDefined());
+    act(() => result.current.setExistingField(saved.id, { name: "Renamed" }));
+    await act(() => result.current.replaceToken(findRow(result.current.groups, saved.id)!.row));
+    expect(update).toHaveBeenCalledWith(saved.id, { label: "Renamed" });
+    expect(findRow(result.current.groups, saved.id)?.worksFor).toEqual(["plugin-off"]);
+  });
+});
 
 describe("useAccessTokens: setExistingField", () => {
   it("retains all three confirmed store inventories when their seed queries refresh later", async () => {
@@ -658,6 +752,7 @@ describe("useAccessTokens: openAddForm / closeAddForm / setAddField", () => {
       token: "",
       values: {},
       username: "",
+      worksFor: [],
       readyToSave: false,
       saving: false,
       error: null,
@@ -706,12 +801,12 @@ describe("useAccessTokens: createToken", () => {
     await act(() => result.current.createToken(ref));
 
     expect(create).toHaveBeenCalledExactlyOnceWith({
-      label: "New", connection: { providerId: "netlify", token: "tok" }, isDefault: undefined,
+      label: "New", connection: { providerId: "netlify", token: "tok" }, isDefault: undefined, worksFor: [],
     });
 
     const group = findGroup(result.current.groups, "publish", "netlify")!;
     expect(group.rows.map((r) => r.row.id)).toContain("new-1");
-    expect(group.addForm).toEqual({ visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null });
+    expect(group.addForm).toEqual({ visible: false, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null });
   });
 
   it("creates a new SOURCE-CONTROL credential and merges it into that provider's rows (mergeCredential's source-control branch)", async () => {
@@ -751,7 +846,7 @@ describe("useAccessTokens: createToken", () => {
     const ref = { kind, providerId };
     act(() => result.current.setAddField(ref, { name: " New ", token: "tok", values }));
     await act(() => result.current.createToken(ref));
-    expect(create).toHaveBeenCalledExactlyOnceWith({ label: "New", connection, isDefault: undefined });
+    expect(create).toHaveBeenCalledExactlyOnceWith({ label: "New", connection, isDefault: undefined, ...(kind === "publish" ? { worksFor: [] } : {}) });
     expect(findRow(result.current.groups, "extra-new")?.row.name).toBe("New");
     expect(findGroup(result.current.groups, kind, providerId)?.addForm).toMatchObject({ name: "", token: "", values: {}, saving: false, error: null });
   });
@@ -1193,7 +1288,7 @@ describe("useAccessTokens: custom add-form draft + reset", () => {
 
     act(() => result.current.resetCustomAddForm());
 
-    expect(result.current.customAddForm).toEqual({ name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null });
+    expect(result.current.customAddForm).toEqual({ name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null });
   });
 });
 
@@ -1247,6 +1342,7 @@ describe("useAccessTokens: createCustomCredential", () => {
 
     expect(create).toHaveBeenCalledExactlyOnceWith({
       label: "New host",
+      worksFor: [],
       category: "hosting",
       baseUrl: "https://api.example.com",
       additionalHosts: ["https://api.machines.dev", "https://uploads.example.com", "https://status.example.com"],
@@ -1254,7 +1350,7 @@ describe("useAccessTokens: createCustomCredential", () => {
     });
     expect(ok).toBe(true);
     expect(findRow(result.current.groups, "custom-new")).toBeDefined();
-    expect(result.current.customAddForm).toEqual({ name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null });
+    expect(result.current.customAddForm).toEqual({ name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null });
   });
 
   it("a rejected create surfaces the save-error message and returns false", async () => {

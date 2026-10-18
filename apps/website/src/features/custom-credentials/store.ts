@@ -1,3 +1,4 @@
+import { normalizeCredentialWorksFor, VaultError } from "@jini-ai/platform/secrets/credential-sets";
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
@@ -42,7 +43,7 @@ export class CustomCredentialNotFoundError extends Error {}
 /** Safe hints are stored with the envelope; no per-row decrypt is needed for readback. */
 async function toSummary(record: CustomCredentialSetRecord): Promise<CustomCredentialSummary> {
   const row = record.vaultRecord;
-  return { id: record.id, label: record.label, category: record.category, baseUrl: record.baseUrl,
+  return { credentialType: "custom", worksFor: [...(record.worksFor ?? [])], id: record.id, label: record.label, category: record.category, baseUrl: record.baseUrl,
     additionalHosts: record.additionalHosts, ...(record.username !== undefined ? { username: record.username } : {}),
     configured: true, tokenHint: row?.tokenLength === null || row?.tokenLength === undefined ? null :
       { length: row.tokenLength, last4: row.tokenLength >= 12 ? row.last4 : null },
@@ -267,6 +268,7 @@ export interface CreateCustomCredentialInput {
   connection: unknown;
   /** Omitted = no extra hosts beyond `baseUrl`. See `validateAdditionalHosts`'s own doc. */
   additionalHosts?: unknown;
+  worksFor?: unknown;
 }
 
 /**
@@ -289,7 +291,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const id = deps.idGen.newId();
   const prepared = await customVault(deps).prepare({ ...customVaultScope({ workspaceId: input.workspaceId, id }),
     id, expectedRevision: null, provider: null, label,
-    meta: { category, baseUrl, additionalHosts: [...additionalHosts], username: connection.username ?? null },
+    meta: { credentialType: "custom", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? [] : input.worksFor }), category, baseUrl, additionalHosts: [...additionalHosts], username: connection.username ?? null },
     payload: { token: connection.token }, hintToken: connection.token });
   const record = customVaultRecord({ row: prepared, expectedRevision: null });
   try { await deps.repo.insert(record); }
@@ -313,6 +315,7 @@ export interface UpdateCustomCredentialInput {
    *  (never merges) — same "full replace, not append" contract this store's other array-ish writes
    *  don't have to disclaim only because none existed before this field. */
   additionalHosts?: unknown;
+  worksFor?: unknown;
   /** Omitted = leave the stored connection untouched — same "omitting `connection` keeps the
    *  secret" contract every sibling credential route documents. */
   connection?: unknown;
@@ -334,8 +337,8 @@ export interface UpdateCustomCredentialInput {
 }
 
 /** Constrain one feature service; permission checks remain in routes/tools. */
-function customVault(deps: CustomCredentialResolveDeps & Partial<CustomCredentialWriteDeps>, _options = {}) {
-  return createTovuStoreVault({ ...deps, kind: "custom",
+function customVault(deps: CustomCredentialResolveDeps & Partial<CustomCredentialWriteDeps>, { kind = "vendor" }: { kind?: "vendor" | "custom" } = {}) {
+  return createTovuStoreVault({ ...deps, kind,
     storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 
@@ -355,9 +358,10 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   let username = connection ? connection.username : existing.username;
   if (input.username !== undefined) username = validateUsernamePatch(input.username);
   const expectedRevision = existing.vaultRecord!.revision;
-  const prepared = await customVault(deps).prepare({ ...customVaultScope(input), id: input.id,
+  const kind = existing.vaultRecord!.kind === "custom" ? "custom" : "vendor";
+  const prepared = await customVault(deps, { kind }).prepare({ ...customVaultScope({ ...input, kind }), id: input.id,
     expectedRevision, provider: null, label,
-    meta: { ...existing.vaultRecord!.meta, category, baseUrl, additionalHosts: [...additionalHosts], username: username ?? null },
+    meta: { ...existing.vaultRecord!.meta, worksFor: input.worksFor === undefined ? [...(existing.worksFor ?? [])] : validatedWorksFor({ value: input.worksFor }), category, baseUrl, additionalHosts: [...additionalHosts], username: username ?? null },
     ...(connection ? { payload: { token: connection.token }, hintToken: connection.token } : {}) });
   const record = customVaultRecord({ row: prepared, expectedRevision });
   try { await deps.repo.update(record); }
@@ -396,7 +400,8 @@ export async function resolveCustomCredentialByLabel(
   const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const record = records.find(row => row.label === input.label);
   if (!record) return null;
-  const resolved = await customVault(deps).get({ ...customVaultScope(record), id: record.id });
+  const kind = record.vaultRecord!.kind === "custom" ? "custom" : "vendor";
+  const resolved = await customVault(deps, { kind }).get({ ...customVaultScope({ ...record, kind }), id: record.id });
   if (!resolved) return null;
   if (typeof resolved.payload?.token !== "string") throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   // Use metadata from the same read as the payload, so a concurrent origin/username update cannot
@@ -405,4 +410,10 @@ export async function resolveCustomCredentialByLabel(
   return { id: record.id, category: current.category as CustomCredentialCategoryId, baseUrl: current.baseUrl as string,
     additionalHosts: current.additionalHosts as string[], connection: { token: resolved.payload.token,
       ...(typeof current.username === "string" ? { username: current.username } : {}) } };
+}
+
+/** Keep the feature's HTTP validation error contract while reusing Jini's canonical ID parser. */
+function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
+  try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) assertPlainField({ value: id, field: "worksFor" }); return ids; }
+  catch (error) { if (error instanceof VaultError) throw new CustomCredentialValidationError("worksFor must be an array of provider IDs"); throw error; }
 }

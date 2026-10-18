@@ -20,8 +20,8 @@ function fixture() {
   const calls: unknown[] = [];
   const permissions: string[] = [];
   const sources = [{ siteId: 'source', name: 'Source', keys: [
-    { kind: 'vendor' as const, id: 'one', label: 'OpenAI', provider: 'openai', last4: 'ABCD' },
-    { kind: 'custom' as const, id: 'two', label: 'DNS', provider: null },
+    { kind: 'vendor' as const, id: 'one', label: 'OpenAI', provider: 'openai', worksFor: [], last4: 'ABCD' },
+    { kind: 'vendor' as const, id: 'two', label: 'DNS', provider: null, worksFor: [] },
   ] }];
   const deps: CredentialCopyToolDeps = { workspaceId: 'target', ownerPrincipalId: Promise.resolve('owner'),
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed: allow, reason: 'matched' }; },
@@ -29,7 +29,7 @@ function fixture() {
     localCredentialCopy: { localHost: true, list: async () => sources,
       copy: async input => { calls.push(input); return [
         { kind: 'vendor', id: 'one', status: 'copied', last4: 'ABCD', token: 'secret-canary', sealed: 'ciphertext-canary' },
-        { kind: 'custom', id: 'two', status: 'skipped', reasonCode: 'target-exists' },
+        { kind: 'vendor', id: 'two', status: 'skipped', reasonCode: 'target-exists' },
       ]; } } };
   const tool = buildCredentialCopyRegistrations({ deps, surfaces: { surfaceExchanges } })[0]!;
   const emitted: SurfaceEmission[] = [];
@@ -53,16 +53,16 @@ async function keys(f: ReturnType<typeof fixture>) {
 test('copy card shows custom keys alongside vendor keys and their publish hosts; only selected IDs are copied', async () => {
   const f = fixture();
   f.deps.localCredentialCopy!.list = async () => [{ siteId: 'source', name: 'Source', keys: [
-    { kind: 'custom', id: 'vercel-key', label: 'Vercel', provider: null, publishHosts: ['vercel'] },
-    { kind: 'custom', id: 'dns-key', label: 'name.com', provider: null, publishHosts: [] },
-    { kind: 'vendor', id: 'github-key', label: 'GitHub Pages token', provider: 'github', publishHosts: ['github-pages'] },
+    { kind: 'vendor', id: 'vercel-key', label: 'Production access', provider: null, worksFor: ['vercel'], publishHosts: ['vercel'] },
+    { kind: 'vendor', id: 'dns-key', label: 'name.com', provider: null, worksFor: [], publishHosts: [] },
+    { kind: 'vendor', id: 'github-key', label: 'GitHub Pages token', provider: 'github', worksFor: ['github'], publishHosts: ['github-pages'] },
   ] }];
   const pending = f.run();
   await keys(f);
   for (const id of ['vercel-key', 'dns-key', 'github-key']) assert.match(f.resource().text, new RegExp(`name="ids" value="${id}"`));
-  assert.match(f.resource().text, /Vercel · custom · Publish: vercel/);
-  assert.match(f.resource().text, /name.com · custom · No static publish host/);
-  assert.match(f.resource().text, /GitHub Pages token · github · Publish: github-pages/);
+  assert.match(f.resource().text, /Production access · vendor · Works for: vercel · Publish: vercel/);
+  assert.match(f.resource().text, /name.com · vendor · Works for: none · No static publish host/);
+  assert.match(f.resource().text, /GitHub Pages token · github · Works for: github · Publish: github-pages/);
   assert.doesNotMatch(f.resource().text, /name="ids"[^>]* checked/);
   f.answer({ ids: ['vercel-key', 'dns-key', 'github-key'], overwrite: false });
   await pending;
@@ -97,7 +97,7 @@ test('C3: source, unchecked keys/overwrite, masked outcomes replace one card; C2
   const result = await pending;
   assert.deepEqual(f.calls, [{ sourceSiteId: 'source', ids: ['one', 'two'], overwrite: false, actorId: 'owner' }]);
   assert.deepEqual(result, { results: [{ kind: 'vendor', id: 'one', status: 'copied', last4: 'ABCD' },
-    { kind: 'custom', id: 'two', status: 'skipped', reasonCode: 'target-exists' }] });
+    { kind: 'vendor', id: 'two', status: 'skipped', reasonCode: 'target-exists' }] });
   assert.equal(f.resource().uri, uri);
   assert.match(f.resource().text, /copied ✓ …ABCD/);
   assert.match(f.resource().text, /skipped — already there/);
@@ -313,14 +313,14 @@ test('C3: mixed outcomes preserve safe summaries, truncate tails, and display mi
   const f = fixture();
   f.deps.localCredentialCopy!.copy = async () => [
     { kind: 'vendor', id: 'one', status: 'copied', last4: 'private-prefixABCD' },
-    { kind: 'custom', id: 'two', status: 'copied' },
-    { kind: 'custom', id: 'no-longer-listed', status: 'failed' },
+    { kind: 'vendor', id: 'two', status: 'copied' },
+    { kind: 'vendor', id: 'no-longer-listed', status: 'failed' },
   ];
   const pending = f.run(); await keys(f); f.answer({ ids: ['one', 'two'], overwrite: false });
   assert.deepEqual(await pending, { results: [
     { kind: 'vendor', id: 'one', status: 'copied', last4: 'ABCD' },
-    { kind: 'custom', id: 'two', status: 'copied' },
-    { kind: 'custom', id: 'no-longer-listed', status: 'failed' },
+    { kind: 'vendor', id: 'two', status: 'copied' },
+    { kind: 'vendor', id: 'no-longer-listed', status: 'failed' },
   ] });
   assert.match(f.resource().text, /not copied — copy-failed/);
   assert.match(f.resource().text, /data-state="partial"/);

@@ -22,7 +22,7 @@ export function CopyKeysDialog({ dialog, t }: { dialog: CopyKeysController; t: T
           {dialog.canStart ? <Button variant="secondary" className="btn-secondary" disabled={dialog.pending || dialog.loading} onPress={dialog.start}>{t("Start project")}</Button> : null}
           {dialog.empty ? <span>{t("No keys to copy.")}</span> : null}
           <div className="copy-keys-list">
-            {dialog.keys.map(key => <label key={key.id}><input type="checkbox" value={key.id} checked={key.checked} onChange={dialog.changeKey} disabled={dialog.pending || dialog.loading} />{key.text}</label>)}
+            {dialog.keys.map(key => <label key={key.id}><input type="checkbox" value={key.id} checked={key.checked} onChange={dialog.changeKey} disabled={dialog.pending || dialog.loading} />{key.text}{key.worksFor ? <span> · {key.worksFor}</span> : null}</label>)}
           </div>
           <label className="copy-keys-overwrite"><input type="checkbox" checked={dialog.overwrite} onChange={dialog.changeOverwrite} disabled={dialog.pending || dialog.loading} />{t("Overwrite existing")}</label>
           {dialog.error ? <span className="jini-field-error" role="alert">{dialog.error}</span> : null}

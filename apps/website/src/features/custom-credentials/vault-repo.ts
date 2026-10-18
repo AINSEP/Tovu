@@ -2,8 +2,8 @@ import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platf
 import { byVaultLabel, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { CustomCredentialCategoryId, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
-export function customVaultScope({ workspaceId, id }: { workspaceId: string; id?: string }, _options = {}) {
-  return { workspaceId, kind: "custom" as const, ownerKey: "tovu", principalId: null, binding: null,
+export function customVaultScope({ workspaceId, id, kind = "vendor" }: { workspaceId: string; id?: string; kind?: "vendor" | "custom" }, _options = {}) {
+  return { workspaceId, kind, ownerKey: "tovu", principalId: null, binding: null,
     ...(id === undefined ? {} : { id }) };
 }
 
@@ -11,16 +11,16 @@ export function customVaultScope({ workspaceId, id }: { workspaceId: string; id?
  * an explicit clear. The private envelope/revision never becomes a public summary field.
  */
 export function customVaultRecord({ row, expectedRevision }: { row: VaultRecord; expectedRevision?: number | null }, _options = {}): CustomCredentialSetRecord {
-  if (row.kind !== "custom" || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider !== null) {
+  if ((row.kind !== "custom" && (row.kind !== "vendor" || row.meta.credentialType !== "custom")) || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider !== null) {
     throw new VaultError({ code: "context" });
   }
-  const meta = parseTovuStoreMeta({ kind: "custom", meta: row.meta });
+  const meta = parseTovuStoreMeta({ kind: row.kind as "vendor" | "custom", meta: row.meta, provider: row.provider });
   if (!row.sealed) throw new VaultError({ code: "invalid-record" });
   const record: CustomCredentialSetRecord = { workspaceId: row.workspaceId, id: row.id, label: row.label,
     category: meta.category as CustomCredentialCategoryId, baseUrl: meta.baseUrl as string,
-    additionalHosts: meta.additionalHosts as string[], ...(meta.username === null || meta.username === undefined ? {} : { username: meta.username as string }),
+    worksFor: meta.worksFor as string[], additionalHosts: meta.additionalHosts as string[], ...(meta.username === null || meta.username === undefined ? {} : { username: meta.username as string }),
     sealed: row.sealed, createdAt: row.createdAt, updatedAt: row.updatedAt };
-  Object.defineProperty(record, "vaultRecord", { value: row });
+  Object.defineProperty(record, "vaultRecord", { value: { ...row, meta } });
   if (expectedRevision !== undefined) Object.defineProperty(record, "vaultExpectedRevision", { value: expectedRevision });
   return record;
 }
@@ -31,12 +31,15 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
   async findById(input: { workspaceId: string; id: string }): Promise<CustomCredentialSetRecord | null> {
     const row = await this.vault.find(input);
-    if (!row || row.kind !== "custom") return null;
+    if (!row || (row.kind !== "custom" && (row.kind !== "vendor" || row.meta.credentialType !== "custom"))) return null;
     return customVaultRecord({ row });
   }
   async listByWorkspace(input: { workspaceId: string }): Promise<CustomCredentialSetRecord[]> {
     // Label order, as before the vault (the label index drove the scan); the vault lists by id.
-    return (await this.vault.list(customVaultScope(input))).sort(byVaultLabel).map(row => customVaultRecord({ row }));
+    const unified = await this.vault.list(customVaultScope(input));
+    // This is a read bridge, not a kind rewrite: the stored kind still authenticates old envelopes.
+    const legacy = await this.vault.list(customVaultScope({ ...input, kind: "custom" }));
+    return [...unified.filter(row => row.meta.credentialType === "custom"), ...legacy].sort(byVaultLabel).map(row => customVaultRecord({ row }));
   }
   async insert(record: CustomCredentialSetRecord): Promise<void> { await this.write({ record, expectedRevision: null }); }
   async update(record: CustomCredentialSetRecord): Promise<void> {
@@ -60,10 +63,11 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
     }
     const unchanged = existing?.sealed != null && existing.sealed.keyId === record.sealed.keyId &&
       existing.sealed.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce && existing.sealed.alg === record.sealed.alg;
-    const row: VaultRecord = prepared ?? { ...customVaultScope(record), id: record.id, provider: null, label: record.label,
+    const kind = existing?.kind === "custom" ? "custom" : "vendor";
+    const row: VaultRecord = prepared ?? { ...customVaultScope({ ...record, kind }), id: record.id, provider: null, label: record.label,
       sealed: record.sealed, isDefault: existing?.isDefault ?? false, revision: (expectedRevision ?? 0) + 1,
       last4: unchanged ? existing!.last4 : null, tokenLength: unchanged ? existing!.tokenLength : null,
-      meta: parseTovuStoreMeta({ kind: "custom", meta: { ...existing?.meta, category: record.category, baseUrl: record.baseUrl,
+      meta: parseTovuStoreMeta({ kind, meta: { ...existing?.meta, credentialType: "custom", worksFor: [...(record.worksFor ?? existing?.meta.worksFor as string[] ?? [])], category: record.category, baseUrl: record.baseUrl,
         additionalHosts: [...record.additionalHosts], username: record.username ?? null } }),
       createdAt: existing?.createdAt ?? record.createdAt, updatedAt: record.updatedAt };
     try { await this.vault.put({ record: row, expectedRevision }); }

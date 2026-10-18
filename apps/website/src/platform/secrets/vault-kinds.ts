@@ -25,8 +25,8 @@ export function createTovuVaultKinds(
   _optional: Record<string, never> = {},
 ): { metaParsers: VaultMetaParsers; policy: TovuVaultPolicy; isCopyableKind: typeof isCopyableKind } {
   const base = createVaultMetaParsers({});
-  const metaParsers = createVaultMetaParsers({}, { parsers: Object.fromEntries(VAULT_KINDS.map(kind => [kind,
-    ({ meta }: { meta: unknown }, _options: VaultOptions = {}) => {
+  const metaParsers = createVaultMetaParsers({}, { parsers: Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind,
+    ({ meta, provider }: { meta: unknown; provider?: string | null | undefined }, _options: VaultOptions = {}) => {
       if (Object.hasOwn(meta as object, "legacyAad")) throw new VaultError({ code: "invalid-meta" });
       const { migration, normalization, ...plain } = meta as VaultMeta;
       if (normalization !== undefined && !["missing-key", "unopenable", "invalid-meta", "catalog-unavailable", "conflict"].includes(String(normalization))) {
@@ -40,13 +40,13 @@ export function createTovuVaultKinds(
       // savedAt describes the destination save, not the last metadata patch. Old migrated rows
       // omit it and use createdAt; it must survive later lastRun updates without changing.
       const { savedAt, ...destinationMeta } = plain;
-      const parsed = base[kind]({ meta: kind === "database-destination" ? destinationMeta : plain });
+      const parsed = base[kind]({ meta: kind === "database-destination" ? destinationMeta : plain, provider });
       if (kind === "database-destination" && savedAt !== undefined) {
         if (typeof savedAt !== "string") throw new VaultError({ code: "invalid-meta" });
         parsed.savedAt = savedAt;
       }
       validatePeerDestinationMeta({ kind, meta: parsed });
-      if (kind === "custom" && !CUSTOM_CREDENTIAL_CATEGORIES.includes(parsed.category as typeof CUSTOM_CREDENTIAL_CATEGORIES[number])) {
+      if ((kind === "custom" || (kind === "vendor" && parsed.credentialType === "custom")) && !CUSTOM_CREDENTIAL_CATEGORIES.includes(parsed.category as typeof CUSTOM_CREDENTIAL_CATEGORIES[number])) {
         throw new VaultError({ code: "invalid-meta" });
       }
       for (const field of ["baseUrl", "model", "username", "accountLabel"]) {
@@ -56,6 +56,9 @@ export function createTovuVaultKinds(
       if (Array.isArray(parsed.additionalHosts)) for (const value of parsed.additionalHosts) {
         if (typeof value !== "string" || new URL(value).origin !== value) throw new VaultError({ code: "invalid-meta" });
         assertCredentialFreeField({ value, field: "additionalHosts" });
+      }
+      if (Array.isArray(parsed.worksFor)) for (const value of parsed.worksFor) {
+        assertCredentialFreeField({ value: value as string, field: "worksFor" });
       }
       const validated = policy.validateMeta({ kind, meta: parsed });
       return { ...validated, ...(migration === undefined ? {} : { migration }),
@@ -91,7 +94,7 @@ function validatePeerDestinationMeta({ kind, meta }: { kind: VaultKind; meta: Va
  * @complexity Constant setup; the Jini service owns all persistence and sealing work.
  */
 export function createTovuStoreVault(required: {
-  repo: { vault?: VaultRepoPort }; kind: "media-provider" | "custom" | "site-assistant" | "personal-execution"; sealer: SecretSealerPort;
+  repo: { vault?: VaultRepoPort }; kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution"; sealer: SecretSealerPort;
   keyring?: KeyringPort; clock?: Clock; storageError: (error?: unknown) => Error;
   /** Assistant stores constrain the full session/site scope and mint stable singleton IDs. */
   context?: VaultContext; newId?: (input: VaultOptions) => string;
@@ -127,8 +130,8 @@ const storeKinds = createTovuVaultKinds({ policy: {
 } });
 
 /** Parse complete feature metadata through the same registration used by the vault service. */
-export function parseTovuStoreMeta(input: { kind: "media-provider" | "custom" | "site-assistant" | "personal-execution"; meta: unknown }, _options = {}): VaultMeta {
-  return storeKinds.metaParsers[input.kind]({ meta: input.meta });
+export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution"; meta: unknown; provider?: string | null | undefined }, _options = {}): VaultMeta {
+  return storeKinds.metaParsers[input.kind](input);
 }
 
 /** Binary label order for labelled kinds (`custom`, `publish-peer`): what their pre-vault label

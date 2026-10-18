@@ -26,7 +26,7 @@ const token = "copy-test-secret-1234567890";
 const registry = createTovuVaultKinds({ policy: {
   validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined,
 } });
-const context = (workspaceId: string, kind: VaultKind) => ({ workspaceId, kind, ownerKey: "tovu",
+const context = (workspaceId: string, kind: VaultKind) => ({ workspaceId, kind: kind === "custom" ? "vendor" as const : kind, ownerKey: "tovu",
   principalId: kind === "personal-execution" ? "source-person" : null,
   binding: kind === "mcp-env" || kind === "mcp-auth" ? "server" : null });
 
@@ -82,8 +82,9 @@ async function fixture(placement: "inSite" | "appData" = "inSite") {
 async function save(site: Awaited<ReturnType<typeof fixture>>["source"], kind: VaultKind, id: string = kind, value = token) {
   const meta: VaultMeta = kind === "publish-peer" ? { baseUrl: "https://peer.example.test", remoteWorkspaceId: "remote" }
     : kind === "database-destination" ? { description: { host: "db.example.test", port: "5432", database: "content", user: "writer" }, lastRun: null }
-    : kind === "custom" ? { category: "general" } : {};
-  return site.service.put({ ...context(site.id, kind), id, expectedRevision: null, provider: kind === "media-provider" ? "media-test" : null,
+    : kind === "custom" ? { credentialType: "custom", worksFor: id === "Production access" ? ["vercel"] : [], category: "general", baseUrl: "https://api.example.test", additionalHosts: [], username: null }
+    : kind === "vendor" ? { credentialType: "vendor", worksFor: [] } : {};
+  return site.service.put({ ...context(site.id, kind), id, expectedRevision: null, provider: kind === "media-provider" ? "media-test" : kind === "vendor" ? "vendor-test" : null,
     label: id, meta, payload: { token: value }, hintToken: value });
 }
 
@@ -91,15 +92,17 @@ test("copy inventory retains every eligible kind, labels custom host compatibili
   const f = await fixture();
   try {
     for (const kind of VAULT_KINDS.filter(kind => registry.isCopyableKind[kind])) await save(f.source, kind);
+    await save(f.source, "custom", "Production access");
     await save(f.source, "custom", "Vercel");
     const before = fs.readFileSync(f.source.dbPath);
     const copy = createLocalCredentialCopy({ ...f.required, loadDeployTargets: loadBundledDeployTargets }, f.options);
     const sources = await copy.list({});
     assert.equal(sources[0].keys.length, 8);
-    assert.deepEqual(sources[0].keys.find(key => key.label === "Vercel")?.publishHosts, ["vercel"]);
-    assert.deepEqual(sources[0].keys.find(key => key.id === "custom")?.publishHosts, []);
-    assert.deepEqual((await copy.copy({ sourceSiteId: "source", ids: ["Vercel"], overwrite: false, actorId: "owner" }))
-      .map(row => [row.id, row.status]), [["Vercel", "copied"]]);
+    assert.deepEqual(sources[0].keys.find(key => key.label === "Production access")?.worksFor, ["vercel"]);
+    assert.deepEqual(sources[0].keys.find(key => key.label === "Production access")?.publishHosts, ["vercel"]);
+    assert.deepEqual((await copy.list({}))[0].keys.find(key => key.label === "Vercel")?.publishHosts, []);
+    assert.deepEqual((await copy.copy({ sourceSiteId: "source", ids: ["Production access"], overwrite: false, actorId: "owner" }))
+      .map(row => [row.id, row.status]), [["Production access", "copied"]]);
     const publish = createDbPublishCredentialSource({ repo: new VendorCredentialSetVaultRepo({ vault: f.target.repo, kind: "vendor", vendor: true }),
       sealer: f.target.sealer, loadDeployTargets: loadBundledDeployTargets });
     assert.deepEqual(await publish.isConfigured({ workspaceId: "target", target: "vercel" }), { configured: true });
@@ -111,14 +114,14 @@ test("copy inventory retains every eligible kind, labels custom host compatibili
 test("copy inventory keeps source keys without publishHosts when deploy targets cannot load", async () => {
   const f = await fixture();
   try {
-    await save(f.source, "custom", "Vercel");
+    await save(f.source, "custom", "Production access");
     const copy = createLocalCredentialCopy({ ...f.required, loadDeployTargets: async () => {
       throw new Error("private-registry-error");
     } }, f.options);
     const sources = await copy.list({});
     assert.deepEqual(sources.map(source => ({ siteId: source.siteId,
       keys: source.keys.map(({ kind, id, label, provider }) => ({ kind, id, label, provider })) })), [
-      { siteId: "source", keys: [{ kind: "custom", id: "Vercel", label: "Vercel", provider: null }] },
+      { siteId: "source", keys: [{ kind: "vendor", id: "Production access", label: "Production access", provider: null }] },
     ]);
     assert.equal(Object.hasOwn(sources[0].keys[0], "publishHosts"), false);
     assert.equal(f.handles.opened, f.handles.closed);
@@ -135,8 +138,10 @@ for (const placement of ["inSite", "appData"] as const) test(`${placement}: copi
     const metaBefore = fs.readFileSync(path.join(f.source.dir, ".site-meta.json"));
     const inventory = await f.copy.list({});
     assert.deepEqual(inventory.map(choice => choice.siteId), ["source"]);
-    assert.equal(inventory[0].keys.length, 7);
-    assert.deepEqual(Object.keys(inventory[0].keys[0]).sort(), ["id", "kind", "label", "last4", "provider"]);
+    assert.equal(inventory[0].keys.length, 6);
+    assert.deepEqual(Object.keys(inventory[0].keys[0]).sort(), ["id", "kind", "label", "last4", "provider", "worksFor"]);
+    assert.equal(inventory[0].keys.find(key => key.kind === "database-destination")!.last4, undefined);
+    assert.equal(inventory[0].keys.find(key => key.kind === "vendor")!.last4, "7890");
     const results = await f.copy.copy({ actorId: "owner", sourceSiteId: "source", ids: kinds, overwrite: false });
     assert.ok(results.every(row => row.status === "copied"));
     for (const kind of kinds) {
@@ -159,7 +164,7 @@ for (const placement of ["inSite", "appData"] as const) test(`${placement}: copi
     assert.ok(!serialized.includes("ciphertext"));
     assert.deepEqual(f.logs[0], { message: { message: "credentials.copy" }, fields: { meta: {
       operationId: "operation-1", actorId: "owner", sourceSiteId: "source", targetSiteId: "target",
-      copied: 7, skipped: 0, failed: 0, reasonCodes: [],
+      copied: 6, skipped: 0, failed: 0, reasonCodes: [],
     } } });
   } finally { await f.close(); }
 });
@@ -319,7 +324,7 @@ test("GET/POST require owner session, system.write, instance permission and loca
     const inventory = await request("GET");
     const result = await request("POST", { body: submission });
     assert.equal(inventory.status, 200); assert.equal(result.status, 200);
-    assert.deepEqual((result.body as { results: unknown[] }).results, [{ kind: "custom", id: "custom", status: "copied", last4: "7890" }]);
+    assert.deepEqual((result.body as { results: unknown[] }).results, [{ kind: "vendor", id: "custom", status: "copied", last4: "7890" }]);
     assert.ok(!JSON.stringify({ inventory, result, logs: f.logs }).includes(token));
     assert.ok(permissions.every(permission => permission === "system.write"));
     assert.equal(f.handles.opened, f.handles.closed);
@@ -335,5 +340,20 @@ test("a source database linked to the target is an ambiguous identity and never 
     assert.equal(f.handles.opened, 0);
     await assert.rejects(f.copy.copy({ actorId: "owner", sourceSiteId: "source", ids: ["custom"], overwrite: true }), { reasonCode: "source-unavailable" });
     assert.ok(!JSON.stringify(f.logs).includes(f.home));
+  } finally { await f.close(); }
+});
+
+test("pre-unification source without a legacy marker needs upgrade before metadata or secret access", async () => {
+  const f = await fixture();
+  try {
+    await save(f.source, "custom");
+    await f.source.kernel.execute(sql`UPDATE secrets_vault SET kind='custom',meta='{"category":"general"}'`);
+    const before = fs.readFileSync(f.source.dbPath);
+    const choice = (await f.copy.list({}))[0]!;
+    assert.equal(choice.reasonCode, "source-needs-upgrade");
+    assert.equal(choice.actionHint?.action, "start-site");
+    assert.deepEqual(choice.keys, []);
+    await assert.rejects(f.copy.copy({ actorId: "owner", sourceSiteId: "source", ids: ["custom"], overwrite: false }), { reasonCode: "source-needs-upgrade" });
+    assert.deepEqual(fs.readFileSync(f.source.dbPath), before);
   } finally { await f.close(); }
 });

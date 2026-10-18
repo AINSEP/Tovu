@@ -61,11 +61,15 @@ export type PublishConnectionInput = { readonly providerId: PublishProviderId } 
  *  contains `sealed`, a token, or any `PublishConnectionInput` field — enforced by construction: this
  *  type has no field capable of carrying one. */
 export interface PublishCredentialSummary {
+  readonly credentialType: "vendor" | "custom";
+  readonly worksFor: string[];
+  readonly publishHosts: string[];
+  readonly defaultFor: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   readonly id: UUID;
-  /** The host this row is shown under: the first deploy host declaring its vendor. */
+  /** Display host: the first compatible target, or the stored vendor's editing host. */
   readonly providerId: PublishProviderId;
-  /** The account the credential authenticates to (`vendor_credential_sets.vendor_id`). */
+  /** Stored vendor group; custom NULL-provider keys use the display host's vendor. */
   readonly vendorId: string;
   readonly label: string;
   readonly configured: true;

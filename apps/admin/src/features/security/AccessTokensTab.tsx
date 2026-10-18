@@ -1,5 +1,6 @@
 import { CredentialHint } from "@/components/CredentialHint";
 import { forwardRef, useRef } from "react";
+import { OnboardingChipField } from "@jini-ai/ui";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
@@ -380,6 +381,7 @@ function TokenRow({
         <span className="access-tokens-row-name">{state.name}</span>
         <TokenRowDefaultIndicator state={state} showDefaultUi={showDefaultUi} controller={controller} t={translate} />
         <span className="access-tokens-row-summary-meta">
+          {state.row.worksFor?.length ? <span>{translate("Works for")}: {state.row.worksFor.join(", ")} · </span> : null}
           {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { timeZone: "local" })} <CredentialHint hint={state.row.tokenHint} />
         </span>
         <span className="access-tokens-row-summary-expand">
@@ -614,6 +616,22 @@ function ExtraFieldInput({
   );
 }
 
+/** Reuse Jini's multiple-choice field, retaining disabled-plugin ids as removable raw chips.
+ * Rendering costs O(options + selected) space and time; selection stays in the controller.
+ */
+function WorksForField({ value = [], options = [], onChange, t }: {
+  value: string[];
+  options: { value: string; label: string }[];
+  onChange: (value: string[]) => void;
+  t: Translate;
+}, _options = {}) {
+  const choices = new Map(options.map(option => [option.value, option]));
+  for (const id of value) if (!choices.has(id)) choices.set(id, { value: id, label: id });
+  return <div className="field" role="group" aria-label={t("Works for")}>
+    <OnboardingChipField multiple label={t("Works for")} options={[...choices.values()]} value={value} onChange={onChange} />
+  </div>;
+}
+
 function ExistingTokenFields({
   state,
   controller,
@@ -644,6 +662,7 @@ function ExistingTokenFields({
         connected
         t={translate}
       />
+      {info.kind !== "source-control" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setExistingField(state.row.id, { worksFor })} t={translate} /> : null}
       <div className="access-tokens-row-actions">
         <button
           type="button"
@@ -702,6 +721,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
         connected={false}
         t={translate}
       />
+      {info.kind === "publish" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setAddField(ref, { worksFor })} t={translate} /> : null}
       <div className="access-tokens-row-actions">
         <button
           type="button"
@@ -957,6 +977,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             ))}
           </select>
         </div>
+        <WorksForField value={form.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setCustomAddField({ worksFor })} t={translate} />
         {form.error ? (
           <p className="save-error" role="alert">
             {form.error}

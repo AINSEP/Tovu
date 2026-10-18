@@ -16,6 +16,7 @@ import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
 import { createPublishCredential, resolveForPublish } from "../publish-credentials/store.js";
+import { InMemoryVendorCredentialSetRepo } from "../publish-credentials/repo.memory.js";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 
@@ -105,11 +106,11 @@ test("missing publish keys report matching registered-site labels only to the lo
     lists++;
     return [
       { siteId: "dev", name: "tovu-dev", keys: [
-        { kind: "vendor", id: "github-id", label: "GitHub Pages token", provider: "github", publishHosts: ["github-pages"] },
+        { kind: "vendor", id: "github-id", label: "GitHub Pages token", provider: "github", worksFor: ["github-pages"], publishHosts: ["github-pages"] },
       ] },
       { siteId: "luv", name: "luvira", keys: [
-        { kind: "custom", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", publishHosts: ["vercel"],
-          secretCanary: "must-not-leak" } as { kind: "custom"; id: string; label: string; provider: null; publishHosts: string[] },
+        { kind: "vendor", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", worksFor: ["vercel"], publishHosts: ["vercel"],
+          secretCanary: "must-not-leak" } as { kind: "vendor"; id: string; label: string; provider: null; worksFor: string[]; publishHosts: string[] },
       ] },
     ];
   } };
@@ -117,8 +118,8 @@ test("missing publish keys report matching registered-site labels only to the lo
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = await call(capabilities) as { credentialSources: { siteId: string; name: string; keys: { label: string; publishHosts: string[] }[] }[] };
   assert.deepEqual(result.credentialSources, [
-    { siteId: "dev", name: "tovu-dev", keys: [{ kind: "vendor", label: "GitHub Pages token", provider: "github", publishHosts: ["github-pages"] }] },
-    { siteId: "luv", name: "luvira", keys: [{ kind: "custom", label: "Vercel", provider: null, publishHosts: ["vercel"] }] },
+    { siteId: "dev", name: "tovu-dev", keys: [{ kind: "vendor", label: "GitHub Pages token", provider: "github", worksFor: ["github-pages"], publishHosts: ["github-pages"] }] },
+    { siteId: "luv", name: "luvira", keys: [{ kind: "vendor", label: "Vercel", provider: null, worksFor: ["vercel"], publishHosts: ["vercel"] }] },
   ]);
   assert.deepEqual(result.credentialSources.filter(source => source.keys.some(key => key.publishHosts.includes("vercel"))).map(source => source.name), ["luvira"]);
   assert.doesNotMatch(JSON.stringify(result.credentialSources), /must-not-leak|TAIL|vercel-id|github-id/);
@@ -142,7 +143,7 @@ for (const allConfigured of [false, true]) test(`environment-configured Vercel r
   deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
   deps.localCredentialCopy = { localHost: true, copy: async () => assert.fail("discovery must not copy"), list: async () => [
     { siteId: "luv", name: "luvira", keys: [
-      { kind: "custom", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", publishHosts: ["vercel"] },
+      { kind: "vendor", id: "vercel-id", label: "Vercel", provider: null, last4: "TAIL", worksFor: ["vercel"], publishHosts: ["vercel"] },
     ] },
     { siteId: "dev", name: "tovu-dev", keys: [] },
   ] };
@@ -163,7 +164,7 @@ for (const allConfigured of [false, true]) test(`environment-configured Vercel r
   assert.doesNotMatch(vercel.guidance!, /no key|not stored|no .+ stored/i);
   if (!allConfigured) assert.equal(result.providers.find(provider => provider.providerId === "github-pages")!.credentialOrigin, null);
   assert.deepEqual(result.credentialSources, [
-    { siteId: "luv", name: "luvira", keys: [{ kind: "custom", label: "Vercel", provider: null, publishHosts: ["vercel"] }] },
+    { siteId: "luv", name: "luvira", keys: [{ kind: "vendor", label: "Vercel", provider: null, worksFor: ["vercel"], publishHosts: ["vercel"] }] },
     { siteId: "dev", name: "tovu-dev", keys: [] },
   ]);
   assert.doesNotMatch(JSON.stringify(result.credentialSources), /vercel-id|TAIL/);
@@ -186,7 +187,7 @@ test("capabilities recognize custom Vercel tokens without opening them or claimi
   assert.ok(deps.vendorCredentialSetRepo.vault);
   const saved = await createCustomCredential({ repo: new CustomCredentialVaultRepo({ vault: deps.vendorCredentialSetRepo.vault }),
     sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-  { workspaceId: deps.workspaceId, label: "Vercel", category: "general", baseUrl: "https://api.vercel.com", connection: { token: "synthetic-vercel-token" } });
+  { workspaceId: deps.workspaceId, label: "Production access", worksFor: ["vercel"], category: "general", baseUrl: "https://api.vercel.com", connection: { token: "synthetic-vercel-token" } });
   deps.siteAssistantSecretSealer = { seal: async () => { assert.fail("capabilities must not seal"); }, open: async () => { assert.fail("capabilities must not open"); } };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
@@ -288,14 +289,21 @@ function failingDeployTarget(message: string): DeployTarget {
 /** A saved `vendor_credential_sets` row for the capabilities tests; its unreadable seal proves
  * metadata remains readable when server-side hint unsealing fails. */
 function vendorRow(fields: Pick<VendorCredentialSetRecord, "workspaceId" | "id" | "vendorId" | "label" | "isDefault"> & Partial<VendorCredentialSetRecord>): VendorCredentialSetRecord {
-  return { sealed: {} as never, tokenTail: "", accountLabel: null, createdAt: NOW, updatedAt: NOW, ...fields };
+  return { sealed: { keyId: "fixture", ciphertext: "unreadable", nonce: "unreadable", alg: "aes-256-gcm" },
+    tokenTail: "", accountLabel: null, createdAt: NOW, updatedAt: NOW, ...fields };
 }
 
-/** A `VendorCredentialSetRepoPort` whose only implemented method is `listByWorkspace` — every other
- *  method throws if ever called, so a test using it also proves the capabilities handler never reaches
- *  for anything beyond the read model (`describeCredential`/`listPublishCredentials`'s own contract). */
-function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): VendorCredentialSetRepoPort {
+/** Seed through the existing adapter; only vault.list and the historical listByWorkspace read
+ *  model are exposed. Every other method throws, so capabilities still prove they never reach
+ *  beyond the read model (`describeCredential`/`listPublishCredentials`'s own contract). */
+async function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): Promise<VendorCredentialSetRepoPort> {
+  const repo = new InMemoryVendorCredentialSetRepo({});
+  for (const record of records) await repo.insert(record);
   return {
+    vault: new Proxy(repo.vault, { get(target, prop) {
+      if (prop === "list") return target.list.bind(target);
+      return () => { throw new Error("not used by this read-only test"); };
+    } }),
     async insert() { throw new Error("not used by this test"); },
     async update() { throw new Error("not used by this test"); },
     async findById() { throw new Error("not used by this test"); },
@@ -481,7 +489,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   // 2026-08-16: `ready` now additionally requires a CACHED `verified: "valid"` — a saved-but-never-
   // verified credential is no longer `ready` (that is exactly this defect's fix; see the dedicated
   // tests below for the unverified/invalid/unreachable cases). Seeding this here keeps this test's
@@ -643,7 +651,7 @@ test("deployment_get_static_publish_capabilities: accountLabel is read from the 
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   // Deliberately empty — simulates the process having restarted since the credential was last
   // verified (this is exactly the "InMemoryPublishCredentialVerificationCache wiped, DB row intact"
   // scenario the fix is for).
@@ -668,7 +676,7 @@ test("deployment_get_static_publish_capabilities: accountLabel falls back to the
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -694,7 +702,7 @@ test("deployment_get_static_publish_capabilities: the DB column wins over a stal
     },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   // A deliberately different, stale cached value — the column must win.
   deps.publishCredentialVerificationCache.set(
@@ -814,7 +822,7 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache(); // nothing cached — never verified
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
@@ -838,7 +846,7 @@ test("deployment_get_static_publish_capabilities: a saved credential the provide
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -868,7 +876,7 @@ test("deployment_get_static_publish_capabilities: a saved credential whose last 
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
-  deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
+  deps.vendorCredentialSetRepo = await fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
@@ -1252,7 +1260,7 @@ test("deployment_propose_custom_provider_credential's schema carries no credenti
   const entry = credentialSaveCatalog.find((t) => t.name === "credential_save")!;
   const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: unknown; required: string[] };
   assert.equal(schema.additionalProperties, false);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target", "worksFor"]);
   assert.deepEqual(schema.required, ["kind"]);
 });
 
@@ -1838,4 +1846,23 @@ test("propose-credential: abort during sealing writes no credential", async () =
   assert.deepEqual(await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }), []);
   assert.equal(emitted.length, 1);
   assert.equal(exchanges.size(), 0);
+});
+
+test("capabilities list explicit host compatibility without leaking keys across a shared vendor", async () => {
+  const { deps } = fakeDeps();
+  const registry = await loadBundledDeployTargets();
+  const vercel = registry.get("vercel")!;
+  const variants = ["vercel-a", "vercel-b"].map(id => ({ ...vercel, descriptor: { ...vercel.descriptor, id } }));
+  deps.loadDeployTargets = async () => ({ list: () => variants, get: id => variants.find(target => target.descriptor.id === id), refusals: [] });
+  const saved = await createCustomCredential({ repo: new CustomCredentialVaultRepo({ vault: deps.vendorCredentialSetRepo.vault! }),
+    sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "Production access", worksFor: ["vercel-a"], category: "hosting", baseUrl: "https://api.vercel.com", connection: { token: "synthetic-host-specific-key" } });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
+    providers: { providerId: string; credentialOrigin: string | null; savedCredentials: { id: string; worksFor: string[] }[] }[];
+  };
+  const a = result.providers.find(provider => provider.providerId === "vercel-a")!;
+  assert.deepEqual(a.savedCredentials.map(row => [row.id, row.worksFor]), [[saved.id, ["vercel-a"]]]);
+  assert.equal(a.credentialOrigin, "saved");
+  assert.deepEqual(result.providers.find(provider => provider.providerId === "vercel-b")!.savedCredentials, []);
 });

@@ -314,3 +314,25 @@ test("custom-credentials: renaming to another row's exact label 409s and leaves 
     { id: ids[0], label: "first" }, { id: ids[1], label: "second" },
   ]);
 });
+
+test("custom: worksFor round trips, omission preserves and metadata-only clear needs no key", async (t) => {
+  const deps = { ...createRouteDeps() };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const headers = { cookie, "content-type": "application/json" };
+  const path = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  const created = await fetch(path, { method: "POST", headers, body: JSON.stringify({ label: "Production access", worksFor: ["VERCEL", "vercel"], category: "general", baseUrl: "https://api.vercel.com", connection: { token: "synthetic-works-for-key" } }) });
+  assert.equal(created.status, 201);
+  const saved = (await created.json()).credential;
+  assert.equal(saved.credentialType, "custom");
+  assert.deepEqual(saved.worksFor, ["vercel"]);
+  const renamed = await fetch(`${path}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ label: "Renamed" }) });
+  assert.equal(renamed.status, 200);
+  assert.deepEqual((await renamed.json()).credential.worksFor, ["vercel"]);
+  // Metadata edits must retain the existing envelope even if no key can be acquired.
+  deps.siteAssistantSecretKeyring.activeKey = async () => { throw new Error("must not acquire key"); };
+  const cleared = await fetch(`${path}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ worksFor: [] }) });
+  assert.equal(cleared.status, 200);
+  assert.deepEqual((await cleared.json()).credential.worksFor, []);
+  const otherPath = path.replace("/system/custom/", "/system/publish/");
+  assert.equal((await fetch(`${otherPath}/${saved.id}`, { method: "PUT", headers, body: JSON.stringify({ worksFor: ["netlify"] }) })).status, 404);
+});

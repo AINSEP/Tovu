@@ -9,6 +9,7 @@ export type {
 
 export {
   createPublishCredential,
+  invalidatePublishCredentialCompatibility,
   deletePublishCredential,
   describeCredential,
   hasDefaultForPublish,
@@ -30,7 +31,7 @@ export {
 } from "./store.js";
 
 export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode.js";
-export { publishHostsForCredential } from "./custom-tokens.js";
+export { publishHostsForCredential } from "./store.js";
 
 export {
   createAccountLabelHealScheduler,

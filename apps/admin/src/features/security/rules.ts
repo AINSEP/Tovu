@@ -388,6 +388,8 @@ function friendlyLegacyName(providerLabel: string, indexAmongLegacyRows: number)
  *  already share field-for-field except `providerId`'s literal union — the common subset this file
  *  operates on so {@link buildAccessTokenRows} needs only one implementation for both stores. */
 export interface RawCredentialSummary {
+  readonly credentialType?: "vendor" | "custom";
+  readonly worksFor?: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly providerId: string;
@@ -403,6 +405,8 @@ export interface RawCredentialSummary {
  *  `rawLabel` is kept alongside it so a genuine uniqueness check can compare against what the server
  *  actually has stored rather than only against display names. */
 export interface AccessTokenRow {
+  readonly credentialType?: "vendor" | "custom";
+  readonly worksFor?: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   readonly kind: AccessTokenKind;
   readonly providerId: string;
@@ -451,7 +455,7 @@ export function buildAccessTokenRows(
       legacyIndexByProvider.set(raw.providerId, index + 1);
       name = friendlyLegacyName(accessTokenProviderInfo(providers, { kind, providerId: raw.providerId }).label, index);
     }
-    return { kind, providerId: raw.providerId, id: raw.id, ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}), name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
+    return { kind, ...(raw.credentialType ? { credentialType: raw.credentialType } : {}), ...(raw.worksFor ? { worksFor: raw.worksFor } : {}), providerId: raw.providerId, id: raw.id, ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}), name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
 }
 
@@ -459,6 +463,8 @@ export function buildAccessTokenRows(
  *  structural subset (like {@link RawCredentialSummary}) so this file's pure functions stay
  *  independently testable without importing the API client's own type for its own sake. */
 export interface RawCustomCredentialSummary {
+  readonly credentialType?: "vendor" | "custom";
+  readonly worksFor?: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly label: string;
@@ -483,6 +489,8 @@ export interface RawCustomCredentialSummary {
 export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSummary[]): AccessTokenRow[] {
   return raws.map((raw) => ({
     kind: "custom",
+    ...(raw.credentialType ? { credentialType: raw.credentialType } : {}),
+    ...(raw.worksFor ? { worksFor: raw.worksFor } : {}),
     ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}),
     providerId: raw.id,
     id: raw.id,
@@ -540,6 +548,7 @@ export function accessTokenNameTaken(rows: readonly AccessTokenRow[], ref: Acces
  *  introduces — see `AccessTokenRow.name`'s own doc) and `values`, the draft of the provider's
  *  {@link AccessTokenProviderInfo.extraFields} keyed by field name. */
 export interface AccessTokenFormFields {
+  readonly worksFor?: string[];
   readonly ref: AccessTokenProviderRef;
   readonly name: string;
   readonly token: string;
@@ -683,9 +692,11 @@ export function buildAccessTokenUpdatePatch(
   fields: AccessTokenFormFields,
   nameChanged: boolean,
   hasToken: boolean,
-  info: AccessTokenProviderInfo
-): { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput } {
+  info: AccessTokenProviderInfo,
+  { currentWorksFor = [] }: { currentWorksFor?: readonly string[] } = {},
+): { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; worksFor?: string[] } {
   return {
+    ...(fields.ref.kind === "publish" && accessTokenWorksForChanged({ draft: fields.worksFor, saved: currentWorksFor }) ? { worksFor: fields.worksFor } : {}),
     ...(nameChanged ? { label: fields.name.trim() } : {}),
     ...(hasToken ? { connection: buildAccessTokenConnectionInput(fields, info) } : {}),
   };
@@ -722,6 +733,7 @@ export function classifyAccessTokenSubmitError(e: unknown): AccessTokenSubmitFai
  *  widened onto it: a custom row collects `category`/`baseUrl`, which no catalog provider's form
  *  ever asks for, and has no `ref`/`values` to carry. */
 export interface CustomCredentialFormFields {
+  readonly worksFor?: string[];
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
@@ -830,17 +842,30 @@ export function customCredentialReplaceReadyToSave(fields: AccessTokenFormFields
   return nameChanged || usernameChanged;
 }
 
+/** Whether a draft changes compatibility membership. O(draft + saved) time/space.
+ * Omission preserves metadata; an explicit empty array clears it.
+ */
+function accessTokenWorksForChanged({ draft, saved = [] }: { draft?: string[]; saved?: readonly string[] }, _options = {}): boolean {
+  if (draft === undefined) return false;
+  const savedIds = new Set(saved);
+  return draft.length !== saved.length || draft.some(id => !savedIds.has(id));
+}
+
 /** The Save-readiness gate for a SAVED row's Replace form, picked by row kind — the same split
  *  `use-access-tokens.hooks.ts`'s `replaceToken` makes before writing: a custom row uses
  *  {@link customCredentialReplaceReadyToSave} (a username-only change is a real edit), every catalog
  *  row keeps {@link accessTokenReplaceReadyToSave}. `ExistingTokenFields` used to call the catalog
  *  gate for every row, so a custom row's username-only fix left Save disabled even though the
- *  controller would have sent it. @complexity O(1). */
+ *  controller would have sent it. Works-for-only edits also enable Save without a token.
+ *  @complexity O(draft + saved) time/space for compatibility membership. */
 export function accessTokenExistingRowReadyToSave(
   fields: AccessTokenFormFields,
-  row: Pick<AccessTokenRow, "kind" | "name" | "username">,
+  row: Pick<AccessTokenRow, "kind" | "name" | "username" | "worksFor">,
   info: AccessTokenProviderInfo
 ): boolean {
+  // Metadata edits use the same secret-preserving update path as a rename. A supplied token
+  // still requires the provider's complete connection fields.
+  if (row.kind !== "source-control" && fields.name.trim() && !fields.token.trim() && accessTokenWorksForChanged({ draft: fields.worksFor, saved: row.worksFor })) return true;
   if (row.kind === "custom") return customCredentialReplaceReadyToSave(fields, row.name, row.username);
   return accessTokenReplaceReadyToSave(fields, row.name, info);
 }
@@ -874,11 +899,13 @@ export function buildCustomCredentialUpdatePatch(
   fields: AccessTokenFormFields,
   nameChanged: boolean,
   hasToken: boolean,
-  currentUsername: string | undefined
-): { label?: string; connection?: AdminCustomConnectionInput; username?: string | null } {
+  currentUsername: string | undefined,
+  { currentWorksFor = [] }: { currentWorksFor?: readonly string[] } = {},
+): { label?: string; connection?: AdminCustomConnectionInput; username?: string | null; worksFor?: string[] } {
   const trimmedUsername = fields.username.trim();
   const usernameChanged = trimmedUsername !== (currentUsername ?? "").trim();
   return {
+    ...(accessTokenWorksForChanged({ draft: fields.worksFor, saved: currentWorksFor }) ? { worksFor: fields.worksFor } : {}),
     ...(nameChanged ? { label: fields.name.trim() } : {}),
     ...(hasToken ? { connection: buildCustomProviderConnectionInput(fields) } : {}),
     ...(usernameChanged ? { username: trimmedUsername === "" ? null : trimmedUsername } : {}),

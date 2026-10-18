@@ -29,6 +29,7 @@ const { createFakePublishCredentialsPort, defaultPublishCredentialsPort } = awai
 
 function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
   return {
+    credentialType: "vendor", worksFor: [],
     id: "cred-1",
     providerId: "github-pages",
     label: "Production",

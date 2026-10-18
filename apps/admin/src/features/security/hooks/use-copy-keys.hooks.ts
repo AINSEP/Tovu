@@ -91,8 +91,12 @@ export function useCopyKeys({ t }: { t: Translate }, {
     error: error ? t(error) : "", canStart, start,
     sourceMessage: source?.reasonCode === "source-needs-upgrade" ? copyKeysUpgradeMessage({ site: source.name, t }) : source?.message,
     empty: !!source && !source.reasonCode && source.keys.length === 0,
-    keys: (source?.keys ?? []).map(key => ({ id: key.id, checked: selected.has(key.id),
-      text: `${key.label} · ${key.provider ?? key.kind}${key.last4?.length === 4 ? ` · …${key.last4}` : ""}` })),
+    keys: (source?.keys ?? []).map(key => {
+      const worksFor = key.worksFor?.length ? key.worksFor : key.publishHosts ?? [];
+      return { id: key.id, checked: selected.has(key.id),
+        text: `${key.label} · ${key.provider ?? key.kind}${key.last4?.length === 4 ? ` · …${key.last4}` : ""}`,
+        worksFor: worksFor.length ? `${t("Works for")}: ${worksFor.join(", ")}` : "" };
+    }),
     results: results.map((result, index) => {
       const label = labels.get(result.id);
       return { key: `${result.id}:${index}`, text: `${label ? `${label} · ` : ""}${copyKeysResultText({ result, t })}` };

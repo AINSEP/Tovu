@@ -23,6 +23,7 @@ const fakeT = (key: string): string => key;
 const fakeLocale = "en";
 
 const GH_CREDENTIAL: AdminPublishCredentialSummary = {
+    credentialType: "vendor", worksFor: [],
   id: "cred-1",
   providerId: "github-pages",
   label: "default",

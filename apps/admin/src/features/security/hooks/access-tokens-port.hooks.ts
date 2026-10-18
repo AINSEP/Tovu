@@ -35,10 +35,10 @@ export interface AccessTokensPort {
   };
   readonly publish: {
     list(): Promise<AdminPublishCredentialsSnapshot>;
-    create(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }): Promise<AdminPublishCredentialSummary>;
+    create(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }): Promise<AdminPublishCredentialSummary>;
     update(
       id: string,
-      input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean }
+      input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }
     ): Promise<AdminPublishCredentialSummary>;
     /** Idempotent — deleting an id that is already gone still resolves. */
     remove(id: string): Promise<void>;
@@ -60,6 +60,7 @@ export interface AccessTokensPort {
   readonly custom: {
     list(): Promise<AdminCustomCredentialsSnapshot>;
     create(input: {
+      worksFor?: string[];
       label: string;
       category: AdminCustomCredentialCategoryId;
       baseUrl: string;
@@ -69,6 +70,7 @@ export interface AccessTokensPort {
     update(
       id: string,
       input: {
+        worksFor?: string[];
         label?: string;
         category?: AdminCustomCredentialCategoryId;
         baseUrl?: string;

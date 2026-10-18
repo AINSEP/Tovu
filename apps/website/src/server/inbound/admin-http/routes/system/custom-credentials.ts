@@ -1,7 +1,9 @@
+import { invalidatePublishCredentialCompatibility } from "#src/features/deployments/publish-credentials/index";
 import type { Express, Request, Response } from "express";
 
 import {
   createCustomCredential,
+  describeCredential,
   CustomCredentialDuplicateLabelError,
   CustomCredentialNotFoundError,
   CustomCredentialSecretStoreUnconfiguredError,
@@ -36,7 +38,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type AdminCustomCredentialsDeps = Pick<
   RouteDeps,
   "workspaceId" | "authorize" | "clock" | "idGen" | "customCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
->;
+> & Partial<Pick<RouteDeps, "loadDeployTargets" | "publishCredentialVerificationCache">>;
 
 const PERMISSION = "custom-credentials.write";
 const ENTITY_TYPE = "custom-credentials";
@@ -82,6 +84,7 @@ function buildUpdateCredentialInput(workspaceId: string, id: string, body: Recor
     ...(body.category !== undefined ? { category: body.category } : {}),
     ...(body.baseUrl !== undefined ? { baseUrl: body.baseUrl } : {}),
     ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
+    ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
     ...(body.connection !== undefined ? { connection: body.connection } : {}),
     // Independent of `connection` (2026-09-01) — `body.username` travels through even on a
     // request that carries no `connection` at all. `null` (an explicit clear) survives this
@@ -142,6 +145,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
+      const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
       const credential = await createCustomCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         label: body.label,
@@ -149,7 +153,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         baseUrl: body.baseUrl,
         connection: body.connection,
         ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
+        ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
       });
+      if (registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       res.status(201).json({ credential });
     } catch (err) {
       sendStoreError(res, err);
@@ -160,7 +166,10 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
+      const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const credential = await updateCustomCredential(writeDeps, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
+      if (before && body.worksFor !== undefined && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
       res.status(200).json({ credential });
     } catch (err) {
       sendStoreError(res, err);
@@ -172,7 +181,10 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     try {
       // Idempotent — `deleteCustomCredential`/`CustomCredentialSetRepoPort.delete` are both no-ops
       // (not errors) for a missing row, matching this route's own documented 204-always contract.
+      const registry = deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+      const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       await deleteCustomCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      if (before && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
       res.status(204).end();
     } catch (err) {
       sendStoreError(res, err);

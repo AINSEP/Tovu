@@ -131,6 +131,7 @@ export const siteKeyRecovery = { checkKey, discardNotOpening, resealFrom, instal
 
 /** Check the pinned historical context, otherwise call Jini's current AAD builder. Never guess. */
 export function recoveryAad({ record }: { record: VaultRecord }, _options = {}): string | undefined {
+  // Includes the pinned former custom-kind vault marker; recovery shares boot's exact codec.
   const legacy = legacyContext({ record });
   return legacy ? legacyVaultAad({ record, legacy }) : buildVaultAad(record);
 }
@@ -151,9 +152,9 @@ async function resealRecord(input: {
       record: input.record, previous: input.previous });
     return;
   }
-  const parsers = Object.fromEntries(VAULT_KINDS.map(kind => [kind, ({ meta }: { meta: unknown }) => {
+  const parsers = Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind, ({ meta, provider }: { meta: unknown; provider?: string | null | undefined }) => {
     const { normalization: _flag, ...plain } = meta as VaultRecord["meta"];
-    return recoveryKinds.metaParsers[kind]({ meta: plain });
+    return recoveryKinds.metaParsers[kind]({ meta: plain, provider });
   }])) as VaultMetaParsers;
   const service = new SecretsVaultService({
     repo: new SqlSecretsVaultRepo({ kernel: input.kernel as unknown as StorageKernel<SecretsVaultDatabase> }),

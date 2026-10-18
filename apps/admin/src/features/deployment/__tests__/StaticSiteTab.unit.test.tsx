@@ -92,6 +92,7 @@ function publishControllerFixture(overrides: Partial<StaticPublishController> = 
 }
 
 const GH_CREDENTIAL: AdminPublishCredentialSummary = {
+    credentialType: "vendor", worksFor: [],
   id: "cred-1",
   providerId: "github-pages",
   label: "default",

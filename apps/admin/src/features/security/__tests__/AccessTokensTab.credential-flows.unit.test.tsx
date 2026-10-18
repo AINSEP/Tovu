@@ -67,6 +67,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     setCategory: vi.fn(),
     totalCount: 0,
     matchCount: 0,
+    worksForOptions: [],
     setExistingField: vi.fn(),
     replaceToken: vi.fn().mockResolvedValue(undefined),
     removeToken: vi.fn().mockResolvedValue(undefined),
@@ -75,7 +76,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     closeAddForm: vi.fn(),
     setAddField: vi.fn(),
     createToken: vi.fn().mockResolvedValue(undefined),
-    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null },
+    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null },
     setCustomAddField: vi.fn(),
     resetCustomAddForm: vi.fn(),
     createCustomCredential: vi.fn().mockResolvedValue(false),
@@ -119,6 +120,7 @@ function rowState(overrides: Partial<AccessTokenExistingRowState> = {}): AccessT
     token: "",
     values: {},
     username: "",
+    worksFor: [],
     readyToSave: false,
     saving: false,
     error: null,
@@ -127,7 +129,7 @@ function rowState(overrides: Partial<AccessTokenExistingRowState> = {}): AccessT
 }
 
 function addForm(overrides: Partial<AccessTokenAddFormState> = {}): AccessTokenAddFormState {
-  return { visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null, ...overrides };
+  return { visible: false, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null, ...overrides };
 }
 
 /** Builds one provider group — for `kind: "custom"`, `info` is the row's own SYNTHETIC info
@@ -155,6 +157,36 @@ function groupFor(
 function renderTab(overrides: Partial<AccessTokensController> = {}, otherOverrides: Partial<OtherCredentialsController> = {}) {
   return render(<FetchQueryProvider><AccessTokensTab useAccessTokensHook={() => makeAccessTokens(overrides)} useOtherCredentialsHook={() => makeOtherCredentials(otherOverrides)} /></FetchQueryProvider>);
 }
+
+it.each(["publish", "custom"] as const)("renders and clears raw saved Works for ids for %s rows", kind => {
+  const setExistingField = vi.fn();
+  const saved = row({ kind, worksFor: ["plugin-off"], category: "hosting" });
+  const state = rowState({ row: saved, worksFor: ["plugin-off"] });
+  renderTab({ groups: [groupFor(kind, saved.providerId, [state])], worksForOptions: [{ value: "github", label: "GitHub" }], setExistingField });
+  expect(screen.getByText(/Works for: plugin-off/)).toBeInTheDocument();
+  const field = screen.getByRole("group", { name: "Works for" });
+  expect(within(field).getByRole("button", { name: "plugin-off", pressed: true })).toBeInTheDocument();
+  fireEvent.click(within(field).getByRole("button", { name: "GitHub" }));
+  expect(setExistingField).toHaveBeenLastCalledWith(saved.id, { worksFor: ["plugin-off", "github"] });
+  fireEvent.click(within(field).getByRole("button", { name: "plugin-off" }));
+  expect(setExistingField).toHaveBeenLastCalledWith(saved.id, { worksFor: [] });
+});
+
+it("selects Works for in a publish add form", () => {
+  const setAddField = vi.fn();
+  renderTab({ groups: [groupFor("publish", "netlify", [], addForm({ visible: true }))],
+    worksForOptions: [{ value: "github", label: "GitHub" }], setAddField });
+  fireEvent.click(within(screen.getByRole("group", { name: "Works for" })).getByRole("button", { name: "GitHub" }));
+  expect(setAddField).toHaveBeenCalledWith({ kind: "publish", providerId: "netlify" }, { worksFor: ["github"] });
+});
+
+it("selects Works for in the custom add dialog", () => {
+  const setCustomAddField = vi.fn();
+  renderTab({ worksForOptions: [{ value: "github", label: "GitHub" }], setCustomAddField });
+  fireEvent.click(screen.getByRole("button", { name: "+ Add custom provider" }));
+  fireEvent.click(within(screen.getByRole("group", { name: "Works for" })).getByRole("button", { name: "GitHub" }));
+  expect(setCustomAddField).toHaveBeenCalledWith({ worksFor: ["github"] });
+});
 
 it("renders migrated vault ids in every row control and passes the unchanged id to mutations", () => {
   const id = 'vault:["publish_credential_sets","e6b6ec84-1234-4567-89ab-0123456789ab"]:0';
@@ -713,7 +745,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   });
 
   it("shows an inline error for an invalid, non-blank base URL", () => {
-    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "not-a-url", additionalHosts: "", token: "", username: "", saving: false, error: null } });
+    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "not-a-url", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null } });
     expect(screen.getByText("Enter a valid http:// or https:// URL.")).toBeInTheDocument();
   });
 
@@ -723,12 +755,12 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   });
 
   it("shows no base-URL error for a valid, non-blank URL", () => {
-    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "", username: "", saving: false, error: null } });
+    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null } });
     expect(screen.queryByText("Enter a valid http:// or https:// URL.")).not.toBeInTheDocument();
   });
 
   it("shows an inline error for an invalid additional-hosts entry", () => {
-    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "not-a-url", token: "", username: "", saving: false, error: null } });
+    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "not-a-url", token: "", username: "", worksFor: [], saving: false, error: null } });
     expect(screen.getByText("Each additional host must be a valid http:// or https:// URL.")).toBeInTheDocument();
   });
 
@@ -748,7 +780,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
     const createCustomCredential = vi.fn().mockResolvedValue(true);
     openDialog({
       createCustomCredential,
-      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", saving: false, error: null },
+      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
     });
 
     const saveButton = screen.getByRole("button", { name: "Save" });
@@ -766,7 +798,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   it("closes the dialog on a successful save", async () => {
     const { container } = openDialog({
       createCustomCredential: vi.fn().mockResolvedValue(true),
-      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", saving: false, error: null },
+      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
     });
     const dialog = container.querySelector<HTMLDialogElement>("dialog.access-tokens-add-custom-dialog")!;
 
@@ -779,7 +811,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
     const createCustomCredential = vi.fn().mockResolvedValue(false);
     const { container } = openDialog({
       createCustomCredential,
-      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", saving: false, error: null },
+      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
     });
     const dialog = container.querySelector<HTMLDialogElement>("dialog.access-tokens-add-custom-dialog")!;
 
@@ -801,12 +833,12 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   });
 
   it("shows the dialog's own save-error alert when present", () => {
-    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: 'A token named "fly.io" already exists for this workspace.' } });
+    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: 'A token named "fly.io" already exists for this workspace.' } });
     expect(screen.getByRole("alert")).toHaveTextContent('A token named "fly.io" already exists for this workspace.');
   });
 
   it("shows 'Saving…' and disables Save while a save is in flight", () => {
-    openDialog({ customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", saving: true, error: null } });
+    openDialog({ customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: true, error: null } });
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 });

@@ -10,6 +10,7 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  *  `publish-credentials-dependencies.hooks.ts`'s `defaultPublishCredentialsPort`. Every method is a
  *  thin bind onto an existing `api.*` call already used by `Static Site`/`Source Control` — this page
  *  adds no new HTTP surface, only a second reader/writer of the same two endpoints. */
+// Forward optional Works for metadata unchanged: omission preserves, [] clears, no token needed.
 export const defaultAccessTokensPort: AccessTokensPort = {
   publishTargets: { list: () => api.getPublishTargets() },
   sourceControlProviders: { list: () => api.listSourceControlProviders().then((res) => res.providers) },

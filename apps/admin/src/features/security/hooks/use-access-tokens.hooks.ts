@@ -1,5 +1,6 @@
 import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
 
 import {
   describeApiError,
@@ -36,7 +37,6 @@ import {
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
   accessTokenRowsForProvider,
-  accessTokenReplaceReadyToSave,
   buildAccessTokenConnectionInput,
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
@@ -47,7 +47,6 @@ import {
   classifyAccessTokenSubmitError,
   customCredentialNameTaken,
   customCredentialReadyToSave,
-  customCredentialReplaceReadyToSave,
   sortAccessTokenGroups,
   type AccessTokenCategoryId,
   type AccessTokenFormFields,
@@ -117,9 +116,12 @@ interface DraftFields {
   /** The provider's extra descriptor fields, keyed by field name. */
   readonly values: Readonly<Record<string, string>>;
   readonly username: string;
+  readonly worksFor: string[];
+  /** Explicit selections, including clearing all chips, override create-time suggestions. */
+  readonly worksForEdited?: boolean;
 }
 function blankDraft(): DraftFields {
-  return { name: "", token: "", values: {}, username: "" };
+  return { name: "", token: "", values: {}, username: "", worksFor: [] };
 }
 
 interface BusyState {
@@ -149,9 +151,26 @@ interface CustomDraftFields {
   readonly additionalHosts: string;
   readonly token: string;
   readonly username: string;
+  readonly worksFor: string[];
+  readonly worksForEdited?: boolean;
 }
 function blankCustomDraft(): CustomDraftFields {
-  return { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "" };
+  return { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [] };
+}
+
+/** Create-only form metadata: let Jini suggest exact option ids until the user selects or clears.
+ * Returns a draft patch without I/O or mutation. O(options) time/space on a label change.
+ */
+function addWorksForPatch({ draft, patch, options }: {
+  draft: Pick<DraftFields, "worksFor" | "worksForEdited">;
+  patch: Partial<Pick<DraftFields, "name" | "worksFor">>;
+  options: { value: string; label: string }[];
+}, _options = {}) {
+  const worksForEdited = draft.worksForEdited || patch.worksFor !== undefined;
+  const worksFor = !worksForEdited && patch.name !== undefined
+    ? suggestCredentialWorksFor({ label: patch.name, providers: options.map(option => ({ id: option.value, vendorId: option.value })) })
+    : patch.worksFor ?? draft.worksFor;
+  return { worksFor, worksForEdited };
 }
 
 /** The `addForms`/`existingDrafts` map key for one provider — a plain string join rather than a
@@ -169,6 +188,7 @@ export interface AccessTokenExistingRowState {
   /** The provider's extra descriptor fields, keyed by field name. */
   readonly values: Readonly<Record<string, string>>;
   readonly username: string;
+  readonly worksFor: string[];
   /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
   readonly readyToSave: boolean;
   readonly saving: boolean;
@@ -186,10 +206,10 @@ function existingRowState(
   busy: BusyState | undefined,
   info: AccessTokenProviderInfo
 ): AccessTokenExistingRowState {
-  const d = draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
+  const d = draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
   const b = busy ?? IDLE;
   const readyToSave = accessTokenExistingRowReadyToSave({ ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info);
-  return { row, name: d.name, token: d.token, values: d.values, username: d.username, readyToSave, saving: b.saving, error: b.error };
+  return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
 }
 
 export interface AccessTokenAddFormState {
@@ -199,6 +219,7 @@ export interface AccessTokenAddFormState {
   /** The provider's extra descriptor fields, keyed by field name. */
   readonly values: Readonly<Record<string, string>>;
   readonly username: string;
+  readonly worksFor: string[];
   /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
   readonly readyToSave: boolean;
   readonly saving: boolean;
@@ -208,7 +229,7 @@ export interface AccessTokenAddFormState {
 function addFormState(entry: AddFormEntry | undefined, info: AccessTokenProviderInfo): AccessTokenAddFormState {
   const e = entry ?? blankAddFormEntry();
   const readyToSave = accessTokenRowReadyToSave({ ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info);
-  return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, readyToSave, saving: e.saving, error: e.error };
+  return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, worksFor: e.draft.worksFor, readyToSave, saving: e.saving, error: e.error };
 }
 
 export interface AccessTokenProviderGroupState {
@@ -229,6 +250,7 @@ export interface AccessTokenCustomAddFormState {
   readonly additionalHosts: string;
   readonly token: string;
   readonly username: string;
+  readonly worksFor: string[];
   readonly saving: boolean;
   readonly error: string | null;
 }
@@ -240,6 +262,8 @@ export interface AccessTokensController {
    *  stores' first load resolves. Unlike `PublishCredentialsController.rows`, a provider's own
    *  `rows` array here can hold more than one saved connection. */
   groups: readonly AccessTokenProviderGroupState[] | undefined;
+  /** Loaded deploy host and source-control vendor ids; saved unknown ids remain selectable. */
+  worksForOptions: { value: string; label: string }[];
   loadError: string | null;
 
   query: string;
@@ -335,12 +359,12 @@ async function writeCredential(
   port: AccessTokensPort,
   kind: AccessTokenKind,
   mode: { readonly type: "create"; readonly label: string } | { readonly type: "update"; readonly id: string },
-  patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean }
+  patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean; worksFor?: string[] }
 ): Promise<AdminPublishCredentialSummary | AdminSourceControlCredentialSummary> {
   if (kind === "publish") {
     const connection = patch.connection as AdminPublishConnectionInput | undefined;
     return mode.type === "create"
-      ? port.publish.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault })
+      ? port.publish.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault, worksFor: patch.worksFor })
       : port.publish.update(mode.id, { ...patch, connection });
   }
   const connection = patch.connection as AdminSourceControlConnectionInput | undefined;
@@ -367,6 +391,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       ),
     [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]
   );
+  // The existing catalogs own ids and labels; no parallel provider list lives in this UI.
+  const worksForOptions = useMemo(() => Array.from(new Map([
+    ...(localizePublishTargets(publishTargetsQuery.data, locale) ?? []).map(target => [target.id, { value: target.id, label: target.label }] as const),
+    ...(localizeSourceControlProviders(sourceControlProvidersQuery.data ?? [], locale)).map(provider => [provider.id, { value: provider.id, label: provider.label }] as const),
+  ]).values()), [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]);
   const publishTargetsSettled = publishTargetsQuery.status !== "loading" && sourceControlProvidersQuery.status !== "loading";
   const [publishCredentials, setPublishCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
   const [sourceControlCredentials, setSourceControlCredentials] = useState<AdminSourceControlCredentialSummary[] | undefined>(undefined);
@@ -526,7 +555,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       const existing = prev[rowId];
       if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
       const persistedRow = rows?.find((r) => r.id === rowId);
-      return { ...prev, [rowId]: { ...blankDraft(), name: persistedRow?.name ?? "", username: persistedRow?.username ?? "", ...patch } };
+      return { ...prev, [rowId]: { ...blankDraft(), name: persistedRow?.name ?? "", username: persistedRow?.username ?? "", worksFor: persistedRow?.worksFor ?? [], ...patch } };
     });
   }
 
@@ -538,11 +567,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  duplicate check (see that function's own doc for why it is NOT {@link accessTokenNameTaken}).
    *  Split out purely to keep {@link replaceToken} itself under this repo's complexity gate. */
   async function replaceCustomCredential(row: AccessTokenRow): Promise<void> {
-    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
+    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
     const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!customCredentialReplaceReadyToSave(fields, row.name, row.username)) return;
+    if (!accessTokenExistingRowReadyToSave(fields, row, accessTokenRowProviderInfo(providers, row))) return;
     if (customCredentialNameTaken(rows ?? [], fields.name, row.id)) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) } }));
       return;
@@ -551,7 +580,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch(fields, nameChanged, hasToken, row.username));
+      const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch(fields, nameChanged, hasToken, row.username, { currentWorksFor: row.worksFor }));
       setCustomCredentials((prev) => mergeRaw(prev ?? [], result, false));
       // Reset to `result.username`, not `fields.username` or blank — `result` is the server's own
       // post-write state, so it is correct whether the operator typed a new username, left it blank
@@ -560,7 +589,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       // save carried no `connection` at all (a rename-only patch). Seeding from `fields.username`
       // instead would show a stale value whenever the omit-to-preserve path fired; seeding blank
       // would resurrect the exact "saved username reads as empty" bug this file exists to fix.
-      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: result.username ?? "" } }));
+      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: result.username ?? "", worksFor: result.worksFor } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) } }));
@@ -575,12 +604,12 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // replaceCustomCredential's identical fallback, so a future publish/source-control provider that
     // grows a saved username inherits the correct prefill automatically instead of silently reading
     // blank the same way custom rows used to.
-    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
+    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
     const fields: AccessTokenFormFields = { ref, ...draft };
     const info = accessTokenProviderInfo(providers, ref);
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenReplaceReadyToSave(fields, row.name, info)) return;
+    if (!accessTokenExistingRowReadyToSave(fields, row, info)) return;
     const providerLabel = info.label;
     if (accessTokenNameTaken(rows ?? [], ref, fields.name, row.id)) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
@@ -590,13 +619,13 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken, info);
+      const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken, info, { currentWorksFor: row.worksFor });
       const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, patch);
       mergeCredential(row.kind, result, false);
       // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
       // summary) never carries a `username` fact, so `row.username ?? ""` — not `result.username` —
       // is the only value available, and it is always "" today for these two kinds.
-      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: row.username ?? "" } }));
+      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: row.username ?? "", worksFor: "worksFor" in result ? result.worksFor : [] } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) } }));
@@ -678,7 +707,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   function setAddField(ref: AccessTokenProviderRef, patch: Partial<DraftFields>): void {
     const key = addFormKey(ref);
     if (patch.token !== undefined) setAddForms(prev => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: patch.token! }, { locale, required: true }) } }));
-    setAddForms((prev) => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), draft: { ...(prev[key]?.draft ?? blankDraft()), ...patch } } }));
+    setAddForms((prev) => {
+      const entry = prev[key] ?? blankAddFormEntry();
+      const compatibility = ref.kind === "publish" ? addWorksForPatch({ draft: entry.draft, patch, options: worksForOptions }) : {};
+      return { ...prev, [key]: { ...entry, draft: { ...entry.draft, ...patch, ...compatibility } } };
+    });
   }
 
   async function createToken(ref: AccessTokenProviderRef): Promise<void> {
@@ -697,7 +730,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setAddForms((prev) => ({ ...prev, [key]: { ...entry, saving: true, error: null } }));
     try {
       const connection = buildAccessTokenConnectionInput(fields, info);
-      const result = await writeCredential(port, ref.kind, { type: "create", label: fields.name.trim() }, { connection });
+      const result = await writeCredential(port, ref.kind, { type: "create", label: fields.name.trim() }, { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) });
       mergeCredential(ref.kind, result, true);
       setAddForms((prev) => ({ ...prev, [key]: blankAddFormEntry() }));
     } catch (err) {
@@ -748,7 +781,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
 
   function setCustomAddField(patch: Partial<CustomDraftFields>): void {
     if (patch.token !== undefined) setCustomAddBusy(prev => ({ ...prev, error: credentialDraftError({ value: patch.token! }, { locale, required: true }) }));
-    setCustomAddDraft((prev) => ({ ...prev, ...patch }));
+    setCustomAddDraft((prev) => ({ ...prev, ...patch, ...addWorksForPatch({ draft: prev, patch, options: worksForOptions }) }));
   }
 
   function resetCustomAddForm(): void {
@@ -772,6 +805,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     try {
       const result = await port.custom.create({
         label: fields.name.trim(),
+        worksFor: fields.worksFor,
         category: fields.category,
         baseUrl: fields.baseUrl.trim(),
         additionalHosts: buildAdditionalHostsInput(fields.additionalHosts),
@@ -788,6 +822,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
 
   return {
     groups,
+    worksForOptions,
     loadError,
     query,
     setQuery,

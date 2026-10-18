@@ -1,3 +1,4 @@
+import { decodeApiError } from "@jini-ai/protocol";
 import type { CredentialTokenHint } from './credential-copy';
 import type { SettingScope } from "@jini-ai/core/settings";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
@@ -761,6 +762,8 @@ export type AdminPublishCredentialProviderId = string;
  * header for what "never readable back" means for the edit flow.
  */
 export interface AdminPublishCredentialSummary {
+  credentialType: "vendor" | "custom";
+  worksFor: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   id: string;
   providerId: AdminPublishCredentialProviderId;
@@ -1012,6 +1015,8 @@ export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "me
  * custom row without decrypting it (see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc).
  */
 export interface AdminCustomCredentialSummary {
+  readonly credentialType: "vendor" | "custom";
+  readonly worksFor: string[];
   readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly label: string;
@@ -2068,6 +2073,7 @@ export type AdminTrashPurgeOutcome =
   | "purged"
   | "already-gone"
   | "version-changed"
+  | "still-referenced"
   | "not-found"
   | "adapter-unavailable"
   | "forbidden";
@@ -2428,7 +2434,7 @@ async function parseJsonBody(res: Response, { requireJson = false }: { requireJs
  *  operator back to the login screen. Pulled out of `request` (2026-09-04, complexity pass) as its
  *  own step, run before {@link buildRequestFailedError} builds the thrown error. */
 function notifyIfUnauthenticated({ status, body }: { status: number; body: Record<string, unknown> }): void {
-  if (status === 401 && body?.code === "UNAUTHENTICATED") {
+  if (status === 401 && decodeApiError({ body }).code === "UNAUTHENTICATED") {
     for (const listener of unauthenticatedListeners) listener();
   }
 }
@@ -2467,12 +2473,10 @@ function buildRequestFailedError({
   wasUnparseable: boolean;
 }): ApiError {
   const noAppEnvelope = wasUnparseable && status >= 500;
-  return new ApiError(
-    String(body?.error ?? (noAppEnvelope ? unreachableApiMessage(status) : `request failed (${status})`)),
-    status,
-    noAppEnvelope ? API_UNREACHABLE_CODE : typeof body?.code === "string" ? body.code : undefined,
-    body
-  );
+  const decoded = decodeApiError({ body }, {
+    fallbackMessage: noAppEnvelope ? unreachableApiMessage(status) : `request failed (${status})`,
+  });
+  return new ApiError(decoded.message, status, noAppEnvelope ? API_UNREACHABLE_CODE : decoded.code, body);
 }
 
 /**
@@ -2543,7 +2547,7 @@ async function request<T>(path: string, init?: RequestInit, onOk?: (res: Respons
 export interface AdminCredentialCopySource {
   siteId: string;
   name: string;
-  keys: { kind: string; id: string; label: string; provider: string | null; last4?: string }[];
+  keys: { kind: string; id: string; label: string; provider: string | null; worksFor?: string[]; publishHosts?: string[]; last4?: string }[];
   reasonCode?: string;
   message?: string;
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
@@ -3955,6 +3959,8 @@ export const api = {
    *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
   getObservabilityStatus: () =>
     request<AdminObservabilityStatus>(`/workspaces/${WORKSPACE_ID}/system/observability-status`),
+  /** Owner-only filter over native CLI fallback entries in the existing audit store. */
+  getToolGaps: () => request<{ entries: import('@jini-ai/daemon/tool-audit').ToolGapEntry[] }>(`/workspaces/${WORKSPACE_ID}/system/tool-gaps`),
   /** Recent captured server log lines (`routes/system/server-logs.ts`, `system.read`-gated) — the
    *  Observability "Recent errors" tab. */
   getServerLogs: (query: AdminServerLogsQuery = {}) => {
@@ -4106,7 +4112,7 @@ export const api = {
    *  second row with the same one would make the list ambiguous. `isDefault` is optional — omitted
    *  entirely (not `false`) lets the server apply its own default-assignment rule (e.g. a provider's
    *  first-ever saved connection), rather than this admin guessing at it. */
-  createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }) =>
+  createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }) =>
     request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -4116,8 +4122,8 @@ export const api = {
    *  untouched; see `use-publish-credentials.hooks.ts`'s header for why the form can never send a
    *  half-blank one. `isDefault: true` makes this the default connection for its provider (the server
    *  owns clearing any previous default for that same provider); omitted leaves default status
-   *  unchanged. */
-  updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean }) =>
+   *  unchanged. `worksFor` omitted preserves compatibility; [] clears it without a connection. */
+  updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean; worksFor?: string[] }) =>
     request<{ credential: AdminPublishCredentialSummary; verification?: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify(input),
@@ -4241,6 +4247,7 @@ export const api = {
   /** Creates one custom-provider credential. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError`
    *  with that `code`) if this workspace already has one with the same `label`. */
   createCustomCredential: (input: {
+    worksFor?: string[];
     label: string;
     category: AdminCustomCredentialCategoryId;
     baseUrl: string;
@@ -4262,10 +4269,12 @@ export const api = {
    *  it to leave the saved username exactly as `connection` (if sent) would otherwise set it, send
    *  `null` to clear it, or a non-empty string to set it — with NO token retype required either
    *  way. When both `username` and `connection` are sent in the same call, `username` wins for what
-   *  gets stored in the plaintext column (server-side precedence, not a client-side rule). */
+   *  gets stored in the plaintext column (server-side precedence, not a client-side rule).
+   *  `worksFor` omitted preserves compatibility; [] clears it without a connection. */
   updateCustomCredential: (
     id: string,
     input: {
+      worksFor?: string[];
       label?: string;
       category?: AdminCustomCredentialCategoryId;
       baseUrl?: string;

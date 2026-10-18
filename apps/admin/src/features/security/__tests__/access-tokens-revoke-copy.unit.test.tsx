@@ -43,6 +43,7 @@ function githubPagesRow(): AccessTokenExistingRowState {
     token: "",
     values: {},
     username: "",
+    worksFor: [],
     readyToSave: false,
     saving: false,
     error: null,
@@ -53,7 +54,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
   const group: AccessTokenProviderGroupState = {
     info: accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind: "publish", providerId: "github-pages" }),
     rows: [githubPagesRow()],
-    addForm: { visible: false, name: "", token: "", values: {}, username: "", readyToSave: false, saving: false, error: null },
+    addForm: { visible: false, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null },
   };
   return {
     groups: [group],
@@ -64,6 +65,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     setCategory: () => {},
     totalCount: 1,
     matchCount: 1,
+    worksForOptions: [],
     setExistingField: () => {},
     replaceToken: async () => {},
     removeToken: async () => {},
@@ -72,7 +74,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     closeAddForm: () => {},
     setAddField: () => {},
     createToken: async () => {},
-    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null },
+    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null },
     setCustomAddField: () => {},
     resetCustomAddForm: () => {},
     createCustomCredential: async () => false,

@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
-import { hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
+import { describeCredential, hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishConnectionInput } from "../publish-credentials/types.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
@@ -228,20 +228,20 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
    * (terra review 2026-09-20, finding 1). `credentialId` is UNTRUSTED (an HTTP body field), so both
    * checks below are load-bearing: `resolveForPublish` reads through the workspace-scoped
    * `findById`, so another workspace's id is a `null` here and can never decrypt, and the row's own
-   * vendor must be the vendor of the target this publish is actually going to.
+   * explicit compatibility must include the target this publish is actually going to.
    *
    * @complexity O(1) — one repo read plus, only on a full match, one decrypt (`resolveForPublish`).
    */
   async function resolveChosenCredential(
     input: { workspaceId: UUID; target: StaticPublishTargetId; credentialId: UUID }
   ): Promise<Awaited<ReturnType<PublishCredentialSource["resolve"]>>> {
+    const summary = await describeCredential(deps, { workspaceId: input.workspaceId, id: input.credentialId });
+    if (summary && !summary.publishHosts.includes(input.target)) {
+      return { ok: false, reason: chosenCredentialWrongProviderReason(summary.providerId, input.target) };
+    }
     const resolved = await resolveForPublish(deps, { workspaceId: input.workspaceId, id: input.credentialId, providerId: input.target });
     if (!resolved) {
       return { ok: false, reason: CHOSEN_CREDENTIAL_UNAVAILABLE_REASON };
-    }
-    const targetVendor = (await deps.loadDeployTargets(input.workspaceId)).get(input.target)?.descriptor.credential?.vendorId;
-    if (resolved.vendorId !== targetVendor) {
-      return { ok: false, reason: chosenCredentialWrongProviderReason(resolved.providerId, input.target) };
     }
     return project(input.workspaceId, { ...resolved.connection, providerId: input.target });
   }

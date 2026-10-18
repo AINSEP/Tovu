@@ -31,13 +31,13 @@ export class LocalCredentialCopyError extends Error {
 }
 export interface CredentialCopyChoice {
   siteId: string; name: string;
-  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string; publishHosts?: string[] }[];
+  keys: { kind: VaultKind; id: string; label: string; provider: string | null; last4?: string | undefined; worksFor: string[]; publishHosts?: string[] }[];
   reasonCode?: string; message?: string;
   /** Desktop's existing startSite(id) uses the canonical project folder as its ID. Never logged. */
   actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
 }
 type Selection = { id: string; kind: VaultKind; revision: number; label: string; provider: string | null;
-  owner_key: string; principal_id: string | null; binding: string | null; last4: string | null; token_length: number | null };
+  owner_key: string; principal_id: string | null; binding: string | null; last4: string | null; token_length: number | null; meta: string | Record<string, unknown> };
 
 /** Bind local folder discovery to Jini's existing vault operation. No source boot or key writes.
  * Inventory is O(sites + rows); copy performs bounded sequential SELECTs/CAS writes per selected ID.
@@ -73,7 +73,7 @@ export function createLocalCredentialCopy(required: {
     try {
       if (!(await tableExists(kernel, "secrets_vault"))) throw needsUpgrade({ source });
       // Refuse the whole source: mixing normalized and legacy rows must never become a partial upgrade.
-      const legacy = await kernel.query(sql`SELECT 1 FROM secrets_vault WHERE json_type(meta,'$.legacyAad') IS NOT NULL LIMIT 1`);
+      const legacy = await kernel.query(sql`SELECT 1 FROM secrets_vault WHERE json_type(meta,'$.legacyAad') IS NOT NULL OR kind='custom' OR (kind='vendor' AND (json_extract(meta,'$.credentialType') IS NULL OR json_type(meta,'$.worksFor') IS NOT 'array')) LIMIT 1`);
       if (legacy.length) throw needsUpgrade({ source });
       const workspaceId = (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;
       // EMPTY source env on both inspection and derivation: the target's TOVU_SITE_KEY is irrelevant.
@@ -86,7 +86,7 @@ export function createLocalCredentialCopy(required: {
       const service = vault({ kernel: kernel as unknown as ContentKernel, workspaceId, keyring,
         sealer: new AesGcmSecretSealer({ keyring }), metaParsers: required.registry.metaParsers });
       // Selection metadata only; neither GET nor selection needs to hydrate an envelope.
-      const rows = await kernel.query<Selection>(sql`SELECT id,kind,revision,label,provider,owner_key,principal_id,binding,last4,token_length
+      const rows = await kernel.query<Selection>(sql`SELECT id,kind,revision,label,provider,owner_key,principal_id,binding,last4,token_length,meta
         FROM secrets_vault WHERE workspace_id=${workspaceId} ORDER BY kind,id`);
       return await read({ service, rows, workspaceId });
     } finally { await kernel.close(); }
@@ -105,14 +105,17 @@ export function createLocalCredentialCopy(required: {
       for (const source of sources()) {
         try {
           const keys = await readSource({ source, read: async ({ rows }) => rows.filter(row =>
-            VAULT_KINDS.includes(row.kind) && required.registry.isCopyableKind[row.kind] &&
+            VAULT_KINDS.some(kind => kind === row.kind) && required.registry.isCopyableKind[row.kind] &&
             row.owner_key === "tovu" && row.principal_id === null && row.binding === null).map(row => {
               assertCredentialFreeField({ value: row.label, field: "label" });
               if (row.provider !== null) assertCredentialFreeField({ value: row.provider, field: "provider" });
-              return { kind: row.kind, id: row.id, label: row.label, provider: row.provider,
-                ...(deployTargets ? { publishHosts: publishHostsForCredential({ credential: row, registry: deployTargets }) } : {}),
-                ...(row.kind !== "database-destination" && row.token_length !== null && row.token_length >= 12 && row.last4
-                  ? { last4: row.last4.slice(-4) } : {}) };
+              const meta = required.registry.metaParsers[row.kind]({ meta: typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta });
+              const worksFor = Array.isArray(meta.worksFor) ? [...meta.worksFor as string[]] : [];
+              return { kind: row.kind, id: row.id, label: row.label, provider: row.provider, worksFor,
+                ...(deployTargets ? { publishHosts: publishHostsForCredential({ credential: { ...row, meta }, registry: deployTargets }) } : {}),
+                // Keep the copy-card field present without exposing destination or short-token hints.
+                last4: row.kind !== "database-destination" && row.token_length !== null && row.token_length >= 12 && row.last4
+                  ? row.last4.slice(-4) : undefined };
             }) });
           choices.push({ siteId: source.siteId, name: source.name, keys });
         } catch (error) {
@@ -142,7 +145,7 @@ export function createLocalCredentialCopy(required: {
             reasonCode: "source-missing", message: "A selected key is no longer available. Refresh the source list." });
           for (const id of uniqueIds) {
             const row = selected.get(id);
-            if (!row || !VAULT_KINDS.includes(row.kind)) throw new LocalCredentialCopyError({
+            if (!row || !VAULT_KINDS.some(kind => kind === row.kind)) throw new LocalCredentialCopyError({
               reasonCode: "source-missing", message: "A selected key is no longer available. Refresh the source list." });
             // Personal contexts require a principal in Jini; never invent/reuse a target principal to call it.
             if (!required.registry.isCopyableKind[row.kind]) {

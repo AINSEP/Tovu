@@ -120,3 +120,11 @@ test('media credentials reject the provider alias even when target is present', 
   });
   assert.deepEqual(f.calls, []);
 });
+
+test('API creation forwards explicit worksFor including an empty human prefill', async () => {
+  for (const worksFor of [["vercel"], []]) {
+    const f = fixture();
+    await f.registrations[0]!.handler({ ...f.context, input: { kind: 'api', label: 'Production access', worksFor } });
+    assert.deepEqual(f.calls[0]!.ctx.input, { label: 'Production access', worksFor });
+  }
+});
