@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildAgentPageMap } from "@jini-ai/admin/core";
 import * as router from "../router";
-import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages } from "../agent-pages";
+import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages, listAdminAgentScreens } from "../agent-pages";
 import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 
 /**
@@ -17,6 +17,18 @@ afterEach(() => {
 });
 
 describe("ADMIN_AGENT_PAGE_PATHS", () => {
+  it("publishes Admin UI without advertising its redirect-only aliases as screens", () => {
+    expect(ADMIN_AGENT_PAGE_PATHS["admin-ui"]).toBe("/admin-ui");
+    const pages = buildAdminAgentPages();
+    const screens = listAdminAgentScreens();
+    expect(screens).toContainEqual({ id: "admin-ui", label: "Admin UI", path: "/admin-ui" });
+    for (const id of ["admin-themes", "admin-appearance", "design-system"]) {
+      expect(ADMIN_AGENT_PAGE_PATHS).not.toHaveProperty(id);
+      expect(pages).not.toHaveProperty(id);
+      expect(screens.some((screen) => screen.id === id)).toBe(false);
+    }
+  });
+
   it("keeps Add-ons page IDs while publishing their canonical paths", () => {
     expect(ADMIN_AGENT_PAGE_PATHS).toMatchObject({
       plugins: "/addons/plugins",
@@ -45,12 +57,7 @@ describe("ADMIN_AGENT_PAGE_PATHS", () => {
   });
 
   it("still honors an explicit agentReachable: false under the flipped default", () => {
-    // No panel in `panels.tsx` sets `agentReachable: false` today — `settings-raw`, the raw
-    // namespace/key ledger inspector, was the last one and was deleted once `/settings` covered
-    // the same rows through a curated UI. Asserting against the live `ADMIN_AGENT_PAGE_PATHS`
-    // would therefore pin nothing: every id is absent from a map that never had it. Feeding
-    // `buildAgentPageMap` a panel that sets it explicitly is what actually proves the opt-out
-    // still overrides `defaultReachable: true`, so the next panel that needs it works.
+    // Keep the package's opt-out contract pinned independently of which live panels use it.
     const map = buildAgentPageMap({ panels: [{ id: "opted-out", render: () => null, agentReachable: false }] }, { defaultReachable: true });
 
     expect(map["opted-out"]).toBeUndefined();

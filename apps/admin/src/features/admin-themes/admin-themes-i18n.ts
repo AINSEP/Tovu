@@ -2,12 +2,15 @@ import { COMMON_I18N } from "../../lib/i18n-common";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
- * @file Dictionary for Studio → Admin Themes. English copy is the key (this app's convention);
+ * @file Dictionary for Studio → Admin UI and its Theme tab. English copy is the key (this app's convention);
  * "Admin Themes" and "Studio" reuse the sidebar's and Themes' existing wording. Same 21 locales as
  * every other feature dictionary.
  */
 export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Admin UI": "Interfaz de administración",
+    Theme: "Tema",
+    Appearance: "Apariencia",
     "Admin Themes": "Temas del administrador",
     Studio: "Estudio",
     "How the admin looks to you.": "Cómo ves el administrador.",
@@ -19,6 +22,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "No se pudo guardar el tema: {error}",
   },
   id: {
+    "Admin UI": "Antarmuka Admin",
+    Theme: "Tema",
+    Appearance: "Tampilan",
     "Admin Themes": "Tema Admin",
     Studio: "Studio",
     "How the admin looks to you.": "Tampilan admin bagi Anda.",
@@ -30,6 +36,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Tema tidak dapat disimpan: {error}",
   },
   de: {
+    "Admin UI": "Admin-Oberfläche",
+    Theme: "Theme",
+    Appearance: "Erscheinungsbild",
     "Admin Themes": "Admin-Themes",
     Studio: "Studio",
     "How the admin looks to you.": "So sieht der Adminbereich für Sie aus.",
@@ -41,6 +50,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Das Theme konnte nicht gespeichert werden: {error}",
   },
   "zh-CN": {
+    "Admin UI": "管理界面",
+    Theme: "主题",
+    Appearance: "外观",
     "Admin Themes": "管理后台主题",
     Studio: "工作室",
     "How the admin looks to you.": "管理后台在你眼中的样子。",
@@ -52,6 +64,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "无法保存主题：{error}",
   },
   "zh-TW": {
+    "Admin UI": "管理介面",
+    Theme: "佈景主題",
+    Appearance: "外觀",
     "Admin Themes": "管理後台佈景主題",
     Studio: "工作室",
     "How the admin looks to you.": "管理後台在你眼中的樣子。",
@@ -63,6 +78,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "無法儲存佈景主題：{error}",
   },
   "pt-BR": {
+    "Admin UI": "Interface de administração",
+    Theme: "Tema",
+    Appearance: "Aparência",
     "Admin Themes": "Temas do administrador",
     Studio: "Estúdio",
     "How the admin looks to you.": "Como o administrador aparece para você.",
@@ -74,6 +92,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Não foi possível salvar o tema: {error}",
   },
   ru: {
+    "Admin UI": "Интерфейс админ-панели",
+    Theme: "Тема",
+    Appearance: "Внешний вид",
     "Admin Themes": "Темы админ-панели",
     Studio: "Студия",
     "How the admin looks to you.": "Как админ-панель выглядит для вас.",
@@ -85,6 +106,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Не удалось сохранить тему: {error}",
   },
   fa: {
+    "Admin UI": "رابط کاربری مدیریت",
+    Theme: "پوسته",
+    Appearance: "ظاهر",
     "Admin Themes": "پوسته‌های پنل مدیریت",
     Studio: "استودیو",
     "How the admin looks to you.": "ظاهر پنل مدیریت برای شما.",
@@ -96,6 +120,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "ذخیره پوسته ممکن نشد: {error}",
   },
   ar: {
+    "Admin UI": "واجهة الإدارة",
+    Theme: "السمة",
+    Appearance: "المظهر",
     "Admin Themes": "سمات لوحة الإدارة",
     Studio: "الاستوديو",
     "How the admin looks to you.": "مظهر لوحة الإدارة لديك.",
@@ -107,6 +134,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "تعذّر حفظ السمة: {error}",
   },
   ja: {
+    "Admin UI": "管理画面",
+    Theme: "テーマ",
+    Appearance: "外観",
     "Admin Themes": "管理画面のテーマ",
     Studio: "スタジオ",
     "How the admin looks to you.": "あなたに表示される管理画面の見た目。",
@@ -118,6 +148,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "テーマを保存できませんでした: {error}",
   },
   ko: {
+    "Admin UI": "관리자 UI",
+    Theme: "테마",
+    Appearance: "모양",
     "Admin Themes": "관리자 테마",
     Studio: "스튜디오",
     "How the admin looks to you.": "내게 보이는 관리자 화면의 모습.",
@@ -129,6 +162,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "테마를 저장하지 못했습니다: {error}",
   },
   pl: {
+    "Admin UI": "Interfejs administracyjny",
+    Theme: "Motyw",
+    Appearance: "Wygląd",
     "Admin Themes": "Motywy panelu administracyjnego",
     Studio: "Studio",
     "How the admin looks to you.": "Jak panel administracyjny wygląda dla Ciebie.",
@@ -140,6 +176,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Nie udało się zapisać motywu: {error}",
   },
   hu: {
+    "Admin UI": "Adminisztrációs felület",
+    Theme: "Téma",
+    Appearance: "Megjelenés",
     "Admin Themes": "Adminisztrációs témák",
     Studio: "Stúdió",
     "How the admin looks to you.": "Így látod az adminisztrációs felületet.",
@@ -151,6 +190,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Nem sikerült menteni a témát: {error}",
   },
   fr: {
+    "Admin UI": "Interface d’administration",
+    Theme: "Thème",
+    Appearance: "Apparence",
     "Admin Themes": "Thèmes d’administration",
     Studio: "Studio",
     "How the admin looks to you.": "L’apparence de l’administration pour vous.",
@@ -162,6 +204,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Impossible d’enregistrer le thème : {error}",
   },
   uk: {
+    "Admin UI": "Інтерфейс адмінпанелі",
+    Theme: "Тема",
+    Appearance: "Вигляд",
     "Admin Themes": "Теми адмінпанелі",
     Studio: "Студія",
     "How the admin looks to you.": "Як адмінпанель виглядає для вас.",
@@ -173,6 +218,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Не вдалося зберегти тему: {error}",
   },
   tr: {
+    "Admin UI": "Yönetici Arayüzü",
+    Theme: "Tema",
+    Appearance: "Görünüm",
     "Admin Themes": "Yönetici Temaları",
     Studio: "Stüdyo",
     "How the admin looks to you.": "Yönetici panelinin size görünümü.",
@@ -184,6 +232,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Tema kaydedilemedi: {error}",
   },
   th: {
+    "Admin UI": "ส่วนติดต่อผู้ดูแลระบบ",
+    Theme: "ธีม",
+    Appearance: "ลักษณะที่ปรากฏ",
     "Admin Themes": "ธีมผู้ดูแลระบบ",
     Studio: "สตูดิโอ",
     "How the admin looks to you.": "หน้าตาของผู้ดูแลระบบสำหรับคุณ",
@@ -195,6 +246,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "บันทึกธีมไม่สำเร็จ: {error}",
   },
   it: {
+    "Admin UI": "Interfaccia di amministrazione",
+    Theme: "Tema",
+    Appearance: "Aspetto",
     "Admin Themes": "Temi di amministrazione",
     Studio: "Studio",
     "How the admin looks to you.": "Come vedi l’amministrazione.",
@@ -206,6 +260,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "Impossibile salvare il tema: {error}",
   },
   hi: {
+    "Admin UI": "व्यवस्थापक इंटरफ़ेस",
+    Theme: "थीम",
+    Appearance: "रूप-रंग",
     "Admin Themes": "व्यवस्थापक थीम",
     Studio: "स्टूडियो",
     "How the admin looks to you.": "आपको व्यवस्थापक कैसा दिखता है।",
@@ -217,6 +274,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "थीम सहेजी नहीं जा सकी: {error}",
   },
   ur: {
+    "Admin UI": "ایڈمن انٹرفیس",
+    Theme: "تھیم",
+    Appearance: "ظاہری شکل",
     "Admin Themes": "ایڈمن تھیمز",
     Studio: "اسٹوڈیو",
     "How the admin looks to you.": "ایڈمن آپ کو کیسا دکھائی دیتا ہے۔",
@@ -228,6 +288,9 @@ export const ADMIN_THEMES_DICT: Record<string, Record<string, string>> = {
     "Couldn't save the theme: {error}": "تھیم محفوظ نہیں ہو سکی: {error}",
   },
   bn: {
+    "Admin UI": "অ্যাডমিন ইন্টারফেস",
+    Theme: "থিম",
+    Appearance: "চেহারা",
     "Admin Themes": "অ্যাডমিন থিম",
     Studio: "স্টুডিও",
     "How the admin looks to you.": "অ্যাডমিন আপনার কাছে যেমন দেখায়।",

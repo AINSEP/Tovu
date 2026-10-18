@@ -2,19 +2,48 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminUi } from "../AdminUi";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { ADMIN_THEMES_DICT } from "../../admin-themes/admin-themes-i18n";
 
-vi.mock("../../../admin-themes/use-admin-theme.hooks", () => ({
+vi.mock("../../../admin-themes/use-admin-theme.hooks", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../../../admin-themes/use-admin-theme.hooks")>(),
   useAdminThemePicker: () => ({ ready: true, themeId: "classic", preference: "light", error: null, selectTheme: vi.fn(), selectPreference: vi.fn() }),
 }));
 vi.mock("../../settings/hooks/use-admin-appearance-settings.hooks", () => ({
   useAdminAppearanceSettings: () => ({ value: { theme: "light", accentColor: "#a855f7" }, loadError: null, saveState: { status: "idle" }, onChange: vi.fn() }),
 }));
-vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));
+vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: vi.fn(() => "en") }));
 
 const originalUrl = window.location.href;
-afterEach(() => window.history.replaceState(null, "", originalUrl));
+afterEach(() => {
+  window.history.replaceState(null, "", originalUrl);
+  vi.mocked(useAdminLocale).mockReturnValue("en");
+});
 
 describe("Admin UI tabs", () => {
+  it("updates the page chrome and tabs when the admin locale changes", () => {
+    const { container, rerender } = render(<AdminUi />);
+    expect(screen.getByRole("heading", { name: "Admin UI" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Admin UI" })).toBeInTheDocument();
+    vi.mocked(useAdminLocale).mockReturnValue("es");
+    rerender(<AdminUi />);
+    expect(screen.getByRole("heading", { name: "Interfaz de administración" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Interfaz de administración" })).toBeInTheDocument();
+    expect(container.querySelector(".admin-ui-page > .page-header .page-kicker")).toHaveTextContent("Estudio");
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Tema", "Apariencia"]);
+    vi.mocked(useAdminLocale).mockReturnValue("en");
+    rerender(<AdminUi />);
+    expect(screen.getByRole("heading", { name: "Admin UI" })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Theme", "Appearance"]);
+  });
+
+  it.each(Object.keys(ADMIN_THEMES_DICT))("supplies Admin UI copy in the existing %s dictionary", (locale) => {
+    for (const key of ["Admin UI", "Studio", "Theme", "Appearance"]) {
+      expect(ADMIN_THEMES_DICT[locale]?.[key]).toEqual(expect.any(String));
+      expect(ADMIN_THEMES_DICT[locale]?.[key]?.length).toBeGreaterThan(0);
+    }
+  });
+
   it.each([undefined, null, "", "unknown", "theme"])("opens Theme for %s", (tabId) => {
     render(<AdminUi tabId={tabId} />);
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Theme", "Appearance"]);

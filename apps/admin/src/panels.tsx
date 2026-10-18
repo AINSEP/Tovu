@@ -536,16 +536,20 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   },
   // Keep bookmarks/agent links working after the owner-approved Admin UI merge (2026-10-17).
   // These ids have no nav rows; the shared redirect replaces history to avoid Back-button loops.
+  // Publish only Admin UI to agents: these aliases no longer have screens of their own.
   {
     id: "admin-themes",
+    agentReachable: false,
     render: () => <IntegrationsRedirect routePath="/admin-ui?tab=theme" />,
   },
   {
     id: "admin-appearance",
+    agentReachable: false,
     render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />,
   },
   {
     id: "design-system",
+    agentReachable: false,
     render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />,
   },
   {

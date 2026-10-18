@@ -1,8 +1,11 @@
 import { StrictMode } from "react";
 import { render } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_PANELS } from "../../../panels";
 import { parseRoute } from "../../../App";
+
+// AdminUi reads the admin locale; these tests render panels without the fetch-query provider.
+vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));
 
 const originalUrl = window.location.href;
 afterEach(() => window.history.replaceState(null, "", originalUrl));
