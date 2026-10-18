@@ -31,7 +31,8 @@ export interface DockSettingsMenuItem {
   label: string;
   role?: "menuitem" | "menuitemradio" | "menuitemcheckbox";
   checked?: boolean;
-  /** Per-option help for the same touch/keyboard InfoTip in both settings surfaces. */
+  /** Help for this row's own InfoTip. A radio row's help is folded into its section's one tip
+   * (`groupOptionTooltips`), so only toggle and plain rows keep an ⓘ of their own. */
   tooltip?: string;
   disabled?: boolean;
   onSelect?: () => void;
@@ -43,7 +44,29 @@ export interface DockSettingsMenuSection {
   label?: string;
   /** One line explaining the whole section, shown under its heading in the Chat settings dialog. */
   description?: string;
+  /** The one InfoTip right after the heading; set by `groupOptionTooltips`, one "• Option: help" line per option. */
+  tooltip?: string;
   items: DockSettingsMenuItem[];
+}
+
+/**
+ * One ⓘ per multi-option setting (owner, 2026-10-18: "ONE tooltip next to 'Tool calls' with 3
+ * bullets for Show, Collapsed, Hidden … looks way cleaner"), instead of one beside every option.
+ * A radio section's per-option help becomes a "• Label: help" line each in the section's own
+ * tooltip, and its rows lose theirs. Any other section passes through untouched, so a new choice
+ * group only needs per-option `tooltip`s to get the same single tip in the gear and the dialog.
+ * @param section - One section as built, with per-option help on its rows.
+ * @returns The section with its options' help grouped under its heading.
+ * @complexity O(n) in the section's rows.
+ */
+export function groupOptionTooltips(section: DockSettingsMenuSection): DockSettingsMenuSection {
+  const helped = section.items.filter((item) => item.tooltip);
+  if (!helped.length || !section.items.every((item) => item.role === "menuitemradio")) return section;
+  return {
+    ...section,
+    tooltip: helped.map((item) => `• ${item.label}: ${item.tooltip}`).join("\n"),
+    items: section.items.map(({ tooltip: _grouped, ...item }) => item),
+  };
 }
 
 /**
@@ -66,7 +89,7 @@ export function dockSettingsMenuSections(
     collapsed: t("Keep tool calls together in one compact line per reply. Tap or click the line to see them."),
     hidden: t("Hide routine tool calls to keep the conversation clear. Failed calls still appear so you can see what went wrong."),
   };
-  return [
+  const sections: DockSettingsMenuSection[] = [
     {
       key: "tool-calls",
       label: t("Tool calls"),
@@ -91,6 +114,8 @@ export function dockSettingsMenuSections(
     },
     ...(onMoreSettings ? [{ key: "more-settings", items: [{ key: "more-settings", label: t("More settings…"), onSelect: onMoreSettings }] }] : []),
   ];
+  // Every section passes through `groupOptionTooltips`, so a radio group added above gets one tip.
+  return sections.map(groupOptionTooltips);
 }
 
 /**

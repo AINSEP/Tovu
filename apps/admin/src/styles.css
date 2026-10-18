@@ -262,6 +262,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    box, mirrored: `top: coords.bottom` (component) + `translateY(8px)` here opens downward with the
    same 8px gap the default has, and the arrow moves from the bubble's bottom edge to its top edge,
    pointing back up at the icon it flipped away from. */
+/* "• " lines (`infoTipLines`, e.g. the dock's one Tool calls tip): wrapped text hangs past its dot. */
+.info-tip-line { display: block; }
+.info-tip-bullet { display: flex; gap: 0.4em; }
+.info-tip-bullet + .info-tip-bullet { margin-top: 0.3em; }
+.info-tip-bullet > span:first-child { flex: none; }
 .info-tip-bubble-below { transform: translate(-50%, 8px); }
 .info-tip-bubble-below::after {
   top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--jini-overlay-tooltip-bg);

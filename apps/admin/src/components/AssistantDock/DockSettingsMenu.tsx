@@ -14,7 +14,8 @@ import { activateDockMenuItem, type DockSettingsMenuSection } from "./dock-heade
  * trigger's, which keeps it inside the narrow dock.
  * Rows come in sections (a heading, then its rows); a setting row carries a check mark that is
  * always laid out and only shown when on, so toggling never shifts the menu. `notice` is a status
- * line under the rows (a failed save).
+ * line under the rows (a failed save). A row's ⓘ sits beside its button; a radio group's single
+ * ⓘ (`groupOptionTooltips`) sits beside its heading.
  * Disabled rows use `aria-disabled`, not `disabled`, so keyboard focus can still land on them.
  */
 export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonomyRowMenu }: {
@@ -54,8 +55,13 @@ export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonom
       >
         {sections.map((section, sectionIndex) => <Fragment key={section.key}>
           {sectionIndex > 0 ? <div role="separator" className="dock-settings-menu-separator" /> : null}
-          <div role="group" aria-labelledby={section.label ? `dock-settings-${section.key}` : undefined}>
-            {section.label ? <div id={`dock-settings-${section.key}`} className="dock-settings-menu-heading">{section.label}</div> : null}
+          <div role="group" aria-labelledby={section.label ? `dock-settings-${section.key}` : undefined}
+            aria-describedby={section.tooltip ? `${helpId}-section-${section.key}` : undefined}>
+            {/* The section's one ⓘ sits beside the heading, not in it, so the group's name stays the heading alone. */}
+            {section.label ? <div className="dock-settings-menu-heading-row">
+              <div id={`dock-settings-${section.key}`} className="dock-settings-menu-heading">{section.label}</div>
+              {section.tooltip ? <InfoTip label={section.tooltip} descriptionId={`${helpId}-section-${section.key}`} /> : null}
+            </div> : null}
             {section.items.map((item) => {
               const itemIndex = index++;
               const checkable = item.role === "menuitemradio" || item.role === "menuitemcheckbox";

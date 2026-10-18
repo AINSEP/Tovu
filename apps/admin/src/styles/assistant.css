@@ -478,6 +478,10 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
 .dock-settings-menu-row { display: flex; align-items: center; }
 .dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
 .dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
+/* A radio group's one ⓘ (`groupOptionTooltips`) follows its heading's text. */
+.dock-settings-menu-heading-row { display: flex; align-items: center; }
+.dock-settings-menu-heading-row > .dock-settings-menu-heading { padding-right: 0; }
+.dock-settings-menu-heading-row > .info-tip { flex: none; margin: 0.075rem 0 0 0.3rem; }
 .dock-settings-menu-heading {
   padding: 0.35rem 0.65rem 0.2rem;
   font-size: var(--text-xs);
@@ -1723,8 +1727,7 @@ button.jini-composer-leading,
   display: inline-flex; flex-wrap: wrap; align-self: flex-start; max-width: 100%; gap: 0.25rem; padding: 0.2rem;
   border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
 }
-.jini-chat-settings-option { display: inline-flex; align-items: center; min-width: 0; }
-.jini-chat-settings-option > .info-tip { flex: none; margin-inline: 0 0.25rem; }
+.jini-chat-settings-legend > .info-tip { margin-left: 0.3rem; }
 .jini-chat-settings-segment {
   position: relative; display: inline-flex; align-items: center; padding: 0.4rem 0.95rem;
   border-radius: 6px; font-size: var(--text-sm, 0.875rem); color: var(--muted); cursor: pointer;
@@ -1781,12 +1784,14 @@ button.jini-composer-leading,
    so it is undone here and the hit area takes over at that width too. */
 @media (pointer: coarse), (max-width: 640px) {
   .dock-settings-menu-row .info-tip-icon,
-  .jini-chat-settings-option .info-tip-icon,
+  .dock-settings-menu-heading-row .info-tip-icon,
+  .jini-chat-settings-legend .info-tip-icon,
   .jini-chat-settings-row > .info-tip .info-tip-icon { position: relative; }
   .dock-settings-menu-row .info-tip-icon::before,
-  .jini-chat-settings-option .info-tip-icon::before,
+  .dock-settings-menu-heading-row .info-tip-icon::before,
+  .jini-chat-settings-legend .info-tip-icon::before,
   .jini-chat-settings-row > .info-tip .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
-  .jini-dialog .jini-chat-settings-option .info-tip-icon[role="button"],
+  .jini-dialog .jini-chat-settings-legend .info-tip-icon[role="button"],
   .jini-dialog .jini-chat-settings-row > .info-tip .info-tip-icon[role="button"] { min-width: 0; min-height: 0; }
 }
 @media (max-width: 640px) {
