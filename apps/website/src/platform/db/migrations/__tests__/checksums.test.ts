@@ -55,7 +55,12 @@ test("the legacy drizzle chain is frozen", () => {
 });
 
 test("0012 activation appends the final checksum after 0011 without replacing history", () => {
-  assert.deepEqual(CONTENT_MIGRATIONS.slice(-2).map(step => step.id), ["0011_drop_empty_core_commerce_tables", "0012_secrets_vault"]);
+  assert.deepEqual(CONTENT_MIGRATIONS.filter(step => step.id <= "0012_secrets_vault").slice(-2).map(step => step.id), ["0011_drop_empty_core_commerce_tables", "0012_secrets_vault"]);
   assert.equal(MIGRATION_CHECKSUMS["0012_secrets_vault"], sourceChecksum("0012_secrets_vault"));
   assert.equal(MIGRATION_CHECKSUMS["0011_drop_empty_core_commerce_tables"], "047fc0b89a63c6a42a82e63d3e6d5f5065be0359a99e8740779ef794a4b0b9ad");
+});
+
+test("0013 activation pins the data-only conversion after the historical vault step", () => {
+  assert.deepEqual(CONTENT_MIGRATIONS.slice(-2).map(step => step.id), ["0012_secrets_vault", "0013_unify_vault_credentials"]);
+  assert.equal(MIGRATION_CHECKSUMS["0013_unify_vault_credentials"], sourceChecksum("0013_unify_vault_credentials"));
 });

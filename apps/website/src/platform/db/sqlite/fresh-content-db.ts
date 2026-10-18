@@ -126,6 +126,9 @@ export function bootstrapFreshContentDb(
         client.exec(`DROP TABLE "${table}"`);
       }
     },
+    "0013_unify_vault_credentials": () => {
+      // Data-only conversion: the fresh chain seeds no credential rows and needs no new DDL.
+    },
   };
   if (migrations.length !== Object.keys(operations).length ||
       migrations.some(step => !Object.hasOwn(operations, step.id))) {

@@ -16,6 +16,7 @@ import { postsAuthor } from "./0009_posts_author.js";
 import { membersCredentialsRevokedAt } from "./0010_members_credentials_revoked_at.js";
 import { dropEmptyCoreCommerceTables } from "./0011_drop_empty_core_commerce_tables.js";
 import { secretsVault } from "./0012_secrets_vault.js";
+import { unifyVaultCredentials } from "./0013_unify_vault_credentials.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -52,6 +53,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   membersCredentialsRevokedAt({ checksum: pinned("0010_members_credentials_revoked_at") }),
   dropEmptyCoreCommerceTables({ checksum: pinned("0011_drop_empty_core_commerce_tables") }),
   secretsVault({ checksum: pinned("0012_secrets_vault") }),
+  unifyVaultCredentials({ checksum: pinned("0013_unify_vault_credentials") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

@@ -149,6 +149,6 @@ test("fresh vault head enforces metadata, singleton and MCP pointer contracts be
     const triggers = db.$client.prepare("SELECT name FROM sqlite_schema WHERE type='trigger' AND name LIKE 'secrets_vault_%'").all();
     assert.equal(triggers.length, 3);
     const ledger = db.$client.prepare("SELECT id FROM tovu_migrations ORDER BY rowid DESC LIMIT 1").get() as { id: string };
-    assert.equal(ledger.id, "0012_secrets_vault");
+    assert.equal(ledger.id, CONTENT_MIGRATIONS.at(-1)!.id);
   } finally { db.$client.close(); }
 });
