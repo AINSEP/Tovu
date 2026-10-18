@@ -685,3 +685,27 @@ test("trashing a media asset indexes it for the Trash screen; purging it drops t
     "a hard-purged asset is still listed in the Trash — its index row outlived the bytes"
   );
 });
+
+
+test('hard purge refuses indexed references even with force permission, and lookup errors preserve the asset', async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const mediaId = await uploadAsOwner(baseUrl, cookie);
+  const input = { workspaceId: deps.workspaceId, id: mediaId };
+  const asset = await deps.mediaRepo.findById(input);
+  assert.ok(asset);
+  const trash = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/media/${mediaId}/trash`, { method: 'POST', headers: { cookie } });
+  assert.equal(trash.status, 200);
+  await deps.entryRefsRepo.replaceForSource({ workspaceId: deps.workspaceId, sourceEntryId: 'widget-ref', refs: [{ workspaceId: deps.workspaceId, sourceEntryId: 'widget-ref', sourceKind: 'config-field', fieldPath: 'items', targetKind: 'asset', targetId: asset.slug }] });
+  const remove = () => fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/media/${mediaId}`, { method: 'DELETE', headers: { cookie } });
+  const refused = await remove();
+  assert.equal(refused.status, 409);
+  assert.deepEqual((await refused.json()).referencing, ['widget-ref:items']);
+  assert.equal((await deps.mediaRepo.findById(input))?.status, 'trashed');
+  assert.equal((await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: asset.source.sha256 }))?.status, 'active');
+  t.mock.method(deps.entryRefsRepo, 'findByTarget', async () => { throw new Error('private reference store failure'); });
+  const failed = await remove();
+  assert.equal(failed.status, 500);
+  assert.deepEqual(await failed.json(), { error: 'internal error' });
+  assert.ok(await deps.mediaRepo.findById(input));
+});

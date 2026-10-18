@@ -19,6 +19,7 @@ function harness(initial: TrashItem[] = [row("a")]) {
   let items = initial;
   let record: Record<string, unknown> | null = { id: "target", label: "Saved credential", updatedAt: "v1", sealed: { ciphertext: "SECRET" }, vendorId: "hosting" };
   let allowed = true;
+  let mediaReferenceState: boolean | Error = false;
   const effects: unknown[] = [];
   const permissions: string[] = [];
   const repo = {
@@ -65,7 +66,13 @@ function harness(initial: TrashItem[] = [row("a")]) {
       findByServerId: async () => record,
       deleteByServerId: async (spec: unknown) => { effects.push({ serverDeleted: spec }); record = null; return true; },
     },
+    entryRefsRepo: { findByTarget: async ({ targetId }: { targetId: string }) => {
+      if (mediaReferenceState instanceof Error) throw mediaReferenceState;
+      return mediaReferenceState && targetId === "target" ? [{ workspaceId: "ws", sourceEntryId: "post-ref", sourceKind: "config-field", fieldPath: "body", targetKind: "asset", targetId }] : [];
+    } },
+    postRepo: { list: async () => [] },
     mediaRepo: {
+      listRetiredSlugs: async () => [],
       findById: async () => media,
       remove: async (spec: unknown) => { effects.push({ mediaRemoved: spec }); media = null; },
     },
@@ -75,7 +82,7 @@ function harness(initial: TrashItem[] = [row("a")]) {
     commentRepo: { findById: async () => record },
     commentWriteService: { purge: async (spec: unknown) => { effects.push({ commentPurged: spec }); record = null; return { ok: true }; } },
   } as unknown as RouteDeps;
-  return { deps: buildPermanentDeleteDeps(routeDeps), effects, permissions, setItems: (v: TrashItem[]) => { items = v; }, setRecord: (v: Record<string, unknown> | null) => { record = v; }, setAllowed: (v: boolean) => { allowed = v; }, setMedia: (v: Record<string, unknown> | null) => { media = v; } };
+  return { deps: buildPermanentDeleteDeps(routeDeps), effects, permissions, setMediaReferences: (state: boolean | Error) => { mediaReferenceState = state; }, setItems: (v: TrashItem[]) => { items = v; }, setRecord: (v: Record<string, unknown> | null) => { record = v; }, setAllowed: (v: boolean) => { allowed = v; }, setMedia: (v: Record<string, unknown> | null) => { media = v; } };
 }
 
 test("empty Trash refuses new arrivals or changed rows before deleting any reviewed item", async () => {
@@ -254,3 +261,15 @@ for (const toolId of ["custom_credential_delete", "deployment_delete_provider_cr
     assert.equal(result.removed, false);
   });
 }
+
+
+test("media purge rechecks references after confirmation and refuses lookup failures without effects", async () => {
+  const h = harness();
+  const plan = await h.deps.prepare("media_purge_asset", "target", "owner");
+  h.setMediaReferences(true);
+  await assert.rejects(plan.execute(), /still referenced/);
+  assert.deepEqual(h.effects, []);
+  h.setMediaReferences(new Error("reference lookup failed"));
+  await assert.rejects(plan.execute(), /reference lookup failed/);
+  assert.deepEqual(h.effects, []);
+});

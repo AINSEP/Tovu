@@ -2309,6 +2309,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
       rateLimiter: routeDeps.formsRateLimiter,
       files: createFormFileStorage({ media: {
         clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
+        entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
         blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
       }, contentTypes: routeDeps.mediaContentTypeStore,
         resolveCreatedByPrincipal: async ({ workspaceId }) => {

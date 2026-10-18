@@ -68,7 +68,6 @@ export {
   findMediaByIdOrSlug,
   updateMediaMetadata,
   trashMedia,
-  purgeMedia,
   isValidMediaSlugFormat,
   type UploadMediaInput,
   type UploadMediaDeps,
@@ -142,3 +141,5 @@ export { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 export { resolveUploadContentType, assertAllowedSniffedContentType } from "./upload-content-type.js";
 
 export { mediaUrlKey, mediaPublicPath, type MediaUrlKeySource, type MediaPublicPathVariant } from "./public-path.js";
+
+export { purgeMedia } from "./purge-media.js";

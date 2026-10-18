@@ -87,9 +87,11 @@ function withThrowingMethods<T extends object>(real: T, brokenMethodNames: reado
 // publish-credentials.ts — GET (list) and DELETE had NO try/catch at all (§2 of the audit).
 // ---------------------------------------------------------------------------------------------
 
-test("publish-credentials: GET responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
+test("publish-credentials: GET responds 500 (not a hang) when the vault throws an untyped error", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["listByWorkspace"]);
+  const vault = deps.vendorCredentialSetRepo?.vault;
+  assert.ok(vault, "expected the composed vendor repository's vault");
+  deps.vendorCredentialSetRepo = new VendorCredentialSetVaultRepo({ vault: withThrowingMethods(vault, ["list"]), kind: "vendor", vendor: true });
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

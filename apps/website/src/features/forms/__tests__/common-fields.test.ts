@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseFormMultipart } from "../../../server/inbound/public-http/routes/site/forms-multipart.js";
 import { createFormFileStorage } from "../form-file-storage.js";
-import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore } from "../../media/index.js";
+import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, MediaStillReferencedError } from "../../media/index.js";
+import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { formsAgentToolCatalog } from "../agent-tools.js";
 import { renderWidgetIr } from "../../../server/inbound/public-http/http/site/render.js";
 import { injectFormSubmissionResultIntoHtml } from "../../../server/inbound/public-http/http/site/form-render.js";
@@ -26,9 +28,9 @@ test("native multipart preserves choice arrays, file bytes, duplicate scalar con
   await assert.rejects(parseFormMultipart({ bytes: png, contentType: "multipart/form-data" }));
 });
 test("form upload storage delegates to real media/blob/rendition ports and supports compensating cleanup", async () => {
-  let id = 0; const mediaRepo = new InMemoryMediaRepo({}); const blobRepo = new InMemoryAssetBlobRepo({}); const renditionRepo = new InMemoryAssetRenditionRepo({}); const blobStore = new InMemoryBlobStore(); const contentTypes = new InMemoryMediaContentTypeStore();
+  let id = 0; const mediaRepo = new InMemoryVersionedMediaRepo(); const blobRepo = new InMemoryAssetBlobRepo({}); const renditionRepo = new InMemoryAssetRenditionRepo({}); const blobStore = new InMemoryBlobStore(); const contentTypes = new InMemoryMediaContentTypeStore();
   const attributionRequests: { workspaceId: string }[] = [];
-  const storage = createFormFileStorage({ media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo, renditionRepo, blobStore }, contentTypes, resolveCreatedByPrincipal: async (required) => { attributionRequests.push(required); return "site-system"; } });
+  const storage = createFormFileStorage({ media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo, renditionRepo, blobStore, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo() }, contentTypes, resolveCreatedByPrincipal: async (required) => { attributionRequests.push(required); return "site-system"; } });
   assert.equal(storage.detectContentType({ bytes: png }), "image/png");
   assert.equal(storage.detectContentType({ bytes: new TextEncoder().encode("%PDF-1.7") }), "application/pdf");
   assert.equal(storage.detectContentType({ bytes: new Uint8Array([77, 90]) }), "application/octet-stream");
@@ -40,6 +42,50 @@ test("form upload storage delegates to real media/blob/rendition ports and suppo
   assert.equal((await blobRepo.list({ workspaceId: "ws" }))[0]?.createdByPrincipal, "site-system");
   await storage.discard({ workspaceId: "ws", reference });
   assert.equal(await mediaRepo.findById({ workspaceId: "ws", id: reference.mediaId }), null);
+  assert.equal((await blobRepo.list({ workspaceId: "ws" }))[0]?.status, "tombstoned");
+});
+
+test("form upload removes its asset when recording the content type fails and preserves the original error", async () => {
+  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const blobRepo = new InMemoryAssetBlobRepo({});
+  const contentTypes = new InMemoryMediaContentTypeStore();
+  const writeError = new Error("content type store failed");
+  contentTypes.set = async () => { throw writeError; };
+  let id = 0;
+  const storage = createFormFileStorage({
+    media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo,
+      renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
+      entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo() },
+    contentTypes, resolveCreatedByPrincipal: async () => "site-system",
+  });
+  await assert.rejects(storage.store({ workspaceId: "ws", submissionId: "submission", fieldId: "photo",
+    file: { filename: "photo.png", contentType: "image/png", bytes: png } }), error => error === writeError);
+  assert.deepEqual(await mediaRepo.list({ workspaceId: "ws" }), []);
+  const blobs = await blobRepo.list({ workspaceId: "ws" });
+  assert.equal(blobs.length, 1);
+  assert.equal(blobs[0]?.status, "tombstoned");
+});
+
+test("form discard keeps a referenced upload trashed rather than bypassing the reference check", async () => {
+  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const blobRepo = new InMemoryAssetBlobRepo({});
+  const entryRefsRepo = new InMemoryEntryRefsRepo();
+  let id = 0;
+  const storage = createFormFileStorage({
+    media: { clock: { nowMs: () => 0 }, idGen: { newId: () => `asset-${++id}` }, mediaRepo, blobRepo,
+      renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
+      entryRefsRepo, postRepo: new InMemoryPostRepo() },
+    contentTypes: new InMemoryMediaContentTypeStore(), resolveCreatedByPrincipal: async () => "site-system",
+  });
+  const reference = await storage.store({ workspaceId: "ws", submissionId: "submission", fieldId: "photo",
+    file: { filename: "photo.png", contentType: "image/png", bytes: png } });
+  await entryRefsRepo.replaceForSource({ workspaceId: "ws", sourceEntryId: "widget-1", refs: [{
+    workspaceId: "ws", sourceEntryId: "widget-1", sourceKind: "config-field", fieldPath: "image",
+    targetKind: "asset", targetId: reference.mediaId,
+  }] });
+  await assert.rejects(storage.discard({ workspaceId: "ws", reference }), MediaStillReferencedError);
+  assert.equal((await mediaRepo.findById({ workspaceId: "ws", id: reference.mediaId }))?.status, "trashed");
+  assert.equal((await blobRepo.list({ workspaceId: "ws" }))[0]?.status, "active");
 });
 test("assistant create/update schemas advertise common native fields and builder uses the shared semantic renderer", () => {
   for (const name of ["forms_create_definition", "forms_update_definition"]) {
@@ -56,11 +102,12 @@ test("assistant create/update schemas advertise common native fields and builder
 });
 
 test("form upload attribution failure writes no media or blob", async () => {
-  const mediaRepo = new InMemoryMediaRepo({});
+  const mediaRepo = new InMemoryVersionedMediaRepo();
   const blobRepo = new InMemoryAssetBlobRepo({});
   const attributionError = new Error("identity seed failed");
   const storage = createFormFileStorage({
     media: { clock: { nowMs: () => 0 }, idGen: { newId: () => "must-not-be-used" }, mediaRepo,
+      entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo(),
       blobRepo, renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() },
     contentTypes: new InMemoryMediaContentTypeStore(),
     resolveCreatedByPrincipal: async () => { throw attributionError; },

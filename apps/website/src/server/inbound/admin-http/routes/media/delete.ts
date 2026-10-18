@@ -1,18 +1,18 @@
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { MediaRouteRegistrar } from "./deps.js";
+import type { Express } from "express";
+import type { MediaRouteDeps } from "./deps.js";
+import type { MediaWhereUsedDeps } from "./where-used.js";
 
 /**
  * DELETE hard-purges a media asset — second rung of the ADR-027 §5 deletion
- * ladder. 409s with the referencing list if the asset has not been trashed
- * first (see `purgeMedia`'s doc comment for the disclosed simplification: this
- * is a stand-in for the real `entry_refs` where-used guard, which doesn't
- * exist yet). Gated by `media.delete.force` (SPEC-021 REQ-39/OQ-01, ADR-027 §7) — a separate,
+ * ladder. Requires Trash first and 409s with the referencing list while current content
+ * still uses the asset. Lookup failures refuse deletion. Gated by `media.delete.force` (SPEC-021 REQ-39/OQ-01, ADR-027 §7) — a separate,
  * narrower permission than the ordinary trash's `media.delete`, since this is an irreversible purge
  * (mirrors `admin.menus.delete` vs `admin.menus.delete.force`'s split).
  */
-export const registerAdminMediaDeleteRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps & MediaWhereUsedDeps): void => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -33,6 +33,8 @@ export const registerAdminMediaDeleteRoute: MediaRouteRegistrar = (app, deps) =>
       const { purged } = await purgeMedia({
         deps: {
           mediaRepo: deps.mediaRepo,
+          entryRefsRepo: deps.entryRefsRepo,
+          postRepo: deps.postRepo,
           blobRepo: deps.assetBlobRepo,
           renditionRepo: deps.assetRenditionRepo,
           blobStore: deps.blobStore,

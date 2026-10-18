@@ -11,7 +11,7 @@ export interface FormFileStorage {
  * @complexity Fixed-prefix sniff, O(bytes) media hashing/storage, at most 20 files per submission. */
 export function createFormFileStorage(
   { media, contentTypes, resolveCreatedByPrincipal }: {
-    media: UploadMediaDeps;
+    media: UploadMediaDeps & Parameters<typeof purgeMedia>[0]["deps"];
     contentTypes: MediaContentTypeStorePort;
     /** Anonymous uploads are attributed to the host's real system principal, never visitor input. */
     resolveCreatedByPrincipal: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<string>;

@@ -5,9 +5,8 @@ import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/u
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
 import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/features/media/index";
-import type { MediaRepoPort } from "#src/features/media/index";
 import { deleteCustomCredential } from "#src/features/custom-credentials/index";
-import { deletePublishCredential, describeCredential } from "#src/features/deployments/publish-credentials/index";
+import { deletePublishCredential } from "#src/features/deployments/publish-credentials/index";
 import { deleteSourceControlCredential } from "#src/features/source-control/index";
 import { deleteExternalMcpServer } from "#src/assistant/index";
 import { mayActOnEntityType } from "#src/features/trash/index";
@@ -19,11 +18,11 @@ import type { RouteDeps } from "#src/server/routes/types";
 /** Host adapter only: the tools never import server or reach credential services directly. */
 type Deps = Pick<RouteDeps,
   "workspaceId" | "authorize" | "clock" | "trash" | "registry" | "ownerPrincipalId" | "principalRepo" |
-  "assetBlobRepo" | "assetRenditionRepo" | "blobStore" | "forgetRemovedMedia" |
+  "mediaRepo" | "entryRefsRepo" | "postRepo" | "assetBlobRepo" | "assetRenditionRepo" | "blobStore" | "forgetRemovedMedia" |
   "idGen" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" | "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "passwordHasher" | "transactions" | "tokens" |
   "commentRepo" | "commentWriteService" | "externalMcpServerRepo" | "builtInExternalMcpServerIds" | "customCredentialSetRepo" |
   "vendorCredentialSetRepo" | "contentKernel" | "loadDeployTargets" | "sourceControlCredentialSetRepo"
-> & { mediaRepo: MediaRepoPort };
+>;
 const PAGE_SIZE = 100;
 
 /** Caller-correctable lookup refusal; never reveals a credential's secret material. */
@@ -196,7 +195,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
             warning: "The asset and renditions are permanently removed. Shared file bytes remain; unshared bytes follow the existing garbage-collection grace period.",
             remove: async () => {
               try {
-                await purgeMedia({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock }, input: key });
+                await purgeMedia({ deps: { mediaRepo: deps.mediaRepo, entryRefsRepo: deps.entryRefsRepo, postRepo: deps.postRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore, clock: deps.clock }, input: key });
                 await deps.forgetRemovedMedia(key);
                 return { removed: true, id };
               } catch (error) {
@@ -230,11 +229,10 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
             remove: async () => { await deleteCustomCredential({ repo: deps.customCredentialSetRepo }, key); return { removed: true, id }; } });
         case "deployment_delete_provider_credential":
           return recordPlan({ toolId, id, load: async () => {
-            const summary = await describeCredential({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets }, key);
-            if (!summary) return null;
             const record = await deps.vendorCredentialSetRepo.findById(key);
-            const hosts = (await deps.loadDeployTargets(deps.workspaceId)).list().filter(host => host.descriptor.credential?.vendorId === record?.vendorId).map(host => host.descriptor.id);
-            return record ? { ...record, affectedHosts: hosts } : null;
+            if (!record) return null;
+            const hosts = (await deps.loadDeployTargets(deps.workspaceId)).list().filter(host => host.descriptor.credential?.vendorId === record.vendorId).map(host => host.descriptor.id);
+            return { ...record, affectedHosts: hosts };
           }, label: credential => `${credential.label} (${credential.vendorId}); used by publish hosts: ${credential.affectedHosts.join(", ") || "none"}`,
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",
             remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo, transaction: deps.contentKernel }, key); return { removed: true, id }; } });
