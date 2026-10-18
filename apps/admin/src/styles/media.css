@@ -85,8 +85,8 @@
   padding: 0;
   display: grid;
   place-items: center;
-  background: oklch(0% 0 0 / 0.55);
-  color: oklch(100% 0 0);
+  background: var(--jini-control-media-bg);
+  color: var(--jini-control-media-ink);
   border: none;
   border-radius: var(--r-sm);
 }
@@ -109,12 +109,12 @@
   right: var(--space-2);
   box-sizing: content-box;
   padding: 7.5px;
-  background: oklch(0% 0 0 / 0.55);
+  background: var(--jini-control-media-bg);
   border-radius: var(--r-sm);
 }
 .media-card-expand-fill:hover { background: transparent; }
-.media-card-expand-fill:hover > svg { background: oklch(0% 0 0 / 0.72); }
-.media-card-expand:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+.media-card-expand-fill:hover > svg { background: var(--jini-control-media-bg-hover); }
+.media-card-expand:hover { background: var(--jini-control-media-bg-hover); opacity: 1; }
 .media-card-expand svg { width: 15px; height: 15px; }
 
 /* The eye-icon "edit metadata" trigger (owner ask, 2026-09-07 — reach `EditMediaModal` from the
@@ -132,12 +132,12 @@
   padding: 0;
   display: grid;
   place-items: center;
-  background: oklch(0% 0 0 / 0.55);
-  color: oklch(100% 0 0);
+  background: var(--jini-control-media-bg);
+  color: var(--jini-control-media-ink);
   border: none;
   border-radius: var(--r-sm);
 }
-.media-card-edit:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+.media-card-edit:hover { background: var(--jini-control-media-bg-hover); opacity: 1; }
 .media-card-edit svg { width: 15px; height: 15px; }
 
 .media-card-media {
@@ -258,7 +258,7 @@
   box-shadow: var(--shadow-md);
 }
 .media-edit-dialog[open] { display: block; }
-.media-edit-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.media-edit-dialog::backdrop { background: var(--jini-overlay-bg); }
 /* The form content's own root, replacing the old `.card` wrapper — the dialog above already
    supplies the surface/border/shadow, so this contributes layout only (the `.editor-header`/
    `.field-group` children keep their own existing rules unchanged). */
@@ -310,7 +310,7 @@
      content, but this backdrop has to suppress an arbitrary bright photo/video frame rather than
      plain text and UI chrome, so it leans darker to keep the dimmed page from fighting the
      enlarged asset for attention. */
-  background: oklch(0% 0 0 / 0.6);
+  background: var(--jini-overlay-bg-lightbox);
 }
 
 .media-lightbox-header {

@@ -66,8 +66,6 @@ describe("admin selection ring", () => {
 
   it.each([
     ["styles/settings.css", ":root .jini-agent-card.is-selected", "border-color"],
-    ["styles/settings.css", ":root .jini-agent-card.is-selected", "box-shadow"],
-    ["styles/settings.css", ":root .jini-accent-swatch.active", "box-shadow"],
     ["styles/settings.css", ":root .filter-pill.active", "border-color"],
     ["styles.css", '.tab-bar-item[aria-selected="true"]', "border-bottom-color"],
     ["styles.css", ".settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active", "border-bottom-color"],
@@ -80,6 +78,17 @@ describe("admin selection ring", () => {
     const css = sheets.find((sheet) => sheet.path === path)!.css;
     const declaration = effectiveDeclarationsFor(css, selector).match(new RegExp(`(?:^|; )${property}: ([^;]+);`));
     expect(declaration?.[1]).toMatch(RING);
+  });
+
+  it.each([
+    [":root .jini-agent-card.is-selected", "--jini-control-shadow-selected", "--jini-theme-control-shadow-selected"],
+    [":root .jini-accent-swatch.active", "--jini-control-shadow-swatch-selected", "--jini-theme-control-shadow-swatch-selected"],
+  ])("%s draws its box-shadow through %s with Classic's selected-ring colour", (selector, token, input) => {
+    const css = sheets.find((sheet) => sheet.path === "styles/settings.css")!.css;
+    const shadow = effectiveDeclarationsFor(css, selector).match(/(?:^|; )box-shadow: ([^;]+);/);
+    expect(shadow?.[1]).toBe(`var(${token})`);
+    const classicInput = effectiveDeclarationsFor(themeStylesheet, CLASSIC_ROOT).match(new RegExp(`(?:^|; )${input}: ([^;]+);`));
+    expect(classicInput?.[1]).toMatch(RING);
   });
 
   it("fills the selected Access Tokens category pill with the primary, not the near-black accent", () => {

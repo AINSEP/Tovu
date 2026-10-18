@@ -25,16 +25,16 @@
 }
 
 .tovu-push-to-talk:hover {
-  background: rgba(127, 127, 127, 0.15);
+  background: var(--jini-control-hover-neutral-bg);
 }
 
 .tovu-push-to-talk--recording {
-  background: #dc2626;
-  color: #ffffff;
+  background: var(--jini-control-recording-bg);
+  color: var(--jini-control-recording-ink);
 }
 
 .tovu-push-to-talk--recording:hover {
-  background: #b91c1c;
+  background: var(--jini-control-recording-bg-hover);
 }
 
 /* Outside the desktop shell (or with on-device recognition unavailable) the button still renders,
@@ -55,7 +55,7 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--jini-control-recording-ink);
   animation: tovu-push-to-talk-pulse 1s ease-in-out infinite;
 }
 

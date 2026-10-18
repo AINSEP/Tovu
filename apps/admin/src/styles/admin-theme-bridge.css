@@ -26,7 +26,10 @@
 
 /* These widget inputs were inherited while Classic was selected. Keep their exact values here
    when removing the unscoped Jini Default stylesheet: platform widgets still read them even though
-   Tovu no longer installs that theme. Classic's own inputs and chat tokens override the rest. */
+   Tovu no longer installs that theme. Classic's own inputs and chat tokens override the rest.
+   Keep these 18 scheme inputs literal: UI's palette outputs read these same inputs, so referring
+   back to --jini-bg/text/etc. would create a cycle and cannot preserve both schemes at once.
+   Fonts, radius and density instead inherit UI's identical root defaults (variables.css). */
 :root {
   --jini-theme-light-bg: #ffffff;
   --jini-theme-light-surface: #f5f5f5;
@@ -46,11 +49,6 @@
   --jini-theme-dark-danger: #ff8b80;
   --jini-theme-dark-success: #79d69b;
   --jini-theme-dark-warning: #ebc36b;
-  --jini-font-body: system-ui, sans-serif;
-  --jini-font-heading: system-ui, sans-serif;
-  --jini-font-mono: ui-monospace, monospace;
-  --jini-radius: 8px;
-  --jini-density: 1;
 }
 /* Role aliases resolve on each local scheme boundary, as they did before the theme was removed. */
 :root, [data-admin-theme], [data-color-scheme] {

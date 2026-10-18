@@ -134,7 +134,7 @@
    warning token marks it without recolouring the whole row, which would fight the `.status-warning`
    pill already in its own cell. */
 .publish-content-report tbody tr[data-publish-disposition="skipped"] td:first-child {
-  box-shadow: inset 2px 0 0 var(--warning);
+  box-shadow: var(--jini-status-warning-shadow);
 }
 
 .publish-content-report tbody tr[data-publish-disposition="unchanged"] td {

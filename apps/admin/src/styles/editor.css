@@ -43,7 +43,7 @@
  * source order, since `main.tsx` imports this file after `styles.css`. */
 .editor-title:focus {
   outline: none;
-  box-shadow: 0 0 0 3px var(--primary-ring);
+  box-shadow: var(--jini-control-shadow-focus);
   border-bottom-color: var(--accent-text);
 }
 
@@ -106,7 +106,7 @@
    device (Mobile) instead of leaving it pinned to the corner. */
 .post-preview-expanded .page-preview-frame { flex: 1; min-height: 0; background: var(--surface-2); }
 .post-preview-expanded .page-preview-scaler { margin-inline: auto; }
-.post-preview-expanded .editor-shell { flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+.post-preview-expanded .editor-shell { flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: var(--jini-panel-shadow-flat); }
 /* The `-space-6` gap fix `.post-editor-pane` applies below the toolbar (see that rule's own comment)
    is meaningless here — there is no toolbar directly above this pane once expanded. */
 .post-preview-expanded .post-editor-pane { margin-top: 0; }
@@ -140,11 +140,11 @@
   position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3;
   width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.5rem;
   display: grid; place-items: center; cursor: pointer;
-  font-size: 1.15rem; line-height: 1; color: #fff;
-  background: rgba(17, 17, 17, 0.42); backdrop-filter: blur(6px);
+  font-size: 1.15rem; line-height: 1; color: var(--jini-control-preview-ink);
+  background: var(--jini-control-preview-bg); backdrop-filter: blur(6px);
   opacity: 0.32; transition: opacity 0.15s ease, background 0.15s ease;
 }
-.post-preview-fab:hover, .post-preview-fab:focus-visible { opacity: 1; background: rgba(17, 17, 17, 0.72); }
+.post-preview-fab:hover, .post-preview-fab:focus-visible { opacity: 1; background: var(--jini-control-preview-bg-hover); }
 /* The expanded iframe gets its height from `flex: 1` (rule above), which only works if its parent
    is a flex column — `.editor-shell` is not one by default, so without this the iframe collapses to
    its intrinsic ~150px and the expanded panel renders mostly empty. */

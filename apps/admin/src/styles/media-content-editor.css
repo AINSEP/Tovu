@@ -92,7 +92,7 @@
   border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface); overflow: hidden;
   font: 0.82rem/1.6 var(--font-mono, ui-monospace, monospace);
 }
-.media-content-editor__code:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+.media-content-editor__code:focus-within { border-color: var(--primary); box-shadow: var(--jini-control-shadow-focus); }
 .media-content-editor__gutter {
   padding: 0.55rem 0.6rem; overflow: hidden; white-space: pre; text-align: right; user-select: none;
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
@@ -100,7 +100,7 @@
 .media-content-editor__source,
 .media-content-editor__source:focus {
   height: 100%; min-height: 0; margin: 0; padding: 0.55rem 0.7rem; resize: none; overflow: auto; white-space: pre;
-  border: 0; border-radius: 0; box-shadow: none; font: inherit; line-height: inherit; background: transparent;
+  border: 0; border-radius: 0; box-shadow: var(--jini-control-shadow); font: inherit; line-height: inherit; background: transparent;
 }
 
 .media-content-editor__picker-icon {
@@ -110,7 +110,7 @@
 /* The widget node's Style dialog hosts this editor for a per-placement override; give it room. */
 .media-node-edit-dialog:has(.media-content-editor) { --admin-dialog-width: 52rem; }
 .media-content-editor__preview .page-preview-frame { height: 220px; margin: 0; }
-.media-content-editor__preview .page-preview-iframe { background: white; }
+.media-content-editor__preview .page-preview-iframe { background: var(--tovu-site-preview-bg); }
 .widget-embed-content-choice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); border: 0; padding: 0; margin: 0; }
 /* The legend is a `.field-label`, like the dialog's other labels; only its box is reset here. */
 .widget-embed-content-choice > legend { padding: 0; margin-bottom: 4px; }

@@ -398,7 +398,7 @@
 @container scroll-state(stuck: top) {
   .jini-seo-entry-head-bar {
     border-bottom-color: var(--border);
-    box-shadow: 0 6px 8px -6px rgb(0 0 0 / 0.14);
+    box-shadow: var(--jini-panel-shadow-sticky);
   }
 }
 .jini-seo-entry-head-bar > h3 { margin: 0; }

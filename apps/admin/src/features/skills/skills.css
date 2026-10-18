@@ -10,7 +10,7 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--jini-panel-shadow-flat);
 }
 .skills-page .jini-tabbed-dialog-head { padding-top: 0; padding-inline: 0; }
 .skills-page .jini-tabbed-dialog-head-line { flex-direction: column; align-items: flex-start; gap: var(--space-1); }

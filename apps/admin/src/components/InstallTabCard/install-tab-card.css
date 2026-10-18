@@ -3,7 +3,7 @@
 .install-tab-card { display: flex; flex-direction: column; gap: var(--space-4); }
 /* No card frame (owner, 2026-10-06: "remove the card outline"): the tab already frames this
    content, so a bordered box inside it was a second, redundant frame. Flush with the tab bar. */
-.install-tab-card.card { border: none; box-shadow: none; background: transparent; padding: var(--space-2) 0 0; border-radius: 0; }
+.install-tab-card.card { border: none; box-shadow: var(--jini-panel-shadow-flat); background: transparent; padding: var(--space-2) 0 0; border-radius: 0; }
 .install-tab-card .card-title { margin: 0; }
 .install-tab-option { display: flex; flex-direction: column; gap: var(--space-2); }
 .install-tab-option + .install-tab-option { padding-top: var(--space-4); border-top: 1px solid var(--border); }

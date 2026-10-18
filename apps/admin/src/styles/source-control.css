@@ -97,7 +97,7 @@
    contrast reason that rule's own comment explains. */
 .source-control-row-marker-done {
   background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok));
-  color: var(--ok-solid-ink, oklch(99% 0 none));
+  color: var(--ok-solid-ink, var(--jini-status-complete-ink-fallback));
 }
 /* The not-yet-connected row's heading, now living inside `.source-control-row-summary` instead of
    its own removed `.source-control-row-head`/`.source-control-row-headings` wrapper — unchanged

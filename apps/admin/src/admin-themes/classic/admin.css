@@ -297,7 +297,7 @@
   --border-beam-gold-3: oklch(68% 0.16 58);  /* amber */
 }
 
-/* Reserved material values; primitives continue using their existing tokens this round. */
+/* Material inputs; step 2 activates the scrim and floating-dialog shadow roles. */
 :root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) {
   --jini-theme-app-bg: var(--bg);
   --jini-theme-panel-bg: var(--surface);
@@ -305,9 +305,9 @@
   --jini-theme-panel-shadow: var(--shadow-sm);
   --jini-theme-panel-backdrop: none;
   --jini-theme-panel-texture: none;
-  --jini-theme-overlay-bg: var(--jini-backdrop);
+  --jini-theme-overlay-bg: oklch(0% 0 0 / 0.45);
   --jini-theme-overlay-backdrop: blur(4px);
-  --jini-theme-overlay-shadow: var(--jini-shadow-lg);
+  --jini-theme-overlay-shadow: 0 24px 64px rgb(0 0 0 / 22%);
   --jini-theme-control-bg: var(--surface);
   --jini-theme-control-border: var(--border-strong);
   --jini-theme-control-shadow: none;
@@ -315,4 +315,86 @@
   --jini-theme-control-shadow-pressed: none;
   --jini-theme-control-shadow-inset: none;
   --jini-theme-border-width: 1px;
+}
+
+/* Complete Classic paints/elevations, shared by legacy and Jini-adapter consumers. Fixed
+   whites stay fixed in dark mode; site previews describe site content, not admin surfaces. */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) {
+  --jini-theme-control-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23666C75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --jini-theme-overlay-tooltip-bg: #fff;
+  --jini-theme-overlay-tooltip-text: #111;
+  --jini-theme-overlay-tooltip-border: rgba(0, 0, 0, 0.1);
+  --jini-theme-overlay-bg-preview: oklch(0% 0 0 / 0.55);
+  --jini-theme-overlay-bg-navigation: oklch(0% 0 0 / 0.4);
+  --jini-theme-code-string: #4caf7a;
+  --jini-theme-code-number: #d1975a;
+  --jini-theme-control-thumb-bg: #fff;
+  --jini-theme-control-solid-ink: #fff;
+  --jini-theme-overlay-bg-lightbox: oklch(0% 0 0 / 0.6);
+  --jini-theme-control-media-bg: oklch(0% 0 0 / 0.55);
+  --jini-theme-control-media-ink: oklch(100% 0 0);
+  --jini-theme-control-media-border: oklch(100% 0 0 / 0.35);
+  --jini-theme-control-media-bg-hover: oklch(0% 0 0 / 0.72);
+  --jini-theme-overlay-bg-source: oklch(0% 0 0 / 0.48);
+  --jini-theme-file-icon-folder: oklch(72% 0.12 75);
+  --jini-theme-file-icon-json: oklch(72% 0.13 90);
+  --jini-theme-file-icon-markdown: oklch(62% 0.12 245);
+  --jini-theme-file-icon-javascript: oklch(76% 0.15 95);
+  --jini-theme-file-icon-typescript: oklch(60% 0.13 250);
+  --jini-theme-file-icon-config: oklch(62% 0.14 20);
+  --jini-theme-file-icon-html: oklch(64% 0.17 40);
+  --jini-theme-file-icon-css: oklch(62% 0.13 280);
+  --jini-theme-file-icon-image: oklch(64% 0.12 160);
+  --jini-theme-file-icon-shell: oklch(64% 0.12 145);
+  --jini-theme-status-complete-ink-fallback: oklch(99% 0 none);
+  --jini-theme-control-preview-ink: #fff;
+  --jini-theme-control-preview-bg: rgba(17, 17, 17, 0.42);
+  --jini-theme-control-preview-bg-hover: rgba(17, 17, 17, 0.72);
+  --jini-theme-control-preview-tip-bg: rgba(17, 17, 17, 0.88);
+  --jini-theme-panel-border-muted: #d9d9d9;
+  --jini-theme-control-composer-border-focus: oklch(70% 0.012 255);
+  --jini-theme-overlay-bg-chat: rgb(0 0 0 / 45%);
+  --jini-theme-control-hover-neutral-bg: rgba(127, 127, 127, 0.15);
+  --jini-theme-control-recording-bg: #dc2626;
+  --jini-theme-control-recording-ink: #ffffff;
+  --jini-theme-control-recording-bg-hover: #b91c1c;
+  --jini-theme-control-shadow-focus: 0 0 0 3px var(--primary-ring);
+  --jini-theme-overlay-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --jini-theme-control-shadow-focus-subtle: 0 0 0 2px var(--accent-dim);
+  --jini-theme-overlay-toast-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  --jini-theme-status-danger-shadow: inset 3px 0 0 var(--danger);
+  --jini-theme-control-thumb-shadow-strong: 0 1px 2px rgba(28, 27, 26, 0.28);
+  --jini-theme-panel-shadow-divider: inset 0 -1px 0 var(--jini-border);
+  --jini-theme-control-shadow-focus-accent: 0 0 0 3px color-mix(in srgb, var(--jini-accent) 18%, transparent);
+  --jini-theme-overlay-menu-shadow-above: 0 -4px 14px rgba(20,28,45,0.09), 0 -1px 4px rgba(20,28,45,0.06);
+  --jini-theme-control-shadow-selected: 0 0 0 1px var(--selected-ring);
+  --jini-theme-control-shadow-swatch-selected: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
+  --jini-theme-control-shadow-segment: 0 1px 2px rgb(0 0 0 / 8%);
+  --jini-theme-panel-shadow-sticky: 0 6px 8px -6px rgb(0 0 0 / 0.14);
+  --jini-theme-overlay-menu-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+  --jini-theme-control-shadow-segment-raised: 0 1px 2px rgb(0 0 0 / 12%);
+  --jini-theme-control-thumb-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  --jini-theme-panel-shadow-banner: 0 2px 8px rgb(0 0 0 / 0.12);
+  --jini-theme-status-warning-shadow: inset 2px 0 0 var(--warning);
+  --jini-theme-panel-shadow-flat: none;
+
+  --tovu-site-preview-bg: #fff;
+  --tovu-theme-preview-paper-bg: #faf6ef;
+  --tovu-theme-preview-paper-text: #2b2620;
+  --tovu-theme-preview-atlas-bg: #0e1420;
+  --tovu-theme-preview-atlas-text: #e8ecf4;
+  --tovu-theme-preview-glass-bg: linear-gradient(135deg, #1c2740, #3a2a55);
+  --tovu-theme-preview-glass-text: #f2f4fb;
+}
+
+/* The whole image varies: data-URL SVG strokes cannot resolve CSS custom properties. */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"])[data-theme="dark"] {
+  --jini-theme-control-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23999FA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* S11 must resolve on the pinned light element, where Settings supplies its local panel
+   color. Rebinding only the input leaves the public alias frozen to the root's panel color. */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) [data-theme="light"] {
+  --jini-theme-control-shadow-swatch-selected: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
+  --jini-control-shadow-swatch-selected: var(--jini-theme-control-shadow-swatch-selected);
 }

@@ -151,7 +151,7 @@
 .external-mcp-tools-modal-close:focus-visible {
   outline: none;
   color: var(--fg);
-  box-shadow: 0 0 0 3px var(--primary-ring);
+  box-shadow: var(--jini-control-shadow-focus);
 }
 .external-mcp-tools-modal-body {
   flex: 1 1 auto;
@@ -412,7 +412,7 @@
 }
 .external-mcp-tool-row .see-more .external-mcp-tool-description-toggle:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--primary-ring);
+  box-shadow: var(--jini-control-shadow-focus);
 }
 
 /* The write grant, as a small pill switch on the row's first line — see `ToolPickerRowItem`. */

@@ -121,7 +121,7 @@
   width: 1.75rem; height: 1.75rem; border-radius: 50%;
   background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--fg-2);
 }
-.access-tokens-row-marker-done { background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok)); color: var(--ok-solid-ink, oklch(99% 0 none)); }
+.access-tokens-row-marker-done { background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok)); color: var(--ok-solid-ink, var(--jini-status-complete-ink-fallback)); }
 /* A small `min-width` (not `0`) overrides the flex-item default of `min-width: auto` (which
    resolves to the text's min-content size — i.e. its longest unbreakable word — and would
    otherwise stop this span from ever shrinking past that, forcing the date or the row itself to

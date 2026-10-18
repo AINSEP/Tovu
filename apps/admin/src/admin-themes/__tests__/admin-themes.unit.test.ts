@@ -75,9 +75,14 @@ describe("admin theme registry", () => {
 
 describe("admin theme cascade", () => {
   it("scopes every classic block so another theme stops matching it", () => {
+    const lightPin = `${CLASSIC_ROOT} [data-theme="light"]`;
     for (const sheet of ["admin.css", "chat.css"]) {
       parse(read(resolve(THEME_DIRS.classic!, sheet))).walkRules((rule) => {
-        expect([CLASSIC_ROOT, CLASSIC_DARK], `${sheet}: ${rule.selector}`).toContain(rule.selector);
+        expect([CLASSIC_ROOT, CLASSIC_DARK, lightPin], `${sheet}: ${rule.selector}`).toContain(rule.selector);
+        if (rule.selector === lightPin) {
+          expect(rule.nodes.every((node) => node.type === "comment" || (node.type === "decl" && node.prop.startsWith("--"))),
+            `${sheet}: ${rule.selector} may only re-resolve custom properties`).toBe(true);
+        }
       });
     }
   });
@@ -96,6 +101,7 @@ describe("admin theme cascade", () => {
     const chat = read(resolve(THEME_DIRS.classic!, "chat.css"));
     const bridge = read(resolve(SRC, "styles/admin-theme-bridge.css"));
     const platform = resolve(process.cwd(), "node_modules/@jini-ai/admin/src/themes/default");
+    const variables = read(resolve(process.cwd(), "node_modules/@jini-ai/ui/src/styles/variables.css"));
     const tokens = (sheets: string[]) => {
       const values: Record<string, string> = {};
       for (const sheet of sheets) parse(sheet).walkRules((rule) => {
@@ -106,9 +112,10 @@ describe("admin theme cascade", () => {
       });
       return values;
     };
-    // Baseline includes the retired stylesheet's inputs; Classic must keep exactly the same values.
-    const previous = tokens([bridge, read(resolve(platform, "admin.css")), classic, read(resolve(platform, "chat.css")), chat]);
-    expect(tokens([bridge, classic, chat])).toEqual(previous);
+    // Both cascades inherit UI defaults, including fonts, radius and density. The retired
+    // stylesheet's explicit inputs still form the baseline; Classic must preserve every value.
+    const previous = tokens([variables, bridge, read(resolve(platform, "admin.css")), classic, read(resolve(platform, "chat.css")), chat]);
+    expect(tokens([variables, bridge, classic, chat])).toEqual(previous);
   });
 
   it("the bridge supplies every non-Jini legacy name classic declares, and classic overrides each", () => {

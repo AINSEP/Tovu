@@ -71,7 +71,7 @@
    weak affordance (WCAG 2.1 SC 1.4.11 wants a visible, non-color-only state change). This adds a
    real ring back on the token system instead of relying on the browser default. */
 :is(.jini-page, .jini-dialog) .jini-input:focus, :is(.jini-page, .jini-dialog) .jini-select:focus, :is(.jini-page, .jini-dialog) .jini-textarea:focus {
-  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
+  outline: none; border-color: var(--primary); box-shadow: var(--jini-control-shadow-focus);
 }
 
 /* Select — style the trigger, leave the native popup alone (its internals are not stylable
@@ -84,12 +84,12 @@
 :is(.jini-page, .jini-dialog) .jini-select {
   appearance: none; -webkit-appearance: none; -moz-appearance: none;
   padding-right: 2.25rem; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23666C75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: var(--jini-control-chevron-image);
   background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 14px;
 }
 :is(.jini-page, .jini-dialog) .jini-select::-ms-expand { display: none; }
 :root[data-theme="dark"] :is(.jini-page, .jini-dialog) .jini-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23999FA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: var(--jini-control-chevron-image);
 }
 
 /* Checkboxes/radios previously had no rule of their own at all — not broken (the browser's UA
@@ -737,7 +737,7 @@
 }
 /* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
    underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
-.jini-row-menu-popup-above { box-shadow: 0 -4px 14px rgba(20,28,45,0.09), 0 -1px 4px rgba(20,28,45,0.06); }
+.jini-row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
 .jini-row-menu-item {
   display: block; width: 100%; text-align: left;
   background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
@@ -778,7 +778,7 @@
    dialog visible even while closed. Caught live in the browser, not just by reasoning about it:
    the dialog rendered open-by-default on page load until this was scoped. */
 .jini-confirm-dialog[open] { display: flex; flex-direction: column; gap: var(--space-4); }
-.jini-confirm-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.jini-confirm-dialog::backdrop { background: var(--jini-overlay-bg); }
 .jini-confirm-dialog h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .jini-confirm-dialog-body { margin: 0; color: var(--fg-2); font-size: var(--text-md); line-height: 1.5; }
 .jini-confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
@@ -911,7 +911,7 @@
   gap: 8px;
   padding: 12px;
   background: var(--jini-bg-panel);
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--jini-panel-border-muted);
   border-radius: 6px;
 }
 
@@ -1075,8 +1075,8 @@
   padding: 0;
   display: grid;
   place-items: center;
-  background: oklch(0% 0 0 / 0.55);
-  color: oklch(100% 0 0);
+  background: var(--jini-control-media-bg);
+  color: var(--jini-control-media-ink);
   border: none;
   border-radius: var(--r-sm);
 }
@@ -1099,12 +1099,12 @@
   right: var(--space-2);
   box-sizing: content-box;
   padding: 7.5px;
-  background: oklch(0% 0 0 / 0.55);
+  background: var(--jini-control-media-bg);
   border-radius: var(--r-sm);
 }
 :is(.jini-page, .jini-dialog) .jini-media-card-expand-fill:hover { background: transparent; }
-:is(.jini-page, .jini-dialog) .jini-media-card-expand-fill:hover > svg { background: oklch(0% 0 0 / 0.72); }
-:is(.jini-page, .jini-dialog) .jini-media-card-expand:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+:is(.jini-page, .jini-dialog) .jini-media-card-expand-fill:hover > svg { background: var(--jini-control-media-bg-hover); }
+:is(.jini-page, .jini-dialog) .jini-media-card-expand:hover { background: var(--jini-control-media-bg-hover); opacity: 1; }
 :is(.jini-page, .jini-dialog) .jini-media-card-expand svg { width: 15px; height: 15px; }
 
 /* The eye-icon "edit metadata" trigger (owner ask, 2026-09-07 — reach `EditMediaModal` from the
@@ -1122,12 +1122,12 @@
   padding: 0;
   display: grid;
   place-items: center;
-  background: oklch(0% 0 0 / 0.55);
-  color: oklch(100% 0 0);
+  background: var(--jini-control-media-bg);
+  color: var(--jini-control-media-ink);
   border: none;
   border-radius: var(--r-sm);
 }
-:is(.jini-page, .jini-dialog) .jini-media-card-edit:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+:is(.jini-page, .jini-dialog) .jini-media-card-edit:hover { background: var(--jini-control-media-bg-hover); opacity: 1; }
 :is(.jini-page, .jini-dialog) .jini-media-card-edit svg { width: 15px; height: 15px; }
 
 :is(.jini-page, .jini-dialog) .jini-media-card-media {
@@ -1221,7 +1221,7 @@
   box-shadow: var(--shadow-md);
 }
 .jini-media-edit-dialog[open] { display: block; }
-.jini-media-edit-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.jini-media-edit-dialog::backdrop { background: var(--jini-overlay-bg); }
 /* The form content's own root, replacing the old `.card` wrapper — the dialog above already
    supplies the surface/border/shadow, so this contributes layout only (the `.editor-header`/
    `.field-group` children keep their own existing rules unchanged). */
@@ -1241,7 +1241,7 @@
   background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
 }
 .jini-media-picker-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); }
-.jini-media-picker-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.jini-media-picker-dialog::backdrop { background: var(--jini-overlay-bg); }
 .jini-media-picker-dialog > .jini-dialog-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .jini-media-picker-dialog > label { display: flex; flex-direction: column; gap: 4px; }
 /* The only part that scrolls. `min-height: 0` lets the flex item shrink below its content.
@@ -1266,7 +1266,7 @@
    right. Both just close the picker. */
 .jini-media-picker-dialog > .jini-media-picker-footer { display: flex; align-items: center; justify-content: space-between; flex: none; }
 .jini-media-picker-dialog .jini-media-picker-footer > .jini-media-picker-back {
-  background: transparent; border: 0; box-shadow: none; padding: 0 0.35rem; min-height: 0;
+  background: transparent; border: 0; box-shadow: var(--jini-control-shadow); padding: 0 0.35rem; min-height: 0;
   font-size: 1.4rem; line-height: 1; color: var(--fg-2);
 }
 .jini-media-picker-dialog .jini-media-picker-footer > .jini-media-picker-back:hover { color: var(--fg); background: transparent; }
@@ -1318,7 +1318,7 @@
      content, but this backdrop has to suppress an arbitrary bright photo/video frame rather than
      plain text and UI chrome, so it leans darker to keep the dimmed page from fighting the
      enlarged asset for attention. */
-  background: oklch(0% 0 0 / 0.6);
+  background: var(--jini-overlay-bg-lightbox);
 }
 
 .jini-media-lightbox-header {
@@ -1509,7 +1509,7 @@
 }
 :is(.jini-page, .jini-dialog) .jini-media-provider-field .jini-input:focus {
   outline: none; border-color: var(--jini-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--jini-accent) 18%, transparent);
+  box-shadow: var(--jini-control-shadow-focus-accent);
 }
 :is(.jini-page, .jini-dialog) .jini-media-provider-field--secret .jini-input { padding-right: 34px; }
 :is(.jini-page, .jini-dialog) .jini-media-provider-field--secret .jini-input-affix-btn {

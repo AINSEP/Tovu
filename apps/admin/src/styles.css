@@ -120,7 +120,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
    weak affordance (WCAG 2.1 SC 1.4.11 wants a visible, non-color-only state change). This adds a
    real ring back on the token system instead of relying on the browser default. */
 input:focus, select:focus, textarea:focus {
-  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
+  outline: none; border-color: var(--primary); box-shadow: var(--jini-control-shadow-focus);
 }
 
 /* Select — style the trigger, leave the native popup alone (its internals are not stylable
@@ -133,12 +133,12 @@ input:focus, select:focus, textarea:focus {
 select:not(:where([class*="tsqd"] select, [class*="tsqd"])) {
   appearance: none; -webkit-appearance: none; -moz-appearance: none;
   padding-right: 2.25rem; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23666C75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: var(--jini-control-chevron-image);
   background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 14px;
 }
 select:not(:where([class*="tsqd"] select, [class*="tsqd"]))::-ms-expand { display: none; }
 :root[data-theme="dark"] select:not(:where([class*="tsqd"] select, [class*="tsqd"])) {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23999FA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: var(--jini-control-chevron-image);
 }
 
 /* Checkboxes/radios previously had no rule of their own at all — not broken (the browser's UA
@@ -241,14 +241,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .info-tip-bubble {
   position: fixed; transform: translate(-50%, calc(-100% - 8px));
   width: max-content; max-width: min(18rem, calc(100vw - 16px)); padding: 0.55rem 0.75rem; border-radius: var(--r-sm);
-  background: #fff; color: #111; font-size: 0.78rem; font-weight: 400;
+  background: var(--jini-overlay-tooltip-bg); color: var(--jini-overlay-tooltip-text); font-size: 0.78rem; font-weight: 400;
   line-height: 1.4; letter-spacing: normal; text-transform: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: var(--jini-overlay-tooltip-shadow); border: 1px solid var(--jini-overlay-tooltip-border);
   pointer-events: none; z-index: 1000;
 }
 .info-tip-bubble::after {
   content: ""; position: absolute; top: 100%; left: var(--info-tip-arrow-left, 50%); transform: translateX(-50%);
-  border: 5px solid transparent; border-top-color: #fff;
+  border: 5px solid transparent; border-top-color: var(--jini-overlay-tooltip-bg);
 }
 /* Below-placement variant (`InfoTip.tsx`'s `ABOVE_HEADROOM_PX` fallback, 2026-08-11) — a trigger too
    close to the viewport top for the default above-opening bubble to fit flips to this instead. Same
@@ -257,7 +257,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    pointing back up at the icon it flipped away from. */
 .info-tip-bubble-below { transform: translate(-50%, 8px); }
 .info-tip-bubble-below::after {
-  top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #fff;
+  top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--jini-overlay-tooltip-bg);
 }
 
 /* Page headings + intro copy */
@@ -630,7 +630,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   background: var(--surface); color: var(--fg-1);
   font-family: var(--font-mono, monospace); font-size: 0.8rem;
 }
-.theme-explore-rename-input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent-dim); }
+.theme-explore-rename-input:focus { outline: none; box-shadow: var(--jini-control-shadow-focus-subtle); }
 .theme-explore-main { min-width: 0; }
 /* `.page-editor-toolbar`'s shared 1rem top margin exists to separate it from the title/slug rows
    above it on `PageEditor.tsx` — the OTHER screen this class comes from. Here it is the first thing
@@ -771,7 +771,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
 }
 .theme-explore-preview-dialog[open] { display: flex; align-items: center; justify-content: center; }
-.theme-explore-preview-dialog::backdrop { background: oklch(0% 0 0 / 0.55); }
+.theme-explore-preview-dialog::backdrop { background: var(--jini-overlay-bg-preview); }
 .theme-explore-preview-dialog-close {
   position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1;
   width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%;
@@ -783,7 +783,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .theme-explore-preview-dialog-iframe {
   max-width: 100%; height: 100%;
   border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-  background: #fff;
+  background: var(--tovu-site-preview-bg);
 }
 
 /* `@jini-ai/ui`'s Toast ships behavior (TTL, exit timing, ARIA) but no styling — it renders class
@@ -798,7 +798,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   border-radius: var(--radius-md, 8px);
   background: var(--surface-2); color: var(--fg-1);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  box-shadow: var(--jini-overlay-toast-shadow);
   animation: jini-toast-in 140ms ease-out;
 }
 .jini-toast.placement-bottom { bottom: var(--space-5); }
@@ -896,7 +896,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    line to the title's. */
 .page-header-split .page-header-lead > .btn-secondary {
   display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; font-size: 0;
-  margin-left: -10px; border-color: transparent; background: transparent; box-shadow: none; color: var(--fg-2);
+  margin-left: -10px; border-color: transparent; background: transparent; box-shadow: var(--jini-control-shadow); color: var(--fg-2);
 }
 .page-header-split .page-header-lead > .btn-secondary::before { content: "\2190"; font-size: var(--text-lg); line-height: 1; }
 .page-header-split:has(.page-kicker) .page-header-lead > .btn-secondary { margin-top: 0.75rem; }
@@ -1349,7 +1349,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 
 /* Backdrop behind the off-canvas sidebar drawer (mobile only — see `.cms-nav.is-open` below).
    Click-to-dismiss; the drawer is also Escape- and route-change-dismissible (`App.tsx`). */
-.sidebar-backdrop { position: fixed; inset: 0; background: oklch(0% 0 0 / 0.4); z-index: 45; }
+.sidebar-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg-navigation); z-index: 45; }
 
 /* ============================================================
    SIDEBAR — grouped .cms-nav (replaces the WordPress-shaped menu)
@@ -1768,7 +1768,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    shadow/padding/margin all go to nothing — but it deliberately never sets `color`, so a toned
    banner (amber warning / red error) still carries that tone as its text color: the owner asked for
    the box gone, not the visual weight a real, disclosed limitation like this one still needs. */
-.notice.recovery-plain-notice { background: transparent; border: none; box-shadow: none; padding: 0; border-radius: 0; margin: 0; }
+.notice.recovery-plain-notice { background: transparent; border: none; box-shadow: var(--jini-panel-shadow-flat); padding: 0; border-radius: 0; margin: 0; }
 .list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
 .list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
@@ -1860,7 +1860,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: var(--warning); border-color: var(--warning); color: var(--accent-ink); font-weight: 600;
 }
 :root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
-:root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: oklch(18% 0.006 260); }
+:root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: var(--accent-ink); }
 .status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
@@ -1874,7 +1874,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .status-active { background: var(--ok-bg); color: var(--ok); }
 .status-trashed { background: var(--danger-bg); color: var(--danger); }
 .media-edit-row td { background: var(--surface-2); padding-top: 0.8rem; padding-bottom: 0.8rem; }
-.media-edit-row .collections-field-row { border: none; padding: 0; margin: 0; background: transparent; box-shadow: none; }
+.media-edit-row .collections-field-row { border: none; padding: 0; margin: 0; background: transparent; box-shadow: var(--jini-panel-shadow-flat); }
 .media-edit-row .collections-field-row label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.78rem; color: var(--fg-2); }
 
 /* Integrations (webhook subscriptions + delivery log) */
@@ -1963,7 +1963,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
   max-width: 680px; min-height: 44px; box-sizing: border-box;
   margin: 0; padding: 0.45rem 0.5rem 0.45rem 0.85rem;
-  border-color: var(--border); box-shadow: none; font-size: var(--text-sm);
+  border-color: var(--border); box-shadow: var(--jini-panel-shadow-flat); font-size: var(--text-sm);
 }
 .dash-password-banner p { flex: 1 1 16rem; margin: 0; color: var(--fg-2); }
 .dash-password-banner-icon { display: inline-flex; color: var(--warning); }
@@ -2109,7 +2109,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .save-warning { color: var(--warning); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
-.editor-title:focus { outline: none; box-shadow: none; border-bottom-color: var(--accent-text); }
+.editor-title:focus { outline: none; box-shadow: var(--jini-control-shadow); border-bottom-color: var(--accent-text); }
 /* Title + slug on one row (2026-08-11), matching the Pages editor's `.page-title-row`. The cap
    targets `.editor-title` directly and NOT a class on its wrapping `<label>`: that label carries
    `.a11y-label-wrap` (`styles/editor.css`), which is `display: contents` precisely so the label
@@ -2163,7 +2163,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .editor-slug input { width: 14rem; }
 .editor-id { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
 .editor-id input { width: 9rem; background: transparent; border: none; color: var(--muted); font: 12px/1 var(--font-mono, monospace); padding: 0; cursor: text; }
-.editor-id input:focus { outline: none; box-shadow: none; }
+.editor-id input:focus { outline: none; box-shadow: var(--jini-control-shadow); }
 /* `display: flex` added for the "View Template" button (2026-08-10) sitting next to the `<select>`
    — before this the picker's only visible child was the `<select>` itself, so nothing here relied
    on a layout mode; a bare `<select>` and `<button>` both default to `inline-block`, which would
@@ -2572,8 +2572,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    has no existing named color for — every other role reuses an existing token. */
 .editor-body .tiptap .hljs-comment, .editor-body .tiptap .hljs-quote { color: var(--muted); font-style: italic; }
 .editor-body .tiptap .hljs-keyword, .editor-body .tiptap .hljs-selector-tag, .editor-body .tiptap .hljs-literal, .editor-body .tiptap .hljs-type { color: var(--accent-text); }
-.editor-body .tiptap .hljs-string, .editor-body .tiptap .hljs-attr, .editor-body .tiptap .hljs-template-tag { color: #4caf7a; }
-.editor-body .tiptap .hljs-number, .editor-body .tiptap .hljs-symbol, .editor-body .tiptap .hljs-bullet { color: #d1975a; }
+.editor-body .tiptap .hljs-string, .editor-body .tiptap .hljs-attr, .editor-body .tiptap .hljs-template-tag { color: var(--jini-code-string); }
+.editor-body .tiptap .hljs-number, .editor-body .tiptap .hljs-symbol, .editor-body .tiptap .hljs-bullet { color: var(--jini-code-number); }
 .editor-body .tiptap .hljs-title, .editor-body .tiptap .hljs-section, .editor-body .tiptap .hljs-name { color: var(--fg-2); font-weight: 600; }
 .editor-body .tiptap .hljs-variable, .editor-body .tiptap .hljs-attribute { color: var(--fg-2); }
 .editor-body .tiptap blockquote { border-left: 3px solid var(--border-strong); margin: 1rem 0; padding-left: 1rem; color: var(--muted); }
@@ -2687,9 +2687,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    comment alone catching a future edit). */
 .theme-card button.btn-explore { background: var(--fg); color: var(--surface); border: 1px solid var(--fg); }
 .theme-card button.btn-explore:hover { background: var(--fg-2); border-color: var(--fg-2); opacity: 1; }
-.theme-paper { background: #faf6ef; color: #2b2620; }
-.theme-atlas { background: #0e1420; color: #e8ecf4; }
-.theme-glassmorphic { background: linear-gradient(135deg, #1c2740, #3a2a55); color: #f2f4fb; }
+.theme-paper { background: var(--tovu-theme-preview-paper-bg); color: var(--tovu-theme-preview-paper-text); }
+.theme-atlas { background: var(--tovu-theme-preview-atlas-bg); color: var(--tovu-theme-preview-atlas-text); }
+.theme-glassmorphic { background: var(--tovu-theme-preview-glass-bg); color: var(--tovu-theme-preview-glass-text); }
 /* Card actions as icons (owner 2026-10-08): the Activate button and the green Active pill became one
    switch — the same `.agent-plugin-switch` the plugin and settings rows use, burnt orange when ON —
    and Explore/Duplicate became compass/copy icon buttons grouped on the right. Every rule here is
@@ -2933,7 +2933,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* 80, not 40: this is the shared blocking-modal backdrop (confirm dialogs, media/widget pickers),
    so it must sit above `.chat-fab` (75, `styles/assistant.css`). At 40 the raised FAB would float
    over every confirm dialog and let a click open the chat behind the backdrop. */
-.settings-dialog-backdrop { position: fixed; inset: 0; background: oklch(0% 0 0 / 0.45); display: grid; place-items: center; z-index: 80; }
+.settings-dialog-backdrop { position: fixed; inset: 0; background: var(--jini-overlay-bg); display: grid; place-items: center; z-index: 80; }
 .settings-dialog { background: var(--surface); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 0.9rem; }
 .settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
@@ -3324,7 +3324,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: color-mix(in oklch, var(--danger) 9%, var(--surface));
   border-block: 1px solid color-mix(in oklch, var(--danger) 22%, var(--border));
   /* The spine, as an inset shadow rather than a border-left so it doesn't shift the padding box. */
-  box-shadow: inset 3px 0 0 var(--danger);
+  box-shadow: var(--jini-status-danger-shadow);
 }
 .recovery-loss-lede { margin: 0; font-size: var(--text-md); line-height: 1.5; color: var(--fg-2); }
 .recovery-loss-lede strong { color: var(--fg); font-weight: 600; }
@@ -3674,7 +3674,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: transparent;
   border: none;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--jini-panel-shadow-flat);
   /* THE clipping fix (2026-09-10). `@jini-ai/ui`'s own `.jini-tabbed-dialog` is
      `display: grid` + `grid-template-rows: auto minmax(0, 1fr)` and declares NO
      `grid-template-columns` at all, so the shell gets one implicit `auto` column
@@ -3904,8 +3904,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .agent-plugin-switch-knob {
   position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px;
-  background: #fff; border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(28, 27, 26, 0.28);
+  background: var(--jini-control-thumb-bg); border-radius: 50%;
+  box-shadow: var(--jini-control-thumb-shadow-strong);
   transition: transform 160ms var(--jini-ease-out);
 }
 .agent-plugin-switch[aria-checked="true"] {
@@ -4184,7 +4184,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: transparent;
   border: none;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--jini-panel-shadow-flat);
 }
 
 /* The modal's horizontal padding indents content from a dialog edge that no
@@ -4486,7 +4486,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     scrollbar-width: none;
     padding-inline: 0;
     border-bottom: none;
-    box-shadow: inset 0 -1px 0 var(--jini-border);
+    box-shadow: var(--jini-panel-shadow-divider);
   }
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
   /* The right-edge "more tabs" fade `.tab-bar` uses on phones (2026-10-17): at 360px Agent Plugins'
@@ -4560,7 +4560,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .settings-ui-section .jini-button:hover { border-color: var(--jini-border-strong); }
 .settings-ui-section .jini-button-ghost { background: transparent; }
-.settings-ui-section .jini-button-primary { color: #fff; background: var(--jini-accent); border-color: var(--jini-accent); }
+.settings-ui-section .jini-button-primary { color: var(--jini-control-solid-ink); background: var(--jini-accent); border-color: var(--jini-accent); }
 .settings-ui-section .jini-button-primary:hover { background: var(--jini-accent-hover); border-color: var(--jini-accent-hover); }
 .settings-ui-section .jini-button-disabled { opacity: 0.55; pointer-events: none; }
 
@@ -4596,7 +4596,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .settings-ui-section .jini-instructions-input:focus,
 .settings-ui-section .jini-custom-instructions-input:focus {
   outline: none; border-color: var(--jini-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--jini-accent) 18%, transparent);
+  box-shadow: var(--jini-control-shadow-focus-accent);
 }
 
 /* Notifications — `od-settings-notifications.png`: title and its On/Off
@@ -4646,7 +4646,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .settings-ui-section .jini-privacy-consent-action:hover { border-color: var(--jini-text-muted); }
 .settings-ui-section .jini-privacy-consent-action--primary {
-  color: #fff; background: var(--jini-accent); border-color: var(--jini-accent);
+  color: var(--jini-control-solid-ink); background: var(--jini-accent); border-color: var(--jini-accent);
 }
 .settings-ui-section .jini-privacy-consent-action--primary:hover,
 .settings-ui-section .jini-privacy-consent-action--primary.is-active {
@@ -4669,7 +4669,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .settings-ui-section .jini-toggle-row-switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-  border-radius: 50%; background: #fff; box-shadow: var(--jini-shadow-xs);
+  border-radius: 50%; background: var(--jini-control-thumb-bg); box-shadow: var(--jini-shadow-xs);
   transition: transform 120ms var(--jini-ease-out);
 }
 .settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch { background: var(--jini-accent); }
@@ -4811,7 +4811,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 /* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
    underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
-.row-menu-popup-above { box-shadow: 0 -4px 14px rgba(20,28,45,0.09), 0 -1px 4px rgba(20,28,45,0.06); }
+.row-menu-popup-above { box-shadow: var(--jini-overlay-menu-shadow-above); }
 .row-menu-item {
   display: block; width: 100%; text-align: left;
   background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
@@ -4852,7 +4852,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    dialog visible even while closed. Caught live in the browser, not just by reasoning about it:
    the dialog rendered open-by-default on page load until this was scoped. */
 .confirm-dialog[open] { display: flex; flex-direction: column; gap: var(--space-4); }
-.confirm-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.confirm-dialog::backdrop { background: var(--jini-overlay-bg); }
 .confirm-dialog h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .confirm-dialog-body { margin: 0; color: var(--fg-2); font-size: var(--text-md); line-height: 1.5; }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
@@ -4868,18 +4868,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   border: none; padding: 0; background: transparent; max-width: 90vw; max-height: 90vh;
 }
 .image-preview-modal[open] { display: block; }
-.image-preview-modal::backdrop { background: oklch(0% 0 0 / 0.6); }
+.image-preview-modal::backdrop { background: var(--jini-overlay-bg-lightbox); }
 .image-preview-modal img { display: block; max-width: 90vw; max-height: 90vh; width: auto; height: auto; border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
 .image-preview-modal-close {
   position: absolute; top: 0.7rem; right: 0.7rem; width: 2.1rem; height: 2.1rem; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: oklch(0% 0 0 / 0.55); color: white; font-size: 1.3rem; line-height: 1;
+  background: var(--jini-control-media-bg); color: var(--jini-control-preview-ink); font-size: 1.3rem; line-height: 1;
   /* A screenshot's own top-right corner can be just as dark as this button's fill (this session's
      Basic theme's nav bar, verified live) — a light ring keeps the button findable regardless of
      what's directly behind it, rather than relying on background contrast alone. */
-  border: 1px solid oklch(100% 0 0 / 0.35); box-shadow: var(--shadow-md);
+  border: 1px solid var(--jini-control-media-border); box-shadow: var(--shadow-md);
 }
-.image-preview-modal-close:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+.image-preview-modal-close:hover { background: var(--jini-control-media-bg-hover); opacity: 1; }
 
 /* `MessageOverflowModal.tsx` — the chat pane's "Show in modal" affordance (chat-overflow fix,
    2026-08-30). Same native-`<dialog>` foundation as `.image-preview-modal` above, but sized like
@@ -4904,7 +4904,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   box-shadow: var(--shadow-md);
 }
 .message-overflow-modal[open] { display: flex; flex-direction: column; }
-.message-overflow-modal::backdrop { background: oklch(0% 0 0 / 0.55); }
+.message-overflow-modal::backdrop { background: var(--jini-overlay-bg-preview); }
 .message-overflow-modal-body {
   flex: 1;
   min-height: 0;
@@ -4932,7 +4932,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
 }
 .theme-page-details-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); }
-.theme-page-details-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.theme-page-details-dialog::backdrop { background: var(--jini-overlay-bg); }
 /* Kicker + title (2026-08-31 visual pass — `ThemePageDetailsModal.tsx`'s own header, PART 3): the
    same eyebrow/heading PAIRING `.page-header .page-kicker`/`.page-title` use for "CONTENT" →
    "Pages", re-declared under this dialog's own class names rather than reusing those two — they are
@@ -5008,7 +5008,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .agent-plugin-source-modal {
   z-index: 80;
   padding: var(--space-4);
-  background: oklch(0% 0 0 / 0.48);
+  background: var(--jini-overlay-bg-source);
 }
 .agent-plugin-source-modal [data-preview-modal] {
   max-width: 72rem;
@@ -5087,16 +5087,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .agent-plugin-source-tree-twistie { flex-shrink: 0; width: 16px; color: var(--muted); }
 .agent-plugin-source-tree-icon { flex-shrink: 0; color: var(--muted); }
-.agent-plugin-source-tree-icon.is-folder { color: oklch(72% 0.12 75); }
-.agent-plugin-source-tree-icon.is-json { color: oklch(72% 0.13 90); }
-.agent-plugin-source-tree-icon.is-markdown { color: oklch(62% 0.12 245); }
-.agent-plugin-source-tree-icon.is-javascript { color: oklch(76% 0.15 95); }
-.agent-plugin-source-tree-icon.is-typescript { color: oklch(60% 0.13 250); }
-.agent-plugin-source-tree-icon.is-config { color: oklch(62% 0.14 20); }
-.agent-plugin-source-tree-icon.is-html { color: oklch(64% 0.17 40); }
-.agent-plugin-source-tree-icon.is-css { color: oklch(62% 0.13 280); }
-.agent-plugin-source-tree-icon.is-image { color: oklch(64% 0.12 160); }
-.agent-plugin-source-tree-icon.is-shell { color: oklch(64% 0.12 145); }
+.agent-plugin-source-tree-icon.is-folder { color: var(--jini-file-icon-folder); }
+.agent-plugin-source-tree-icon.is-json { color: var(--jini-file-icon-json); }
+.agent-plugin-source-tree-icon.is-markdown { color: var(--jini-file-icon-markdown); }
+.agent-plugin-source-tree-icon.is-javascript { color: var(--jini-file-icon-javascript); }
+.agent-plugin-source-tree-icon.is-typescript { color: var(--jini-file-icon-typescript); }
+.agent-plugin-source-tree-icon.is-config { color: var(--jini-file-icon-config); }
+.agent-plugin-source-tree-icon.is-html { color: var(--jini-file-icon-html); }
+.agent-plugin-source-tree-icon.is-css { color: var(--jini-file-icon-css); }
+.agent-plugin-source-tree-icon.is-image { color: var(--jini-file-icon-image); }
+.agent-plugin-source-tree-icon.is-shell { color: var(--jini-file-icon-shell); }
 .agent-plugin-source-tree-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-plugin-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 /* Header bar: title + the wrap toggle (item 1, 2026-08-31). The padding/border that used to sit
@@ -5198,7 +5198,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .template-source-modal {
   z-index: 80;
   padding: var(--space-4);
-  background: oklch(0% 0 0 / 0.48);
+  background: var(--jini-overlay-bg-source);
 }
 .template-source-modal [data-preview-modal] {
   max-width: 60rem;
@@ -5547,7 +5547,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    fill, so the fallback resolves to the right color there too. */
 .deployment-step-marker-done {
   background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok));
-  color: var(--ok-solid-ink, oklch(99% 0 none));
+  color: var(--ok-solid-ink, var(--jini-status-complete-ink-fallback));
 }
 /* Step 2's marker sits inline in `.deployment-route-label` beside the existing text, at the smaller
    scale that row already uses — it is not its own step block, just a label prefix, so it drops the
@@ -5810,8 +5810,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
  * order) so creating a site reads as one more card rather than a form bolted above the list. The
  * form itself stays inline rather than opening on click, unlike Runner's own "+" tile — see
  * `CreateSiteCard`'s own doc comment in `Sites.tsx` for why. */
-.site-card-create { border-style: dashed; border-color: var(--border-strong); background: transparent; box-shadow: none; }
-.site-card-create:hover { transform: none; box-shadow: none; border-color: var(--faint); }
+.site-card-create { border-style: dashed; border-color: var(--border-strong); background: transparent; box-shadow: var(--jini-panel-shadow-flat); }
+.site-card-create:hover { transform: none; box-shadow: var(--jini-panel-shadow-flat); border-color: var(--faint); }
 .site-card-create .site-card-head { background: transparent; border-bottom: none; padding-bottom: 0; }
 .site-card-create-title { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; }
 .site-card-create-plus {
@@ -6291,7 +6291,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: transparent;
   border: none;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--jini-panel-shadow-flat);
 }
 
 .observability-lede {

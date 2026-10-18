@@ -13,7 +13,7 @@
   box-sizing: border-box;
 }
 .jini-domain-dialog:not([open]) { display: none; }
-.jini-domain-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.jini-domain-dialog::backdrop { background: var(--jini-overlay-bg); }
 /* The native title sits outside each form; the form still owns submission and
    keeps the same vertical rhythm the former form-as-dialog root supplied. */
 .jini-domain-dialog > form { display: flex; flex-direction: column; gap: 0.9rem; }

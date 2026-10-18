@@ -1,6 +1,6 @@
 # Admin theme token contract
 
-Related decision: [ADR-069](ADR-069-admin-themes-token-only-theme-packages.md), owner dispatch 2026-10-17. Contract owner: `Jini/packages/ui/src/styles/variables.css`. Default values: `Jini/packages/admin/src/themes/default/`. Classic values: `Tovu/apps/admin/src/admin-themes/classic/`.
+Related decision: [ADR-069](ADR-069-admin-themes-token-only-theme-packages.md), owner dispatch 2026-10-17. Contract owner: `Jini/packages/ui/src/styles/variables.css`. Original material/chat defaults: `Jini/packages/admin/src/themes/default/`; additive paint/elevation fallbacks: UI `variables.css`. Classic values: `Tovu/apps/admin/src/admin-themes/classic/`.
 
 This is the inventory of every `--jini-*` name declared by the shared variables contract, plus its theme inputs and chart override hooks. Component-private hooks are not new material roles. Defaults are CSS expressions, not precomputed colors; density, fonts and scheme still resolve normally. Light/dark pairs are shown explicitly where the existing contract differs.
 
@@ -10,7 +10,7 @@ Themes contain only custom-property declarations and fonts, under root/theme/sch
 
 Import UI structural CSS (which includes `variables.css`), then the selected `admin.css` and/or `chat.css`. A chat-only host can load UI's `styles/variables.css` plus `@jini-ai/admin/themes/default/chat.css`; admin's theme is not a dependency of chat's theme. The manifest export is `@jini-ai/admin/themes/default/manifest.json`; the admin CSS export is `@jini-ai/admin/themes/default/admin.css`. Assets are included directly in the published package and CSS is marked as a side effect. No generated CSS is required.
 
-New role inputs use `--jini-theme-<role>`; new chat inputs use `--jini-theme-chat-<role>`. UI maps those inputs to the role names below. Without a theme import these new aliases have no supplied value; no primitive consumes the new material roles yet. Existing UI palette/typography/spacing fallbacks remain during migration, and ChatPane retains its existing component-local values. Default chat colors intentionally remain identical in light/dark, because that is what the package renders today.
+New role inputs use `--jini-theme-<role>`; new chat inputs use `--jini-theme-chat-<role>`. UI maps those inputs to the role names below. The original material/chat aliases retain their admin-owned defaults; step 2 adds paint/elevation roles with exact fallback defaults in UI and activates the existing overlay background/shadow roles. Existing UI palette/typography/spacing fallbacks remain during migration, and ChatPane retains its existing component-local values. Default chat colors intentionally remain identical in light/dark, because that is what the package renders today.
 
 ## Existing palette, type, spacing and semantic roles
 
@@ -118,7 +118,9 @@ Each name below is declared in UI `variables.css`. Existing palette roles read t
 
 ## New material and role tokens
 
-All 16 roles below are reserved for step 4 and unused by components this round. Each maps to its named input (`--jini-panel-bg` → `--jini-theme-panel-bg`, for example). These rows list both the role and input explicitly; defaults belong to admin's theme. The overlay background/filter describe the scrim; overlay shadow describes the floating dialog. Inputs do not merge existing control states: `none` preserves their current absence of resting/hover/pressed/inset shadows. Focus rings keep their existing tokens and rules.
+Of the 16 original roles below, step 2 activates overlay background/shadow and reuses the resting control shadow; the others remain reserved for their component migration. Each maps to its named input (`--jini-panel-bg` → `--jini-theme-panel-bg`, for example). These rows list both the role and input explicitly; defaults belong to admin's theme. The overlay background/filter describe the scrim; overlay shadow describes the floating dialog. Inputs do not merge existing control states: `none` preserves their current absence of resting/hover/pressed/inset shadows. Step 2 routes complete focus shadows through the additive roles below, preserving their rules and geometry.
+
+For the eight scheme-dependent roles, host `--jini-theme-<role>` inputs, including inherited inputs, always take precedence over Jini defaults regardless of stylesheet order. Their admin-owned `--jini-default-<role>` fallbacks (for example, `--jini-default-panel-bg`) re-resolve on `:root`, `[data-admin-theme]` and `[data-color-scheme]`; the fixed inputs remain on `:root`.
 
 | Role | Theme input | Purpose | Jini default | Classic default |
 |---|---|---|---|---|
@@ -128,9 +130,9 @@ All 16 roles below are reserved for step 4 and unused by components this round. 
 | `--jini-panel-shadow` | `--jini-theme-panel-shadow` | Panel/card elevation | `var(--jini-shadow-sm)` | `var(--shadow-sm)` |
 | `--jini-panel-backdrop` | `--jini-theme-panel-backdrop` | Panel backdrop-filter | `none` | `none` |
 | `--jini-panel-texture` | `--jini-theme-panel-texture` | Panel background-image layer | `none` | `none` |
-| `--jini-overlay-bg` | `--jini-theme-overlay-bg` | Modal scrim background | `var(--jini-backdrop)` | `var(--jini-backdrop)` |
+| `--jini-overlay-bg` | `--jini-theme-overlay-bg` | Modal scrim background | `var(--jini-backdrop)` | `oklch(0% 0 0 / 0.45)` |
 | `--jini-overlay-backdrop` | `--jini-theme-overlay-backdrop` | Modal scrim backdrop-filter | `blur(4px)` | `blur(4px)` |
-| `--jini-overlay-shadow` | `--jini-theme-overlay-shadow` | Floating dialog elevation | `var(--jini-shadow-lg)` | `var(--jini-shadow-lg)` |
+| `--jini-overlay-shadow` | `--jini-theme-overlay-shadow` | Floating dialog elevation | `var(--jini-shadow-lg)` | `0 24px 64px rgb(0 0 0 / 22%)` |
 | `--jini-control-bg` | `--jini-theme-control-bg` | Neutral input/control fill | `var(--jini-bg-elevated)` | `var(--surface)` |
 | `--jini-control-border` | `--jini-theme-control-border` | Neutral input/control border color | `var(--jini-border-strong)` | `var(--border-strong)` |
 | `--jini-control-shadow` | `--jini-theme-control-shadow` | Resting control shadow | `none` | `none` |
@@ -139,11 +141,99 @@ All 16 roles below are reserved for step 4 and unused by components this round. 
 | `--jini-control-shadow-inset` | `--jini-theme-control-shadow-inset` | Inset control shadow | `none` | `none` |
 | `--jini-border-width` | `--jini-theme-border-width` | Standard primitive border width | `1px` | `1px` |
 
+## Step 2 additive paint and elevation contract
+
+New generic roles use `--jini-<role>: var(--jini-theme-<role>, <exact-default>)` in UI `variables.css`, on its existing root/admin-theme/color-scheme boundaries. This is an additive fallback-default policy: **no existing Jini default changes**, and the original material defaults remain admin-owned. Classic supplies each matching input with the exact current Tovu expression. The existing `--jini-overlay-bg` and `--jini-overlay-shadow` aliases retain their defaults and receive Classic inputs only. No packaging/version change is included; the coordinator rebuilds UI separately before parity verification.
+
+The following terse inventory gives every new role suffix; prefix with `--jini-` for the public role and `--jini-theme-` for its input. Values are identical across Classic light/dark unless stated. Fixed whites, RGB/OKLCH spaces/alpha, powerless `none` hue and complete shadow geometry are preserved.
+
+| Paint role suffix | UI fallback = Classic input |
+|---|---|
+| `control-chevron-image` | Complete original 14px SVG URL; stroke `%23666C75` (UI/Classic light), `%23999FA6` (Classic dark); geometry unchanged |
+| `overlay-tooltip-bg` | `#fff` |
+| `overlay-tooltip-text` | `#111` |
+| `overlay-tooltip-border` | `rgba(0, 0, 0, 0.1)` |
+| `overlay-bg-preview` | `oklch(0% 0 0 / 0.55)` |
+| `overlay-bg-navigation` | `oklch(0% 0 0 / 0.4)` |
+| `code-string` | `#4caf7a` |
+| `code-number` | `#d1975a` |
+| `control-thumb-bg` | `#fff` |
+| `control-solid-ink` | `#fff` |
+| `overlay-bg-lightbox` | `oklch(0% 0 0 / 0.6)` |
+| `control-media-bg` | `oklch(0% 0 0 / 0.55)` |
+| `control-media-ink` | `oklch(100% 0 0)` |
+| `control-media-border` | `oklch(100% 0 0 / 0.35)` |
+| `control-media-bg-hover` | `oklch(0% 0 0 / 0.72)` |
+| `overlay-bg-source` | `oklch(0% 0 0 / 0.48)` |
+| `file-icon-folder` | `oklch(72% 0.12 75)` |
+| `file-icon-json` | `oklch(72% 0.13 90)` |
+| `file-icon-markdown` | `oklch(62% 0.12 245)` |
+| `file-icon-javascript` | `oklch(76% 0.15 95)` |
+| `file-icon-typescript` | `oklch(60% 0.13 250)` |
+| `file-icon-config` | `oklch(62% 0.14 20)` |
+| `file-icon-html` | `oklch(64% 0.17 40)` |
+| `file-icon-css` | `oklch(62% 0.13 280)` |
+| `file-icon-image` | `oklch(64% 0.12 160)` |
+| `file-icon-shell` | `oklch(64% 0.12 145)` |
+| `status-complete-ink-fallback` | `oklch(99% 0 none)` |
+| `control-preview-ink` | `#fff` |
+| `control-preview-bg` | `rgba(17, 17, 17, 0.42)` |
+| `control-preview-bg-hover` | `rgba(17, 17, 17, 0.72)` |
+| `control-preview-tip-bg` | `rgba(17, 17, 17, 0.88)` |
+| `panel-border-muted` | `#d9d9d9` |
+| `control-composer-border-focus` | `oklch(70% 0.012 255)` |
+| `overlay-bg-chat` | `rgb(0 0 0 / 45%)` |
+| `control-hover-neutral-bg` | `rgba(127, 127, 127, 0.15)` |
+| `control-recording-bg` | `#dc2626` |
+| `control-recording-ink` | `#ffffff` |
+| `control-recording-bg-hover` | `#b91c1c` |
+
+| ID / shadow role suffix | Exact Classic input | UI fallback when different |
+|---|---|---|
+| S01 / `control-shadow-focus` | `0 0 0 3px var(--primary-ring)` | `0 0 0 3px var(--jini-accent-ring)` |
+| S02 / `overlay-tooltip-shadow` | `0 4px 16px rgba(0, 0, 0, 0.25)` | Same |
+| S03 / `control-shadow-focus-subtle` | `0 0 0 2px var(--accent-dim)` | `0 0 0 2px var(--jini-neutral-accent-soft)` |
+| S04 / `overlay-toast-shadow` | `0 8px 24px rgb(0 0 0 / 22%)` | Same |
+| S05 / `status-danger-shadow` | `inset 3px 0 0 var(--danger)` | `inset 3px 0 0 var(--jini-danger)` |
+| S06 / `control-thumb-shadow-strong` | `0 1px 2px rgba(28, 27, 26, 0.28)` | Same |
+| S07 / `panel-shadow-divider` | `inset 0 -1px 0 var(--jini-border)` | Same |
+| S08 / `control-shadow-focus-accent` | `0 0 0 3px color-mix(in srgb, var(--jini-accent) 18%, transparent)` | Same |
+| S09 / `overlay-menu-shadow-above` | `0 -4px 14px rgba(20,28,45,0.09), 0 -1px 4px rgba(20,28,45,0.06)` | Same |
+| S10 / `control-shadow-selected` | `0 0 0 1px var(--selected-ring)` | `0 0 0 1px var(--jini-accent)` |
+| S11 / `control-shadow-swatch-selected` | `0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring)` | `0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--jini-accent)` |
+| S12 / `control-shadow-segment` | `0 1px 2px rgb(0 0 0 / 8%)` | Same |
+| S13 / `panel-shadow-sticky` | `0 6px 8px -6px rgb(0 0 0 / 0.14)` | Same |
+| S14 / `overlay-menu-shadow` | `0 12px 32px rgb(0 0 0 / 12%)` | Same |
+| S15 / `overlay-shadow` | `0 24px 64px rgb(0 0 0 / 22%)` | Existing admin-owned `var(--jini-default-overlay-shadow)` → `var(--jini-shadow-lg)` (unchanged) |
+| S16 / `control-shadow-segment-raised` | `0 1px 2px rgb(0 0 0 / 12%)` | Same |
+| S17 / `control-thumb-shadow` | `0 1px 2px rgb(0 0 0 / 25%)` | Same |
+| S18 / `panel-shadow-banner` | `0 2px 8px rgb(0 0 0 / 0.12)` | Same |
+| S19 / `status-warning-shadow` | `inset 2px 0 0 var(--warning)` | `inset 2px 0 0 var(--jini-warning)` |
+| Flat / `panel-shadow-flat` | `none` | Same |
+
+Classic alone owns the seven product tokens; no Jini counterpart or admin-panel substitution:
+
+| Tovu token | Classic value, both schemes |
+|---|---|
+| `--tovu-site-preview-bg` | `#fff` |
+| `--tovu-theme-preview-paper-bg` | `#faf6ef` |
+| `--tovu-theme-preview-paper-text` | `#2b2620` |
+| `--tovu-theme-preview-atlas-bg` | `#0e1420` |
+| `--tovu-theme-preview-atlas-text` | `#e8ecf4` |
+| `--tovu-theme-preview-glass-bg` | `linear-gradient(135deg, #1c2740, #3a2a55)` |
+| `--tovu-theme-preview-glass-text` | `#f2f4fb` |
+
+S11 rebinds **both** `--jini-theme-control-shadow-swatch-selected` and `--jini-control-shadow-swatch-selected` at descendant `[data-theme="light"]` boundaries under the existing implicit/explicit Classic root selector. This lets Settings' local `--jini-bg-panel` participate; an alias inherited from root captures the wrong gap color. Theme CSS contains only custom properties and theme/scheme selectors. Settings keeps its existing component selectors and routes S10/S11/flat shadows in place. Chat inputs, pane/popover seams and their root-only public aliases remain unchanged.
+
+Bridge reuse: the five font/radius/density declarations defer to identical UI root defaults. The 18 palette input literals remain: UI outputs consume those inputs, so reading outputs back into the inputs creates cycles; a single active-scheme output also cannot preserve both light and dark input values. Existing `--jini-default-*` aliases already read UI tokens and stay unchanged.
+
+Step 3 retains ownership of removing these ten light pins (all still present): `App.tsx:405`, `features/media/Media.tsx:1309`, `features/authentication/Authentication.tsx:188`, `features/providers/Providers.tsx:223`, `features/settings/SettingsUi.tsx:783`, `features/settings/AdminAppearance.tsx:23`, `features/observability/Observability.tsx:227`, `features/plugins/AgentPlugins.tsx:461`, `features/ai-assistant/AiAssistant.tsx:1027`, `features/skills/Skills.tsx:73` (under `apps/admin/src/`).
+
 ## Chat roles and inputs
 
 All 17 role names and their inputs are part of the shared contract. Defaults exactly match the injected ChatPane palette and its sent-bubble fallbacks. Classic values use its existing surface/ink/border/radius roles in both schemes. The root border/danger seams remain necessary to prevent cycles with the package's local legacy aliases and to reach portaled popovers.
 
-The existing scoped bridge in Tovu's structural `assistant.css` overrides local package values with these inputs at the same specificity. Its grouped pane/popover block still maps only the original eight shared roles; the pane-only block still maps the other nine. This is extraction of the existing seam, not step 4's component rewrite. Jini ChatPane's local defaults still win over root inheritance and are intentionally untouched.
+The existing scoped bridge in Tovu's structural `assistant.css` overrides local package values with these inputs at the same specificity. Its grouped pane/popover block still maps only the original eight shared roles; the pane-only block still maps the other nine. This is extraction of the existing seam, not step 4's component rewrite. UI's transitional chat aliases live on `:root` only, never on nested `[data-admin-theme]` or `[data-color-scheme]` elements, so component-local values always win over these inherited aliases, including within nested theme/scheme scopes. Jini ChatPane's local defaults are intentionally untouched.
 
 | Chat role | Theme input | Purpose | Jini default, both schemes | Classic default, both schemes |
 |---|---|---|---|---|
@@ -216,10 +306,10 @@ Classic keeps its existing explicit grid/axis/cursor/surface/text overrides (`--
 
 ## Cascade and limitations
 
-Admin import order: Jini widgets → Tovu `see-more.css` → classic `admin.css` (unchanged Google Fonts URL, original light root block, original legacy dark root block, unused material inputs) → native `color-scheme` rules → the unchanged structural CSS. The font-only import formerly appeared before widgets; it is now nested in classic after the helper imports. Neither helper declares these font faces, so the palette cascade and font-face identity remain the same. No font is downloaded or self-hosted by this change.
+Admin import order: Jini widgets → Tovu `see-more.css` → `admin-theme-bridge.css` → classic `admin.css` (unchanged Google Fonts URL, original light/dark palette blocks, material and additive role inputs) → native `color-scheme` rules → structural CSS with declaration values routed through the shared roles. The font-only import formerly appeared before widgets; it is now nested in classic after the helper imports. Neither helper declares these font faces, so the palette cascade and font-face identity remain the same. No font is downloaded or self-hosted by this change.
 
 Chat import order: the existing AssistantDock module import → `assistant.css` → classic `chat.css` → the original scoped bridge selectors → unchanged dock/component CSS; Jini's injected style remains last, with the same lower specificity. Classic chat inputs resolve at root to the same ancestor surface/ink/radius values; no descendant overrides of those source tokens were found in the current admin CSS. Border/danger cycle comments travel with the values.
 
-Literals retained outside themes: native `color-scheme: light/dark` is structural behavior; component-specific color/shadow/radius/filter literals and Jini's injected chat defaults remain for step 4. UI's pre-existing neutral/scale/chart literals remain compatibility fallbacks, not a second new theme package. No token conversion of existing primitives, new theme variants, scheme switching, inline theme application, or public-site styling is part of this round.
+Literals retained outside themes: native `color-scheme: light/dark` is structural behavior; alpha masks, `transparent`, `currentColor` and SVG geometry are intentional. Step 2 routes the approved visible color/shadow inventory through tokens across parallel consumer lanes; unrelated radius/filter literals and Jini's injected chat defaults remain for later component migration. UI's pre-existing neutral/scale/chart literals remain compatibility fallbacks. No new theme package/variant, scheme switching, inline theme application or public-site styling is introduced.
 
-Validation: source inspection only, under the dispatch's explicit ban on tests/typecheck/builds/servers. Pixel identity has not been rendered or certified. Screenshots of roughly twelve admin screens in light/current-dark, including portals and chat, remain a Coordinator follow-up before component routing.
+Validation for this build lane: source/diff inspection only, under the dispatch's explicit ban on tests/typecheck/builds. Pixel identity has not been rendered or certified. The coordinator owns UI rebuild and subsequent current-Classic light/dark screenshot and computed-value comparisons at 1244px/390px, including Appearance selected card/swatch, first paint, portals and the additional states in step-2 plan §5.

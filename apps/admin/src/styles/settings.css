@@ -175,7 +175,7 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--jini-panel-shadow-flat);
   overflow: visible;
 }
 .settings-ui-section.settings-page > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-head {
@@ -282,10 +282,10 @@
  * specificity rule here would lose the cascade. */
 :root .jini-agent-card.is-selected {
   border-color: var(--selected-ring);
-  box-shadow: 0 0 0 1px var(--selected-ring);
+  box-shadow: var(--jini-control-shadow-selected);
 }
 :root .jini-accent-swatch.active {
-  box-shadow: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
+  box-shadow: var(--jini-control-shadow-swatch-selected);
 }
 :root .filter-pill.active { border-color: var(--selected-ring); }
 
