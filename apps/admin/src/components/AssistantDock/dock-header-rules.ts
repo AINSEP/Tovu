@@ -31,8 +31,8 @@ export interface DockSettingsMenuItem {
   label: string;
   role?: "menuitem" | "menuitemradio" | "menuitemcheckbox";
   checked?: boolean;
-  /** What the setting does, shown on hover. */
-  hint?: string;
+  /** Per-option help for the same touch/keyboard InfoTip in both settings surfaces. */
+  tooltip?: string;
   disabled?: boolean;
   onSelect?: () => void;
 }
@@ -61,7 +61,11 @@ export function dockSettingsMenuSections(
   { display, onMoreSettings }: { display: Pick<ChatDisplayPreferencesController, "preferences" | "update">; onMoreSettings?: () => void },
 ): DockSettingsMenuSection[] {
   const { preferences, update } = display;
-  const toolCallsHint = t("Show: every tool call. Collapsed: one line per reply, click to open. Hidden: only failed calls.");
+  const toolCallTooltips = {
+    show: t("See each tool call as the assistant works. Open a card to inspect its details."),
+    collapsed: t("Keep tool calls together in one compact line per reply. Tap or click the line to see them."),
+    hidden: t("Hide routine tool calls to keep the conversation clear. Failed calls still appear so you can see what went wrong."),
+  };
   return [
     {
       key: "tool-calls",
@@ -72,7 +76,7 @@ export function dockSettingsMenuSections(
         label: t(option.label),
         role: "menuitemradio",
         checked: preferences.toolCalls === option.value,
-        hint: toolCallsHint,
+        tooltip: toolCallTooltips[option.value],
         onSelect: () => update({ toolCalls: option.value }),
       })),
     },
@@ -80,9 +84,9 @@ export function dockSettingsMenuSections(
       key: "transcript",
       items: [
         { key: "done-line", label: t("Done line"), role: "menuitemcheckbox", checked: preferences.showUsageLine,
-          hint: t("Time, cost and running total under each reply."), onSelect: () => update({ showUsageLine: !preferences.showUsageLine }) },
+          tooltip: t("Show the time, cost, and running total below each reply. Some models may not report every detail."), onSelect: () => update({ showUsageLine: !preferences.showUsageLine }) },
         { key: "thinking", label: t("Thinking"), role: "menuitemcheckbox", checked: preferences.showThinking,
-          hint: t("Shows the model's reasoning when the agent shares it."), onSelect: () => update({ showThinking: !preferences.showThinking }) },
+          tooltip: t("Show reasoning shared by the model, folded into the conversation. Some models do not provide it."), onSelect: () => update({ showThinking: !preferences.showThinking }) },
       ],
     },
     ...(onMoreSettings ? [{ key: "more-settings", items: [{ key: "more-settings", label: t("More settings…"), onSelect: onMoreSettings }] }] : []),

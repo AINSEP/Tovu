@@ -1,6 +1,7 @@
-import { Fragment } from "react";
+import { Fragment, useId } from "react";
 import { createPortal } from "react-dom";
 import { RemixIcon } from "@jini-ai/ui";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
 import { activateDockMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
@@ -21,6 +22,7 @@ export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonom
 }) {
   const items = sections.flatMap((section) => section.items);
   const menu = useMenu({ itemCount: items.length });
+  const helpId = useId();
   let index = 0;
   return <>
     <button
@@ -57,21 +59,24 @@ export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonom
             {section.items.map((item) => {
               const itemIndex = index++;
               const checkable = item.role === "menuitemradio" || item.role === "menuitemcheckbox";
-              return <button
-                key={item.key}
-                ref={(element) => { menu.itemRefs.current[itemIndex] = element; }}
-                type="button"
-                role={item.role ?? "menuitem"}
-                aria-checked={checkable ? Boolean(item.checked) : undefined}
-                tabIndex={-1}
-                className="row-menu-item"
-                title={item.hint}
-                aria-disabled={item.disabled ? true : undefined}
-                onClick={() => activateDockMenuItem({ item, selectItem: menu.selectItem })}
-              >
-                {checkable ? <span className="dock-settings-menu-check" aria-hidden="true"><RemixIcon name="check-line" size={14} /></span> : null}
-                {item.label}
-              </button>;
+              const descriptionId = `${helpId}-${item.key}`;
+              return <div key={item.key} className="dock-settings-menu-row">
+                <button
+                  ref={(element) => { menu.itemRefs.current[itemIndex] = element; }}
+                  type="button"
+                  role={item.role ?? "menuitem"}
+                  aria-checked={checkable ? Boolean(item.checked) : undefined}
+                  tabIndex={-1}
+                  className="row-menu-item"
+                  aria-describedby={item.tooltip ? descriptionId : undefined}
+                  aria-disabled={item.disabled ? true : undefined}
+                  onClick={() => activateDockMenuItem({ item, selectItem: menu.selectItem })}
+                >
+                  {checkable ? <span className="dock-settings-menu-check" aria-hidden="true"><RemixIcon name="check-line" size={14} /></span> : null}
+                  {item.label}
+                </button>
+                {item.tooltip ? <InfoTip label={item.tooltip} descriptionId={descriptionId} /> : null}
+              </div>;
             })}
           </div>
         </Fragment>)}
