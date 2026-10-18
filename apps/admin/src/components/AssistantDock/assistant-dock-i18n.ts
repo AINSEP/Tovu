@@ -769,6 +769,9 @@ export const t = (locale: string, key: string): string => translateDockCopy({ lo
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Using:": "En uso:",
+    "Stop using": "Dejar de usar",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Detiene el uso futuro en este chat. Las instrucciones ya cargadas permanecen en el contexto actual.",
     "Rename chat": "Renombrar chat",
     Conversations: "Conversaciones",
     New: "Nueva",
@@ -796,6 +799,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Razonamiento",
   },
   id: {
+    "Using:": "Digunakan:",
+    "Stop using": "Berhenti menggunakan",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Menghentikan penggunaan berikutnya dalam obrolan ini. Panduan yang sudah dimuat tetap berada dalam konteks saat ini.",
     "Rename chat": "Ganti nama obrolan",
     Conversations: "Percakapan",
     New: "Baru",
@@ -823,6 +829,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Penalaran",
   },
   de: {
+    "Using:": "Verwendet:",
+    "Stop using": "Nicht mehr verwenden",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Beendet die künftige Verwendung in diesem Chat. Bereits geladene Anweisungen bleiben im aktuellen Kontext.",
     "Rename chat": "Chat umbenennen",
     Conversations: "Unterhaltungen",
     New: "Neu",
@@ -850,6 +859,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Denkprozess",
   },
   "zh-CN": {
+    "Using:": "正在使用：",
+    "Stop using": "停止使用",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "停止在此聊天中继续使用。已加载的指导内容仍保留在当前上下文中。",
     "Rename chat": "重命名聊天",
     Conversations: "对话",
     New: "新建",
@@ -877,6 +889,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考过程",
   },
   "zh-TW": {
+    "Using:": "正在使用：",
+    "Stop using": "停止使用",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "停止在此聊天中繼續使用。已載入的指引仍保留在目前的上下文中。",
     "Rename chat": "重新命名聊天",
     Conversations: "對話",
     New: "新增",
@@ -904,6 +919,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考過程",
   },
   "pt-BR": {
+    "Using:": "Em uso:",
+    "Stop using": "Parar de usar",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Interrompe o uso futuro neste chat. As orientações já carregadas permanecem no contexto atual.",
     "Rename chat": "Renomear conversa",
     Conversations: "Conversas",
     New: "Nova",
@@ -931,6 +949,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Raciocínio",
   },
   ru: {
+    "Using:": "Используются:",
+    "Stop using": "Прекратить использование",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Прекращает дальнейшее использование в этом чате. Уже загруженные инструкции остаются в текущем контексте.",
     "Rename chat": "Переименовать чат",
     Conversations: "Беседы",
     New: "Новая",
@@ -958,6 +979,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Рассуждения",
   },
   fa: {
+    "Using:": "در حال استفاده:",
+    "Stop using": "توقف استفاده",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "استفاده در ادامهٔ این گفتگو را متوقف می‌کند. راهنمایی‌های بارگذاری‌شده در زمینهٔ فعلی باقی می‌مانند.",
     "Rename chat": "تغییر نام گفتگو",
     Conversations: "گفتگوها",
     New: "جدید",
@@ -985,6 +1009,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "استدلال",
   },
   ar: {
+    "Using:": "قيد الاستخدام:",
+    "Stop using": "إيقاف الاستخدام",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "يوقف الاستخدام المستقبلي في هذه المحادثة. تبقى الإرشادات المحمّلة مسبقًا في السياق الحالي.",
     "Rename chat": "إعادة تسمية المحادثة",
     Conversations: "المحادثات",
     New: "جديد",
@@ -1012,6 +1039,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "التفكير",
   },
   ja: {
+    "Using:": "使用中：",
+    "Stop using": "使用を停止",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "このチャットでの今後の使用を停止します。読み込み済みのガイダンスは現在のコンテキストに残ります。",
     "Rename chat": "チャットの名前を変更",
     Conversations: "会話",
     New: "新規",
@@ -1039,6 +1069,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考",
   },
   ko: {
+    "Using:": "사용 중:",
+    "Stop using": "사용 중지",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "이 채팅에서 앞으로 사용하지 않습니다. 이미 불러온 지침은 현재 컨텍스트에 남아 있습니다.",
     "Rename chat": "채팅 이름 변경",
     Conversations: "대화",
     New: "새로 만들기",
@@ -1066,6 +1099,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "사고 과정",
   },
   pl: {
+    "Using:": "W użyciu:",
+    "Stop using": "Przestań używać",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Zatrzymuje dalsze użycie w tym czacie. Już wczytane instrukcje pozostają w bieżącym kontekście.",
     "Rename chat": "Zmień nazwę czatu",
     Conversations: "Rozmowy",
     New: "Nowa",
@@ -1093,6 +1129,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Rozumowanie",
   },
   hu: {
+    "Using:": "Használatban:",
+    "Stop using": "Használat leállítása",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Leállítja a további használatot ebben a csevegésben. A már betöltött útmutatás megmarad az aktuális kontextusban.",
     "Rename chat": "Csevegés átnevezése",
     Conversations: "Beszélgetések",
     New: "Új",
@@ -1120,6 +1159,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Gondolkodás",
   },
   fr: {
+    "Using:": "En cours d’utilisation :",
+    "Stop using": "Ne plus utiliser",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Arrête toute utilisation future dans cette discussion. Les instructions déjà chargées restent dans le contexte actuel.",
     "Rename chat": "Renommer la discussion",
     Conversations: "Conversations",
     New: "Nouvelle",
@@ -1147,6 +1189,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Réflexion",
   },
   uk: {
+    "Using:": "Використовуються:",
+    "Stop using": "Припинити використання",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Припиняє подальше використання в цьому чаті. Уже завантажені інструкції залишаються в поточному контексті.",
     "Rename chat": "Перейменувати чат",
     Conversations: "Розмови",
     New: "Нова",
@@ -1174,6 +1219,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Міркування",
   },
   tr: {
+    "Using:": "Kullanılan:",
+    "Stop using": "Kullanmayı bırak",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Bu sohbette gelecekteki kullanımı durdurur. Önceden yüklenen yönergeler mevcut bağlamda kalır.",
     "Rename chat": "Sohbeti yeniden adlandır",
     Conversations: "Konuşmalar",
     New: "Yeni",
@@ -1201,6 +1249,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Düşünme",
   },
   th: {
+    "Using:": "กำลังใช้:",
+    "Stop using": "หยุดใช้",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "หยุดการใช้ในอนาคตสำหรับแชตนี้ คำแนะนำที่โหลดแล้วจะยังคงอยู่ในบริบทปัจจุบัน",
     "Rename chat": "เปลี่ยนชื่อแชต",
     Conversations: "การสนทนา",
     New: "ใหม่",
@@ -1228,6 +1279,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "การคิด",
   },
   it: {
+    "Using:": "In uso:",
+    "Stop using": "Smetti di usare",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "Interrompe gli utilizzi futuri in questa chat. Le istruzioni già caricate restano nel contesto attuale.",
     "Rename chat": "Rinomina chat",
     Conversations: "Conversazioni",
     New: "Nuova",
@@ -1255,6 +1309,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Ragionamento",
   },
   hi: {
+    "Using:": "उपयोग में:",
+    "Stop using": "उपयोग बंद करें",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "इस चैट में आगे उपयोग बंद करता है। पहले से लोड किए गए निर्देश वर्तमान संदर्भ में बने रहते हैं।",
     "Rename chat": "चैट का नाम बदलें",
     Conversations: "बातचीत",
     New: "नया",
@@ -1282,6 +1339,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "सोच",
   },
   ur: {
+    "Using:": "زیر استعمال:",
+    "Stop using": "استعمال بند کریں",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "اس چیٹ میں آئندہ استعمال روک دیتا ہے۔ پہلے سے لوڈ شدہ ہدایات موجودہ سیاق میں رہتی ہیں۔",
     "Rename chat": "چیٹ کا نام تبدیل کریں",
     Conversations: "گفتگو",
     New: "نیا",
@@ -1309,6 +1369,9 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "سوچ",
   },
   bn: {
+    "Using:": "ব্যবহৃত হচ্ছে:",
+    "Stop using": "ব্যবহার বন্ধ করুন",
+    "Stops future use in this chat. Guidance already loaded stays in the current context.": "এই চ্যাটে পরবর্তী ব্যবহার বন্ধ করে। ইতিমধ্যে লোড করা নির্দেশনা বর্তমান প্রসঙ্গে থেকে যায়।",
     "Rename chat": "চ্যাটের নাম পরিবর্তন করুন",
     Conversations: "কথোপকথন",
     New: "নতুন",

@@ -42,6 +42,14 @@ const CHAT_LOCALES = [
   "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW",
 ];
 
+it.each(CHAT_LOCALES)('%s translates the plugin usage chip through the chat dictionary', locale => {
+  const t = createChatI18nAdapter(locale).t;
+  for (const key of ['Using:', 'Stop using', 'Stops future use in this chat. Guidance already loaded stays in the current context.']) {
+    expect(t(key)).not.toBe(key);
+    expect(t(key).trim().length).toBeGreaterThan(0);
+  }
+});
+
 it.each(CHAT_LOCALES)("%s translates the shared Rename chat label", (locale) => {
   expect(createChatI18nAdapter(locale).t("Rename chat")).not.toBe("Rename chat");
 });

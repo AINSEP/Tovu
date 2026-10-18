@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { readFile, readdir } from 'node:fs/promises';
+import path from 'node:path';
+import test from 'node:test';
+import { createAutomaticAgentPluginUse, parseAgentPluginManifest } from '@jini-ai/agent-plugins/lifecycle';
+import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from '../../lifecycle.js';
+
+const bundledRoot = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugins');
+
+// Read every shipped manifest: hand-picked synthetic metadata missed the shared site/deploy words.
+async function bundledCandidates(): Promise<AgentPluginSearchCandidate[]> {
+  const entries = await readdir(bundledRoot, { withFileTypes: true });
+  // Deleted packages can leave empty folders behind on disk (git does not track them).
+  const packages = entries.filter(entry => entry.isDirectory() && existsSync(path.join(bundledRoot, entry.name, 'plugin.json')));
+  return Promise.all(packages.map(async entry => {
+    const parsed = parseAgentPluginManifest({ value: JSON.parse(await readFile(path.join(bundledRoot, entry.name, 'plugin.json'), 'utf8')) });
+    assert.ok(parsed.ok, `Invalid bundled manifest: ${entry.name}`);
+    const manifest = parsed.manifest;
+    return { pluginId: manifest.name, id: manifest.id, provides: manifest.provides,
+      description: manifest.description, keywords: manifest.keywords ?? [],
+      enabled: true, skills: [], mcpServerIds: [] };
+  }));
+}
+
+for (const [query, expected] of [
+  ['Design a new theme for this site', ['tovu-theme', 'ui-ux-design']],
+  ["Design a new theme for this site — just tell me which plugins you'd load, don't change anything.", ['tovu-theme', 'ui-ux-design']],
+  ['Deploy this site to Vercel', ['vercel']],
+  ['Import my old WordPress site', ['site-import']],
+  ["what's 2+2", []],
+  ['Design a theme inspired by Vercel', ['tovu-theme', 'ui-ux-design']],
+] as const) {
+  test(`Auto loads only relevant bundled guidance: ${query}`, async () => {
+    const candidates = await bundledCandidates();
+    const rank = ({ query, candidates, limit }: { query: string; candidates: readonly AgentPluginSearchCandidate[]; limit: number }) =>
+      rankInstalledAgentPlugins(query, candidates, limit, { automatic: true });
+    assert.deepEqual(rank({ query, candidates, limit: 12 }).map(plugin => plugin.pluginId).sort(), [...expected].sort());
+    const loaded: string[] = [];
+    const controller = createAutomaticAgentPluginUse({ mode: 'auto', ports: {
+      list: async () => candidates, rank,
+      resolve: async ({ pluginId }) => { loaded.push(pluginId); return `Guidance: ${pluginId}`; },
+      ask: async () => { throw new Error('Auto must not ask'); },
+      saveAuto: async () => {}, publish: async () => {},
+    } });
+    await controller.prepare({ query });
+    assert.deepEqual(loaded.sort(), [...expected].sort());
+  });
+}
