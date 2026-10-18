@@ -50,8 +50,10 @@ it("shows Saving… on the activating card, hides Make default everywhere meanwh
   rerender(<AllSitesTab {...initial} activatingName="atlas" />);
   expect(within(screen.getByTitle("/sites/atlas")).getByText("Saving…")).toBeInTheDocument();
   expect(within(screen.getByTitle("/sites/boreal")).queryByText("Saving…")).toBeNull();
-  expect(screen.getByRole("button", { name: "More actions for atlas" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "More actions for boreal" })).toBeDisabled();
+  // 59a036e49 hides an empty overflow menu instead of rendering a disabled trigger.
+  expect(screen.queryByRole("button", { name: "More actions for atlas" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "More actions for boreal" })).not.toBeInTheDocument();
+  expect(onActivate).not.toHaveBeenCalled();
   rerender(<AllSitesTab {...initial} activatingName={null} />);
   expect(screen.queryByText("Saving…")).toBeNull();
   await user.click(screen.getByRole("button", { name: "More actions for boreal" }));
@@ -68,7 +70,7 @@ it("puts the status pill on the name row with the running app as its tooltip, an
     snapshot: { ...props().snapshot, sites, currentSite: { name: "luvira", dir: "/sites/luvira", dirOverridden: false, listed: true }, persistedSiteName: "luvira" },
   })} />);
   expect(screen.queryByText("Running in Web (port 3000)")).toBeNull();
-  expect(screen.getByRole("button", { name: "More actions for luvira" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "More actions for luvira" })).not.toBeInTheDocument();
   const row = screen.getByText("luvira", { selector: ".site-card-name" }).parentElement!;
   expect(row.className).toBe("site-card-title-row");
   expect(within(row).getByText("Serving now")).toHaveAttribute("title", "Running in Web (port 3000)");
