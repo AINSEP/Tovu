@@ -6,6 +6,8 @@
 
 import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
+import { CHAT_AGENT_PLUGIN_OPTIONS } from "./chat-agent-plugin-preferences";
+import type { ChatAgentPluginsController } from "./hooks/use-chat-agent-plugins.hooks";
 
 /**
  * Whether a hover/focus on `target` should open the header tooltip. Never while the control's own
@@ -74,20 +76,32 @@ export function groupOptionTooltips(section: DockSettingsMenuSection): DockSetti
  * as a Show/Collapsed/Hidden radio group, then Done line and Thinking as on/off rows. They replaced
  * the one-tab Chat settings modal. More settings now opens the advanced dialog while these quick
  * changes stay available. Both surfaces receive these same actions and stored preferences.
+ * Agent plugins (owner, 2026-10-18) follows as an Auto/Ask first/Off radio group: a per-person
+ * choice of whether the assistant loads matching installed plugins by itself.
  * @param input.t - The dock's translator.
  * @param options.display - The current choices and their saver (`useChatDisplayPreferences`).
+ * @param options.agentPlugins - The Agent plugins mode and its saver (`useChatAgentPlugins`); no section without it.
  * @returns The sections, in display order.
  * @complexity O(1).
  */
 export function dockSettingsMenuSections(
   { t }: { t: (key: string) => string },
-  { display, onMoreSettings }: { display: Pick<ChatDisplayPreferencesController, "preferences" | "update">; onMoreSettings?: () => void },
+  { display, agentPlugins, onMoreSettings }: {
+    display: Pick<ChatDisplayPreferencesController, "preferences" | "update">;
+    agentPlugins?: Pick<ChatAgentPluginsController, "mode" | "update">;
+    onMoreSettings?: () => void;
+  },
 ): DockSettingsMenuSection[] {
   const { preferences, update } = display;
   const toolCallTooltips = {
     show: t("See each tool call as the assistant works. Open a card to inspect its details."),
     collapsed: t("Keep tool calls together in one compact line per reply. Tap or click the line to see them."),
     hidden: t("Hide routine tool calls to keep the conversation clear. Failed calls still appear so you can see what went wrong."),
+  };
+  const agentPluginTooltips = {
+    auto: t('Let the assistant use relevant installed plugins automatically. A "Using" chip shows which ones it loaded, and × stops future use in this chat.'),
+    ask: t("Choose which matching plugins to use before they load. You'll be asked once in each chat that needs them."),
+    off: t("Stop the assistant from loading plugins automatically. You can still choose a plugin yourself when you want it."),
   };
   const sections: DockSettingsMenuSection[] = [
     {
@@ -112,6 +126,18 @@ export function dockSettingsMenuSections(
           tooltip: t("Show reasoning shared by the model, folded into the conversation. Some models do not provide it."), onSelect: () => update({ showThinking: !preferences.showThinking }) },
       ],
     },
+    ...(agentPlugins ? [{
+      key: "agent-plugins",
+      label: t("Agent plugins"),
+      items: CHAT_AGENT_PLUGIN_OPTIONS.map((option) => ({
+        key: `agent-plugins-${option.value}`,
+        label: t(option.label),
+        role: "menuitemradio" as const,
+        checked: agentPlugins.mode === option.value,
+        tooltip: agentPluginTooltips[option.value],
+        onSelect: () => agentPlugins.update(option.value),
+      })),
+    }] : []),
     ...(onMoreSettings ? [{ key: "more-settings", items: [{ key: "more-settings", label: t("More settings…"), onSelect: onMoreSettings }] }] : []),
   ];
   // Every section passes through `groupOptionTooltips`, so a radio group added above gets one tip.

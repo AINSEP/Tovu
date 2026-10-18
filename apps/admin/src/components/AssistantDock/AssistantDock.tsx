@@ -6,6 +6,7 @@ import { DockSettingsMenu } from "./DockSettingsMenu";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
+import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
@@ -162,6 +163,8 @@ export interface AssistantDockProps {
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
   /** The gear menu's chat display choices seam (`useChatDisplayPreferences`); a test passes a fake. */
   useChatDisplayPreferences?: typeof useChatDisplayPreferences;
+  /** The gear menu's Agent plugins choice seam (`useChatAgentPluginsPreference`); a test passes a fake. */
+  useChatAgentPlugins?: typeof useChatAgentPluginsPreference;
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
    * with the dock). `null` until the daemon has attached the surface, or if it never does.
@@ -314,6 +317,7 @@ export function AssistantDock({
   onFolderDropCaptureReady,
   useExecutionPolicy,
   useChatDisplayPreferences: useChatDisplayPreferencesOverride = useChatDisplayPreferences,
+  useChatAgentPlugins = useChatAgentPluginsPreference,
 }: AssistantDockProps) {
   const renderers = useDockRendererRegistry();
   const { mcpUiToolCaller } = renderers;
@@ -327,6 +331,8 @@ export function AssistantDock({
   const conversationDelete = useConfirmRequest({});
   // Gear menu: per-operator transcript display, applied to the pane at once.
   const chatDisplay = useChatDisplayPreferencesOverride();
+  // Gear menu: per-person Agent plugins mode; Off hides the pane's "Using" chip at once.
+  const agentPlugins = useChatAgentPlugins();
   const chatSettings = useChatSettingsDialog({});
   const agentPermissions = useDockAgentPermissions({ t, openSettings: chatSettings.show });
 
@@ -545,8 +551,8 @@ export function AssistantDock({
               </DockHeaderTip>
               {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
               <DockHeaderTip label={t("Settings")}>
-                <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, onMoreSettings: agentPermissions.onMoreSettings })}
-                  notice={chatDisplay.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
+                <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins, onMoreSettings: agentPermissions.onMoreSettings })}
+                  notice={chatDisplay.saveFailed || agentPlugins.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
               </DockHeaderTip>
             </div>
             {emptyState.empty ? (
@@ -672,6 +678,7 @@ export function AssistantDock({
         workingDirectoryControlPlacement="none"
         // Spread, not attributes: a chat build without these props ignores them (see `chatPaneDisplayProps`).
         {...chatPaneDisplayProps({ preferences: chatDisplay.preferences })}
+        agentPluginsMode={agentPlugins.mode}
         // suggestions={[
         //   "Summarise what content types this site defines.",
         //   "List the agent-callable tools and the permission each one needs.",
@@ -680,7 +687,7 @@ export function AssistantDock({
       />
       <ConfirmDialog {...conversationDelete.dialog} />
       <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={t}
-        displaySections={dockSettingsMenuSections({ t }, { display: chatDisplay })} permissions={agentPermissions} />
+        displaySections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins })} permissions={agentPermissions} />
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>
