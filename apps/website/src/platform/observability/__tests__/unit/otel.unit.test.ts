@@ -4,7 +4,7 @@ import test from "node:test";
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
-import { createOtelObservabilityPort } from "../../otel.js";
+import { createAsyncLocalSpanScope, createOtelFactories, createOtelObservabilityPort } from "../../otel.js";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 
 /**
@@ -99,4 +99,68 @@ test("multiple concurrent trackRequest() calls produce independently-attributed 
   const spanB = spans.find((s) => s.name === "GET /b");
   assert.equal(spanA?.status.code, SpanStatusCode.UNSET);
   assert.equal(spanB?.status.code, SpanStatusCode.ERROR);
+});
+
+
+test("SDK factories reject an exporter of the wrong kind before starting a provider", () => {
+  const { tracerProviderFactory } = createOtelFactories({});
+  for (const exporter of [undefined, {}]) {
+    assert.throws(() => tracerProviderFactory.create({ serviceName: "test", exporter }), {
+      name: "TypeError", message: "OpenTelemetry requires an OTLP trace exporter",
+    });
+  }
+});
+
+test("structural span methods preserve names, attributes, events and both error description shapes", () => {
+  const exporter = new InMemorySpanExporter();
+  const factories = createOtelFactories({}, { spanProcessors: [new SimpleSpanProcessor(exporter)] });
+  assert.equal(factories.exporterFactory.create({ endpoint: TEST_CONFIG.endpoint }), undefined);
+  const provider = factories.tracerProviderFactory.create({ serviceName: "adapter-service", exporter: undefined });
+  const tracer = provider.getTracer({ name: "adapter-scope" });
+  const parent = tracer.startSpan({ name: "original", kind: "server", attributes: { initial: "yes" } });
+  parent.updateName({ name: "renamed" });
+  parent.setAttribute({ name: "answer", value: 42 });
+  parent.addEvent({ name: "with-details", attributes: { reason: "timeout" } });
+  parent.addEvent({ name: "without-details", attributes: {} });
+  parent.setStatus({ code: "error", description: "provider unavailable" });
+  const child = tracer.startSpan({ name: "child", kind: "client", attributes: {} }, { parent });
+  child.setStatus({ code: "error" });
+  child.end({});
+  parent.end({});
+  const [childSpan, parentSpan] = exporter.getFinishedSpans();
+  assert.equal(childSpan.parentSpanContext?.spanId, parentSpan.spanContext().spanId);
+  assert.deepEqual(childSpan.status, { code: SpanStatusCode.ERROR });
+  assert.equal(parentSpan.name, "renamed");
+  assert.deepEqual(parentSpan.attributes, { initial: "yes", answer: 42 });
+  assert.deepEqual(parentSpan.status, { code: SpanStatusCode.ERROR, message: "provider unavailable" });
+  assert.deepEqual(parentSpan.events.map(({ name, attributes }) => ({ name, attributes })), [
+    { name: "with-details", attributes: { reason: "timeout" } },
+    { name: "without-details", attributes: {} },
+  ]);
+});
+
+test("an unrecognized structural parent starts an SDK root span", () => {
+  const exporter = new InMemorySpanExporter();
+  const { tracerProviderFactory } = createOtelFactories({}, { spanProcessors: [new SimpleSpanProcessor(exporter)] });
+  const tracer = tracerProviderFactory.create({ serviceName: "test", exporter: undefined }).getTracer({ name: "test" });
+  const foreign = {
+    updateName() {}, setAttribute() {}, setStatus() {}, addEvent() {}, end() {},
+  };
+  tracer.startSpan({ name: "root", kind: "internal", attributes: {} }, { parent: foreign }).end({});
+  const [span] = exporter.getFinishedSpans();
+  assert.equal(span.name, "root");
+  assert.equal(span.kind, SpanKind.INTERNAL);
+  assert.equal(span.parentSpanContext, undefined);
+});
+
+test("async scope releases the active span after rejected work", async () => {
+  const scope = createAsyncLocalSpanScope({});
+  const span = { updateName() {}, setAttribute() {}, setStatus() {}, addEvent() {}, end() {} };
+  assert.equal(scope.active(), undefined);
+  await assert.rejects(scope.run({ span, fn: async () => {
+    await Promise.resolve();
+    assert.equal(scope.active(), span);
+    throw new Error("work failed");
+  } }), { message: "work failed" });
+  assert.equal(scope.active(), undefined);
 });

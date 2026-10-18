@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 
 import { ScryptApiKeySecretHasher, decoyKeyHash, mintApiKey, parseApiKey } from "../api-key-secret.js";
@@ -109,4 +111,44 @@ test("decoyKeyHash hashes one verifiable decoy per hasher and rejects presented 
 
   const other = await decoyKeyHash(new ScryptApiKeySecretHasher());
   assert.notEqual(first, other, "not a shared constant across hashers");
+});
+
+
+for (const [label, n, r, p] of [
+  ["fractional N", "2.5", "8", "1"],
+  ["fractional r", "16384", "0.5", "1"],
+  ["fractional p", "16384", "8", "0.5"],
+  ["non-numeric r", "16384", "NaN", "1"],
+  ["non-numeric p", "16384", "8", "NaN"],
+  ["N of one", "1", "8", "1"],
+  ["zero r", "16384", "0", "1"],
+  ["negative r", "16384", "-1", "1"],
+  ["zero p", "16384", "8", "0"],
+  ["negative p", "16384", "8", "-1"],
+  ["foreign scheme with six fields", "16384", "8", "1"],
+] as const) {
+  test(`verify rejects ${label}`, async () => {
+    const scheme = label === "foreign scheme with six fields" ? "foreign" : "scrypt";
+    const stored = `${scheme}$${n}$${r}$${p}$c2FsdA$ZGlnZXN0`;
+    assert.equal(await new ScryptApiKeySecretHasher().verify(stored, "presented-secret"), false);
+  });
+}
+
+test("verify rejects a nonempty digest of the wrong byte length", async () => {
+  assert.equal(await new ScryptApiKeySecretHasher().verify("scrypt$16384$8$1$c2FsdA$YQ", "secret"), false);
+});
+
+test("verify fails closed when scrypt rejects a non-power-of-two cost", async () => {
+  assert.equal(await new ScryptApiKeySecretHasher().verify("scrypt$3$8$1$c2FsdA$ZGlnZXN0", "secret"), false);
+});
+
+test("a crypto callback failure rejects hashing and fails verification closed", async (t) => {
+  const failure = new Error("scrypt worker failed");
+  // node:crypto is the true external boundary; parsing and fail-closed policy stay real.
+  t.mock.method(crypto, "scrypt", (_secret: unknown, _salt: unknown, _length: number, _options: unknown, callback: (error: Error, derived: Buffer) => void) => callback(failure, Buffer.alloc(0)));
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const hasher = new ScryptApiKeySecretHasher();
+  await assert.rejects(hasher.hash("secret"), { message: "scrypt worker failed" });
+  assert.equal(await hasher.verify("scrypt$16384$8$1$c2FsdA$ZGlnZXN0", "secret"), false);
 });

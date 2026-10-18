@@ -387,7 +387,7 @@ export function useVisitorCredentialForm({
   // the two would otherwise collide in the same scope. Same "rename the local binding, not the prop"
   // rule `INFO.md`'s components section documents for an identical name clash.
   port: credentialPort,
-}: VisitorCredentialFormDependencies): VisitorCredentialFormController {
+}: VisitorCredentialFormDependencies, { executionPort }: { executionPort?: ExecutionPort } = {}): VisitorCredentialFormController {
   // A ref so the hydration effect can read it without listing it as a dependency, and so swapping
   // the prop mid-life cannot re-run that one-shot effect. Same lifetime rule as `port` below (the
   // OTHER port — `ExecutionPort`, for model discovery/connection tests — not this credential one).
@@ -411,7 +411,8 @@ export function useVisitorCredentialForm({
   // "Test Key" and "Test connection" had nothing to send and sat disabled beside a working
   // credential. Settings → Execution mode deliberately does NOT opt in — different key, and an
   // implicit fallback there would probe the visitor credential instead of the admin's own.
-  const port = useRef(createExecutionPort({ useStoredCredential: true }));
+  // The host probe transport can be injected without replacing the credential store or Jini policy.
+  const port = useRef(executionPort ?? createExecutionPort({ useStoredCredential: true }));
 
   const [discovery, setDiscovery] = useState<ModelDiscoveryState>({ status: "idle" });
   const [connectionTest, setConnectionTest] = useState<ConnectionTestState>({ status: "idle" });
@@ -487,11 +488,12 @@ export function useVisitorCredentialForm({
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on stored flag + endpoint only — see doc comment above; `config` as a whole would re-run on every model/max-tokens edit.
   useEffect(() => {
-    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint) return;
+    // Missing optional discovery must not leave the form waiting for work it cannot start.
+    const listModels = port.current.listModels?.bind(port.current);
+    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint || !listModels) return;
     let cancelled = false;
     setDiscovery({ status: "loading" });
-    port.current
-      .listModels?.({ ...config, apiKey: "" })
+    listModels({ ...config, apiKey: "" })
       .then((models) => {
         if (cancelled) return;
         setDiscovery({ status: "ok", models });
@@ -555,17 +557,18 @@ export function useVisitorCredentialForm({
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the credential itself (key+endpoint); `config` intentionally excluded so editing model/max-tokens doesn't re-trigger discovery.
   useEffect(() => {
-    // Two conditions, and the second is the security gate above — NOT an optimization. Removing it
+    // The endpoint condition is the security gate above — NOT an optimization. Removing it
     // reintroduces the prefix-walk credential leak; read that comment before touching this line.
-    if (!apiKey.trim() || !presetSuppliedEndpoint) {
+    // A transport without optional model discovery has no automatic work to start.
+    const listModels = port.current.listModels?.bind(port.current);
+    if (!apiKey.trim() || !presetSuppliedEndpoint || !listModels) {
       setDiscovery({ status: "idle" });
       return;
     }
     let cancelled = false;
     setDiscovery({ status: "loading" });
     const timer = setTimeout(() => {
-      port.current
-        .listModels?.({ ...config, apiKey, baseUrl, protocol })
+      listModels({ ...config, apiKey, baseUrl, protocol })
         // `cancelled` guards the classic out-of-order finish: a slow request for an earlier,
         // half-typed key must never overwrite the result for the key currently in the field.
         .then((models) => {

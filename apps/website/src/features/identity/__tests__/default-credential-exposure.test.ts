@@ -1,11 +1,15 @@
+import { isolatedCatalogEnv } from "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { syncBuiltinESMExports } from "node:module";
 
 import {
+  runDefaultCredentialExposureCheck,
   findSecretInText,
   scanForDefaultCredentialExposure,
 } from "../default-credential-exposure.js";
@@ -78,4 +82,82 @@ test("a missing scanner root is an error rather than a clean scan", (t) => {
   t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
   redirectAdminRoot(t, path.join(fixture, "missing"));
   assert.throws(() => scanForDefaultCredentialExposure(), { code: "ENOENT" });
+});
+
+
+test("the scanner ignores build, test and unsupported sources and broken symlinks", (t) => {
+  const fixture = fs.mkdtempSync(path.join(tmpdir(), "tovu-credential-scope-"));
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+  for (const dir of ["node_modules", "dist", ".vite", "__tests__"]) {
+    fs.mkdirSync(path.join(fixture, dir));
+    fs.writeFileSync(path.join(fixture, dir, "leak.ts"), DEFAULT_OWNER_PASSWORD);
+  }
+  for (const file of ["fixture.test.ts", "fixture.spec.tsx", "notes.md"]) fs.writeFileSync(path.join(fixture, file), DEFAULT_OWNER_PASSWORD);
+  fs.symlinkSync(path.join(fixture, "missing-target"), path.join(fixture, "broken.ts"));
+  fs.writeFileSync(path.join(fixture, "visible.jsx"), `clean\n${DEFAULT_OWNER_PASSWORD}\n${DEFAULT_OWNER_PASSWORD}`);
+  redirectAdminRoot(t, fixture);
+  assert.deepEqual(scanForDefaultCredentialExposure(), [
+    { file: "apps/admin/src/visible.jsx", line: 2 },
+    { file: "apps/admin/src/visible.jsx", line: 3 },
+  ]);
+});
+
+test("a file read failure skips that entry while continuing to report other leaks", (t) => {
+  const fixture = fs.mkdtempSync(path.join(tmpdir(), "tovu-credential-read-"));
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(fixture, "unreadable.ts"), "placeholder");
+  fs.writeFileSync(path.join(fixture, "visible.ts"), DEFAULT_OWNER_PASSWORD);
+  redirectAdminRoot(t, fixture);
+  const read = fs.readFileSync.bind(fs);
+  t.mock.method(fs, "readFileSync", (file: fs.PathOrFileDescriptor, ...options: unknown[]) => {
+    if (path.basename(String(file)) === "unreadable.ts") throw Object.assign(new Error("access denied"), { code: "EACCES" });
+    return (read as Function)(file, ...options);
+  });
+  syncBuiltinESMExports();
+  assert.deepEqual(scanForDefaultCredentialExposure(), [{ file: "apps/admin/src/visible.ts", line: 1 }]);
+});
+
+test("the credential gate reports success for a clean fixture", (t) => {
+  const fixture = fs.mkdtempSync(path.join(tmpdir(), "tovu-credential-cli-clean-"));
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(fixture, "clean.ts"), "export const clean = true;");
+  redirectAdminRoot(t, fixture);
+  const messages: string[] = [];
+  t.mock.method(console, "log", (message: string) => messages.push(message));
+  runDefaultCredentialExposureCheck({});
+  assert.deepEqual(messages, ["check:default-credential — OK: the admin UI does not contain the default password."]);
+});
+
+test("the credential gate reports every leak and exits unsuccessfully", (t) => {
+  const fixture = fs.mkdtempSync(path.join(tmpdir(), "tovu-credential-cli-leak-"));
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(fixture, "leak.ts"), `${DEFAULT_OWNER_PASSWORD}\n${DEFAULT_OWNER_PASSWORD}`);
+  redirectAdminRoot(t, fixture);
+  const messages: string[] = [];
+  const codes: number[] = [];
+  const exited = new Error("gate exited");
+  assert.throws(() => runDefaultCredentialExposureCheck({}, {
+    log: (message) => messages.push(`unexpected success: ${message}`),
+    error: (message) => messages.push(message),
+    exit: (code) => { codes.push(code); throw exited; },
+  }), (error) => error === exited);
+  assert.deepEqual(codes, [1]);
+  assert.deepEqual(messages.slice(0, 3), [
+    "check:default-credential — the seeded default password appears in 2 shipped UI line(s):",
+    "  - apps/admin/src/leak.ts:1", "  - apps/admin/src/leak.ts:2",
+  ]);
+  assert.equal(messages.length, 4);
+  assert.match(messages[3], /Delete the occurrence/);
+});
+
+test("the credential checker CLI succeeds when invoked as the entry point", () => {
+  const entry = fileURLToPath(new URL("../default-credential-exposure.ts", import.meta.url));
+  const child = spawnSync(process.execPath, ["--import", "tsx", entry], {
+    cwd: path.resolve(import.meta.dirname, "../../../../../.."),
+    env: { ...process.env, ...isolatedCatalogEnv },
+    encoding: "utf8",
+  });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout.trim(), "check:default-credential — OK: the admin UI does not contain the default password.");
 });

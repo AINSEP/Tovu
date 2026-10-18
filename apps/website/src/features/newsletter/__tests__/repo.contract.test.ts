@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file T004 — shared contract-test suite for the 6 Newsletter repo ports (C-001..C-006),
  * parameterized to run against both `repo.memory.ts` and `repo.sqlite.ts` (matches `members`/
@@ -515,3 +516,125 @@ for (const [name, makeRepo] of sendAdapters) {
     assert.deepEqual(await repo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", afterId: "page-9", limit: 1 }), []);
   });
 }
+
+
+test("memory campaign seeds are copied, revisions stay campaign-scoped, and absent seed fields start empty", async () => {
+  const first = makeContractCampaign();
+  const campaigns = [first];
+  const revisions = [
+    { workspaceId: WS, campaignId: "other", seq: 1, state: first, actorId: "actor", recordedAt: NOW },
+    { workspaceId: "other-workspace", campaignId: "camp-1", seq: 1, state: first, actorId: "actor", recordedAt: NOW },
+    { workspaceId: WS, campaignId: "camp-1", seq: 2, state: first, actorId: "actor", recordedAt: LATER },
+    { workspaceId: WS, campaignId: "camp-1", seq: 1, state: first, actorId: "actor", recordedAt: NOW },
+  ];
+  const repo = new InMemoryNewsletterCampaignRepo({ campaigns, revisions });
+  campaigns.push(makeContractCampaign({ id: "late" }));
+  revisions.push({ workspaceId: WS, campaignId: "camp-1", seq: 3, state: first, actorId: "actor", recordedAt: LATER });
+  assert.deepEqual(await repo.list({ workspaceId: WS }), [first]);
+  await repo.incrementCounter({ workspaceId: "other-workspace", id: "camp-1", counter: "delivered", updatedAt: LATER });
+  await repo.incrementCounter({ workspaceId: WS, id: "missing", counter: "delivered", updatedAt: LATER });
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "camp-1" }), first);
+  assert.deepEqual((await repo.listRevisions({ workspaceId: WS, campaignId: "camp-1" })).map((row) => row.seq), [1, 2]);
+  assert.deepEqual(await new InMemoryNewsletterCampaignRepo({ campaigns: [first] }).listRevisions({ workspaceId: WS, campaignId: "camp-1" }), []);
+  assert.deepEqual(await new InMemoryNewsletterCampaignRepo({ revisions }).list({ workspaceId: WS }), []);
+  assert.deepEqual(await new InMemoryNewsletterCampaignRepo({}).list({ workspaceId: WS }), []);
+});
+
+test("memory list upserts and default lookup respect workspace and default flag", async () => {
+  const ordinary: NewsletterListRow = { id: "list-1", workspaceId: WS, name: "Ordinary", slug: "ordinary",
+    isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW };
+  const foreign = { ...ordinary, workspaceId: "other-workspace", isDefault: true };
+  const chosen = { ...ordinary, id: "default", isDefault: true };
+  const seeds = [foreign, ordinary, chosen];
+  const repo = new InMemoryNewsletterListRepo(seeds);
+  seeds.pop();
+  assert.deepEqual(await repo.findDefault({ workspaceId: WS }), chosen);
+  assert.equal(await repo.findDefault({ workspaceId: "missing" }), null);
+  const changed = { ...ordinary, name: "Updated" };
+  await repo.save(changed);
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "list-1" }), changed);
+  assert.deepEqual(await repo.findById({ workspaceId: "other-workspace", id: "list-1" }), foreign);
+  assert.deepEqual(await repo.list({ workspaceId: WS }), [changed, chosen]);
+});
+
+test("memory subscriptions distinguish subscriber, list and workspace during lookup and removal", async () => {
+  const row: SubscriptionRow = { id: "sub-1", workspaceId: WS, listId: "list-1", subscriberId: "reader-1",
+    status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: null, subscribedAt: NOW,
+    unsubscribedAt: null, createdAt: NOW, updatedAt: NOW };
+  const foreign = { ...row, workspaceId: "other-workspace" };
+  const otherList = { ...row, id: "sub-2", listId: "other-list" };
+  const otherSubscriber = { ...row, id: "sub-3", subscriberId: "reader-2" };
+  const seeds = [foreign, otherList, otherSubscriber, row];
+  const repo = new InMemoryNewsletterSubscriptionRepo(seeds);
+  seeds.pop();
+  assert.deepEqual(await repo.findBySubscriberAndList({ workspaceId: WS, listId: "list-1", subscriberId: "reader-1" }), row);
+  assert.equal(await repo.findBySubscriberAndList({ workspaceId: WS, listId: "list-1", subscriberId: "missing" }), null);
+  assert.deepEqual(await repo.listSubscribed({ workspaceId: WS, listId: "list-1" }), [otherSubscriber, row]);
+  const updated = { ...row, status: "unsubscribed" as const, unsubscribedAt: LATER };
+  await repo.save(updated);
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "sub-1" }), updated);
+  await repo.remove({ workspaceId: WS, id: "sub-1" });
+  assert.equal(await repo.findById({ workspaceId: WS, id: "sub-1" }), null);
+  assert.deepEqual(await repo.findById({ workspaceId: "other-workspace", id: "sub-1" }), foreign);
+  assert.deepEqual(await repo.list({ workspaceId: WS, listId: "list-1" }), [otherSubscriber]);
+});
+
+test("memory audience snapshots miss on either lookup key and remain immutable within each workspace", async () => {
+  const row: AudienceSnapshotRow = { id: "snapshot-1", workspaceId: WS, campaignId: "camp-1", listId: "list-1", recipientCount: 3, createdAt: NOW };
+  const foreign = { ...row, workspaceId: "other-workspace" };
+  const seeds = [foreign, row];
+  const repo = new InMemoryNewsletterAudienceSnapshotRepo(seeds);
+  seeds.pop();
+  assert.equal(await repo.findById({ workspaceId: WS, id: "missing" }), null);
+  assert.equal(await repo.findById({ workspaceId: "missing", id: "snapshot-1" }), null);
+  assert.equal(await repo.findByCampaignId({ workspaceId: WS, campaignId: "missing" }), null);
+  assert.equal(await repo.findByCampaignId({ workspaceId: "missing", campaignId: "camp-1" }), null);
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-1" }), row);
+  assert.deepEqual(await repo.findByCampaignId({ workspaceId: WS, campaignId: "camp-1" }), row);
+  const second = { ...row, id: "snapshot-2", campaignId: "camp-2" };
+  await repo.save(second);
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-2" }), second);
+  await assert.rejects(repo.save({ ...row, recipientCount: 99 }), { message: "AudienceSnapshotRow snapshot-1 already exists and is immutable (INV-06)" });
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "snapshot-1" }), row);
+});
+
+test("memory send filters distinguish workspace, campaign, audience and pending state", async () => {
+  const row = makePendingSendRow();
+  const foreign = { ...row, workspaceId: "other-workspace" };
+  const otherCampaign = makePendingSendRow({ id: "send-2", campaignId: "other-campaign", idempotencyKey: "other-campaign" });
+  const otherAudience = makePendingSendRow({ id: "send-3", audienceSnapshotId: "other-snapshot", idempotencyKey: "other-audience" });
+  const delivered = makePendingSendRow({ id: "send-4", status: "delivered", idempotencyKey: "delivered" });
+  const seeds = [foreign, otherCampaign, otherAudience, delivered, row];
+  const repo = new InMemoryNewsletterSendRepo(seeds);
+  seeds.pop();
+  assert.equal(await repo.findById({ workspaceId: WS, id: "missing" }), null);
+  assert.equal(await repo.findByIdempotencyKey({ workspaceId: WS, idempotencyKey: "missing" }), null);
+  assert.equal(await repo.findByIdempotencyKey({ workspaceId: "missing", idempotencyKey: row.idempotencyKey }), null);
+  assert.deepEqual(await repo.findByIdempotencyKey({ workspaceId: WS, idempotencyKey: row.idempotencyKey }), row);
+  assert.deepEqual(await repo.listPendingByAudienceSnapshot({ workspaceId: WS, audienceSnapshotId: "snap-1", limit: 10 }), [otherCampaign, row]);
+  assert.equal(await repo.countPendingByCampaign({ workspaceId: WS, campaignId: "camp-1" }), 2);
+  assert.equal(await repo.claimForDispatch({ workspaceId: "missing", id: "send-1", nowIso: NOW, leaseUntilIso: LATER }), null);
+  assert.equal(await repo.recordOutcome({ workspaceId: "missing", id: "send-1", status: "failed", providerMessageId: null, lastError: "wrong workspace", updatedAt: LATER }), null);
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "send-1" }), row);
+  await repo.save({ ...row, status: "failed" });
+  assert.deepEqual(await repo.findById({ workspaceId: "other-workspace", id: "send-1" }), foreign);
+  assert.equal((await repo.findById({ workspaceId: WS, id: "send-1" }))?.status, "failed");
+});
+
+test("memory confirmation-token lookup requires the subscription and token hash as well as workspace", async () => {
+  const row: ConfirmationTokenRecord = { id: "token-1", workspaceId: WS, subscriptionId: "sub-1", tokenHash: "hash-1",
+    purpose: "newsletter_subscription_confirm", createdAt: NOW, expiresAt: LATER, consumedAt: null };
+  const foreign = { ...row, workspaceId: "other-workspace" };
+  const otherSubscription = { ...row, id: "token-2", subscriptionId: "other-subscription", tokenHash: "other-hash" };
+  const consumed = { ...row, id: "token-3", tokenHash: "consumed-hash", consumedAt: NOW };
+  const seeds = [foreign, otherSubscription, consumed, row];
+  const repo = new InMemoryNewsletterConfirmationTokenRepo(seeds);
+  seeds.pop();
+  assert.deepEqual(await repo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" }), [row]);
+  assert.equal(await repo.findByTokenHash({ workspaceId: WS, tokenHash: "missing" }), null);
+  assert.equal(await repo.findByTokenHash({ workspaceId: "missing", tokenHash: "hash-1" }), null);
+  assert.deepEqual(await repo.findByTokenHash({ workspaceId: WS, tokenHash: "hash-1" }), row);
+  await repo.save({ ...row, consumedAt: LATER });
+  assert.deepEqual(await repo.findById({ workspaceId: "other-workspace", id: "token-1" }), foreign);
+  assert.deepEqual(await repo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" }), []);
+});

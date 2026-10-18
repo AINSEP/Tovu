@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_PROVIDER_PRESETS, type ByokConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS, createFakeExecutionPort, type ExecutionPort, type ByokConfig } from "@jini-ai/ui";
 
 import {
   api,
@@ -15,6 +15,7 @@ import {
   useWiredVisitorCredentialForm,
   useVisitorCredentialForm,
 } from "../hooks/use-visitor-credential-form.hooks";
+import { createFakeVisitorCredentialFormPort } from "../hooks/visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "../hooks/visitor-credential-form-port.hooks";
 
 /**
@@ -1051,4 +1052,194 @@ describe("useVisitorCredentialForm — Save key and Save settings pressed back t
     expect(result.current.saveState).toMatchObject({ status: "saved" });
     expect(result.current.settingsSaveState).toMatchObject({ status: "saved" });
   });
+});
+
+
+describe("visitor credential form with an injected probe transport", () => {
+  async function mountProbe(executionPort: ExecutionPort, stored = credential()) {
+    vi.useFakeTimers();
+    const credentialPort = createFakeVisitorCredentialFormPort({ credential: stored });
+    const hook = renderHook(() => useVisitorCredentialForm({ port: credentialPort }, { executionPort }));
+    await act(async () => { await Promise.resolve(); });
+    return { ...hook, credentialPort };
+  }
+
+  it("keeps edited settings and the saved row when the settings write fails", async () => {
+    const initial = credential({ model: "saved-model" });
+    const credentialPort: VisitorCredentialFormPort = {
+      ...createFakeVisitorCredentialFormPort({ credential: initial }),
+      async setAssistantSiteCredential() { throw new Error("Settings store unavailable"); },
+    };
+    const executionPort = createFakeExecutionPort();
+    const { result } = renderHook(() => useVisitorCredentialForm({ port: credentialPort }, { executionPort }));
+    await act(async () => { await Promise.resolve(); });
+    act(() => result.current.editConfig({ ...result.current.config, model: "edited-model" }));
+    await act(async () => { await result.current.saveSettings(); });
+    expect(result.current.settingsSaveState).toEqual({ status: "error", message: "Settings store unavailable" });
+    expect(result.current.config.model).toBe("edited-model");
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.stored).toEqual(initial);
+  });
+
+  it("uses the settings-specific error fallback for a non-Error rejection", async () => {
+    const states: unknown[] = [];
+    await saveVisitorSettings({
+      api: { ...createFakeVisitorCredentialFormPort(), async setAssistantSiteCredential() { throw null; } },
+      config: { protocol: "anthropic", providerId: "anthropic", apiKey: "", baseUrl: "https://api.anthropic.com", model: "m1" },
+      writers: { setSettingsSaveState: (state) => states.push(state), setStored: () => states.push("unexpected stored write"), setDirty: () => states.push("unexpected dirty write") },
+    });
+    expect(states).toEqual([{ status: "saving" }, { status: "error", message: "failed to save the settings" }]);
+  });
+
+  it("supports an execution port without optional model discovery on explicit tests", async () => {
+    const { listModels: _omitted, ...executionPort } = createFakeExecutionPort({ testResult: { ok: true } });
+    const { result } = await mountProbe(executionPort);
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "typed", baseUrl: "https://custom.test", model: "chosen" }));
+    await act(async () => { await result.current.runKeyTest(); });
+    expect(result.current.discovery).toEqual({ status: "ok", models: [] });
+    expect(result.current.config.model).toBe("chosen");
+    await act(async () => { await result.current.runTestConnection(); });
+    expect(result.current.connectionTest).toEqual({ status: "ok", message: undefined });
+    expect(result.current.discovery).toEqual({ status: "ok", models: [] });
+  });
+
+  it("uses the generic connection error when the provider rejects without a message", async () => {
+    const { result } = await mountProbe(createFakeExecutionPort({ testResult: { ok: false, message: "" } }));
+    await act(async () => { await result.current.runTestConnection(); });
+    expect(result.current.connectionTest).toEqual({ status: "error", message: "Connection test failed" });
+  });
+
+  it("selects a known preset by id and ignores an unknown id", async () => {
+    const { result } = await mountProbe(createFakeExecutionPort());
+    act(() => result.current.selectPresetById("google-gemini"));
+    expect(result.current.config.providerId).toBe("google-gemini");
+    expect(result.current.config.baseUrl).toBe("https://generativelanguage.googleapis.com");
+    const selected = result.current.config;
+    act(() => result.current.selectPresetById("missing-provider"));
+    expect(result.current.config).toEqual(selected);
+  });
+
+  it("prefers the discovered Gemini default for a stored key with no saved model", async () => {
+    const { result } = await mountProbe(createFakeExecutionPort({ models: ["first-model", "gemini-flash-latest"] }),
+      credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }));
+    expect(result.current.discovery).toEqual({ status: "ok", models: ["first-model", "gemini-flash-latest"] });
+    expect(result.current.config.model).toBe("gemini-flash-latest");
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("leaves the model empty when stored-key discovery returns no models", async () => {
+    const { result } = await mountProbe(createFakeExecutionPort({ models: [] }),
+      credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }));
+    expect(result.current.discovery).toEqual({ status: "ok", models: [] });
+    expect(result.current.config.model).toBe("");
+  });
+
+  it("keeps a chosen model when an explicit key test returns another default", async () => {
+    const { result } = await mountProbe(createFakeExecutionPort({ models: ["gemini-flash-latest"] }));
+    act(() => result.current.editConfig({ ...result.current.config, model: "chosen-model" }));
+    await act(async () => { await result.current.runKeyTest(); });
+    expect(result.current.config.model).toBe("chosen-model");
+    expect(result.current.discovery).toEqual({ status: "ok", models: ["gemini-flash-latest"] });
+  });
+
+  it("leaves an empty model unchanged when an explicit key test has no models", async () => {
+    const { result } = await mountProbe(createFakeExecutionPort({ models: [] }));
+    await act(async () => { await result.current.runKeyTest(); });
+    expect(result.current.discovery).toEqual({ status: "ok", models: [] });
+    expect(result.current.config.model).toBe("");
+  });
+
+  it("ignores a stored-key discovery rejection after the endpoint changes", async () => {
+    let rejectModels!: (error: Error) => void;
+    const executionPort = { ...createFakeExecutionPort(), listModels: () => new Promise<readonly string[]>((_resolve, reject) => { rejectModels = reject; }) };
+    const { result } = await mountProbe(executionPort, credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }));
+    expect(result.current.discovery).toEqual({ status: "loading" });
+    act(() => result.current.selectPresetById("google-gemini"));
+    await act(async () => { rejectModels(new Error("stale provider failed")); });
+    expect(result.current.discovery).toEqual({ status: "idle" });
+    expect(result.current.config.providerId).toBe("google-gemini");
+  });
+
+  for (const outcome of ["success", "error"] as const) {
+    it(`ignores a typed-key discovery ${outcome} after the key is cleared`, async () => {
+      let resolveModels!: (models: readonly string[]) => void;
+      let rejectModels!: (error: Error) => void;
+      const executionPort = { ...createFakeExecutionPort(), listModels: () => new Promise<readonly string[]>((resolve, reject) => { resolveModels = resolve; rejectModels = reject; }) };
+      const { result } = await mountProbe(executionPort);
+      act(() => result.current.editConfig({ ...result.current.config, apiKey: "typed" }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+      expect(result.current.discovery).toEqual({ status: "loading" });
+      act(() => result.current.editConfig({ ...result.current.config, apiKey: "" }));
+      await act(async () => {
+        if (outcome === "success") resolveModels(["stale-model"]);
+        else rejectModels(new Error("stale key failed"));
+      });
+      expect(result.current.discovery).toEqual({ status: "idle" });
+      expect(result.current.config.model).toBe("");
+    });
+  }
+
+  it.each([[new Error("key rejected"), "key rejected"], [null, "Model discovery failed"]])(
+    "reports typed-key discovery failure %s", async (error, message) => {
+      const executionPort = { ...createFakeExecutionPort(), async listModels(): Promise<readonly string[]> { throw error; } };
+      const { result } = await mountProbe(executionPort);
+      act(() => result.current.editConfig({ ...result.current.config, apiKey: "typed" }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+      expect(result.current.discovery).toEqual({ status: "error", message });
+      expect(result.current.config.model).toBe("");
+    },
+  );
+
+  it("does not replace an operator's model with a delayed typed-key result", async () => {
+    let resolveModels!: (models: readonly string[]) => void;
+    const executionPort = { ...createFakeExecutionPort(), listModels: () => new Promise<readonly string[]>((resolve) => { resolveModels = resolve; }) };
+    const { result } = await mountProbe(executionPort);
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "typed" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+    act(() => result.current.editConfig({ ...result.current.config, model: "operator-choice" }));
+    await act(async () => { resolveModels(["gemini-flash-latest"]); });
+    expect(result.current.config.model).toBe("operator-choice");
+    expect(result.current.discovery).toEqual({ status: "ok", models: ["gemini-flash-latest"] });
+  });
+});
+
+
+it.each([
+  [["first", "gemini-flash-latest"], "gemini-flash-latest"],
+  [[], ""],
+] as const)("typed-key discovery seeds only a model actually returned by the provider: %j", async (models, expected) => {
+  vi.useFakeTimers();
+  const executionPort = createFakeExecutionPort({ models });
+  const port = createFakeVisitorCredentialFormPort();
+  const { result } = renderHook(() => useVisitorCredentialForm({ port }, { executionPort }));
+  await act(async () => { await Promise.resolve(); });
+  act(() => result.current.editConfig({ ...result.current.config, apiKey: "typed" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+  expect(result.current.discovery).toEqual({ status: "ok", models: [...models] });
+  expect(result.current.config.model).toBe(expected);
+});
+
+it("an explicit key test prefers the provider's discovered Gemini default", async () => {
+  const port = createFakeVisitorCredentialFormPort();
+  const executionPort = createFakeExecutionPort({ models: ["first-model", "gemini-flash-latest"] });
+  const { result } = renderHook(() => useVisitorCredentialForm({ port }, { executionPort }));
+  await act(async () => { await Promise.resolve(); });
+  await act(async () => { await result.current.runKeyTest(); });
+  expect(result.current.config.model).toBe("gemini-flash-latest");
+  expect(result.current.discovery).toEqual({ status: "ok", models: ["first-model", "gemini-flash-latest"] });
+});
+
+
+it("a transport without optional model discovery leaves automatic discovery idle", async () => {
+  vi.useFakeTimers();
+  const { listModels: _omitted, ...executionPort } = createFakeExecutionPort();
+  const port = createFakeVisitorCredentialFormPort({ credential: credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }) });
+  const { result } = renderHook(() => useVisitorCredentialForm({ port }, { executionPort }));
+  await act(async () => { await Promise.resolve(); });
+  expect(result.current.loadState).toEqual({ status: "ready" });
+  expect(result.current.discovery).toEqual({ status: "idle" });
+  act(() => result.current.editConfig({ ...result.current.config, apiKey: "typed" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+  expect(result.current.discovery).toEqual({ status: "idle" });
+  expect(result.current.config.model).toBe("");
 });

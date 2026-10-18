@@ -139,23 +139,31 @@ export function scanForDefaultCredentialExposure(): DefaultCredentialHit[] {
   return hits;
 }
 
-function main(): void {
+/** Runs the shipped-UI credential gate; output and exit are injectable host effects. */
+export function runDefaultCredentialExposureCheck(
+  _required: Record<string, never>,
+  { log = console.log, error = console.error, exit = process.exit }: {
+    log?: (message: string) => void;
+    error?: (message: string) => void;
+    exit?: (code: number) => never;
+  } = {},
+): void {
   const hits = scanForDefaultCredentialExposure();
   if (hits.length === 0) {
-    console.log("check:default-credential — OK: the admin UI does not contain the default password.");
+    log("check:default-credential — OK: the admin UI does not contain the default password.");
     return;
   }
-  console.error(`check:default-credential — the seeded default password appears in ${hits.length} shipped UI line(s):`);
-  for (const hit of hits) console.error(`  - ${hit.file}:${hit.line}`);
-  console.error(
+  error(`check:default-credential — the seeded default password appears in ${hits.length} shipped UI line(s):`);
+  for (const hit of hits) error(`  - ${hit.file}:${hit.line}`);
+  error(
     "\nThe admin bundle is served to anyone who can reach /admin/, so this publishes working " +
       "credentials. Delete the occurrence. Do not gate it behind a dev-build check: a hint that " +
       "has to be right about its own build environment can be wrong in production.",
   );
-  process.exit(1);
+  exit(1);
 }
 
 // Guarded so importing this module from a test does not scan the real repo and exit the runner.
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  runDefaultCredentialExposureCheck({});
 }

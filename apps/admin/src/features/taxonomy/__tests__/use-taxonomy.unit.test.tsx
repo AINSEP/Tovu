@@ -488,3 +488,45 @@ describe("useTaxonomy — content refresh bus", () => {
     expect(listSpy.mock.calls.length).toBeGreaterThan(callsWhileMounted);
   });
 });
+
+
+describe("taxonomy fake port contract", () => {
+  it("starts empty and returns a list snapshot rather than its backing array", async () => {
+    const port = createFakeTaxonomyPort();
+    const listed = await port.listTaxonomies();
+    listed.items.push({ ...GROUP, terms: [] });
+    expect(await port.listTaxonomies()).toEqual({ items: [] });
+  });
+
+  it("renames a term found after another group without changing its siblings", async () => {
+    const sibling = { ...TERM_A, id: "b", name: "B" };
+    const port = createFakeTaxonomyPort({ groups: [
+      { ...GROUP, taxonomy: { ...GROUP.taxonomy, id: "empty" }, terms: [] },
+      { ...GROUP, terms: [TERM_A, sibling] },
+    ] });
+    await expect(port.renameTerm({ termId: "a", newName: "Renamed" })).resolves.toEqual({ term: { ...TERM_A, name: "Renamed" } });
+    expect((await port.listTaxonomies()).items[1].terms).toEqual([{ ...TERM_A, name: "Renamed" }, sibling]);
+  });
+
+  it("trashes only the requested term when a blocker callback allows it", async () => {
+    const sibling = { ...TERM_A, id: "b", name: "B" };
+    const port = createFakeTaxonomyPort({ groups: [{ ...GROUP, terms: [TERM_A, sibling] }], onTrashTermBlocked: () => undefined });
+    await expect(port.trashTerm({ id: "a" })).resolves.toEqual({ ok: true, version: null });
+    expect((await port.listTaxonomies()).items[0].terms).toEqual([sibling]);
+  });
+
+  it("trashes a taxonomy without removing other groups", async () => {
+    const other = { ...GROUP, taxonomy: { ...GROUP.taxonomy, id: "other" }, terms: [] };
+    const port = createFakeTaxonomyPort({ groups: [{ ...GROUP, terms: [TERM_A] }, other] });
+    await expect(port.trashTaxonomy({ id: "tax1" })).resolves.toEqual({ ok: true, version: null });
+    expect(await port.listTaxonomies()).toEqual({ items: [other] });
+  });
+
+  it("rejects unknown terms and taxonomies without changing existing rows", async () => {
+    const port = createFakeTaxonomyPort({ groups: [{ ...GROUP, terms: [TERM_A] }] });
+    await expect(port.trashTerm({ id: "missing" })).rejects.toThrow("fake taxonomy port: unknown term missing");
+    await expect(port.renameTerm({ termId: "missing", newName: "No" })).rejects.toThrow("fake taxonomy port: unknown term missing");
+    await expect(port.trashTaxonomy({ id: "missing" })).rejects.toThrow("fake taxonomy port: unknown taxonomy missing");
+    expect(await port.listTaxonomies()).toEqual({ items: [GROUP] });
+  });
+});
