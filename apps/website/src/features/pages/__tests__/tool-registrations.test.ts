@@ -351,7 +351,7 @@ test("pages_read_html supplies the resolved theme vocabulary on both empty and a
 });
 
 test("page token vocabulary follows the renderer fallback when the configured theme is missing", async () => {
-  const fallback = { manifest: { id: "tovu-theme" }, status: "valid", tokens: { "--fg": "#fff" }, tokensLight: {} } as DiscoveredTheme;
+  const fallback = { manifest: { id: "tovu-theme" }, status: "valid", tokens: { "--fg": "#fff" }, tokensLight: {} } as unknown as DiscoveredTheme;
   const { repo, call } = harness({ themes: [fallback], resolveActiveThemeId: async () => "removed" });
   await seedPage(repo, "fallback-page", "Landing");
   const result = await call("pages_read_html", { id: "fallback-page" }) as { theme: { id: string; tokens: unknown } };

@@ -440,7 +440,7 @@ for (const payload of [{}, { token: 7 }]) {
     assert.ok(record?.vaultRecord);
     const row = record.vaultRecord;
     // Real encryption/AAD and the real vault parser run; only the stored payload is malformed.
-    const sealed = await deps.sealer.seal({ plaintext: JSON.stringify(payload), key: await deps.keyring.activeKey({}), aad: buildVaultAad(row) });
+    const sealed = await deps.sealer.seal({ plaintext: JSON.stringify(payload), key: await deps.keyring.activeKey(), aad: buildVaultAad(row) });
     await repo.vault.put({ record: { ...row, sealed, revision: row.revision + 1 }, expectedRevision: row.revision });
     await assert.rejects(resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: saved.label }),
       error => error instanceof CustomCredentialSecretStoreUnconfiguredError && error.message === CREDENTIAL_MESSAGES.storage);

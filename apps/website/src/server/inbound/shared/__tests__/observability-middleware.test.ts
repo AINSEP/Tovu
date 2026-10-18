@@ -9,6 +9,11 @@ import { applyRequestTracking } from "../observability-middleware.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingInput, type RequestTrackingOutcome } from "#src/platform/observability/index";
 
+const loggingDisabled: NonNullable<Parameters<typeof applyRequestTracking>[1]["env"]> = {
+  TOVU_LOG_REQUESTS: undefined,
+  TOVU_LOG_SLOW_REQUESTS: undefined,
+};
+
 /**
  * @file Unit coverage for `applyRequestTracking` in isolation from the full `createApp()`
  * composition root — a minimal real Express app (not `createApp()`'s ~308 routes) is enough to
@@ -39,7 +44,7 @@ function createSpyObservabilityPort(): {
 
 function buildTestApp(observability: ObservabilityPort): express.Express {
   const app = express();
-  applyRequestTracking(app, { observability, env: {} });
+  applyRequestTracking(app, { observability, env: loggingDisabled });
   app.get("/welcome", (_req, res) => res.status(200).send("ok"));
   app.post("/error", (_req, res) => res.status(500).json({ ok: false }));
   const adminRouter = express.Router();
@@ -110,7 +115,7 @@ test("two concurrent in-flight requests are tracked independently — one reques
   let welcomeResponse: express.Response | undefined;
   let errorResponse: express.Response | undefined;
   const app = express();
-  applyRequestTracking(app, { observability: port, env: { TOVU_LOG_REQUESTS: "1" }, logger: { info: (_input, options) => { logs.push(options!.meta!); } } });
+  applyRequestTracking(app, { observability: port, env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" }, logger: { info: (_input, options) => { logs.push(options!.meta!); } } });
   app.get("/welcome", (_req, res) => { welcomeResponse = res; firstStarted.resolve(); });
   app.post("/error", (_req, res) => { errorResponse = res; secondStarted.resolve(); });
   t.after(() => {
@@ -155,7 +160,7 @@ test("todo-1495: completion logging joins the response and async request context
   const app = express();
   applyRequestTracking(app, {
     observability: createNoopObservabilityPort({}),
-    env: { TOVU_LOG_REQUESTS: "1" },
+    env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" },
     logger: { info: ({ message }, options) => { entries.push({ message, options }); } },
   });
   app.get("/posts/:id", async (_req, res) => {
@@ -180,7 +185,7 @@ test("todo-1495: unmatched requests log the minted response id and a fixed route
   const app = express();
   applyRequestTracking(app, {
     observability: createNoopObservabilityPort({}),
-    env: { TOVU_LOG_REQUESTS: "1" },
+    env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" },
     logger: { info: ({ message }, options) => { entries.push({ message, options }); } },
   });
   const baseUrl = await startTestServer(app, t);
@@ -216,7 +221,7 @@ for (const scenario of [
     const error = t.mock.method(console, "error", () => {});
     const failure = new Error("handler failed");
     const app = express();
-    applyRequestTracking(app, { observability: createNoopObservabilityPort({}), env: scenario.env });
+    applyRequestTracking(app, { observability: createNoopObservabilityPort({}), env: { ...loggingDisabled, ...scenario.env } });
     mountJsonRoute({
       app,
       deps: {},
@@ -269,7 +274,7 @@ for (const scenario of [
     const info = t.mock.method(console, "info", () => {});
     const { port, calls } = createSpyObservabilityPort();
     const app = express();
-    applyRequestTracking(app, { observability: port, env: scenario.env });
+    applyRequestTracking(app, { observability: port, env: { ...loggingDisabled, ...scenario.env } });
     app.get("/admin/:asset", (_req, res) => {
       now += scenario.durationMs;
       res.status(scenario.statusCode).end();

@@ -41,7 +41,7 @@ test("unexpected failures reading a filter propagate unchanged without reading l
   const failure = new Error("filter property unavailable");
   const input = { get level() { throw failure; } };
   const unread: ServerLogSourcePort = { read: () => assert.fail("failed filters must not read logs") };
-  await assert.rejects(() => tool(true, unread).handler(ctx(input)), error => error === failure && error.message === "filter property unavailable");
+  await assert.rejects(() => tool(true, unread).handler(ctx(input)), error => error instanceof Error && error === failure && error.message === "filter property unavailable");
 });
 
 test("omitting the source reads the attached process log", async t => {

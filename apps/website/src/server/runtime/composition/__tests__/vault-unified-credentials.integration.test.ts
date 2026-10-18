@@ -68,7 +68,11 @@ for (const dialect of ["sqlite", "pglite"] as const) for (const normalized of [f
       assert.deepEqual((await vendors.findById({ workspaceId: "ws", id: "collision" }))!.worksFor, ["vendor-test"]);
       assert.deepEqual((await customRepo.listByWorkspace({ workspaceId: "ws" }))[0]!.worksFor, []);
       const customBefore = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
-      await updateCustomCredential({ repo: customRepo, keyring: f.keyring, sealer: f.sealer, clock: { nowMs: () => Date.parse(stamp) }, idGen: { newId: () => "unused" } },
+      await updateCustomCredential({ repo: customRepo, keyring: {
+        activeKey: f.keyring.activeKey.bind(f.keyring, {}),
+        derive: f.keyring.derive.bind(f.keyring),
+        deriveSigningSecret: f.keyring.deriveSigningSecret.bind(f.keyring),
+      }, sealer: f.sealer, clock: { nowMs: () => Date.parse(stamp) }, idGen: { newId: () => "unused" } },
         { workspaceId: "ws", id: "custom", label: "Still custom" });
       const customAfter = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
       assert.equal(customAfter.kind, "custom");

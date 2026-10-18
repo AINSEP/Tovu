@@ -132,7 +132,7 @@ test('a configured region header missing from the request yields an unknown regi
     origin: () => 'https://site.example', trustedRegionHeader: 'x-trusted-region',
     rateLimiter: { check: async () => ({ allowed: true as const }) },
   }, {});
-  const request = { get: () => undefined, ip: '127.0.0.1' } as Request;
+  const request = { get: () => undefined, ip: '127.0.0.1' } as unknown as Request;
 
   assert.equal(ports.region({ request }, {}), null);
 });

@@ -18,7 +18,7 @@ for (const toolId of ["deployment_ops_unset_secret", "unknown_delete"]) {
 test("ordinary tools need no delete grant and never call the grant reader", async () => {
   await requireChatDeleteGrant({ toolId: "trash_list_items", surfaces: {
     assertChatDeleteAllowed: async () => { assert.fail("ordinary reads must not request a delete grant"); },
-  } as ChatDeleteSurfaceDeps }, {});
+  } as unknown as ChatDeleteSurfaceDeps }, {});
 });
 
 test("eligible deletes fail closed when the grant reader is missing", async () => {

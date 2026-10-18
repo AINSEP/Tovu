@@ -186,13 +186,14 @@ test("the store passes the original crypto error to its feature storage-error tr
   assert.equal(await f.repo.find({ workspaceId: "ws", id: "media" }), null);
 });
 for (const failure of ["missing-keyring", "active-key", "seal", "open"] as const) {
-  test(`store vault translates ${failure} failures without publishing crypto details`, async () => {
+  test(`store vault translates ${failure} failures without publishing crypto details`, async t => {
     const f = storeFixture();
     const original = createTovuStoreVault(f.required);
     await original.put({ ...f.input, id: "media" });
     const failureError = new Error("private crypto detail");
+    if (failure === "active-key") t.mock.method(f.required.keyring, "activeKey", async () => { throw failureError; });
     const required = { ...f.required,
-      ...(failure === "missing-keyring" ? { keyring: undefined } : failure === "active-key" ? { keyring: { ...f.required.keyring, activeKey: async () => { throw failureError; } } as InMemoryKeyring } : {}),
+      ...(failure === "missing-keyring" ? { keyring: undefined } : {}),
       sealer: {
         seal: failure === "seal" ? async () => { throw failureError; } : f.required.sealer.seal.bind(f.required.sealer),
         open: failure === "open" ? async () => { throw failureError; } : f.required.sealer.open.bind(f.required.sealer),

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
-import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
+import { requireInputRecord, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
 
 import { approvalToolHandler, humanConfirmedToolHandler, notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm, type HumanConfirmSpec } from '../human-confirm.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -156,7 +156,7 @@ test('the compatibility handler prepares, asks and runs with the authenticated h
   const h = harness(t);
   const handler = humanConfirmedToolHandler({ surfaceExchanges: h.store }, {
     flag: 'removed',
-    prepare: async (ctx) => ({ file: ctx.input.file }),
+    prepare: async (ctx) => ({ file: requireInputRecord({ input: ctx.input }).file }),
     dialog: (prepared) => ({ ...h.spec, details: [{ label: 'File', value: String(prepared.file) }] }),
     run: async (_ctx, prepared, confirmer) => ({ removed: prepared.file, confirmer }),
   });

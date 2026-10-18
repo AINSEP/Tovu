@@ -132,7 +132,7 @@ test("invalid templates reach the model as BAD_REQUEST with valid choices and no
   const { deps, postRepo } = makeRouteDeps();
   await seedPost(postRepo, { kind: "page", templateChoice: "shared.html" });
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: WORKSPACE_ID, activeThemeId: "chosen", updatedAt: NOW }] });
-  deps.themes = [{ status: "valid", manifest: { id: "chosen", templates: ["post.html", "page.html", "shared.html"], templateFor: { "post.html": ["post"], "page.html": ["page"] } } } as DiscoveredTheme];
+  deps.themes = [{ status: "valid", manifest: { id: "chosen", templates: ["post.html", "page.html", "shared.html"], templateFor: { "post.html": ["post"], "page.html": ["page"] } } } as unknown as DiscoveredTheme];
   const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   const harness = await buildHarness(deps);
   for (const template of ["post.html", "../page.html", "missing.html", 7, {}]) {

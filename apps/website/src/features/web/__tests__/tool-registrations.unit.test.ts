@@ -22,7 +22,7 @@ test("the contributor uses its supplied clock, observer and workspace-host limit
       return keys.length === 1 ? { allowed: true } : { allowed: false, retryAfterSeconds: 7 };
     } },
   });
-  const [registration] = contributor.build({ workspaceId: "custom-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
+  const [registration] = contributor.build({ workspaceId: "custom-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
   const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
   assert.deepEqual([result.content, result.fetchedAt], ["hello", "2026-10-08T00:00:00.000Z"]);
   await assert.rejects(registration!.handler(ctx({ url: "https://a.example/" })), { message: "web_fetch_page: too many fetches from a.example in the last minute. Retry in 7 seconds." });
@@ -39,7 +39,7 @@ test("the contributor defaults to system time and structured fetch logging", asy
   const logs: string[] = [];
   t.mock.method(console, "info", (message: string) => logs.push(message));
   const contributor = contributeWebTools({ httpClient: ports([]).httpClient, htmlToMarkdown: () => "" });
-  const [registration] = contributor.build({ workspaceId: "defaults-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
+  const [registration] = contributor.build({ workspaceId: "defaults-ws", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
   const result = await registration!.handler(ctx({ url: "https://a.example/" })) as Record<string, unknown>;
   assert.equal(result.fetchedAt, "2026-10-08T00:00:00.000Z");
   assert.deepEqual(logs.map(line => JSON.parse(line)), [{

@@ -17,7 +17,7 @@ test("default capture is installed once, records server errors and can be uninst
   const again = installServerLogCapture({ source: "daemon" });
   assert.equal(isServerLogCaptureInstalled(), true);
   assert.equal(process.listenerCount("uncaughtExceptionMonitor"), before + 1);
-  process.emit("uncaughtExceptionMonitor", new Error("process capture fixture"), "uncaughtException");
+  Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error("process capture fixture"), "uncaughtException"]);
   const entry = readProcessServerLogs().entries.at(-1)!;
   assert.equal(entry.source, "server", "a second install must not replace the first source");
   assert.equal(entry.level, "error");
@@ -36,7 +36,7 @@ test("fatal capture never masks a failure while formatting the original error", 
   const unformattable = { [inspect.custom]() { throw new Error("inspection failed"); } };
   assert.doesNotThrow(() => Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", unformattable, "uncaughtException"]));
   assert.equal(getServerLogBuffer().appendedCount(), count);
-  process.emit("uncaughtExceptionMonitor", new Error("capture still works"), "uncaughtException");
+  Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error("capture still works"), "uncaughtException"]);
   assert.equal(getServerLogBuffer().appendedCount(), count + 1);
   assert.match(getServerLogBuffer().entries().at(-1)!.message, /^\[uncaughtException\] Error: capture still works/);
 });

@@ -255,7 +255,7 @@ test("an enabled connection that fails resolution returns the resolver's actiona
   const f = cardFixture();
   await saveExternalMcpServer({ repo: f.repo, sealer: f.sealer, keyring: f.deps.siteAssistantSecretKeyring, clock: f.clock }, {
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "broken", transport: "streamable_http", authMode: "static_env", enabled: true,
-    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", accessToken: "test-static-token",
+    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "", accessToken: "test-static-token",
   });
   f.deps.siteAssistantSecretSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   assert.deepEqual(await f.call("external_mcp_test_connection", { id: "broken" }), { ok: false, reason: "its stored access token could not be decrypted — re-enter it in Settings → External MCP" });
@@ -273,7 +273,7 @@ test("a connection deleted during configuration resolution returns the fallback 
   const f = cardFixture(repo);
   await saveExternalMcpServer({ repo, sealer: f.sealer, keyring: f.deps.siteAssistantSecretKeyring, clock: f.clock }, {
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "gone", transport: "streamable_http", authMode: "none", enabled: true,
-    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "",
+    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "",
   });
   repo.armed = true;
   assert.deepEqual(await f.call("external_mcp_test_connection", { id: "gone" }), { ok: false, reason: "this server's connection could not be resolved" });
@@ -288,7 +288,7 @@ for (const probe of [
   const f = cardFixture();
   await saveExternalMcpServer({ repo: f.repo, sealer: f.sealer, keyring: f.deps.siteAssistantSecretKeyring, clock: f.clock }, {
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "public", transport: "streamable_http", authMode: "none", enabled: true,
-    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "",
+    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "",
   });
   const contributor = contributeExternalMcpTools({ probe: async (deps, serverId) => {
     assert.equal(deps, f.deps);
@@ -313,7 +313,7 @@ test("OAuth driver failures propagate unchanged rather than becoming input error
   delete process.env.TOVU_PUBLIC_URL;
   f.deps.derivedPublicOrigin = "";
   const failure = new Error("OAuth service unavailable");
-  f.deps.externalMcpOAuth = { beginConnect: async () => { throw failure; } } as ExternalMcpToolDeps["externalMcpOAuth"];
+  f.deps.externalMcpOAuth = { beginConnect: async () => { throw failure; } } as unknown as ExternalMcpToolDeps["externalMcpOAuth"];
   await assert.rejects(f.call("external_mcp_oauth_connect", { id: "hosted" }), error => error === failure);
   assert.deepEqual(await f.repo.listByWorkspaceId(f.deps.workspaceId), []);
 });
@@ -337,7 +337,7 @@ test("a configuration check resolves an OAuth token through its injected service
   const f = cardFixture();
   await saveExternalMcpServer({ repo: f.repo, sealer: f.sealer, keyring: f.deps.siteAssistantSecretKeyring, clock: f.clock }, {
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "oauth", transport: "streamable_http", authMode: "oauth", enabled: true,
-    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", oauth: { clientId: "client", grant: "authorization_code" },
+    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "", oauth: { clientId: "client", grant: "authorization_code" },
   });
   const record = await f.repo.findByServerId({ workspaceId: f.deps.workspaceId, serverId: "oauth" });
   assert.ok(record);

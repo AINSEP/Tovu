@@ -10,6 +10,7 @@ import { createContributionRegistry, type ToolExecutionContext } from '@jini-ai/
 import type { ToolAttemptAuditSink } from '@jini-ai/daemon/tool-audit';
 import type { ToolContributor, DerivedToolContributor } from '#src/assistant/index';
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
+import { toAssistantRegistryDeps } from '#src/assistant/__tests__/fixtures/registry-deps';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { openChatDb } from '#src/platform/db/sqlite/chat-db';
@@ -19,6 +20,7 @@ import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/
 import { createSitesWorkspace, assertTestHomeIsolation } from '#src/platform/site-dir/sites-home';
 import { resolveSiteDatabasePaths } from '#src/platform/site-dir/site-databases';
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/features/identity/wiring';
+import { createSettingsPrincipalLookup } from '#src/features/settings/index';
 import { createPost, SqlitePostRepo } from '#src/features/post/index';
 import { PagesHtmlDocumentStore } from '#src/features/pages/index';
 import { LocalFsBlobStore } from '#src/features/media/index';
@@ -27,7 +29,6 @@ import { SqliteToolAttemptAuditSink } from '#src/features/tool-audit/repo.sqlite
 import { installCommentsDataModule } from '#src/features/comments/data-module-install';
 import { installNewsletterDataModule } from '#src/features/newsletter/data-module-manifest';
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteMediaContentTypeStore } from '#src/platform/db/sqlite/media-repo.sqlite';
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from '#src/contracts/core/rate-limit/rate-limit';
 import { createRouteDeps } from '../app.js';
 import { createAppPermissionGrants } from '../app-permission-grants.js';
 import { installFirstPartyToolContributors } from '../tool-catalog-manifest.js';
@@ -53,7 +54,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     const paths = resolveSiteDatabasePaths({ dir }, { workspace, placement, reserveIdentity: false });
     fs.mkdirSync(path.dirname(paths.contentDbPath), { recursive: true });
     const db = openContentDb(paths.contentDbPath), kernel = contentKernel(db);
-    close.push(() => db.$client.close());
+    close.push(() => { db.$client.close(); });
     const workspaceId = `${name}-workspace`, at = '2026-10-16T00:00:00.000Z';
     db.$client.prepare('INSERT INTO workspaces(id,name,slug,created_at) VALUES(?,?,?,?)').run(workspaceId, name, name, at);
     let sequence = 0;
@@ -86,7 +87,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
       await store.create({ id: id!, title: `${name} theme plan` });
       await store.appendMessage({ conversationId: id!, message: { id: `${id}-message`, role: 'user', content: `${name} ${id}` } });
     }
-    close.push(() => chat.close());
+    close.push(() => { chat.close(); });
     const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
     fs.mkdirSync(path.dirname(journalPath), { recursive: true });
     const journal = openDatabaseJournalDb(journalPath);
@@ -122,11 +123,17 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     audits.push({ ...required, ...optional });
     await activeAudit.append(required, optional);
   } };
-  const deps = { ...base, ...a.identity, workspaceId: a.workspaceId, postRepo: a.postRepo, mediaRepo: a.mediaRepo,
+  const deps = toAssistantRegistryDeps({ routeDeps: { ...base, ...a.identity, workspaceId: a.workspaceId, postRepo: a.postRepo, mediaRepo: a.mediaRepo,
+    // Replacing identity must also rebind the settings lookup to A's principal repository.
+    principalRepo: {
+      ...createSettingsPrincipalLookup({ repo: a.identity.principalRepo }),
+      findById: a.identity.principalRepo.findById.bind(a.identity.principalRepo),
+      list: a.identity.principalRepo.list.bind(a.identity.principalRepo),
+      save: a.identity.principalRepo.save.bind(a.identity.principalRepo),
+    },
     formDefinitionRepo: a.formDefinitionRepo, chatHistory: a.chatHistory, peerSiteReads: peer,
     toolAttemptAuditSink,
-    magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: base.clock }),
-  };
+  } });
   const build = (collapsed = false) => buildAssistantToolRegistrations(deps, undefined, { contributions, includeContentReadCollapse: collapsed });
   /** Invoke actual assembled handlers with A's identity; peer scoping must replace it with B's owner. */
   const call = (id: string, input: unknown, principalId = a.ownerId) => {

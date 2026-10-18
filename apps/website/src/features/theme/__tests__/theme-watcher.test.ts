@@ -60,7 +60,7 @@ test("settle-then-refresh coalesces adds, changes and removals before the existi
   f.change("static/basic");
   t.mock.timers.tick(399);
   f.feed();
-  assert.deepEqual(f.frames, []);
+  assert.deepEqual([...f.frames], []);
   assert.deepEqual(f.themes.map((theme) => theme.manifest.id), ["basic"]);
   t.mock.timers.tick(1);
   f.feed();

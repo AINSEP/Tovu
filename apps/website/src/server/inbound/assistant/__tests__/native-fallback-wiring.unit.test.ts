@@ -115,7 +115,7 @@ test('non-owner and production/hosted paths never consult the owner setting or l
     assert.equal(input.nativeToolAccess, false);
     assert.deepEqual(input.nativeCapabilities, { shell: false, fileWrite: false, userMcp: false,
       subagents: false, userSettings: false, web: false, workflows: false, loginEnvironment: false });
-    assert.ok(getAgentDef({ id: 'claude' })!.buildArgs({ prompt: input.prompt }, { options: input }).includes('--strict-mcp-config'));
+    assert.ok(getAgentDef({ id: 'claude' })!.buildArgs({ prompt: input.prompt, imagePaths: [] }, { options: input }).includes('--strict-mcp-config'));
     assert.deepEqual(input.settingSources, []);
     for (const tool of ['Bash', 'Edit', 'Write', 'Task', 'Agent', 'Workflow']) assert.ok(input.disallowedTools?.includes(tool), tool);
     assert.equal(input.env, undefined);
@@ -135,7 +135,7 @@ test('the real launch snapshot carries each independent OFF choice into Claude a
     assert.deepEqual(input.nativeCapabilities, settings.capabilities, 'one OFF must preserve every unrelated ON');
     assert.equal(input.env?.PATH, key === 'loginEnvironment' ? undefined : '/test/login-shell');
     assert.equal(input.settingSources === undefined, key !== 'userSettings');
-    const args = def.buildArgs({ prompt: input.prompt }, { options: input });
+    const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { options: input });
     if (deniedTool[key]) assert.ok(args.includes(deniedTool[key]), key);
     if (key === 'userMcp') assert.ok(args.includes('--strict-mcp-config'));
     if (key === 'userSettings') {

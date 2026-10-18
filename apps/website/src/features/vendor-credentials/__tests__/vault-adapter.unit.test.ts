@@ -178,12 +178,13 @@ for (const patch of [{ kind: "custom" }, { ownerKey: "foreign" }, { principalId:
   });
 }
 for (const failure of ["missing-keyring", "active-key", "seal", "open"] as const) {
-  test(`credential vault ${failure} errors expose only the feature storage error`, async () => {
+  test(`credential vault ${failure} errors expose only the feature storage error`, async t => {
     const f = serviceFixture();
     await credentialVault(f.required).put({ ...f.input, id: "existing" });
     const fail = async (): Promise<never> => { throw new Error("sensitive crypto failure"); };
+    if (failure === "active-key") t.mock.method(f.required.keyring, "activeKey", fail);
     const required = { ...f.required,
-      ...(failure === "missing-keyring" ? { keyring: undefined } : failure === "active-key" ? { keyring: { activeKey: fail } as InMemoryKeyring } : {}),
+      ...(failure === "missing-keyring" ? { keyring: undefined } : {}),
       sealer: { seal: failure === "seal" ? fail : f.required.sealer.seal.bind(f.required.sealer), open: failure === "open" ? fail : f.required.sealer.open.bind(f.required.sealer) },
     };
     const service = credentialVault(required);
