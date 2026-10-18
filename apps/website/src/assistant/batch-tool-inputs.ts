@@ -44,6 +44,10 @@ export const DEFAULT_MAX_BATCH_ITEMS = 25;
  * an image the transport delivers from a single call's top-level result.
  */
 export const BATCHABLE_TOOLS: readonly BatchableTool[] = [
+  // Scalar readers reuse their scoped, authorized handler for every item; merged get/list cards
+  // need their own dispatch decision before they can opt in here.
+  { toolId: "pages_read_html" },
+  { toolId: "forms_get_submission" },
   { toolId: "content_post_create" },
   { toolId: "content_post_update" },
   { toolId: "pages_write_html" },
