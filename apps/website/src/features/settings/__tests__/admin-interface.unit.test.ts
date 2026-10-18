@@ -7,6 +7,7 @@ import { getEffective, InMemorySettingsRepo, resolveDefinitionRaw, SCOPE_BIT } f
 import { createSettingsPrincipalLookup } from "../index.js";
 import {
   ADMIN_INTERFACE_NAMESPACE,
+  ADMIN_THEME_KEY,
   CHAT_SHOW_THINKING_KEY,
   CHAT_SHOW_USAGE_LINE_KEY,
   CHAT_TOOL_CALLS_KEY,
@@ -79,6 +80,18 @@ test("an operator with no stored row reads the defaults from the default layer",
   assert.deepEqual(await read(CHAT_TOOL_CALLS_KEY), { value: "collapsed", sourceLayer: "default", defVersion: 1 });
   assert.deepEqual(await read(CHAT_SHOW_USAGE_LINE_KEY), { value: true, sourceLayer: "default", defVersion: 1 });
   assert.deepEqual(await read(CHAT_SHOW_THINKING_KEY), { value: false, sourceLayer: "default", defVersion: 1 });
+});
+
+test("registers the admin theme per operator, defaulting to classic", async () => {
+  const { settingsRepo } = await registeredLedger();
+  const adminTheme = await definition(settingsRepo, ADMIN_THEME_KEY);
+  assert.ok(adminTheme, "core.interface/adminTheme must be registered");
+  // A string, not an enum: a new admin theme ships without a server change.
+  assert.deepEqual(adminTheme.schema, { type: "string" });
+  assert.equal(adminTheme.defaultValue, "classic");
+  assert.equal(adminTheme.scopes, PER_OPERATOR);
+  // The admin's ledger name (`lib/settings-tabs.ts` INTERFACE_KEYS.adminTheme).
+  assert.equal(ADMIN_THEME_KEY, "adminTheme");
 });
 
 test("registering again on the next boot leaves the definitions unchanged", async () => {

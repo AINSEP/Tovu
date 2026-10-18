@@ -15,39 +15,39 @@ import { UserInterfaceSettingsPanel } from "../UserInterfaceSettingsPanel";
 describe("useUserInterfaceTab", () => {
   it("reads the slice and flips only its own key", () => {
     const onChange = vi.fn();
-    const { result } = renderHook(() => useUserInterfaceTab({ value: { hideChatFabWhileOpen: true, wrapTabs: false }, onChange }));
+    const { result } = renderHook(() => useUserInterfaceTab({ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange }));
     expect(result.current.hideChatFabWhileOpen).toBe(true);
     result.current.toggleHideChatFabWhileOpen();
-    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: false, wrapTabs: false });
+    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" });
   });
 
   it("flips tab wrapping without touching the chat-button key", () => {
     const onChange = vi.fn();
-    const { result } = renderHook(() => useUserInterfaceTab({ value: { hideChatFabWhileOpen: false, wrapTabs: false }, onChange }));
+    const { result } = renderHook(() => useUserInterfaceTab({ value: { hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" }, onChange }));
     expect(result.current.wrapTabs).toBe(false);
     result.current.toggleWrapTabs();
-    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: false, wrapTabs: true });
+    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" });
   });
 
   it("falls back to the defaults (hide, scroll) while the slice has not loaded", () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useUserInterfaceTab({ value: null, onChange }));
-    expect(DEFAULT_INTERFACE).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false });
+    expect(DEFAULT_INTERFACE).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
     expect(result.current.hideChatFabWhileOpen).toBe(true);
     expect(result.current.wrapTabs).toBe(false);
     result.current.toggleHideChatFabWhileOpen();
-    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: false, wrapTabs: false });
+    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" });
   });
 });
 
 describe("UserInterfaceSettingsPanel", () => {
   it("renders a labelled switch that reflects the value and autosaves on click", () => {
     const onChange = vi.fn();
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: false, wrapTabs: false }, onChange }} locale="en" />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" }, onChange }} locale="en" />);
     const toggle = screen.getByRole("switch", { name: "Hide the chat button while the chat is open" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(toggle);
-    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: true, wrapTabs: false });
+    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
   });
 
   it("renders the tab-wrapping switch, off by default, and autosaves on click", () => {
@@ -56,11 +56,11 @@ describe("UserInterfaceSettingsPanel", () => {
     const toggle = screen.getByRole("switch", { name: "Wrap tabs instead of scrolling" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(toggle);
-    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: true, wrapTabs: true });
+    expect(onChange).toHaveBeenCalledWith({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" });
   });
 
   it("exposes each switch to the page driver under a stable agent handle", () => {
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false }, onChange: vi.fn() }} locale="en" />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="en" />);
     expect(screen.getAllByRole("switch").map((toggle) => toggle.getAttribute("data-agent-element"))).toEqual([
       "settings-interface-hide-chat-fab",
       "settings-interface-wrap-tabs",
@@ -68,7 +68,7 @@ describe("UserInterfaceSettingsPanel", () => {
   });
 
   it("translates its copy", () => {
-    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false }, onChange: vi.fn() }} locale="es" />);
+    render(<UserInterfaceSettingsPanel slice={{ value: { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }, onChange: vi.fn() }} locale="es" />);
     expect(screen.getByRole("switch", { name: "Ocultar el botón del chat mientras el chat está abierto" })).toBeTruthy();
     expect(screen.getByRole("switch", { name: "Ajustar las pestañas en varias filas en lugar de desplazarlas" })).toBeTruthy();
   });

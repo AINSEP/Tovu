@@ -5,7 +5,10 @@
    Introduced with the grouped sidebar; the shell + nav read these.
    Section bodies still use legacy WordPress colors below (later pass).
    ============================================================ */
-:root {
+/* Classic applies with no `data-admin-theme` on <html> (first paint, unconfigured operators) and
+   when it is chosen explicitly. `:where()` keeps the selector at `:root`'s own specificity, so these
+   values sit in exactly the cascade position they always had; another theme just stops matching. */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) {
   /* Warm off-white (#FAF9F7), not the cool blue-grey the rest of this ramp
      uses. Hue 84.6 is the deliberate odd one out here — every other neutral
      below sits at hue ~250-262 (blue), and this one is the paper the whole
@@ -206,12 +209,8 @@
   --space-7: 2rem;    /* 32px */
   --space-8: 2.5rem;  /* 40px */
 
-  /* Measures — the one width a single-column form surface takes (`.form-measure` below, in the
-     shared page primitives). A token rather than a literal on each rule so `.workspace-page`,
-     the SEO defaults column and every `.form-measure` site stay the same width by construction. */
-  --form-measure: 42rem;
-  --content-measure: 80rem;
-  --assistant-clearance: 88px;
+  /* Measures (--form-measure, --content-measure, --assistant-clearance) are layout, not look:
+     they live in `styles/admin-theme-bridge.css` so every admin theme keeps the same widths. */
 
   /* Type scale — sized against Settings' own measured computed styles (`.jini-tabbed-dialog-
      kicker` 11px, `-subtitle` 13px, panel body 16px, page `h2` 26px) so the primitives below
@@ -225,7 +224,7 @@
   --text-xl:  1.65rem;   /* 26.4px — page title; matches the existing .admin-content h1 */
 }
 
-:root[data-theme="dark"] {
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"])[data-theme="dark"] {
   --bg:            oklch(14% 0.018 255);
   --surface:       oklch(18.5% 0.018 255);
   --surface-2:     oklch(22% 0.016 255);
@@ -299,7 +298,7 @@
 }
 
 /* Reserved material values; primitives continue using their existing tokens this round. */
-:root {
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) {
   --jini-theme-app-bg: var(--bg);
   --jini-theme-panel-bg: var(--surface);
   --jini-theme-panel-border: var(--border);

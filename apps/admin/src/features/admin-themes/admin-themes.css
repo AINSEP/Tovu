@@ -1,0 +1,32 @@
+/* Studio → Admin Themes. Cards reuse site Themes' `.theme-grid` / `.theme-card` (frame, hover lift,
+   active beam); these rules only undo the global `button` fill, since each card is the radio itself. */
+.admin-themes-grid { margin-top: var(--space-5); }
+.admin-theme-card {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  width: 100%; padding: var(--space-4);
+  color: var(--fg); text-align: left; font-weight: 400; letter-spacing: normal;
+}
+.admin-theme-card:hover { opacity: 1; }
+.admin-theme-card:disabled { cursor: default; background: var(--surface); color: var(--fg); }
+.admin-theme-card-title { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.admin-theme-card-name { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; }
+.admin-theme-card-badge {
+  font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--selected-text); background: var(--primary-dim); border-radius: var(--r-pill); padding: 2px 8px;
+}
+.admin-theme-card-schemes { font-size: var(--text-sm); color: var(--muted); }
+
+/* A miniature admin drawn only from the theme's own swatch values (its manifest `preview`), so each
+   card shows that theme even while another one is applied. */
+.admin-theme-swatch {
+  display: flex; gap: 8px; aspect-ratio: 16 / 9; padding: 10px;
+  background: var(--swatch-bg); border: 1px solid var(--swatch-border); border-radius: var(--r-md);
+}
+.admin-theme-swatch-rail { width: 18%; border-radius: 4px; background: color-mix(in oklab, var(--swatch-text) 8%, var(--swatch-bg)); }
+.admin-theme-swatch-panel {
+  flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 10px;
+  background: var(--swatch-surface); border: 1px solid var(--swatch-border); border-radius: 6px;
+}
+.admin-theme-swatch-line { height: 7px; width: 70%; border-radius: 4px; background: var(--swatch-text); opacity: 0.85; }
+.admin-theme-swatch-line.is-short { width: 45%; opacity: 0.45; }
+.admin-theme-swatch-accent { margin-top: auto; width: 36%; height: 14px; border-radius: 4px; background: var(--swatch-accent); }

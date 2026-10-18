@@ -18,3 +18,8 @@ export function effectiveDeclarationsFor(stylesheet: string, selector: string): 
   if (!found) throw new Error(`No rule for selector "${selector}"`);
   return [...declarations].map(([property, { value }]) => `${property}: ${value};`).join(" ");
 }
+
+/** Classic's light/dark selectors (`admin-themes/classic/*.css`): classic applies with no
+ *  `data-admin-theme` on <html> and when chosen, at `:root`'s own specificity. */
+export const CLASSIC_ROOT = ':root:where(:not([data-admin-theme]), [data-admin-theme="classic"])';
+export const CLASSIC_DARK = `${CLASSIC_ROOT}[data-theme="dark"]`;

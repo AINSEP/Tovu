@@ -3,6 +3,7 @@ import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-toolti
 import { SitesSidebarNav } from "./components/SitesSidebarNav";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
+import { useAdminThemeDocument } from "./admin-themes/use-admin-theme.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
 import { AdminBootScopeContext } from "./lib/admin-boot-scope";
@@ -646,6 +647,8 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   const navLocale = useWiredAdminLocale();
   useAdminDocumentLocale({ locale: navLocale }, {});
   useAdminAppearance({}, {});
+  // The operator's admin theme + scheme on <html> (Studio → Admin Themes).
+  useAdminThemeDocument({}, {});
   /** Settings → User Interface: whether the FAB hides while the dock is open, and whether phone tab
    *  strips wrap (see the hook's doc). */
   const interfacePreferences = useInterfacePreferences();

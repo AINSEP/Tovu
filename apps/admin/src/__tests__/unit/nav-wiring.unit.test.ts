@@ -60,7 +60,7 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
 });
 
 describe("Studio Soon navigation", () => {
-  it("places Admin Themes immediately between Themes and Design System with its own Soon route and icon", () => {
+  it("places Admin Themes immediately between Themes and Design System with its own live route and icon", () => {
     const studio = getNav().find((group) => group.label === "Studio")!;
     const themesIndex = studio.items.findIndex((item) => item.id === "themes");
     expect(themesIndex).toBeGreaterThanOrEqual(0);
@@ -68,8 +68,9 @@ describe("Studio Soon navigation", () => {
       "themes", "admin-themes", "design-system",
     ]);
     expect(studio.items[themesIndex + 1]).toMatchObject({
-      label: "Admin Themes", href: "/admin-themes", soon: true, soonPreviewable: true,
+      label: "Admin Themes", href: "/admin-themes",
     });
+    expect(studio.items[themesIndex + 1].soon).toBeFalsy();
     expect(studio.items[themesIndex + 1].icon).toBeTruthy();
     expect(studio.items[themesIndex + 1].icon).not.toBe(studio.items[themesIndex].icon);
   });

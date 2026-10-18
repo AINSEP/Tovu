@@ -1,3 +1,5 @@
+/* Jini Default's chat values first; classic's scoped values win whenever classic applies. */
+@import '@jini-ai/admin/themes/default/chat.css';
 @import '../admin-themes/classic/chat.css';
 
 /**

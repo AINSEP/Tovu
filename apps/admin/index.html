@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tovu Admin</title>
+    <!-- Admin theme before first paint (src/admin-themes/apply.ts writes this key). Without it a
+         reload paints classic until the settings read lands, then switches. -->
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem("tovu.adminTheme") || "null");
+        if (s && typeof s.themeId === "string") {
+          var c = s.preference === "dark" || s.preference === "light" ? s.preference
+            : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          if (Array.isArray(s.schemes) && s.schemes.length && s.schemes.indexOf(c) < 0) c = s.schemes[0];
+          var r = document.documentElement;
+          r.setAttribute("data-admin-theme", s.themeId);
+          r.setAttribute("data-color-scheme", c);
+          if (c === "dark") r.setAttribute("data-theme", "dark");
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

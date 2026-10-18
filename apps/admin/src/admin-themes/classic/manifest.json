@@ -22,5 +22,21 @@
       "family": "JetBrains Mono",
       "stylesheet": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap"
     }
-  ]
+  ],
+  "preview": {
+    "light": {
+      "bg": "#fff",
+      "surface": "oklch(100% 0 none)",
+      "text": "oklch(24% 0.022 262)",
+      "accent": "oklch(55.29% 0.1129 43.4)",
+      "border": "oklch(91.5% 0.007 255)"
+    },
+    "dark": {
+      "bg": "oklch(14% 0.018 255)",
+      "surface": "oklch(18.5% 0.018 255)",
+      "text": "oklch(96% 0.004 250)",
+      "accent": "oklch(56% 0.10 44)",
+      "border": "oklch(100% 0 0 / 0.11)"
+    }
+  }
 }

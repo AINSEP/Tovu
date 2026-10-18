@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { ChatPane, registerMidRunUserMessageRenderer, type ChatTransport } from "@jini-ai/chat/react";
-import { effectiveDeclarationsFor } from "../../__tests__/unit/css-declarations.test-helper";
+import { CLASSIC_ROOT, effectiveDeclarationsFor } from "../../__tests__/unit/css-declarations.test-helper";
 
 // Vitest rewrites import.meta.url to the jsdom origin; resolve from the test's filesystem path.
 const adminCss = readFileSync(path.resolve(__dirname, "../assistant.css"), "utf8");
@@ -41,7 +41,7 @@ it.each([
   // Raw style injection does not load @import, and jsdom does not resolve var(); check both ends.
   expect(getComputedStyle(pane).getPropertyValue('--jini-chat-user-bubble')).toBe('var(--jini-theme-chat-user-bubble)');
   expect(getComputedStyle(pane).getPropertyValue('--jini-chat-user-bubble-ink')).toBe('var(--jini-theme-chat-user-bubble-ink)');
-  const themeDeclarations = effectiveDeclarationsFor(themeCss, ':root');
+  const themeDeclarations = effectiveDeclarationsFor(themeCss, CLASSIC_ROOT);
   expect(themeDeclarations).toMatch(/--jini-theme-chat-user-bubble:\s*#1a1b1c\s*;/);
   expect(themeDeclarations).toMatch(/--jini-theme-chat-user-bubble-ink:\s*#fff\s*;/);
   const rules = Array.from(container.querySelector<HTMLStyleElement>('.jini-chat-pane style')!.sheet!.cssRules) as CSSStyleRule[];

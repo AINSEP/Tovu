@@ -1,0 +1,76 @@
+import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_APPEARANCE, DEFAULT_INTERFACE, type AppearanceConfig, type InterfaceConfig } from "../../../lib/settings-tabs";
+import type { AdminThemeDocumentEnv, AdminThemePort } from "../../../admin-themes/use-admin-theme.hooks";
+import { ADMIN_THEMES } from "../../../admin-themes/registry";
+import { AdminThemes } from "../AdminThemes";
+
+vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));
+
+/**
+ * @file Studio → Admin Themes: one card per registered manifest, a click repaints <html> and saves
+ * the choice, and the scheme control writes Appearance's theme setting.
+ */
+
+function setup({ adminTheme = "classic", theme = "light" as AppearanceConfig["theme"] } = {}) {
+  let iface: InterfaceConfig = { ...DEFAULT_INTERFACE, adminTheme };
+  let appearance: AppearanceConfig = { ...DEFAULT_APPEARANCE, theme };
+  const port: AdminThemePort = {
+    loadInterface: () => Promise.resolve(iface),
+    loadAppearance: () => Promise.resolve(appearance),
+    saveInterface: vi.fn((next: InterfaceConfig) => { iface = next; return Promise.resolve(["adminTheme"]); }),
+    saveAppearance: vi.fn((next: AppearanceConfig) => { appearance = next; return Promise.resolve(["theme"]); }),
+  };
+  const env: AdminThemeDocumentEnv = { root: document.createElement("html"), storage: { setItem: vi.fn() } };
+  render(<AdminThemes port={port} env={env} />);
+  return { port, env };
+}
+
+describe("AdminThemes", () => {
+  it("renders a card per installed theme from its manifest, with the stored one checked", async () => {
+    setup({ adminTheme: "default" });
+    const cards = await screen.findAllByRole("radio", { name: /Classic|Jini Default/ });
+    expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining("Tovu Classic"), expect.stringContaining("Jini Default")]);
+    expect(cards).toHaveLength(ADMIN_THEMES.length);
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Jini Default/ })).toHaveAttribute("aria-checked", "true"));
+    expect(screen.getByRole("radio", { name: /Tovu Classic/ })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("heading", { name: "Admin Themes" })).toBeInTheDocument();
+  });
+
+  it("clicking a card applies the theme to <html> at once and persists it", async () => {
+    const { port, env } = setup();
+    const user = userEvent.setup();
+    const card = await screen.findByRole("radio", { name: /Jini Default/ });
+    await waitFor(() => expect(card).toBeEnabled());
+    await user.click(card);
+    expect(env.root.getAttribute("data-admin-theme")).toBe("default");
+    expect(port.saveInterface).toHaveBeenCalledWith({ ...DEFAULT_INTERFACE, adminTheme: "default" }, DEFAULT_INTERFACE);
+    await waitFor(() => expect(card).toHaveAttribute("aria-checked", "true"));
+  });
+
+  it("the scheme control applies and saves Light / Dark / System", async () => {
+    const { port, env } = setup();
+    const user = userEvent.setup();
+    const dark = await screen.findByRole("radio", { name: "Dark" });
+    await waitFor(() => expect(dark).toBeEnabled());
+    expect(screen.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
+    await user.click(dark);
+    expect(env.root.getAttribute("data-theme")).toBe("dark");
+    expect(port.saveAppearance).toHaveBeenCalledWith({ ...DEFAULT_APPEARANCE, theme: "dark" }, DEFAULT_APPEARANCE);
+    await waitFor(() => expect(dark).toHaveAttribute("aria-checked", "true"));
+    expect(screen.getByRole("radio", { name: "System" })).toBeEnabled();
+  });
+
+  it("previews each card from its own manifest swatch", async () => {
+    const { container } = render(<AdminThemes port={{
+      loadInterface: () => Promise.resolve(DEFAULT_INTERFACE),
+      loadAppearance: () => Promise.resolve(DEFAULT_APPEARANCE),
+      saveInterface: vi.fn(),
+      saveAppearance: vi.fn(),
+    }} env={{ root: document.createElement("html") }} />);
+    await screen.findAllByRole("radio", { name: /Classic|Jini Default/ });
+    const swatches = [...container.querySelectorAll<HTMLElement>(".admin-theme-swatch")];
+    expect(swatches.map((swatch) => swatch.style.getPropertyValue("--swatch-accent"))).toEqual(ADMIN_THEMES.map((theme) => theme.preview.light?.accent));
+  });
+});

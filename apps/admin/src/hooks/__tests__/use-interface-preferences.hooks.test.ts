@@ -15,8 +15,8 @@ import {
  * module mocks): the stored values, a refresh that re-reads them, and a failed read.
  */
 
-const SHOW_FAB: InterfaceConfig = { hideChatFabWhileOpen: false, wrapTabs: false };
-const HIDE_FAB: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false };
+const SHOW_FAB: InterfaceConfig = { hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" };
+const HIDE_FAB: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" };
 afterEach(() => vi.unstubAllGlobals());
 
 function createFakePort(initial: InterfaceConfig | Error) {
@@ -41,24 +41,24 @@ function createFakePort(initial: InterfaceConfig | Error) {
 
 describe("useInterfacePreferences", () => {
   it("the live port follows interface and unscoped refreshes while ignoring unrelated settings", async () => {
-    let stored = { hideChatFabWhileOpen: false, wrapTabs: true };
+    let stored = { hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" };
     const fetch = vi.fn(async (url: string) => {
       expect(url).toBe("/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.interface");
       return new Response(JSON.stringify({ data: Object.entries(stored).map(([key, value]) => ({ key, value })) }));
     });
     vi.stubGlobal("fetch", fetch);
     const { result, unmount } = renderHook(() => useInterfacePreferences());
-    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true }));
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" }));
     expect(fetch).toHaveBeenCalledTimes(1);
-    stored = { hideChatFabWhileOpen: true, wrapTabs: false };
+    stored = { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" };
     await act(async () => publishSettingsRefresh(["core.execution"]));
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true });
+    expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" });
     await act(async () => publishSettingsRefresh(["core.interface"]));
-    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false }));
-    stored = { hideChatFabWhileOpen: false, wrapTabs: false };
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" }));
+    stored = { hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" };
     await act(async () => publishSettingsRefresh());
-    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: false }));
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: false, adminTheme: "classic" }));
     expect(fetch).toHaveBeenCalledTimes(3);
     unmount();
     await act(async () => publishSettingsRefresh(["core.interface"]));
@@ -66,24 +66,24 @@ describe("useInterfacePreferences", () => {
   });
 
   it("hides the FAB and scrolls tabs by default before the stored values arrive", () => {
-    const fake = createFakePort({ hideChatFabWhileOpen: false, wrapTabs: true });
+    const fake = createFakePort({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" });
     const { result } = renderHook(() => useInterfacePreferences(fake.port));
-    expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false });
+    expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
   });
 
   it("follows the stored values once loaded", async () => {
-    const fake = createFakePort({ hideChatFabWhileOpen: false, wrapTabs: true });
+    const fake = createFakePort({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" });
     const { result } = renderHook(() => useInterfacePreferences(fake.port));
-    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true }));
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" }));
   });
 
   it("re-reads on a settings refresh, so flipping a toggle needs no reload", async () => {
     const fake = createFakePort(HIDE_FAB);
     const { result } = renderHook(() => useInterfacePreferences(fake.port));
     await waitFor(() => expect(result.current).toEqual(HIDE_FAB));
-    fake.store({ hideChatFabWhileOpen: true, wrapTabs: true });
+    fake.store({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" });
     act(() => fake.refresh());
-    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: true }));
+    await waitFor(() => expect(result.current).toEqual({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" }));
   });
 
   it("keeps the last values when a read fails", async () => {
@@ -112,8 +112,8 @@ describe("resolveAdminLayoutClassName", () => {
   });
 
   it("adds the class the tab-wrapping CSS rules are gated on only while that setting is on", () => {
-    expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: false, wrapTabs: true })).toBe("admin-layout wraps-tabs");
-    expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: true, wrapTabs: true })).toBe(
+    expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "classic" })).toBe("admin-layout wraps-tabs");
+    expect(resolveAdminLayoutClassName({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" })).toBe(
       "admin-layout hides-fab-while-open wraps-tabs",
     );
   });

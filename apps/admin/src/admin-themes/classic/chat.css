@@ -10,8 +10,9 @@
    overrides are identical at both mount points, so the structural bridge groups those selectors
    instead of copying them twice. The input values below preserve that split; the original four
    pane-only properties (background, the "strong" border step and accent pair), plus subsequently
-   added bubble/danger/radius values, feed its pane-only block. */
-:root {
+   added bubble/danger/radius values, feed its pane-only block.
+   Scoped like classic/admin.css so another admin theme's chat values apply when it is chosen. */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) {
   --jini-theme-chat-panel: var(--surface);
   /* REVERTED to `var(--surface-2)` (owner report, 2026-09-01: "the chat input should be gray,
      the chat pane should be white — it's hard to see where the input is"). The earlier flattening
@@ -45,7 +46,7 @@
   --jini-theme-chat-border-soft: var(--chat-border-seam);
 }
 
-:root {
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) {
   --jini-theme-chat-bg: var(--surface);
   --jini-theme-chat-border-strong: var(--chat-border-strong-seam);
   --jini-theme-chat-accent: var(--accent-text);

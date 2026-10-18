@@ -1,0 +1,25 @@
+/* Structural defaults for the few legacy names Tovu's CSS reads that `@jini-ai/ui`'s alias block
+   (styles/admin.css: `--bg: var(--jini-bg)` …) does not declare. Without them, any admin theme
+   other than classic would leave focus rings, selected states, danger-button ink and the chat
+   border/danger seams unresolved. Classic declares every one of these itself, later in the cascade
+   at the same specificity, so this block never changes how classic renders. The seams keep the
+   cycle-breaking role documented in classic/admin.css: they resolve here, at :root. */
+:root {
+  /* Layout measures, identical for every theme. */
+  --form-measure: 42rem;
+  --content-measure: 80rem;
+  --assistant-clearance: 88px;
+
+  --focus-ring: var(--primary);
+  --selected-ring: var(--primary);
+  --selected-text: var(--primary);
+  --selected-text-on-tint: color-mix(in oklab, var(--selected-text) 88%, var(--fg));
+  --danger-ink: var(--jini-bg);
+  /* The active-card beam follows the theme's accent instead of classic's gold. */
+  --border-beam-gold-1: color-mix(in oklab, var(--primary) 35%, var(--jini-bg));
+  --border-beam-gold-2: color-mix(in oklab, var(--primary) 70%, var(--jini-bg));
+  --border-beam-gold-3: var(--primary);
+  --chat-border-seam: var(--border);
+  --chat-border-strong-seam: var(--border-strong);
+  --chat-danger-seam: var(--danger);
+}

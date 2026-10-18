@@ -44,7 +44,7 @@ describe("effective settings reads at the real API seam", () => {
     const executions = Array.from({ length: 3 }, () => loadExecutionConfig());
     for (const call of calls) call.respond(call.namespace === "core.interface" ? { wrapTabs: true } : { mode: "byok" });
 
-    expect(await Promise.all(interfaces)).toEqual(Array(5).fill({ hideChatFabWhileOpen: true, wrapTabs: true }));
+    expect(await Promise.all(interfaces)).toEqual(Array(5).fill({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" }));
     expect((await Promise.all(executions)).map((config) => config.mode)).toEqual(Array(3).fill("byok"));
     expect(calls.map(({ namespace, method }) => [namespace, method])).toEqual([
       ["core.interface", "GET"], ["core.execution", "GET"],
@@ -53,7 +53,7 @@ describe("effective settings reads at the real API seam", () => {
     const nextInterface = loadInterface();
     const nextExecution = loadExecutionConfig();
     for (const call of calls.slice(2)) call.respond(call.namespace === "core.interface" ? { wrapTabs: false } : { mode: "local-cli" });
-    await expect(nextInterface).resolves.toEqual({ hideChatFabWhileOpen: true, wrapTabs: false });
+    await expect(nextInterface).resolves.toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
     expect((await nextExecution).mode).toBe("local-cli");
     expect(calls.filter((call) => call.namespace === "core.interface")).toHaveLength(2);
     expect(calls.filter((call) => call.namespace === "core.execution")).toHaveLength(2);
@@ -105,7 +105,7 @@ describe("effective settings reads at the real API seam", () => {
     await Promise.all([oldInterface, oldExecution]);
     const joined = loadInterface();
     for (const call of calls.slice(2)) call.respond(call.namespace === "core.interface" ? { wrapTabs: true } : { mode: "byok" });
-    await expect(Promise.all([...refreshed, joined])).resolves.toEqual(Array(3).fill({ hideChatFabWhileOpen: true, wrapTabs: true }));
+    await expect(Promise.all([...refreshed, joined])).resolves.toEqual(Array(3).fill({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" }));
     expect((await execution).mode).toBe(scope?.length ? "local-cli" : "byok");
     expect(calls.filter((call) => call.namespace === "core.interface")).toHaveLength(2);
     expect(calls.filter((call) => call.namespace === "core.execution")).toHaveLength(scope?.length ? 1 : 2);
@@ -123,8 +123,8 @@ describe("effective settings reads at the real API seam", () => {
     calls[0].respond({ wrapTabs: false });
     for (const call of calls.slice(1)) call.respond({ wrapTabs: true });
 
-    await expect(oldInterface).resolves.toEqual({ hideChatFabWhileOpen: true, wrapTabs: false });
-    await expect(Promise.all(refreshed)).resolves.toEqual(Array(2).fill({ hideChatFabWhileOpen: true, wrapTabs: true }));
+    await expect(oldInterface).resolves.toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
+    await expect(Promise.all(refreshed)).resolves.toEqual(Array(2).fill({ hideChatFabWhileOpen: true, wrapTabs: true, adminTheme: "classic" }));
     expect(calls.map(({ namespace, method }) => [namespace, method])).toEqual([
       ["core.interface", "GET"], ["core.interface", "GET"],
     ]);

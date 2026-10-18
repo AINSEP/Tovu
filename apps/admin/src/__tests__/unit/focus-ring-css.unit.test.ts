@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
+import { CLASSIC_ROOT, effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /**
  * @file The admin's focus ring lives in CSS only, so it is asserted against the stylesheet: one
@@ -23,7 +23,7 @@ function bareFocusSelectors(css: string): string[] {
 
 describe("admin focus ring", () => {
   it("defines the ring as the brand primary", () => {
-    expect(effectiveDeclarationsFor(themeStylesheet, ":root")).toMatch(/--focus-ring\s*:\s*var\(--primary\)\s*;/);
+    expect(effectiveDeclarationsFor(themeStylesheet, CLASSIC_ROOT)).toMatch(/--focus-ring\s*:\s*var\(--primary\)\s*;/);
   });
 
   it("colours every focus-visible outline with the ring token, whichever rule drew it", () => {

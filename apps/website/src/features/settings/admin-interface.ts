@@ -15,6 +15,10 @@ import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps, SCOPE_BIT 
  * admin wants the chrome to behave is not a property of the workspace. The `workspace` bit stays in
  * the mask so an operator with no user row still inherits a workspace default.
  *
+ * `adminTheme` (owner, 2026-10-17): the operator's admin theme id, chosen on Studio → Admin Themes and
+ * mirrored by the admin's `admin-themes/registry.ts`. A free-form string, not an enum, so a new theme
+ * package is a drop-in on the admin side alone; the admin falls back to classic for an unknown id.
+ *
  * `core.*` because the settings namespace fence admits that prefix only for a platform-wide core
  * definition, the same constraint `site-title.ts` documents.
  */
@@ -27,6 +31,7 @@ export const WRAP_TABS_KEY = "wrapTabs";
 export const CHAT_TOOL_CALLS_KEY = "chatToolCalls";
 export const CHAT_SHOW_USAGE_LINE_KEY = "chatShowUsageLine";
 export const CHAT_SHOW_THINKING_KEY = "chatShowThinking";
+export const ADMIN_THEME_KEY = "adminTheme";
 
 const PER_OPERATOR_SCOPES = SCOPE_BIT.user | SCOPE_BIT.workspace;
 
@@ -38,7 +43,7 @@ export interface EnsureAdminInterfaceSettingDefinitionsInput {
 /**
  * Idempotently registers the `core.interface` definitions. Safe on every boot.
  *
- * @complexity O(1), five definitions.
+ * @complexity O(1), six definitions.
  */
 export async function ensureAdminInterfaceSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
@@ -52,6 +57,7 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: CHAT_TOOL_CALLS_KEY, schema: { type: "enum", values: ["show", "collapsed", "hidden"] }, defaultValue: "collapsed", scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_USAGE_LINE_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
+      { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
     ],
     systemPrincipalId: input.systemPrincipalId,
   });

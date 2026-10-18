@@ -5,6 +5,7 @@ import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
 import { ADMIN_PANELS, type PanelRouteContext } from "../../panels";
 import { agentPageId, parseRoute } from "../../App";
 import { Themes, ThemeExplore } from "../../features/themes";
+import { AdminThemes } from "../../features/admin-themes";
 import { Dashboard } from "../../features/dashboard";
 import { Placeholder } from "../../components/Placeholder";
 import { PostEditor, Posts } from "../../features/posts";
@@ -93,7 +94,7 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "members", component: Members },
   { id: "comments", component: Comments },
   { id: "skills", component: Skills },
-  { id: "admin-themes", component: Placeholder, extraProps: { sectionId: "admin-themes" } },
+  { id: "admin-themes", component: AdminThemes },
   { id: "design-system", component: Placeholder, extraProps: { sectionId: "design-system" } },
   { id: "admin-appearance", component: Placeholder, extraProps: { sectionId: "admin-appearance" } },
   { id: "playground", component: Playground },

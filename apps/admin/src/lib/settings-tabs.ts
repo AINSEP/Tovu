@@ -265,24 +265,27 @@ export async function savePrivacy(
 
 // --- User Interface -------------------------------------------------------
 
-const INTERFACE_KEYS = { hideChatFabWhileOpen: "hideChatFabWhileOpen", wrapTabs: "wrapTabs" } as const;
+const INTERFACE_KEYS = { hideChatFabWhileOpen: "hideChatFabWhileOpen", wrapTabs: "wrapTabs", adminTheme: "adminTheme" } as const;
 
 export interface InterfaceConfig {
   /** Hide the floating chat button while the assistant dock is open (the dock's ✕ closes it). */
   hideChatFabWhileOpen: boolean;
   /** Phone tab strips wrap onto more rows instead of scrolling sideways (owner, 2026-10-07). */
   wrapTabs: boolean;
+  /** The operator's admin theme id (`admin-themes/registry.ts`); its scheme is Appearance's `theme`. */
+  adminTheme: string;
 }
 
 /** `hideChatFabWhileOpen: true`: the behaviour the owner approved before this became a choice
  *  (2026-10-06). `wrapTabs: false`: the swipeable one-row strip stays the phone default. */
-export const DEFAULT_INTERFACE: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false };
+export const DEFAULT_INTERFACE: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" };
 
 export async function loadInterface(): Promise<InterfaceConfig> {
   const values = await loadNamespaceValues(INTERFACE_NAMESPACE);
   return {
     hideChatFabWhileOpen: readBoolean(values, INTERFACE_KEYS.hideChatFabWhileOpen, DEFAULT_INTERFACE.hideChatFabWhileOpen),
     wrapTabs: readBoolean(values, INTERFACE_KEYS.wrapTabs, DEFAULT_INTERFACE.wrapTabs),
+    adminTheme: readString(values, INTERFACE_KEYS.adminTheme, DEFAULT_INTERFACE.adminTheme),
   };
 }
 
@@ -297,6 +300,11 @@ export async function saveInterface(next: InterfaceConfig, previous: InterfaceCo
       key: INTERFACE_KEYS.wrapTabs,
       valueJson: next.wrapTabs,
       changed: next.wrapTabs !== previous.wrapTabs,
+    },
+    {
+      key: INTERFACE_KEYS.adminTheme,
+      valueJson: next.adminTheme,
+      changed: next.adminTheme !== previous.adminTheme,
     },
   ]);
 }

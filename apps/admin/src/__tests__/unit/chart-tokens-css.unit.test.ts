@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
+import { CLASSIC_DARK, CLASSIC_ROOT, effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
 /**
  * @file The admin feeds Jini's recharts components its own chart surface and ink tokens.
@@ -19,13 +19,13 @@ const NEUTRAL_TOKENS = ["grid", "axis", "cursor", "surface", "text"].map((slot) 
 const SERIES_TOKENS = ["1", "2", "3", "4", "5", "6"].map((slot) => `--jini-chart-${slot}`);
 
 describe("admin chart tokens", () => {
-  it.each([":root", ':root[data-theme="dark"]'])("maps every neutral chart token for %s", (selector) => {
+  it.each([CLASSIC_ROOT, CLASSIC_DARK])("maps every neutral chart token for %s", (selector) => {
     const declarations = effectiveDeclarationsFor(stylesheet, selector);
     for (const token of NEUTRAL_TOKENS) expect(declarations, token).toMatch(new RegExp(`${token}\\s*:`));
   });
 
   // An override here would shadow Jini's validated default palette (orange series 1, light + dark).
-  it.each([":root", ':root[data-theme="dark"]'])("leaves the series colors to Jini's default palette for %s", (selector) => {
+  it.each([CLASSIC_ROOT, CLASSIC_DARK])("leaves the series colors to Jini's default palette for %s", (selector) => {
     const declarations = effectiveDeclarationsFor(stylesheet, selector);
     for (const token of SERIES_TOKENS) expect(declarations, token).not.toMatch(new RegExp(`${token}\\s*:`));
   });
