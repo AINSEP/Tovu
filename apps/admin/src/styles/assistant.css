@@ -976,10 +976,12 @@ button.jini-composer-leading,
   border-color: var(--border-strong);
 }
 
+/* One row: the model/effort controls sit in it now, so a narrow dock truncates the model label
+   (Jini's ellipsis) instead of wrapping the send button onto a second line. */
 .jini-composer-footer {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
 }
 
@@ -1161,18 +1163,32 @@ button.jini-composer-leading,
 
 /* --- Runtime/agent picker --- */
 
-/* Borderless, muted "icon model ⌄  effort ⌄" row beside the "+" (Jini lays it out); only the
-   admin's own tokens are mapped here. */
+/* Borderless, muted "icon  model ⌄  effort ⌄" row beside the "+" and its drop-up menus (Jini lays
+   them out); only the admin's own tokens are mapped here. */
 .jini-runtime-trigger,
-.jini-runtime-effort {
+.jini-runtime-dropup-trigger {
   border-radius: var(--r-sm);
   color: var(--muted);
 }
 
 .jini-runtime-trigger:hover,
-.jini-runtime-effort:hover {
+.jini-runtime-dropup-trigger:hover,
+.jini-runtime-dropup-trigger[aria-expanded="true"] {
   background: var(--surface-2);
   color: var(--fg-2);
+}
+
+.jini-runtime-dropup {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  color: var(--fg);
+}
+
+.jini-runtime-dropup__item:hover,
+.jini-runtime-dropup__item:focus-visible {
+  background: var(--surface-2);
 }
 
 .jini-runtime-popover {
