@@ -29,13 +29,16 @@ test("host metadata policy receives parsed fields and returns its catalog decisi
   const meta = { baseUrl: "https://models.example.test", model: "requested-model", migration: { originalLabel: "Original", mappedLabel: "Mapped" }, normalization: "conflict" };
   assert.deepEqual(registry.metaParsers["media-provider"]({ meta }, {}), { ...meta, model: "catalog-model" });
   assert.deepEqual(seen, [{ kind: "media-provider", meta: { baseUrl: meta.baseUrl, model: "requested-model" } }]);
-  assert.equal(registry.isCopyableKind.custom, true);
+  // Unified credentials copy under vendor; legacy custom identities must migrate first.
+  assert.equal(registry.isCopyableKind.vendor, true);
+  assert.equal(registry.isCopyableKind.custom, false);
   assert.equal(registry.isCopyableKind["personal-execution"], false);
 });
 
 for (const normalization of ["missing-key", "unopenable", "invalid-meta", "catalog-unavailable", "conflict"]) {
   test(`preserves the ${normalization} recovery status`, () => {
-    assert.deepEqual(parsers.vendor({ meta: { accountLabel: null, normalization } }), { accountLabel: null, normalization });
+    const meta = { credentialType: "vendor", worksFor: ["host"], accountLabel: null, normalization };
+    assert.deepEqual(parsers.vendor({ meta }), meta);
   });
 }
 for (const [label, meta] of [
@@ -44,18 +47,19 @@ for (const [label, meta] of [
   ["null migration", { migration: null }],
   ["scalar migration", { migration: "old" }],
   ["array migration", { migration: [] }],
-] as const) test(`rejects ${label} as ordinary metadata`, () => invalid("vendor", meta));
+] as const) test(`rejects ${label} as ordinary metadata`, () => invalid("vendor", { credentialType: "vendor", worksFor: ["host"], ...meta }));
 
 test("migration fields may be absent or non-string JSON without losing provenance", () => {
   for (const migration of [{}, { originalLabel: null, mappedLabel: 42 }]) {
-    const meta = { migration };
+    const meta = { credentialType: "vendor", worksFor: ["host"], migration };
     assert.deepEqual(parsers.vendor({ meta }), meta);
   }
 });
 
 for (const [kind, field] of [["media-provider", "baseUrl"], ["site-assistant", "model"], ["custom", "username"], ["vendor", "accountLabel"]] as const) {
   test(`${field} cannot move credentials into plain ${kind} metadata`, () => {
-    const meta = { ...(kind === "custom" ? { category: "general" } : {}), [field]: "https://user:password@example.test" };
+    const meta = { ...(kind === "custom" ? { credentialType: "custom", worksFor: [], category: "general" } :
+      kind === "vendor" ? { credentialType: "vendor", worksFor: ["host"] } : {}), [field]: "https://user:password@example.test" };
     assert.throws(() => parsers[kind]({ meta }), { name: "CredentialInputError", message: "Put credentials in the secret field, not in this field.", field });
   });
 }
@@ -66,21 +70,24 @@ test("database descriptions cannot hold credentials in an otherwise valid field"
 });
 
 for (const field of ["originalLabel", "mappedLabel"]) test(`migration ${field} cannot contain a credential`, () => {
-  assert.throws(() => parsers.vendor({ meta: { migration: { [field]: "https://user:password@example.test" } } }), /credential|secret|password/i);
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "vendor", worksFor: ["host"], migration: { [field]: "https://user:password@example.test" } } }), /credential|secret|password/i);
 });
 
-test("all custom credential categories accept canonical additional origins and optional username", () => {
-  for (const category of CUSTOM_CREDENTIAL_CATEGORIES) {
-    const meta = { category, baseUrl: "https://api.example.test", additionalHosts: ["https://uploads.example.test", "http://localhost:9000"], username: "writer" };
-    assert.deepEqual(parsers.custom({ meta }), meta);
+test("all custom credential categories accept canonical additional origins and optional username under unified and legacy kinds", () => {
+  // New custom credentials use vendor kind; old custom identities remain readable until migration.
+  for (const kind of ["vendor", "custom"] as const) {
+    for (const category of CUSTOM_CREDENTIAL_CATEGORIES) {
+      const meta = { credentialType: "custom", worksFor: [], category, baseUrl: "https://api.example.test", additionalHosts: ["https://uploads.example.test", "http://localhost:9000"], username: "writer" };
+      assert.deepEqual(parsers[kind]({ meta }), meta);
+    }
+    invalid(kind, { credentialType: "custom", worksFor: [], category: null });
   }
-  invalid("custom", { category: null });
 });
 for (const host of ["https://api.example.test/", "https://api.example.test?token=abc"]) {
-  test(`additional host must be an origin: ${host}`, () => invalid("custom", { category: "general", additionalHosts: [host] }));
+  test(`additional host must be an origin: ${host}`, () => invalid("vendor", { credentialType: "custom", worksFor: [], category: "general", additionalHosts: [host] }));
 }
 test("malformed additional host URLs fail instead of reaching the host policy", () => {
-  assert.throws(() => parsers.custom({ meta: { category: "general", additionalHosts: ["not a URL"] } }), { name: "TypeError", message: "Invalid URL" });
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "custom", worksFor: [], category: "general", additionalHosts: ["not a URL"] } }), { name: "TypeError", message: "Invalid URL" });
 });
 
 test("publish peers require a nonempty remote workspace and a string base URL", () => {
@@ -149,6 +156,22 @@ test("store vault defaults its timestamp to epoch and uses an injected singleton
   assert.equal(result.id, "singleton");
   assert.equal(result.createdAt, "1970-01-01T00:00:00.000Z");
   assert.deepEqual((await service.get({ ...f.scope, id: result.id }))?.payload, { token: "secret" });
+});
+test("store vault rejects new unified custom records missing credentialType or worksFor with invalid-meta", async () => {
+  const f = storeFixture();
+  const service = createTovuStoreVault({ ...f.required, kind: "vendor" });
+  const scope = { ...f.scope, kind: "vendor" as const };
+  const incompleteMetadata: VaultMeta[] = [
+    { category: "general" },
+    { category: "general", worksFor: [] },
+    { category: "general", credentialType: "custom" },
+  ];
+  for (const meta of incompleteMetadata) {
+    await assert.rejects(service.put({ ...f.input, ...scope, id: "incomplete", provider: null, meta }), {
+      name: "VaultError", message: "Secrets vault: invalid-meta", code: "invalid-meta",
+    });
+    assert.equal(await f.repo.find({ workspaceId: "ws", id: "incomplete" }), null);
+  }
 });
 test("store vault honors a principal-bound workspace and injected clock", async () => {
   const f = storeFixture();

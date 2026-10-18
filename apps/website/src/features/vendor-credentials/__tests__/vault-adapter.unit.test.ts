@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo, VaultError, type VaultMeta, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { credentialHint, credentialScope, credentialVault, TovuCredentialSetVaultAdapter, VendorCredentialSetVaultRepo } from "../vault-adapter.js";
@@ -12,11 +12,11 @@ const NOW = "2026-10-16T00:00:00.000Z";
 const envelope = { keyId: "v1", ciphertext: "ciphertext", nonce: "nonce", alg: "aes-256-gcm" as const };
 function row(patch: Partial<VaultRecord> = {}): VaultRecord {
   return { workspaceId: "ws", id: "credential", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null,
-    provider: "host", label: "Backup", sealed: envelope, meta: { accountLabel: null }, last4: "tail", tokenLength: 20,
+    provider: "host", label: "Backup", sealed: envelope, meta: { credentialType: "vendor", worksFor: ["host"], accountLabel: null }, last4: "tail", tokenLength: 20,
     isDefault: true, revision: 1, createdAt: NOW, updatedAt: NOW, ...patch };
 }
 function dto(patch: Partial<VendorCredentialSetRecord> = {}): VendorCredentialSetRecord {
-  return { workspaceId: "ws", id: "credential", vendorId: "host", label: "Backup", sealed: envelope,
+  return { workspaceId: "ws", id: "credential", vendorId: "host", credentialType: "vendor", worksFor: ["host"], label: "Backup", sealed: envelope,
     tokenTail: "tail", accountLabel: null, isDefault: true, createdAt: NOW, updatedAt: NOW, ...patch };
 }
 function adapter(vault: VaultRepoPort) {
@@ -47,7 +47,7 @@ for (const [length, last4, tail, hint] of [
   [12, "tail", "tail", { length: 12, last4: "tail" }],
 ] as const) test(`vendor read model protects the suffix for length ${length} and tail ${last4}`, async () => {
   const vault = new InMemoryVaultRepo({});
-  await vault.put({ record: row({ tokenLength: length, last4, meta: {} }), expectedRevision: null });
+  await vault.put({ record: row({ tokenLength: length, last4, meta: { credentialType: "vendor", worksFor: ["host"] } }), expectedRevision: null });
   const found = await adapter(vault).findById({ workspaceId: "ws", id: "credential" });
   assert.ok(found);
   assert.equal(found.accountLabel, null);
@@ -78,7 +78,7 @@ test("legacy ports without indexed defaults fail explicitly", async () => {
 
 test("a vendor rename preserves its envelope hint and provenance through the public adapter methods", async () => {
   const vault = new InMemoryVaultRepo({});
-  const saved = await vault.put({ record: row({ meta: { accountLabel: "old-owner", migration: { originalLabel: "Original" } } }), expectedRevision: null });
+  const saved = await vault.put({ record: row({ meta: { credentialType: "vendor", worksFor: ["host"], accountLabel: "old-owner", migration: { originalLabel: "Original" } } }), expectedRevision: null });
   const repo = adapter(vault);
   await repo.update(dto({ label: "Renamed", accountLabel: "new-owner" }), {});
   const expected = dto({ label: "Renamed", accountLabel: "new-owner" });
@@ -113,14 +113,14 @@ for (const part of ["ciphertext", "nonce"] as const) test(`changing only the env
 
 for (const part of ["keyId", "ciphertext", "nonce", "alg"] as const) test(`a probe from an older ${part} cannot overwrite the account label`, async () => {
   const vault = new InMemoryVaultRepo({});
-  const saved = await vault.put({ record: row({ meta: { accountLabel: "current" } }), expectedRevision: null });
+  const saved = await vault.put({ record: row({ meta: { credentialType: "vendor", worksFor: ["host"], accountLabel: "current" } }), expectedRevision: null });
   await adapter(vault).updateAccountLabel({ workspaceId: "ws", id: "credential", accountLabel: "stale", expectedSealed: { ...envelope, [part]: "different" } as typeof envelope });
   assert.deepEqual(await vault.find(saved), saved);
 });
 
 test("a matching probe changes only account metadata and keeps its original update timestamp", async () => {
   const vault = new InMemoryVaultRepo({});
-  const saved = await vault.put({ record: row({ meta: { accountLabel: "old", migration: { originalLabel: "Original" } } }), expectedRevision: null });
+  const saved = await vault.put({ record: row({ meta: { credentialType: "vendor", worksFor: ["host"], accountLabel: "old", migration: { originalLabel: "Original" } } }), expectedRevision: null });
   await adapter(vault).updateAccountLabel({ workspaceId: "ws", id: "credential", accountLabel: "new", expectedSealed: envelope }, {});
   assert.deepEqual(await vault.find(saved), { ...saved, revision: 2, meta: { ...saved.meta, accountLabel: "new" } });
 });
@@ -145,7 +145,8 @@ function serviceFixture() {
   const sealer = new AesGcmSecretSealer(keyring);
   const required = { repo: { vault }, keyring, sealer, storageError: () => new Error("credential storage unavailable") };
   const scope = credentialScope({ workspaceId: "ws", kind: "vendor" });
-  const input = { ...scope, provider: "host", label: "Backup", meta: { accountLabel: null }, expectedRevision: null, payload: { token: "private-token" } };
+  // New writes declare compatibility explicitly; legacy read defaults do not apply at creation.
+  const input = { ...scope, provider: "host", label: "Backup", meta: { credentialType: "vendor", worksFor: ["host"], accountLabel: null }, expectedRevision: null, payload: { token: "private-token" } };
   return { vault, required, scope, input };
 }
 
@@ -163,20 +164,48 @@ test("credential vault uses its default epoch clock and seals and opens through 
   assert.equal(saved.createdAt, "1970-01-01T00:00:00.000Z");
   assert.deepEqual((await service.get({ ...f.scope, id: saved.id }))?.payload, { token: "private-token" });
 });
+test("credential vault rejects new records missing credentialType or worksFor with invalid-meta", async () => {
+  const f = serviceFixture();
+  const service = credentialVault(f.required);
+  const incompleteMetadata: VaultMeta[] = [
+    { accountLabel: null },
+    { accountLabel: null, worksFor: ["host"] },
+    { accountLabel: null, credentialType: "vendor" },
+  ];
+  for (const meta of incompleteMetadata) {
+    await assert.rejects(service.put({ ...f.input, id: "incomplete", meta }), {
+      name: "VaultError", message: "Secrets vault: invalid-meta", code: "invalid-meta",
+    });
+    assert.equal(await f.vault.find({ workspaceId: "ws", id: "incomplete" }), null);
+  }
+});
 test("credential vault accepts source-control ownership and the supplied clock", async () => {
   const f = serviceFixture();
   const scope = credentialScope({ workspaceId: "ws", kind: "source-control" });
   const service = credentialVault({ ...f.required, clock: { nowMs: () => Date.parse(NOW) } });
-  const saved = await service.put({ ...f.input, ...scope, id: "source" });
+  // Source-control keeps its own metadata contract rather than inheriting vendor subtype fields.
+  const saved = await service.put({ ...f.input, ...scope, id: "source", meta: { accountLabel: null } });
   assert.equal(saved.createdAt, NOW);
   assert.deepEqual((await service.get({ ...scope, id: "source" }))?.payload, { token: "private-token" });
 });
-for (const patch of [{ kind: "custom" }, { ownerKey: "foreign" }, { principalId: "foreign" }] as const) {
+// The legacy custom kind is an authorized compatibility scope, so use a store-only kind here.
+for (const patch of [{ kind: "media-provider" }, { ownerKey: "foreign" }, { principalId: "foreign" }] as const) {
   test(`credential vault refuses foreign ${Object.keys(patch)[0]}`, async () => {
     const f = serviceFixture();
     await assert.rejects(credentialVault(f.required).get({ ...f.scope, ...patch, id: "missing" }), { message: "Secrets vault: context" });
   });
 }
+test("credential vault returns null for missing legacy custom records and rejects new custom-kind creation", async () => {
+  const f = serviceFixture();
+  const scope = credentialScope({ workspaceId: "ws", kind: "custom" });
+  const service = credentialVault(f.required);
+  assert.equal(await service.get({ ...scope, id: "missing" }), null);
+  await assert.rejects(service.put({ ...f.input, ...scope, id: "custom", provider: null,
+    meta: { credentialType: "custom", worksFor: [], category: "general" } }), {
+    name: "VaultError", message: "Secrets vault: context", code: "context",
+  });
+  assert.deepEqual(await f.vault.list(scope), []);
+});
 for (const failure of ["missing-keyring", "active-key", "seal", "open"] as const) {
   test(`credential vault ${failure} errors expose only the feature storage error`, async t => {
     const f = serviceFixture();
