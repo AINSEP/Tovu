@@ -317,7 +317,8 @@ test("the production daemon mounts ownership before run routes and records the d
   const gate = statements.indexOf('app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));');
-  const routes = statements.indexOf('registerRunRoutes({ app, deps: { lifecycle, onStarted, deliverUserMessage: (input) => agentExecutor.sendUserMessage(input) }, adapter });');
+  const routes = parsed.statements.findIndex(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === "registerRunRoutes");
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 

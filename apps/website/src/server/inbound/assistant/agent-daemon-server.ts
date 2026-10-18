@@ -9,6 +9,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { createPluginInstallAttachmentReader } from "../../runtime/composition/plugin-install-attachment-reader.js";
 import { sniffContentType } from "#src/features/media/index";
+import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
@@ -79,7 +80,7 @@ import express from "express";
 
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
-import { buildMcpJsonServerEntry, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage } from "@jini-ai/daemon";
+import { buildMcpJsonServerEntry, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
@@ -87,7 +88,7 @@ import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createDiskAttachmentStore, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { AdapterContext } from "@jini-ai/http-kit";
-import type { AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
+import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
@@ -1324,10 +1325,28 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 
 registerCredentialRunIntake({ app }, {});
 if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
-// `deliverUserMessage`: a message the operator sends mid-run reaches the live agent (Claude Code
-// folds it into the running turn); agents that read one prompt per turn answer 'unsupported' and
-// the chat pane stops the run and sends the text as the next turn instead.
-registerRunRoutes({ app, deps: { lifecycle, onStarted, deliverUserMessage: (input) => agentExecutor.sendUserMessage(input) }, adapter });
+/** Delivers authorized screenshot pixels through the existing live-input path. Reads do not claim
+ * uploads: an unsupported runtime or an ending run must leave the whole turn available for the
+ * idle attachment claim. Non-image files wait for idle delivery, which also grants directory access.
+ * @complexity O(b) time/space in attachment bytes, bounded by the existing upload limits.
+ */
+async function deliverRunUserMessage(
+  { runId, text, attachmentIds = [] }: RunMessageRequest, _optional = {},
+): Promise<UserMessageDelivery> {
+  if (attachmentIds.length === 0) return agentExecutor.sendUserMessage({ runId, text });
+  const principal = principalByRunId.get(runId);
+  if (principal === undefined) return "not-running";
+  const prepared = await prepareByokMessageAttachments({
+    refs: attachmentIds, principalId: principal.id, uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
+  }, {});
+  if (prepared.notice !== "") return "unsupported";
+  return agentExecutor.sendUserMessage({ runId, text }, { imageContents: prepared.images });
+}
+
+registerRunRoutes({ app, deps: { lifecycle, onStarted,
+  deliverUserMessage: (input) => agentExecutor.sendUserMessage(input),
+  deliverUserMessageWithAttachments: (input) => deliverRunUserMessage(input, {}),
+}, adapter });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
