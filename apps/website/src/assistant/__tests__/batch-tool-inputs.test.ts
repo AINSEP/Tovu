@@ -29,6 +29,7 @@ import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { applyBatchInputs, BATCHABLE_TOOLS, batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, withBatchInput, type BatchResult } from "../batch-tool-inputs.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { currentToolIdFor } from "../content-read-tool.js";
 
 function executionContext(input: unknown, signal: AbortSignal = new AbortController().signal): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: "principal-under-test" }, run: { id: "run-1" }, input, signal };
@@ -149,7 +150,7 @@ test("the real composition: every batchable tool is registered and publishes ite
   installFirstPartyToolContributors({ contributions });
   const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
   for (const { toolId } of BATCHABLE_TOOLS) {
-    const schema = byId.get(toolId)?.descriptor.inputSchema as { properties?: Record<string, { type?: string }> } | undefined;
+    const schema = byId.get(currentToolIdFor(toolId))?.descriptor.inputSchema as { properties?: Record<string, { type?: string }> } | undefined;
     assert.ok(schema, `expected '${toolId}' in the production catalog`);
     assert.equal(schema.properties?.items?.type, "array", `${toolId} must accept items`);
   }

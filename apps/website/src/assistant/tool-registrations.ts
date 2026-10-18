@@ -396,6 +396,7 @@ export function buildAssistantToolRegistrations(
       const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
         buildRegistrations: peerDeps => buildAssistantToolRegistrations(peerDeps, surfaces, {
           ...options, targetScope: "off", includeContentReadCollapse: false,
+          batchableTools: [],
           // Excluded builders may touch credentials/live hosts during construction. Never run
           // them over a peer bag, even if their registrations would be discarded afterwards.
           contributions: options.contributions ? {

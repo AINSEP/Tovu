@@ -284,12 +284,18 @@ function sourceRegistration(byId: ReadonlyMap<string, ToolRegistration>, toolId:
  * `value !== undefined` rather than a stricter non-empty-string check: an empty-string id is left
  * for the underlying `get` handler's own `requireString` to reject with its own message, rather
  * than this wrapper inventing a second, possibly-inconsistent validation error.
+ * A batch-enabled get owns `items` before id dispatch: its existing wrapper validates the batch
+ * and runs each item through get, so a missing item id fails instead of disclosing a whole list.
  *
  * @complexity O(1) plus whichever branch's own cost.
  */
-function dispatchByIdPresence(idProperty: string, get: ToolHandler, list: ToolHandler): ToolHandler {
+function dispatchByIdPresence(
+  { idProperty, get, list }: { idProperty: string; get: ToolHandler; list: ToolHandler },
+  { batchGet = false }: { batchGet?: boolean } = {},
+): ToolHandler {
   return async (ctx) => {
     const candidate = { value: ctx.input };
+    if (batchGet && isRecord(candidate) && Object.hasOwn(candidate.value, "items")) return get(ctx);
     const value = isRecord(candidate) ? candidate.value[idProperty] : undefined;
     return value !== undefined ? get(ctx) : list(ctx);
   };
@@ -489,7 +495,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
       const listReg = sourceRegistration(byId, card.list.toolId);
       memberIds.push(card.list.toolId);
       const get = lookupInList({ resource: card.resource, listToolId: card.list.toolId, lookup: card.listLookup, list: listReg.handler });
-      handler = dispatchByIdPresence(card.listLookup.idProperty, get, listReg.handler);
+      handler = dispatchByIdPresence({ idProperty: card.listLookup.idProperty, get, list: listReg.handler });
       inputSchema = unionInputSchema(
         listLookupIdSchema({ resource: card.resource, lookup: card.listLookup, listSchema: (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA }),
         (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
@@ -502,9 +508,12 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
       const getReg = sourceRegistration(byId, card.get.toolId);
       const listReg = sourceRegistration(byId, card.list.toolId);
       memberIds.push(card.get.toolId, card.list.toolId);
-      handler = dispatchByIdPresence(card.get.idProperty, getReg.handler, listReg.handler);
+      const getSchema = (getReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
+      handler = dispatchByIdPresence({ idProperty: card.get.idProperty, get: getReg.handler, list: listReg.handler }, {
+        batchGet: Object.hasOwn((getSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA, "items"),
+      });
       inputSchema = unionInputSchema(
-        (getReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
+        getSchema,
         (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
         card.get.idProperty,
       );
