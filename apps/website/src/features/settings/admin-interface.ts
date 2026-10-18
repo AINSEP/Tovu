@@ -32,6 +32,8 @@ export const CHAT_TOOL_CALLS_KEY = "chatToolCalls";
 export const CHAT_SHOW_USAGE_LINE_KEY = "chatShowUsageLine";
 export const CHAT_SHOW_THINKING_KEY = "chatShowThinking";
 export const ADMIN_THEME_KEY = "adminTheme";
+/** Per-admin-theme colours; Classic retains core.appearance.accentColor's scalar contract. */
+export const ADMIN_THEME_ACCENTS_KEY = "adminThemeAccents";
 
 const PER_OPERATOR_SCOPES = SCOPE_BIT.user | SCOPE_BIT.workspace;
 
@@ -41,9 +43,9 @@ export interface EnsureAdminInterfaceSettingDefinitionsInput {
 }
 
 /**
- * Idempotently registers the `core.interface` definitions. Safe on every boot.
+ * Idempotently registers Tovu's admin interface and theme-accent definitions. Safe on every boot.
  *
- * @complexity O(1), six definitions.
+ * @complexity O(1), seven definitions.
  */
 export async function ensureAdminInterfaceSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
@@ -58,6 +60,15 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: CHAT_SHOW_USAGE_LINE_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
       { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
+    ],
+    systemPrincipalId: input.systemPrincipalId,
+  });
+  await ensureSettingDefinitions(deps, {
+    namespace: "core.appearance",
+    definitions: [
+      // Theme ids are extensible, so this cannot be a fixed set of scalar fields. Keep this
+      // object separate: legacy readers and agent writers still own the Classic scalar.
+      { key: ADMIN_THEME_ACCENTS_KEY, schema: { type: "json" }, defaultValue: {}, scopes: PER_OPERATOR_SCOPES },
     ],
     systemPrincipalId: input.systemPrincipalId,
   });

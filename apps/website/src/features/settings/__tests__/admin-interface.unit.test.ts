@@ -8,6 +8,7 @@ import { createSettingsPrincipalLookup } from "../index.js";
 import {
   ADMIN_INTERFACE_NAMESPACE,
   ADMIN_THEME_KEY,
+  ADMIN_THEME_ACCENTS_KEY,
   CHAT_SHOW_THINKING_KEY,
   CHAT_SHOW_USAGE_LINE_KEY,
   CHAT_TOOL_CALLS_KEY,
@@ -92,6 +93,22 @@ test("registers the admin theme per operator, defaulting to classic", async () =
   assert.equal(adminTheme.scopes, PER_OPERATOR);
   // The admin's ledger name (`lib/settings-tabs.ts` INTERFACE_KEYS.adminTheme).
   assert.equal(ADMIN_THEME_KEY, "adminTheme");
+});
+
+test("registers per-operator admin-theme accents as a separate appearance object", async () => {
+  const { settingsRepo } = await registeredLedger();
+  const accents = await resolveDefinitionRaw({ repo: settingsRepo }, {
+    namespace: "core.appearance", key: ADMIN_THEME_ACCENTS_KEY, workspaceId: null,
+  });
+  assert.ok(accents);
+  assert.equal(ADMIN_THEME_ACCENTS_KEY, "adminThemeAccents");
+  assert.deepEqual(accents.schema, { type: "json" });
+  assert.deepEqual(accents.defaultValue, {});
+  assert.equal(accents.scopes, PER_OPERATOR);
+  const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
+  assert.deepEqual(await getEffective({ repo: settingsRepo }, {
+    namespace: "core.appearance", key: ADMIN_THEME_ACCENTS_KEY, scopeContext,
+  }), { value: {}, sourceLayer: "default", defVersion: 1 });
 });
 
 test("registering again on the next boot leaves the definitions unchanged", async () => {
