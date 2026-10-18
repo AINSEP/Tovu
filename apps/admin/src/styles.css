@@ -2,12 +2,8 @@
 /* Keep Tovu's link colour and text size when widgets are imported directly from Jini. */
 @import './styles/see-more.css';
 
-/* Installed admin themes (`admin-themes/registry.ts`). Jini Default is unscoped `:root` values,
-   bridged onto Tovu's legacy names by `admin-theme-bridge.css`; classic follows at the same
-   specificity and wins whenever it applies. Keep classic values after Jini's legacy aliases and
-   the helper styles. */
+/* Installed Tovu admin themes. Compatibility tokens precede classic so its scoped values win. */
 @import './styles/admin-theme-bridge.css';
-@import '@jini-ai/admin/themes/default/admin.css';
 @import './admin-themes/classic/admin.css';
 
 :root {

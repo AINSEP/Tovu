@@ -1,0 +1,3 @@
+/* The Theme tab reuses its existing panel; Admin UI supplies the page heading. */
+.admin-ui-page .admin-themes-page .page-kicker,
+.admin-ui-page .admin-themes-page .page-title { display: none; }

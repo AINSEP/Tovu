@@ -1,4 +1,3 @@
-import jiniDefaultManifest from "@jini-ai/admin/themes/default/manifest.json";
 import classicManifest from "./classic/manifest.json";
 
 /**
@@ -8,8 +7,8 @@ import classicManifest from "./classic/manifest.json";
  * A new theme is a drop-in: add its folder (manifest.json + token-only admin.css/chat.css), import
  * its stylesheets in `styles.css` / `styles/assistant.css`, and add its manifest below. Its CSS
  * scopes every block under `:root[data-admin-theme="<id>"]` (plus `[data-theme="dark"]` for its
- * dark values). Jini Default is the one unscoped exception: it is the base every scoped theme
- * overrides, and classic out-orders it at equal specificity whenever classic applies.
+ * dark values). Tovu installs only its own themes; platform widget compatibility tokens live in
+ * `styles/admin-theme-bridge.css`, independently of this registry.
  */
 
 export type AdminThemeScheme = "light" | "dark";
@@ -37,7 +36,6 @@ export const DEFAULT_ADMIN_THEME_ID = "classic";
 
 export const ADMIN_THEMES: readonly AdminThemeManifest[] = [
   classicManifest as AdminThemeManifest,
-  jiniDefaultManifest as AdminThemeManifest,
 ];
 
 /** An unknown id (a theme since removed) falls back to classic rather than matching no theme. */

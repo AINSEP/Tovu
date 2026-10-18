@@ -7,3 +7,4 @@
  * it is exported from this line.
  */
 export { SettingsUi } from "./SettingsUi";
+export { AdminAppearance } from "./AdminAppearance";

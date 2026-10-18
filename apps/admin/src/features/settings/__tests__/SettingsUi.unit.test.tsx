@@ -97,7 +97,6 @@ function baseController(overrides: Partial<SettingsUiController> = {}): Settings
     instructions: makeSlice(DEFAULT_INSTRUCTIONS),
     notifications: makeSlice(DEFAULT_NOTIFICATIONS),
     privacy: makeSlice(DEFAULT_PRIVACY),
-    appearance: makeSlice(DEFAULT_APPEARANCE),
     language: makeSlice(DEFAULT_LOCALE),
 
     loading: false,
@@ -258,34 +257,23 @@ describe("Notifications patch merge", () => {
   });
 });
 
-describe("Appearance (dialog theme) onChange merge", () => {
-  it("merges AppearanceTab's theme selection onto the current value", async () => {
-    const user = userEvent.setup();
-    const controller = baseController({ appearance: makeSlice({ ...DEFAULT_APPEARANCE, accentColor: "#a855f7" }) });
-    render(<SettingsUi useSettingsUiHook={() => controller} />);
-
-    await goToTab(user, "appearance");
-    const group = screen.getByRole("group", { name: "Appearance" });
-    await user.click(within(group).getByRole("button", { name: /dark/i }));
-
-    expect(controller.appearance.onChange).toHaveBeenCalledWith({ ...DEFAULT_APPEARANCE, accentColor: "#a855f7", theme: "dark" });
+describe("Settings after moving Appearance to Admin UI", () => {
+  it("replaces the old Appearance deep link with its Admin UI tab", () => {
+    window.history.replaceState(null, "", "/admin/settings?tab=appearance");
+    const length = window.history.length;
+    render(<SettingsUi tabId="appearance" useSettingsUiHook={() => baseController()} />);
+    expect(window.location.pathname).toBe("/admin/admin-ui");
+    expect(window.location.search).toBe("?tab=appearance");
+    expect(window.history.length).toBe(length);
   });
-});
 
-describe("Settings page theme is pinned to light (owner decision, 2026-09-06)", () => {
-  // The wrapper's `data-theme` is a literal `"light"` no matter what `core.appearance.theme`
-  // holds — see `SettingsUi.tsx`'s comment above its `return`. Against the previous behaviour
-  // (`resolveDialogDataTheme`: `"dark"` → `data-theme="dark"`, `"system"` → no attribute) the
-  // `dark` and `system` rows fail, which is the point: this is what pins that the page cannot
-  // render dark, not a restatement of the default. The stored value still round-trips (the
-  // onChange test above), so this is not a claim that the control stopped saving.
-  it.each(["light", "dark", "system"] as const)('renders data-theme="light" when the stored theme is %j', (theme) => {
-    const controller = baseController({ appearance: makeSlice({ ...DEFAULT_APPEARANCE, theme }) });
-    const { container } = render(<SettingsUi useSettingsUiHook={() => controller} />);
-
-    const wrapper = container.querySelector(".settings-ui-section");
-    expect(wrapper).not.toBeNull();
-    expect(wrapper).toHaveAttribute("data-theme", "light");
+  it("keeps every other settings tab and removes Appearance", () => {
+    const { container } = render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+    expect(container.querySelector(".settings-ui-section")).toHaveAttribute("data-theme", "light");
+    expect(screen.queryByTestId("settings-dialog-nav-appearance")).not.toBeInTheDocument();
+    for (const id of ["execution", "instructions", "notifications", "privacy", "language", "interface", "memory", "workspace", "about"]) {
+      expect(screen.getByTestId(`settings-dialog-nav-${id}`)).toBeInTheDocument();
+    }
   });
 });
 

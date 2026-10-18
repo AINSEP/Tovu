@@ -5,7 +5,7 @@ import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
 import { ADMIN_PANELS, type PanelRouteContext } from "../../panels";
 import { agentPageId, parseRoute } from "../../App";
 import { Themes, ThemeExplore } from "../../features/themes";
-import { AdminThemes } from "../../features/admin-themes";
+import { AdminUi } from "../../features/admin-ui";
 import { Dashboard } from "../../features/dashboard";
 import { Placeholder } from "../../components/Placeholder";
 import { PostEditor, Posts } from "../../features/posts";
@@ -72,14 +72,12 @@ function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
-  // 47 as of 2026-09-10 (second pass, owner call): unchanged from the first pass's count —
-  // `integrations` did NOT leave the manifest, it lost its nav row. Its two tabs (MCP Server,
-  // Webhooks) moved into `providers` (now labelled "Integrations"), and its own id/route stayed for
-  // the `/:subscriptionId` deliveries drill-down and the retired index route's redirect — see
-  // `panels.tsx`'s own comment on both panels for the full history.
-  it("has 47 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(47);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(47);
+  // 48 as of 2026-10-17: Admin UI adds one panel. The three former presentation ids stay
+  // as nav-less redirects, so bookmarks remain valid without duplicate navigation entries.
+  // Design System has no placeholder or tab; its retained route redirects to Appearance.
+  it("has 48 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(48);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(48);
   });
 });
 
@@ -94,9 +92,9 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "members", component: Members },
   { id: "comments", component: Comments },
   { id: "skills", component: Skills },
-  { id: "admin-themes", component: AdminThemes },
-  { id: "design-system", component: Placeholder, extraProps: { sectionId: "design-system" } },
-  { id: "admin-appearance", component: Placeholder, extraProps: { sectionId: "admin-appearance" } },
+  { id: "admin-themes", component: IntegrationsRedirect, extraProps: { routePath: "/admin-ui?tab=theme" } },
+  { id: "design-system", component: IntegrationsRedirect, extraProps: { routePath: "/admin-ui?tab=appearance" } },
+  { id: "admin-appearance", component: IntegrationsRedirect, extraProps: { routePath: "/admin-ui?tab=appearance" } },
   { id: "playground", component: Playground },
   { id: "plugins", component: Plugins },
   { id: "agent-plugins", component: AgentPlugins },
@@ -149,6 +147,7 @@ const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["source-control", SourceControl],
   ["access-tokens", Security],
   ["settings", SettingsUi],
+  ["admin-ui", AdminUi],
   ["providers", Providers],
   // The nav-less `/appearance` alias for the SITE-themes screen (ADR-063) — its render has no
   // `ctx.view` switch of its own (unlike `themes` below, which also handles `theme-explore`), so it

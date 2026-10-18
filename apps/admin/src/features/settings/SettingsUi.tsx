@@ -10,8 +10,8 @@ import { useEffect } from "react";
  * was that both stay available. `settings-raw/` was later deleted once `/settings` was judged to
  * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
- * 10 tabs mounted: AI agent, Instructions, Notifications, Privacy,
- * Dialog appearance, Language, User Interface, Memory, Workspace, About. The shell is
+ * 9 tabs mounted: AI agent, Instructions, Notifications, Privacy,
+ * Language, User Interface, Memory, Workspace, About. The shell is
  * generic over its tab array, so adding more is appending entries to `tabs`
  * below — not restructuring this file. Each ledger-backed tab owns one
  * `useSettingsSlice` instance (its own load, debounce, save chain and diff
@@ -28,7 +28,7 @@ import { useEffect } from "react";
  * ## Four tabs LEFT this file on 2026-09-10 (owner-approved nav restructure)
  *
  * MCP server, Media providers, Connectors and External MCP are no longer here.
- * They were never "settings" in the sense the ten above are — three of them
+ * They were never "settings" in the sense the remaining tabs above are — three of them
  * configure an outside service with a credential, and the fourth exposes this
  * install to an MCP client — so they moved out to top-level nav rows instead
  * of tabs an operator had to know to look for behind Settings. Where they
@@ -99,12 +99,11 @@ import { useEffect } from "react";
  * `useSettingsSlice` mounts, the fake ports/dependencies, and the merged save status) and
  * `hooks/use-settings-locale-sync.hooks.ts` (the `I18nProvider` locale bridge). Pure computation —
  * the loading gate, the first load error, the save-status label, and the dialog theme mapping —
- * lives in `rules.ts`. What stays here is the 10-tab `SettingsDialogTab[]` array (JSX per tab) and
+ * lives in `rules.ts`. What stays here is the 9-tab `SettingsDialogTab[]` array (JSX per tab) and
  * the shell mounts.
  */
 
 import {
-  AppearanceTab,
   ExecutionTab,
   I18nProvider,
   InstructionsTab,
@@ -124,7 +123,7 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
+import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
 import { Workspace } from "../workspace";
 import { t as tWorkspace } from "../workspace/workspace-i18n";
@@ -288,7 +287,10 @@ export function SettingsUi(props: SettingsUiProps) {
   const useSettingsUiHook = resolveSettingsUiHook(props.useSettingsUiHook);
   const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook(props.useAdminExecutionCredentialHook);
   const tabId = resolveTabId(props.tabId);
-  useEffect(() => { if (props.tabId === "skills") navigate("/addons/skills", { replace: true }); }, [props.tabId]);
+  useEffect(() => {
+    if (props.tabId === "skills") navigate("/addons/skills", { replace: true });
+    if (props.tabId === "appearance") navigate("/admin-ui?tab=appearance", { replace: true });
+  }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
   const settingsRootRef = useSettingsActiveTabScroll({ ready: !s.loading, tabId });
 
@@ -503,43 +505,6 @@ export function SettingsUi(props: SettingsUiProps) {
       ),
     },
     {
-      id: "appearance",
-      // Labelled "Dialog appearance", not "Appearance": Tovu already has an
-      // Appearance concept (site theming, its own admin section), and two nav
-      // entries reading "Appearance" that configure different things is the
-      // label collision recon §4 flagged. This one styles the settings surface.
-      label: t("Dialog appearance"),
-      title: t("Dialog appearance"),
-      subtitle: t("Theme and accent color for this settings surface. Saved per operator."),
-      icon: (
-        <TabIcon>
-          <circle cx="9" cy="9" r="6" />
-          <path d="M9 3a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" />
-        </TabIcon>
-      ),
-      panel: (
-        <AppearanceTab
-          theme={(s.appearance.value as AppearanceConfig).theme}
-          onThemeChange={(theme) => s.appearance.onChange({ ...(s.appearance.value as AppearanceConfig), theme })}
-          accentColor={(s.appearance.value as AppearanceConfig).accentColor}
-          onAccentColorChange={(accentColor) =>
-            s.appearance.onChange({ ...(s.appearance.value as AppearanceConfig), accentColor })
-          }
-          // OFF deliberately. The tab's default writes the picked theme onto
-          // `document.documentElement`, which would re-theme the ENTIRE admin
-          // — every other section included — from a control that says it
-          // configures this dialog. Nothing applies the picked theme anywhere
-          // now: the section wrapper's `data-theme` is pinned to light (owner
-          // decision, 2026-09-06 — see the comment above `return`), so Dark and
-          // System here save but render nothing different. Deliberately left
-          // in place rather than hidden; what becomes of the two options is
-          // the owner's call.
-          livePreview={false}
-          agentHandle="settings-appearance"
-        />
-      ),
-    },
-    {
       id: "language",
       label: t("Language"),
       title: t("Language"),
@@ -662,7 +627,7 @@ export function SettingsUi(props: SettingsUiProps) {
       //
       // Placed last, immediately before About: every other tab here configures how the ASSISTANT
       // behaves or how this OPERATOR experiences the dialog (execution, instructions,
-      // notifications, privacy, appearance, language, interface, memory) — this one is the only tab
+      // notifications, privacy, language, interface, memory) — this one is the only tab
       // that is about the INSTALL's own identity, closer in kind to About's version/runtime facts
       // than to any operator preference above it. Not inserted earlier in that run (e.g. ahead of
       // Language) for the same reason: nothing about Workspace configures another tab's behavior,
@@ -726,7 +691,7 @@ export function SettingsUi(props: SettingsUiProps) {
    * `useSettingsDialogShell.ts`), so a literal `null` — what `URLSearchParams.get("tab")` returns
    * for every URL with no `?tab=` at all, i.e. most of them — would still count as "controlled,
    * active tab is null" and blank the panel instead of falling back to the first tab. A `?tab=`
-   * naming an id that isn't one of the 10 above (typo, stale link, or a deliberately bogus value)
+   * naming an id that isn't one of the 9 above (typo, stale link, or a deliberately bogus value)
    * would do the same, so this checks membership, not just presence — same "don't trust a raw
    * query value" instinct `WidgetInstanceEditor`'s own `?type=` guard applies for the same reason.
    */
@@ -787,13 +752,7 @@ export function SettingsUi(props: SettingsUiProps) {
    * per-panel theming is what the owner has now removed, and the resolver
    * went with it.
    *
-   * CONSEQUENCE, stated rather than hidden: the "Dialog appearance" tab's
-   * Dark and System options still SAVE (`s.appearance.onChange` is untouched
-   * and the value round-trips to the store) but no longer change anything on
-   * this page (the modal overlay they used to also affect is gone — see the
-   * "Top-right chrome" comment above `saveStatus`). What to do with those two
-   * options — disable, remove, or hold for an admin-wide dark mode — is the
-   * owner's separate decision; nothing here pre-empts it.
+   * Appearance now lives under Admin UI; this Settings surface keeps its light pin.
    */
   return (
     /**

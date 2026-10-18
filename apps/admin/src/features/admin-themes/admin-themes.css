@@ -30,3 +30,12 @@
 .admin-theme-swatch-line { height: 7px; width: 70%; border-radius: 4px; background: var(--swatch-text); opacity: 0.85; }
 .admin-theme-swatch-line.is-short { width: 45%; opacity: 0.45; }
 .admin-theme-swatch-accent { margin-top: auto; width: 36%; height: 14px; border-radius: 4px; background: var(--swatch-accent); }
+
+/* Keep the compact scheme control at its content width inside Appearance's column. */
+.admin-themes-scheme { align-self: flex-start; }
+
+/* Classic's dark surface is below the track; raise the selection and give it a visible edge. */
+:root[data-color-scheme="dark"] .admin-themes-scheme button.is-active {
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}

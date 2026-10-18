@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
 import type { PanelAccessDeclaration } from "./lib/panel-access";
 import { Themes, ThemeExplore } from "./features/themes";
-import { AdminThemes } from "./features/admin-themes";
+import { AdminUi } from "./features/admin-ui";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
 import { PostEditor, Posts } from "./features/posts";
@@ -484,7 +484,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // kept as two panel ids (rather than one panel with two routes) because they are two
     // independently agent-reachable pages at two independent URLs, exactly as `SECTIONS` and
     // `ADMIN_AGENT_PAGE_PATHS` both treated them before. The `appearance` SPELLING is legacy here
-    // and should not grow: `admin-appearance` below is the real Appearance feature (restyling the
+    // and should not grow: `admin-ui` below holds the admin Appearance feature (restyling the
     // admin's own chrome), and this screen is about SITE themes — which is why the module it lives
     // in is `features/themes/`, not `features/appearance/`.
     render: (ctx) => {
@@ -525,60 +525,32 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     },
   },
   {
-    id: "admin-themes",
-    render: () => <AdminThemes />,
+    id: "admin-ui",
+    render: (ctx) => <AdminUi tabId={ctx.query.get("tab")} />,
     nav: {
-      label: "Admin Themes",
+      label: "Admin UI",
       group: "Studio",
       // An admin window with a palette swatch, distinct from site Themes' overlapping circles.
       icon: '<rect x="2.5" y="3" width="13" height="12" rx="1.5"/><path d="M2.5 6.5h13M6.5 6.5V15"/><circle cx="11" cy="10.5" r="2"/>',
     },
   },
+  // Keep bookmarks/agent links working after the owner-approved Admin UI merge (2026-10-17).
+  // These ids have no nav rows; the shared redirect replaces history to avoid Back-button loops.
   {
-    id: "design-system",
-    render: () => <Placeholder sectionId="design-system" agentHandle="design-system" />,
-    nav: {
-      label: "Design System",
-      group: "Studio",
-      soon: true,
-      // Four tiles, two square and two round — a token/primitive set, distinct from `widgets`'
-      // four-equal-squares icon at a glance in the icon-only rail.
-      icon: '<rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="9.5" y="2.5" width="6" height="6" rx="3"/><rect x="2.5" y="9.5" width="6" height="6" rx="3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1"/>',
-    },
+    id: "admin-themes",
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=theme" />,
   },
   {
-    // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`design-system` above
-    // use. `id: "admin-appearance"`, NOT `"appearance"` — that id is already taken (see the
-    // nav-less `id: "appearance"` entry further down, which renders the SITE-themes `<Themes>`
-    // screen, same component `id: "themes"` above also renders under its own label). This entry is
-    // for a genuinely different, not-yet-built thing: letting the OPERATOR restyle Tovu's own admin
-    // chrome (CSS/motifs for this panel, not the public site) — labelled "Appearance" per the
-    // owner's own wording, deliberately placed in Studio next to `themes` where an operator would
-    // look for either. The `note` below is what stops that placement reading as a duplicate of
-    // `themes`: `ComingSoonNotice`'s one generic "X is coming soon." sentence alone doesn't say
-    // WHICH X, and "Appearance" sitting one row below "Themes" is exactly the ambiguity an operator
-    // would hit cold. (The screens' own modules no longer collide: site themes live in
-    // `features/themes/`, leaving the `appearance` name free for whatever this grows into.)
     id: "admin-appearance",
-    render: () => (
-      <Placeholder
-        sectionId="admin-appearance"
-        note="This is the admin panel's own look — not the public site's themes (see Themes above). Planned, not yet built."
-        agentHandle="admin-appearance"
-      />
-    ),
-    nav: {
-      label: "Appearance",
-      group: "Studio",
-      soon: true,
-      // A paintbrush + drop — a different primitive from `themes`' three overlapping circles,
-      // `skills`' four-point star, and `design-system`'s 2x2 tile grid at icon-only rail size.
-      icon: '<path d="M12.5 2.5l3 3-6.5 6.5-3.5.8.8-3.5z"/><circle cx="5" cy="14" r="1.5"/>',
-    },
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />,
+  },
+  {
+    id: "design-system",
+    render: () => <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />,
   },
   {
     id: "playground",
-    // Not `soon: true`, unlike Skills/Design System above — this one is real: a live A2UI surface
+    // Not `soon: true`, unlike Skills above — this one is real: a live A2UI surface
     // over `@jini-ai/ui`'s `interactive-ui` registry. See `features/playground/Playground.tsx`'s
     // own header for exactly what does and doesn't work yet (not wired to chat).
     render: () => <Playground />,
@@ -765,8 +737,8 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   // --- Commerce ---
   {
     id: "orders",
-    // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter`/
-    // `design-system` use for a genuinely unbuilt-but-real nav entry. `p_store__orders` exists as a
+    // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter` use
+    // for a genuinely unbuilt-but-real nav entry. `p_store__orders` exists as a
     // table (`store-plugin.ts`) but there is no admin API or screen for it yet, so it renders the
     // plain single-page placeholder rather than `PlaceholderTabs` — there is no named sub-list
     // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
@@ -959,8 +931,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // the most accurate label for what's actually on the page — access tokens, the site/site key,
     // credentials — and matches what Fly/GitHub already call the same thing) — the nav LABEL and
     // the route id are independent, same as every other panel here (e.g. `id: "themes"` labels
-    // "Themes" while `id: "admin-appearance"` also renders a Themes-shaped screen under a
-    // different label).
+    // "Themes" while `id: "providers"` labels "Integrations").
     id: "access-tokens",
     render: (ctx) => <Security tabId={ctx.query.get("tab")} />,
     nav: {

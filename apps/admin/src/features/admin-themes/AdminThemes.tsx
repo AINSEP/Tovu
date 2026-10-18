@@ -5,13 +5,13 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { resolveAdminThemeDocument } from "../../admin-themes/apply";
 import { ADMIN_THEMES, findAdminTheme, type AdminThemeManifest, type AdminThemeScheme } from "../../admin-themes/registry";
-import { useAdminThemePicker, type AdminThemeDocumentEnv, type AdminThemePicker, type AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
+import { useAdminThemePicker, type AdminThemeDocumentEnv, type AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
 import { t } from "./admin-themes-i18n";
 import "./admin-themes.css";
 
 /**
- * @file Studio → Admin Themes: one card per installed admin theme (`admin-themes/registry.ts`) and
- * the operator's Light / Dark / System scheme. A click repaints the admin at once; the choice is
+ * @file Admin UI theme cards and its Appearance tab's compact scheme control.
+ * A click repaints the admin at once; the choice is
  * saved per operator. Site (public) themes are a separate screen and are never touched here.
  */
 
@@ -52,26 +52,38 @@ function ThemeSwatch({ theme, scheme }: { theme: AdminThemeManifest; scheme: Adm
   );
 }
 
-function SchemeControl({ picker, activeTheme, locale }: { picker: AdminThemePicker; activeTheme: AdminThemeManifest; locale: string }) {
+/** Appearance reuses the picker so scheme preview, persistence and rollback have one owner. */
+export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv } = {}) {
+  const locale = useAdminLocale();
+  const picker = useAdminThemePicker({}, { port, env });
+  const activeTheme = findAdminTheme({ id: picker.themeId ?? "" });
   return (
-    <div className="segmented admin-themes-scheme" role="radiogroup" aria-label={t({ locale, key: "Color scheme" })}>
-      {SCHEME_OPTIONS.map((option) => {
-        const checked = picker.preference === option.value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={checked}
-            className={checked ? "is-active" : undefined}
-            disabled={!picker.ready || !schemeOptionAvailable({ theme: activeTheme, value: option.value }, {})}
-            onClick={() => picker.selectPreference(option.value)}
-            {...agentHandle({ handle: `admin-themes-scheme-${option.value}` }, { role: "button", label: `${option.label} color scheme` })}
-          >
-            {t({ locale, key: option.label })}
-          </button>
-        );
-      })}
+    <div className="jini-field">
+      <span className="jini-field-label">{t({ locale, key: "Color scheme" })}</span>
+      <div className="segmented admin-themes-scheme" role="radiogroup" aria-label={t({ locale, key: "Color scheme" })}>
+        {SCHEME_OPTIONS.map((option) => {
+          const checked = picker.preference === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              className={checked ? "is-active" : undefined}
+              disabled={!picker.ready || !schemeOptionAvailable({ theme: activeTheme, value: option.value }, {})}
+              onClick={() => picker.selectPreference(option.value)}
+              {...agentHandle({ handle: `admin-themes-scheme-${option.value}` }, { role: "button", label: `${option.label} color scheme` })}
+            >
+              {t({ locale, key: option.label })}
+            </button>
+          );
+        })}
+      </div>
+      {picker.error ? (
+        <p className="form-error" role="alert">
+          {interpolate({ template: t({ locale, key: "Couldn't save the theme: {error}" }), vars: { error: picker.error } })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -89,7 +101,6 @@ export function AdminThemes({ port, env }: { port?: AdminThemePort; env?: AdminT
           <h1 className="page-title">{t({ locale, key: "Admin Themes" })}</h1>
           <p className="page-description">{t({ locale, key: "How the admin looks to you." })}</p>
         </div>
-        <SchemeControl picker={picker} activeTheme={activeTheme} locale={locale} />
       </div>
       {picker.error ? (
         <p className="form-error" role="alert">

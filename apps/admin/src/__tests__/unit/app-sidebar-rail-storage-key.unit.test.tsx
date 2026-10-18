@@ -113,9 +113,7 @@ it("reads a rail preference an operator already saved before this migration", as
 });
 
 it.each([
-  ["Design System", "design-system", "Studio"],
-  ["Appearance", "admin-appearance", "Studio"],
-  ["Admin Themes", "admin-themes", "Studio"],
+  ["Newsletter", "newsletter", "Marketing"],
   ["Authentication", "authentication", "People"],
   ["Comments", "comments", "People"],
 ])("clicking Soon item %s navigates and highlights it without collapsing the sidebar or group", async (label, id, group) => {
@@ -146,7 +144,7 @@ it.each([
     expect(link).toHaveAttribute("href", `/admin/${id}`);
     expect(link).toHaveAttribute("aria-current", "page");
     expect(link).toHaveClass("is-soon", "active");
-    if (group === "Studio") {
+    if (group === "Marketing") {
       const main = within(container.querySelector("main")!);
       expect(main.getByRole("heading", { name: label, level: 1 })).toBeVisible();
       expect(main.getByText(`${label} is coming soon.`)).toBeVisible();

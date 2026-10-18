@@ -10,7 +10,7 @@ vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => 
 
 /**
  * @file Studio → Admin Themes: one card per registered manifest, a click repaints <html> and saves
- * the choice, and the scheme control writes Appearance's theme setting.
+ * the choice. Scheme selection belongs only to the Appearance tab.
  */
 
 function setup({ adminTheme = "classic", theme = "light" as AppearanceConfig["theme"] } = {}) {
@@ -18,7 +18,7 @@ function setup({ adminTheme = "classic", theme = "light" as AppearanceConfig["th
   let appearance: AppearanceConfig = { ...DEFAULT_APPEARANCE, theme };
   const port: AdminThemePort = {
     loadInterface: () => Promise.resolve(iface),
-    loadAppearance: () => Promise.resolve(appearance),
+    loadAppearance: vi.fn(() => Promise.resolve(appearance)),
     saveInterface: vi.fn((next: InterfaceConfig) => { iface = next; return Promise.resolve(["adminTheme"]); }),
     saveAppearance: vi.fn((next: AppearanceConfig) => { appearance = next; return Promise.resolve(["theme"]); }),
   };
@@ -31,35 +31,31 @@ describe("AdminThemes", () => {
   it("renders a card per installed theme from its manifest, with the stored one checked", async () => {
     setup({ adminTheme: "default" });
     const cards = await screen.findAllByRole("radio", { name: /Classic|Jini Default/ });
-    expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining("Tovu Classic"), expect.stringContaining("Jini Default")]);
+    expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining("Tovu Classic")]);
     expect(cards).toHaveLength(ADMIN_THEMES.length);
-    await waitFor(() => expect(screen.getByRole("radio", { name: /Jini Default/ })).toHaveAttribute("aria-checked", "true"));
-    expect(screen.getByRole("radio", { name: /Tovu Classic/ })).toHaveAttribute("aria-checked", "false");
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Tovu Classic/ })).toHaveAttribute("aria-checked", "true"));
+    expect(screen.queryByRole("radio", { name: /Jini Default/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Admin Themes" })).toBeInTheDocument();
   });
 
   it("clicking a card applies the theme to <html> at once and persists it", async () => {
-    const { port, env } = setup();
+    const { port, env } = setup({ adminTheme: "default" });
     const user = userEvent.setup();
-    const card = await screen.findByRole("radio", { name: /Jini Default/ });
+    const card = await screen.findByRole("radio", { name: /Tovu Classic/ });
     await waitFor(() => expect(card).toBeEnabled());
     await user.click(card);
-    expect(env.root.getAttribute("data-admin-theme")).toBe("default");
-    expect(port.saveInterface).toHaveBeenCalledWith({ ...DEFAULT_INTERFACE, adminTheme: "default" }, DEFAULT_INTERFACE);
+    expect(env.root.getAttribute("data-admin-theme")).toBe("classic");
+    expect(port.saveInterface).toHaveBeenCalledWith(DEFAULT_INTERFACE, { ...DEFAULT_INTERFACE, adminTheme: "default" });
     await waitFor(() => expect(card).toHaveAttribute("aria-checked", "true"));
   });
 
-  it("the scheme control applies and saves Light / Dark / System", async () => {
-    const { port, env } = setup();
-    const user = userEvent.setup();
-    const dark = await screen.findByRole("radio", { name: "Dark" });
-    await waitFor(() => expect(dark).toBeEnabled());
-    expect(screen.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
-    await user.click(dark);
-    expect(env.root.getAttribute("data-theme")).toBe("dark");
-    expect(port.saveAppearance).toHaveBeenCalledWith({ ...DEFAULT_APPEARANCE, theme: "dark" }, DEFAULT_APPEARANCE);
-    await waitFor(() => expect(dark).toHaveAttribute("aria-checked", "true"));
-    expect(screen.getByRole("radio", { name: "System" })).toBeEnabled();
+  it("keeps scheme controls off the Theme tab", async () => {
+    setup();
+    await screen.findByRole("radio", { name: /Tovu Classic/ });
+    expect(screen.queryByRole("radiogroup", { name: "Color scheme" })).not.toBeInTheDocument();
+    for (const name of ["Light", "Dark", "System"]) {
+      expect(screen.queryByRole("radio", { name })).not.toBeInTheDocument();
+    }
   });
 
   it("previews each card from its own manifest swatch", async () => {

@@ -59,17 +59,20 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
   });
 });
 
-describe("Studio Soon navigation", () => {
-  it("places Admin Themes immediately between Themes and Design System with its own live route and icon", () => {
+describe("Studio navigation", () => {
+  it("collapses the admin presentation rows into Admin UI and keeps Playground separate", () => {
     const studio = getNav().find((group) => group.label === "Studio")!;
     const themesIndex = studio.items.findIndex((item) => item.id === "themes");
     expect(themesIndex).toBeGreaterThanOrEqual(0);
     expect(studio.items.slice(themesIndex, themesIndex + 3).map((item) => item.id)).toEqual([
-      "themes", "admin-themes", "design-system",
+      "themes", "admin-ui", "playground",
     ]);
     expect(studio.items[themesIndex + 1]).toMatchObject({
-      label: "Admin Themes", href: "/admin-themes",
+      label: "Admin UI", href: "/admin-ui",
     });
+    for (const retired of ["admin-themes", "admin-appearance", "design-system"]) {
+      expect(getNav().flatMap((group) => group.items.map((item) => item.id))).not.toContain(retired);
+    }
     expect(studio.items[themesIndex + 1].soon).toBeFalsy();
     expect(studio.items[themesIndex + 1].icon).toBeTruthy();
     expect(studio.items[themesIndex + 1].icon).not.toBe(studio.items[themesIndex].icon);

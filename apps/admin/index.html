@@ -14,7 +14,8 @@
             : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           if (Array.isArray(s.schemes) && s.schemes.length && s.schemes.indexOf(c) < 0) c = s.schemes[0];
           var r = document.documentElement;
-          r.setAttribute("data-admin-theme", s.themeId);
+          // Migrate the retired platform theme before first paint; other drop-in ids stay valid.
+          r.setAttribute("data-admin-theme", s.themeId === "default" ? "classic" : s.themeId);
           r.setAttribute("data-color-scheme", c);
           if (c === "dark") r.setAttribute("data-theme", "dark");
         }

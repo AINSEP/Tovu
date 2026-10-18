@@ -53,10 +53,10 @@ describe("useAdminThemeDocument", () => {
     const { env, storage } = fakeEnv();
     renderHook(() => useAdminThemeDocument({}, { port: fakePort({ adminTheme: "default", theme: "dark" }), env }));
     expect(env.root.hasAttribute("data-admin-theme")).toBe(false);
-    await waitFor(() => expect(env.root.getAttribute("data-admin-theme")).toBe("default"));
+    await waitFor(() => expect(env.root.getAttribute("data-admin-theme")).toBe("classic"));
     expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
     expect(env.root.getAttribute("data-theme")).toBe("dark");
-    expect(storage.setItem).toHaveBeenCalledWith(ADMIN_THEME_STORAGE_KEY, expect.stringContaining('"themeId":"default"'));
+    expect(storage.setItem).toHaveBeenCalledWith(ADMIN_THEME_STORAGE_KEY, expect.stringContaining('"themeId":"classic"'));
   });
 
   it("follows the OS while the scheme is system, and stops listening on unmount", async () => {
@@ -73,16 +73,16 @@ describe("useAdminThemeDocument", () => {
 
 describe("useAdminThemePicker", () => {
   it("repaints at once and saves the theme id through the interface ledger", async () => {
-    const port = fakePort();
+    const port = fakePort({ adminTheme: "default" });
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectTheme("default"));
-    expect(env.root.getAttribute("data-admin-theme")).toBe("default");
-    expect(result.current.themeId).toBe("default");
-    expect(port.saveInterface).toHaveBeenCalledWith({ ...DEFAULT_INTERFACE, adminTheme: "default" }, DEFAULT_INTERFACE);
+    act(() => result.current.selectTheme("classic"));
+    expect(env.root.getAttribute("data-admin-theme")).toBe("classic");
+    expect(result.current.themeId).toBe("classic");
+    expect(port.saveInterface).toHaveBeenCalledWith(DEFAULT_INTERFACE, { ...DEFAULT_INTERFACE, adminTheme: "default" });
     await waitFor(() => expect(port.loadInterface).toHaveBeenCalledTimes(2));
-    expect(result.current.themeId).toBe("default");
+    expect(result.current.themeId).toBe("classic");
   });
 
   it("saves the scheme through Appearance's theme setting, leaving the accent alone", async () => {
@@ -97,14 +97,14 @@ describe("useAdminThemePicker", () => {
   });
 
   it("restores the stored choice and reports the error when a save fails", async () => {
-    const port = fakePort();
+    const port = fakePort({ adminTheme: "default" });
     port.saveInterface = vi.fn(() => Promise.reject(new Error("offline")));
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    act(() => result.current.selectTheme("default"));
+    act(() => result.current.selectTheme("classic"));
     await waitFor(() => expect(result.current.error).toBe("offline"));
-    expect(result.current.themeId).toBe("classic");
+    expect(result.current.themeId).toBe("default");
     expect(env.root.getAttribute("data-admin-theme")).toBe("classic");
   });
 
@@ -114,7 +114,7 @@ describe("useAdminThemePicker", () => {
     port.loadInterface = vi.fn(() => new Promise<InterfaceConfig>((resolveLoad) => { release = resolveLoad; }));
     const { env } = fakeEnv();
     const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
-    act(() => result.current.selectTheme("default"));
+    act(() => result.current.selectTheme("classic"));
     expect(port.saveInterface).not.toHaveBeenCalled();
     await waitFor(() => expect(port.loadInterface).toHaveBeenCalled());
     await act(async () => release(DEFAULT_INTERFACE));

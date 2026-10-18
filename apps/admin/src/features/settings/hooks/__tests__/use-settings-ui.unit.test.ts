@@ -13,7 +13,7 @@ import { useSettingsUi } from "../use-settings-ui.hooks";
  */
 
 const control = vi.hoisted(() => ({
-  loads: Array.from({ length: 7 }, () => vi.fn()),
+  loads: Array.from({ length: 6 }, () => vi.fn()),
   slices: null as null | Array<{ value: unknown; loadError: string | null; saveState: { status: string; message?: string } }>,
 }));
 vi.mock("@/lib/execution-settings", async (importOriginal) => ({
@@ -25,9 +25,8 @@ vi.mock("@/lib/settings-tabs", async (importOriginal) => ({
   loadInstructions: () => control.loads[1](),
   loadNotifications: () => control.loads[2](),
   loadPrivacy: () => control.loads[3](),
-  loadAppearance: () => control.loads[4](),
-  loadLanguage: () => control.loads[5](),
-  loadInterface: () => control.loads[6](),
+  loadLanguage: () => control.loads[4](),
+  loadInterface: () => control.loads[5](),
 }));
 vi.mock("@/hooks/use-settings-slice.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/use-settings-slice.hooks")>();
@@ -35,7 +34,7 @@ vi.mock("@/hooks/use-settings-slice.hooks", async (importOriginal) => {
     ...actual,
     useSettingsSlice: (options: Parameters<typeof actual.useSettingsSlice>[0]) => {
       if (!control.slices) return actual.useSettingsSlice(options);
-      const index = ["core.execution", "core.instructions", "core.notifications", "core.privacy", "core.appearance", "core.language", "core.interface"].indexOf(options.namespaces![0]);
+      const index = ["core.execution", "core.instructions", "core.notifications", "core.privacy", "core.language", "core.interface"].indexOf(options.namespaces![0]);
       return control.slices[index];
     },
   };
@@ -77,7 +76,7 @@ describe("useSettingsUi — once-per-mount ports stay referentially stable acros
   });
 });
 
-describe("useSettingsUi — loading/loadError aggregation across the seven mounted slices", () => {
+describe("useSettingsUi — loading/loadError aggregation across the six mounted slices", () => {
   it("loading is true immediately (every slice starts unloaded), then eventually settles", async () => {
     const { result } = renderHook(() => useSettingsUi());
     expect(result.current.loading).toBe(true);
@@ -85,7 +84,7 @@ describe("useSettingsUi — loading/loadError aggregation across the seven mount
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.loadError).toBe("controlled load failure");
   });
-  it("keeps loading until all seven loads settle, including a failed slice", async () => {
+  it("keeps loading until all six loads settle, including a failed slice", async () => {
     const releases = control.loads.map((load, index) => {
       let release!: () => void;
       load.mockImplementation(() => new Promise((resolve, reject) => {
@@ -105,13 +104,13 @@ describe("useSettingsUi — loading/loadError aggregation across the seven mount
 });
 
 describe("useSettingsUi — save state merge", () => {
-  it("save reflects a merged SaveState derived from all seven slices, present from the first render", () => {
+  it("save reflects a merged SaveState derived from all six slices, present from the first render", () => {
     const { result } = renderHook(() => useSettingsUi());
     expect(result.current.save).toBeDefined();
     expect(typeof result.current.save.status).toBe("string");
   });
-  it.each([0, 1, 2, 3, 4, 5, 6])("includes slice %s in the exact aggregate save state", (index) => {
-    control.slices = Array.from({ length: 7 }, () => ({ value: "loaded", loadError: null, saveState: { status: "idle" } }));
+  it.each([0, 1, 2, 3, 4, 5])("includes slice %s in the exact aggregate save state", (index) => {
+    control.slices = Array.from({ length: 6 }, () => ({ value: "loaded", loadError: null, saveState: { status: "idle" } }));
     const { result, rerender } = renderHook(() => useSettingsUi());
     expect(result.current.save).toEqual({ status: "idle" });
     const update = (target: number, saveState: { status: string; message?: string }) => {
@@ -123,8 +122,8 @@ describe("useSettingsUi — save state merge", () => {
     update(index, { status: "saving" });
     expect(result.current.save).toEqual({ status: "saving" });
     update(index, { status: "error", message: `slice ${index} failed` });
-    update((index + 1) % 7, { status: "saving" });
-    update((index + 2) % 7, { status: "saved" });
+    update((index + 1) % 6, { status: "saving" });
+    update((index + 2) % 6, { status: "saved" });
     expect(result.current.save).toEqual({ status: "error", message: `slice ${index} failed` });
   });
 
@@ -143,6 +142,7 @@ describe("useSettingsUi — the moved tabs' controllers are gone from this hook"
     // Providers page's own — two independent controllers writing the same `external_mcp_servers`
     // table. (`composio` was removed outright on 2026-09-27; its guard stays so it cannot return.)
     const { result } = renderHook(() => useSettingsUi());
+    expect(result.current).not.toHaveProperty("appearance");
     expect(result.current).not.toHaveProperty("composio");
     expect(result.current).not.toHaveProperty("externalMcp");
     expect(result.current).not.toHaveProperty("mediaProvidersPort");
