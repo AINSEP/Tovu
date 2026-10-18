@@ -1,6 +1,7 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
+import type { Logger } from "@jini-ai/core/primitives";
+import { logCompletedRequest } from "@jini-ai/http-kit/observability";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
@@ -41,32 +42,42 @@ import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
  * 404 carries it too — exposed on `res.locals.requestId` for handlers, and handed to
  * `trackRequest` so the id a user reports matches the tracked request.
  *
- * Completed requests also emit `http.request.completed` through Jini's existing logger, with the
- * same id, method, bounded route pattern and status. Raw paths, query strings, headers and bodies
+ * Completed requests are silent unless TOVU_LOG_REQUESTS=1 or their duration exceeds an explicit
+ * TOVU_LOG_SLOW_REQUESTS threshold in milliseconds. Error logging remains with existing handlers.
+ * Jini keeps console output compact and structured sinks receive the
+ * same id, method, bounded route pattern, status and duration. Raw paths, query strings, headers and bodies
  * are deliberately excluded from logs because they can contain credentials or personal data.
  * The optional logger is a host/test binding; no second logging implementation or context store
  * is introduced. Existing `res.locals.requestId` remains the handler's correlation context.
  *
  * @param app Express app receiving the middleware.
- * @param deps Request tracker and optional structured logger (defaults to Jini's console adapter).
+ * @param deps Request tracker, optional structured logger and host environment binding.
  * @returns Nothing; registers request middleware and response-completion listeners.
  * @example applyRequestTracking(app, { observability, logger });
  * @complexity O(1) time and auxiliary space per request beyond routing and injected adapters.
  */
-export function applyRequestTracking(app: Express, deps: { observability: ObservabilityPort; logger?: Pick<Logger, "info"> }): void {
-  const logger = deps.logger ?? createConsoleLogger({ prefix: "" });
+export function applyRequestTracking(app: Express, deps: {
+  observability: ObservabilityPort;
+  logger?: Pick<Logger, "info">;
+  env?: Pick<NodeJS.ProcessEnv, "TOVU_LOG_REQUESTS" | "TOVU_LOG_SLOW_REQUESTS">;
+}): void {
+  const env = deps.env ?? process.env;
+  const logRequests = env.TOVU_LOG_REQUESTS === "1";
+  const slowRequestMs = env.TOVU_LOG_SLOW_REQUESTS?.trim() ? Number(env.TOVU_LOG_SLOW_REQUESTS) : undefined;
   app.use((req: Request, res: Response, next: NextFunction) => {
+    const startedAt = performance.now();
     const requestId = resolveRequestId({ header: req.headers[REQUEST_ID_HEADER] });
     res.setHeader(REQUEST_ID_HEADER, requestId);
     res.locals.requestId = requestId;
     const tracker = deps.observability.trackRequest({ method: req.method, path: req.path }, { requestId });
 
     res.on("finish", () => {
+      const durationMs = performance.now() - startedAt;
       const routePattern = req.route ? `${req.baseUrl}${req.route.path}` : "unmatched";
       tracker.end({ statusCode: res.statusCode, routePattern });
-      logger.info({ message: "http.request.completed" }, {
-        meta: { requestId, method: req.method, routePattern, statusCode: res.statusCode },
-      });
+      logCompletedRequest({
+        requestId, method: req.method, routePattern, statusCode: res.statusCode, durationMs,
+      }, { logger: deps.logger, logRequests, slowRequestMs });
     });
 
     // Routing and the handler run inside the request's scope, so a DB query or outbound call they
