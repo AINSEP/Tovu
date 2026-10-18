@@ -1,5 +1,5 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -8,6 +8,7 @@ import { themeCopyName, themeNamesById } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
+import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
 
 /**
  * @file Everything the Themes screen does, so `Themes.tsx` is only markup.
@@ -123,6 +124,9 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
   const activation = useFetchMutation({ run: ({ input }: { input: string }) => port.setActiveTheme(input) });
   const invalidate = useInvalidate();
+  // The server rescans before publishing this existing SSE event. Share the normal query reload
+  // so externally added/removed themes reach the grid without invoking the manual Rescan mutation.
+  useEffect(() => subscribeThemePreviewRefresh({ listener: () => invalidate({ key }) }), [invalidate, key]);
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);

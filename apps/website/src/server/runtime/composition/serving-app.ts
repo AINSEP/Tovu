@@ -1,4 +1,5 @@
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
+import { startThemeWatcher } from "#src/features/theme/theme-watcher";
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
@@ -7,7 +8,7 @@ import { createApp } from "./app.js";
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
- * (2026-09-14), Trash auto-purge sweeper (2026-09-20), and assistant-run recovery — as one step.
+ * (2026-09-14), Trash auto-purge sweeper (2026-09-20), theme watcher, and assistant-run recovery — as one step.
  *
  * Callers: the two site-serving boot paths and nothing else. `src/index.ts` serves the dev API and the
  * container image (`Dockerfile` CMD). `cli/commands/serve.ts` is `tovu serve`, which the desktop app
@@ -34,7 +35,7 @@ import { createApp } from "./app.js";
  *   drainer, and its pre-bound `sweepTrash` feeds the sweeper.
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
- * @returns the Express app, both loop handles (call them at shutdown: `trashSweeper.stop({})`), and
+ * @returns the Express app, background handles (stop all at shutdown), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
  *   (`CreateAppOptions.onBootWork`). A caller that closes the store awaits these first.
  * @complexity O(1) beyond `createApp`.
@@ -42,7 +43,7 @@ import { createApp } from "./app.js";
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; bootWork: Promise<void>[] } {
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work) });
   const outboxDrainer = startOutboxDrainer(
@@ -64,5 +65,6 @@ export function createServingApp(
       onError: ({ error }) => console.error("[trash-sweeper] sweep failed; retrying after the idle interval", error)
     }
   );
-  return { app, outboxDrainer, trashSweeper, bootWork };
+  const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  return { app, outboxDrainer, trashSweeper, themeWatcher, bootWork };
 }

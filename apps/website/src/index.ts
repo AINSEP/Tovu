@@ -407,9 +407,9 @@ async function main(): Promise<void> {
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
   // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
   // process open.
-  const { app, outboxDrainer, trashSweeper, bootWork: servingBootWork } = createServingApp(deps);
+  const { app, outboxDrainer, trashSweeper, themeWatcher, bootWork: servingBootWork } = createServingApp(deps);
   bootWork.push(...servingBootWork);
-  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }] });
+  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher] });
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so
@@ -447,7 +447,10 @@ async function main(): Promise<void> {
   // it ships.
   // The listener above uses Node's options overload and omits an undefined hostname, preserving
   // the all-interfaces container default without Express's required-hostname overload ambiguity.
-  server.once("close", () => { void shutdownLocalSiteHosts({}).catch(() => {}); });
+  server.once("close", () => {
+    void themeWatcher.stop();
+    void shutdownLocalSiteHosts({}).catch(() => {});
+  });
   requestHandler = app;
 
   // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when

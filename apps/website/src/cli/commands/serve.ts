@@ -337,10 +337,10 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
   await ensureAgentDaemonPortResolved();
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
-  // `createApp` has attached every subscriber) and the Trash auto-purge sweeper. Both are stopped
+  // `createApp` has attached every subscriber), Trash auto-purge sweeper and theme watcher. All stop
   // in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) });
+  const { app, outboxDrainer, trashSweeper, themeWatcher, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
+  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher);
   owned.bootWork.push(...bootWork);
 
   await new Promise<void>((resolve, reject) => {
@@ -349,6 +349,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
     // "no TOVU_HOST override, use Node's own all-interfaces default" case) is routed to the
     // callback-only overload explicitly, rather than widening the type with a cast.
     const server = host !== undefined ? app.listen(port, host) : app.listen(port);
+    server.once("close", () => { void themeWatcher.stop(); });
 
     // Forwards Vite's HMR WebSocket when `TOVU_ADMIN_DEV_PROXY_URL` is set. `registerAdminStatic`
     // (reached via `createApp` above) already proxies ordinary `/admin/*` REQUESTS on this path, but
@@ -445,7 +446,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       }, {
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) },
+          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher,
         ] }),
         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,

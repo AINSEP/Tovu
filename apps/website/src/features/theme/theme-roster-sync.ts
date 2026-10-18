@@ -24,6 +24,8 @@ import { ENGINE_SUBFOLDERS, rescanThemes, type DiscoveredTheme } from "./theme.j
  * - the mtime of the themes root and of each engine subfolder — a theme folder created, renamed or
  *   removed by ANYTHING (a CLI, a git pull, a copy made by hand) changes its parent's mtime, so the
  *   roster stays right even for writers that never heard of the marker.
+ * The serving website's `theme-watcher.ts` covers arbitrary nested external edits with a forced
+ * sync; this fingerprint remains the cheap request-time fallback for every roster consumer.
  *
  * Roster arrays are keyed by identity: every process holds one site roster, shared by reference by
  * every consumer (`RouteDeps.themes`, the theme tools' deps, the Trash adapter), and
@@ -61,25 +63,27 @@ export function themeRosterFingerprint(
  * The FIRST call for a roster adopts it as current without rescanning: production calls this right
  * after boot discovery (`deps.ts`/`app.ts`), where that is exactly true, and a test that builds a
  * roster by hand (themes that exist on no disk) must not have it replaced by an empty discovery on its
- * first request.
+ * first request. A watcher can force discovery after a nested external edit: those writes need not
+ * change any directory mtime or the in-app marker, including on the first call.
  *
  * The fingerprint is read BEFORE the rescan, so a change landing mid-rescan is picked up by the next
  * call rather than recorded as already seen.
  *
  * @returns `true` when it rescanned.
  * @complexity O(1) when unchanged (see {@link themeRosterFingerprint}); a full
- * {@link rescanThemes} — O(t log t + b) in theme count and theme bytes — when changed.
+ * {@link rescanThemes} — O(t log t + b) in theme count and theme bytes — when changed or forced.
  */
 export function syncThemeRoster(
   required: { themes: DiscoveredTheme[]; themesDir: string },
-  _optional: Record<string, never> = {}
+  { force = false }: { force?: boolean } = {}
 ): boolean {
   const { themes, themesDir } = required;
   const current = themeRosterFingerprint({ themesDir });
   const previous = syncedFingerprints.get(themes);
-  if (previous === current) return false;
-  if (previous !== undefined) rescanThemes({ themes, dir: themesDir });
+  if (!force && previous === current) return false;
+  const shouldRescan = force || previous !== undefined;
+  if (shouldRescan) rescanThemes({ themes, dir: themesDir });
   // Recorded only after a rescan that did not throw, so a failed one is retried on the next call.
   syncedFingerprints.set(themes, current);
-  return previous !== undefined;
+  return shouldRescan;
 }

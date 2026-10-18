@@ -87,6 +87,19 @@ test("startTrashSweeper is called only by createServingApp", () => {
   assert.deepEqual(filesCalling(/(?<!function )\bstartTrashSweeper\(/), ["server/runtime/composition/serving-app.ts"]);
 });
 
+test("the theme watcher starts only in the website's serving composition", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bstartThemeWatcher\(/), ["server/runtime/composition/serving-app.ts"]);
+});
+
+for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
+  test(`${bootPath} owns the theme watcher through shutdown and listener closure`, () => {
+    const source = readCodeLines(bootPath).join("\n");
+    assert.match(source, /const \{[^}]*\bthemeWatcher\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /workers: \[[\s\S]*?\bthemeWatcher\b[\s\S]*?\]/);
+    assert.match(source, /server\.once\("close", \(\) => \{\s*void themeWatcher\.stop\(\)/);
+  });
+}
+
 test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
   assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\{\}\)/.test(line)));
 });

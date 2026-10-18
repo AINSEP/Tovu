@@ -198,6 +198,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       } },
       outboxDrainer: { stop: async () => { stopped.push("outbox"); } },
       trashSweeper: { stop: async () => { stopped.push("trash"); } },
+      themeWatcher: { stop: async () => { stopped.push("themes"); } },
       bootWork: [byokWork.promise],
     }),
   });
@@ -251,7 +252,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       assert.ok(signals.has("SIGINT"));
       signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
-      assert.deepEqual(stopped, ["outbox", "trash"], "shutdown must stop both workers before closing storage");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes"], "shutdown must stop all workers before closing storage");
       assert.equal(closeStarted, false, "the store close must wait for the boot work still running");
       legacyWork.resolve();
       await new Promise(resolve => setImmediate(resolve));
@@ -263,7 +264,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       releaseClose();
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(exitCode, 0);
-      assert.deepEqual(stopped, ["outbox", "trash"], "each worker stops exactly once");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes"], "each worker stops exactly once");
     }
   } finally {
     releaseClose();

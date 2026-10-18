@@ -73,6 +73,23 @@ test("nothing changed: no rescan, the roster's theme objects are untouched", (t)
   assert.equal(themes[0], before);
 });
 
+test("a forced watcher sync reloads a nested external edit even when the fingerprint is unchanged", (t) => {
+  const { themesDir, themes } = siteThemes(t);
+  const fingerprint = themeRosterFingerprint({ themesDir });
+  fs.writeFileSync(path.join(themesDir, "static", "tovu-starter", "tokens.json"), JSON.stringify({ "--ink": "#abc" }));
+  assert.equal(themeRosterFingerprint({ themesDir }), fingerprint);
+  assert.equal(syncThemeRoster({ themes, themesDir }, { force: true }), true);
+  assert.equal(themes[0]?.tokens["--ink"], "#abc");
+  assert.equal(syncThemeRoster({ themes, themesDir }), false);
+});
+
+test("a forced first sync discovers rather than adopting an empty roster", (t) => {
+  const { themesDir } = siteThemes(t);
+  const themes: DiscoveredTheme[] = [];
+  assert.equal(syncThemeRoster({ themes, themesDir }, { force: true }), true);
+  assert.deepEqual(ids(themes), ["tovu-starter"]);
+});
+
 test("one change rescans once, however many syncs follow it", (t) => {
   const { themesDir, themes } = siteThemes(t);
   requestThemePreviewRefresh({ themesDir });

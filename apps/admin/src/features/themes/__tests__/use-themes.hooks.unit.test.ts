@@ -6,6 +6,7 @@ import { api, type PresentationSettings } from "@/lib/api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
 import { t as translateThemes } from "../themes-i18n";
+import { publishThemePreviewRefresh } from "../theme-preview-refresh";
 
 /**
  * @file `useThemes` driven against the injected `ThemesPort`, no `fetch` stub and no `api` spy.
@@ -15,6 +16,32 @@ import { t as translateThemes } from "../themes-i18n";
  */
 
 describe("useThemes — injected port (no fetch stub, no api spy)", () => {
+  it("reloads external roster additions and removals from the theme SSE notification, then unsubscribes", async () => {
+    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
+    let presentation = await port.getPresentation();
+    const getPresentation = vi.fn(async () => presentation);
+    const rescanThemes = vi.spyOn(port, "rescanThemes");
+    port.getPresentation = getPresentation;
+    const { result, unmount } = renderHook(() => useThemes({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
+
+    presentation = { ...presentation, availableThemeIds: ["basic", "external"], availableThemes: [
+      ...presentation.availableThemes, { id: "external", name: "External", tier: "static" },
+    ] };
+    act(() => publishThemePreviewRefresh({ revision: "external-roster-added" }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic", "external"]));
+    expect(result.current.themeNames?.external).toBe("External");
+
+    presentation = { ...presentation, availableThemeIds: ["external"], availableThemes: presentation.availableThemes.filter((theme) => theme.id === "external") };
+    act(() => publishThemePreviewRefresh({ revision: "external-roster-removed" }));
+    await waitFor(() => expect(result.current.themes).toEqual(["external"]));
+    expect(rescanThemes).not.toHaveBeenCalled();
+    unmount();
+    const calls = getPresentation.mock.calls.length;
+    act(() => publishThemePreviewRefresh({ revision: "external-roster-after-unmount" }));
+    expect(getPresentation).toHaveBeenCalledTimes(calls);
+  });
+
   it("loads settings/themes/tiers from the injected port and never touches the real api client", async () => {
     const getPresentationSpy = vi.spyOn(api, "getPresentation");
     const port = createFakeThemesPort({
