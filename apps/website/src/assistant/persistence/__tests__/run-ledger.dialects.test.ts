@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { AgentEvent } from "@jini-ai/chat/core";
 
 import type { ChatKernel } from "#src/platform/db/chat-kernel";
 import { createChatRunLedger, type RunRef } from "../run-ledger.js";
@@ -88,6 +89,38 @@ const settlement = (content: string, overrides: Partial<RunRef> = {}) => ({
 });
 
 describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createChatRunLedger(kernel) }), (make) => {
+  test("checkpoint persists repeated Claude tool IDs once and retains saved tool progress", async () => {
+    const { kernel, ledger } = make();
+    const call = { kind: "tool_use", id: "claude-1", name: "search_tools", input: { query: "family" } } as const;
+    const distinct = { ...call, id: "claude-2" };
+    const result = { kind: "tool_result", toolUseId: call.id, content: "found", isError: false } as const;
+    await seed(kernel, [{ id: "a1", position: 0, events: [call, call, distinct, result] }]);
+    const incoming: AgentEvent[] = [call, { ...call, input: { query: "wrapper replay" } }, { kind: "text", text: "Half" }];
+
+    assert.equal(await ledger.checkpoint({ ...RUN, content: "Half", events: incoming }), true);
+    assert.deepEqual((await row(kernel, "a1")).events, [call, incoming[2], distinct, result]);
+  });
+
+  for (const shorterReplay of [false, true]) {
+    test(`settle deduplicates tool IDs after merging checkpoints (shorter replay: ${shorterReplay})`, async () => {
+      const { kernel, ledger } = make();
+      const call = { kind: "tool_use", id: "claude-1", name: "search_tools", input: { query: "family" } } as const;
+      const replay = { ...call, input: { query: "wrapper replay" } };
+      const distinct = { ...call, id: "claude-2" };
+      const result = { kind: "tool_result", toolUseId: call.id, content: "found", isError: false } as const;
+      const text = { kind: "text", text: "Saved answer" } as const;
+      await seed(kernel, [{ id: "a1", position: 0, content: text.text, events: [text, call, replay, distinct, result] }]);
+      const content = shorterReplay ? "" : text.text;
+      const events: AgentEvent[] = shorterReplay ? [call, replay] : [text, call, replay, result];
+
+      assert.equal(await ledger.settle({ ...settlement(content), events }), true);
+      const saved = await row(kernel, "a1");
+      assert.equal(saved.content, text.text);
+      assert.equal(saved.run_status, "succeeded");
+      assert.deepEqual(saved.events, shorterReplay ? [text, call, distinct, result] : [text, call, result, distinct]);
+    });
+  }
+
   test("settle writes the final state once and touches the conversation; later settles are ignored", async () => {
     const { kernel, ledger } = make();
     await seed(kernel, [{ id: "a1", content: "", position: 0 }]);
