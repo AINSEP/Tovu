@@ -17,6 +17,8 @@
 # Codex job carry these personas).
 # A shard whose .md already exists is skipped, so a re-run resumes where the last one stopped.
 # Blocks in the foreground until every shard has finished; prints a status table at the end.
+# With Jini in CODEX_ADD_DIRS, rebuilds changed source packages before printing done:.
+# Rebuild results and before/after source snapshots are retained in the output directory.
 set -u
 
 PROMPT_DIR=${1:?usage: run-codex-shards.sh <prompt-dir> <read-only|workspace-write> <out-dir>}
@@ -56,6 +58,23 @@ case "$EFFORT" in
 esac
 [ -d "$PROMPT_DIR" ] || { echo "no such prompt dir: $PROMPT_DIR" >&2; exit 2; }
 mkdir -p "$OUT_DIR"
+
+# Snapshot before launching any shard; Node is already required by parse_run.
+JINI_REPO=
+for d in ${CODEX_ADD_DIRS:-}; do
+  case "${d%/}" in /Users/la/Programming/Jini) JINI_REPO=${d%/} ;; esac
+done
+JINI_HELPER="$(dirname "$0")/codex-jini-rebuild.mjs"
+JINI_SNAPSHOT=
+if [ -n "$JINI_REPO" ]; then
+  : > "$OUT_DIR/jini-rebuild.log"
+  JINI_SNAPSHOT=$(mktemp "$OUT_DIR/jini-before.XXXXXX")
+  if [ -z "$JINI_SNAPSHOT" ] || ! node "$JINI_HELPER" snapshot "$JINI_REPO" "$JINI_SNAPSHOT" >> "$OUT_DIR/jini-rebuild.log" 2>&1; then
+    echo 'snapshot failed; rebuild will be skipped' >> "$OUT_DIR/jini-rebuild.log"
+    [ -z "$JINI_SNAPSHOT" ] || rm -f "$JINI_SNAPSHOT"
+    JINI_SNAPSHOT=
+  fi
+fi
 
 # Parses a finished run's JSONL. Writes <shard>.md on success, <shard>.failed otherwise.
 parse_run() {
@@ -115,6 +134,23 @@ for prompt in "$PROMPT_DIR"/*; do
   run_shard "$prompt" "$shard" &
 done
 wait
+if [ -n "$JINI_REPO" ]; then
+  if [ -n "$JINI_SNAPSHOT" ]; then
+    node "$JINI_HELPER" rebuild "$JINI_REPO" "$JINI_SNAPSHOT" "$OUT_DIR/jini-rebuild.log" \
+      2>> "$OUT_DIR/jini-rebuild.log" || echo 'jini-rebuild: helper-error (see jini-rebuild.log)'
+    # Restart Vite once after UI dist rewrites, which can otherwise loop page reloads.
+    if grep -Eq '^\[(ui|admin|chat)\] rc=[0-9]+ built=true( |$)' "$OUT_DIR/jini-rebuild.log"; then
+      if touch /Users/la/Programming/Tovu/apps/admin/vite.config.ts 2>> "$OUT_DIR/jini-rebuild.log"; then
+        echo 'jini-rebuild: touched /Users/la/Programming/Tovu/apps/admin/vite.config.ts to restart admin Vite' >> "$OUT_DIR/jini-rebuild.log"
+      else
+        echo 'jini-rebuild: failed to touch /Users/la/Programming/Tovu/apps/admin/vite.config.ts' >> "$OUT_DIR/jini-rebuild.log"
+      fi
+    fi
+    # Keep the successful baseline and its .after capture for rebuild diagnostics.
+  else
+    echo 'jini-rebuild: snapshot-error (see jini-rebuild.log)'
+  fi
+fi
 [ "${#shards[@]}" -gt 0 ] || { echo "no prompt files in $PROMPT_DIR" >&2; exit 2; }
 
 ok=0; bad=0
