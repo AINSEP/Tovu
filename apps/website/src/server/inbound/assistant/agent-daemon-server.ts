@@ -891,6 +891,7 @@ const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agen
 
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
   let prompt: string;
+  let coldStartContext: string | undefined;
   let principal: Principal;
   let attachmentIds: readonly string[] = [];
   let pluginRefIds: readonly string[] = [];
@@ -910,17 +911,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
     // one place that decides which tab a run may drive.
     const decoded = parseRunStartContextRef(request.contextRef);
-    // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
-    // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
-    // dispatched subagent receiving a task prompt, not an interactive human session." Without it,
-    // every chat-pane run re-runs the full dev-tooling bootstrap (reads AGENTS.md, prints the
-    // startup banner, offers to install slash commands) before touching the user's actual request
-    // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
-    // this repo's own AI-Dev-Shop pipeline.
-    // The admin screen this message was sent from goes AFTER the marker (the marker only works as
-    // the prompt's first line) and directly before the operator's words, so "this page" has
-    // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
-    prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix(decoded.prompt, buildPageContextPromptBlock(decoded.pageContext))}`;
+    coldStartContext = decoded.coldStartContext;
+    prompt = decoded.prompt;
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
@@ -1044,28 +1036,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
       const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId: request.agentId ?? DEFAULT_AGENT_ID }, {});
       if (!attachmentRunFields) return;
-      prompt += attachmentRunFields.attachmentNotice ?? "";
-
-      // Resolved AFTER attachments, BEFORE `run()`: prepending to `prompt` (unlike the attachment
-      // fields above, which are separate `AgentExecutor.run()` options) means this must land before
-      // `prompt` is read below, and there is no ordering dependency on the attachment claim either
-      // way — the two resolve independently.
-      // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
-      // resolved and prepended BEFORE the plugin prefix, same "resolved before run(), no ordering
-      // dependency either way" reasoning as attachments vs. plugin prefix above. Off by default; a
-      // no-op unless a probe sets `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
-      const capabilityManifestPrefix = buildCapabilityManifestPrefix(resolveCapabilityManifestArm());
-      prompt = assemblePromptWithPluginPrefix(prompt, capabilityManifestPrefix);
-
-      // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
-      // not have to go looking for. Not a tool, deliberately: a model that does not know it is
-      // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
-      // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
-      prompt = assemblePromptWithPluginPrefix(prompt, toolExtensions?.federation.refusalPrefix() ?? "");
-
       const pluginPromptPrefix = await resolveAgentPluginPromptPrefix({ run, pluginRefIds, runLifecycle, workspaceId: routeDeps.workspaceId, agentPluginLayout: routeDeps.agentPluginLayout });
       if (pluginPromptPrefix === null) return;
-      prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
 
       /*
        * This run's entire session-binding decision, in ONE function so it can be handed to
@@ -1190,6 +1162,34 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // agent run would queue a second tab's turn behind it for minutes with no feedback.
       const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
       if (sessionBinding === null) return;
+      // The browser cannot know whether the daemon still has a native session to resume.
+      if (!sessionBinding.sessionFields.resumeSessionId && coldStartContext && agentCarriesOwnMemory({ agentId: sessionBinding.agentId }, {})) {
+        prompt = coldStartContext;
+      }
+      // Select history before decorating it, so cold starts retain the same page, attachment and
+      // plugin instructions as resumes.
+      // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
+      // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
+      // dispatched subagent receiving a task prompt, not an interactive human session." Without it,
+      // every chat-pane run re-runs the full dev-tooling bootstrap (reads AGENTS.md, prints the
+      // startup banner, offers to install slash commands) before touching the user's actual request
+      // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
+      // this repo's own AI-Dev-Shop pipeline.
+      // The admin screen this message was sent from goes AFTER the marker (the marker only works as
+      // the prompt's first line) and directly before the operator's words, so "this page" has
+      // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
+      prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix(prompt, buildPageContextPromptBlock(pageContext))}`;
+      prompt += attachmentRunFields.attachmentNotice ?? "";
+      // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
+      // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets
+      // `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
+      prompt = assemblePromptWithPluginPrefix(prompt, buildCapabilityManifestPrefix(resolveCapabilityManifestArm()));
+      // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
+      // not have to go looking for. Not a tool, deliberately: a model that does not know it is
+      // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
+      // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
+      prompt = assemblePromptWithPluginPrefix(prompt, toolExtensions?.federation.refusalPrefix() ?? "");
+      prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
       if (durableMessageId && routeDeps.chatRunLedger.durable) {
         const attempt = await routeDeps.chatRunLedger.durable.find({ runId: run.id }, {});
         if (!attempt || attempt.cancelReason || !["queued", "running"].includes(attempt.message.runStatus ?? "")) {

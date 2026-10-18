@@ -21,7 +21,9 @@ const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../a
 test("the run prompt renders decoded.pageContext directly after the dispatch marker", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
-    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(decoded\.prompt, buildPageContextPromptBlock\(decoded\.pageContext\)\)\}`;/,
+    // History is selected (resume tail or cold-start context) before this decoration, so the
+    // decorated `prompt` already holds the operator's words; `pageContext` is the decoded field.
+    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(prompt, buildPageContextPromptBlock\(pageContext\)\)\}`;/,
   );
 });
 

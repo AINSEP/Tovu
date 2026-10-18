@@ -3,6 +3,14 @@ import test from "node:test";
 import { redactAdminRunContextRef } from "../credential-chat-intake.js";
 import { parseRunStartContextRef } from "../run-start-context.js";
 
+test("cold-session history is redacted before durable acceptance", () => {
+  const secret = "sk-" + "A1b2C3d4E5f6G7h8I9j0";
+  const contextRef = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: 'continue', principalId: 'owner', coldStartContext: `Earlier credential: ${secret}` }) }, {});
+  assert.equal(contextRef.includes(secret), false);
+  assert.equal(JSON.parse(contextRef).coldStartContext, 'Earlier credential: [token removed]');
+  assert.equal(redactAdminRunContextRef({ contextRef }, {}), contextRef);
+});
+
 test("durable context keeps the remainder and contains no raw credential", () => {
   const secret = "sk-" + "A1b2C3d4E5f6G7h8I9j0";
   const contextRef = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: `Connect ${secret} please`, principalId: "owner", conversationId: "chat" }) }, {});

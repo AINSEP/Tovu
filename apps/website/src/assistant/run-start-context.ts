@@ -55,6 +55,8 @@ function readRecoveryContext(
  * `attachmentIds`/`model`/`reasoning`/`pluginRefIds` are optional and silently degrade to
  * "none"/`undefined` on a malformed or absent value — an attachment, a model pick, a
  * reasoning-effort pick, or a pinned Agent Plugin is optional, unlike `prompt`/`principalId`.
+ * Optional `coldStartContext` is a bounded complete prompt, redacted like the resume tail and
+ * selected in its place when a resume-capable agent starts a new session.
  *
  * @param contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
  * @returns The seven fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
@@ -69,6 +71,7 @@ function readRecoveryContext(
  */
 export function parseRunStartContextRef(contextRef: string): {
   prompt: string;
+  coldStartContext?: string;
   principalId: string;
   attachmentIds: readonly string[];
   model?: string;
@@ -82,6 +85,7 @@ export function parseRunStartContextRef(contextRef: string): {
 } {
   const parsed = JSON.parse(contextRef) as {
     prompt?: unknown;
+    coldStartContext?: unknown;
     principalId?: unknown;
     attachmentIds?: unknown;
     model?: unknown;
@@ -98,6 +102,7 @@ export function parseRunStartContextRef(contextRef: string): {
     modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true,
   });
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
+  const coldStartContext = readOptionalContextString(parsed.coldStartContext);
   const attachmentIds = readContextStringArray(parsed.attachmentIds);
   const pluginRefIds = readContextStringArray(parsed.pluginRefIds);
   const model = readOptionalContextString(parsed.model);
@@ -116,6 +121,9 @@ export function parseRunStartContextRef(contextRef: string): {
   const pageContext = readRunPageContext(parsed.pageContext);
   return {
     prompt,
+    ...(coldStartContext === undefined ? {} : { coldStartContext: guardUserText({ text: coldStartContext.slice(-500_000) }, {
+      modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true,
+    }) }),
     principalId,
     attachmentIds,
     pluginRefIds,

@@ -241,7 +241,7 @@ describe("historyForTranscript — Defect 3: a failed run is not an assistant tu
 });
 
 describe("startRun — the prompt that actually reaches the wire", () => {
-  test("a non-resume-capable agent's transcript contains no failed assistant turn", async () => {
+  test("a non-resume-capable agent receives a labeled failure rather than an empty completed answer", async () => {
     stubRunsOk();
     const transport = createTovuAssistantTransport({ getResumeCapableAgentIds: () => new Set<string>() });
 
@@ -251,8 +251,8 @@ describe("startRun — the prompt that actually reaches the wire", () => {
     );
 
     const prompt = postedPrompt();
-    // Two `## assistant` blocks would mean the empty failed row was rendered as a turn of its own.
-    expect((prompt.match(/^## assistant$/gm) ?? []).length, "a failed run was replayed as an assistant turn").toBe(1);
+    expect((prompt.match(/^## assistant$/gm) ?? []).length).toBe(2);
+    expect(prompt).toContain('run failed; not a completed answer');
     expect(prompt).toContain("Yes — it is installed.");
   });
 

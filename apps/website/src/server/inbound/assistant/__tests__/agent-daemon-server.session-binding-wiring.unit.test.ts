@@ -27,7 +27,7 @@ import { assistantCliPermissions } from "#src/contracts/headless/assistant-subag
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
 
 /** Execute the real handler's AST with isolated ports; importing the entrypoint would boot a daemon. */
-function sessionHarness() {
+function sessionHarness(coldStartContext?: string) {
   const source = ts.createSourceFile("daemon.ts", DAEMON_ENTRY_SOURCE, ts.ScriptTarget.Latest, true);
   let initializer: ts.Expression | undefined;
   for (const statement of source.statements) {
@@ -40,17 +40,19 @@ function sessionHarness() {
   const compiled = ts.transpileModule(`const onStarted = ${initializer.getText(source)};`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  let stored: string | null = null;
+  const bindings = new Map<string, string>();
+  const contexts = new Map<string, { prompt: string; coldStartContext?: string; conversationId: string }>();
   let minted = 0;
   let writes = 0;
   let releaseWrite!: () => void;
   const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
   const launches: { runId: string; newSessionId?: string; resumeSessionId?: string; stored: string | null }[] = [];
   const failures: unknown[][] = [];
+  const prompts: string[] = [];
   const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: () => {} };
   const onStarted = runInNewContext(`${compiled}\nonStarted`, {
-    parseRunStartContextRef: () => ({ prompt: "hello", principalId: "principal-1", conversationId: "conv-1", attachmentIds: [], pluginRefIds: [] }),
-    assemblePromptWithPluginPrefix: (prompt: string) => prompt,
+    parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
+    assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
     buildPageContextPromptBlock: () => "",
     principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), durableMessageIdsByRunId: new Map(), runOwners: { record() {} },
     // No live executor in this harness: isolate serialization of the binding, not the live-run gate.
@@ -60,14 +62,12 @@ function sessionHarness() {
     buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off", toolExtensions: undefined,
     routeDeps: { workspaceId: "ws-1", agentSessions: {
       getSessionId: async ({ conversationId, agentId }: { conversationId: string; agentId: string }) => {
-        assert.deepEqual([conversationId, agentId], ["conv-1", "claude"]);
-        return stored;
+        return bindings.get(`${conversationId}:${agentId}`) ?? null;
       },
       setSessionId: async ({ conversationId, agentId, sessionId }: { conversationId: string; agentId: string; sessionId: string }) => {
-        assert.deepEqual([conversationId, agentId], ["conv-1", "claude"]);
         writes += 1;
         await writeGate;
-        stored = sessionId;
+        bindings.set(`${conversationId}:${agentId}`, sessionId);
       },
     } },
     conversationStartLock: createConversationStartLock({}, {}),
@@ -75,8 +75,9 @@ function sessionHarness() {
     randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
     waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     agentCarriesOwnMemory: () => true, wouldForcedColdStartLoseConversationContext: () => false,
-    agentExecutor: { run: async (input: { runId: string }, options: { newSessionId?: string; resumeSessionId?: string } = {}) => {
-      launches.push({ runId: input.runId, newSessionId: options.newSessionId, resumeSessionId: options.resumeSessionId, stored });
+    agentExecutor: { run: async (input: { runId: string; prompt: string }, options: { newSessionId?: string; resumeSessionId?: string } = {}) => {
+      prompts.push(input.prompt);
+      launches.push({ runId: input.runId, newSessionId: options.newSessionId, resumeSessionId: options.resumeSessionId, stored: bindings.get("conv-1:claude") ?? null });
     } },
     process: { env: {}, cwd: () => "/isolated" }, resolvePermissionMode: () => "default",
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
@@ -90,12 +91,69 @@ function sessionHarness() {
     failRunBeforeStart: async ({ message }: { message: string }) => assert.fail(message),
   }) as (input: unknown) => void;
   return {
-    start: (runId: string) => onStarted({ request: { agentId: "claude" }, run: { id: runId }, lifecycle }),
+    start: (runId: string, input: { prompt?: string; coldStartContext?: string; conversationId?: string; agentId?: string } = {}) => {
+      contexts.set(runId, { prompt: input.prompt ?? "hello", coldStartContext: input.coldStartContext ?? coldStartContext, conversationId: input.conversationId ?? "conv-1" });
+      return onStarted({ request: { agentId: input.agentId ?? "claude", contextRef: runId }, run: { id: runId }, lifecycle });
+    },
+    forgetSession: (conversationId: string, agentId: string) => bindings.delete(`${conversationId}:${agentId}`),
+    captureSession: (conversationId: string, agentId: string, sessionId: string) => bindings.set(`${conversationId}:${agentId}`, sessionId),
     flush: () => new Promise<void>((resolve) => setImmediate(resolve)),
-    releaseWrite, launches, failures,
-    get stored() { return stored; }, get minted() { return minted; }, get writes() { return writes; },
+    releaseWrite, launches, failures, prompts,
+    get stored() { return bindings.get("conv-1:claude") ?? null; }, get minted() { return minted; }, get writes() { return writes; },
   };
 }
+
+test("runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt", async () => {
+  const harness = sessionHarness('## user\nAdd animations\n\n## assistant\n[antigravity run failed]\npermission denied\n\n## user\nhello');
+  harness.start("cold");
+  harness.releaseWrite();
+  await harness.flush();
+  assert.match(harness.prompts[0] ?? '', /Add animations/);
+  assert.match(harness.prompts[0] ?? '', /antigravity run failed/);
+  assert.equal(harness.prompts[0]!.split('hello').length - 1, 1, 'the current request must occur once');
+  assert.ok(harness.prompts[0]!.indexOf('Add animations') < harness.prompts[0]!.indexOf('hello'));
+  harness.start("resumed");
+  await harness.flush();
+  assert.doesNotMatch(harness.prompts[1] ?? '', /Add animations/);
+  assert.match(harness.prompts[1] ?? '', /hello/);
+  assert.deepEqual(harness.failures, []);
+});
+
+test("runtime: first switches, A→B→A repeats and lost sessions select one transcript and isolate conversations", async () => {
+  const harness = sessionHarness();
+  harness.releaseWrite();
+  const turns = ['turn-0-request', 'turn-1-answer', 'turn-2-request', 'turn-3-answer', 'turn-4-request', 'turn-5-answer', 'turn-6-request'];
+  const transcript = (last: number) => turns.slice(0, last + 1).map((text, index) => `## ${index % 2 ? 'assistant' : 'user'}\n${text}`).join('\n\n');
+  const tail = (first: number, last: number) => turns.slice(first, last + 1).map((text, index) => `## ${index % 2 ? 'assistant' : 'user'}\n${text}`).join('\n\n');
+  const count = (prompt: string, turn: string) => prompt.split(turn).length - 1;
+
+  harness.start("A", { prompt: turns[0], coldStartContext: transcript(0) });
+  await harness.flush();
+  harness.start("B", { agentId: "codex", prompt: transcript(2), coldStartContext: transcript(2) });
+  await harness.flush();
+  for (const turn of turns.slice(0, 3)) assert.equal(count(harness.prompts[1]!, turn), 1, `first switch: ${turn}`);
+  harness.captureSession("conv-1", "codex", "captured-B");
+
+  harness.start("A-again", { prompt: tail(2, 4), coldStartContext: transcript(4) });
+  await harness.flush();
+  for (const turn of turns.slice(0, 2)) assert.equal(count(harness.prompts[2]!, turn), 0, `A already knows: ${turn}`);
+  for (const turn of turns.slice(2, 5)) assert.equal(count(harness.prompts[2]!, turn), 1, `A unseen tail: ${turn}`);
+
+  harness.start("B-again", { agentId: "codex", prompt: tail(4, 6), coldStartContext: transcript(6) });
+  await harness.flush();
+  for (const turn of turns.slice(0, 4)) assert.equal(count(harness.prompts[3]!, turn), 0, `B already knows: ${turn}`);
+  for (const turn of turns.slice(4)) assert.equal(count(harness.prompts[3]!, turn), 1, `B unseen tail: ${turn}`);
+
+  harness.forgetSession("conv-1", "claude");
+  harness.start("lost-A", { prompt: turns[6], coldStartContext: transcript(6) });
+  await harness.flush();
+  for (const turn of turns) assert.equal(count(harness.prompts[4]!, turn), 1, `lost session: ${turn}`);
+  harness.start("other-conversation", { prompt: 'isolated-request', coldStartContext: '## user\nisolated-request', conversationId: "conv-2" });
+  await harness.flush();
+  assert.equal(count(harness.prompts[5]!, 'isolated-request'), 1);
+  for (const turn of turns) assert.equal(count(harness.prompts[5]!, turn), 0, `conversation isolation: ${turn}`);
+  assert.deepEqual(harness.failures, []);
+});
 
 test("runtime: a cold dispatch waits for durable persistence and resumes that exact executor session next turn", async () => {
   const harness = sessionHarness();
