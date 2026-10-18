@@ -195,7 +195,7 @@ const READ_FILE_SCHEMA = {
     },
     find: {
       type: "string", maxLength: 200,
-      description: "Case-sensitive plain substring to locate. Returns up to 50 matching lines with context, merging overlapping windows. Cannot be combined with startLine or lineCount.",
+      description: "Search text inside theme files with this case-sensitive plain substring. Returns up to 50 matching lines with context, merging overlapping windows. Each window is capped at 2000 characters and all windows at 4000 characters per item; returned.truncated and returned.hint explain omitted text. Cannot be combined with startLine or lineCount.",
     },
     context: {
       type: "integer", minimum: 0, maximum: 20, default: 3,
@@ -363,7 +363,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_list_files",
       description:
-        "Lists every file inside one theme's folder, as paths relative to that folder (e.g. 'theme.json', 'templates/home.liquid'). Read-only. Use this to discover what a theme actually ships before reading or editing it, rather than guessing filenames. Trashed files (soft-deleted via theme_trash_file) are hidden unless includeTrash: true.",
+        "Lists every file inside one theme's folder, as paths relative to that folder (e.g. 'theme.json', 'templates/home.liquid'). Read-only. Use this to discover what a theme actually ships before reading or editing it, rather than guessing filenames. To search text inside theme files, use theme_read_file with find. Trashed files (soft-deleted via theme_trash_file) are hidden unless includeTrash: true.",
       sideEffects: "none",
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: LIST_FILES_SCHEMA,
@@ -372,8 +372,10 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_read_file",
       description:
         "Reads one file's raw text content from inside a theme's folder. Read-only. The path must stay inside that theme's own folder. " +
+        "To search or grep text inside theme files, use theme_read_file with find; no separate Grep tool is needed. Use theme_list_files to discover paths, then batch find over those files. " +
         "For a large file, pass find (to locate a string) or startLine/lineCount (to read a window) instead of reading the whole file. " +
         "Selected reads also return totalLines, totalBytes and returned (startLine/endLine for a window; matches/truncated for find). " +
+        "Find returns at most 2000 characters per window and 4000 per item (80000 content characters across a 20-item batch). When returned.truncated is true, follow returned.hint to narrow the find pattern or reduce context. " +
         "The 1 MB read limit still applies to the whole file, even for a selected read.",
       sideEffects: "none",
       authorization: { permission: THEME_READ_PERMISSION },

@@ -74,6 +74,18 @@ test("both overlays still carry the surrounding tool-catalog protocol untouched"
   }
 });
 
+test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids", () => {
+  for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
+    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    assert.match(overlay, /For visual site checks, prefer Tovu's web_screenshot_page; use web_fetch_page/);
+    assert.match(overlay, /this site's own pages, use web_screenshot_page with sitePath/);
+    assert.match(overlay, /mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first/);
+    assert.match(overlay, /only a pageId returned in the current run/);
+    assert.match(overlay, /Never reuse a pageId from an earlier run or before a server\/daemon restart/);
+    assert.match(overlay, /On 'No page found', list pages again or open a new page before navigating/);
+  }
+});
+
 // FABRICATED-STAT FIX (2026-09-08): the overlay used to assert "the right tool is in the default
 // top 10 98% of the time and in the top 20 100% of the time". Verified fabricated: the eval it
 // claimed as its source (`tool-search-heldout-v2.eval.ts`) declares `CUTOFFS = [1, 3, 5, 10] as

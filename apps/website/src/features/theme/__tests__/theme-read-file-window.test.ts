@@ -7,6 +7,8 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { discoverAllBuiltInThemes } from "../index.js";
 import { buildThemesRegistrations } from "../tool-registrations.js";
+import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import { getThemesAgentToolCatalog } from "../agent-tools.js";
 
 function fixture(t: test.TestContext, content: string | Buffer, allow = true) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-theme-window-"));
@@ -140,9 +142,74 @@ test("t02: find caps at 50 matching lines and distinguishes exactly 50 from over
       content: "hit\n".repeat(50),
       totalLines: count,
       totalBytes: count * 4,
-      returned: { matches: 50, truncated: count > 50 },
+      returned: { matches: 50, truncated: count > 50,
+        ...(count > 50 ? { hint: "Search results were truncated; narrow the find pattern and reduce context." } : {}),
+      },
     });
   }
+});
+
+test("find caps a minified single line while retaining a match away from the start", async (t) => {
+  const content = "x".repeat(980_000) + "needle" + "y".repeat(10_000);
+  const result = await fixture(t, content).read({ find: "needle" }) as {
+    content: string; totalLines: number; totalBytes: number;
+    returned: { truncated: boolean; hint: string };
+  };
+  assert.ok(result.content.length <= 2_000);
+  assert.ok(result.content.includes("needle"));
+  assert.equal(result.totalLines, 1);
+  assert.equal(result.totalBytes, content.length);
+  assert.equal(result.returned.truncated, true);
+  assert.match(result.returned.hint, /narrow the find pattern/);
+});
+
+test("find distinguishes an exact window cap from omitted text", async (t) => {
+  for (const length of [2_000, 2_001]) {
+    const result = await fixture(t, "needle" + "x".repeat(length - 6)).read({ find: "needle" }) as {
+      content: string; returned: { truncated: boolean };
+    };
+    assert.equal(result.content.length, 2_000);
+    assert.equal(result.returned.truncated, length > 2_000);
+  }
+});
+
+test("find caps all windows per item and all find content in a maximum-sized batch", async (t) => {
+  const content = ("x".repeat(3_000) + "needle" + "y".repeat(3_000) + "\nspacer\n").repeat(3);
+  const { registration } = fixture(t, content);
+  const [batched] = applyBatchInputs({ registrations: [registration] });
+  assert.ok(batched);
+  const result = await batched.handler({
+    executionId: "exec", principal: { id: "owner" }, run: { id: "run" },
+    signal: new AbortController().signal,
+    input: { themeId: "plain", find: "needle", context: 0,
+      items: Array.from({ length: 20 }, () => ({ path: "sample.txt" })),
+    },
+  }) as BatchResult;
+  assert.equal(result.succeeded, 20);
+  let totalChars = 0;
+  for (const item of result.results) {
+    assert.equal(item.ok, true);
+    if (!item.ok) continue;
+    const read = item.result as { content: string; returned: { truncated: boolean; hint: string } };
+    assert.equal(read.content.length, 4_000);
+    assert.equal(read.returned.truncated, true);
+    assert.match(read.returned.hint, /narrow the find pattern/);
+    totalChars += read.content.length;
+  }
+  assert.ok(totalChars <= 80_000);
+  await assert.rejects(() => batched.handler({
+    executionId: "exec", principal: { id: "owner" }, run: { id: "run" },
+    signal: new AbortController().signal,
+    input: { items: Array.from({ length: 21 }, () => ({ themeId: "plain", path: "sample.txt", find: "needle" })) },
+  }), /most one call takes is 20/);
+});
+
+test("theme file descriptions make find discoverable as the existing text search", (t) => {
+  const { registration } = fixture(t, "one");
+  assert.match(registration.descriptor.description ?? "", /search or grep text inside theme files.*theme_read_file with find/);
+  assert.match(registration.descriptor.description ?? "", /returned\.truncated.*returned\.hint.*narrow the find pattern/);
+  const listing = getThemesAgentToolCatalog().find((tool) => tool.name === "theme_list_files");
+  assert.match(listing?.description ?? "", /search text inside theme files.*theme_read_file with find/);
 });
 
 test("t02: find without a match returns empty content and zero matches", async (t) => {

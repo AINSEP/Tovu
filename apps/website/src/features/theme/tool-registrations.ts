@@ -551,10 +551,12 @@ function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection 
 
 /**
  * Finds up to 50 matching lines and merges overlapping or adjacent context intervals.
+ * Caps each window at 2,000 characters and each result at 4,000; the existing 20-item
+ * batch limit therefore bounds find content at 80,000 characters per batch.
  * @param lines - File lines retaining their original terminators.
  * @param options - Validated substring and context count.
- * @returns Original text in file order plus capped match count and overflow signal.
- * @complexity O(b) in file text size; at most 50 intervals, each bounded by 41 lines.
+ * @returns Text in file order, capped match count, overflow signal and narrowing hint when cut.
+ * @complexity O(b) time/space in file text size; returned text is bounded even for minified lines.
  */
 function findThemeReadWindows(lines: string[], options: Extract<ThemeReadSelection, { mode: "find" }>) {
   const windows: Array<{ start: number; end: number }> = [];
@@ -573,9 +575,24 @@ function findThemeReadWindows(lines: string[], options: Extract<ThemeReadSelecti
     if (previous && start <= previous.end) previous.end = end;
     else windows.push({ start, end });
   }
+  let content = "";
+  for (const { start, end } of windows) {
+    const limit = Math.min(2_000, 4_000 - content.length);
+    if (limit === 0) {
+      truncated = true;
+      break;
+    }
+    const text = lines.slice(start, end).join("");
+    // Keep the match visible when a minified line or its surrounding context exceeds the cap.
+    const offset = text.length > limit ? Math.max(0, text.indexOf(options.find) - Math.floor(limit / 2)) : 0;
+    content += text.slice(offset, offset + limit);
+    if (text.length > limit) truncated = true;
+  }
   return {
-    content: windows.map(({ start, end }) => lines.slice(start, end).join("")).join(""),
-    returned: { matches, truncated },
+    content,
+    returned: { matches, truncated,
+      ...(truncated ? { hint: "Search results were truncated; narrow the find pattern and reduce context." } : {}),
+    },
   };
 }
 
