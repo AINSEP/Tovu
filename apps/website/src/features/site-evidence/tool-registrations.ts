@@ -133,14 +133,15 @@ export function readPathsArgument(input: Readonly<Record<string, unknown>>): rea
 }
 
 /**
- * Reads the optional `consentAcceptSelector` and `collectAccessibility` arguments.
+ * Reads optional consent, accessibility and on-demand performance arguments.
  *
  * @throws {ToolInputError} If either is present with the wrong type.
  * @complexity O(1).
  */
-export function readOptionalEvidenceArguments(input: Readonly<Record<string, unknown>>): {
+export function readOptionalEvidenceArguments(input: Readonly<Record<string, unknown>>, _options: Record<string, never> = {}): {
   readonly consentAcceptSelector?: string;
   readonly collectAccessibility?: boolean;
+  readonly collectPerformance?: boolean;
 } {
   const selector = input.consentAcceptSelector;
   if (selector !== undefined && typeof selector !== "string") {
@@ -150,7 +151,12 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
   if (collectAccessibility !== undefined && typeof collectAccessibility !== "boolean") {
     throw new ToolInputError({ message: "'collectAccessibility' must be a boolean when provided" });
   }
+  const collectPerformance = input.collectPerformance;
+  if (collectPerformance !== undefined && typeof collectPerformance !== "boolean") {
+    throw new ToolInputError({ message: "'collectPerformance' must be a boolean when provided" });
+  }
   return {
+    ...(typeof collectPerformance === "boolean" ? { collectPerformance } : {}),
     ...(typeof selector === "string" && selector.trim().length > 0 ? { consentAcceptSelector: selector.trim() } : {}),
     ...(typeof collectAccessibility === "boolean" ? { collectAccessibility } : {}),
   };

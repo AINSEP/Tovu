@@ -46,7 +46,9 @@ export const siteEvidenceAgentToolCatalog: AgentToolDefinition[] = [
       "selector it came from. Use it for anything a configuration snapshot cannot prove: whether a " +
       "tracking cookie fires before consent, whether a consent banner actually renders, whether a " +
       "privacy policy page is reachable or is still placeholder text, whether headings and labels are " +
-      "really there in the published output. " +
+      "really there in the published output. Set collectPerformance=true ONLY when the user asks for performance diagnosis: " +
+      "adds heap, DOM, mounted hidden panels, iframes, long tasks and plain-language suspects. " +
+      "This is a fresh anonymous page, not the operator's open admin tab or restored chat. " +
       "SCOPE: this site's own origin only — it takes site-relative paths, never URLs, and will not " +
       "fetch another host. It loads at most 5 pages per call under a 60s budget, never submits a form " +
       "or any non-GET request, and persists nothing. " +
@@ -80,6 +82,10 @@ export const siteEvidenceAgentToolCatalog: AgentToolDefinition[] = [
             "afterwards with phase 'after', which is the only way to tell gated behaviour from ungated. " +
             "When omitted, every observation is phase 'before' and nothing in the result says what " +
             "changes on acceptance.",
+        },
+        collectPerformance: {
+          type: "boolean",
+          description: "On-demand only. Defaults false. Numeric performance sample of a fresh anonymous page; unavailable APIs are explicit. Does not inspect an existing signed-in admin tab.",
         },
         collectAccessibility: {
           type: "boolean",

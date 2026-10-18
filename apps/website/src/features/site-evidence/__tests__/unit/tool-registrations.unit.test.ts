@@ -87,7 +87,7 @@ test("the input schema cannot express a URL, a host, or more than the page cap",
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, ["paths"]);
   assert.equal(properties.paths?.maxItems, 5);
-  assert.deepEqual(Object.keys(properties).sort(), ["collectAccessibility", "consentAcceptSelector", "paths"]);
+  assert.deepEqual(Object.keys(properties).sort(), ["collectAccessibility", "collectPerformance", "consentAcceptSelector", "paths"]);
   assert.ok(!("url" in properties) && !("host" in properties) && !("origin" in properties));
 });
 
@@ -203,4 +203,12 @@ test("the available-browser handler forwards optional inputs, returns same-origi
   assert.deepEqual(result.skipped.map(({ path, reason }) => ({ path, reason })), [{ path: "/away", reason: "off-origin-redirect" }, { path: "/broken", reason: "navigation-failed" }]);
   assert.equal(JSON.stringify(result).includes("secret=canary"), false);
   assert.equal(closed, 1);
+});
+
+
+test('performance diagnostics are explicit opt-in and reject non-boolean input', () => {
+  assert.deepEqual(readOptionalEvidenceArguments({}), {});
+  assert.deepEqual(readOptionalEvidenceArguments({ collectPerformance: true }), { collectPerformance: true });
+  assert.deepEqual(readOptionalEvidenceArguments({ collectPerformance: false }), { collectPerformance: false });
+  assert.throws(() => readOptionalEvidenceArguments({ collectPerformance: 'true' }), ToolInputError);
 });

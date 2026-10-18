@@ -298,3 +298,20 @@ test("a workspace with no verified origin propagates OriginNotVerifiedError rath
   );
   assert.deepEqual(browser.visited, [], "with no origin there is no same-origin boundary — nothing may be loaded");
 });
+
+
+test('performance opt-in reaches the shared browser and numeric evidence survives host redaction', async () => {
+  const seen: ObservePageOptions[] = [];
+  const performance = { context: 'fresh-isolated-page' as const, heap: null, domNodes: 1, domTruncated: false, mountedHiddenPanels: 0, hiddenPreElements: 0, hiddenPreTextChars: 0, iframes: 0, longTasks: { supported: false, count: 0, totalMs: 0, maxMs: 0, truncated: false }, suspects: [] };
+  const browser = fakeBrowser((_request, options = {}) => {
+    seen.push(options);
+    return { ok: true, observation: { ...observation(), ...(options.collectPerformance ? { performance } : {}) } };
+  });
+  const ordinary = await collectPageEvidence({ ...deps(browser.factory), paths: ['/'] });
+  const requested = await collectPageEvidence({ ...deps(browser.factory), paths: ['/'] }, { collectPerformance: true });
+  assert.equal(seen[0].collectPerformance, undefined);
+  assert.equal(seen[1].collectPerformance, true);
+  assert.equal(ordinary.pages[0].observation.performance, undefined);
+  assert.deepEqual(requested.pages[0].observation.performance, performance);
+  assert.equal(browser.closed, 2);
+});

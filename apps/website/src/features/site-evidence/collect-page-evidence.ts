@@ -82,6 +82,9 @@ function redactObservation({ observation }: { observation: PageObservation }): P
       })),
       truncated: accessibility.truncated.map(redactText),
     } }),
+    ...(observation.performance === undefined ? {} : { performance: {
+      ...observation.performance, suspects: observation.performance.suspects.map(redactText),
+    } }),
     notes: observation.notes.map(redactText),
   };
 }
