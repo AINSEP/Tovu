@@ -489,11 +489,17 @@ export function createAssistantByokModule(
     const pluginBody = (req.body ?? {}) as { conversationId?: unknown; agentPluginState?: unknown; pluginRefIds?: unknown; userPrompt?: unknown };
     const conversationId = typeof pluginBody.conversationId === 'string' ? pluginBody.conversationId : undefined;
     const pinned = Array.isArray(pluginBody.pluginRefIds) ? pluginBody.pluginRefIds.filter((id): id is string => typeof id === 'string') : [];
-    if (pinned.length) {
-      const resolved = await resolveAgentPluginRefs(pinned, routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
-      if (!resolved.ok) { sse(res, 'error', { message: 'A selected Agent Plugin could not be loaded.' }); res.end(); return; }
-      system += `\n\n${resolved.promptPrefix}`;
+    let skippedPinned = false;
+    for (const pluginId of pinned) {
+      // Explicit attachments bypass relevance matching, but a failed attachment must not end a run
+      // or discard guidance from the other picks. The lifecycle still enforces activation and trust.
+      try {
+        const resolved = await resolveAgentPluginRefs([pluginId], routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
+        if (resolved.ok) system += `\n\n${resolved.promptPrefix}`;
+        else skippedPinned = true;
+      } catch { skippedPinned = true; }
     }
+    if (skippedPinned) sse(res, 'agent', { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' });
     res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
     if (conversationId) {
       try {

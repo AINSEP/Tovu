@@ -5,6 +5,13 @@ import { set as setSiteSetting } from "../../features/settings/index.js";
 import { toWriteServiceDeps } from "../inbound/admin-http/routes/settings/shared.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
+import { installAgentPlugin } from "../../features/agent-plugins/lifecycle.js";
+import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -304,6 +311,50 @@ const BYOK_BODY = {
   messages: [{ role: "user", content: "What is this workspace called? Use your tool." }],
   byok: { protocol: "anthropic", apiKey: "sk-ant-test-fake-not-real", model: "claude-opus-4-8" },
 };
+
+for (const missing of [false, true]) {
+  test(`${BYOK_TURN_PATH} honours explicit plugin picks${missing ? ' and skips failed picks with one notice' : ' without a relevance match'}`, async t => {
+    const cwd = await mkdtemp(path.join(tmpdir(), 'byok-pinned-plugins-'));
+    t.after(() => forceRemove(cwd));
+    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const deps = createRouteDeps();
+    deps.agentPluginLayout = layout;
+    const skill = '# Synthetic guidance\n\nUse the unique pinned-plugin fixture instructions.';
+    const archive = new Uint8Array(Buffer.from('byok-pinned-fixture'));
+    // Real installation and resolution exercise activation/trust; only the archive reader is fake.
+    await installAgentPlugin({
+      archive, expectedSha256: createHash('sha256').update(archive).digest('hex'),
+      layout, workspaceId: deps.workspaceId,
+      archiveReader: { async *entries() {
+        for (const [entryPath, content] of [
+          ['plugin.json', JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'synthetic', version: '1.0.0' })],
+          ['skills/synthetic/SKILL.md', skill],
+        ]) {
+          const bytes = Buffer.from(content!, 'utf8');
+          yield { kind: 'file' as const, entryPath: entryPath!, declaredSize: bytes.length, executable: false,
+            async *openReadStream() { yield bytes; } };
+        }
+      } },
+    });
+    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+    let calls = 0;
+    const providerUrl = await stubProvider(t, (_count, body) => {
+      calls++;
+      assert.ok(JSON.stringify(body.system).includes(skill.replace(/\n/g, '\\n')), 'explicit guidance reaches the provider on an unrelated request');
+      return sseBody(messageStart(), textBlock(0, 'The run continued.'), messageDelta('end_turn'), messageStop());
+    });
+    const res = await postByokTurn(baseUrl, cookie, {
+      ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl },
+      pluginRefIds: missing ? ['missing-one', 'synthetic', 'missing-two'] : ['synthetic'],
+    });
+    const frames = parseSseFrames(await res.text());
+    assert.equal(calls, 1);
+    assert.equal(frames.some(frame => frame.event === 'error'), false);
+    assert.equal(frames.filter(frame => frame.payload.type === 'status' && String(frame.payload.label).includes('were skipped')).length, missing ? 1 : 0);
+    assert.ok(frames.some(frame => frame.event === 'agent' && frame.payload.delta === 'The run continued.'));
+    assert.ok(frames.some(frame => frame.event === 'end'));
+  });
+}
 
 test(`${BYOK_TURN_PATH} requires a session — an unauthenticated caller never reaches it`, async (t) => {
   const deps = createRouteDeps();

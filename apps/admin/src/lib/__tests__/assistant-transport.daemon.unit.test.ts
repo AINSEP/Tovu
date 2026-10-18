@@ -68,26 +68,29 @@ describe("buildLocalCliContextRef", () => {
     return { history: HISTORY, signal: new AbortController().signal, ...overrides } as StartRunInput;
   }
 
-  test("always includes prompt, with no optional fields when context/attachments are absent", () => {
-    expect(buildLocalCliContextRef(input(), "the prompt")).toEqual({ prompt: "the prompt" });
+  // Cold starts need the complete history even when the resume prompt is only the newest turn.
+  const coldStartContext = "## user\nlist my posts";
+
+  test("always includes prompt and coldStartContext when context/attachments are absent", () => {
+    expect(buildLocalCliContextRef(input(), "the prompt")).toEqual({ prompt: "the prompt", coldStartContext });
   });
 
   test("includes frontendBindToken only when it is a non-empty string", () => {
     expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1" } }), "p")).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       frontendBindToken: "tab-1",
     });
-    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "" } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: 42 } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: 42 } }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   test("includes model only when it is a non-empty string", () => {
     expect(buildLocalCliContextRef(input({ context: { model: "claude-opus-5" } }), "p")).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       model: "claude-opus-5",
     });
-    expect(buildLocalCliContextRef(input({ context: { model: "" } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { model: 42 } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { model: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { model: 42 } }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   // `reasoning` rides the same "opaque string, omit when absent" convention as `model` above. The
@@ -97,11 +100,11 @@ describe("buildLocalCliContextRef", () => {
   // refactor pulling each field into its own helper.
   test("includes reasoning only when it is a non-empty string", () => {
     expect(buildLocalCliContextRef(input({ context: { reasoning: "max" } }), "p")).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       reasoning: "max",
     });
-    expect(buildLocalCliContextRef(input({ context: { reasoning: "" } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { reasoning: 3 } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { reasoning: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { reasoning: 3 } }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   test("includes attachmentIds (mapped to their opaque path) only when attachments is non-empty", () => {
@@ -110,29 +113,29 @@ describe("buildLocalCliContextRef", () => {
         input({ attachments: [{ path: "attachment:1" }, { path: "attachment:2" }] as StartRunInput["attachments"] }),
         "p",
       ),
-    ).toEqual({ prompt: "p", attachmentIds: ["attachment:1", "attachment:2"] });
-    expect(buildLocalCliContextRef(input({ attachments: [] as StartRunInput["attachments"] }), "p")).toEqual({ prompt: "p" });
+    ).toEqual({ prompt: "p", coldStartContext, attachmentIds: ["attachment:1", "attachment:2"] });
+    expect(buildLocalCliContextRef(input({ attachments: [] as StartRunInput["attachments"] }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   test("does not let a spread of context shadow the reserved keys — reads frontendBindToken/model by name only", () => {
     expect(
       buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1", principalId: "should-not-appear" } }), "p"),
-    ).toEqual({ prompt: "p", frontendBindToken: "tab-1" });
+    ).toEqual({ prompt: "p", coldStartContext, frontendBindToken: "tab-1" });
   });
 
   test("includes pluginRefIds (filtered to non-empty strings) only when at least one survives", () => {
     expect(buildLocalCliContextRef(input({ context: { pluginRefIds: ["ui-ux-design"] } }), "p")).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       pluginRefIds: ["ui-ux-design"],
     });
     // Same filtering posture as `attachmentIds`'s own decode side (`run-start-context.ts`'s
     // `parseRunStartContextRef`) — a non-string or empty-string entry is dropped, not forwarded.
     expect(buildLocalCliContextRef(input({ context: { pluginRefIds: ["ui-ux-design", "", 42, "second"] } }), "p")).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       pluginRefIds: ["ui-ux-design", "second"],
     });
-    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: [] } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: "not-an-array" } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: [] } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: "not-an-array" } }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   // 2026-09-16: the screen the message was sent from, so "this page" means something to the agent.
@@ -145,19 +148,19 @@ describe("buildLocalCliContextRef", () => {
       view: "page-editor",
       entry: { kind: "page", id: "4f22", title: "Landing sample — xai" },
     };
-    expect(buildLocalCliContextRef(input({ context: { pageContext } }), "p")).toEqual({ prompt: "p", pageContext });
-    expect(buildLocalCliContextRef(input({ context: { pageContext: "pages" } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { pageContext: ["pages"] } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { pageContext: null } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { pageContext } }), "p")).toEqual({ prompt: "p", coldStartContext, pageContext });
+    expect(buildLocalCliContextRef(input({ context: { pageContext: "pages" } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { pageContext: ["pages"] } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { pageContext: null } }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   test("includes conversationId only when it is a non-empty string", () => {
     expect(buildLocalCliContextRef(input({ context: { conversationId: "c1" } }), "p")).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       conversationId: "c1",
     });
-    expect(buildLocalCliContextRef(input({ context: { conversationId: "" } }), "p")).toEqual({ prompt: "p" });
-    expect(buildLocalCliContextRef(input({ context: { conversationId: 42 } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { conversationId: "" } }), "p")).toEqual({ prompt: "p", coldStartContext });
+    expect(buildLocalCliContextRef(input({ context: { conversationId: 42 } }), "p")).toEqual({ prompt: "p", coldStartContext });
   });
 
   // Guards against an extraction that handles each field correctly in isolation but drops or
@@ -173,7 +176,7 @@ describe("buildLocalCliContextRef", () => {
         "p",
       ),
     ).toEqual({
-      prompt: "p",
+      prompt: "p", coldStartContext,
       frontendBindToken: "tab-1",
       model: "claude-opus-5",
       reasoning: "max",
