@@ -16,6 +16,7 @@
 
 import {
   DEFAULT_NOTIFICATIONS_PREFERENCES,
+  normalizeAccentColor,
   type NotificationsPreferences,
   type PrivacyConsentState,
   type SettingsThemeChoice,
@@ -168,13 +169,16 @@ export async function loadPrivacy(): Promise<PrivacyConsentState> {
 
 // --- Appearance -----------------------------------------------------------
 
-const APPEARANCE_KEYS = { theme: "theme", accentColor: "accentColor" } as const;
+const APPEARANCE_KEYS = { theme: "theme", accentColor: "accentColor", adminThemeAccents: "adminThemeAccents" } as const;
 
 /** Mirrors `@jini-ai/ui`'s own `DEFAULT_ACCENT_COLOR` and the registered
  *  ledger default. */
 export interface AppearanceConfig {
   theme: SettingsThemeChoice;
+  /** Legacy single value belongs to Classic. Kept for existing settings callers. */
   accentColor: string;
+  /** Tovu admin-theme overrides other than Classic; stored separately from the scalar. */
+  accentColors?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -188,27 +192,63 @@ export interface AppearanceConfig {
  */
 export const DEFAULT_APPEARANCE: AppearanceConfig = { theme: "light", accentColor: "#2563eb" };
 
+/** Read the separate admin-theme object, preserving overrides for uninstalled themes.
+ * Classic's scalar remains the sole owner of its value for legacy readers and agent writes.
+ * @complexity O(n) time/space for n stored theme entries. Invalid entries are ignored. */
+function readAppearanceAccents({ stored }: { stored: unknown }, _optional: object = {}): Readonly<Record<string, string>> | undefined {
+  if (stored === null || typeof stored !== "object" || Array.isArray(stored)) return undefined;
+  const entries = Object.entries(stored).filter(([id, value]) => id !== "classic" && normalizeAccentColor({ value }) !== null);
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
+/** The active theme's override, or undefined so its own palette stays in charge. O(1). */
+export function adminThemeAccent({ appearance, themeId }: { appearance: AppearanceConfig; themeId: string }, _optional: object = {}): string | undefined {
+  const accent = themeId === "classic" ? appearance.accentColor : appearance.accentColors?.[themeId];
+  // Jini's original neutral-blue ledger default was never an operator choice for Classic.
+  return themeId === "classic" && accent?.toLowerCase() === DEFAULT_APPEARANCE.accentColor.toLowerCase() ? undefined : accent;
+}
+
+/** Edit one theme without losing other choices; undefined restores its palette default.
+ * @complexity O(n) time/space for n stored theme entries; never mutates the draft. */
+export function withAdminThemeAccent({ appearance, themeId, accentColor }: { appearance: AppearanceConfig; themeId: string; accentColor: string | undefined }, _optional: object = {}): AppearanceConfig {
+  if (themeId === "classic") return { ...appearance, accentColor: accentColor ?? DEFAULT_APPEARANCE.accentColor };
+  const accentColors = { ...appearance.accentColors };
+  if (accentColor === undefined) delete accentColors[themeId];
+  else accentColors[themeId] = accentColor;
+  return { ...appearance, accentColors };
+}
+
 export async function loadAppearance(): Promise<AppearanceConfig> {
   const values = await loadNamespaceValues(APPEARANCE_NAMESPACE);
   const theme = readString(values, APPEARANCE_KEYS.theme, DEFAULT_APPEARANCE.theme);
+  const accentColors = readAppearanceAccents({ stored: values.get(APPEARANCE_KEYS.adminThemeAccents) }, {});
   return {
     // An unrecognised stored theme falls back rather than reaching the tab as
     // a value its radio group cannot select.
     theme: theme === "system" || theme === "light" || theme === "dark" ? theme : DEFAULT_APPEARANCE.theme,
     accentColor: readString(values, APPEARANCE_KEYS.accentColor, DEFAULT_APPEARANCE.accentColor),
+    ...(accentColors ? { accentColors } : {}),
   };
 }
 
+/** Diff-write appearance; scalar-only callers leave the optional admin-theme map untouched.
+ * @complexity O(n) time/space for n theme entries; the shared ledger owns sequential writes. */
 export async function saveAppearance(
   next: AppearanceConfig,
   previous: AppearanceConfig,
 ): Promise<readonly string[]> {
+  const accentColors = next.accentColors ?? previous.accentColors ?? {};
   return saveChangedEntries(APPEARANCE_NAMESPACE, USER_SCOPE, [
     { key: APPEARANCE_KEYS.theme, valueJson: next.theme, changed: next.theme !== previous.theme },
     {
       key: APPEARANCE_KEYS.accentColor,
       valueJson: next.accentColor,
       changed: next.accentColor !== previous.accentColor,
+    },
+    {
+      key: APPEARANCE_KEYS.adminThemeAccents,
+      valueJson: accentColors,
+      changed: JSON.stringify(accentColors) !== JSON.stringify(previous.accentColors ?? {}),
     },
   ]);
 }

@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import {
   I18nProvider,
   SETTINGS_DIALOG_DICTIONARIES,
@@ -133,6 +134,7 @@ function AuthenticationHomePanel({ t }: { t: Translate }): ReactElement {
  * <Authentication />
  */
 export function Authentication(): ReactElement {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   const locale = useAdminLocale();
   const t: Translate = (key) => translateAuthentication({ locale: locale, key: key });
   const tabs: SettingsDialogTab[] = [
@@ -184,8 +186,9 @@ export function Authentication(): ReactElement {
             (see that modifier's own comment in `styles.css`), restoring the horizontal measure and
             spacing the card used to supply incidentally. `tabs[].title`/`.subtitle` are left
             unchanged below — the shell still uses them for its accessible naming, this only hides
-            the visual duplicate. */}
-        <div className="settings-ui-section settings-ui-section--page-flow" data-theme="light">
+            the visual duplicate. Classic keeps its unverified-dark light pin; Glass follows the
+            document scheme through the shared theme controller. */}
+        <div className="settings-ui-section settings-ui-section--page-flow" {...themeBoundary}>
           <SettingsDialogShell
             tabs={tabs}
             presentation="inline"

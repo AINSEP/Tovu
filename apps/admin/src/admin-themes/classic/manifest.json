@@ -29,13 +29,15 @@
       "surface": "oklch(100% 0 none)",
       "text": "oklch(24% 0.022 262)",
       "accent": "oklch(55.29% 0.1129 43.4)",
+      "accentHex": "#a85a38",
       "border": "oklch(91.5% 0.007 255)"
     },
     "dark": {
-      "bg": "oklch(14% 0.018 255)",
-      "surface": "oklch(18.5% 0.018 255)",
+      "bg": "#171717",
+      "surface": "#171717",
       "text": "oklch(96% 0.004 250)",
       "accent": "oklch(56% 0.10 44)",
+      "accentHex": "#a56042",
       "border": "oklch(100% 0 0 / 0.11)"
     }
   }

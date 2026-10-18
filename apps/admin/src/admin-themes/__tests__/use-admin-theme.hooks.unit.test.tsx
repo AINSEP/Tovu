@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_APPEARANCE, DEFAULT_INTERFACE, type AppearanceConfig, type InterfaceConfig } from "../../lib/settings-tabs";
-import { ADMIN_THEME_STORAGE_KEY } from "../apply";
-import { useAdminThemeDocument, useAdminThemePicker, type AdminThemeDocumentEnv, type AdminThemePort } from "../use-admin-theme.hooks";
+import { ADMIN_THEME_STORAGE_KEY, applyAdminThemeToDocument } from "../apply";
+import { useAdminThemeBoundary, useAdminThemeState, useAdminThemeDocument, useAdminThemePicker, type AdminThemeDocumentEnv, type AdminThemePort } from "../use-admin-theme.hooks";
 
 /**
  * @file The admin theme hooks over a fake settings port and a detached <html> (no module mocks):
@@ -48,15 +48,49 @@ function fakeEnv({ dark = false } = {}) {
   return { env, storage, flipOs, listenerCount: () => listeners.size };
 }
 
+describe("resolved screen boundary", () => {
+  it("follows optimistic document paints and scheme changes without any settings reads", async () => {
+    const root = document.createElement("html");
+    const { result, unmount } = renderHook(() => ({
+      state: useAdminThemeState({}, { root }),
+      props: useAdminThemeBoundary({}, { root }),
+    }));
+    expect(result.current.state).toEqual({ themeId: "classic", scheme: "light" });
+    expect(result.current.props).toEqual({ "data-theme": "light" });
+    for (const [themeId, scheme] of [["classic", "dark"], ["glass", "dark"], ["glass", "light"], ["classic", "light"]] as const) {
+      act(() => applyAdminThemeToDocument({ state: { themeId, scheme } }, { root }));
+      await waitFor(() => expect(result.current.state).toEqual({ themeId: "classic", scheme }));
+      expect(result.current.props).toEqual({ "data-theme": "light" });
+    }
+    unmount();
+    root.setAttribute("data-color-scheme", "dark");
+    expect(result.current.state).toEqual({ themeId: "classic", scheme: "light" });
+  });
+
+  it("recognizes the pre-paint document and legacy dark attribute, falling back for missing themes", () => {
+    const root = document.createElement("html");
+    root.setAttribute("data-admin-theme", "removed");
+    root.setAttribute("data-theme", "dark");
+    const { result } = renderHook(() => useAdminThemeState({}, { root }));
+    expect(result.current).toEqual({ themeId: "classic", scheme: "dark" });
+  });
+});
+
 describe("useAdminThemeDocument", () => {
-  it("paints the stored theme and scheme once both settings load, and remembers them", async () => {
-    const { env, storage } = fakeEnv();
-    renderHook(() => useAdminThemeDocument({}, { port: fakePort({ adminTheme: "default", theme: "dark" }), env }));
-    expect(env.root.hasAttribute("data-admin-theme")).toBe(false);
-    await waitFor(() => expect(env.root.getAttribute("data-admin-theme")).toBe("classic"));
-    expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
-    expect(env.root.getAttribute("data-theme")).toBe("dark");
-    expect(storage.setItem).toHaveBeenCalledWith(ADMIN_THEME_STORAGE_KEY, expect.stringContaining('"themeId":"classic"'));
+  it.each(["default", "glass", "removed-theme"])("paints stored %s as Classic once both settings load, and remembers it", async (adminTheme) => {
+    const consoleError = vi.spyOn(console, "error");
+    try {
+      const { env, storage } = fakeEnv();
+      renderHook(() => useAdminThemeDocument({}, { port: fakePort({ adminTheme, theme: "dark" }), env }));
+      expect(env.root.hasAttribute("data-admin-theme")).toBe(false);
+      await waitFor(() => expect(env.root.getAttribute("data-admin-theme")).toBe("classic"));
+      expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
+      expect(env.root.getAttribute("data-theme")).toBe("dark");
+      expect(storage.setItem).toHaveBeenCalledWith(ADMIN_THEME_STORAGE_KEY, expect.stringContaining('"themeId":"classic"'));
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("follows the OS while the scheme is system, and stops listening on unmount", async () => {

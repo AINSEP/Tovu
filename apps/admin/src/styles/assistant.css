@@ -1,5 +1,6 @@
 /* Installed Tovu chat theme values. */
 @import '../admin-themes/classic/chat.css';
+@import '../admin-themes/glass/chat.css';
 
 /**
  * `chat-react` ships no CSS despite emitting BEM-style `jini-*` class names (verified against
@@ -77,13 +78,34 @@
 }
 
 .admin-chat-dock {
+  position: relative;
+  isolation: isolate;
   flex: 0 0 380px;
   width: 380px;
   min-width: 0;
   display: flex;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
+  border-left: var(--jini-border-width, 1px) solid var(--jini-panel-border);
+  background: var(--jini-panel-bg);
   overflow: hidden;
+  background-image: var(--jini-panel-texture, none);
+  box-shadow: var(--tovu-admin-rail-shadow);
+}
+
+/* Composer discovery/workdir menus use viewport-fixed coordinates. Frost the paint layer
+   so the dock itself never becomes their containing block. */
+.admin-chat-dock::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border-radius: inherit;
+  -webkit-backdrop-filter: var(--jini-panel-backdrop, none);
+  backdrop-filter: var(--jini-panel-backdrop, none);
+}
+/* Composer popovers float over the transcript; frost them so text behind never reads through.
+   The filter sits on the menu itself: none holds a fixed descendant to re-anchor (the runtime
+   popover's CustomSelects portal to document.body). Doubled class outranks the package rule. */
+.admin-chat-dock .jini-chat-pane :is(.jini-composer-discovery-menu, .jini-composer-slash-menu),
+.jini-runtime-popover.jini-runtime-popover {
+  -webkit-backdrop-filter: var(--jini-panel-backdrop, none);
+  backdrop-filter: var(--jini-panel-backdrop, none);
 }
 
 .admin-chat-dock[hidden] {
@@ -846,7 +868,7 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
  * is not enough, since `ChatPane` injects its stylesheet at mount and is therefore always LAST.
  */
 .admin-chat-dock .jini-chat-pane .jini-composer {
-  background: var(--surface-2);
+  background: var(--jini-chat-subtle);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
 }
@@ -867,7 +889,7 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
  * fill the moment you clicked into it.
  */
 .admin-chat-dock .jini-chat-pane .jini-composer:focus-within {
-  background: var(--surface-2);
+  background: var(--jini-chat-subtle);
   border-color: var(--jini-control-composer-border-focus);
   box-shadow: var(--jini-control-shadow);
 }
@@ -1333,11 +1355,12 @@ button.jini-composer-leading,
   max-width: min(340px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--tovu-admin-elevated-bg);
+  border: var(--jini-border-width, 1px) solid var(--border);
   border-radius: 12px;
   box-shadow: var(--jini-overlay-menu-shadow);
   overflow: hidden;
+  background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
 
 /* In the dock the trigger sits ~80px in from the right edge (gear and ✕ follow it), so a panel
@@ -1626,15 +1649,18 @@ button.jini-composer-leading,
   margin: clamp(1rem, 10vh, 5rem) auto auto;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: var(--jini-border-width, 1px) solid var(--border);
   border-radius: var(--radius-lg, 12px);
-  background: var(--surface);
+  background: var(--tovu-admin-elevated-bg);
   color: var(--fg);
   font: inherit;
   box-shadow: var(--jini-overlay-shadow);
+  background-image: var(--jini-panel-texture, none);
 }
 .jini-chat-settings-dialog[open] { display: flex; flex-direction: column; }
-.jini-chat-settings-dialog::backdrop { background: var(--jini-overlay-bg-chat); }
+.jini-chat-settings-dialog::backdrop { background: var(--jini-overlay-bg-chat);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
+}
 .jini-chat-settings-header {
   flex: none; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   padding: 0.875rem 0.875rem 0 1.5rem;

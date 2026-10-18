@@ -1,8 +1,9 @@
 import type { SettingsThemeChoice } from "@jini-ai/ui";
 import type { MatchMediaPort } from "@jini-ai/ui/theme";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useAdminBootScope } from "../lib/admin-boot-scope";
+import { useAdminAppearanceSnapshot } from "../hooks/use-admin-appearance-snapshot.hooks";
 import {
   APPEARANCE_NAMESPACE,
   INTERFACE_NAMESPACE,
@@ -17,9 +18,11 @@ import {
   applyAdminThemeToDocument,
   rememberAdminThemeChoice,
   resolveAdminThemeDocument,
+  resolveAdminThemeBoundary,
   type AdminThemeChoice,
   type AdminThemeStoragePort,
 } from "./apply";
+import { findAdminTheme } from "./registry";
 
 /**
  * @file The admin theme as React state. The theme id is `core.interface.adminTheme`; the scheme is
@@ -41,6 +44,30 @@ export interface AdminThemeDocumentEnv {
   root: HTMLElement;
   matchMedia?: MatchMediaPort;
   storage?: AdminThemeStoragePort;
+}
+
+/** Follow the already-painted document, including optimistic picks and OS scheme changes.
+ * No settings reads: the shell remains the single persistence/controller owner.
+ * @complexity O(t) for the bounded installed-theme registry; O(1) observer storage. */
+export function useAdminThemeState(_required: object, { root = document.documentElement }: { root?: HTMLElement } = {}) {
+  const subscribe = useCallback((notify: () => void) => {
+    const observer = new MutationObserver(notify);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-admin-theme", "data-color-scheme", "data-theme"] });
+    return () => observer.disconnect();
+  }, [root]);
+  const snapshot = useCallback(() => {
+    const themeId = findAdminTheme({ id: root.getAttribute("data-admin-theme") ?? "classic" }).id;
+    const scheme = root.getAttribute("data-color-scheme") ?? root.getAttribute("data-theme");
+    return `${themeId}/${scheme === "dark" ? "dark" : "light"}`;
+  }, [root]);
+  const value = useSyncExternalStore(subscribe, snapshot, () => "classic/light");
+  const [themeId, scheme] = value.split("/");
+  return { themeId: themeId!, scheme: scheme as "light" | "dark" };
+}
+
+/** The shared compatibility boundary for screens whose Classic dark paint is unverified. */
+export function useAdminThemeBoundary(required: object, optional: { root?: HTMLElement } = {}) {
+  return resolveAdminThemeBoundary({ state: useAdminThemeState(required, optional) }, {});
 }
 
 function browserEnv(): AdminThemeDocumentEnv {
@@ -65,13 +92,13 @@ export function paintAdminTheme({ choice }: { choice: AdminThemeChoice }, env: A
   rememberAdminThemeChoice({ choice }, { storage: env.storage });
 }
 
-function useStoredSettings(port: AdminThemePort) {
+/** Share the shell's versioned appearance snapshot; no observer may bypass preview ordering. */
+function useStoredSettings({ port, root }: { port: AdminThemePort; root: HTMLElement }, _optional: object = {}) {
   const { queryScope, checking } = useAdminBootScope();
   const fetchInterface = useCallback(() => port.loadInterface(), [port]);
-  const fetchAppearance = useCallback(() => port.loadAppearance(), [port]);
   const interfaceQuery = useFetchQuery({ key: ["settings", INTERFACE_NAMESPACE, queryScope], fetch: fetchInterface }, { enabled: !checking, staleTime: Infinity });
-  const appearanceQuery = useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE, queryScope], fetch: fetchAppearance }, { enabled: !checking, staleTime: Infinity });
-  return { interfaceConfig: interfaceQuery.data, appearance: appearanceQuery.data };
+  const appearanceQuery = useAdminAppearanceSnapshot({ port }, { root });
+  return { interfaceConfig: interfaceQuery.data, appearance: appearanceQuery.data?.appearance };
 }
 
 /**
@@ -79,7 +106,7 @@ function useStoredSettings(port: AdminThemePort) {
  * would undo the pre-paint bootstrap), and follows the OS while the scheme is "system".
  */
 export function useAdminThemeDocument(_required: object, { port = defaultAdminThemePort, env }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv } = {}): void {
-  const { interfaceConfig, appearance } = useStoredSettings(port);
+  const { interfaceConfig, appearance } = useStoredSettings({ port, root: env?.root ?? document.documentElement }, {});
   const themeId = interfaceConfig?.adminTheme;
   const preference = appearance?.theme;
   useEffect(() => {
@@ -114,7 +141,7 @@ function withoutField(choice: Partial<AdminThemeChoice>, field: keyof AdminTheme
  * confirms it; a failed save restores the stored choice and reports the error.
  */
 export function useAdminThemePicker(_required: object, { port = defaultAdminThemePort, env }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv } = {}): AdminThemePicker {
-  const { interfaceConfig, appearance } = useStoredSettings(port);
+  const { interfaceConfig, appearance } = useStoredSettings({ port, root: env?.root ?? document.documentElement }, {});
   const invalidate = useInvalidate();
   const [pending, setPending] = useState<Partial<AdminThemeChoice>>({});
   const [error, setError] = useState<string | null>(null);

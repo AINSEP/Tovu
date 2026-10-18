@@ -30,7 +30,7 @@ function setup({ adminTheme = "classic", theme = "light" as AppearanceConfig["th
 describe("AdminThemes", () => {
   it("renders a card per installed theme from its manifest, with the stored one checked", async () => {
     setup({ adminTheme: "default" });
-    const cards = await screen.findAllByRole("radio", { name: /Classic|Jini Default/ });
+    const cards = await screen.findAllByRole("radio");
     expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining("Tovu Classic")]);
     expect(cards).toHaveLength(ADMIN_THEMES.length);
     await waitFor(() => expect(screen.getByRole("radio", { name: /Tovu Classic/ })).toHaveAttribute("aria-checked", "true"));
@@ -49,6 +49,16 @@ describe("AdminThemes", () => {
     await waitFor(() => expect(card).toHaveAttribute("aria-checked", "true"));
   });
 
+  it.each(["glass", "removed-theme"])("shows Classic active for stored %s without a save or error", async (adminTheme) => {
+    const { port } = setup({ adminTheme, theme: "dark" });
+    const card = await screen.findByRole("radio", { name: /Tovu Classic/ });
+    await waitFor(() => expect(card).toHaveAttribute("aria-checked", "true"));
+    expect(screen.getAllByRole("radio")).toHaveLength(1);
+    expect(screen.queryByRole("radio", { name: /Glassmorphic/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(port.saveInterface).not.toHaveBeenCalled();
+  });
+
   it("keeps scheme controls off the Theme tab", async () => {
     setup();
     await screen.findByRole("radio", { name: /Tovu Classic/ });
@@ -65,7 +75,7 @@ describe("AdminThemes", () => {
       saveInterface: vi.fn(),
       saveAppearance: vi.fn(),
     }} env={{ root: document.createElement("html") }} />);
-    await screen.findAllByRole("radio", { name: /Classic|Jini Default/ });
+    await screen.findAllByRole("radio", { name: /Tovu Classic/ });
     const swatches = [...container.querySelectorAll<HTMLElement>(".admin-theme-swatch")];
     expect(swatches.map((swatch) => swatch.style.getPropertyValue("--swatch-accent"))).toEqual(ADMIN_THEMES.map((theme) => theme.preview.light?.accent));
   });

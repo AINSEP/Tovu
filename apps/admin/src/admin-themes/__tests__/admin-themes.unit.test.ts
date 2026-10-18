@@ -6,6 +6,7 @@ import {
   ADMIN_THEME_STORAGE_KEY,
   applyAdminThemeToDocument,
   rememberAdminThemeChoice,
+  resolveAdminThemeBoundary,
   resolveAdminThemeDocument,
 } from "../apply";
 import { ADMIN_THEMES, DEFAULT_ADMIN_THEME_ID, findAdminTheme, resolveAdminThemeScheme, type AdminThemeManifest } from "../registry";
@@ -20,6 +21,7 @@ import { CLASSIC_DARK, CLASSIC_ROOT } from "../../__tests__/unit/css-declaration
 const SRC = resolve(process.cwd(), "src");
 const THEME_DIRS: Record<string, string> = {
   classic: resolve(SRC, "admin-themes/classic"),
+  glass: resolve(SRC, "admin-themes/glass"),
 };
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -40,7 +42,7 @@ function fakeMatchMedia(dark: boolean) {
 }
 
 describe("admin theme registry", () => {
-  it("lists only Tovu Classic", () => {
+  it("lists only Classic, keeping it as the default", () => {
     expect(ADMIN_THEMES.map((theme) => theme.id)).toEqual(["classic"]);
     expect(DEFAULT_ADMIN_THEME_ID).toBe("classic");
     expect(ADMIN_THEMES.map((theme) => theme.name)).toEqual(["Tovu Classic"]);
@@ -49,21 +51,29 @@ describe("admin theme registry", () => {
   it.each(ADMIN_THEMES.map((theme) => [theme.id, theme] as const))("%s ships its stylesheets and a preview for every scheme", (id, theme) => {
     for (const sheet of Object.values(theme.stylesheets)) expect(() => read(resolve(THEME_DIRS[id]!, sheet)), sheet).not.toThrow();
     expect(theme.schemes.length).toBeGreaterThan(0);
-    for (const scheme of theme.schemes) expect(Object.keys(theme.preview[scheme] ?? {}).sort()).toEqual(["accent", "bg", "border", "surface", "text"]);
+    for (const scheme of theme.schemes) {
+      const { accentHex, ...preview } = theme.preview[scheme] ?? {};
+      expect(Object.keys(preview).sort()).toEqual(["accent", "bg", "border", "surface", "text"]);
+      if (accentHex !== undefined) expect(accentHex).toMatch(/^#[0-9a-f]{6}$/i);
+    }
   });
 
   it("classic's preview is classic's own light and dark values", () => {
     const css = read(resolve(THEME_DIRS.classic!, "admin.css"));
     const classic = findAdminTheme({ id: "classic" });
     const tokens = { bg: "--bg", surface: "--surface", text: "--fg", accent: "--primary", border: "--border" } as const;
-    for (const [role, token] of Object.entries(tokens)) {
-      expect(classic.preview.light?.[role as keyof typeof tokens], role).toBe(valueFor(css, CLASSIC_ROOT, token));
-      expect(classic.preview.dark?.[role as keyof typeof tokens], role).toBe(valueFor(css, CLASSIC_DARK, token));
+    for (const [scheme, selector] of [["light", CLASSIC_ROOT], ["dark", CLASSIC_DARK]] as const) {
+      for (const [role, token] of Object.entries(tokens)) {
+        const value = valueFor(css, selector, token);
+        // The preview stores a colour, while Classic's equal canvas/panel fills share --bg.
+        expect(classic.preview[scheme]?.[role as keyof typeof tokens], `${scheme}: ${role}`)
+          .toBe(value === "var(--bg)" ? valueFor(css, selector, "--bg") : value);
+      }
     }
   });
 
-  it("an unknown id falls back to classic", () => {
-    expect(findAdminTheme({ id: "removed-theme" }).id).toBe("classic");
+  it.each(["removed-theme", "glass"])("%s falls back to classic", (id) => {
+    expect(findAdminTheme({ id }).id).toBe("classic");
   });
 
   it("snaps a scheme the theme lacks to the theme's first scheme", () => {
@@ -76,10 +86,11 @@ describe("admin theme registry", () => {
 describe("admin theme cascade", () => {
   it("scopes every classic block so another theme stops matching it", () => {
     const lightPin = `${CLASSIC_ROOT} [data-theme="light"]`;
+    const customAccent = `${CLASSIC_ROOT}[data-admin-accent]`;
     for (const sheet of ["admin.css", "chat.css"]) {
       parse(read(resolve(THEME_DIRS.classic!, sheet))).walkRules((rule) => {
-        expect([CLASSIC_ROOT, CLASSIC_DARK, lightPin], `${sheet}: ${rule.selector}`).toContain(rule.selector);
-        if (rule.selector === lightPin) {
+        expect([CLASSIC_ROOT, CLASSIC_DARK, lightPin, customAccent], `${sheet}: ${rule.selector}`).toContain(rule.selector);
+        if (rule.selector === lightPin || rule.selector === customAccent) {
           expect(rule.nodes.every((node) => node.type === "comment" || (node.type === "decl" && node.prop.startsWith("--"))),
             `${sheet}: ${rule.selector} may only re-resolve custom properties`).toBe(true);
         }
@@ -87,13 +98,13 @@ describe("admin theme cascade", () => {
     }
   });
 
-  it("imports only the bridge and Classic, without Jini Default stylesheets", () => {
+  it("imports the bridge, Classic and Glass, without Jini Default stylesheets", () => {
     const imports = [...read(resolve(SRC, "styles.css")).matchAll(/@import '([^']+)'/g)].map((match) => match[1]);
-    expect(imports.slice(2, 4)).toEqual(["./styles/admin-theme-bridge.css", "./admin-themes/classic/admin.css"]);
+    expect(imports.slice(2, 5)).toEqual(["./styles/admin-theme-bridge.css", "./admin-themes/classic/admin.css", "./admin-themes/glass/admin.css"]);
     expect(imports.some((path) => path?.includes("themes/default"))).toBe(false);
     const chatImports = [...read(resolve(SRC, "styles/assistant.css")).matchAll(/@import '([^']+)'/g)].map((match) => match[1]);
     expect(chatImports.some((path) => path?.includes("themes/default"))).toBe(false);
-    expect(chatImports.slice(0, 1)).toEqual(["../admin-themes/classic/chat.css"]);
+    expect(chatImports.slice(0, 2)).toEqual(["../admin-themes/classic/chat.css", "../admin-themes/glass/chat.css"]);
   });
 
   it.each([false, true])("preserves all inherited root token values (dark=%s)", (dark) => {
@@ -118,7 +129,7 @@ describe("admin theme cascade", () => {
     expect(tokens([variables, bridge, classic, chat])).toEqual(previous);
   });
 
-  it("the bridge supplies every non-Jini legacy name classic declares, and classic overrides each", () => {
+  it("classic overrides bridged legacy names while layout and material compatibility stay bridge-owned", () => {
     const bridge = read(resolve(SRC, "styles/admin-theme-bridge.css"));
     const classic = read(resolve(THEME_DIRS.classic!, "admin.css"));
     const names: string[] = [];
@@ -127,13 +138,67 @@ describe("admin theme cascade", () => {
     });
     expect(names).toContain("--focus-ring");
     expect(names).toContain("--chat-border-seam");
-    // Layout measures moved to the bridge; every other bridged name keeps classic's own value.
-    for (const name of names.filter((prop) => !prop.startsWith("--jini-") && !/measure|clearance/.test(prop))) expect(valueFor(classic, CLASSIC_ROOT, name), name).toBeDefined();
+    // Layout and material compatibility belong to the host bridge; theme-owned legacy names
+    // still require Classic's own values. The selector checks below cover the material seams.
+    for (const name of names.filter((prop) => !prop.startsWith("--jini-") && !prop.startsWith("--tovu-admin-") && !/measure|clearance/.test(prop))) expect(valueFor(classic, CLASSIC_ROOT, name), name).toBeDefined();
     for (const name of ["--form-measure", "--content-measure", "--assistant-clearance"]) expect(valueFor(classic, CLASSIC_ROOT, name), name).toBeUndefined();
+  });
+
+  it("keeps material compatibility values at their root, Classic and local bridge selectors", () => {
+    const bridge = read(resolve(SRC, "styles/admin-theme-bridge.css"));
+    const values: Record<string, Record<string, string>> = {};
+    parse(bridge).walkRules((rule) => {
+      rule.walkDecls((decl) => {
+        if (!decl.prop.startsWith("--tovu-admin-")) return;
+        for (const selector of rule.selectors) (values[selector] ??= {})[decl.prop] = decl.value;
+      });
+    });
+    const classicRoot = {
+      "--tovu-admin-layout-bg": "var(--jini-bg)",
+      "--tovu-admin-elevated-bg": "var(--surface)",
+      "--tovu-admin-elevated-shadow": "var(--shadow-md)",
+      "--tovu-admin-scrim-backdrop": "none",
+      "--tovu-admin-rail-shadow": "none",
+      "--tovu-admin-mobile-panel-shadow": "var(--shadow-md)",
+    };
+    const panels = ":is(.settings-ui-section, .media-providers-panel)";
+    const classicScope = ':where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"])';
+    expect(values).toEqual({
+      ":root": {
+        "--tovu-admin-layout-bg": "var(--jini-shell-bg, var(--jini-bg))",
+        "--tovu-admin-elevated-bg": "var(--jini-bg-elevated)",
+        "--tovu-admin-elevated-shadow": "var(--jini-overlay-shadow)",
+        "--tovu-admin-scrim-backdrop": "var(--jini-overlay-backdrop)",
+        "--tovu-admin-rail-shadow": "var(--jini-panel-shadow)",
+        "--tovu-admin-mobile-panel-shadow": "var(--jini-panel-shadow)",
+      },
+      ":root:not([data-admin-theme])": classicRoot,
+      ':root[data-admin-theme="classic"]': classicRoot,
+      [panels]: {
+        "--tovu-admin-settings-control-bg": "var(--jini-control-bg)",
+        "--tovu-admin-settings-control-border": "var(--jini-control-border)",
+      },
+      ".jini-select-menu": {
+        "--tovu-admin-select-menu-bg": "var(--jini-bg-elevated)",
+        "--tovu-admin-select-menu-shadow": "var(--jini-overlay-shadow)",
+      },
+      [`${classicScope} ${panels}`]: {
+        "--tovu-admin-settings-control-bg": "var(--jini-bg-panel)",
+        "--tovu-admin-settings-control-border": "var(--jini-border)",
+      },
+      [`${classicScope} .jini-select-menu`]: {
+        "--tovu-admin-select-menu-bg": "var(--jini-bg-panel)",
+        "--tovu-admin-select-menu-shadow": "0 8px 24px color-mix(in srgb, black 18%, transparent)",
+      },
+    });
   });
 });
 
 describe("document applier", () => {
+  it.each(["light", "dark"] as const)("keeps Classic pinned and follows Glass's %s scheme", (scheme) => {
+    expect(resolveAdminThemeBoundary({ state: { themeId: "classic", scheme } })).toEqual({ "data-theme": "light" });
+    expect(resolveAdminThemeBoundary({ state: { themeId: "glass", scheme } })).toEqual({ "data-theme": scheme, "data-color-scheme": scheme });
+  });
   it("resolves system against the OS and leaves explicit choices alone", () => {
     expect(resolveAdminThemeDocument({ choice: { themeId: "default", preference: "system" } }, { matchMedia: fakeMatchMedia(true) })).toEqual({ themeId: "classic", scheme: "dark" });
     expect(resolveAdminThemeDocument({ choice: { themeId: "default", preference: "light" } }, { matchMedia: fakeMatchMedia(true) })).toEqual({ themeId: "classic", scheme: "light" });
@@ -180,7 +245,7 @@ describe("index.html pre-paint bootstrap", () => {
   });
 
   it("paints what the applier would, before React loads", () => {
-    for (const [choice, dark] of [[{ themeId: "default", preference: "system" }, true], [{ themeId: "classic", preference: "light" }, true], [{ themeId: "default", preference: "dark" }, false]] as const) {
+    for (const [choice, dark] of [[{ themeId: "default", preference: "system" }, true], [{ themeId: "classic", preference: "light" }, true], [{ themeId: "default", preference: "dark" }, false], [{ themeId: "glass", preference: "system" }, true], [{ themeId: "glass", preference: "light" }, true]] as const) {
       const storage = { setItem: vi.fn() };
       rememberAdminThemeChoice({ choice }, { storage });
       const { root } = runBootstrap(storage.setItem.mock.calls[0]![1] as string, { dark });
@@ -190,10 +255,15 @@ describe("index.html pre-paint bootstrap", () => {
     }
   });
 
-  it("migrates a cached Jini Default selection to Classic before first paint", () => {
-    const { root } = runBootstrap(JSON.stringify({ themeId: "default", preference: "dark", schemes: ["light", "dark"] }));
-    expect(root.getAttribute("data-admin-theme")).toBe("classic");
-    expect(root.getAttribute("data-theme")).toBe("dark");
+  it.each(["default", "glass", "removed-theme"])("falls back from cached %s to Classic before first paint", (themeId) => {
+    for (const preference of ["light", "dark", "system"] as const) {
+      // A retired theme's scheme limits must not constrain Classic's supported schemes.
+      const { root } = runBootstrap(JSON.stringify({ themeId, preference, schemes: ["light"] }), { dark: true });
+      const scheme = preference === "light" ? "light" : "dark";
+      expect(root.getAttribute("data-admin-theme")).toBe("classic");
+      expect(root.getAttribute("data-color-scheme")).toBe(scheme);
+      expect(root.getAttribute("data-theme")).toBe(scheme === "dark" ? "dark" : null);
+    }
   });
 
   it("leaves <html> untouched with nothing stored or a corrupt value", () => {

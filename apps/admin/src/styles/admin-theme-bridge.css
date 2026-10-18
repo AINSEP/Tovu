@@ -61,3 +61,43 @@
   --jini-default-control-bg: var(--jini-bg-elevated);
   --jini-default-control-border: var(--jini-border-strong);
 }
+
+/* Material consumers share roles, but Classic's existing paint differs at these seams.
+   Keep the exceptions here in the host adapter: changing the shared role would also change
+   unrelated Jini widgets. Resolve these at root, alongside the original surface aliases. */
+:root {
+  /* The body owns the viewport background; Glass leaves the shell clear to avoid restarting it. */
+  --tovu-admin-layout-bg: var(--jini-shell-bg, var(--jini-bg));
+  --tovu-admin-elevated-bg: var(--jini-bg-elevated);
+  --tovu-admin-elevated-shadow: var(--jini-overlay-shadow);
+  --tovu-admin-scrim-backdrop: var(--jini-overlay-backdrop);
+  --tovu-admin-rail-shadow: var(--jini-panel-shadow);
+  --tovu-admin-mobile-panel-shadow: var(--jini-panel-shadow);
+}
+:root:not([data-admin-theme]), :root[data-admin-theme="classic"] {
+  --tovu-admin-layout-bg: var(--jini-bg);
+  --tovu-admin-elevated-bg: var(--surface);
+  --tovu-admin-elevated-shadow: var(--shadow-md);
+  --tovu-admin-scrim-backdrop: none;
+  --tovu-admin-rail-shadow: none;
+  --tovu-admin-mobile-panel-shadow: var(--shadow-md);
+}
+
+/* Settings and Media provider controls and CustomSelect menus used panel paint before material wiring.
+   Resolve their exceptions locally: both panels can pin a palette, and menus portal outside them. */
+:is(.settings-ui-section, .media-providers-panel) {
+  --tovu-admin-settings-control-bg: var(--jini-control-bg);
+  --tovu-admin-settings-control-border: var(--jini-control-border);
+}
+.jini-select-menu {
+  --tovu-admin-select-menu-bg: var(--jini-bg-elevated);
+  --tovu-admin-select-menu-shadow: var(--jini-overlay-shadow);
+}
+:where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) :is(.settings-ui-section, .media-providers-panel) {
+  --tovu-admin-settings-control-bg: var(--jini-bg-panel);
+  --tovu-admin-settings-control-border: var(--jini-border);
+}
+:where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) .jini-select-menu {
+  --tovu-admin-select-menu-bg: var(--jini-bg-panel);
+  --tovu-admin-select-menu-shadow: 0 8px 24px color-mix(in srgb, black 18%, transparent);
+}

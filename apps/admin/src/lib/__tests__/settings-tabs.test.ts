@@ -43,6 +43,8 @@ import {
   DEFAULT_APPEARANCE,
   DEFAULT_LOCALE,
   loadAppearance,
+  adminThemeAccent,
+  withAdminThemeAccent,
   loadInstructions,
   loadLanguage,
   loadNotifications,
@@ -359,6 +361,66 @@ describe("savePrivacy — sentinel round-trip on write", () => {
 // --- Appearance -------------------------------------------------------------
 
 describe("loadAppearance", () => {
+  it("migrates a legacy accent as Classic's without applying it to Glass", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map([["accentColor", "#d97706"]]));
+    const appearance = await loadAppearance();
+    expect(adminThemeAccent({ appearance, themeId: "classic" })).toBe("#d97706");
+    expect(adminThemeAccent({ appearance, themeId: "glass" })).toBeUndefined();
+  });
+
+  it("round-trips accents in separate fields while legacy readers still receive a color string", async () => {
+    const previous = { ...DEFAULT_APPEARANCE, accentColor: "#d97706" };
+    const glass = withAdminThemeAccent({ appearance: previous, themeId: "glass", accentColor: "#123456" });
+    const next = withAdminThemeAccent({ appearance: glass, themeId: "classic", accentColor: "#abcdef" });
+    expect(previous).toEqual({ theme: "light", accentColor: "#d97706" });
+    expect(glass.accentColors).toEqual({ glass: "#123456" });
+    await saveAppearance(next, previous);
+    const candidates = saveChangedEntries.mock.calls.at(-1)![2] as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    const accent = candidates.find((candidate) => candidate.key === "accentColor")!;
+    expect(accent.changed).toBe(true);
+    expect(accent.valueJson).toBe("#abcdef");
+    const themeAccents = candidates.find((candidate) => candidate.key === "adminThemeAccents")!;
+    expect(themeAccents).toEqual({ key: "adminThemeAccents", valueJson: { glass: "#123456" }, changed: true });
+    loadNamespaceValues.mockResolvedValue(new Map(candidates.map(({ key, valueJson }) => [key, valueJson])));
+    const loaded = await loadAppearance();
+    expect(adminThemeAccent({ appearance: loaded, themeId: "classic" })).toBe("#abcdef");
+    expect(adminThemeAccent({ appearance: loaded, themeId: "glass" })).toBe("#123456");
+    expect(loaded.accentColor).toBe("#abcdef");
+    await saveAppearance(loaded, loaded);
+    expect((saveChangedEntries.mock.calls.at(-1)![2] as Array<{ changed: boolean }>).every((candidate) => !candidate.changed)).toBe(true);
+  });
+
+  it("preserves unknown theme choices and rejects malformed map entries", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["accentColor", "#d97706"], ["adminThemeAccents", { classic: "#000000", glass: 12, removed: "#AaBbCc", invalid: "red" }]]));
+    const loaded = await loadAppearance();
+    expect(loaded.accentColors).toEqual({ removed: "#AaBbCc" });
+    expect(adminThemeAccent({ appearance: loaded, themeId: "classic" })).toBe("#d97706");
+    expect(adminThemeAccent({ appearance: loaded, themeId: "glass" })).toBeUndefined();
+    const next = withAdminThemeAccent({ appearance: loaded, themeId: "glass", accentColor: "#2563eb" });
+    expect(next.accentColors?.removed).toBe("#AaBbCc");
+    // Blue is an explicit Glass choice; only Classic treats the old default as unchosen.
+    expect(adminThemeAccent({ appearance: next, themeId: "glass" })).toBe("#2563eb");
+    expect(adminThemeAccent({ appearance: DEFAULT_APPEARANCE, themeId: "classic" })).toBeUndefined();
+  });
+
+  it.each([{ stored: "{broken" }, { stored: null }, { stored: [] }, { stored: 42 }, { stored: {} }])("ignores an invalid or empty admin-theme map ($stored)", async ({ stored }) => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["adminThemeAccents", stored]]));
+    expect(await loadAppearance()).toEqual(DEFAULT_APPEARANCE);
+  });
+
+  it.each(["classic", "glass"])("default clears only %s's override across save and reload", async (themeId) => {
+    const previous = { ...DEFAULT_APPEARANCE, accentColor: "#d97706", accentColors: { glass: "#123456", removed: "#abcdef" } };
+    const next = withAdminThemeAccent({ appearance: previous, themeId, accentColor: undefined });
+    await saveAppearance(next, previous);
+    const candidates = saveChangedEntries.mock.calls.at(-1)![2] as Array<{ key: string; valueJson: unknown }>;
+    loadNamespaceValues.mockResolvedValue(new Map(candidates.map(({ key, valueJson }) => [key, valueJson])));
+    const loaded = await loadAppearance();
+    expect(adminThemeAccent({ appearance: loaded, themeId })).toBeUndefined();
+    expect(adminThemeAccent({ appearance: loaded, themeId: themeId === "classic" ? "glass" : "classic" })).toBe(themeId === "classic" ? "#123456" : "#d97706");
+    expect(loaded.accentColors?.removed).toBe("#abcdef");
+    expect(previous.accentColors.glass).toBe("#123456");
+    expect(previous.accentColor).toBe("#d97706");
+  });
   it("defaults when nothing is stored", async () => {
     loadNamespaceValues.mockResolvedValue(new Map());
     expect(await loadAppearance()).toEqual(DEFAULT_APPEARANCE);
@@ -406,6 +468,19 @@ describe("loadAppearance", () => {
 });
 
 describe("saveAppearance", () => {
+  it("preserves the admin-theme map when an existing scalar-only caller saves", async () => {
+    const previous = { ...DEFAULT_APPEARANCE, accentColors: { glass: "#123456" } };
+    await saveAppearance({ ...DEFAULT_APPEARANCE, accentColor: "#abcdef" }, previous);
+    const candidates = saveChangedEntries.mock.calls.at(-1)![2] as Array<{ key: string; valueJson: unknown; changed: boolean }>;
+    expect(candidates.find(({ key }) => key === "adminThemeAccents")).toEqual({
+      key: "adminThemeAccents", valueJson: { glass: "#123456" }, changed: false,
+    });
+    loadNamespaceValues.mockResolvedValue(new Map(candidates.map(({ key, valueJson }) => [key, valueJson])));
+    const loaded = await loadAppearance();
+    expect(adminThemeAccent({ appearance: loaded, themeId: "classic" })).toBe("#abcdef");
+    expect(adminThemeAccent({ appearance: loaded, themeId: "glass" })).toBe("#123456");
+  });
+
   it("writes only what changed", async () => {
     await saveAppearance({ theme: "dark", accentColor: "#111111" }, { theme: "system", accentColor: "#111111" });
     const [namespace, scope, candidates] = saveChangedEntries.mock.calls.at(-1) as [
@@ -421,6 +496,7 @@ describe("saveAppearance", () => {
     expect(candidates).toEqual([
       { key: "theme", valueJson: "dark", changed: true },
       { key: "accentColor", valueJson: "#111111", changed: false },
+      { key: "adminThemeAccents", valueJson: {}, changed: false },
     ]);
     expect(candidates.find((c) => c.key === "accentColor")?.changed).toBe(false);
   });
@@ -438,6 +514,7 @@ describe("saveAppearance", () => {
     expect(candidates).toEqual([
       { key: "theme", valueJson: "light", changed: false },
       { key: "accentColor", valueJson: "#abcdef", changed: true },
+      { key: "adminThemeAccents", valueJson: {}, changed: false },
     ]);
     expect(candidates.find((c) => c.key === "theme")?.changed).toBe(false);
   });

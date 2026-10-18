@@ -59,11 +59,10 @@
    (Redirects' filter row, menu-item rows) keep their existing sizing/flex behavior untouched.
    ============================================================ */
 :is(.jini-page, .jini-dialog) .jini-input, :is(.jini-page, .jini-dialog) .jini-select, :is(.jini-page, .jini-dialog) .jini-textarea {
-  padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-  font-family: var(--font-ui); font-size: var(--text-sm); background: var(--surface); color: var(--fg);
+  padding: 0.55rem 0.7rem; border: var(--jini-border-width, 1px) solid var(--jini-control-border); border-radius: var(--r-sm);
+  font-family: var(--font-ui); font-size: var(--text-sm); background: var(--jini-control-bg); color: var(--fg);
   min-height: 37px; box-sizing: border-box;
-  transition: border-color 0.14s, box-shadow 0.14s;
-}
+  transition: border-color 0.14s, box-shadow 0.14s; }
 :is(.jini-page, .jini-dialog) .jini-textarea { min-height: 5.5rem; line-height: 1.5; resize: vertical; }
 :is(.jini-page, .jini-dialog) .jini-input::placeholder, :is(.jini-page, .jini-dialog) .jini-textarea::placeholder { color: var(--faint); }
 /* Focus ring, not just a border-color swap — the previous `:focus { outline: none; border-color:
@@ -72,6 +71,37 @@
    real ring back on the token system instead of relying on the browser default. */
 :is(.jini-page, .jini-dialog) .jini-input:focus, :is(.jini-page, .jini-dialog) .jini-select:focus, :is(.jini-page, .jini-dialog) .jini-textarea:focus {
   outline: none; border-color: var(--primary); box-shadow: var(--jini-control-shadow-focus);
+}
+
+/* Settings and the live Media provider panel use Jini's input/CustomSelect primitives
+   without the media page/dialog classes.
+   Paint the trigger only; its .jini-select.jini-input wrapper must remain unpainted.
+   Leave focus and missing-value paint to the owning settings-dialog.css state rules. */
+:is(.settings-ui-section, .media-providers-panel) :is(.jini-input, .jini-select-trigger):where(:not(.jini-select)) {
+  background-color: var(--tovu-admin-settings-control-bg);
+  border-width: var(--jini-border-width, 1px);
+}
+:is(.settings-ui-section, .media-providers-panel) .jini-input:where(:not(.jini-select, :focus, .is-missing)),
+:is(.settings-ui-section, .media-providers-panel) .jini-select-trigger:where(:not(:focus-visible)) {
+  border-color: var(--tovu-admin-settings-control-border);
+}
+:is(.settings-ui-section, .media-providers-panel) :is(.jini-input, .jini-select-trigger):where(:not(.jini-select, :focus, :focus-visible)) {
+  box-shadow: var(--jini-control-shadow-inset, none);
+}
+:is(.settings-ui-section, .media-providers-panel) :is(.jini-input, .jini-select-trigger):where(:not(.jini-select, :disabled, :focus, :focus-visible):hover) {
+  box-shadow: var(--jini-control-shadow-hover, none);
+}
+:is(.settings-ui-section, .media-providers-panel) :is(.jini-input, .jini-select-trigger):where(:not(.jini-select, :disabled, :focus, :focus-visible):active) {
+  box-shadow: var(--jini-control-shadow-pressed, none);
+}
+
+/* Portaled menus escape Settings. The doubled class beats Jini's base menu paint
+   regardless of stylesheet order; the filter stays on this bounded popup. */
+.jini-select-menu.jini-select-menu {
+  background-color: var(--tovu-admin-select-menu-bg);
+  box-shadow: var(--tovu-admin-select-menu-shadow);
+  background-image: var(--jini-panel-texture, none);
+  backdrop-filter: var(--jini-panel-backdrop, none);
 }
 
 /* Select — style the trigger, leave the native popup alone (its internals are not stylable
@@ -239,8 +269,9 @@
 /* Card — content sits inside a bordered surface with real padding, the quality Settings has and
    a bare `.list-table` floating on the page does not. */
 :is(.jini-page, .jini-dialog) .jini-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
-  padding: var(--space-5) var(--space-6); box-shadow: var(--shadow-sm);
+  background: var(--jini-panel-bg); border: var(--jini-border-width, 1px) solid var(--jini-panel-border); border-radius: var(--r-lg);
+  padding: var(--space-5) var(--space-6); box-shadow: var(--jini-panel-shadow);
+  background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
 
 /* Card/section heading — the primitive missing from the set above (`.page-kicker`/`.page-title`/
@@ -279,8 +310,15 @@
    actions the same restraint Settings' outline `.settings-ui-dialog-btn` pill has, instead of every button on the page
    reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash are all
    rendered identically). */
-:is(.jini-page, .jini-dialog) .jini-btn-secondary { background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); }
-:is(.jini-page, .jini-dialog) .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+:is(.jini-page, .jini-dialog) .jini-btn-secondary { background: var(--jini-control-bg); color: var(--fg-2); border: var(--jini-border-width, 1px) solid var(--jini-control-border);
+  box-shadow: var(--jini-control-shadow, none);
+}
+:is(.jini-page, .jini-dialog) .jini-btn-secondary:hover { background: var(--surface-2); opacity: 1;
+  box-shadow: var(--jini-control-shadow-hover, none);
+}
+:is(.jini-page, .jini-dialog) .jini-btn-secondary:where(:not(:disabled)):active {
+  box-shadow: var(--jini-control-shadow-pressed, none);
+}
 :is(.jini-page, .jini-dialog) .jini-btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
 :is(.jini-page, .jini-dialog) .jini-btn-ghost:hover { background: var(--surface-2); opacity: 1; }
 /* Outline variants disable by fading in place — keep their own frame, drop the label to `--faint` —
@@ -634,7 +672,9 @@
    shrink-to-fit, so `max-width` alone only caps a box already wider than it, it does not establish
    width on its own (`.widget-picker-dialog`'s own comment measured this the hard way; not
    re-deriving it here). */
-.jini-media-picker-dialog { width: 32rem; max-width: calc(100vw - 2rem); max-height: 85vh; }
+.jini-media-picker-dialog { width: 32rem; max-width: calc(100vw - 2rem); max-height: 85vh;
+  background-image: var(--jini-panel-texture, none);
+}
 /* The one scrolling region between the fixed `<h2>` title above and the fixed `.widget-picker-footer`
    Cancel row below — same `flex: 1 1 auto; min-height: 0` shape `.widget-picker-body` documents
    above applies here too (a flex child's default `min-height: auto` refuses to shrink below its own
@@ -731,9 +771,10 @@
    and never coexist with each other. */
 .jini-row-menu-popup {
   min-width: 9rem; padding: var(--space-1);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
-  box-shadow: var(--shadow-md); z-index: 70;
+  background: var(--tovu-admin-elevated-bg); border: var(--jini-border-width, 1px) solid var(--border); border-radius: var(--r-md);
+  box-shadow: var(--tovu-admin-elevated-shadow); z-index: 70;
   display: flex; flex-direction: column; gap: 1px;
+  background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
 /* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
    underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
@@ -767,9 +808,10 @@
    deliberately leaves `position`/`margin` alone, so the browser's own top-layer centering (what
    `showModal()` was chosen for in the first place) keeps doing the layout work. */
 .jini-confirm-dialog {
-  border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-6);
+  border: var(--jini-border-width, 1px) solid var(--border); border-radius: var(--r-lg); padding: var(--space-6);
   max-width: 26rem; width: calc(100% - var(--space-6));
-  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
+  background: var(--tovu-admin-elevated-bg); color: var(--fg); box-shadow: var(--tovu-admin-elevated-shadow);
+  background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
 }
 /* `display` lives on its own `[open]`-scoped rule rather than the bare `.confirm-dialog` rule
    above — an author-stylesheet `display` declaration always wins over the UA stylesheet's
@@ -778,7 +820,9 @@
    dialog visible even while closed. Caught live in the browser, not just by reasoning about it:
    the dialog rendered open-by-default on page load until this was scoped. */
 .jini-confirm-dialog[open] { display: flex; flex-direction: column; gap: var(--space-4); }
-.jini-confirm-dialog::backdrop { background: var(--jini-overlay-bg); }
+.jini-confirm-dialog::backdrop { background: var(--jini-overlay-bg);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
+}
 .jini-confirm-dialog h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .jini-confirm-dialog-body { margin: 0; color: var(--fg-2); font-size: var(--text-md); line-height: 1.5; }
 .jini-confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
@@ -1209,19 +1253,22 @@
    own scroll, since that many fields can exceed a short viewport's height even at this width.
    ============================================================ */
 .jini-media-edit-dialog {
-  border: 1px solid var(--border-strong);
+  border: var(--jini-border-width, 1px) solid var(--border-strong);
   border-radius: var(--r-lg);
   padding: var(--space-5) var(--space-6);
   max-width: min(94vw, 34rem);
   width: calc(100% - var(--space-6));
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--surface);
+  background: var(--tovu-admin-elevated-bg);
   color: var(--fg);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--tovu-admin-elevated-shadow);
+  background-image: var(--jini-panel-texture, none);
 }
 .jini-media-edit-dialog[open] { display: block; }
-.jini-media-edit-dialog::backdrop { background: var(--jini-overlay-bg); }
+.jini-media-edit-dialog::backdrop { background: var(--jini-overlay-bg);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
+}
 /* The form content's own root, replacing the old `.card` wrapper — the dialog above already
    supplies the surface/border/shadow, so this contributes layout only (the `.editor-header`/
    `.field-group` children keep their own existing rules unchanged). */
@@ -1236,12 +1283,15 @@
    this class only, so the edit dialog, lightbox and confirm dialog keep their own rules.
    ============================================================ */
 .jini-media-picker-dialog {
-  border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-5) var(--space-6);
+  border: var(--jini-border-width, 1px) solid var(--border); border-radius: var(--r-lg); padding: var(--space-5) var(--space-6);
   width: min(94vw, 52rem); max-width: none; max-height: 85vh; overflow: hidden;
-  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
+  background: var(--tovu-admin-elevated-bg); color: var(--fg); box-shadow: var(--tovu-admin-elevated-shadow);
+  background-image: var(--jini-panel-texture, none);
 }
 .jini-media-picker-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); }
-.jini-media-picker-dialog::backdrop { background: var(--jini-overlay-bg); }
+.jini-media-picker-dialog::backdrop { background: var(--jini-overlay-bg);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
+}
 .jini-media-picker-dialog > .jini-dialog-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .jini-media-picker-dialog > label { display: flex; flex-direction: column; gap: 4px; }
 /* The only part that scrolls. `min-height: 0` lets the flex item shrink below its content.
@@ -1319,6 +1369,7 @@
      plain text and UI chrome, so it leans darker to keep the dimmed page from fighting the
      enlarged asset for attention. */
   background: var(--jini-overlay-bg-lightbox);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
 
 .jini-media-lightbox-header {
@@ -1490,7 +1541,9 @@
 :is(.jini-page, .jini-dialog) .jini-row-menu-trigger .jini-icon { width: 16px; height: 16px; }
 /* Legacy's 16px tab SVG flex-shrinks to 13px wide inside its 1em frame, so it draws 13x16. */
 :is(.jini-page, .jini-dialog) .jini-tab-bar-icon .jini-icon { width: 13px; height: 16px; }
-.jini-row-menu-popup { max-width: calc(100vw - var(--space-2)); }
+.jini-row-menu-popup { max-width: calc(100vw - var(--space-2));
+  background-image: var(--jini-panel-texture, none); backdrop-filter: var(--jini-panel-backdrop, none);
+}
 /* Both already-prefixed provider rules and copied admin rules resolve to this
    host's neutral surfaces. These aliases belong to the host, never the reusable package.
    Other provider tokens inherit the same UI contract as the original standalone section. */

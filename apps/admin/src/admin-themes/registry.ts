@@ -19,6 +19,8 @@ export interface AdminThemeSwatch {
   surface: string;
   text: string;
   accent: string;
+  /** Optional six-digit hex equivalent for native colour inputs; preview CSS stays independent. */
+  accentHex?: string;
   border: string;
 }
 
@@ -36,6 +38,7 @@ export const DEFAULT_ADMIN_THEME_ID = "classic";
 
 export const ADMIN_THEMES: readonly AdminThemeManifest[] = [
   classicManifest as AdminThemeManifest,
+  // Glass parked 2026-10-18; see development/todos.md "Glassmorphic admin theme — PARKED".
 ];
 
 /** An unknown id (a theme since removed) falls back to classic rather than matching no theme. */

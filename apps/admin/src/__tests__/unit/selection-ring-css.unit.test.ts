@@ -34,11 +34,19 @@ describe("admin selection ring", () => {
     expect(rootDeclarations).toMatch(/--jini-theme-dark-primary\s*:\s*var\(--primary\)\s*;/);
   });
 
-  it("selected-item text is the primary in light, the lighter primary in dark, and the primary again on the light-pinned Settings panel", () => {
+  it("selected-item text is the primary in light, the lighter primary in dark, and the primary again on Classic's light-pinned Settings panel, excluding Glass", () => {
     expect(effectiveDeclarationsFor(themeStylesheet, CLASSIC_ROOT)).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
     expect(effectiveDeclarationsFor(themeStylesheet, CLASSIC_DARK)).toMatch(/--selected-text\s*:\s*var\(--primary-strong\)\s*;/);
     const settings = sheets.find((sheet) => sheet.path === "styles/settings.css")!.css;
-    expect(effectiveDeclarationsFor(settings, '.settings-ui-section[data-theme="light"]')).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
+    const settingsSelector = ':where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) .settings-ui-section[data-theme="light"]';
+    expect(effectiveDeclarationsFor(settings, settingsSelector)).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
+    const selectedTextSelectors: string[] = [];
+    parse(settings).walkRules((rule) => {
+      if (rule.nodes.some((node) => node.type === "decl" && node.prop === "--selected-text")) {
+        selectedTextSelectors.push(...rule.selectors);
+      }
+    });
+    expect(selectedTextSelectors).toEqual([settingsSelector]);
   });
 
   it("the active sidebar label is the selected-text orange, nudged toward --fg for contrast on its tinted row", () => {

@@ -1,0 +1,265 @@
+@import './fonts/fonts.css';
+
+/* ADR-069: values only. The existing Jini contract and Tovu bridge own aliases and components.
+   Owner palette: GLASS-REFERENCE.md (2026-10-17). Surface opacity is deliberately higher than
+   the references so small text remains readable even over the future landscape's dark regions. */
+:root[data-admin-theme="glass"] {
+  --jini-theme-light-bg: #e6edf2;
+  --jini-theme-light-surface: rgb(255 255 255 / .82);
+  --jini-theme-light-text: #1c2230;
+  --jini-theme-light-muted: #445365;
+  --jini-theme-light-border: rgb(255 255 255 / .65);
+  --jini-theme-light-primary: #141a2e;
+  --jini-theme-light-primary-ink: #ffffff;
+  --jini-theme-light-danger: #a51d2d;
+  --jini-theme-light-success: #165b39;
+  --jini-theme-light-warning: #754b09;
+  --jini-theme-dark-bg: #101925;
+  --jini-theme-dark-surface: rgb(20 30 44 / .92);
+  --jini-theme-dark-text: #edf3f8;
+  --jini-theme-dark-muted: #b5c3d1;
+  --jini-theme-dark-border: rgb(255 255 255 / .12);
+  --jini-theme-dark-primary: #dce7ef;
+  --jini-theme-dark-primary-ink: #141a2e;
+  --jini-theme-dark-danger: #ffadb7;
+  --jini-theme-dark-success: #9bd8b5;
+  --jini-theme-dark-warning: #efd298;
+
+  --jini-font-body: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --jini-font-heading: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --jini-font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  /* Existing multipliers give 12px rows/controls, 20px cards, and 24px large panels. */
+  --jini-radius: 16px;
+  --jini-density: 1;
+  --jini-shadow-xs: 0 1px 3px rgb(70 90 110 / .08), inset 0 1px 0 rgb(255 255 255 / .85);
+  --jini-shadow-sm: 0 6px 20px rgb(70 90 110 / .10), inset 0 1px 0 rgb(255 255 255 / .85);
+  --jini-shadow-md: 0 12px 36px rgb(70 90 110 / .15), inset 0 1px 0 rgb(255 255 255 / .85);
+  --jini-shadow-lg: 0 24px 64px rgb(50 70 95 / .22), inset 0 1px 0 rgb(255 255 255 / .90);
+
+  --jini-bg-panel: var(--jini-surface);
+  --jini-bg-elevated: rgb(248 251 253 / .97);
+  --jini-bg-subtle: #dfe6ec;
+  --jini-text-secondary: #2b3242;
+  --jini-text-faint: #4b5968;
+  --jini-border-strong: rgb(255 255 255 / .85);
+  --jini-link: #254b70;
+  --jini-link-ink: #ffffff;
+  --jini-neutral-accent-soft: #dfe6ec;
+  --focus-ring: #254b70;
+  --selected-text: #141a2e;
+  --selected-text-on-tint: #141a2e;
+  --danger-ink: #ffffff;
+
+  /* The URL is the first layer; a missing photo leaves both gradients visible.
+     The complete background shorthand includes the photo's cover sizing, with no layout rule. */
+  --glass-app-bg-gradient: radial-gradient(ellipse at 12% 8%, rgb(255 255 255 / .85), transparent 60%), radial-gradient(ellipse at 52% 45%, #e6edf2 8%, #9fb2c1 100%);
+  --jini-theme-app-bg: url("./bg/glass-bg.webp") center / cover no-repeat, var(--glass-app-bg-gradient);
+  --jini-theme-shell-bg: transparent;
+  --jini-theme-panel-bg: rgb(255 255 255 / .42);
+  --jini-theme-panel-border: var(--jini-border);
+  --jini-theme-panel-shadow: var(--jini-shadow-md);
+  --jini-theme-panel-backdrop: blur(24px) saturate(110%);
+  --jini-theme-panel-texture: none;
+  --jini-theme-rail-bg: rgb(255 255 255 / .48);
+  --jini-theme-rail-border: rgb(255 255 255 / .65);
+  --jini-theme-rail-shadow: var(--jini-shadow-sm);
+  --jini-theme-rail-backdrop: blur(20px) saturate(110%);
+  --jini-theme-overlay-bg: rgb(20 30 46 / .38);
+  --jini-theme-overlay-backdrop: blur(8px);
+  --jini-theme-overlay-shadow: var(--jini-shadow-lg);
+  --jini-theme-control-bg: rgb(255 255 255 / .90);
+  --jini-theme-control-border: rgb(255 255 255 / .85);
+  --jini-theme-control-shadow: var(--jini-shadow-xs);
+  --jini-theme-control-shadow-hover: var(--jini-shadow-sm);
+  --jini-theme-control-shadow-pressed: inset 0 2px 4px rgb(70 90 110 / .12);
+  --jini-theme-control-shadow-inset: inset 0 1px 2px rgb(70 90 110 / .08);
+  --jini-theme-border-width: 1px;
+
+  --jini-theme-overlay-tooltip-bg: var(--jini-bg-elevated);
+  --jini-theme-overlay-tooltip-text: var(--jini-text);
+  --jini-theme-overlay-tooltip-border: var(--jini-border);
+  --jini-theme-overlay-tooltip-shadow: var(--jini-shadow-md);
+  --jini-theme-overlay-toast-shadow: var(--jini-shadow-lg);
+  --jini-theme-overlay-menu-shadow: var(--jini-shadow-lg);
+  --jini-theme-overlay-menu-shadow-above: 0 -16px 48px rgb(50 70 95 / .18), inset 0 1px 0 rgb(255 255 255 / .85);
+  --jini-theme-overlay-bg-navigation: rgb(20 30 46 / .40);
+  --jini-theme-overlay-bg-chat: rgb(20 30 46 / .45);
+  --jini-theme-overlay-bg-source: rgb(20 30 46 / .55);
+  --jini-theme-overlay-bg-preview: rgb(20 30 46 / .62);
+  --jini-theme-overlay-bg-lightbox: rgb(10 18 30 / .80);
+
+  --jini-theme-control-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23445365' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --jini-theme-control-solid-ink: var(--jini-primary-ink);
+  --jini-theme-control-thumb-bg: #ffffff;
+  --jini-theme-control-composer-border-focus: var(--focus-ring);
+  --jini-theme-control-hover-neutral-bg: var(--jini-bg-subtle);
+  --jini-theme-control-shadow-focus: 0 0 0 3px rgb(37 75 112 / .35);
+  --jini-theme-control-shadow-focus-subtle: 0 0 0 2px var(--focus-ring);
+  --jini-theme-control-shadow-focus-accent: 0 0 0 3px rgb(37 75 112 / .35);
+  --jini-theme-control-shadow-selected: 0 0 0 1px var(--selected-ring);
+  --jini-theme-control-shadow-swatch-selected: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
+  --jini-theme-control-shadow-segment: var(--jini-shadow-xs);
+  --jini-theme-control-shadow-segment-raised: var(--jini-shadow-sm);
+  --jini-theme-control-thumb-shadow: 0 2px 6px rgb(50 70 95 / .18);
+  --jini-theme-control-thumb-shadow-strong: 0 3px 8px rgb(50 70 95 / .25);
+  --jini-theme-panel-border-muted: rgb(255 255 255 / .45);
+  --jini-theme-panel-shadow-divider: inset 0 -1px 0 rgb(255 255 255 / .55);
+  --jini-theme-panel-shadow-sticky: 0 8px 20px -10px rgb(70 90 110 / .20);
+  --jini-theme-panel-shadow-banner: var(--jini-shadow-sm);
+  --jini-theme-panel-shadow-flat: none;
+  --jini-theme-status-danger-shadow: inset 3px 0 0 var(--jini-danger);
+  --jini-theme-status-warning-shadow: inset 2px 0 0 var(--jini-warning);
+  --jini-theme-status-complete-ink-fallback: #ffffff;
+
+  --jini-theme-code-string: #165b39;
+  --jini-theme-code-number: #754b09;
+  --jini-theme-file-icon-folder: #754b09;
+  --jini-theme-file-icon-json: #754b09;
+  --jini-theme-file-icon-markdown: #254b70;
+  --jini-theme-file-icon-javascript: #754b09;
+  --jini-theme-file-icon-typescript: #254b70;
+  --jini-theme-file-icon-config: #a51d2d;
+  --jini-theme-file-icon-html: #8a3b22;
+  --jini-theme-file-icon-css: #594487;
+  --jini-theme-file-icon-image: #165b39;
+  --jini-theme-file-icon-shell: #165b39;
+
+  /* Media actions remain legible over arbitrary images, independent of the theme primary. */
+  --jini-theme-control-media-bg: rgb(10 18 30 / .78);
+  --jini-theme-control-media-ink: #ffffff;
+  --jini-theme-control-media-border: rgb(255 255 255 / .50);
+  --jini-theme-control-media-bg-hover: rgb(10 18 30 / .90);
+  --jini-theme-control-preview-ink: #ffffff;
+  --jini-theme-control-preview-bg: rgb(10 18 30 / .78);
+  --jini-theme-control-preview-bg-hover: rgb(10 18 30 / .90);
+  --jini-theme-control-preview-tip-bg: rgb(10 18 30 / .96);
+  --jini-theme-control-recording-bg: #b91c1c;
+  --jini-theme-control-recording-ink: #ffffff;
+  --jini-theme-control-recording-bg-hover: #991b1b;
+  /* Proposed input from the Glass plan; Jini must add its public alias/consumer before rollout. */
+  --jini-theme-control-preview-backdrop: blur(8px);
+
+  /* Site-theme samples describe those themes, so retain Classic's sample paints verbatim. */
+  --tovu-site-preview-bg: #fff;
+  --tovu-theme-preview-paper-bg: #faf6ef;
+  --tovu-theme-preview-paper-text: #2b2620;
+  --tovu-theme-preview-atlas-bg: #0e1420;
+  --tovu-theme-preview-atlas-text: #e8ecf4;
+  --tovu-theme-preview-glass-bg: linear-gradient(135deg, #1c2740, #3a2a55);
+  --tovu-theme-preview-glass-text: #f2f4fb;
+}
+
+:root[data-admin-theme="glass"][data-color-scheme="dark"] {
+  --glass-app-bg-gradient: radial-gradient(ellipse at 12% 8%, rgb(93 117 143 / .28), transparent 60%), radial-gradient(ellipse at 52% 45%, #293b4c 8%, #101925 100%);
+  --jini-theme-panel-bg: rgb(10 18 30 / .38);
+  --jini-theme-rail-bg: rgb(20 30 44 / .60);
+  --jini-theme-rail-border: rgb(255 255 255 / .12);
+  --jini-bg-elevated: rgb(28 41 57 / .98);
+  --jini-bg-subtle: #2b3b4e;
+  --jini-text-secondary: #d1dde8;
+  --jini-text-faint: #b5c3d1;
+  --jini-border-strong: rgb(255 255 255 / .24);
+  --jini-link: #b6d4ee;
+  --jini-link-ink: #141a2e;
+  --jini-neutral-accent-soft: #2b3b4e;
+  --focus-ring: #b6d4ee;
+  --selected-text: #dce7ef;
+  --selected-text-on-tint: #edf3f8;
+  --danger-ink: #141a2e;
+  --jini-shadow-xs: 0 1px 4px rgb(0 8 20 / .24), inset 0 1px 0 rgb(255 255 255 / .10);
+  --jini-shadow-sm: 0 6px 20px rgb(0 8 20 / .28), inset 0 1px 0 rgb(255 255 255 / .10);
+  --jini-shadow-md: 0 16px 40px rgb(0 8 20 / .34), inset 0 1px 0 rgb(255 255 255 / .12);
+  --jini-shadow-lg: 0 24px 64px rgb(0 8 20 / .46), inset 0 1px 0 rgb(255 255 255 / .14);
+  --jini-theme-overlay-bg: rgb(3 9 18 / .65);
+  --jini-theme-control-bg: rgb(27 40 56 / .96);
+  --jini-theme-control-border: rgb(255 255 255 / .24);
+  --jini-theme-control-shadow-pressed: inset 0 2px 4px rgb(0 8 20 / .35);
+  --jini-theme-control-shadow-inset: inset 0 1px 2px rgb(0 8 20 / .25);
+  --jini-theme-overlay-menu-shadow-above: 0 -16px 48px rgb(0 8 20 / .42), inset 0 1px 0 rgb(255 255 255 / .12);
+  --jini-theme-overlay-bg-navigation: rgb(3 9 18 / .60);
+  --jini-theme-overlay-bg-chat: rgb(3 9 18 / .65);
+  --jini-theme-overlay-bg-source: rgb(3 9 18 / .72);
+  --jini-theme-overlay-bg-preview: rgb(3 9 18 / .75);
+  --jini-theme-overlay-bg-lightbox: rgb(3 9 18 / .88);
+  --jini-theme-control-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23B5C3D1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --jini-theme-control-shadow-focus: 0 0 0 3px rgb(182 212 238 / .45);
+  --jini-theme-control-shadow-focus-accent: 0 0 0 3px rgb(182 212 238 / .45);
+  --jini-theme-control-thumb-shadow: 0 2px 6px rgb(0 8 20 / .40);
+  --jini-theme-control-thumb-shadow-strong: 0 3px 8px rgb(0 8 20 / .50);
+  --jini-theme-panel-border-muted: rgb(255 255 255 / .08);
+  --jini-theme-panel-shadow-divider: inset 0 -1px 0 rgb(255 255 255 / .10);
+  --jini-theme-panel-shadow-sticky: 0 8px 20px -10px rgb(0 8 20 / .48);
+  --jini-theme-status-complete-ink-fallback: #141a2e;
+  --jini-theme-code-string: #9bd8b5;
+  --jini-theme-code-number: #efd298;
+  --jini-theme-file-icon-folder: #efd298;
+  --jini-theme-file-icon-json: #efd298;
+  --jini-theme-file-icon-markdown: #b6d4ee;
+  --jini-theme-file-icon-javascript: #efd298;
+  --jini-theme-file-icon-typescript: #b6d4ee;
+  --jini-theme-file-icon-config: #ffadb7;
+  --jini-theme-file-icon-html: #eeb59f;
+  --jini-theme-file-icon-css: #cebfeb;
+  --jini-theme-file-icon-image: #9bd8b5;
+  --jini-theme-file-icon-shell: #9bd8b5;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-admin-theme="glass"] {
+    --jini-theme-app-bg: var(--glass-app-bg-gradient);
+    --jini-theme-light-surface: #f0f5f8;
+    --jini-theme-dark-surface: #172333;
+    --jini-bg-elevated: #f8fbfd;
+    --jini-theme-control-bg: #ffffff;
+    --jini-theme-panel-backdrop: none;
+    --jini-theme-panel-bg: #f0f5f8;
+    --jini-theme-rail-bg: #f0f5f8;
+    --jini-theme-rail-backdrop: none;
+    --jini-theme-overlay-backdrop: none;
+    --jini-theme-panel-texture: none;
+    --jini-theme-control-preview-backdrop: none;
+    --jini-theme-overlay-bg: #465769;
+    --jini-theme-control-media-bg: #0a121e;
+    --jini-theme-control-media-bg-hover: #101925;
+    --jini-theme-control-preview-bg: #0a121e;
+    --jini-theme-control-preview-bg-hover: #101925;
+    --jini-theme-control-preview-tip-bg: #0a121e;
+  }
+  :root[data-admin-theme="glass"][data-color-scheme="dark"] {
+    --jini-theme-panel-bg: #172333;
+    --jini-theme-rail-bg: #172333;
+    --jini-bg-elevated: #1c2939;
+    --jini-theme-control-bg: #1b2838;
+    --jini-theme-overlay-bg: #030912;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-admin-theme="glass"] {
+    --jini-theme-app-bg: var(--glass-app-bg-gradient);
+    --jini-theme-light-surface: #f0f5f8;
+    --jini-theme-dark-surface: #172333;
+    --jini-bg-elevated: #f8fbfd;
+    --jini-theme-control-bg: #ffffff;
+    --jini-theme-panel-backdrop: none;
+    --jini-theme-panel-bg: #f0f5f8;
+    --jini-theme-rail-bg: #f0f5f8;
+    --jini-theme-rail-backdrop: none;
+    --jini-theme-overlay-backdrop: none;
+    --jini-theme-panel-texture: none;
+    --jini-theme-control-preview-backdrop: none;
+    --jini-theme-overlay-bg: #465769;
+    --jini-theme-control-media-bg: #0a121e;
+    --jini-theme-control-media-bg-hover: #101925;
+    --jini-theme-control-preview-bg: #0a121e;
+    --jini-theme-control-preview-bg-hover: #101925;
+    --jini-theme-control-preview-tip-bg: #0a121e;
+  }
+  :root[data-admin-theme="glass"][data-color-scheme="dark"] {
+    --jini-theme-panel-bg: #172333;
+    --jini-theme-rail-bg: #172333;
+    --jini-bg-elevated: #1c2939;
+    --jini-theme-control-bg: #1b2838;
+    --jini-theme-overlay-bg: #030912;
+  }
+}

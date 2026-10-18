@@ -1,0 +1,28 @@
+{
+  "id": "glass",
+  "name": "Glassmorphic",
+  "schemes": ["light", "dark"],
+  "stylesheets": {
+    "admin": "./admin.css",
+    "chat": "./chat.css"
+  },
+  "fonts": [
+    { "family": "Inter", "stylesheet": "./fonts/fonts.css" }
+  ],
+  "preview": {
+    "light": {
+      "bg": "#e6edf2",
+      "surface": "rgb(255 255 255 / .82)",
+      "text": "#1c2230",
+      "accent": "#141a2e",
+      "border": "rgb(255 255 255 / .65)"
+    },
+    "dark": {
+      "bg": "#101925",
+      "surface": "rgb(20 30 44 / .92)",
+      "text": "#edf3f8",
+      "accent": "#dce7ef",
+      "border": "rgb(255 255 255 / .12)"
+    }
+  }
+}

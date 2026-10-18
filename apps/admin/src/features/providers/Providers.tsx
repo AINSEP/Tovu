@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
@@ -72,7 +73,7 @@ import { useProviders } from "./hooks/use-providers.hooks";
  * are translated through this dictionary, so claiming a document-wide `<html lang>` here would
  * misinform assistive tech about the rest of the admin shell.
  *
- * `data-theme="light"` on this file's own page root (below) covers every tab body mounted under it,
+ * Classic's light pin on this file's own page root (below) covers every tab body mounted under it,
  * including the MCP Server tab's `IntegrationsTab` — `DeveloperApi.tsx` needed its OWN nested
  * `data-theme="light"` wrapper around that one tab specifically because its page root had none; this
  * page's root already sets it for the whole screen, so that per-tab wrapper does not need to be
@@ -132,6 +133,7 @@ function resolveProvidersHook(override: typeof useProviders | undefined): typeof
 }
 
 export function Providers(props: ProvidersProps) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   const locale = useAdminLocale();
   const useProvidersHook = resolveProvidersHook(props.useProvidersHook);
   const p = useProvidersHook();
@@ -213,14 +215,15 @@ export function Providers(props: ProvidersProps) {
       fallbackLocale="en"
       syncDocumentAttributes={false}
     >
-      {/* `data-theme="light"` is REQUIRED, not cosmetic — the same trap `Media.tsx`,
+      {/* Classic's light pin is REQUIRED, not cosmetic — the same trap `Media.tsx`,
           `AiAssistant.tsx` and `PlaceholderTabs.tsx` each document at their own mounts of
           `@jini-ai/ui/settings-dialog.css` content: with no `data-theme` ancestor the stylesheet
           falls through to its `@media (prefers-color-scheme: dark)` variant, so these tab bodies
           would render dark on any OS set to dark mode while the rest of the (light-only) admin
           shell stays light. Now covers the MCP Server tab too (see this file's header) — one
-          ancestor for every themed tab body on this page. */}
-      <div className="page providers-page" data-theme="light">
+          ancestor for every themed tab body on this page. Glass follows the document scheme
+          through the shared theme controller at that same ancestor. */}
+      <div className="page providers-page" {...themeBoundary}>
         <div
           className="page-header"
           {...agentHandle({ handle: "providers-header" }, {

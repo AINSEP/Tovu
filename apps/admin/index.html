@@ -12,10 +12,10 @@
         if (s && typeof s.themeId === "string") {
           var c = s.preference === "dark" || s.preference === "light" ? s.preference
             : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          if (Array.isArray(s.schemes) && s.schemes.length && s.schemes.indexOf(c) < 0) c = s.schemes[0];
+          if (s.themeId === "classic" && Array.isArray(s.schemes) && s.schemes.length && s.schemes.indexOf(c) < 0) c = s.schemes[0];
           var r = document.documentElement;
-          // Migrate the retired platform theme before first paint; other drop-in ids stay valid.
-          r.setAttribute("data-admin-theme", s.themeId === "default" ? "classic" : s.themeId);
+          // Classic is the only registered theme; stale ids must fall back before first paint.
+          r.setAttribute("data-admin-theme", "classic");
           r.setAttribute("data-color-scheme", c);
           if (c === "dark") r.setAttribute("data-theme", "dark");
         }

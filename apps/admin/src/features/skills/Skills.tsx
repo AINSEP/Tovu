@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
@@ -63,6 +64,7 @@ function AddSkillPanel({ controller }: { controller: SkillsController }) {
 
 /** Agent Plugins' shared tab shell; navigation and installation behavior live in hooks. */
 export function Skills() {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   const controller = useSkills();
   const filesModal = useSkillFilesModal(controller.inspecting, controller.onCloseFiles);
   const tabs: SettingsDialogTab[] = [
@@ -70,7 +72,8 @@ export function Skills() {
     { id: "add", label: "Add a skill", title: "Skills", subtitle: "Instructions for your assistant. Type /sk in chat to use one.", panel: <AddSkillPanel controller={controller} /> },
   ];
   return (
-    <section className="page skills-page settings-ui-section" data-theme="light" aria-label="Skills">
+    // Classic keeps its unverified-dark light pin; Glass follows the document scheme.
+    <section className="page skills-page settings-ui-section" {...themeBoundary} aria-label="Skills">
       <SettingsDialogShell
         tabs={tabs}
         activeTabId={controller.activeTabId}

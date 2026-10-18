@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import {
   I18nProvider,
   SETTINGS_DIALOG_DICTIONARIES,
@@ -350,6 +351,7 @@ export function AgentPlugins({
   useAgentPluginsHook = useWiredAgentPlugins,
   agentPluginInstallPort = defaultAgentPluginInstallPort,
 }: AgentPluginsProps = {}) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   const tab = useAgentPluginTab({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
@@ -457,8 +459,9 @@ export function AgentPlugins({
           `max-width` on `.jini-tabbed-dialog-content` (added for the identical "card ran the full
           admin column" problem on the BYOK tab). The row layout wants more of that column than the
           old card measure allowed, since a row carries its controls to the RIGHT of its text
-          rather than underneath it — see that rule's own comment for the widened value. */}
-      <div className="settings-ui-section agent-plugins-section" data-theme="light">
+          rather than underneath it — see that rule's own comment for the widened value.
+          Classic keeps its unverified-dark light pin; Glass follows the document scheme. */}
+      <div className="settings-ui-section agent-plugins-section" {...themeBoundary}>
         <SettingsDialogShell
           {...tab}
           tabs={tabs}

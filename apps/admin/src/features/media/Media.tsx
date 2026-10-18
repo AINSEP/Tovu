@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId, useRef, type ReactNode } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { ServerLabel } from "@/components/status-labels";
@@ -1293,12 +1294,13 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
  * `I18nProvider` is load-bearing here, not decoration — same trap `Providers.tsx`'s own header
  * documents in full: `MediaProvidersTab` resolves its own copy through `@jini-ai/ui`'s `useT()`,
  * which silently falls through to raw English keys with no ancestor provider, in every non-English
- * locale, with no error anywhere. `data-theme="light"` on the inner wrapper is the same
+ * locale, with no error anywhere. Classic's light pin on the inner wrapper is the same
  * `media-providers-panel` class `styles.css`'s "Media providers tab: neutralize Jini's warm 'paper'
  * tokens" section targets — kept byte-for-byte through both moves so that CSS keeps applying
- * unmoved.
+ * unmoved. Glass follows the document scheme through the shared controller boundary instead.
  */
 function ExternalProvidersPanel({ locale }: { locale: string }) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   return (
     <I18nProvider
       initialLocale={locale}
@@ -1306,7 +1308,7 @@ function ExternalProvidersPanel({ locale }: { locale: string }) {
       fallbackLocale="en"
       syncDocumentAttributes={false}
     >
-      <div className="media-providers-panel" data-theme="light">
+      <div className="media-providers-panel" {...themeBoundary}>
         <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
       </div>
     </I18nProvider>

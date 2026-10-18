@@ -118,7 +118,7 @@ Each name below is declared in UI `variables.css`. Existing palette roles read t
 
 ## New material and role tokens
 
-Of the 16 original roles below, step 2 activates overlay background/shadow and reuses the resting control shadow; the others remain reserved for their component migration. Each maps to its named input (`--jini-panel-bg` → `--jini-theme-panel-bg`, for example). These rows list both the role and input explicitly; defaults belong to admin's theme. The overlay background/filter describe the scrim; overlay shadow describes the floating dialog. Inputs do not merge existing control states: `none` preserves their current absence of resting/hover/pressed/inset shadows. Step 2 routes complete focus shadows through the additive roles below, preserving their rules and geometry.
+The 16 original roles below are now consumed by the G1 admin material wiring, with the per-consumer Classic exceptions described below. Each maps to its named input (`--jini-panel-bg` → `--jini-theme-panel-bg`, for example). These rows list both the role and input explicitly; defaults belong to admin's theme. The overlay background/filter describe the scrim; overlay shadow describes the floating dialog. Inputs do not merge existing control states: `none` preserves their current absence of resting/hover/pressed/inset shadows. Step 2 routes complete focus shadows through the additive roles below, preserving their rules and geometry.
 
 For the eight scheme-dependent roles, host `--jini-theme-<role>` inputs, including inherited inputs, always take precedence over Jini defaults regardless of stylesheet order. Their admin-owned `--jini-default-<role>` fallbacks (for example, `--jini-default-panel-bg`) re-resolve on `:root`, `[data-admin-theme]` and `[data-color-scheme]`; the fixed inputs remain on `:root`.
 
@@ -313,3 +313,84 @@ Chat import order: the existing AssistantDock module import → `assistant.css` 
 Literals retained outside themes: native `color-scheme: light/dark` is structural behavior; alpha masks, `transparent`, `currentColor` and SVG geometry are intentional. Step 2 routes the approved visible color/shadow inventory through tokens across parallel consumer lanes; unrelated radius/filter literals and Jini's injected chat defaults remain for later component migration. UI's pre-existing neutral/scale/chart literals remain compatibility fallbacks. No new theme package/variant, scheme switching, inline theme application or public-site styling is introduced.
 
 Validation for this build lane: source/diff inspection only, under the dispatch's explicit ban on tests/typecheck/builds. Pixel identity has not been rendered or certified. The coordinator owns UI rebuild and subsequent current-Classic light/dark screenshot and computed-value comparisons at 1244px/390px, including Appearance selected card/swatch, first paint, portals and the additional states in step-2 plan §5.
+
+
+## G1 material consumer wiring (2026-10-17)
+
+Inputs: the G1 CSS-only dispatch, ADR-069, the Glass package/plan and
+`2026-10-17-admin-themes/GLASS-REFERENCE.md`. Existing UI role declarations, Classic
+inputs and the structural host bridge remain the owners; there is no second theme runtime.
+Both Glass stylesheets import immediately after their Classic counterparts. Registration,
+scheme boundaries and accent handling belong to the parallel runtime lane.
+
+Four additive aliases extend UI's existing input → role contract. Classic supplies no new
+inputs; each alias preserves the existing consumer value in both schemes:
+
+| Role | Theme input | Exact compatibility fallback |
+|---|---|---|
+| `--jini-control-preview-backdrop` | `--jini-theme-control-preview-backdrop` | `blur(6px)` |
+| `--jini-chat-font-body` | `--jini-theme-chat-font-body` | `-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Noto Sans", Roboto, "Helvetica Neue", Arial, sans-serif` |
+| `--jini-chat-font-mono` | `--jini-theme-chat-font-mono` | `ui-monospace, SFMono-Regular, Menlo, monospace` |
+| `--jini-chat-popover-shadow` | `--jini-theme-chat-popover-shadow` | `0 18px 46px rgba(13, 12, 10, .15), 0 2px 8px rgba(13, 12, 10, .06)` |
+
+Chat aliases remain root-only, with inline fallbacks in the package for chat-only hosts that
+omit UI variables. Attachment-preview text re-resolves the mono input locally with its original
+`ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` stack, preserving that consumer's
+additional Consolas fallback. All existing body/mono font declarations and the three matching
+popover/dialog shadows in ChatPane's stylesheet now consume these seams. No chat palette,
+portal behavior or injected stylesheet lifecycle changes. Preview controls consume the filter
+alias; existing responsive/explicit `backdrop-filter: none` states still win.
+
+| Consumer | Material routing | Classic paint retained |
+|---|---|---|
+| `body` | `--jini-app-bg` | `var(--bg)` |
+| `.admin-layout` | Host compatibility seam → `--jini-app-bg` | `var(--jini-bg)`, which differs from body in dark mode |
+| Card/dashboard/detail/site/theme frames | Panel fill/border/shadow/filter/texture | Existing `--surface` / `--border` / `--shadow-sm`; existing 1.5px card borders stay 1.5px |
+| Sidebar / chat dock | Panel fill/border/texture; compatible elevation | No desktop shadow; existing `--shadow-md` mobile elevation |
+| Existing floating row/select/conversation menus and modal shells | Elevated fill/elevation; bounded panel filter/texture | Existing `--surface` fill and each original shadow, including distinct above-menu/chat-settings shadows |
+| Existing scrims and native `::backdrop` | Existing overlay background roles plus compatible overlay filter | Existing per-scrim background; no newly introduced Classic blur |
+| Native inputs/selects/textareas, secondary buttons, custom select trigger | Control fill/border/resting/hover/pressed/inset shadows | Existing fills/borders and absent shadows; focus/expanded rings remain separate; custom select's recorded tinted border stays intact |
+
+Tovu's existing `admin-theme-bridge.css` carries six private compatibility mappings. They
+are host adapter details, not additional shared role names or a new palette owner:
+
+| Private mapping | Theme material | Implicit/explicit Classic |
+|---|---|---|
+| `--tovu-admin-layout-bg` | `--jini-app-bg` | `--jini-bg` |
+| `--tovu-admin-elevated-bg` | `--jini-bg-elevated` | `--surface` |
+| `--tovu-admin-elevated-shadow` | `--jini-overlay-shadow` | `--shadow-md` |
+| `--tovu-admin-scrim-backdrop` | `--jini-overlay-backdrop` | `none` |
+| `--tovu-admin-rail-shadow` | `--jini-panel-shadow` | `none` |
+| `--tovu-admin-mobile-panel-shadow` | `--jini-panel-shadow` | `--shadow-md` |
+
+These exceptions are necessary: assigning Classic's reserved `blur(4px)` to an unblurred
+scrim, its reserved dialog shadow to a `--shadow-md` menu, or its body background to the
+Jini layout would change Classic's current paint. Shared token defaults and Classic theme
+files therefore remain unchanged. The main scroller has no opaque background of its own;
+the layout now paints the complete Glass background without filtering any layout ancestor.
+
+Native dialog shells that can contain fixed menu portals, the generic settings shell and the
+arbitrary-content message modal retain their paint without a panel filter. The native `::backdrop`
+is independently filtered, so their selected portal destination and viewport coordinates survive.
+
+Filters apply only to bounded panels/cards/menus/dialogs and scrims. The chat dock deliberately
+remains unfiltered: Jini Composer's discovery/workdir menus are fixed descendants with viewport
+coordinates (see `chat/src/react/components/Composer.tsx`), so filtering the dock would move them.
+Its panel fill, texture, border and elevation are wired; backdrop blur on that specific ancestor
+requires a separate safe background layer or portaling those fixed menus at their existing owner.
+No filter is added to `.admin-layout`, `.admin-main-col`, `.admin-content`, body or the chat pane.
+The FAB remains outside every newly filtered surface. Existing row/select/runtime portals remain
+at their existing destinations.
+
+Reuse: material paints; literal searches across Tovu admin CSS, installed UI CSS, Jini UI
+variables/admin styles and ChatPane/Composer source; extended the existing Jini role contract and
+Tovu compatibility bridge under ADR-069 using native CSS. Existing panel/menu/control distinctions
+and font stack differences are retained rather than collapsed into one default.
+
+Validation: source/diff review only; no tests, typechecks, builds, commits or dependency changes.
+No rendered/pixel parity claim. Coordinator still owns publishing/adopting the Jini source seams
+and checking Classic light/dark computed paint, Glass backdrop compositing, fixed menus/FAB/toasts,
+preview overrides, native dialogs and portals. No logic-bearing functions changed; documentation
+classification is contract/update plus inline rationale for the compatibility and fixed-menu seams.
+Architecture review: within G1's CSS/contract and two explicitly authorized Jini source seams;
+no theme-package component selectors, new provider dependency or public-site change.

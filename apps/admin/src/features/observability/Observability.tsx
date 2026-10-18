@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
@@ -161,6 +162,7 @@ export interface ObservabilityProps {
  * to `?tab=` navigation; the controlled shell renders only that tab's panel.
  */
 export function Observability({ tabId, useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors, useQueriesTabHook = useWiredQueriesTab, QueriesPanelComponent = QueriesPanel }: ObservabilityProps = {}) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   const controller = useObservabilityStatusHook();
   const queriesTab = useQueriesTabHook();
   const { t, locale } = controller;
@@ -224,7 +226,8 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
         </div>
       </div>
       <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
-        <div className="settings-ui-section settings-ui-section--page-flow observability-section" data-theme="light">
+        {/* Classic keeps its unverified-dark light pin; Glass follows the document scheme. */}
+        <div className="settings-ui-section settings-ui-section--page-flow observability-section" {...themeBoundary}>
           <SettingsDialogShell
             tabs={tabs}
             activeTabId={activeTabId}

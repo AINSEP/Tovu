@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "./admin-themes/use-admin-theme.hooks";
 import { AdminPageApprovalDialog } from "./features/webmcp/AdminPageApprovalDialog";
 import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
 import { SitesSidebarNav } from "./components/SitesSidebarNav";
@@ -345,6 +346,7 @@ function AssistantChrome(props: {
   /** Settings → User Interface, via `useInterfacePreferences` (`resolveChatFabClearance` reads it). */
   hideFabWhileOpen: boolean;
 }): ReactNode {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   if (!props.enabled) return null;
 
   const {
@@ -384,9 +386,9 @@ function AssistantChrome(props: {
           normal Tab order — the sheet's own close button and the assistant's composer are what Tab
           should reach, not the `<aside>` wrapper itself. */}
       {/*
-        `data-theme="light"` is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
+        Classic's light pin is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
         and `features/ai-assistant/AiAssistant.tsx` pin it — and it must live on THIS element, not on a wrapper
-        inside `<AssistantDock>`.
+        inside `<AssistantDock>`. Glass uses the document's resolved scheme at this same boundary.
 
         The runtime picker's BYOK model dropdown is `@jini-ai/ui`'s `CustomSelect`, which portals its
         menu to `document.body` and so escapes any ancestor's theme. It compensates by copying the
@@ -402,7 +404,7 @@ function AssistantChrome(props: {
       */}
       <aside
         ref={chatDockRef}
-        data-theme="light"
+        {...themeBoundary}
         // Jini's tip placement keeps every ⓘ / header tip bubble inside the dock, not over the page.
         data-jini-tip-bounds=""
         className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}

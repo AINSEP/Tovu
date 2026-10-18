@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
@@ -879,6 +880,7 @@ export interface AiAssistantProps {
 }
 
 export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }: AiAssistantProps = {}) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = useAiAssistantHook();
   const { activeTabId, onTabChange } = useAiAssistantTab({ tabId });
 
@@ -1014,17 +1016,16 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
         <AiAssistantLocaleSync locale={locale} />
         {/*
-          `data-theme="light"` is REQUIRED, not cosmetic. `SettingsUi.tsx` sets this from its own
-          "Dialog appearance" setting; with the attribute absent entirely the shell's stylesheet falls
+          Classic's light pin is REQUIRED, not cosmetic. With the attribute absent entirely the shell's stylesheet falls
           through to its dark variant, which is why this panel rendered dark inside an otherwise-light
           admin. Pinned to light rather than wired to a setting because this screen has no appearance
-          control of its own and the Tovu admin shell is light-only — a themable panel here would just
-          be a way to make one page disagree with every other one.
+          control of its own and Classic's dark paint here was never verified. Glass follows the
+          document's resolved scheme through the shared controller at this same boundary.
 
           `--page-flow` opts out of `.settings-ui-section`'s full-height layout; see that modifier's
           comment in styles.css for the nested-scroller trap it exists to avoid.
         */}
-        <div className="settings-ui-section settings-ui-section--page-flow" data-theme="light">
+        <div className="settings-ui-section settings-ui-section--page-flow" {...themeBoundary}>
           <SettingsDialogShell
             tabs={tabs}
             presentation="inline"

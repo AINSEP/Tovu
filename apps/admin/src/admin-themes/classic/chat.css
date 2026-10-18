@@ -81,3 +81,9 @@
   --jini-theme-chat-radius-lg: var(--r-md);
 }
 
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"])[data-theme="dark"] {
+  /* Other chat inputs already follow Classic's root tokens and cycle-breaking seams.
+     Sent bubbles use the raised charcoal step instead of an independent fixed fill. */
+  --jini-theme-chat-user-bubble: var(--surface-3);
+  --jini-theme-chat-user-bubble-ink: var(--fg);
+}

@@ -51,8 +51,11 @@
  *     used to open one, and the modal render itself, were removed 2026-09-19 (owner's call — the
  *     overlay was never wanted). Only the inline page ever mounts now, and it is the one being
  *     re-skinned here.
+ *
+ * Keep this legacy pin on Classic only. Glass's local scheme boundary derives `--surface`
+ * from `--jini-bg-panel`; pointing the panel back at that alias would create a token cycle.
  */
-.settings-ui-section[data-theme="light"] {
+:where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) .settings-ui-section[data-theme="light"] {
   --jini-bg-panel: var(--surface);
   --jini-bg-elevated: var(--surface);
   /* This panel stays light in a dark admin, where the inherited `--selected-text` is the dark

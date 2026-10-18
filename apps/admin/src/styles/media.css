@@ -246,19 +246,22 @@
    own scroll, since that many fields can exceed a short viewport's height even at this width.
    ============================================================ */
 .media-edit-dialog {
-  border: 1px solid var(--border-strong);
+  border: var(--jini-border-width, 1px) solid var(--border-strong);
   border-radius: var(--r-lg);
   padding: var(--space-5) var(--space-6);
   max-width: min(94vw, 34rem);
   width: calc(100% - var(--space-6));
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--surface);
+  background: var(--tovu-admin-elevated-bg);
   color: var(--fg);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--tovu-admin-elevated-shadow);
+  background-image: var(--jini-panel-texture, none);
 }
 .media-edit-dialog[open] { display: block; }
-.media-edit-dialog::backdrop { background: var(--jini-overlay-bg); }
+.media-edit-dialog::backdrop { background: var(--jini-overlay-bg);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
+}
 /* The form content's own root, replacing the old `.card` wrapper — the dialog above already
    supplies the surface/border/shadow, so this contributes layout only (the `.editor-header`/
    `.field-group` children keep their own existing rules unchanged). */
@@ -311,6 +314,7 @@
      plain text and UI chrome, so it leans darker to keep the dimmed page from fighting the
      enlarged asset for attention. */
   background: var(--jini-overlay-bg-lightbox);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
 }
 
 .media-lightbox-header {

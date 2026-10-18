@@ -225,16 +225,31 @@
 }
 
 :root:where(:not([data-admin-theme]), [data-admin-theme="classic"])[data-theme="dark"] {
-  --bg:            oklch(14% 0.018 255);
-  --surface:       oklch(18.5% 0.018 255);
-  --surface-2:     oklch(22% 0.016 255);
-  --surface-3:     oklch(26% 0.015 255);
+  /* Keep the existing #171717 middle canvas; match light's equal canvas/panel fills.
+     The raised steps lose their blue cast so composer and bubble fills share that charcoal. */
+  --bg:            #171717;
+  --surface:       var(--bg);
+  --surface-2:     oklch(22% 0 none);
+  --surface-3:     oklch(26% 0 none);
   --fg:            oklch(96% 0.004 250);
   --fg-2:          oklch(86% 0.006 250);
   --muted:         oklch(70% 0.012 250);
   --faint:         oklch(56% 0.012 250);
   --border:        oklch(100% 0 0 / 0.11);
   --border-strong: oklch(100% 0 0 / 0.18);
+
+  /* Palette inputs feed Jini's panel/elevated roles and widgets; Classic owns the
+     legacy tokens here, so these references do not loop back through Jini's aliases. */
+  --jini-theme-dark-bg: var(--bg);
+  --jini-theme-dark-surface: var(--surface);
+  --jini-theme-dark-text: var(--fg);
+  --jini-theme-dark-muted: var(--muted);
+  --jini-theme-dark-border: var(--border);
+  --jini-theme-dark-primary-ink: var(--primary-ink);
+  --jini-theme-dark-danger: var(--danger);
+  --jini-theme-dark-success: var(--ok);
+  --jini-theme-dark-warning: var(--warning);
+  --jini-bg-subtle: var(--surface-2);
 
   --accent:      oklch(97% 0 0);
   --accent-ink:  oklch(18% 0.006 260);
@@ -397,4 +412,21 @@
 :root:where(:not([data-admin-theme]), [data-admin-theme="classic"]) [data-theme="light"] {
   --jini-theme-control-shadow-swatch-selected: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
   --jini-control-shadow-swatch-selected: var(--jini-theme-control-shadow-swatch-selected);
+}
+
+/* Only custom accents reverse Classic's default --primary → Jini input mapping. The runtime
+   supplies literal primary inputs before setting this marker, so no custom-property cycle forms.
+   With no override these rules stop matching, preserving every original light/dark ramp value.
+   Neutral --accent selections intentionally remain separate from primary actions (see above). */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"])[data-admin-accent] {
+  --primary: var(--jini-primary);
+  --primary-strong: var(--jini-accent-strong);
+  --primary-ink: var(--jini-primary-ink);
+  --primary-dim: var(--jini-accent-soft);
+  --primary-ring: var(--jini-accent-ring);
+  --link: var(--jini-link);
+  --link-ink: var(--jini-link-ink);
+  /* Dark's default ink input reads --primary-ink; break that reverse edge while customized.
+     Both schemes use Jini's existing light ink input for the operator's same chosen fill. */
+  --jini-theme-dark-primary-ink: var(--jini-theme-light-primary-ink);
 }

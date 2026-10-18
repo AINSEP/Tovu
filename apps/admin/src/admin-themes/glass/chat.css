@@ -1,0 +1,72 @@
+@import './fonts/fonts.css';
+
+/* All 17 ChatPane inputs are explicit in both schemes. Literal border/danger inputs resolve
+   at root, preserving the existing bridge's protection from pane-local alias cycles. */
+:root[data-admin-theme="glass"] {
+  --jini-theme-chat-bg: transparent;
+  --jini-theme-chat-panel: rgb(255 255 255 / .86);
+  --jini-theme-chat-subtle: rgb(255 255 255 / .45);
+  --jini-theme-chat-text: #2b3242;
+  --jini-theme-chat-text-strong: #1c2230;
+  --jini-theme-chat-muted: #445365;
+  --jini-theme-chat-faint: #4b5968;
+  --jini-theme-chat-border: rgb(255 255 255 / .65);
+  --jini-theme-chat-border-soft: rgb(255 255 255 / .45);
+  --jini-theme-chat-border-strong: rgb(255 255 255 / .85);
+  --jini-theme-chat-accent: #141a2e;
+  --jini-theme-chat-accent-soft: #dfe6ec;
+  --jini-theme-chat-user-bubble: #141a2e;
+  --jini-theme-chat-user-bubble-ink: #ffffff;
+  --jini-theme-chat-danger: #a51d2d;
+  --jini-theme-chat-radius: 12px;
+  --jini-theme-chat-radius-lg: 20px;
+  /* Proposed Glass inputs awaiting Jini contract/consumer wiring; no component rules here. */
+  --jini-theme-chat-font-body: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --jini-theme-chat-font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --jini-theme-chat-popover-shadow: 0 24px 64px rgb(50 70 95 / .22), inset 0 1px 0 rgb(255 255 255 / .90);
+}
+
+:root[data-admin-theme="glass"][data-color-scheme="dark"] {
+  --jini-theme-chat-bg: transparent;
+  --jini-theme-chat-panel: rgb(20 30 44 / .88);
+  --jini-theme-chat-subtle: rgb(43 59 78 / .55);
+  --jini-theme-chat-text: #d1dde8;
+  --jini-theme-chat-text-strong: #edf3f8;
+  --jini-theme-chat-muted: #b5c3d1;
+  --jini-theme-chat-faint: #b5c3d1;
+  --jini-theme-chat-border: rgb(255 255 255 / .12);
+  --jini-theme-chat-border-soft: rgb(255 255 255 / .08);
+  --jini-theme-chat-border-strong: rgb(255 255 255 / .24);
+  --jini-theme-chat-accent: #dce7ef;
+  --jini-theme-chat-accent-soft: #2b3b4e;
+  --jini-theme-chat-user-bubble: #dce7ef;
+  --jini-theme-chat-user-bubble-ink: #141a2e;
+  --jini-theme-chat-danger: #ffadb7;
+  --jini-theme-chat-radius: 12px;
+  --jini-theme-chat-radius-lg: 20px;
+  --jini-theme-chat-font-body: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --jini-theme-chat-font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --jini-theme-chat-popover-shadow: 0 24px 64px rgb(0 8 20 / .46), inset 0 1px 0 rgb(255 255 255 / .14);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-admin-theme="glass"] {
+    --jini-theme-chat-bg: #f0f5f8;
+    --jini-theme-chat-panel: #f0f5f8;
+  }
+  :root[data-admin-theme="glass"][data-color-scheme="dark"] {
+    --jini-theme-chat-bg: #172333;
+    --jini-theme-chat-panel: #172333;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-admin-theme="glass"] {
+    --jini-theme-chat-bg: #f0f5f8;
+    --jini-theme-chat-panel: #f0f5f8;
+  }
+  :root[data-admin-theme="glass"][data-color-scheme="dark"] {
+    --jini-theme-chat-bg: #172333;
+    --jini-theme-chat-panel: #172333;
+  }
+}

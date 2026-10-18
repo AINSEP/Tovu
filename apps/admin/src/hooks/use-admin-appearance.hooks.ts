@@ -1,8 +1,9 @@
-import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { useCallback, useEffect, useRef } from "react";
-import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
+import { useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useEffect, useRef } from "react";
+import { APPEARANCE_NAMESPACE, adminThemeAccent, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
-import { useAdminBootScope } from "../lib/admin-boot-scope";
+import { useAdminThemeState } from "../admin-themes/use-admin-theme.hooks";
+import { advanceAppearancePreview, useAdminAppearanceSnapshot } from "./use-admin-appearance-snapshot.hooks";
 
 export interface AdminAppearancePort {
   loadAppearance(): Promise<AppearanceConfig>;
@@ -15,51 +16,76 @@ const defaultPort: AdminAppearancePort = {
   }),
 };
 
-// A controlled draft can change while the shell's initial read is still pending. Invalidate
-// that read at the document boundary rather than letting it undo the operator's live preview.
-const previewVersions = new WeakMap<HTMLElement, number>();
+const previewAccents = new WeakMap<HTMLElement, Map<string, { accentColor: string | undefined; version: number }>>();
 
 /**
  * The host inputs feed Jini's derived accent tokens, including descendants with their own theme.
  * The ledger's registered default (Jini's neutral blue, which Jini expects hosts to brand over) is
- * not an operator choice, so it clears the inline inputs and `styles.css`'s `var(--primary)` mapping
- * keeps every Jini accent brand orange. Writing it inline turned selected chips, toggles and
+ * not an operator choice, so it clears the inline inputs and Classic's `var(--primary)` mapping
+ * keeps Classic's Jini accent brand orange. Glass without a saved choice likewise keeps its own
+ * palette. Writing the ledger default inline turned selected chips, toggles and
  * primary buttons blue on any site that never picked an accent (owner, 2026-10-08: "selected tabs
  * and navs should be orange").
  */
-function applyAccent({ accentColor, root }: { accentColor: string; root: HTMLElement }, _optional: object) {
-  if (accentColor.toLowerCase() === DEFAULT_APPEARANCE.accentColor.toLowerCase()) {
+function applyAccent({ accentColor, root }: { accentColor: string | undefined; root: HTMLElement }, _optional: object) {
+  if (accentColor === undefined) {
     root.style.removeProperty("--jini-theme-light-primary");
     root.style.removeProperty("--jini-theme-dark-primary");
+    root.removeAttribute("data-admin-accent");
     return;
   }
   root.style.setProperty("--jini-theme-light-primary", accentColor);
   root.style.setProperty("--jini-theme-dark-primary", accentColor);
+  // Classic's default inputs point at --primary. Only bridge back to Jini's roles while
+  // these literal overrides exist, avoiding a cycle and preserving the default palette.
+  root.setAttribute("data-admin-accent", "");
 }
 
-/** Follow the operator's appearance ledger on every admin page, using the existing refresh bus. */
+/** Follow the appearance ledger, protecting each theme's drafts newer than the accepted read.
+ * @complexity O(n) per accepted read/theme switch for n cached drafts; root state is weakly held. */
 export function useAdminAppearance(_required: object, { port = defaultPort, root = document.documentElement } = {}) {
-  const { queryScope, checking } = useAdminBootScope();
-  const previewVersion = useRef(previewVersions.get(root));
-  const fetchAppearance = useCallback(() => port.loadAppearance(), [port]);
-  const query = useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE, queryScope], fetch: fetchAppearance }, { enabled: !checking, staleTime: Infinity });
+  const { themeId } = useAdminThemeState({}, { root });
+  const paintedTheme = useRef(themeId);
+  const query = useAdminAppearanceSnapshot({ port }, { root });
   const invalidate = useInvalidate();
   useEffect(() => port.subscribeToSettingsRefresh(() => {
-    previewVersion.current = previewVersions.get(root);
     invalidate({ key: ["settings", APPEARANCE_NAMESPACE] });
   }), [port, root, invalidate]);
   useEffect(() => {
-    // An older response must not repaint a newer choice; failed reads retain the last accent.
-    if (query.data && previewVersions.get(root) === previewVersion.current) applyAccent({ accentColor: query.data.accentColor, root }, {});
-  }, [query.data, root]);
+    // An older response must not repaint a newer draft, including after a theme switch.
+    // Other themes can still resolve their own saved choice; failed reads retain the last accent.
+    const drafts = previewAccents.get(root);
+    const themeChanged = paintedTheme.current !== themeId;
+    paintedTheme.current = themeId;
+    if (!query.data) {
+      // A switch must never carry the previous theme's inline colour into an unloaded theme.
+      if (themeChanged) applyAccent({ accentColor: drafts?.get(themeId)?.accentColor, root }, {});
+      return;
+    }
+    // Only an accepted snapshot retires drafts, across all themes. A later preview in another
+    // theme must never revive one that this read superseded; in-flight newer drafts survive.
+    const readVersion = query.data.readPreviewVersion;
+    for (const [id, draft] of drafts ?? []) {
+      if (draft.version <= readVersion) drafts?.delete(id);
+    }
+    const draft = drafts?.get(themeId);
+    const accentColor = draft && draft.version > readVersion
+      ? draft.accentColor
+      : adminThemeAccent({ appearance: query.data.appearance, themeId }, {});
+    applyAccent({ accentColor, root }, {});
+  }, [query.data, root, themeId]);
 }
 
-/** Preview the controlled draft before the debounced ledger save completes. */
-export function useSettingsAppearance({ accentColor, ready }: { accentColor: string; ready: boolean }, { root = document.documentElement } = {}) {
+/** Preview the active theme's resolved draft before the debounced ledger save completes. */
+export function useSettingsAppearance({ accentColor, ready }: { accentColor: string | undefined; ready: boolean }, { root = document.documentElement } = {}) {
+  const { themeId } = useAdminThemeState({}, { root });
   useEffect(() => {
     if (ready) {
-      previewVersions.set(root, (previewVersions.get(root) ?? 0) + 1);
+      const version = advanceAppearancePreview({ root }, {});
+      const drafts = previewAccents.get(root) ?? new Map();
+      drafts.set(themeId, { accentColor, version });
+      previewAccents.set(root, drafts);
       applyAccent({ accentColor, root }, {});
     }
-  }, [accentColor, ready, root]);
+  }, [accentColor, ready, root, themeId]);
 }

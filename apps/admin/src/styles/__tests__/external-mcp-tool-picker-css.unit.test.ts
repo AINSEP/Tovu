@@ -125,9 +125,10 @@ describe("styles/external-mcp-tool-picker.css", () => {
     expect(declarations(action).background ?? declarations(primary!).background).toBe("var(--primary)");
     const secondary = findRule(globalBlocks, ".btn-secondary");
     expect(secondary).toBeDefined();
-    expect(declarations(secondary!)).toMatchObject({ background: "var(--surface)", color: "var(--fg-2)" });
+    // Classic maps --jini-theme-control-bg to var(--surface), so the rendered fill is unchanged.
+    expect(declarations(secondary!)).toMatchObject({ background: "var(--jini-control-bg)", color: "var(--fg-2)" });
     const secondaryAction = findRule(blocks, ".external-mcp-tool-actions .btn-secondary")!;
-    expect(declarations(secondaryAction).background ?? declarations(action).background ?? declarations(secondary!).background).toBe("var(--surface)");
+    expect(declarations(secondaryAction).background ?? declarations(action).background ?? declarations(secondary!).background).toBe("var(--jini-control-bg)");
   });
 
   it("the tool list is the dialog's one scroller, bounded by a fixed-height flex column — the live higgsfield connection advertises 157 tools", () => {

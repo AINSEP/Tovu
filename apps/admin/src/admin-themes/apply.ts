@@ -32,6 +32,16 @@ export interface AdminThemeDocumentState {
   scheme: AdminThemeScheme;
 }
 
+/** Classic's unverified screens stay light; Glass uses the resolved document scheme. */
+export function resolveAdminThemeBoundary(
+  { state }: { state: AdminThemeDocumentState },
+  _optional: object = {},
+): { "data-theme": AdminThemeScheme; "data-color-scheme"?: AdminThemeScheme } {
+  return state.themeId === "glass"
+    ? { "data-theme": state.scheme, "data-color-scheme": state.scheme }
+    : { "data-theme": "light" };
+}
+
 export interface AdminThemeStoragePort {
   setItem(key: string, value: string): void;
 }

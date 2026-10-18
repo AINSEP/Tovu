@@ -1,3 +1,4 @@
+import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useEffect } from "react";
@@ -280,6 +281,7 @@ function resolveTabId(override: string | null | undefined): string | null {
 }
 
 export function SettingsUi(props: SettingsUiProps) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
   // No `SettingsUiProps = {}` default on the parameter itself (2026-08-14, same reasoning as
   // `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual props
   // object — `{}` when no attributes are given, never `undefined` — and every field here is
@@ -735,7 +737,7 @@ export function SettingsUi(props: SettingsUiProps) {
   );
 
   /*
-   * `data-theme="light"` on the wrapper below is PINNED — the owner's call,
+   * Classic's `data-theme="light"` on the wrapper below is PINNED — the owner's call,
    * 2026-09-06: "take dark mode off the Settings page entirely; Settings
    * renders light, like every other admin screen." This page has no
    * appearance of its own any more, so its chrome can come off too
@@ -752,7 +754,8 @@ export function SettingsUi(props: SettingsUiProps) {
    * per-panel theming is what the owner has now removed, and the resolver
    * went with it.
    *
-   * Appearance now lives under Admin UI; this Settings surface keeps its light pin.
+   * Appearance now lives under Admin UI; Classic keeps its light pin. Glass follows the
+   * document scheme through the shared controller without adding a per-screen setting.
    */
   return (
     /**
@@ -779,8 +782,8 @@ export function SettingsUi(props: SettingsUiProps) {
       {/* `settings-page` is THIS screen's own hook for `styles/settings.css` — five screens share
           `settings-ui-section` (Agent Plugins, Authentication, AI Assistant, the placeholder tabs,
           and this one), so anything meant for the Settings page alone must not select on the
-          shared class. `data-theme` is pinned — see the comment above `return`. */}
-      <div ref={settingsRootRef} className="settings-ui-section settings-page" data-theme="light" data-tovu-local-cli={executionPolicy.visibility}>
+          shared class. Classic is pinned; Glass follows the document — see above `return`. */}
+      <div ref={settingsRootRef} className="settings-ui-section settings-page" {...themeBoundary} data-tovu-local-cli={executionPolicy.visibility}>
         {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
             {t("Could not load saved settings (")}{s.loadError}{t("). Showing defaults — edits will still save.")}

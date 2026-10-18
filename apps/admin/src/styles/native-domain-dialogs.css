@@ -6,6 +6,8 @@
 .jini-domain-dialog > .jini-dialog-close { display: none; }
 .settings-dialog.jini-domain-dialog {
   border: 0; color: var(--fg); margin: auto;
+  /* CustomSelect portals into this native dialog with viewport-fixed coordinates. Keep its
+     shell unfiltered; the independently filtered ::backdrop supplies the frosted background. */
   /* Native dialogs shrink to their content without an explicit width; the media
      instance editor's short labels used to squeeze its fields into 230px. */
   width: var(--admin-dialog-width, 32rem);
@@ -13,7 +15,9 @@
   box-sizing: border-box;
 }
 .jini-domain-dialog:not([open]) { display: none; }
-.jini-domain-dialog::backdrop { background: var(--jini-overlay-bg); }
+.jini-domain-dialog::backdrop { background: var(--jini-overlay-bg);
+  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
+}
 /* The native title sits outside each form; the form still owns submission and
    keeps the same vertical rhythm the former form-as-dialog root supplied. */
 .jini-domain-dialog > form { display: flex; flex-direction: column; gap: 0.9rem; }
