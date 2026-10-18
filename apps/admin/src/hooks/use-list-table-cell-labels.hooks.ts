@@ -18,7 +18,11 @@ function headerLabels(table: HTMLTableElement): string[] {
   if (!row) return [];
   const labels: string[] = [];
   for (const th of Array.from(row.cells)) {
-    const text = (th.textContent ?? "").replace(SORT_GLYPHS, "").trim();
+    // Tooltip descriptions and icons are help, not the column title printed on cards.
+    const title = th.cloneNode(true) as HTMLTableCellElement;
+    title.querySelectorAll('.info-tip, [role="tooltip"], [hidden], [aria-hidden="true"]')
+      .forEach((help) => help.remove());
+    const text = (th.getAttribute("data-label") ?? title.textContent ?? "").replace(SORT_GLYPHS, "").trim();
     for (let i = 0; i < th.colSpan; i += 1) labels.push(text);
   }
   return labels;

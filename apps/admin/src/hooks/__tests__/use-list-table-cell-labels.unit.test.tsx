@@ -16,6 +16,27 @@ function table(html: string): HTMLElement {
 }
 
 describe("labelListTableCells", () => {
+  it.each([undefined, "Roles"])("excludes tooltip help from card labels with explicit title %s", (label) => {
+    const root = table(`<table class="list-table">
+      <thead><tr><th ${label === undefined ? "" : `data-label="${label}"`}>Roles<span class="info-tip">
+        <span role="button">ⓘ</span><span hidden>Owner — full control, including users and site keys.</span>
+      </span></th></tr></thead><tbody><tr><td>Owner</td></tr></tbody></table>`);
+    labelListTableCells(root);
+    const cell = root.querySelector("td")!;
+    expect(cell.getAttribute("data-label")).toBe("Roles");
+    expect(cell.textContent).toBe("Owner");
+    expect(root.querySelector("th .info-tip [hidden]")?.textContent)
+      .toBe("Owner — full control, including users and site keys.");
+  });
+
+  it("prefers an explicit translated title over header text", () => {
+    const root = table(`<table class="list-table">
+      <thead><tr><th data-label="Rôles">Roles</th></tr></thead>
+      <tbody><tr><td>Owner</td></tr></tbody></table>`);
+    labelListTableCells(root);
+    expect(root.querySelector("td")?.getAttribute("data-label")).toBe("Rôles");
+  });
+
   it("copies each header's text (minus sort glyphs) onto its column, honouring colspan", () => {
     const root = table(`<table class="list-table">
       <thead><tr><th>Title ⇅</th><th colspan="2">When</th><th></th></tr></thead>
