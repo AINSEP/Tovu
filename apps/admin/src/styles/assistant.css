@@ -1161,22 +1161,18 @@ button.jini-composer-leading,
 
 /* --- Runtime/agent picker --- */
 
-.jini-runtime-trigger {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  border-radius: var(--r-pill);
-  padding: 5px 10px 5px 6px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--fg-2);
+/* Borderless, muted "icon model ⌄  effort ⌄" row beside the "+" (Jini lays it out); only the
+   admin's own tokens are mapped here. */
+.jini-runtime-trigger,
+.jini-runtime-effort {
+  border-radius: var(--r-sm);
+  color: var(--muted);
 }
 
-.jini-runtime-trigger__chevron {
-  color: var(--faint);
-  font-size: 10px;
+.jini-runtime-trigger:hover,
+.jini-runtime-effort:hover {
+  background: var(--surface-2);
+  color: var(--fg-2);
 }
 
 .jini-runtime-popover {
