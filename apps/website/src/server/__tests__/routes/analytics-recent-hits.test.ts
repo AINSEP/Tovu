@@ -93,9 +93,10 @@ test("REQ-14: GET recent-hits denied 403 FORBIDDEN without analytics.read; carri
     headers: { cookie: bareCookie },
   });
   assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string; details: { permission: string }; hits?: unknown };
-  assert.equal(body.code, "FORBIDDEN");
-  assert.equal(body.details.permission, "analytics.read");
+  const body = (await res.json()) as { error: { code: string; message: string; details: { permission: string; reason: string } }; hits?: unknown };
+  assert.equal(body.error.code, "FORBIDDEN");
+  assert.equal(body.error.details.permission, "analytics.read");
+  assert.ok(body.error.message.includes(body.error.details.reason));
   assert.equal("hits" in body, false); // INV-R1: no hit data leaks past a denial
 });
 
@@ -192,7 +193,7 @@ test("recent hits: a sink failure returns a caller-safe 500 INTERNAL_ERROR", asy
   t.mock.method(deps.analyticsSink, "list", async () => { throw new Error("private sink failure"); });
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.deepEqual(await res.json(), { error: { message: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("AC-29: 404s on a workspace id that does not match the deployed workspace (checked before authorize)", async (t) => {

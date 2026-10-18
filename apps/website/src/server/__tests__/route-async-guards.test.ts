@@ -395,7 +395,12 @@ test("analytics/recent-hits: GET responds 500 (not a hang) when deps.authorize t
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  await assertOpaqueInternalError(res);
+  const raw = await res.text();
+  const { error } = JSON.parse(raw);
+  assert.equal(error.code, "INTERNAL_ERROR");
+  assert.equal(error.message, "internal error");
+  assert.equal(error.requestId, res.headers.get("x-request-id"));
+  assert.equal(/simulated|stack|at \S+ \(/i.test(raw), false, `a 500 body leaked the raw error: ${raw}`);
 });
 
 test("comments/moderation-queue: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {

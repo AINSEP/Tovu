@@ -1,3 +1,4 @@
+import { respondToApiError } from "#src/server/error-mapping/respond";
 // Jini owns LocalBufferSink via the host adapter.
 import type { Express } from "express";
 
@@ -72,7 +73,7 @@ function parseLimitParam(raw: unknown): number | undefined {
 export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminAnalyticsRecentHitsDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+      respondToApiError({ res, code: "NOT_FOUND", message: "workspace was not found" });
       return;
     }
 
@@ -85,9 +86,7 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
         entityType: "analytics-hit",
       });
       if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'analytics.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
+        respondToApiError({ res, code: "FORBIDDEN", message: `principal '${principal.id}' is not authorized for 'analytics.read' (${authResult.reason})` }, {
           details: { permission: "analytics.read", reason: authResult.reason },
         });
         return;
@@ -98,7 +97,7 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
       res.json({ hits });
     } catch (err) {
       console.error("[analytics/recent-hits] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      respondToApiError({ res, code: "INTERNAL_ERROR", message: "internal error" });
     }
   });
 }

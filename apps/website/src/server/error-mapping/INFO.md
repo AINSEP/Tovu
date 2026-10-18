@@ -7,7 +7,7 @@ than implementing another version here.
 ## Contract to adopt
 
 Source: `development/todos.md:1514`, triage s4-59 (2026-10-17).
-Status: contract documented; route-family migration is **not implemented**.
+Status: analytics pilot migrated in source; compatible Jini decoder adopted by the admin transport. Tests are written but have not been run.
 
 `@jini-ai/protocol` owns `ApiErrorResponse` and `ApiError`:
 
@@ -48,27 +48,27 @@ rather than assuming a generic default fits it. `retryable` is not permission
 to retry a mutation without its existing idempotency contract. Never serialize a
 raw exception, stack, SQL, credentials or unreviewed domain payload into `details`.
 
-## First family and migration prerequisite
+## Analytics pilot
 
-The bounded pilot is the analytics admin family, currently the single route
-`GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits` (registered by
-`runtime/composition/modules/analytics.ts`). Its workspace miss, authorization
-denial and unexpected failure map to `NOT_FOUND`, `FORBIDDEN`, `INTERNAL_ERROR`.
-Success, workspace-check ordering and authorization policy must stay intact.
-Auth/session and recovery-gate middleware are separate migration surfaces.
+The bounded pilot is `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits`,
+registered by `runtime/composition/modules/analytics.ts`. Workspace misses, authorization
+refusals and unexpected failures use `NOT_FOUND`, `FORBIDDEN`, `INTERNAL_ERROR` through
+`respond.ts`, which calls Jini's serializer/status mapping and reuses `res.locals.requestId`.
+Success, workspace-check ordering, permission requirements, denial reason and reviewed
+permission details are preserved. Raw exceptions stay out of the envelope.
 
-Do not convert the route until the shared client understands both formats:
-`apps/admin/src/lib/api.ts`'s `buildRequestFailedError` currently calls
-`String(body.error)` and reads only top-level `body.code`. A nested envelope
-would display `[object Object]` and lose its code. Its session-invalidity logic
-also relies on the legacy `UNAUTHENTICATED` code; preserve that behavior during
-any later auth migration. A generic compatible decoder belongs in Jini first;
-this session cannot write the sibling Jini checkout. Coordinator must assign
-that owner/adoption slice before the pilot, including decoder and route tests.
+`@jini-ai/protocol` now exports `decodeApiError({ body }, { fallbackMessage })` for both
+legacy string errors and canonical nested envelopes. `apps/admin/src/lib/api.ts` calls it
+for error messages/codes and session invalidation. Only a 401 with `UNAUTHENTICATED`
+invalidates the session; an upstream vendor's `UNAUTHORIZED` does not. The original body
+remains available through `ApiError.body`, including details/retryability/correlation metadata.
+Malformed object messages receive the existing fallback instead of `[object Object]`.
 
-The route tests live in `server/__tests__/routes/analytics-recent-hits.test.ts`;
-`server/__tests__/route-async-guards.test.ts` also asserts its legacy 500 shape.
-Change these assertions with the pilot, retaining opacity and status checks.
+Source tests cover decoder compatibility, admin transport, the analytics route, the
+async-error guard and `respond.ts` correlation. Auth/session and recovery middleware
+remain separate migration surfaces. Jini source changes need their normal package
+build/publication/adoption before this can run against registry artifacts; none was
+performed by this edit-only dispatch.
 
 ## Remaining surfaces
 
