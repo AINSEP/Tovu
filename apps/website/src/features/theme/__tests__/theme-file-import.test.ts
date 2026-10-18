@@ -6,8 +6,9 @@ import path from "node:path";
 import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { FsFilePathError } from "../../fs-files/fs-files.js";
 import { ThemePathError } from "../theme-files.js";
-import { importThemeFileFromUrl, sniffThemeImportType, THEME_IMPORT_MAX_BYTES } from "../theme-file-import.js";
+import { importThemeFileFromLocalFile, importThemeFileFromUrl, sniffThemeImportType, THEME_IMPORT_MAX_BYTES } from "../theme-file-import.js";
 
 /**
  * @file `theme-file-import.ts` — the service half of `theme_import_file_from_url`: fetch a font or
@@ -148,4 +149,63 @@ test("an existing file at the path is replaced, not refused", async () => {
   fs.writeFileSync(path.join(themeDir, "assets", "logo.png"), "old");
   await importThemeFileFromUrl({ httpClient: new FakeHttpClient(okResponse(PNG, "image/png")), themeDir, themesRoot, relativePath: "assets/logo.png", url: "https://example.com/logo.png" });
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(themeDir, "assets", "logo.png"))), PNG);
+});
+
+test("local fonts and icons share byte validation/persistence and leave the source unchanged", async (t) => {
+  const { themesRoot, themeDir } = makeTheme();
+  t.after(() => fs.rmSync(themesRoot, { recursive: true, force: true }));
+  const rootPath = path.join(themesRoot, "source");
+  fs.mkdirSync(rootPath);
+  for (const [name, bytes, contentType] of [["font.woff2", WOFF2, "font/woff2"], ["favicon.ico", ICO, "image/x-icon"]] as const) {
+    fs.writeFileSync(path.join(rootPath, name), bytes);
+    const imported = await importThemeFileFromLocalFile({ themeDir, themesRoot, relativePath: "assets/" + name, rootPath, sourcePath: name });
+    assert.deepEqual(imported, { path: "assets/" + name, contentType, bytes: bytes.length, sourcePath: name });
+    assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(themeDir, "assets", name))), bytes);
+    assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(rootPath, name))), bytes);
+  }
+});
+
+test("local import refuses secrets, escapes, symlinks, empty and mismatched bytes without replacing a file", async (t) => {
+  const { themesRoot, themeDir } = makeTheme();
+  t.after(() => fs.rmSync(themesRoot, { recursive: true, force: true }));
+  const rootPath = path.join(themesRoot, "source");
+  fs.mkdirSync(path.join(rootPath, "secrets"), { recursive: true });
+  for (const name of [".env", "secrets/font.woff2", "font.woff2"]) fs.writeFileSync(path.join(rootPath, name), WOFF2);
+  fs.writeFileSync(path.join(rootPath, "empty.woff2"), "");
+  fs.writeFileSync(path.join(rootPath, "fake.woff2"), PNG);
+  fs.writeFileSync(path.join(rootPath, "unsupported.woff2"), HTML);
+  fs.symlinkSync(path.join(rootPath, "secrets/font.woff2"), path.join(rootPath, "alias.woff2"));
+  fs.writeFileSync(path.join(themesRoot, "outside.woff2"), WOFF2);
+  fs.symlinkSync(path.join(themesRoot, "outside.woff2"), path.join(rootPath, "outside.woff2"));
+  fs.mkdirSync(path.join(themeDir, "assets"));
+  const destination = path.join(themeDir, "assets/font.woff2");
+  fs.writeFileSync(destination, WOFF);
+  for (const sourcePath of [".env", "secrets/font.woff2", "../outside.woff2", path.join(rootPath, "font.woff2"), "alias.woff2", "outside.woff2", "empty.woff2", "fake.woff2", "unsupported.woff2"]) {
+    await assert.rejects(importThemeFileFromLocalFile({ themeDir, themesRoot, relativePath: "assets/font.woff2", rootPath, sourcePath }));
+    assert.deepEqual(new Uint8Array(fs.readFileSync(destination)), WOFF, sourcePath);
+  }
+  for (const relativePath of ["../escape.woff2", "assets/font.css"]) {
+    await assert.rejects(importThemeFileFromLocalFile({ themeDir, themesRoot, relativePath, rootPath, sourcePath: "font.woff2" }), ThemePathError);
+  }
+});
+
+test("local import rejects an oversized font at the guarded reader's import limit without replacing a file", async (t) => {
+  const { themesRoot, themeDir } = makeTheme();
+  t.after(() => fs.rmSync(themesRoot, { recursive: true, force: true }));
+  const rootPath = path.join(themesRoot, "source");
+  fs.mkdirSync(rootPath);
+  // Valid font magic prevents byte-type validation from masking a missing reader limit.
+  const oversized = Buffer.alloc(THEME_IMPORT_MAX_BYTES + 1);
+  oversized.set(WOFF2);
+  fs.writeFileSync(path.join(rootPath, "large.woff2"), oversized);
+  fs.mkdirSync(path.join(themeDir, "assets"));
+  const destination = path.join(themeDir, "assets/font.woff2");
+  fs.writeFileSync(destination, WOFF);
+
+  await assert.rejects(importThemeFileFromLocalFile({ themeDir, themesRoot, relativePath: "assets/font.woff2", rootPath, sourcePath: "large.woff2" }), (error: unknown) => {
+    assert.ok(error instanceof FsFilePathError);
+    assert.equal(error.message, `file 'large.woff2' is ${THEME_IMPORT_MAX_BYTES + 1} bytes and exceeds the ${THEME_IMPORT_MAX_BYTES}-byte import limit`);
+    return true;
+  });
+  assert.deepEqual(new Uint8Array(fs.readFileSync(destination)), WOFF);
 });

@@ -227,3 +227,52 @@ test("site-import builds the footer link columns as menus too and hands their sl
   assert.match(menuSection, /never hard-code/i);
   assert.match(extraction, /footer menus'? slugs/i);
 });
+
+test("Tovuize asks exactly one unchecked static opt-out before either conversion branch", async () => {
+  const skill = await themeSkill();
+  const partB = skill.slice(skill.indexOf("# Part B"), skill.indexOf("# Part C"));
+  const question = partB.slice(partB.indexOf("## B1"), partB.indexOf("## What this job"));
+  const json = question.match(/```json\s*([^]*?)\s*```/);
+  assert.ok(json, "the card must be a concrete existing assistant_ask_choice input");
+  const card = JSON.parse(json[1]!);
+  assert.equal(card.title, "How should I convert this website?");
+  assert.equal(card.submitLabel, "Convert website");
+  assert.deepEqual(card.multiSelect.options, [{ value: "static", label: "Keep it as a static theme — same appearance, without individual page editing" }]);
+  assert.equal(card.singleSelect, undefined);
+  assert.equal(card.selections, undefined, "the assistant cannot supply the owner's answer");
+  assert.equal(card.multiSelect.options[0].checked, undefined);
+  assert.equal((partB.match(/`assistant_ask_choice`/g) ?? []).length, 1);
+  assert.match(question, /only on `submitted: true`/);
+  assert.match(question, /`selections: \[\]` selects\s+B2/);
+  assert.match(question, /`selections: \["static"\]` selects B3/);
+  assert.match(question, /Cancellation, expiry, no answer or ambiguous\s+free text stops conversion/);
+  assert.ok(partB.indexOf("## B1") < partB.indexOf("## Survey"));
+  assert.match(partB, /ask no plugin-enabling question, second scope question or second activation approval/);
+});
+
+test("Tovuize reuses local Media and shared Page mapping with matching family shells; static makes no Pages", async () => {
+  const skill = await themeSkill();
+  const partB = skill.slice(skill.indexOf("# Part B"), skill.indexOf("# Part C"));
+  const editable = partB.slice(partB.indexOf("## B2"), partB.indexOf("## B3"));
+  const staticBranch = partB.slice(partB.indexOf("## B3"), partB.indexOf("## B4"));
+  for (const contract of ["media_import_local_file", "content_post_create", "pages_write_html", "data-agent-element", "data-agent-role", "content_post_update", "expectedVersion", '"type":"content"', "content/agent-plugins/site-import/skills/site-import/references/content-mapping.md"]) {
+    assert.ok(editable.includes(contract), "editable branch must reuse " + contract);
+  }
+  assert.match(editable, /Activate it with `theme_set_active` before assigning/);
+  assert.match(editable, /draft\/preview request prevails/);
+  assert.match(editable, /CSS backgrounds and `srcset`/);
+  assert.match(staticBranch, /Create no CMS Page rows/);
+  assert.match(staticBranch, /publishedPages/);
+  assert.match(partB, /collisions reversibly/);
+  assert.match(partB, /desktop\/mobile/);
+  assert.doesNotMatch(skill, /This produces a THEME|no agent-tool path into a theme|cannot go through\s+any agent tool today|binary asset\s+copy, at minimum/);
+  const mapping = await readFile(path.join(IMPORT_SKILL_DIR, "references", "content-mapping.md"), "utf8");
+  assert.match(mapping, /Local-folder sources/);
+  assert.match(mapping, /media_import_local_file/);
+  assert.match(mapping, /source-path →/);
+  assert.match(mapping, /do not run site-import's public-URL/);
+  const plugin = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "tovu-theme", "plugin.json"), "utf8"));
+  assert.equal(plugin.name, "tovu-theme");
+  assert.equal(plugin.extensions.tovu.id, "tovu/tovu-theme");
+  assert.equal(plugin.version, "1.1.0");
+});

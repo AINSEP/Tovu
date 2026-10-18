@@ -1,6 +1,6 @@
 /**
- * @file The service half of `theme_import_file_from_url` (2026-10-08): download one font or image
- * from a URL and write it, byte for byte, into one theme's folder.
+ * @file Theme binary import: read a URL or guarded local file and write a font or image,
+ * byte for byte, into one theme's folder.
  *
  * Why it exists: theme tools were UTF-8 only and `media_import_from_url` refuses fonts and lands
  * images in the media library, not the theme. So "match a reference site" could only hotlink the
@@ -23,6 +23,7 @@ import { MediaImportValidationError } from "@jini-ai/cms/media/import";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { sniffContentType } from "../media/index.js";
 import { fetchImage } from "../media-import/fetch-image.js";
+import { openFsFileForRead } from "../fs-files/fs-files.js";
 import { fileExtension } from "./file-identity-lock.js";
 import { MAX_THEME_FILE_BYTES, resolveThemeFilePath, ThemePathError, writeThemeBinaryFile } from "./theme-files.js";
 
@@ -89,10 +90,52 @@ export interface ImportedThemeFile {
   sourceUrl: string;
 }
 
+type ThemeImportDestination = { themeDir: string; themesRoot: string; relativePath: string };
+
+/** Checks containment and the destination extension before reading either source.
+ * @throws {ThemePathError} For an escaping path or unsupported extension.
+ * @complexity Bounded filesystem path checks.
+ */
+function validateThemeImportDestination(required: ThemeImportDestination, _optional: Record<string, never> = {}): void {
+  resolveThemeFilePath(required);
+  if (!IMPORTABLE_EXTENSIONS.has(fileExtension(required.relativePath))) {
+    throw new ThemePathError(
+      `path '${required.relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
+        "SVG and other text files: read as text and write with theme_write_file."
+    );
+  }
+}
+
+/** Sniffs and validates bounded bytes, then uses the theme's atomic binary writer.
+ * Both source adapters call this owner so type/extension and persistence rules cannot drift.
+ * @returns Theme-relative path, sniffed type and byte count.
+ * @throws {MediaImportValidationError} For empty, oversized, unsupported or mismatched bytes.
+ * @throws {ThemePathError} For an unsafe destination; disk errors propagate.
+ * @complexity O(s) time/space for s bytes, capped at THEME_IMPORT_MAX_BYTES.
+ */
+function persistThemeImport(
+  required: ThemeImportDestination & { bytes: Uint8Array; source: string },
+  _optional: Record<string, never> = {},
+): Omit<ImportedThemeFile, "sourceUrl"> {
+  const { bytes, relativePath, source } = required;
+  const contentType = sniffThemeImportType({ bytes });
+  const allowed = EXTENSIONS_BY_TYPE[contentType] ?? [];
+  if (bytes.byteLength === 0 || bytes.byteLength > THEME_IMPORT_MAX_BYTES || allowed.length === 0) {
+    throw new MediaImportValidationError({ message: `'${source}' must contain a supported font or image, up to ${THEME_IMPORT_MAX_BYTES} bytes. Nothing was saved.` });
+  }
+  if (!allowed.includes(fileExtension(relativePath))) {
+    throw new MediaImportValidationError({
+      message: `'${source}' is ${contentType}, so '${relativePath}' needs a ${allowed.join(" or ")} extension. Nothing was saved.`,
+    });
+  }
+  writeThemeBinaryFile(required);
+  return { path: relativePath, contentType, bytes: bytes.byteLength };
+}
+
 /**
  * Downloads a font or image and writes it into `themeDir` at `relativePath`.
  *
- * Order: path containment and extension (no I/O) -> guarded fetch and byte sniff -> extension
+ * Order: path containment and extension (before source I/O) -> guarded fetch and byte sniff -> extension
  * agrees with the bytes -> atomic binary write. A refusal at any step writes nothing.
  *
  * @param optional.plainHttpTestOrigins - HARNESS ONLY, as `FetchImageDeps.plainHttpTestOrigins`.
@@ -108,26 +151,28 @@ export async function importThemeFileFromUrl(
   { plainHttpTestOrigins }: { plainHttpTestOrigins?: readonly string[] } = {},
 ): Promise<ImportedThemeFile> {
   const { httpClient, themeDir, themesRoot, relativePath, url } = required;
-  resolveThemeFilePath({ themeDir, themesRoot, relativePath });
-  const extension = fileExtension(relativePath);
-  if (!IMPORTABLE_EXTENSIONS.has(extension)) {
-    throw new ThemePathError(
-      `path '${relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
-        "SVG and other text files: fetch with web_fetch_page and write with theme_write_file."
-    );
-  }
+  validateThemeImportDestination(required);
 
   const fetched = await fetchImage(
     { deps: { httpClient, plainHttpTestOrigins }, url },
     { policy: IMPORT_POLICY, accept: "font/woff2, font/woff, font/ttf, font/otf, image/*;q=0.8, */*;q=0.1" },
   );
-  const allowed = EXTENSIONS_BY_TYPE[fetched.contentType] ?? [];
-  if (!allowed.includes(extension)) {
-    throw new MediaImportValidationError({
-      message: `'${fetched.url.href}' is ${fetched.contentType}, so '${relativePath}' needs a ${allowed.join(" or ")} extension. Nothing was saved.`,
-    });
-  }
+  return { ...persistThemeImport({ themeDir, themesRoot, relativePath, bytes: fetched.bytes, source: fetched.url.href }), sourceUrl: fetched.url.href };
+}
 
-  writeThemeBinaryFile({ themeDir, themesRoot, relativePath, bytes: fetched.bytes });
-  return { path: relativePath, contentType: fetched.contentType, bytes: fetched.bytes.byteLength, sourceUrl: fetched.url.href };
+/** Imports a local font/image through Jini's guarded reader and the URL importer's persistence.
+ * @param required.rootPath - Owner-selected fs-files root directory, resolved by the tool layer.
+ * @param required.sourcePath - File path relative to that root; never an arbitrary absolute path.
+ * @returns Written asset metadata and the relative source path.
+ * @throws {FsFilePathError} For denied, missing, escaping, nonregular or oversized sources.
+ * @throws {ThemePathError} For unsafe destinations; byte validation and I/O errors propagate.
+ * @complexity O(s) time/space, bounded by THEME_IMPORT_MAX_BYTES plus one reader chunk.
+ */
+export async function importThemeFileFromLocalFile(
+  required: ThemeImportDestination & { rootPath: string; sourcePath: string },
+  _optional: Record<string, never> = {},
+): Promise<Omit<ImportedThemeFile, "sourceUrl"> & { sourcePath: string }> {
+  validateThemeImportDestination(required);
+  const bytes = await openFsFileForRead({ rootPath: required.rootPath, relativePath: required.sourcePath, maxBytes: THEME_IMPORT_MAX_BYTES });
+  return { ...persistThemeImport({ ...required, bytes, source: required.sourcePath }), sourcePath: required.sourcePath };
 }

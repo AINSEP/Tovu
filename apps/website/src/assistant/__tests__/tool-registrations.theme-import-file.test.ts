@@ -71,6 +71,8 @@ function fakeDeps(
     logged,
     workspaceId: "ws-theme-import-file",
     themesDir,
+    siteBinding: { dir: themesDir },
+    resolveRoots: () => ({ repo: themesDir, site: themesDir, custom: themesDir }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),
     mediaImportHttpClient: client,
     mediaImportEgressRefusalLog: (line) => logged.push(line),
@@ -92,9 +94,9 @@ function ctxFor(input: unknown): ToolExecutionContext {
   };
 }
 
-function handlerFor(routeDeps: ImportThemeFileToolDeps): ToolHandler {
-  const registration = buildImportThemeFileRegistrations(routeDeps).find((r) => r.descriptor.id === "theme_import_file_from_url");
-  assert.ok(registration, "expected a 'theme_import_file_from_url' registration");
+function handlerFor(routeDeps: ImportThemeFileToolDeps, toolId = "theme_import_file_from_url"): ToolHandler {
+  const registration = buildImportThemeFileRegistrations(routeDeps).find((r) => r.descriptor.id === toolId);
+  assert.ok(registration, "expected a registration for " + toolId);
   return registration.handler;
 }
 
@@ -103,7 +105,7 @@ const FONT_INPUT = { themeId: "match", path: "assets/fonts/display.woff2", url: 
 test("theme_import_file_from_url: wires with its catalog schema, a mutating risk class, and search metadata", () => {
   const registrations = buildImportThemeFileRegistrations(fakeDeps());
 
-  assert.deepEqual(registrations.map((r) => r.descriptor.id), ["theme_import_file_from_url"]);
+  assert.deepEqual(registrations.map((r) => r.descriptor.id), ["theme_import_file_from_url", "theme_import_local_file"]);
   assert.deepEqual(registrations[0]?.descriptor.inputSchema, importThemeFileAgentToolCatalog[0]?.inputSchema);
   assert.equal(importThemeFileDerivedRisk.get("theme_import_file_from_url"), "mutates-durable-state");
   assert.equal(registrations[0]?.descriptor.readOnly, false);
@@ -170,4 +172,63 @@ test("theme_import_file_from_url: an egress refusal reaches the caller without t
   assert.equal(routeDeps.logged.length, 1);
   assert.match(routeDeps.logged[0]!, /theme_import_file_from_url egress refused: .*169\.254\.169\.254/);
   assert.equal(fs.existsSync(path.join(routeDeps.themesDir, "match", "assets")), false);
+});
+
+test("theme_import_local_file: uses the same contributor, theme.edit gate, discovery and reload", async (t) => {
+  const deps = fakeDeps();
+  t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(deps.themesDir, "font.woff2"), WOFF2);
+  const result = await handlerFor(deps, "theme_import_local_file")(ctxFor({ themeId: "match", path: "assets/local.woff2", root: "custom", sourcePath: "font.woff2" }));
+  assert.deepEqual(result, { themeId: "match", path: "assets/local.woff2", contentType: "font/woff2", bytes: WOFF2.length, sourcePath: "font.woff2", status: "valid", errors: [] });
+  assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(deps.themesDir, "match/assets/local.woff2"))), WOFF2);
+  assert.deepEqual(deps.asked, ["theme.edit"]);
+  assert.equal(deps.client.calls.length, 0);
+  assert.equal(importThemeFileDerivedRisk.get("theme_import_local_file"), "mutates-durable-state");
+  assert.match(String(nativeToolMetadata.byId.theme_import_local_file?.search?.keywords), /local.*folder.*font/);
+  const registration = buildImportThemeFileRegistrations(deps).find(r => r.descriptor.id === "theme_import_local_file")!;
+  assert.equal(registration.descriptor.readOnly, false);
+  assert.deepEqual((registration.descriptor.inputSchema as { properties: { root: { enum: string[] } } }).properties.root.enum, ["repo", "site", "custom"]);
+});
+
+test("theme_import_local_file: permission refusal precedes root resolution and any write", async (t) => {
+  const deps = fakeDeps({ deny: ["theme.edit"] });
+  t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
+  deps.resolveRoots = () => { throw new Error("must not resolve roots before permission"); };
+  await assert.rejects(() => handlerFor(deps, "theme_import_local_file")(ctxFor({ themeId: "match", path: "assets/local.woff2", root: "custom", sourcePath: "font.woff2" })), /not authorized/);
+  assert.equal(fs.existsSync(path.join(deps.themesDir, "match/assets")), false);
+});
+
+test("theme_import_local_file: unknown/unset roots and unknown themes return actionable schema errors", async (t) => {
+  const deps = fakeDeps();
+  t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
+  deps.resolveRoots = () => ({ repo: deps.themesDir, site: deps.themesDir, custom: undefined });
+  const input = { themeId: "match", path: "assets/local.woff2", root: "custom", sourcePath: "font.woff2" };
+  for (const override of [{ root: "other" }, { root: "custom" }, { themeId: "missing" }]) {
+    await assert.rejects(() => handlerFor(deps, "theme_import_local_file")(ctxFor({ ...input, ...override })), /Schema for 'theme_import_local_file'/);
+  }
+  assert.equal(fs.existsSync(path.join(deps.themesDir, "match/assets")), false);
+});
+
+test("theme_import_local_file: preview, trash and compiled destinations refuse valid local fonts without writing", async (t) => {
+  for (const [destination, compiled, refusal] of [
+    ["preview/local.woff2", false, /read-only: this file is generated output \(build-preview/],
+    [".trash/local.woff2", false, /is inside the trash and cannot be written to directly/],
+    ["assets/local.woff2", true, /read-only: this file is generated output of a built theme/],
+    ["src/local.woff2", true, /read-only: only framework source extensions can be written inside a compiled theme's build.sourceDir/],
+  ] as const) {
+    const deps = fakeDeps();
+    t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
+    // A valid source/root leaves the destination write gate as the only reason to refuse.
+    fs.writeFileSync(path.join(deps.themesDir, "font.woff2"), WOFF2);
+    if (compiled) deps.themes[0]!.manifest.build = { source: "compiled", sourceDir: "src" };
+    await assert.rejects(() => handlerFor(deps, "theme_import_local_file")(ctxFor({
+      themeId: "match", path: destination, root: "custom", sourcePath: "font.woff2",
+    })), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /Schema for 'theme_import_local_file'/);
+      assert.match(error.message, refusal);
+      return true;
+    });
+    assert.equal(fs.existsSync(path.join(deps.themesDir, "match", destination)), false, destination);
+  }
 });

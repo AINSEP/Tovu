@@ -34,7 +34,7 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
-  // The only tool that puts a new binary (font, image) into a theme folder (2026-10-08).
+  // URL binary import (2026-10-08); local imports share its validation and persistence.
   "theme_import_file_from_url": {
     search: {
       keywords: "theme import download fetch font fonts woff woff2 ttf otf typeface webfont self-host image logo icon favicon binary asset file from url into theme folder",
@@ -43,6 +43,16 @@ export const toolMetadata = {
         "Self-host this woff2 font in the theme.",
         "Save this logo image into the theme's assets folder.",
         "Import the favicon from that URL into the theme.",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+  "theme_import_local_file": {
+    search: {
+      keywords: "theme import local file folder drop tovuize font woff woff2 ttf otf image logo icon favicon binary asset copy",
+      queries: [
+        "Copy the dropped website's fonts into its theme.",
+        "Import a local favicon into this theme.",
       ],
     },
     approval: { class: 'edit', confirmation: 'direct' },

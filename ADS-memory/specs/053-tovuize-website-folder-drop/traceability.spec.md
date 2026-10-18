@@ -13,8 +13,13 @@
 | feature_name | FEAT-053-tovuize-website-folder-drop |
 | version | 1.0.0 |
 | content_hash | sha256:6c3a0434cbe3e877fb66d72ee699a484d62bdade31c894ebc9c03c70118dbbc7 |
-| last_edited | 2026-09-14T00:00:00Z |
+| last_edited | 2026-10-17T00:00:00Z |
 | traceability_status | IMPLEMENTED — PARTIALLY VERIFIED (see §6) |
+
+**2026-10-17 owner amendment:** feature.spec.md's one-choice editable-default decision supersedes
+retired-plugin/manual-copy/target-inference rules. Only these two spec files change; hashes remain
+historical. New/extended tests below are **UNRUN**, as directed. No runtime or model compliance
+claim is made.
 
 **Purpose:** Traces every REQ/AC/INV/EC/error code/behavior rule from this spec package to its implementation and test.
 
@@ -40,14 +45,14 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 | AC-04 (REQ-04) | Invalid path shown as visible error | P1 | use-folder-drop.hooks.ts; admin/components/AssistantDock/FolderDropError.tsx | `reasonForCustomRootError` | use-folder-drop.hooks.unit.test.ts; admin/components/AssistantDock/__tests__/FolderDropError.unit.test.tsx | "classifies a 'not a directory' validation failure distinctly from 'does not exist'"; "reports the endpoint as unreachable for a non-validation failure (network/500)" | VERIFIED |
 | REQ-05 | New drop replaces previous custom root | — | custom-root-store.ts | `setCustomFsRoot` | use-folder-drop.hooks.unit.test.ts | "reports a replaced previous path when a different custom root was already set" | VERIFIED |
 | AC-05 (REQ-05) | Second drop's folder wins over the first | P1 | use-folder-drop.hooks.ts | `handleDropCapture` (last folder wins) | use-folder-drop.hooks.unit.test.ts | "uses the LAST folder in a single multi-folder drop as the custom root, but joins all paths into the composer text" | VERIFIED |
-| REQ-06 | Agent proactively surfaces inactive tovuize-site plugin | — | web/features/fs-files/layout.ts | `FS_ROOT_DESCRIPTORS` `custom` description | web/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts | "the custom fs root's description names plugins_set_enabled for enabling tovuize-site, and never claims no tool can" | PARTIAL — guidance text VERIFIED; model behaviour not evaluated |
-| AC-06 (REQ-06) | Agent names plugin + offers to enable, unprompted | P1 | same | same | none (no behavioural eval) | — | GAP |
-| REQ-07 | Page-only conversion extracts inner body only | — | web/features/pages/agent-tools.ts (existing) | `PAGE_HTML_CONTRACT` | none new | — | PARTIAL |
-| AC-07 (REQ-07) | Result is a Page with bodyFormat html, inner-only | P2 | same | same | none | — | GAP |
-| REQ-08 | Binary assets explicitly named, never fabricated/skipped silently | — | web/features/pages/agent-tools.ts; content/agent-plugins/tovuize-site/skills/tovuize-site/SKILL.md | `PAGE_HTML_CONTRACT` | none | — | PARTIAL — content only |
-| AC-08 (REQ-08) | Response names binary files needing manual copy | P1 | same | same | none | — | GAP |
+| REQ-06 | One up-front checkbox, editable default/static opt-out | — | content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md | B1 | web/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts; web/assistant/__tests__/ask-choice-tool.test.ts | choice-card and unchecked submission cases | UNRUN — live model compliance deferred |
+| AC-06 (REQ-06) | Submitted [] selects editable; static selects opt-out; cancellation stops | P1 | same | B1 | same | bundled instructions + existing cancellation tests | UNRUN; model behavior not evaluated |
+| REQ-07 | Editable Pages with matching shells; static creates no Pages | — | Tovu Theme SKILL.md; site-import/skills/site-import/references/content-mapping.md | B2/B3 | web/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts | branch/shared mapping contract | UNRUN — no new integration test this round |
+| AC-07 (REQ-07) | Media mapping, inner HTML, stable regions and templates | P1 | same; existing Pages/Media tools | B2 | same | editable-default instructions | UNRUN; rendered end-to-end behavior deferred |
+| REQ-08 | Local binary imports reuse guarded read and shared theme persistence | — | web/features/theme/{import-theme-file-tool,theme-file-import}.ts; web/assistant/batch-tool-inputs.ts; web/contracts/core/tool-metadata/theme.ts | importThemeFileFromLocalFile; buildImportThemeFileRegistrations | web/features/theme/__tests__/theme-file-import.test.ts; web/assistant/__tests__/{tool-registrations.theme-import-file,batch-tool-inputs}.test.ts | local success, refusals, mixed batch | UNRUN |
+| AC-08 (REQ-08) | Fonts/icons preserved; denied/oversize/type/permission refusals; batch continuation | P1 | same | same | same | local importer cases | UNRUN |
 | REQ-09 | Source folder is never written to | — | web/features/fs-files/agent-tools.ts | `getFsFilesAgentToolCatalog` (both tools `sideEffects: "none"`; no write tool on any root) | none dedicated | — | PARTIAL — holds by construction |
-| AC-09 (REQ-09) | Source folder unmodified after conversion | P1 | same | same | none | — | GAP |
+| AC-09 (REQ-09) | Source folder unmodified after conversion | P1 | theme-file-import.ts + read-only fs-files | importThemeFileFromLocalFile | web/features/theme/__tests__/theme-file-import.test.ts | local fonts/icons leave source unchanged | UNRUN; full conversion deferred |
 | REQ-10 | `root` enum never widened | — | web/features/fs-files/layout.ts | `FS_ROOT_IDS` | web/features/fs-files/__tests__/layout.test.ts | "FS_ROOT_IDS lists exactly repo, site, and custom — in that order" | VERIFIED |
 | AC-10 (REQ-10) | Every tool call's root is repo/site/custom only | P1 | same | same | same | same | VERIFIED |
 
@@ -75,7 +80,7 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 | EC-04 | Second folder dropped mid-conversion | none | — | GAP |
 | EC-05 | Folder dropped on browser (non-desktop) admin chat | use-folder-drop.hooks.unit.test.ts; admin/features/fs-files/__tests__/folder-drop-port.unit.test.ts; desk/speech/preload-speech.test.ts | "does nothing when no folder-drop port is available (plain browser tab, EC-05)"; "returns null for a window with no tovuFiles bridge"; "window.tovuFiles is NOT exposed to same-origin public pages, previews, or look-alike paths" | VERIFIED |
 | EC-06 | Name/slug collision with existing theme or Page | none | — | GAP |
-| EC-07 | Agent cannot tell theme vs. Page intent | none (layout.ts guidance: "ask, don't guess") | — | GAP |
+| EC-07 | Conversion mode comes only from submitted choice | bundled-tovu-theme-package.unit.test.ts; ask-choice-tool.test.ts | B1 contract | UNRUN; no live eval |
 
 ---
 
@@ -87,8 +92,8 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 | DROPPED_PATH_NOT_FOUND | same → `"does-not-exist"` | same | same | VERIFIED |
 | CUSTOM_ROOT_ENDPOINT_UNREACHABLE | same → `"endpoint-unreachable"` | same | "reports the endpoint as unreachable for a non-validation failure (network/500)" | VERIFIED |
 | TOVUIZE_PLUGIN_UNAVAILABLE | none found | none | — | GAP |
-| BINARY_ASSETS_NOT_COPIED | web/features/pages/agent-tools.ts `PAGE_HTML_CONTRACT` (guidance text) | none | — | GAP |
-| CONVERSION_TARGET_AMBIGUOUS | web/features/fs-files/layout.ts `custom` description (guidance text) | none | — | GAP |
+| BINARY_ASSETS_NOT_COPIED | Historical guidance outcome superseded by actual importer refusals, named in report | local importer unit suites | refusal cases | UNRUN |
+| CONVERSION_TARGET_AMBIGUOUS | Historical inference rule superseded by submitted checkbox | bundled-tovu-theme-package.unit.test.ts; ask-choice-tool.test.ts | choice contract | UNRUN |
 
 ---
 
@@ -96,10 +101,10 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 
 | Rule | Section in behavior.spec.md | Test File | Test ID | Status |
 |------|-----------------------------|-----------|---------|--------|
-| Conversion-target routing (explicit > shape > ask) | § 1.1 | none (layout.ts guidance) | — | GAP |
+| Conversion-target routing | Historical §1.1 superseded by feature.spec.md owner amendment; Tovu Theme B1 | bundled-tovu-theme-package.unit.test.ts; ask-choice-tool.test.ts | single submitted card | UNRUN |
 | Custom-root write precedence (last write wins) | § 1.2 | use-folder-drop.hooks.unit.test.ts | "reports a replaced previous path when a different custom root was already set" | VERIFIED |
 | Default: fresh workspace has no `custom` root | § 3 | web/features/fs-files/__tests__/layout.test.ts | "resolveFsRoots reports custom as undefined when no operator folder has been set for that workspace" | VERIFIED |
-| Default: bundled `tovuize-site` starts disabled | § 3 | web/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts | existing suite | TESTED |
+| Default: Tovuize is in Tovu Theme | Historical disabled retired-plugin rule superseded by owner amendment | bundled-tovu-theme-package.unit.test.ts | plugin identity/version and B1 | UNRUN |
 | Failed drop validation leaves existing root unchanged | § 7 | custom-root-store.ts throws before writing; web/features/fs-files/__tests__/custom-root-store.test.ts | existing suite | TESTED |
 
 ---
@@ -110,7 +115,7 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 
 | REQ/AC ID | Reason Unimplemented | Target Completion | Owner |
 |-----------|---------------------|-------------------|-------|
-| — | All REQs have an implementation (REQ-07/08 are guidance text only) | — | — |
+| — | Code and guidance amendments are written; runtime/model compliance remains unverified | — | — |
 
 ### 6.2 Untested Requirements
 
@@ -130,7 +135,7 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 
 | REQ/AC ID | Deferred To | Reason | Approved By |
 |-----------|-------------|--------|-------------|
-| OQ-03 (binary-asset copy tool) | A future spec revision | Out of scope for v1; "agent tells the user" is the accepted v1 behavior | Leona Burime (pending explicit confirmation — see feature.spec.md OQ-03) |
+| OQ-03 (binary assets) | Resolved in this amendment | Local Media import + shared local theme adapter | Owner 2026-10-17 |
 | OQ-04 (browser admin folder-drop affordance) | A future spec revision | Out of scope for v1; current behavior documented, not changed | Leona Burime (pending explicit confirmation — see feature.spec.md OQ-04) |
 
 ---
@@ -155,7 +160,7 @@ Paths: `admin/` = `apps/admin/src/`, `web/` = `apps/website/src/`, `desk/` = `ap
 - [x] Section 7 (untraced) is empty
 - [ ] All rows VERIFIED — no; see the GAP and PARTIAL rows
 
-**[ ] TRACEABILITY COMPLETE** — not yet: AC-02 still needs an owner retest, and the agent-behaviour ACs have no eval.
+**[ ] TRACEABILITY COMPLETE** — not yet: AC-02 still needs an owner retest, and the agent-behaviour ACs have no eval. The 2026-10-17 unit extensions are unrun; integration/live assistant evaluation is deferred by owner instruction.
 
 ---
 

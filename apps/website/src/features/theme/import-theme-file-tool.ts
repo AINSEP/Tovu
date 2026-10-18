@@ -3,14 +3,16 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 
-import { isImportShapeRejection, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
+import { isImportShapeRejection, resolveLocalImportRoot, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
+import { FsFilePathError } from "../fs-files/fs-files.js";
+import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
-import { importThemeFileFromUrl, THEME_IMPORT_MAX_BYTES } from "./theme-file-import.js";
+import { importThemeFileFromLocalFile, importThemeFileFromUrl, THEME_IMPORT_MAX_BYTES } from "./theme-file-import.js";
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, type ThemeToolDeps } from "./tool-registrations.js";
 
 /**
- * @file `theme_import_file_from_url` (2026-10-08) — the only agent tool that puts a NEW binary
- * (a font, an image) into a theme. Before it, theme tools were UTF-8 only and
+ * @file `theme_import_file_from_url` (2026-10-08) and `theme_import_local_file` share the binary
+ * import path (a font, an image) into a theme. Before URL import, theme tools were UTF-8 only and
  * `media_import_from_url` refused fonts, so a theme matching a reference site could only hotlink
  * the source's font files.
  *
@@ -28,7 +30,7 @@ import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThem
 
 /** Theme registry plus the guarded client; the assistant deps bag satisfies it structurally. */
 export type ImportThemeFileToolDeps = ThemeToolDeps &
-  Pick<MediaImportToolDeps, "mediaImportHttpClient" | "outboundTestOrigins" | "mediaImportEgressRefusalLog">;
+  Pick<MediaImportToolDeps, "mediaImportHttpClient" | "outboundTestOrigins" | "mediaImportEgressRefusalLog" | "siteBinding" | "resolveRoots">;
 
 const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
   name: "theme_import_file_from_url",
@@ -65,46 +67,72 @@ const IMPORT_THEME_FILE_CATALOG: AgentToolDefinition = {
 };
 
 /** This domain's full catalog — read by `tool-registrations.contracts.test.ts`'s `CATALOGS_BY_DOMAIN`. */
-export const importThemeFileAgentToolCatalog: AgentToolDefinition[] = [IMPORT_THEME_FILE_CATALOG];
+export const importThemeFileAgentToolCatalog: AgentToolDefinition[] = [IMPORT_THEME_FILE_CATALOG, {
+  name: "theme_import_local_file",
+  description: "Copy a local font (woff2, woff, ttf, otf) or image (png, jpg, gif, webp, avif, ico) into a theme. " +
+    "Find it with fs_list_files; pass root and sourcePath relative to that root, plus themeId and destination path. " +
+    "Uses the same owner-selected roots and denied-file rules as fs_read_file. The tool cannot choose or widen a root. " +
+    "Requires theme.edit; refuses generated/trash/compiled output, unsafe paths, unsupported or mismatched bytes. " +
+    "Replaces the destination atomically and reloads the theme. Max 10 MB. " +
+    "Returns {themeId,path,contentType,bytes,sourcePath,status,errors}. For editable content images use media_import_local_file. " +
+    "SVG/text: fs_read_file then theme_write_file. For an https source use theme_import_file_from_url.",
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: THEME_WRITE_PERMISSION },
+  inputSchema: {
+    type: "object", additionalProperties: false, required: ["themeId", "path", "root", "sourcePath"],
+    properties: {
+      themeId: { type: "string", minLength: 1, description: "Target theme id from theme_list." },
+      path: { type: "string", minLength: 1, description: "Destination relative to the theme folder, e.g. assets/fonts/display.woff2." },
+      root: { type: "string", enum: FS_ROOT_IDS, description: "Existing fs-files root: repo, site, or the owner's configured custom folder." },
+      sourcePath: { type: "string", minLength: 1, description: "Source file relative to root, as found with fs_list_files. Secrets and escapes are refused. If custom is unset, ask the owner to choose the folder in the chat composer." },
+    },
+  },
+}];
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: importThemeFileAgentToolCatalog });
 
-/** One guarded outbound GET, then a new or replaced file in a theme folder and a theme reload. */
-export const importThemeFileDerivedRisk: DerivedRiskByToolId = new Map([["theme_import_file_from_url", "mutates-durable-state"]]);
+/** One guarded source read, then a new or replaced theme file and a theme reload. */
+export const importThemeFileDerivedRisk: DerivedRiskByToolId = new Map([["theme_import_file_from_url", "mutates-durable-state"], ["theme_import_local_file", "mutates-durable-state"]]);
 
-function buildImportThemeFileHandlers(routeDeps: ImportThemeFileToolDeps): Record<string, ToolHandler> {
-  return {
-    /**
-     * @returns What was written (path, sniffed type, byte count, final source URL) and the reloaded
-     * theme's `status`/`errors`.
-     * @throws Decorated input error for theme/path/write-gate refusals, URL/byte refusals and egress
-     * refusals (caller-safe text); permission failures and transport errors propagate.
-     * @complexity One bounded GET plus redirects, an O(s) write, one theme reload.
-     */
-    theme_import_file_from_url: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const themeId = requireString({ input, key: "themeId" });
-      const relativePath = requireString({ input, key: "path" });
-      const url = requireString({ input, key: "url" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
+/**
+ * Builds either source adapter over one permission/write-gate/import/reload lifecycle.
+ * @returns A handler reporting asset metadata and reloaded theme status/errors.
+ * @throws Decorated input errors for source/destination refusals; permission and I/O errors propagate.
+ * @complexity One bounded source read, O(s) persistence, one theme reload.
+ */
+function buildImportThemeFileHandler(
+  { routeDeps, toolId }: { routeDeps: ImportThemeFileToolDeps; toolId: "theme_import_file_from_url" | "theme_import_local_file" },
+  _optional: Record<string, never> = {},
+): ToolHandler {
+  return async (ctx) => {
+    const input = requireInputRecord({ input: ctx.input });
+    const themeId = requireString({ input, key: "themeId" });
+    const relativePath = requireString({ input, key: "path" });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
-      return withSchemaOnRejection({
-        toolId: "theme_import_file_from_url",
-        catalog: CATALOG_BY_ID,
-        isShapeRejection: ({ error }) => isShapeRejection(error) || isImportShapeRejection({ error }),
-        fn: () => withCallerSafeEgressRefusal(logEgressRefusal, async () => {
-          const theme = findThemeOrThrow(routeDeps, themeId);
-          assertThemeFileWritable(theme, relativePath);
-          const imported = await importThemeFileFromUrl(
-            { httpClient: routeDeps.mediaImportHttpClient, themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, url },
-            { plainHttpTestOrigins: routeDeps.outboundTestOrigins },
-          );
-          const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
-          return { themeId, ...imported, status: reloaded.status, errors: reloaded.errors };
-        }, { toolId: "theme_import_file_from_url" }),
-      });
-    },
+    const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
+    return withSchemaOnRejection({
+      toolId,
+      catalog: CATALOG_BY_ID,
+      isShapeRejection: ({ error }) => isShapeRejection(error) || isImportShapeRejection({ error }) || error instanceof FsFilePathError,
+      fn: () => withCallerSafeEgressRefusal(logEgressRefusal, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+        assertThemeFileWritable(theme, relativePath);
+        const destination = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
+        const imported = toolId === "theme_import_local_file"
+          ? await importThemeFileFromLocalFile({
+              ...destination,
+              rootPath: resolveLocalImportRoot({ routeDeps, root: requireString({ input, key: "root" }) }),
+              sourcePath: requireString({ input, key: "sourcePath" }),
+            })
+          : await importThemeFileFromUrl(
+              { ...destination, httpClient: routeDeps.mediaImportHttpClient, url: requireString({ input, key: "url" }) },
+              { plainHttpTestOrigins: routeDeps.outboundTestOrigins },
+            );
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        return { themeId, ...imported, status: reloaded.status, errors: reloaded.errors };
+      }, { toolId }),
+    });
   };
 }
 
@@ -113,13 +141,16 @@ export function buildImportThemeFileRegistrations(routeDeps: ImportThemeFileTool
     domain: "theme-import-file",
     catalogModule: "features/theme/import-theme-file-tool.ts",
     catalog: CATALOG_BY_ID,
-    handlers: buildImportThemeFileHandlers(routeDeps),
+    handlers: {
+      theme_import_file_from_url: buildImportThemeFileHandler({ routeDeps, toolId: "theme_import_file_from_url" }),
+      theme_import_local_file: buildImportThemeFileHandler({ routeDeps, toolId: "theme_import_local_file" }),
+    },
     derivedRisk: importThemeFileDerivedRisk,
   });
 }
 
 /**
- * Contributes `theme_import_file_from_url` — called once by
+ * Contributes both theme binary import tools — called once by
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  * Own domain key for the same reason `contributeDuplicateThemeTools()` has one (see this file's header).
  */

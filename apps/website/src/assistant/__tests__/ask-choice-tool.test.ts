@@ -116,19 +116,20 @@ test("a single-select question round-trips the model's own title and options, no
   });
 });
 
-test("a multi-select-only question has no 'choice' field at all, and an empty selection is a real answer", async () => {
+test("Tovuize's unchecked static opt-out submits true with empty selections and no choice", async () => {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
   const pending = call(handler, {
     input: {
-      title: "Which extras should I enable?",
+      title: "How should I convert this website?",
+      description: "By default, images go into Media and pages become editable Tovu Pages.",
+      submitLabel: "Convert website",
       multiSelect: {
-        label: "Extras",
+        label: "Optional",
         options: [
-          { value: "analytics", label: "Analytics" },
-          { value: "backups", label: "Backups" },
+          { value: "static", label: "Keep it as a static theme — same appearance, without individual page editing" },
         ],
       },
     },
@@ -136,6 +137,9 @@ test("a multi-select-only question has no 'choice' field at all, and an empty se
   });
 
   await new Promise((resolve) => setImmediate(resolve));
+  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  assert.match(html, /Convert website/);
+  assert.doesNotMatch(html, /<input[^>]*type="checkbox"[^>]*\schecked(?:[\s=>])/);
   const exchangeId = exchangeIdFromSurface(emitted[0]);
   surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, selections: [] } }, { toolId: ASK_CHOICE_TOOL_ID });
 

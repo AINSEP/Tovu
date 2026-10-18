@@ -197,7 +197,10 @@ export interface ImportedMediaView {
  * @throws {MediaImportValidationError} For an unknown id or an unset custom folder.
  * @complexity O(1), one workspace root resolution.
  */
-function resolveLocalImportRoot(required: { routeDeps: MediaImportToolDeps; root: string }): string {
+export function resolveLocalImportRoot(
+  required: { routeDeps: Pick<MediaImportToolDeps, "siteBinding" | "workspaceId" | "resolveRoots">; root: string },
+  _optional: Record<string, never> = {},
+): string {
   const { routeDeps, root } = required;
   if (!(FS_ROOT_IDS as readonly string[]).includes(root)) {
     throw new MediaImportValidationError({ message: `'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}` });

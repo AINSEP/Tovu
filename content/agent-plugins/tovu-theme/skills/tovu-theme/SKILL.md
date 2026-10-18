@@ -1,6 +1,6 @@
 ---
 name: tovu-theme
-description: Build a Tovu theme — either make a NEW one (by default theme_duplicate an existing theme and restyle the copy; or scaffold one from scratch in the static, templated or declarative tier, hand-authored or compiled from a React/Vue/Angular build), or convert an existing static website (plain HTML/CSS/JS — no Tovu, no database, no admin) into a Tovu static-tier theme. or make a theme that MATCHES a reference site at a URL (rebuild its design system, then compare screenshots of the source and this site until they match). Encodes the theme-format rules a generic approach gets wrong — the apiVersion-2 folder layout, the manifest keys the live loader actually reads, which token file holds which color palette regardless of the source's own default, the publishedPages allow-list that leaves every non-index page unreachable until explicitly turned on, the narrow sentinel rewrite that a JS fetch() call slips straight past, and which binary assets an agent tool can bring in (fonts and images from a URL) versus which need a human copy. Use whenever asked to create, scaffold or start a theme, wrap a framework build as a theme, "Tovu-ize", import, migrate, or convert a static site/export/template into a theme, or make the site look like another site (also the theme step of a site-import).
+description: Build a Tovu theme, match a reference URL, or Tovuize a static website folder. Tovuize asks one up-front choice with images into Media and editable Tovu Pages by default, or an unchecked static-theme opt-out for the same appearance without individual page editing. Covers apiVersion-2 theme layout, tokens, publication, asset rewrites, local and URL binary imports, and screenshot comparison.
 argument-hint: "[new: theme id, tier static|templated|declarative, authored|compiled] or [convert: source folder] or [match: reference URL]"
 ---
 
@@ -22,16 +22,15 @@ This plugin covers three jobs that share one theme format:
 
 Read the shared rules first either way — both jobs fail in the same places.
 
-## The one thing to say before anything else
+## Set expectations up front
 
-**This produces a THEME — a design, not content.** A theme gets you pages, styling, and scripts
-an operator can pick as their active theme. It does not create Posts, Pages, menus, or any row
-in the CMS. A theme page and a CMS-authored Page are different things that happen to render
-through the same pipe — see `development/docs/themes/themes-guide.md` §6 ("Templates vs pages")
-if a slug collision comes up. Say this before you start, not after the operator asks "where's
-the content I can edit."
+**Part B produces an editable site by default:** images in Media, real Tovu Pages, and a
+matching theme. Ask its one choice card before conversion. The static opt-out produces only a
+theme; it creates no CMS Page rows. Parts A and C produce a theme unless their caller also
+imports content. Theme pages and CMS Pages share routing; published CMS entries can hide
+standalone theme pages at the same address.
 
-**Every theme page is UNREACHABLE (404) except `index` until you explicitly publish it.** This
+**Standalone theme pages are UNREACHABLE (404) except `index` until explicitly published.** This
 is the single most consequential, easiest-to-miss step in both jobs — see Rule 4. A theme that
 loads with `status: "valid"` and ships 15 real page files can still serve exactly one working
 URL. Do not treat "the theme validated" as "the site works."
@@ -43,14 +42,18 @@ read a source tree, `theme_duplicate` to start a new theme as a full copy of an 
 (Part A2), and `theme_write_file` / `theme_edit_file` / `theme_list_files` /
 `theme_read_file` to author the theme, `theme_rescan` to make a hand-built theme folder show up
 (it also returns each invalid theme's errors), `theme_set_page_published` to publish a page
-(Rule 4), and `theme_set_active` to switch the live site to a theme — only once the owner has
-approved it. Part C adds `web_fetch_page` (read the source's HTML and CSS), `web_screenshot_page`
+(Rule 4), and `theme_set_active` to switch the live site to a theme — Part B authorizes
+activation through its submitted choice; Parts A/C follow their activation guidance. Part C adds `web_fetch_page` (read the source's HTML and CSS), `web_screenshot_page`
 (see the source, and this site through any installed theme with `themeId`), `content_read.menu` (the header menu's id) and
 `media_import_from_url` (raster logos and images into the media library) and
 `theme_import_file_from_url` (a font or image file from a URL, saved into the theme folder). If you hit something those genuinely cannot do, say exactly what and why, and propose
 the tool **before** building it — do not build against an assumed API. A new tool needs a
 `DERIVED_RISK_BY_TOOL_ID` entry or `assertToolIsWirable` throws at composition-root boot; that
 is a real cost, not a formality.
+
+Part B also uses `assistant_ask_choice`, `media_import_local_file`, `theme_import_local_file`,
+`content_post_create`, `content_post_update` and `pages_write_html`. Load the shared mapping
+reference named in Part B directly; do not start site-import's public-URL questionnaire.
 
 The one part that needs more than these tools is a **compiled** theme (Part A): its build runs
 a framework's own toolchain and its hashes are computed in a shell, so it needs a Tovu checkout
@@ -205,18 +208,19 @@ icons. Replace each with the new id.
 
 `fs_read_file` refuses anything that trips its binary/NUL-byte sniff, and caps every read at
 1MB. `theme_write_file`/`theme_edit_file` accept **UTF-8 text only** — there is no base64 or
-binary path through either tool, at any size. The one binary door is
-`theme_import_file_from_url`: it downloads a font (woff2/woff/ttf/otf) or image
-(png/jpg/gif/webp/avif/ico) from an https URL into the theme folder, byte for byte. A binary that
-exists only on a local disk has **no agent-tool path into a theme**, and no encoding trick
-closes that (asking a model to reproduce image bytes as text is not a real option).
+binary path through either tool. Use `theme_import_file_from_url` for https sources or
+`theme_import_local_file { themeId, path, root, sourcePath }` for local sources: fonts
+(woff2/woff/ttf/otf) and images (png/jpg/gif/webp/avif/ico), up to 10 MB. Both sniff bytes,
+check the destination extension, and share the same theme write gates and atomic persistence.
+Local sources use the owner's existing fs-files roots and denylist.
 
 The one exception is `theme_duplicate`: it copies the source theme's folder on the server,
 binaries included, so a duplicated theme already has every image, font and icon its source had.
 It cannot bring in a NEW binary.
 
 **Batch repeated calls.** `theme_read_file`, `theme_write_file`, `theme_edit_file`,
-`theme_import_file_from_url`, `web_fetch_page` and `media_import_from_url` take
+`theme_import_file_from_url`, `theme_import_local_file`, `media_import_local_file`,
+`web_fetch_page` and `media_import_from_url` take
 `items: [{...}, ...]`: several files or URLs in ONE call (fields such as `themeId` set once at the
 top level), never one call per file. Each item reports its own `ok` / `result` / `error`.
 
@@ -235,13 +239,13 @@ What this means in practice:
   background): `theme_import_file_from_url` into `assets/…`. A content image an editor should manage:
   `media_import_from_url`, then its `publicUrl`. An SVG: `web_fetch_page` with `format: "raw"`, then
   `theme_write_file`.
-- **Local-only binaries — images, video, fonts, icons, favicons with no URL** — cannot go through
-  any agent tool today, full stop. **Say this plainly to the operator, by name, with the exact source and
-  destination paths**: "copy `<source>/assets/` to `<site>/themes/static/<theme-id>/assets/`
-  yourself (Finder, `cp -r`, your own script) — no tool in this session can move binary files."
-  Then continue with everything that IS text-portable, rather than blocking the whole task on
-  the one part that needs a human's hands. Do not guess at image dimensions/content to "fill
-  in" a placeholder instead — say what's missing and why.
+- **Local assets** — editable content images/video: `media_import_local_file { root, path }`
+  returns their Media `publicUrl`; SVG is sanitized there. Theme fonts, raster images and ICO:
+  `theme_import_local_file { themeId, path: "assets/…", root, sourcePath }`. Local SVG used only
+  by a static theme: `fs_read_file` then `theme_write_file`. Video uses Media in either branch.
+- **Unsupported or refused assets** — name the exact source, intended destination and error.
+  Report what remains; never fabricate a placeholder or claim an unsuccessful import worked.
+  A text file rejected by the reader's binary sniff still needs a real filesystem copy.
 
 # Part A — A new theme
 
@@ -394,6 +398,30 @@ section), and Publish to send the theme to the live site.
 
 # Part B — Convert an existing static site
 
+## B1 — One up-front choice
+
+Before surveying or writing, call the existing `assistant_ask_choice` once:
+
+```json
+{
+  "title": "How should I convert this website?",
+  "description": "By default, images go into Media and pages become editable Tovu Pages.",
+  "submitLabel": "Convert website",
+  "multiSelect": {
+    "label": "Optional",
+    "options": [{
+      "value": "static",
+      "label": "Keep it as a static theme — same appearance, without individual page editing"
+    }]
+  }
+}
+```
+
+Leave the checkbox unchecked. Proceed only on `submitted: true`: `selections: []` selects
+B2, and `selections: ["static"]` selects B3. Cancellation, expiry, no answer or ambiguous
+free text stops conversion without assuming consent. Never supply the answer yourself.
+This is the in-app assistant's only conversion question; the folder drop needs no new modal.
+
 ## What this job converts, and what it refuses to
 
 It converts a **static, no-build, no-server-logic site** — plain `.html`/`.css`/`.js`, the
@@ -441,12 +469,57 @@ half-converting something this procedure was never built for.
    it. Anchor rewrites to the real `<head>`/`<body>` occurrence (first match, or a line-range
    check), not a document-wide substitution, whenever a page contains copy-pasteable code.
 
-## Procedure
+## Shared bootstrap — after surveying, before either branch writes
 
-1. **Survey** (above). Produce a page inventory grouped by family (shared chrome + shared
-   stylesheet set), and a cruft list (what you are NOT porting, and why).
-2. **Scaffold**: `theme.json` (`apiVersion: 2`, `tier: "static"`, `id` = folder name — Rule 2),
-   an empty `tokens.json`/`tokens.light.json` to fill in next.
+Reuse C1's static-theme selection: read the active theme through `site_get_profile` and use
+`content_read.theme` to select a valid static scaffold when needed. If no valid static theme
+is available, stop and report it; do not attempt writes into an undiscovered folder.
+Call `theme_duplicate { sourceThemeId: <selected id>, newName: "<Source> conversion", activate: false }`
+and use its returned `themeId` for every subsequent theme import and write in B2 or B3. Check
+the returned status/errors before continuing. This creates the destination folder and discovers
+the theme; `theme_rescan` alone cannot create it. Replace the copy's scaffold files to match
+the source. Keep activation deferred to B2/B4 under the submitted card's authorization.
+
+## B2 — Editable default
+
+Load `content/agent-plugins/site-import/skills/site-import/references/content-mapping.md`
+directly. It owns slug/idempotency rules, Media mapping, Page writes, menus and links.
+Use its local-folder conventions; do not invoke the public-site crawl or scope questions.
+
+1. Complete the survey and shared bootstrap above; retain the source-path inventory and group
+   real layout families. Import all referenced images (including logos/backgrounds) into Media
+   with `media_import_local_file` in batches, retaining
+   source-path → `{id, publicUrl}` mappings. Rewrite HTML, CSS backgrounds and `srcset` candidates.
+   Fonts/icons use `theme_import_local_file`; do not treat fonts as Media.
+2. Build the duplicated static-tier theme using B3's manifest, tokens, family partials and
+   stylesheet/script rewrite rules. For each family, write a shell in `render/pages/` with
+   its source chrome and a `<div data-embed-config='{"type":"content"}'></div>` marker where
+   Page content belongs. Declare the shell filenames in `theme.json`'s `templates`.
+   Keep `data-agent-element` handles in Page bodies only; theme markup rejects them.
+   Creating Page rows alone does not preserve the source layout.
+3. Create Page drafts with `content_post_create { kind: "page", title, slug, status: "draft" }`.
+   Follow the shared mapping for homepage `/`, collisions, repeat imports and version conflicts.
+   Write only inner HTML with `pages_write_html`; each top-level section gets stable
+   `data-agent-element="<handle>" data-agent-role="region"` attributes for later edits.
+   Retain the source's layout classes; fix sanitizer warnings and report unsupported behavior.
+4. Validate/rescan the completed theme. Activate it with `theme_set_active` before assigning
+   custom `template` filenames through `content_post_update`: that tool checks the active theme.
+   Use each Page's current `expectedVersion`. An explicit draft/preview request prevails:
+   keep Pages draft and defer any activation-dependent assignment until activation is wanted.
+5. Verify Page previews and rendered desktop/mobile layouts against the source. Publish locally
+   with `content_post_update { kind: "page", id, expectedVersion, status: "published" }` when
+   making the converted site usable. Keep drafts when explicitly requested. Check the actual
+   live homepage and each converted address; report unverified appearance honestly.
+
+## B3 — Static opt-out
+
+Create no CMS Page rows in this branch.
+
+1. **Survey and bootstrap** (above). Produce a page inventory grouped by family (shared chrome
+   + shared stylesheet set), and a cruft list (what you are NOT porting, and why). Use the
+   duplicated theme's returned `themeId` throughout.
+2. **Scaffold**: update the copy's `theme.json` (`apiVersion: 2`, `tier: "static"`, `id` = returned
+   `themeId` and folder name — Rule 2), and reset `tokens.json`/`tokens.light.json` to fill in next.
 3. **Tokens** (Rule 3): find the source's real `:root` custom-property declarations (may live
    in one shared stylesheet, or be duplicated inline per page for a self-contained "family" —
    check both). Map to `tokens.json`/`tokens.light.json` per Rule 3's rule, not by assumption.
@@ -463,7 +536,9 @@ half-converting something this procedure was never built for.
    `scripts/`/`css/` (or a `vendor/` subfolder for a clearly third-party library, matching
    `basic`'s own `scripts/vendor/kuinetic.all.js` precedent) — copy via `fs_read_file`/
    `theme_write_file` for anything under the size/binary limits, flag anything that isn't
-   (Rule 5's fetch-path check, and the Assets section).
+   (Rule 5's fetch-path check, and the Assets section). Import local theme images/fonts/icons
+   with `theme_import_local_file` in `items` batches; rewrite their references only after checking
+   each result. Video uses `media_import_local_file` and its returned `publicUrl`.
 7. **`publishedPages`** (Rule 4): list every converted page id except `index`. Do this as its
    own explicit step, not a thing you remember while writing `theme.json` in step 2 — it's easy
    to write the manifest before the page inventory is final and forget to come back to it.
@@ -477,9 +552,24 @@ half-converting something this procedure was never built for.
    that access, say so, and say what you verified instead (e.g. re-reading every written file
    back and manually checking the required-file list).
 9. **Report**: what converted clean, what needed a by-hand fix and why (name the exact line),
-   what you deliberately left out and why, and what a human still has to do (binary asset
-   copy, at minimum) before this theme is genuinely done. A "so, this is finished" report that
-   skips the by-hand fixes and the asset gap is not an honest report of this procedure.
+   what you deliberately left out and why, and any refused or unsupported assets still missing.
+   A "so, this is finished" report that skips the by-hand fixes and the asset gap is not an honest
+   report of this procedure.
+
+## B4 — Finish either branch
+
+- Preserve the source folder. Inspect every batch item's result; report incomplete pages and
+  unsupported/refused assets with paths and errors.
+- Resolve homepage/slug collisions reversibly before claiming success. Published CMS entries
+  can hide static pages: move conflicting existing entries to nearest free slugs such as
+  `previous-home` or `previous-about` with `content_post_update` and current `expectedVersion`.
+  Never overwrite or trash them; report every move. A version conflict stops that entry's move.
+- Rescan, check errors, activate the finished theme and verify rendered pages at desktop/mobile
+  sizes. The submitted card authorizes this conversion and local activation/publication;
+  ask no plugin-enabling question, second scope question or second activation approval.
+  Explicit draft/preview requests prevail. Deployment to external hosting is separate.
+- Report which branch ran, theme id, Media imports, Pages created/updated and their publication
+  state (or static `publishedPages`), moved entries, and what is incomplete.
 
 # Part C — Match a reference site
 

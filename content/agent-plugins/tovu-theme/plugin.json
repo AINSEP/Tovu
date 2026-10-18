@@ -1,13 +1,13 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "tovu-theme",
-  "version": "1.0.0",
-  "description": "Builds Tovu themes two ways: scaffolds a new theme (static, templated or declarative tier; hand-authored, or compiled from a React/Vue/Angular build), or converts an existing static website (plain HTML/CSS/JS, no Tovu, no CMS) into a Tovu static-tier theme. Encodes the theme-format rules a generic approach gets wrong: apiVersion 2's render/pages+render/partials+css/theme.css+scripts layout, the manifest keys the live loader actually reads (slots, flat modes/defaultMode) versus planned ones it ignores, which of tokens.json/tokens.light.json holds which palette regardless of the source's own default, the publishedPages allow-list that leaves every non-index page unreachable until explicitly turned on, the narrow href=/src= sentinel rewrite that never touches a JS fetch() call, a compiled build's required artifactHashes, and which binary assets an agent tool can bring in (fonts and images from a URL, via theme_import_file_from_url) versus which need a human copy. A new theme starts, by default, as a theme_duplicate copy of an existing theme that is then restyled and activated only after the owner approves; everything runs on fs_read_file/fs_list_files plus the existing theme_* tools.",
+  "version": "1.1.0",
+  "description": "Build Tovu themes, match a reference site, or Tovuize a static website folder. One up-front choice: images into Media and editable Tovu Pages by default, or keep the same look as a static theme without individual page editing. Reuses existing choice, Media, Pages and theme tools, with local/URL font and image import, layout-family shells, asset rewrites and screenshot verification.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Designs a new theme for your site, or turns a website you already have into one.",
+      "summary": "Build a theme or convert a website into editable Tovu Pages, with a static-theme opt-out.",
       "id": "tovu/tovu-theme",
       "provides": [
         "theme-authoring"

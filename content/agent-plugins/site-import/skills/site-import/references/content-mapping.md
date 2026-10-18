@@ -1,10 +1,34 @@
 # Content mapping: what each tool call looks like
 
-Version: 1.0.0 (2026-10-08)
+Version: 1.1.0 (2026-10-17)
 
-Every write below happens after the read-only Steps 1-3; there is no approval wait unless the
+For public-URL imports, every write below happens after the read-only Steps 1-3; there is no approval wait unless the
 owner asked to review a plan. Text is copied from the source word for word. Field names are the
 tools' own input names.
+
+## Local-folder sources (Tovu Theme Part B)
+
+Load this reference directly after Part B's submitted choice; do not run site-import's public-URL
+crawl or scope questionnaire. The dropped folder remains read-only. Paths come from
+`fs_list_files { root: "custom" }`; resolve each asset relative to the HTML/CSS file that uses it,
+then normalize to a root-relative source path. Never widen roots or bypass a denied path.
+
+- Use `media_import_local_file { root, path, alt }` for images/video, in `items` batches.
+  Keep a source-path → `{id, publicUrl}` map, including CSS backgrounds and each `srcset` candidate;
+  URL sources still use §3. Both importers support sanitized SVG, PNG/JPEG/GIF/WebP/AVIF and MP4/WebM.
+- Fonts and theme-only ICO files use `theme_import_local_file { themeId, path, root, sourcePath }`;
+  `path` is the destination, `sourcePath` is relative to the selected source root.
+- Use §5's inner-HTML Page contract and stable region handles. Preserve layout classes with
+  matching family shells/partials/styles in the theme; no theme chrome inside Page bodies.
+- Create drafts first. Activate the completed theme before setting a Page's custom `template`
+  filename via `content_post_update` with `expectedVersion`; templates validate against the
+  active theme. Publish locally to make the conversion usable unless draft/preview was requested.
+- A rerun updates only known imported entries (§2), using their current versions. Unknown
+  provenance is a collision even when slug and kind match: move the original reversibly to a
+  free slug before creating the imported Page, as Part B4 requires. Report every move and never
+  overwrite a concurrent edit.
+- Inspect every batch result. Name refused assets and incomplete pages; source paths are never
+  rewritten on disk.
 
 ## 1. Addresses (slugs)
 
@@ -21,22 +45,36 @@ lower-case letters, digits and dashes, at most 120 characters, and never `admin`
   If a live page the import did not create holds `/`, first move it with `content_post_update` to
   `previous-home` (or the nearest free slug, `previous-home-2`), then write the homepage at `/`.
   Don't ask; name the move in the report.
-- A slug already taken by a live entry the import did not create → the nearest free slug
-  (`about-us`, `<slug>-2`), noted in the report. A slug only a trashed entry holds is free: write
-  it as planned and the server moves the trashed entry to `<slug>-trashed` (still restorable).
+- For local-folder imports, a target slug held by any non-trashed entry not known to this import
+  → first move that original with `content_post_update` and its current `expectedVersion` to
+  `previous-<slug>` (or the nearest free suffix, such as `previous-about-2`), then create the
+  imported Page at the target slug. For `/`, use `previous-home`. Never overwrite or trash the
+  original; report every move. A version conflict stops the move and that Page's import.
+- For public-URL imports, a slug already taken by a live entry the import did not create → give
+  the imported entry the nearest free slug (`about-us`, `<slug>-2`), noted in the report.
+- A slug only a trashed entry holds is free: write it as planned and the server moves the trashed
+  entry to `<slug>-trashed` (still restorable).
   Never restore or empty the Trash.
 
 ## 2. Idempotency: update, don't duplicate
 
-The target slug is the identity of an imported entry.
+For public-URL imports, the target slug is the identity of an imported entry. For local-folder
+imports, idempotency applies only to known imported entries: retain the source-path → entry-id
+mapping from successful creates in this conversion or a trustworthy prior import report for
+the same source folder. A matching slug or kind alone is not provenance; if no reliable mapping
+is available, treat the existing entry as unrelated. `expectedVersion` guards concurrency, not
+provenance.
 
 1. Before planning, `content_read.content_post` once per `kind` (fields `id`, `kind`, `slug`, `title`,
    `version`, `author`, `showAuthor`) and index existing rows by slug.
-2. A planned slug that exists with the same `kind` → plan **update**: `content_post_update` with
-   `id`, `kind` and the `version` you read as `expectedVersion`. A `VERSION_CONFLICT` means a
-   person edited it since: keep their edit, skip that entry, and list it in the report.
-3. A planned slug that exists with the other `kind` → plan a new slug with `-imported` added and
-   say why.
+2. For local folders, update only the mapped imported entry after confirming its id and kind;
+   otherwise apply §1's reversible collision move before creating the imported Page, regardless
+   of the existing entry's kind. For public URLs, a planned slug that exists with the same `kind`
+   → plan **update**. Use `content_post_update` with `id`, `kind` and the current `version` as
+   `expectedVersion`. A `VERSION_CONFLICT` means a person edited it since: keep their edit,
+   skip that entry, and list it in the report.
+3. For public URLs only, a planned slug that exists with the other `kind` → plan a new slug with
+   `-imported` added and say why.
 4. Terms: reuse a term whose name matches case-insensitively in the same taxonomy.
 5. Menu: reuse the menu whose `slug` the plan names (`menus_update_menu_tree` with its
    `version`) instead of creating a second one.
@@ -49,8 +87,8 @@ The target slug is the identity of an imported entry.
 
 - `url` must be absolute **https**. Rewrite protocol-relative (`//cdn...`) URLs to https.
   Drop size/format query parameters platforms add (`?format=500w`, `?w=300`) to get the original.
-- Accepted formats: PNG, JPEG, GIF, WebP, AVIF (and MP4/WebM video). SVG, ICO and data: URIs
-  are refused: an SVG logo goes into the theme as a text file (see theme-extraction.md); skip
+- Accepted formats: PNG, JPEG, GIF, WebP, AVIF, sanitized SVG (and MP4/WebM video). ICO and data: URIs
+  are refused by Media: an ICO goes into the theme; theme-only SVG can be written as text (see theme-extraction.md). Skip
   inline icons, spacer GIFs and 1x1 tracking pixels.
 - `filename`: a readable name from the image's alt text or file name, not a CDN hash.
 - `alt`: the source `alt`, unchanged. An empty alt stays empty (decorative image).

@@ -23,6 +23,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
+import { buildImportThemeFileRegistrations } from "../../features/theme/import-theme-file-tool.js";
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
@@ -214,7 +215,6 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
   assert.deepEqual(ran, [{ method: "GET" }, { method: "PUT" }], "the DELETE item never reached the handler");
 });
 
-
 test("web fetch batches refuse screenshots from shared or item fields before rendering and continue other items", async () => {
   const inputs: unknown[] = [];
   const registration = fakeRegistration("web_fetch_page", async ctx => { inputs.push(ctx.input); return { text: "bounded" }; });
@@ -228,4 +228,39 @@ test("web fetch batches refuse screenshots from shared or item fields before ren
   assert.ok(!JSON.stringify(result).includes('"type":"image"'));
   await wrapped.handler(executionContext({ url: "https://single.example/", screenshot: true }));
   assert.equal(inputs.length, 2, "single calls still reach the image-producing handler");
+});
+
+test("local theme asset batches inherit root/theme, allow item overrides and continue after a refusal", async (t) => {
+  assert.ok(BATCHABLE_TOOLS.some(tool => tool.toolId === "theme_import_local_file"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-batch-local-theme-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, "plain");
+  fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "plain", name: "Plain", version: "1.0.0", tier: "static", engine: 1 }));
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}");
+  fs.writeFileSync(path.join(dir, "styles.css"), "body{}");
+  fs.writeFileSync(path.join(dir, "pages/index.html"), "<html><body>Page</body></html>");
+  const font = Uint8Array.from([0x77, 0x4f, 0x46, 0x32, 0xff]);
+  const icon = Uint8Array.from([0x00, 0x00, 0x01, 0x00, 0xff]);
+  fs.writeFileSync(path.join(root, "font.woff2"), font);
+  fs.writeFileSync(path.join(root, "icon.ico"), icon);
+  const permissions: string[] = [];
+  const registrations = buildImportThemeFileRegistrations({
+    workspaceId: "ws-batch-local", themesDir: root, siteBinding: { dir: root },
+    themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }),
+    resolveRoots: () => ({ repo: root, site: root, custom: root }),
+    authorize: async (request) => { permissions.push(request.permission); return { allowed: true, reason: "matched" }; },
+    mediaImportHttpClient: { send: async () => { throw new Error("local imports must not fetch"); } },
+  });
+  const registration = applyBatchInputs({ registrations }).find(r => r.descriptor.id === "theme_import_local_file")!;
+  const batch = await registration.handler(executionContext({
+    themeId: "plain", root: "custom", sourcePath: "font.woff2",
+    items: [{ path: "assets/font.woff2" }, { sourcePath: ".env", path: "assets/denied.woff2" }, { root: "site", sourcePath: "icon.ico", path: "assets/icon.ico" }],
+  })) as BatchResult;
+  assert.deepEqual(batch.results.map(r => r.ok), [true, false, true]);
+  assert.deepEqual([batch.total, batch.succeeded, batch.failed], [3, 2, 1]);
+  assert.deepEqual(permissions, ["theme.edit", "theme.edit", "theme.edit"]);
+  assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/font.woff2"))), font);
+  assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/icon.ico"))), icon);
+  assert.equal(fs.existsSync(path.join(dir, "assets/denied.woff2")), false);
 });
