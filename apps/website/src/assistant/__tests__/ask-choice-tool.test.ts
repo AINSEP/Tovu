@@ -416,3 +416,89 @@ test("registers unconditionally, publishing its own catalog schema", () => {
     { title: "Wrong value type", singleSelect: { label: "Pick", options: [{ value: 1, label: "One" }] } },
   ]) assert.equal(validate(invalid), false, JSON.stringify(invalid));
 });
+
+test('normalization: real flat mingjie choice succeeds and mixed select shapes fail precisely', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+  const input = { title: 'Site "mingjie" is created. Switch to it now?', options: [
+    { value: 'switch', label: 'Switch to mingjie now' }, { value: 'stay', label: 'Stay on the current site' },
+  ] };
+  const result = await executeRegisteredTool({ registration, input });
+  assert.equal(result.status, 'completed');
+  assert.match(JSON.stringify(result.output), /Switch to mingjie now/);
+  assert.match(JSON.stringify(result.output), /options→singleSelect.options/);
+  const ambiguous = await executeRegisteredTool({ registration, input: { ...input, singleSelect: { label: 'Which?', options: input.options } } });
+  assert.equal(ambiguous.errorKind, 'validation');
+  assert.match(ambiguous.error!, /Send either flat options or explicit select fields/);
+});
+
+test('normalization: fallback answer tickets survive the closed input schema and still bind answers', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+  const input = { title: 'Site "mingjie" is created. Switch to it now?', options: [
+    { value: 'switch', label: 'Switch to mingjie now' }, { value: 'stay', label: 'Stay on the current site' },
+  ] };
+  const pending = await executeRegisteredTool({ registration, input });
+  const ticket = answerTicketFromResult(pending.output);
+  const answer = await executeRegisteredTool({ registration, input: { choice: 'stay', [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+  assert.equal(answer.status, 'completed');
+  assert.match(JSON.stringify(answer.output), /"submitted":true/);
+  const replay = await executeRegisteredTool({ registration, input: { choice: 'stay', [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+  assert.equal(replay.errorKind, 'validation');
+  assert.match(replay.error!, /does not match a form/);
+});
+
+test('delegated normalization: human fallback tickets survive transport and remain single use', async () => {
+  const { executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } = await import('./fixtures/execute-registered-tool.js');
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+  // A headless renderer minted the ticket; its actual human callback enters through MCP.
+  const pending = await executeRegisteredTool({ registration, input: {
+    title: 'Site "mingjie" is created. Switch to it now?', options: [
+      { value: 'switch', label: 'Switch to mingjie now' }, { value: 'stay', label: 'Stay on the current site' },
+    ],
+  } });
+  const ticket = answerTicketFromResult(pending.output);
+  const input = { choice: 'stay', [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket };
+  const reply = await executeDelegatedRegisteredTool({ registration, input });
+  assert.equal(reply.isError, undefined, delegatedText(reply));
+  const output = JSON.parse(delegatedText(reply)).output as { submitted: boolean; choice: string };
+  assert.equal(output.submitted, true);
+  assert.equal(output.choice, 'stay');
+  const replay = await executeDelegatedRegisteredTool({ registration, input });
+  assert.equal(replay.isError, true);
+  assert.match(delegatedText(replay), /does not match a form/);
+});
+
+test('delegated normalization: flat choice travels through the bridge, waits for a real exchange answer and returns it to the model', { timeout: 5000 }, async () => {
+  const { executeDelegatedRegisteredTool, delegatedText } = await import('./fixtures/execute-registered-tool.js');
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const emitted: unknown[] = [];
+  const surfaceExchanges: SurfaceExchangeStore = {
+    ...store,
+    open: input => store.open({ ...input, emit: async emission => {
+      emitted.push(emission);
+      await input.emit(emission);
+      const exchangeId = exchangeIdFromSurface(emission);
+      assert.deepEqual(store.deliver({ exchangeId, principalId: 'caller', params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, choice: 'stay' } }, { toolId: ASK_CHOICE_TOOL_ID }), { ok: true });
+    } }),
+  };
+  const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+  const input = { title: 'Switch to mingjie now?', options: [{ value: 'switch', label: 'Switch to mingjie now' }, { value: 'stay', label: 'Stay here' }] };
+  const reply = await executeDelegatedRegisteredTool({ registration, input });
+  assert.equal(reply.isError, undefined, delegatedText(reply));
+  const visible = JSON.parse(delegatedText(reply));
+  assert.equal(visible.status, 'completed');
+  assert.equal(visible.output.submitted, true);
+  assert.equal(visible.output.choice, 'stay');
+  assert.match(delegatedText(reply), /options→singleSelect.options/);
+  assert.equal(emitted.length, 1);
+  assert.match(JSON.stringify(emitted), /Switch to mingjie now/);
+  assert.equal(store.size(), 0);
+  const refused = await executeDelegatedRegisteredTool({ registration, input: { ...input, singleSelect: { label: 'Which?', options: input.options } } });
+  assert.equal(refused.isError, true);
+  assert.match(delegatedText(refused), /Send either flat options or explicit select fields/);
+  assert.equal(emitted.length, 1);
+});

@@ -24,6 +24,7 @@ import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
@@ -186,8 +187,12 @@ test("every wired Forms registration publishes its catalog entry's inputSchema a
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.form_definition" || id === "content_read.collection_content_type") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    // A batchable tool publishes its catalog entry plus the shared `items` field.
+    const batchable = BATCHABLE_TOOLS.find(tool => tool.toolId === id);
+    const catalog = { ...registration.descriptor, inputSchema: catalogEntry(id).inputSchema, description: catalogEntry(id).description };
+    const expected = batchable ? batchDescriptorFor({ descriptor: catalog, tool: batchable }) : catalog;
+    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    assert.equal(registration.descriptor.description, expected.description);
   }
 });
 
@@ -603,4 +608,61 @@ test("forms_get_submission: a submission belonging to a different form is report
     () => wired("forms_get_submission", deps).handler(executionContext({ formId, submissionId: "s-other" })),
     /was not found/,
   );
+});
+
+test('normalization: creates three real form definitions in one batch and isolates an ambiguous item', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const { deps, repo } = fakeRouteDeps();
+  const registration = wired('forms_create_definition', deps);
+  const items = ['Contact', 'Inquiry', 'Newsletter'].map(name => ({ name, slug: name.toLowerCase(), fields: VALID_FIELDS }));
+  const result = await executeRegisteredTool({ registration, input: { items } }, { principalId: PRINCIPAL_ID });
+  assert.equal(result.status, 'completed');
+  assert.equal((result.output as { succeeded: number }).succeeded, 3);
+  for (const item of items) assert.ok(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: item.slug }));
+  const partial = await executeRegisteredTool({ registration, input: { items: [
+    { ...items[0], slug: 'bad', SLUG: 'other' }, { ...items[1], slug: 'valid-next' },
+  ] } }, { principalId: PRINCIPAL_ID });
+  const batch = partial.output as { failed: number; succeeded: number; results: { error?: string }[] };
+  assert.equal(batch.failed, 1); assert.equal(batch.succeeded, 1);
+  assert.match(batch.results[0]!.error!, /Send only 'slug'/);
+  assert.equal(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'bad' }), null);
+  assert.ok(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'valid-next' }));
+});
+
+test('normalization: one form object in items uses the batch owner and reports the shorthand', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const { deps, repo } = fakeRouteDeps();
+  const result = await executeRegisteredTool({ registration: wired('forms_create_definition', deps), input: {
+    items: { name: 'Single', slug: 'single', fields: VALID_FIELDS },
+  } }, { principalId: PRINCIPAL_ID });
+  assert.equal(result.status, 'completed');
+  assert.equal((result.output as { succeeded: number }).succeeded, 1);
+  assert.ok(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'single' }));
+  assert.deepEqual(result.normalizationNotes, ['items: object→one-item array']);
+});
+
+test('delegated normalization: real forms persist for array and single-object batches; an ambiguous item has no effect', async () => {
+  const { executeDelegatedRegisteredTool, delegatedText } = await import('./fixtures/execute-registered-tool.js');
+  const { deps, repo } = fakeRouteDeps();
+  const registration = wired('forms_create_definition', deps);
+  for (const items of [
+    ['Contact', 'Inquiry', 'Newsletter'].map(name => ({ name, slug: name.toLowerCase(), fields: VALID_FIELDS })),
+    { name: 'Single', slug: 'single', fields: VALID_FIELDS },
+  ]) {
+    const reply = await executeDelegatedRegisteredTool({ registration, input: { items } }, { principalId: PRINCIPAL_ID });
+    assert.equal(reply.isError, undefined, delegatedText(reply));
+    const visible = JSON.parse(delegatedText(reply));
+    assert.equal(visible.status, 'completed');
+    assert.equal(visible.output.succeeded, Array.isArray(items) ? 3 : 1);
+    for (const item of Array.isArray(items) ? items : [items]) assert.ok(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: item.slug }));
+  }
+  const partial = await executeDelegatedRegisteredTool({ registration, input: { items: [
+    { name: 'Bad', slug: 'bad', SLUG: 'other', fields: VALID_FIELDS },
+    { name: 'Next', slug: 'next', fields: VALID_FIELDS },
+  ] } }, { principalId: PRINCIPAL_ID });
+  const visible = JSON.parse(delegatedText(partial));
+  assert.deepEqual([visible.output.failed, visible.output.succeeded], [1, 1]);
+  assert.match(visible.output.results[0].error, /Send only 'slug'/);
+  assert.equal(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'bad' }), null);
+  assert.ok(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'next' }));
 });

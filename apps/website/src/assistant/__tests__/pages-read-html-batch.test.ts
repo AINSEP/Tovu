@@ -1,3 +1,4 @@
+import { invokeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -36,7 +37,7 @@ async function harness() {
   const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
     .find(tool => tool.descriptor.id === "pages_read_html");
   assert.ok(registration);
-  const call = (input: unknown) => registration.handler({
+  const call = (input: unknown) => invokeRegisteredTool(registration, {
     executionId: "page-batch", principal: { id: principalId }, run: { id: "run" }, input,
     signal: new AbortController().signal,
   } satisfies ToolExecutionContext);
@@ -126,7 +127,7 @@ test("scalar content readers retain batching after the production read-card coll
     const registration = registrations.find(tool => tool.descriptor.id === id);
     assert.ok(registration, id);
     assert.equal(registration.descriptor.readOnly, true, id);
-    const result = await registration.handler({
+    const result = await invokeRegisteredTool(registration, {
       executionId: "scalar-batch", principal: { id: f.a.ownerId }, run: { id: "run" },
       input: { items: [{}, {}] }, signal: new AbortController().signal,
     }) as BatchResult;

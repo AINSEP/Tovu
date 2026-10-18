@@ -293,11 +293,11 @@ function dispatchByIdPresence(
   { idProperty, get, list }: { idProperty: string; get: ToolHandler; list: ToolHandler },
   { batchGet = false }: { batchGet?: boolean } = {},
 ): ToolHandler {
-  return async (ctx) => {
+  return async (ctx, options) => {
     const candidate = { value: ctx.input };
-    if (batchGet && isRecord(candidate) && Object.hasOwn(candidate.value, "items")) return get(ctx);
+    if (batchGet && isRecord(candidate) && Object.hasOwn(candidate.value, "items")) return get(ctx, options);
     const value = isRecord(candidate) ? candidate.value[idProperty] : undefined;
-    return value !== undefined ? get(ctx) : list(ctx);
+    return value !== undefined ? get(ctx, options) : list(ctx, options);
   };
 }
 

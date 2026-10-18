@@ -191,11 +191,11 @@ const READ_FILE_SCHEMA = {
     },
     lineCount: {
       type: "integer", minimum: 1, maximum: 2000, default: 2000,
-      description: "Maximum lines in a window. Defaults to 2000 when startLine is given. Cannot be combined with find.",
+      description: "Maximum lines in a window, or search range when find is given. Read windows default to 2000; search ranges extend to EOF when omitted.",
     },
     find: {
       type: "string", maxLength: 200,
-      description: "Search text inside theme files with this case-sensitive plain substring. Returns up to 50 matching lines with context, merging overlapping windows. Each window is capped at 2000 characters and all windows at 4000 characters per item; returned.truncated and returned.hint explain omitted text. Cannot be combined with startLine or lineCount.",
+      description: "Search text inside theme files with this case-sensitive plain substring. Optional startLine/lineCount limit the search and context to that range; omitted lineCount searches through EOF. Returns up to 50 matching lines with context, merging overlapping windows. Each window is capped at 2000 characters and all windows at 4000 characters per item; returned.truncated and returned.hint explain omitted text.",
     },
     context: {
       type: "integer", minimum: 0, maximum: 20, default: 3,

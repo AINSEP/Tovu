@@ -38,7 +38,7 @@ import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-too
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { deriveContentReadRegistrations } from "./content-read-tool.js";
-import { applyBatchInputs, batchDescriptorFor, type BatchableTool } from "./batch-tool-inputs.js";
+import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions, ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
@@ -428,8 +428,8 @@ export function buildAssistantToolRegistrations(
     if (!PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId) || toolId === "trash_empty" || toolId === "deployment_ops_unset_secret") return registration;
     // The domain's approval lifecycle prepares all selections and asks once. Do not put the
     // ordinary per-item batch executor around it: that would create one confirmation per item.
-    const descriptor = batchDescriptorFor({ descriptor: registration.descriptor, tool: { toolId } });
-    return { ...registration, descriptor: { ...descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
+    const plan = withBatchInput({ registration, tool: { toolId } }, { mode: 'plan' });
+    return { ...plan, descriptor: { ...plan.descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
   });
   if (options.includeContentReadCollapse === false) return batchedRegistrations;
   const finalRegistrations = deriveContentReadRegistrations(batchedRegistrations);

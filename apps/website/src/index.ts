@@ -31,6 +31,7 @@ import { ensureAgentDaemonToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
 import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
+import { pinSiteListenerOrigin } from "./server/runtime/boot/site-listener-origin.js";
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 
 /**
@@ -346,6 +347,7 @@ async function main(): Promise<void> {
   try {
     port = await reserveBootListener({ server, port, bindHost }, { autoStartPort });
     process.env.PORT = String(port);
+    pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port });
     runningLease?.ready({ port });
   } catch (caught) {
     const error = caught as NodeJS.ErrnoException;

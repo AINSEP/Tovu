@@ -160,6 +160,7 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
           description: "A checkbox pick-any-number field. Omit if this question has no multi-select.",
         },
         choice: { type: "string", description: "Set by the rendered form on submission. Never set this directly." },
+        [ASK_CHOICE_ANSWER_TICKET_PARAM]: { type: "string", description: "Human form callback ticket. Set only by the rendered form; never invent this value." },
         selections: {
           type: "array",
           items: { type: "string" },
@@ -331,6 +332,16 @@ export function buildAskChoiceRegistrations(
     catalogModule: "assistant/ask-choice-tool.ts",
     catalog: CATALOG_BY_ID,
     handlers,
+    inputNormalizers: {
+      [ASK_CHOICE_TOOL_ID]: ({ input }) => {
+        if (!Object.hasOwn(input, "options")) return { input, notes: [] };
+        if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
+          throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
+        }
+        const { options, label, ...rest } = input;
+        return { input: { ...rest, singleSelect: { label: label ?? input.title, options } }, notes: ["options→singleSelect.options", "label/title→singleSelect.label"] };
+      },
+    },
     derivedRisk: askChoiceDerivedRisk,
   });
 }

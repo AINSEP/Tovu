@@ -19,6 +19,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createContributionRegistry, ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { invokeRegisteredTool as invokeRegistration } from "./fixtures/execute-registered-tool.js";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -63,14 +64,14 @@ function recordingHandler(): { handler: ToolHandler; inputs: unknown[] } {
 test("a single call without items reaches the original handler untouched", async () => {
   const recorder = recordingHandler();
   const wrapped = withBatchInput({ registration: fakeRegistration("tool_x", recorder.handler), tool: { toolId: "tool_x", itemDefaults: { maxChars: 10 } } });
-  assert.deepEqual(await wrapped.handler(executionContext({ themeId: "t", path: "a.css" })), { read: "a.css" });
+  assert.deepEqual(await invokeRegistration(wrapped, executionContext({ themeId: "t", path: "a.css" })), { read: "a.css" });
   assert.deepEqual(recorder.inputs, [{ themeId: "t", path: "a.css" }], "item defaults apply to batch items only");
 });
 
 test("a batch runs every item in order with defaults < shared fields < the item's own fields", async () => {
   const recorder = recordingHandler();
   const wrapped = withBatchInput({ registration: fakeRegistration("tool_x", recorder.handler), tool: { toolId: "tool_x", itemDefaults: { maxChars: 10 } } });
-  const result = await wrapped.handler(executionContext({ themeId: "shared", items: [{ path: "a.css" }, { path: "b.css", themeId: "own", maxChars: 99 }] }));
+  const result = await invokeRegistration(wrapped, executionContext({ themeId: "shared", items: [{ path: "a.css" }, { path: "b.css", themeId: "own", maxChars: 99 }] }));
   assert.deepEqual(recorder.inputs, [
     { maxChars: 10, themeId: "shared", path: "a.css" },
     { maxChars: 99, themeId: "own", path: "b.css" },
@@ -84,7 +85,7 @@ test("a batch runs every item in order with defaults < shared fields < the item'
 test("a failing item does not stop the rest, and its error drops the appended schema", async () => {
   const recorder = recordingHandler();
   const wrapped = withBatchInput({ registration: fakeRegistration("tool_x", recorder.handler), tool: { toolId: "tool_x" } });
-  const result = await wrapped.handler(executionContext({ themeId: "t", items: [{ path: "boom" }, { path: "c.css" }] }));
+  const result = await invokeRegistration(wrapped, executionContext({ themeId: "t", items: [{ path: "boom" }, { path: "c.css" }] }));
   assert.deepEqual(result, {
     batch: true, total: 2, succeeded: 1, failed: 1,
     results: [{ index: 0, ok: false, error: "path 'boom' was not found. Retrying is futile." }, { index: 1, ok: true, result: { read: "c.css" } }],
@@ -101,7 +102,7 @@ test("malformed items are refused with the exact message before any item runs", 
     [[{ path: "a" }, ["b"]], "tool_x: items[1] must be an object of this tool's input fields"],
   ];
   for (const [items, message] of cases) {
-    await assert.rejects(() => wrapped.handler(executionContext({ items })), (error: unknown) => error instanceof ToolInputError && error.message === message);
+    await assert.rejects(() => invokeRegistration(wrapped, executionContext({ items })), (error: unknown) => error instanceof ToolInputError && error.message === message);
   }
   assert.deepEqual(recorder.inputs, []);
 });
@@ -113,7 +114,7 @@ test("a cancelled call stops before the next item", async () => {
     registration: fakeRegistration("tool_x", async (ctx) => { inputs.push(ctx.input); controller.abort(); return {}; }),
     tool: { toolId: "tool_x" },
   });
-  await assert.rejects(() => wrapped.handler(executionContext({ themeId: "t", items: [{ path: "a" }, { path: "b" }] }, controller.signal)), { name: "AbortError" });
+  await assert.rejects(() => invokeRegistration(wrapped, executionContext({ themeId: "t", items: [{ path: "a" }, { path: "b" }] }, controller.signal)), { name: "AbortError" });
   assert.equal(inputs.length, 1);
 });
 
@@ -177,7 +178,7 @@ test("a real theme batch writes then reads several files in one call each, throu
     } as unknown as RegistryDepsWithoutLimiter;
     const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 
-    const written = await byId.get("theme_write_file")!.handler(executionContext({
+    const written = await invokeRegistration(byId.get("theme_write_file")!, executionContext({
       themeId: "plain",
       items: [{ path: "assets/a.css", content: "a{}" }, { path: "../escape.css", content: "x" }, { path: "assets/b.css", content: "b{}" }],
     })) as BatchResult;
@@ -186,7 +187,7 @@ test("a real theme batch writes then reads several files in one call each, throu
     assert.equal(fs.readFileSync(path.join(dir, "assets", "b.css"), "utf8"), "b{}");
     assert.equal(fs.existsSync(path.join(root, "escape.css")), false);
 
-    const read = await byId.get("theme_read_file")!.handler(executionContext({ themeId: "plain", items: [{ path: "assets/a.css" }, { path: "styles.css" }] })) as BatchResult;
+    const read = await invokeRegistration(byId.get("theme_read_file")!, executionContext({ themeId: "plain", items: [{ path: "assets/a.css" }, { path: "styles.css" }] })) as BatchResult;
     assert.deepEqual(read.results.map((r) => r.ok && (r.result as { content?: string }).content), ["a{}", "body{}\n"]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -210,7 +211,7 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
   assert.ok(registration);
 
   // No emitSurface: an item whose class asks is refused rather than parked.
-  const batch = await registration.handler(executionContext({ items: [{ method: "GET" }, { method: "DELETE" }, { method: "PUT" }] })) as BatchResult;
+  const batch = await invokeRegistration(registration, executionContext({ items: [{ method: "GET" }, { method: "DELETE" }, { method: "PUT" }] })) as BatchResult;
   assert.deepEqual(batch.results.map((r) => r.ok), [true, false, true]);
   assert.match((batch.results[1] as { error: string }).error, /^TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: tool_batch_probe:/);
   assert.deepEqual(ran, [{ method: "GET" }, { method: "PUT" }], "the DELETE item never reached the handler");
@@ -218,16 +219,17 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
 
 test("web fetch batches refuse screenshots from shared or item fields before rendering and continue other items", async () => {
   const inputs: unknown[] = [];
-  const registration = fakeRegistration("web_fetch_page", async ctx => { inputs.push(ctx.input); return { text: "bounded" }; });
-  const wrapped = withBatchInput({ registration, tool: { toolId: "web_fetch_page" } });
-  const result = await wrapped.handler(executionContext({ screenshot: true, items: [
+  const registration = fakeRegistration("web_fetch_page", async ctx => { inputs.push(ctx.input); return { text: "bounded" }; }, { type: "object", properties: { url: { type: "string" }, screenshot: { type: "boolean" } } });
+  const wrapped = applyBatchInputs({ registrations: [registration] })[0]!;
+  const result = await invokeRegistration(wrapped, executionContext({ screenshot: true, items: [
     { url: "https://a.example/" }, { url: "https://b.example/", screenshot: false }, { url: "https://c.example/", screenshot: true },
   ] })) as BatchResult;
   assert.deepEqual([result.total, result.succeeded, result.failed], [3, 1, 2]);
-  assert.deepEqual(inputs, [{ url: "https://b.example/", screenshot: false }]);
+  // BATCHABLE_TOOLS gives web_fetch_page items a bounded maxChars default.
+  assert.deepEqual(inputs, [{ url: "https://b.example/", screenshot: false, maxChars: 8000 }]);
   for (const item of result.results.filter(item => !item.ok)) assert.match(item.error, /screenshot is unavailable in batch items; use a single render call/);
   assert.ok(!JSON.stringify(result).includes('"type":"image"'));
-  await wrapped.handler(executionContext({ url: "https://single.example/", screenshot: true }));
+  await invokeRegistration(wrapped, executionContext({ url: "https://single.example/", screenshot: true }));
   assert.equal(inputs.length, 2, "single calls still reach the image-producing handler");
 });
 
@@ -254,7 +256,7 @@ test("local theme asset batches inherit root/theme, allow item overrides and con
     mediaImportHttpClient: { send: async () => { throw new Error("local imports must not fetch"); } },
   });
   const registration = applyBatchInputs({ registrations }).find(r => r.descriptor.id === "theme_import_local_file")!;
-  const batch = await registration.handler(executionContext({
+  const batch = await invokeRegistration(registration, executionContext({
     themeId: "plain", root: "custom", sourcePath: "font.woff2",
     items: [{ path: "assets/font.woff2" }, { sourcePath: ".env", path: "assets/denied.woff2" }, { root: "site", sourcePath: "icon.ico", path: "assets/icon.ico" }],
   })) as BatchResult;

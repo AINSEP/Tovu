@@ -466,6 +466,37 @@ test("settings_set_ui_preference: writes land on the CALLER's own user layer", a
   assert.equal(other, null, "no other principal's layer may be touched");
 });
 
+test("settings_set_ui_preference: scalar Classic writes preserve Glass and remain readable as colors", async () => {
+  const { deps, settingsRepo } = fakeRouteDeps();
+  const classic: SettingDefinitionRecord = {
+    ...LANGUAGE_DEFINITION, settingId: "setting-classic-accent", namespace: "core.appearance",
+    key: "accentColor", defaultValue: "#2563eb",
+  };
+  const accents: SettingDefinitionRecord = {
+    ...classic, settingId: "setting-admin-theme-accents", key: "adminThemeAccents",
+    schema: { type: "json" }, defaultValue: {},
+  };
+  const themeAccents = { glass: "#123456", removed: "#aabbcc" };
+  for (const [definition, valueJson] of [[classic, "#d97706"], [accents, themeAccents]] as const) {
+    await settingsRepo.saveDefinition(definition);
+    await settingsRepo.saveUserValue({
+      settingId: definition.settingId, scope: "user", workspaceId: WORKSPACE_ID,
+      principalId: PRINCIPAL_ID, valueJson, state: "set", defVersion: 1, seq: 1,
+      updatedBy: PRINCIPAL_ID, updatedAt: NOW, originPluginId: null,
+    });
+  }
+  const read = async () => (await wired(deps, "settings_get_effective").handler(
+    executionContext({ namespace: "core.appearance" }),
+  )) as { data: Array<{ key: string; value: unknown }> };
+  assert.equal((await read()).data.find(({ key }) => key === "accentColor")?.value, "#d97706");
+  await wired(deps, "settings_set_ui_preference").handler(executionContext({
+    setting: "core.appearance.accentColor", value: "#abcdef",
+  }));
+  const loaded = await read();
+  assert.equal(loaded.data.find(({ key }) => key === "accentColor")?.value, "#abcdef");
+  assert.deepEqual(loaded.data.find(({ key }) => key === "adminThemeAccents")?.value, themeAccents);
+});
+
 test("settings_set_ui_preference: input naming another principal or a wider scope is ignored, not honored", async () => {
   const { deps, authorizeCalls, settingsRepo } = fakeRouteDeps();
   authorizeCalls.length = 0;

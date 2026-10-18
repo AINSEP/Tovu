@@ -504,7 +504,7 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
 type ThemeReadSelection =
   | { mode: "full" }
   | { mode: "window"; startLine: number; lineCount: number }
-  | { mode: "find"; find: string; context: number };
+  | { mode: "find"; find: string; context: number; startLine: number; lineCount?: number };
 
 /**
  * Reads an optional integer selector from tool input and enforces its published bounds.
@@ -530,22 +530,19 @@ function optionalThemeReadInteger(input: Record<string, unknown>, key: string, m
  * Validates selection options before reading a file, choosing full, window or substring mode.
  * @param input - Raw input; windows default to line 1/2000 lines, find context to 3.
  * @returns A mutually exclusive selection with validated limits.
- * @throws {ToolInputError} For conflicting modes or invalid selectors.
+ * @throws {ToolInputError} For invalid selectors.
  * @complexity O(1).
  */
 function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection {
   const hasWindow = input.startLine !== undefined || input.lineCount !== undefined;
-  if (input.find !== undefined && hasWindow) {
-    throw new ToolInputError({ message: "theme_read_file: pass either find or startLine/lineCount, not both." });
-  }
   if (input.find !== undefined && (typeof input.find !== "string" || input.find.length > 200)) {
     throw new ToolInputError({ message: "theme_read_file: find must be a string of at most 200 characters." });
   }
   const startLine = optionalThemeReadInteger(input, "startLine", 1, Infinity) ?? 1;
-  const lineCount = optionalThemeReadInteger(input, "lineCount", 1, 2000) ?? 2000;
+  const lineCount = optionalThemeReadInteger(input, "lineCount", 1, 2000);
   const context = optionalThemeReadInteger(input, "context", 0, 20) ?? 3;
-  if (typeof input.find === "string") return { mode: "find", find: input.find, context };
-  if (hasWindow) return { mode: "window", startLine, lineCount };
+  if (typeof input.find === "string") return { mode: "find", find: input.find, context, startLine, lineCount };
+  if (hasWindow) return { mode: "window", startLine, lineCount: lineCount ?? 2000 };
   return { mode: "full" };
 }
 
@@ -562,15 +559,17 @@ function findThemeReadWindows(lines: string[], options: Extract<ThemeReadSelecti
   const windows: Array<{ start: number; end: number }> = [];
   let matches = 0;
   let truncated = false;
-  for (let index = 0; index < lines.length; index++) {
+  const rangeStart = options.startLine - 1;
+  const rangeEnd = Math.min(lines.length, options.lineCount === undefined ? lines.length : rangeStart + options.lineCount);
+  for (let index = rangeStart; index < rangeEnd; index++) {
     if (!lines[index].includes(options.find)) continue;
     if (matches === 50) {
       truncated = true;
       break;
     }
     matches++;
-    const start = Math.max(0, index - options.context);
-    const end = Math.min(lines.length, index + options.context + 1);
+    const start = Math.max(rangeStart, index - options.context);
+    const end = Math.min(rangeEnd, index + options.context + 1);
     const previous = windows.at(-1);
     if (previous && start <= previous.end) previous.end = end;
     else windows.push({ start, end });

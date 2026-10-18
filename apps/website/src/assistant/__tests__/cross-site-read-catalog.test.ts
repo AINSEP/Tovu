@@ -90,8 +90,15 @@ test('complete production catalog classifies every reader and exercises every sc
   assert.deepEqual(poison, [], `${counts}; unavailable peer dependencies: ${poison.join('\n')}`);
   for (const tool of raw) {
     if (crossSite.includes(tool)) continue;
-    assert.equal(Object.hasOwn(properties(scopedById.get(tool.descriptor.id)!), 'site'), Object.hasOwn(properties(tool), 'site'),
-      `${counts}; excluded/write ${tool.descriptor.id} retains only its original schema`);
+    const registration = scopedById.get(tool.descriptor.id)!;
+    // Guarded tools must declare site too: normalization must retain the target for refusal.
+    assert.ok(properties(registration).site, `${counts}; excluded/write ${tool.descriptor.id} advertises its target guard`);
+    assert.ok(!((registration.descriptor.inputSchema as Schema).required ?? []).includes('site'), `${tool.descriptor.id} site is optional`);
+    if (!Object.hasOwn(properties(tool), 'site')) {
+      await assert.rejects(f.call(tool.descriptor.id, { site: 'B' }), {
+        message: 'Writes run only on the active site. Switch with sites_switch_site first.',
+      });
+    }
   }
 
   const collapsed = f.build(true), collapsedById = new Map(collapsed.map(tool => [tool.descriptor.id, tool]));

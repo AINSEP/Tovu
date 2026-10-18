@@ -104,3 +104,34 @@ test("an editor sees permitted plugin workflows without plugin-inventory permiss
   grants.delete("admin.forms.manage");
   await assert.rejects(guide.run({ caller: { principalId: "editor" }, operation: "explain", topic: topic.id }), { message: "Topic unavailable. Call site_guide with operation overview for topics you may read." });
 });
+
+test('normalization: site guide overview gives the exact HTTPS/dev or desktop listener origin', async () => {
+  const { executeRegisteredTool } = await import('../../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  for (const siteOrigin of ['https://localhost:3000', 'http://127.0.0.1:43127']) {
+    const engine: SiteGuideEngine = {
+      parseGuideTopics: () => ({ ok: true, descriptors: [] }),
+      createSiteGuide: () => ({ run: async () => ({ topics: [] }) }),
+    };
+    const registration = buildSiteGuideRegistrations({ deps: { ...deps(), derivedPublicOrigin: siteOrigin } }, { engine })[0]!;
+    const result = await executeRegisteredTool({ registration, input: { operation: 'overview' } });
+    assert.equal(result.status, 'completed');
+    assert.equal((result.output as { siteOrigin: string }).siteOrigin, siteOrigin);
+    assert.match((result.output as { navigationHint: string }).navigationHint, /Preserve this exact scheme, host and port/);
+    const ambiguous = await executeRegisteredTool({ registration, input: { operation: 'overview', OPERATION: 'explain' } });
+    assert.equal(ambiguous.errorKind, 'validation');
+    assert.match(ambiguous.error!, /Send only 'operation'/);
+  }
+});
+
+test('listener pin uses actual dev TLS, desktop host and selected port before guide composition', async () => {
+  const { pinSiteListenerOrigin } = await import('../../boot/site-listener-origin.js');
+  for (const [scheme, host, port, expected] of [
+    ['https', undefined, 3000, 'https://localhost:3000'],
+    ['http', '127.0.0.1', 43127, 'http://127.0.0.1:43127'],
+    ['http', '::1', 43128, 'http://[::1]:43128'],
+  ] as const) {
+    const env = { TOVU_SITE_LISTENER_ORIGIN: 'http://wrong:3000' };
+    assert.equal(pinSiteListenerOrigin({ scheme, host, port }, { env }), expected);
+    assert.equal(env.TOVU_SITE_LISTENER_ORIGIN, expected);
+  }
+});

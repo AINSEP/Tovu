@@ -430,3 +430,36 @@ test("SEO tools reject invalid settings without writes and clear an override bac
   await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", title: null }));
   assert.equal((await read()).meta.title, "Hello World");
 });
+
+test('normalization: real snake_case SEO settings write succeeds; colliding spellings fail', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const { deps } = await fakeRouteDeps();
+  const registration = wired(deps, 'seo_set_settings');
+  const input = { default_description: 'Mingjie Zhai portfolio', title_template: '%s | Mingjie Zhai' };
+  const result = await executeRegisteredTool({ registration, input }, { principalId: PRINCIPAL_ID });
+  assert.equal(result.status, 'completed');
+  const written = (result.output as { settings: { defaultDescription: string; titleTemplate: string } }).settings;
+  assert.equal(written.defaultDescription, input.default_description);
+  assert.equal(written.titleTemplate, input.title_template);
+  const ambiguous = await executeRegisteredTool({ registration, input: { ...input, titleTemplate: '%s | Other' } }, { principalId: PRINCIPAL_ID });
+  assert.equal(ambiguous.errorKind, 'validation');
+  assert.match(ambiguous.error!, /Send only 'titleTemplate'/);
+});
+
+test('delegated normalization: SEO aliases return model-visible success and persist; collisions leave settings intact', async () => {
+  const { executeDelegatedRegisteredTool, delegatedText } = await import('./fixtures/execute-registered-tool.js');
+  const { deps } = await fakeRouteDeps();
+  const registration = wired(deps, 'seo_set_settings');
+  const reply = await executeDelegatedRegisteredTool({ registration, input: { default_description: 'Mingjie Zhai portfolio', title_template: '%s | Mingjie Zhai' } }, { principalId: PRINCIPAL_ID });
+  const visible = JSON.parse(delegatedText(reply));
+  assert.equal(visible.status, 'completed');
+  assert.equal(visible.output.settings.defaultDescription, 'Mingjie Zhai portfolio');
+  assert.match(delegatedText(reply), /title_template→titleTemplate/);
+  const read = () => wired(deps, 'seo_get_settings').handler(executionContext({}));
+  const before = await read();
+  assert.equal((before as { settings: { titleTemplate: string } }).settings.titleTemplate, '%s | Mingjie Zhai');
+  const refused = await executeDelegatedRegisteredTool({ registration, input: { title_template: 'bad', titleTemplate: 'other' } }, { principalId: PRINCIPAL_ID });
+  assert.equal(refused.isError, true);
+  assert.match(delegatedText(refused), /Send only 'titleTemplate'/);
+  assert.deepEqual(await read(), before);
+});

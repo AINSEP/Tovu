@@ -389,7 +389,9 @@ async function runExecuteDelegatedTool(
   if (!resolvedInput.ok) return err(resolvedInput.message);
 
   try {
-    const result = await executor.execute({ principal: principal, run: run, toolId: toolId, input: resolvedInput.input }, { signal: signal, emitSurface: emitSurface });
+    // Omitted input is valid for no-input tools. Match the MCP gateway's empty object at
+    // the executor boundary so the shared object normalizer can still run before policy.
+    const result = await executor.execute({ principal: principal, run: run, toolId: toolId, input: resolvedInput.input ?? {} }, { signal: signal, emitSurface: emitSurface });
     return mapToolExecutionResult(result, toolId);
   } catch (error) {
     // `ToolExecutor.execute` THROWS on an id it does not know (`unknown tool "<id>"`) rather than

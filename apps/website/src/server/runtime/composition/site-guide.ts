@@ -20,6 +20,8 @@ import { capabilityCard as jini } from "#src/features/site-guide/capability-card
 
 export const TOVU_CAPABILITY_CARDS: readonly CapabilityCard[] = [content, forms, widgets, themes, members, seo, deploy, plugins, jini];
 export interface TovuSiteGuideDeps extends SiteProfileSourceDeps {
+  /** The boot root's listener origin, including its actual TLS scheme and bound port. */
+  readonly derivedPublicOrigin?: string;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly agentPluginLifecycle?: TovuAgentPluginLifecycle;
 }
@@ -49,7 +51,7 @@ export function createTovuSiteGuide({ deps }: { deps: TovuSiteGuideDeps }, optio
   const lifecycle = deps.agentPluginLifecycle ?? createTovuAgentPluginLifecycle({ layout: deps.agentPluginLayout });
   const authorize = async ({ caller, permission }: { caller: { principalId: string }; permission: string }) =>
     (await deps.authorize({ principalId: caller.principalId, permission, workspaceId: deps.workspaceId })).allowed;
-  return engine.createSiteGuide({
+  const service = engine.createSiteGuide({
     builtInTopics: TOVU_CAPABILITY_CARDS, authorize,
     facts: { read: input => readSiteGuideFacts({ ...input, deps: {
       ...deps,
@@ -80,4 +82,12 @@ export function createTovuSiteGuide({ deps }: { deps: TovuSiteGuideDeps }, optio
       return loadSiteGuideContributions({ workspaceId: deps.workspaceId, loadContributions: lifecycle.loadPluginContributions, engine });
     },
   });
+  return { run: async (input, optional) => {
+    const result = await service.run(input, optional);
+    if (input.operation !== "overview") return result;
+    return { ...(result as Record<string, unknown>), siteOrigin: deps.derivedPublicOrigin ?? null,
+      navigationHint: deps.derivedPublicOrigin
+        ? `Open this site at ${deps.derivedPublicOrigin}/. Preserve this exact scheme, host and port when using browser tools.`
+        : "The listener origin is unavailable. Do not guess a localhost URL or its scheme." };
+  } };
 }

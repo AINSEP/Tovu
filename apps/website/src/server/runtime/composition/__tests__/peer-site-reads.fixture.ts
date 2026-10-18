@@ -1,3 +1,4 @@
+import { invokeRegisteredTool } from "../../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -140,7 +141,9 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     const registration = build().find(tool => tool.descriptor.id === id);
     assert.ok(registration, id);
     const ctx: ToolExecutionContext = { executionId: 'execution', run: { id: 'run' }, principal: { id: principalId }, input, signal: new AbortController().signal };
-    return registration.handler(ctx);
+    return typeof input === 'object' && input !== null && Object.hasOwn(input, 'items')
+      ? invokeRegisteredTool(registration, ctx)
+      : registration.handler(ctx);
   };
   return { home, workspace, a, b, addSite, options, peer, deps, contributions, audits, contentHandles, chatHandles, build, call, close };
 }

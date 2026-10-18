@@ -13,6 +13,7 @@ import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { CrossSiteUnavailable, createPeerSiteReads } from '../peer-site-reads.js';
 import { peerFixture } from './peer-site-reads.fixture.js';
+import { invokeRegisteredTool } from '../../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 
 const context = (input: unknown = {}): ToolExecutionContext => ({
   executionId: 'execution', principal: { id: 'active-owner' }, run: { id: 'run' }, input, signal: new AbortController().signal,
@@ -227,7 +228,7 @@ test('batch shared site and collapsed content_read dispatch reach B through the 
   const registrations = buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions,
     includeContentReadCollapse: false, batchableTools: [{ toolId: 'content_post_list' }] });
   const list = registrations.find(tool => tool.descriptor.id === 'content_post_list')!;
-  const batch = await list.handler({ ...context({ site: 'B', kind: 'post', items: [{}, {}] }), principal: { id: f.a.ownerId } }) as {
+  const batch = await invokeRegisteredTool(list, { ...context({ site: 'B', kind: 'post', items: [{}, {}] }), principal: { id: f.a.ownerId } }) as {
     succeeded: number; results: Array<{ result: unknown }>;
   };
   assert.equal(batch.succeeded, 2);

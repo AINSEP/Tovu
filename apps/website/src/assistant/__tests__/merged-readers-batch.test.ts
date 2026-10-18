@@ -1,3 +1,4 @@
+import { invokeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file Batch the five merged get/list readers through their production cards and real domain
@@ -117,7 +118,7 @@ for (const reader of READERS) {
     const schema = registration.descriptor.inputSchema as { properties: { items: { maxItems: number } } };
     assert.equal(schema.properties.items.maxItems, 25);
     const inputs = ["first", "second", "third"].map(name => h.input(reader, name));
-    const result = await registration.handler(context({ ...reader.shared, items: inputs })) as BatchResult;
+    const result = await invokeRegisteredTool(registration, context({ ...reader.shared, items: inputs })) as BatchResult;
     assert.deepEqual([result.batch, result.total, result.succeeded, result.failed], [true, 3, 3, 0]);
     assert.deepEqual(result.results.map(item => {
       assert.equal(item.ok, true);
@@ -129,7 +130,7 @@ for (const reader of READERS) {
 
   for (const missingField of [false, true]) test(`${reader.source}: isolates ${missingField ? "an absent id field" : "a nonexistent id"} and reads the next item`, async () => {
     const h = await harness();
-    const result = await h.find(h.registrations, reader.card).handler(context({ ...reader.shared, items: [
+    const result = await invokeRegisteredTool(h.find(h.registrations, reader.card), context({ ...reader.shared, items: [
       h.input(reader, "first"), missingField ? {} : { [reader.id]: "missing" }, h.input(reader, "third"),
     ] })) as BatchResult;
     assert.deepEqual([result.batch, result.total, result.succeeded, result.failed], [true, 3, 2, 1]);
@@ -145,7 +146,7 @@ for (const reader of READERS) {
   test(`${reader.source}: refuses an unauthorized item without stopping later reads`, async () => {
     const h = await harness();
     h.denySecond();
-    const result = await h.find(h.registrations, reader.card).handler(context({ ...reader.shared, items: [
+    const result = await invokeRegisteredTool(h.find(h.registrations, reader.card), context({ ...reader.shared, items: [
       h.input(reader, "first"), h.input(reader, "second"), h.input(reader, "third"),
     ] })) as BatchResult;
     assert.deepEqual([result.succeeded, result.failed], [2, 1]);
@@ -162,11 +163,11 @@ for (const reader of READERS) {
   test(`${reader.source}: accepts 25 and refuses 26 items before authorization`, async () => {
     const h = await harness();
     const registration = h.find(h.registrations, reader.card);
-    await assert.rejects(registration.handler(context({ ...reader.shared,
+    await assert.rejects(invokeRegisteredTool(registration, context({ ...reader.shared,
       items: Array.from({ length: 26 }, () => h.input(reader, "first")),
     })), { message: `${reader.source}: 'items' has 26 entries; the most one call takes is 25. Split them into several calls.` });
     assert.deepEqual(h.checks, []);
-    const result = await registration.handler(context({ ...reader.shared,
+    const result = await invokeRegisteredTool(registration, context({ ...reader.shared,
       items: Array.from({ length: 25 }, () => h.input(reader, "first")),
     })) as BatchResult;
     assert.deepEqual([result.total, result.succeeded, result.failed], [25, 25, 0]);
@@ -177,7 +178,7 @@ for (const reader of READERS) {
     const h = await harness();
     const registration = h.find(h.registrations, reader.card);
     for (const items of [undefined, null, [], "first"]) {
-      await assert.rejects(registration.handler(context({ ...reader.shared, items })), {
+      await assert.rejects(invokeRegisteredTool(registration, context({ ...reader.shared, items })), {
         message: `${reader.source}: 'items' must be a non-empty array of inputs`,
       });
     }
@@ -186,15 +187,16 @@ for (const reader of READERS) {
 
   test(`${reader.source}: cannot override the workspace to read a foreign record`, async () => {
     const h = await harness();
-    const result = await h.find(h.registrations, reader.card).handler(context({ ...reader.shared, items: [
+    const result = await invokeRegisteredTool(h.find(h.registrations, reader.card), context({ ...reader.shared, items: [
       h.input(reader, "first"), { ...h.input(reader, "foreign"), workspaceId: "other-workspace" }, h.input(reader, "third"),
     ] })) as BatchResult;
     assert.deepEqual([result.succeeded, result.failed], [2, 1]);
     assert.deepEqual(result.results.map(item => item.ok), [true, false, true]);
     const failed = result.results[1]!;
     assert.equal(failed.ok, false);
-    if (!failed.ok) assert.match(failed.error, reader.missing);
-    assert.deepEqual(h.checks.map(check => check.workspaceId), [WORKSPACE, WORKSPACE, WORKSPACE]);
+    // The closed item schema refuses the override before the item reaches its handler.
+    if (!failed.ok) assert.match(failed.error, /Unknown input 'workspaceId'/);
+    assert.deepEqual(h.checks.map(check => check.workspaceId), [WORKSPACE, WORKSPACE]);
   });
 
   test(`${reader.source}: single get and list calls keep the unbatched shape and card`, async () => {
@@ -205,7 +207,7 @@ for (const reader of READERS) {
     assert.deepEqual(registration.descriptor.metadata, baseline.descriptor.metadata);
     for (const input of [{ ...reader.shared, ...h.input(reader, "first") }, { ...reader.shared }]) {
       const expected = await baseline.handler(context(input));
-      const actual = await registration.handler(context(input));
+      const actual = await invokeRegisteredTool(registration, context(input));
       assert.equal(JSON.stringify(actual), JSON.stringify(expected));
       assert.equal(Object.hasOwn(actual as object, "batch"), false);
     }
@@ -218,7 +220,7 @@ test("all five merged reader cards refuse non-owner peer-site items before openi
   for (const reader of READERS) {
     const registration = registrations.find(tool => tool.descriptor.id === reader.card);
     assert.ok(registration, reader.card);
-    const result = await registration.handler(context({ ...reader.shared, site: "B", items: [
+    const result = await invokeRegisteredTool(registration, context({ ...reader.shared, site: "B", items: [
       { [reader.id]: "first" }, { [reader.id]: "second", site: "B" },
     ] }, "admin")) as BatchResult;
     assert.deepEqual([result.batch, result.total, result.succeeded, result.failed], [true, 2, 0, 2], reader.card);
@@ -228,13 +230,13 @@ test("all five merged reader cards refuse non-owner peer-site items before openi
   assert.deepEqual(f.audits, []);
 });
 
-test("all five merged reader cards reject nested peer-site batches as missing-id scalar reads", async t => {
+test("all five merged reader cards reject nested peer-site batches at the closed item gate", async t => {
   const f = await peerFixture(t);
   const registrations = f.build(true);
   for (const reader of READERS) {
     const registration = registrations.find(tool => tool.descriptor.id === reader.card);
     assert.ok(registration, reader.card);
-    const result = await registration.handler(context({ ...reader.shared, site: "B", items: [
+    const result = await invokeRegisteredTool(registration, context({ ...reader.shared, site: "B", items: [
       { items: Array.from({ length: 25 }, () => ({ [reader.id]: "post" })) },
       { items: [{ [reader.id]: "post" }] },
     ] }, f.a.ownerId)) as BatchResult;
@@ -242,19 +244,21 @@ test("all five merged reader cards reject nested peer-site batches as missing-id
     assert.deepEqual(result.results.map(item => [item.index, item.ok]), [[0, false], [1, false]], reader.card);
     for (const item of result.results) {
       assert.equal(item.ok, false);
-      if (!item.ok) assert.match(item.error, new RegExp(`'${reader.id}' .* is required`), reader.card);
+      // The closed item schema refuses a nested batch before any scalar read.
+      if (!item.ok) assert.match(item.error, /Unknown input 'items'/, reader.card);
       assert.equal(Object.hasOwn(item, "result"), false, reader.card);
       assert.equal(Object.hasOwn(item, "results"), false, reader.card);
     }
   }
-  assert.equal(f.audits.length, READERS.length * 2);
+  // Refused at the item gate, so no cross-site read is requested or audited.
+  assert.equal(f.audits.length, 0);
 });
 
 test("the merged post card scopes each item before reading and continues after an unknown site", async t => {
   const f = await peerFixture(t);
   const registration = f.build(true).find(tool => tool.descriptor.id === "content_read.content_post");
   assert.ok(registration);
-  const result = await registration.handler(context({ kind: "post", site: "B", items: [
+  const result = await invokeRegisteredTool(registration, context({ kind: "post", site: "B", items: [
     { id: "post" }, { id: "post", site: "unknown-site" }, { id: "post", site: "A" },
   ] }, f.a.ownerId)) as BatchResult;
   assert.deepEqual([result.batch, result.total, result.succeeded, result.failed], [true, 3, 2, 1]);
@@ -265,4 +269,34 @@ test("the merged post card scopes each item before reading and continues after a
   assert.equal(failed.ok, false);
   if (!failed.ok) assert.match(failed.error, /No readable local site has that name/);
   assert.equal(f.audits.length, 1);
+});
+
+test('collapsed batches retain the retired source policy and never turn a missing item id into a list', async () => {
+  const { withBatchInput, ToolInputError } = await import('@jini-ai/core');
+  const { deriveContentReadRegistrations } = await import('../content-read-tool.js');
+  const authorized: unknown[] = [], handled: unknown[] = [];
+  let listed = 0;
+  const get: ToolRegistration = {
+    descriptor: { id: 'content_post_get', readOnly: true, inputSchema: { type: 'object', additionalProperties: false, properties: { id: { type: 'string' }, enabled: { type: 'boolean' } } } },
+    policy: { authorize: ({ input }) => { authorized.push(input); return (input as { enabled?: boolean }).enabled === true ? 'deny' : 'allow'; } },
+    handler: async ({ input }) => {
+      if (typeof (input as { id?: string }).id !== 'string') throw new ToolInputError({ message: 'id is required' });
+      handled.push(input);
+      return { post: input };
+    },
+  };
+  const list: ToolRegistration = {
+    descriptor: { id: 'content_post_list', readOnly: true, inputSchema: { type: 'object', properties: {} } },
+    policy: { authorize: () => 'allow' }, handler: async () => { listed++; return { posts: ['private list'] }; },
+  };
+  const registrations = deriveContentReadRegistrations([withBatchInput({ registration: get, tool: { toolId: 'content_post_get' } }), list]);
+  assert.equal(registrations.some(registration => registration.descriptor.id === 'content_post_get'), false);
+  const card = registrations.find(registration => registration.descriptor.id === 'content_read.content_post')!;
+  const result = await invokeRegisteredTool(card, context({ items: [{ id: 'denied', enabled: 'true' }, {}, { id: 'allowed', enabled: 'false' }] })) as BatchResult;
+  assert.deepEqual(result.results.map(item => item.ok), [false, false, true]);
+  assert.match((result.results[0] as { error: string }).error, /denied/);
+  assert.match((result.results[1] as { error: string }).error, /id is required/);
+  assert.deepEqual(authorized, [{ id: 'denied', enabled: true }, {}, { id: 'allowed', enabled: false }]);
+  assert.deepEqual(handled, [{ id: 'allowed', enabled: false }]);
+  assert.equal(listed, 0);
 });

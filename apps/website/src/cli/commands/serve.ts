@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
+import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-origin.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
@@ -259,6 +260,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
   const host = resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST);
+  pinSiteListenerOrigin({ scheme: "http", host, port });
 
   // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
   // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same

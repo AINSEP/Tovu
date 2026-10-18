@@ -31,6 +31,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from "./fixtures/execute-registered-tool.js";
 
 
 const contributions = {
@@ -367,4 +368,84 @@ test("chat delete policy defaults off; checked webhook delete retains a human ca
   const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
   assert.equal(off.some(tool => tool.descriptor.id === "webhooks_delete_subscription"), false);
   assert.ok(webhooksRegistrations(deps).has("webhooks_delete_subscription"));
+});
+
+for (const transport of ['direct', 'delegated'] as const) {
+  test(`${transport}: webhook delete plan refuses every foreign item spelling before preparation or confirmation`, async () => {
+    const { deps, authorizeCalls, webhookSubscriptionRepo } = fakeRouteDeps();
+    const created = await invokeFixtureHandler(wired(deps, 'webhooks_create_subscription'), executionContext({
+      label: 'Keep this subscription', targetUrl: 'https://example.test/hooks', topics: ['post.published'],
+    })) as { subscription: { id: string } };
+    const subscriptionId = created.subscription.id;
+    const before = structuredClone(await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscriptionId }));
+    const scopedDeps = { ...withChatDeleteGrant({ deps }), peerSiteReads: {
+      readDomains: new Set<string>(), isCurrentSite: ({ siteName }: { siteName: string }) => siteName === 'active',
+      resolve: async () => { throw new Error('writes cannot resolve peer sites'); }, close: async () => {},
+    } };
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: scopedDeps }), { surfaceExchanges }, {
+      contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
+    }).find(tool => tool.descriptor.id === 'webhooks_delete_subscription');
+    assert.ok(tool);
+    let confirmations = 0;
+    const registration: ToolRegistration = { ...tool, handler: (ctx, options) => tool.handler(ctx, { ...options,
+      // Stop a regressed implementation at its first card so the test never waits for a human.
+      emitSurface: async () => { confirmations++; throw new Error('unexpected confirmation'); },
+    }) };
+    for (const key of ['site', 'Site', 'SITE', 's_ite', 's-ite', 'workspaceId', 'permission']) {
+      const refusal = key === 'workspaceId' || key === 'permission' ? /Unknown input/ : /Writes run only on the active site/;
+      for (const input of [
+        { items: [{ subscription_id: subscriptionId, [key]: 'foreign' }] },
+        { [key]: 'foreign', items: [{ subscriptionId }] },
+        { site: 'active', items: [{ subscriptionId }, { subscriptionId, [key]: 'foreign' }] },
+      ]) {
+        authorizeCalls.length = 0;
+        if (transport === 'direct') {
+          const result = await executeRegisteredTool({ registration, input }, { principalId: PRINCIPAL_ID });
+          assert.equal(result.status, 'failed');
+          assert.equal(result.errorKind, 'validation');
+          assert.match(result.error ?? '', refusal);
+        } else {
+          const result = await executeDelegatedRegisteredTool({ registration, input }, { principalId: PRINCIPAL_ID });
+          assert.equal(result.isError, true);
+          assert.match(delegatedText(result), refusal);
+        }
+        assert.equal(confirmations, 0);
+        assert.equal(authorizeCalls.length, 0, 'no domain preparation or deletion authorization');
+        assert.deepEqual(await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscriptionId }), before);
+      }
+    }
+  });
+}
+
+test('webhook delete plan canonicalizes every item and retains one confirmation and the 25-item cap', async () => {
+  const { deps, webhookSubscriptionRepo } = fakeRouteDeps();
+  const ids: string[] = [];
+  for (const label of ['First', 'Second']) {
+    const created = await invokeFixtureHandler(wired(deps, 'webhooks_create_subscription'), executionContext({ label, targetUrl: 'https://example.test/hooks', topics: ['post.published'] })) as { subscription: { id: string } };
+    ids.push(created.subscription.id);
+  }
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges }, {
+    contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
+  }).find(tool => tool.descriptor.id === 'webhooks_delete_subscription');
+  assert.ok(registration);
+  let confirmations = 0;
+  const result = await executeRegisteredTool({ registration, input: { items: ids.map(subscription_id => ({ subscription_id })) } }, {
+    principalId: PRINCIPAL_ID, emitSurface: async surface => {
+      confirmations++;
+      const html = (surface.payload.resource as UIResource).resource.text;
+      const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+      assert.ok(match);
+      surfaceExchanges.deliver({ exchangeId: match[1]!, principalId: PRINCIPAL_ID, params: { decision: 'confirm' } }, { toolId: 'webhooks_delete_subscription' });
+    },
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(confirmations, 1);
+  assert.equal((result.output as { total: number }).total, 2);
+  for (const id of ids) assert.equal((await webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id }))?.status, 'disabled');
+  const overCap = await executeRegisteredTool({ registration, input: { items: Array.from({ length: 26 }, () => ({ subscriptionId: ids[0] })) } }, { principalId: PRINCIPAL_ID });
+  assert.equal(overCap.status, 'failed');
+  assert.match(overCap.error ?? '', /most one call takes is 25/);
+  assert.equal(confirmations, 1);
 });

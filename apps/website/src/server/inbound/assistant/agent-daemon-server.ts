@@ -724,7 +724,10 @@ const assistantPromptAugmenter: PromptAugmenter = {
 
 // Each run's bridge gets its own credential, resolved back to that run's principal; see
 // `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
-const bridgeInjection = resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {}));
+const bridgeInjection = {
+  ...resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {})),
+  diagnosticToolIds: () => registry.list({}).map(tool => tool.id),
+};
 const agentExecutor = createAgentExecutor({
   lifecycle,
 }, {

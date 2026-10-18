@@ -284,3 +284,101 @@ net.Server.prototype.listen = function (...args) {
     removeFixtureTree(parent);
   }
 });
+
+for (const boot of ['https-dev', 'desktop-serve'] as const) {
+  test(`${boot}: actual boot pins its listener origin into the native daemon launch and the child-composed site guide`, { timeout: 120_000 }, async () => {
+    const { parent, dir } = initFixture();
+    const port = await getFreePort();
+    const reportPath = path.join(parent, 'daemon-origin.json');
+    const observerPath = path.join(parent, 'daemon-origin-observer.mjs');
+    const preloadPath = path.join(parent, 'observe-native-spawn.mjs');
+    const depsUrl = new URL('../../../server/runtime/composition/app.ts', import.meta.url).href;
+    const delegatedFixtureUrl = new URL('../../../assistant/__tests__/fixtures/execute-registered-tool.ts', import.meta.url).href;
+    const guideUrl = new URL('../../../server/runtime/composition/site-guide-tools.ts', import.meta.url).href;
+    // The observer uses the child's actual inherited environment and real composition; only
+    // unrelated guide topic loading is supplied by a small engine fixture.
+    fs.writeFileSync(observerPath, `
+      import { writeFileSync } from 'node:fs';
+      import { createRouteDeps } from ${JSON.stringify(depsUrl)};
+      import { buildSiteGuideRegistrations } from ${JSON.stringify(guideUrl)};
+      import { executeDelegatedRegisteredTool, delegatedText } from ${JSON.stringify(delegatedFixtureUrl)};
+      const deps = createRouteDeps();
+      const engine = { parseGuideTopics: () => ({ ok: true, descriptors: [] }), createSiteGuide: () => ({ run: async () => ({ topics: [] }) }) };
+      const registration = buildSiteGuideRegistrations({ deps }, { engine })[0];
+      await deps.identityReady;
+      const principalId = await deps.ownerPrincipalId;
+      const reply = await executeDelegatedRegisteredTool({ registration, input: { operation: 'overview' } }, { principalId });
+      if (reply.isError) throw new Error(delegatedText(reply));
+      const { output } = JSON.parse(delegatedText(reply));
+      writeFileSync(${JSON.stringify(reportPath)}, JSON.stringify({ inherited: process.env.TOVU_SITE_LISTENER_ORIGIN, siteOrigin: output.siteOrigin, navigationHint: output.navigationHint }));
+      process.exit(0);
+    `);
+    let tlsPatch = '';
+    if (boot === 'https-dev') {
+      const { DEV_PROXY_TLS } = await import('../../../server/inbound/admin-http/__tests__/fixtures/admin-dev-proxy-tls.js');
+      const certPath = path.join(parent, 'localhost.pem');
+      const keyPath = path.join(parent, 'localhost-key.pem');
+      fs.writeFileSync(certPath, DEV_PROXY_TLS.cert);
+      fs.writeFileSync(keyPath, DEV_PROXY_TLS.key);
+      tlsPatch = `
+        const realExists = fs.existsSync;
+        const realRead = fs.readFileSync;
+        const fixture = p => String(p).endsWith('/.certs/localhost.pem') ? ${JSON.stringify(certPath)} : String(p).endsWith('/.certs/localhost-key.pem') ? ${JSON.stringify(keyPath)} : p;
+        fs.existsSync = p => realExists(fixture(p));
+        fs.readFileSync = (p, ...args) => realRead(fixture(p), ...args);
+      `;
+    }
+    fs.writeFileSync(preloadPath, `
+      import cp from 'node:child_process';
+      import fs from 'node:fs';
+      import { syncBuiltinESMExports } from 'node:module';
+      ${tlsPatch}
+      const nativeSpawn = cp.spawn;
+      cp.spawn = (command, args, options) => {
+        if (args?.some(arg => /agent-daemon-server\.(?:ts|js)$/.test(String(arg)))) {
+          return nativeSpawn(process.execPath, ['--import', ${JSON.stringify(TSX_LOADER)}, ${JSON.stringify(observerPath)}], { ...options, env: { ...options.env, NODE_OPTIONS: '' } });
+        }
+        return nativeSpawn(command, args, options);
+      };
+      syncBuiltinESMExports();
+    `);
+    const env: NodeJS.ProcessEnv = {
+      TOVU_SITE_DIR: dir, TOVU_ADMIN_ASSISTANT: 'on', TOVU_HOST: '127.0.0.1',
+      TOVU_SITE_LISTENER_ORIGIN: 'http://stale.invalid:1', TOVU_DISABLE_PARENT_WATCHDOG: '1',
+      TOVU_DISABLE_DEV_TLS: '0', TOVU_DB: 'memory', PORT: String(port),
+    };
+    const child = boot === 'desktop-serve'
+      ? spawnServe([dir, '--host', '127.0.0.1', '--port', String(port)], env, [preloadPath])
+      : spawn(process.execPath, ['--import', TSX_LOADER, '--import', preloadPath, path.resolve(import.meta.dirname, '../../../index.ts')], {
+        env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
+      }) as ChildProcessWithoutNullStreams;
+    let stderr = '';
+    child.stderr.on('data', chunk => { stderr += chunk.toString(); });
+    child.stdout.resume();
+    try {
+      const deadline = Date.now() + 60_000 * loadFactor();
+      while (!fs.existsSync(reportPath) && Date.now() < deadline) {
+        assert.equal(child.exitCode, null, stderr);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      assert.ok(fs.existsSync(reportPath), `daemon did not receive the boot origin: ${stderr}`);
+      const expected = `${boot === 'https-dev' ? 'https' : 'http'}://127.0.0.1:${port}`;
+      const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      assert.equal(report.inherited, expected);
+      assert.equal(report.siteOrigin, expected);
+      assert.match(report.navigationHint, /Preserve this exact scheme, host and port/);
+      const [https, http] = await Promise.all([import('node:https'), import('node:http')]);
+      await new Promise<void>((resolve, reject) => {
+        const onResponse = (response: import('node:http').IncomingMessage) => { response.resume(); resolve(); };
+        const request = boot === 'https-dev'
+          ? https.get(expected, { rejectUnauthorized: false, timeout: 5000 }, onResponse)
+          : http.get(expected, { timeout: 5000 }, onResponse);
+        request.once('error', reject);
+        request.once('timeout', () => request.destroy(new Error('listener probe timed out')));
+      });
+    } finally {
+      if (child.exitCode === null) await stopGracefully(child);
+      await removeFixtureTree(parent);
+    }
+  });
+}

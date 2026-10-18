@@ -256,21 +256,21 @@ test("execute_delegated_tool refuses an input that is neither an object nor JSON
   assert.match(textOf(array), /an array/);
 });
 
-test("execute_delegated_tool treats an empty-string input the same as omitted — no input, not a parse error", async () => {
+test("execute_delegated_tool supplies an empty object for omitted, null and blank input", async () => {
   const s = surface();
   const received: unknown[] = [];
   s.registry.register(fakeAllowedRegistration("probe_empty_input", async (ctx) => {
     received.push(ctx.input);
-    return { noInput: ctx.input === undefined };
-  }));
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_empty_input", input: "" }));
-  assert.doesNotMatch(textOf(result), /must be a JSON object/, "an empty string must resolve to 'no input', not be refused as unparseable");
-  const omitted = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_empty_input" }));
-  assert.notEqual(result.isError, true);
-  assert.notEqual(omitted.isError, true);
-  assert.deepEqual(received, [undefined, undefined]);
-  assert.deepEqual(result, omitted);
-  assert.deepEqual(JSON.parse(textOf(result)), { noInput: true });
+    return { noInput: Object.keys(ctx.input as Record<string, unknown>).length === 0 };
+  }, { type: "object", additionalProperties: false, properties: {} }));
+  // Use an object schema: a schema-free probe would miss the normalizer's rejection of undefined.
+  for (const input of [undefined, null, "", "   "]) {
+    const args = { toolId: "probe_empty_input", ...(input === undefined ? {} : { input }) };
+    const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", args));
+    assert.notEqual(result.isError, true, textOf(result));
+    assert.deepEqual(JSON.parse(textOf(result)), { noInput: true });
+  }
+  assert.deepEqual(received, [{}, {}, {}, {}]);
 });
 
 test("execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type", async () => {

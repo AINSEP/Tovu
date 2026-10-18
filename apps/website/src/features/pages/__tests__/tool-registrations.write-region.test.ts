@@ -471,3 +471,68 @@ test("pages_write_region refuses doc, trashed, and missing pages without changin
     assert.deepEqual(await repo.findById({ workspaceId: WS, id }), before);
   }
 });
+
+test('normalization: real region alias keeps expectedVersion protection; dual targets fail before writing', async () => {
+  const { executeRegisteredTool } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const { repo, call, byName } = harness();
+  await seedPage(repo, 'mingjie');
+  const html = '<section data-agent-element="home-hero" data-agent-role="region"><h1>Before</h1></section>';
+  await call('pages_write_html', { id: 'mingjie', html });
+  await call('pages_write_region', { id: 'mingjie', handle: 'home-hero', html: '<h1>Version three</h1>' });
+  const read = await call('pages_read_html', { id: 'mingjie' }) as { version: number };
+  assert.equal(read.version, 3);
+  const registration = byName.get('pages_write_region')!;
+  const input = { id: 'mingjie', region: 'home-hero', expectedVersion: 3, html: '<h1>Mingjie Zhai</h1>' };
+  const result = await executeRegisteredTool({ registration, input });
+  assert.equal(result.status, 'completed');
+  assert.equal((result.output as { written: boolean }).written, true);
+  assert.deepEqual((result.output as { normalizationNotes: string[] }).normalizationNotes, ['region→handle']);
+  const current = await call('pages_read_html', { id: 'mingjie' }) as { html: string; version: number };
+  assert.match(current.html, /Mingjie Zhai/);
+  const ambiguous = await executeRegisteredTool({ registration, input: { ...input, handle: 'other', expectedVersion: current.version } });
+  assert.equal(ambiguous.errorKind, 'validation');
+  assert.match(ambiguous.error!, /Send only handle/);
+  const stale = await executeRegisteredTool({ registration, input });
+  assert.equal(stale.errorKind, 'validation');
+  assert.equal((await call('pages_read_html', { id: 'mingjie' }) as { version: number }).version, current.version);
+});
+
+test('delegated normalization: region aliases persist; foreign targets in single, shared and per-item inputs make zero writes', async () => {
+  const { executeDelegatedRegisteredTool, delegatedText } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const { applyTargetScope, withBatchInput } = await import('@jini-ai/core');
+  const { repo, call, byName } = harness();
+  await seedThreeRegionPage(call, repo, 'mingjie');
+  const [scoped] = applyTargetScope({ registrations: [byName.get('pages_write_region')!],
+    isCurrentTarget: ({ target }) => target === 'current',
+    resolveTarget: async () => { throw new Error('writes cannot resolve peers'); },
+  }, { refuseMessage: 'Writes run only on the active site. Switch with sites_switch_site first.' });
+  const registration = withBatchInput({ registration: scoped!, tool: { toolId: 'pages_write_region' } });
+  const base = { id: 'mingjie', region: 'page-hero', html: '<h1>Mingjie Zhai</h1>' };
+  const reply = await executeDelegatedRegisteredTool({ registration, input: base });
+  const visible = JSON.parse(delegatedText(reply));
+  assert.equal(visible.status, 'completed');
+  assert.equal(visible.output.written, true);
+  assert.match(delegatedText(reply), /region→handle/);
+  assert.match((await call('pages_read_html', { id: 'mingjie' }) as { html: string }).html, /Mingjie Zhai/);
+  const before = await repo.findById({ workspaceId: WS, id: 'mingjie' });
+  const save = repo.save.bind(repo);
+  let writes = 0;
+  repo.save = async row => { writes++; return save(row); };
+  for (const key of ['site', 'Site', 's_ite', 's-ite']) {
+    const input = { ...base, html: '<h1>must not write</h1>' };
+    const refused = await executeDelegatedRegisteredTool({ registration, input: { ...input, [key]: 'foreign' } });
+    assert.equal(refused.isError, true);
+    assert.match(delegatedText(refused), /Writes run only on the active site/);
+    for (const batchInput of [
+      { [key]: 'foreign', items: [input, input] },
+      { items: [{ ...input, [key]: 'foreign' }, { ...input, [key]: 'foreign' }] },
+    ]) {
+      const batch = await executeDelegatedRegisteredTool({ registration, input: batchInput });
+      const output = JSON.parse(delegatedText(batch)).output;
+      assert.deepEqual([output.succeeded, output.failed], [0, 2]);
+      assert.ok(output.results.every((item: { error: string }) => /Writes run only on the active site/.test(item.error)));
+    }
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: 'mingjie' }), before);
+    assert.equal(writes, 0);
+  }
+});

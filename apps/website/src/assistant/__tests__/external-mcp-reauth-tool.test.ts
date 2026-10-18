@@ -430,7 +430,8 @@ test("nullish reauth input is rejected as a validation error", async () => {
 
     assert.equal(executed.status, "failed");
     assert.equal(executed.errorKind, "validation");
-    assert.match(executed.error ?? "", /'id' is required/);
+    // Nullish input fails at the shared object gate; {} above still exercises the domain's id check.
+    assert.equal(executed.error, `${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: send one input object containing the tool's fields.`);
   }
   assert.equal(surfaceExchanges.size(), 0);
 });

@@ -260,3 +260,39 @@ for (const toolId of ["settings_set_value", "settings_clear_value"]) {
     assert.equal(f.surfaceExchanges.size(), 0);
   });
 }
+
+test('normalization: registered dotted core.site.title succeeds; two registered splits fail without writing', async () => {
+  const { executeRegisteredTool } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const f = fixture('core.site', 'title');
+  const registration = f.registrations.find(r => r.descriptor.id === 'settings_set_value')!;
+  const input = { key: 'core.site.title', value: 'Mingjie Zhai' };
+  const result = await executeRegisteredTool({ registration, input });
+  assert.equal(result.status, 'completed');
+  assert.equal((result.output as { value: string }).value, 'Mingjie Zhai');
+  const definition = await f.settingsRepo.findActiveDefinition({ namespace: 'core.site', key: 'title', workspaceId: null });
+  assert.ok(definition);
+  await f.settingsRepo.saveDefinition({ ...definition, settingId: 'other-setting', namespace: 'core', key: 'site.title' });
+  const ambiguous = await executeRegisteredTool({ registration, input: { ...input, value: 'must not write' } });
+  assert.equal(ambiguous.errorKind, 'validation');
+  assert.match(ambiguous.error!, /dotted key is ambiguous.*namespace=core.*namespace=core.site.*Send namespace and key explicitly/);
+  assert.equal((await f.settingsRepo.listRevisions({ settingId: 'setting-1' })).length, 1);
+});
+
+test('delegated normalization: dotted settings persist once and an ambiguous registered split refuses without a revision', async () => {
+  const { executeDelegatedRegisteredTool, delegatedText } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const f = fixture('core.site', 'title');
+  const registration = f.registrations.find(r => r.descriptor.id === 'settings_set_value')!;
+  const reply = await executeDelegatedRegisteredTool({ registration, input: { key: 'core.site.title', value: 'Mingjie Zhai' } });
+  const visible = JSON.parse(delegatedText(reply));
+  assert.equal(visible.status, 'completed');
+  assert.equal(visible.output.value, 'Mingjie Zhai');
+  const before = await f.settingsRepo.listRevisions({ settingId: 'setting-1' });
+  assert.equal(before.length, 1);
+  const definition = await f.settingsRepo.findActiveDefinition({ namespace: 'core.site', key: 'title', workspaceId: null });
+  assert.ok(definition);
+  await f.settingsRepo.saveDefinition({ ...definition, settingId: 'other-setting', namespace: 'core', key: 'site.title' });
+  const refused = await executeDelegatedRegisteredTool({ registration, input: { key: 'core.site.title', value: 'bad' } });
+  assert.equal(refused.isError, true);
+  assert.match(delegatedText(refused), /dotted key is ambiguous/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), before);
+});

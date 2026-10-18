@@ -610,6 +610,14 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     // would produce.
     handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
+    inputNormalizers: {
+      pages_write_region: ({ input }) => {
+        if (!Object.hasOwn(input, "region")) return { input, notes: [] };
+        if (Object.hasOwn(input, "handle")) throw new ToolInputError({ message: "pages_write_region: region and handle both name the target. Send only handle." });
+        const { region, ...rest } = input;
+        return { input: { ...rest, handle: region }, notes: ["region→handle"] };
+      },
+    },
   });
 }
 

@@ -992,7 +992,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // hermetic root backs the same live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its
   // fallback origin must be derived the same way rather than silently differing.
   const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot();
-  const derivedPublicOrigin = `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
+  const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
 
   // Extracted (not inlined into the return object below), same reasoning as `restorePointsRepo`
   // above: Task 8's real `publishContentApplyPort` (`apply-loop.ts`) must read/write the SAME

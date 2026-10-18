@@ -25,6 +25,8 @@ import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/the
  * through to the wire status), so this test drives the REAL chain end to end — real theme
  * registrations, a real `ToolRegistry`/`ToolExecutor`, and the real `delegatedToolExecuteRoute` — to
  * confirm the fix actually reaches Tovu rather than merely existing at the Jini unit level.
+ * The shared normalizer now repairs separator/case aliases such as theme_id; genuine invalid
+ * values, missing ids and unknown themes must still produce 400 rather than 500.
  */
 
 const DECLARATIVE_MANIFEST = JSON.stringify({ id: "plain", name: "Plain", version: "1.0.0", tier: "declarative", engine: 1 }, null, 2);
@@ -56,7 +58,7 @@ async function buildDelegatedToolDeps() {
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) };
 }
 
-test("theme_list_files called with a wrong parameter name ('theme_id' instead of 'themeId') is a 400 BAD_REQUEST end to end, not a 500", async () => {
+test("theme_list_files normalizes theme_id to themeId end to end and reports the repair", async () => {
   const { run, lifecycle, toolExecutor, resolvePrincipal } = await buildDelegatedToolDeps();
 
   const result = await delegatedToolExecuteRoute.handle({
@@ -64,10 +66,17 @@ test("theme_list_files called with a wrong parameter name ('theme_id' instead of
     deps: { lifecycle, toolExecutor, resolvePrincipal },
   });
 
-  assert.deepEqual(result, {
-    ok: false,
-    error: { code: "BAD_REQUEST", message: "'themeId' (non-empty string) is required; received: theme_id" },
-  });
+  // A separator alias is unambiguous, so the forgiving gate repairs it before domain validation.
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(result.value.result, {
+      executionId: result.value.result.executionId,
+      status: "completed",
+      output: { themeId: "plain", files: ["theme.json", "tokens.json"], normalizationNotes: ["theme_id→themeId"] },
+      truncated: false,
+      normalizationNotes: ["theme_id→themeId"],
+    });
+  }
 });
 
 test("theme_list_files called with themeId missing entirely is also a 400 BAD_REQUEST, not a 500", async () => {
@@ -118,8 +127,8 @@ test("an unknown themeId (a shape rejection decorated with the tool's schema) is
   }
 });
 
-test("the mounted HTTP adapter serializes malformed, missing and unknown theme ids as HTTP 400", { timeout: 5000 }, async () => {
-  for (const input of [{ theme_id: "plain" }, {}, { themeId: "nope" }]) {
+test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malformed, missing and unknown theme ids", { timeout: 5000 }, async () => {
+  for (const input of [{ theme_id: "plain" }, { themeId: 42 }, {}, { themeId: "nope" }]) {
     const { run, ...deps } = await buildDelegatedToolDeps();
     const app = express();
     app.use(express.json());
@@ -148,13 +157,23 @@ test("the mounted HTTP adapter serializes malformed, missing and unknown theme i
       req.push(null);
       await finished;
       const wire = Buffer.concat(chunks).toString("utf8");
-      assert.match(wire, /^HTTP\/1\.1 400 Bad Request\r\n/);
-      const parsed = JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)) as { error: { code: string; message: string } };
-      assert.equal(parsed.error.code, "BAD_REQUEST");
-      if ("themeId" in input) assert.match(parsed.error.message, /theme 'nope' was not found/);
-      else assert.equal(parsed.error.message, "theme_id" in input
-        ? "'themeId' (non-empty string) is required; received: theme_id"
-        : "'themeId' (non-empty string) is required");
+      const parsed = JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)) as {
+        result?: { status: string; output: unknown; normalizationNotes?: string[] };
+        error?: { code: string; message: string };
+      };
+      if ("theme_id" in input) {
+        assert.match(wire, /^HTTP\/1\.1 200 OK\r\n/);
+        assert.ok(parsed.result);
+        assert.equal(parsed.result.status, "completed");
+        assert.deepEqual(parsed.result.output, { themeId: "plain", files: ["theme.json", "tokens.json"], normalizationNotes: ["theme_id→themeId"] });
+        assert.deepEqual(parsed.result.normalizationNotes, ["theme_id→themeId"]);
+      } else {
+        assert.match(wire, /^HTTP\/1\.1 400 Bad Request\r\n/);
+        assert.ok(parsed.error);
+        assert.equal(parsed.error.code, "BAD_REQUEST");
+        if (input.themeId === "nope") assert.match(parsed.error.message, /theme 'nope' was not found/);
+        else assert.equal(parsed.error.message, "'themeId' (non-empty string) is required");
+      }
     } finally {
       socket.destroy();
     }

@@ -89,3 +89,24 @@ test("index.ts calls no .listen() of its own -- neither TLS branch can bind arou
   );
   assert.deepEqual(listens.map((call) => call.getText(ast)), []);
 });
+
+for (const [entry, expectedArgs] of [
+  [INDEX_TS_PATH, { scheme: 'devTls.active ? "https" : "http"', host: 'bindHost', port: 'port' }],
+  [path.resolve(import.meta.dirname, '../../../../cli/commands/serve.ts'), { scheme: '"http"', host: 'host', port: 'port' }],
+] as const) {
+  test(`${path.basename(entry)} pins its selected listener before origin composition and daemon startup`, () => {
+    const ast = ts.createSourceFile(entry, fs.readFileSync(entry, 'utf8'), ts.ScriptTarget.Latest, true);
+    const pins = callsMatching(ast, call => call.expression.getText(ast) === 'pinSiteListenerOrigin');
+    assert.equal(pins.length, 1);
+    const required = pins[0]!.arguments[0];
+    assert.ok(required && ts.isObjectLiteralExpression(required));
+    const fields = Object.fromEntries(required.properties.map(property => {
+      assert.ok(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property));
+      return [property.name.getText(ast), (ts.isPropertyAssignment(property) ? property.initializer : property.name).getText(ast)];
+    }));
+    assert.deepEqual(fields, expectedArgs);
+    const consumers = callsMatching(ast, call => ['createRouteDeps', 'createSiteRouteDeps', 'startAssistantDaemon'].includes(call.expression.getText(ast)));
+    assert.ok(consumers.length >= 2);
+    for (const consumer of consumers) assert.ok(pins[0]!.pos < consumer.pos, `${consumer.expression.getText(ast)} must consume the selected listener pin`);
+  });
+}

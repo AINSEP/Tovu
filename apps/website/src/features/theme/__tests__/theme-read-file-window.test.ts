@@ -10,20 +10,23 @@ import { buildThemesRegistrations } from "../tool-registrations.js";
 import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 import { getThemesAgentToolCatalog } from "../agent-tools.js";
 
-function fixture(t: test.TestContext, content: string | Buffer, allow = true) {
+function fixture(t: test.TestContext, content: string | Buffer, allow = true, names: { themeId?: string; filePath?: string } = {}) {
+  const themeId = names.themeId ?? "plain";
+  const filePath = names.filePath ?? "sample.txt";
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-theme-window-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const dir = path.join(root, "plain");
+  const dir = path.join(root, themeId);
   fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
   fs.writeFileSync(
     path.join(dir, "theme.json"),
-    JSON.stringify({ id: "plain", name: "Plain", version: "1.0.0", tier: "declarative", engine: 1 }),
+    JSON.stringify({ id: themeId, name: "Plain", version: "1.0.0", tier: "declarative", engine: 1 }),
   );
   fs.writeFileSync(path.join(dir, "tokens.json"), "{}");
   fs.writeFileSync(path.join(dir, "styles.css"), "body{}");
   for (const name of ["home", "entry"])
     fs.writeFileSync(path.join(dir, "templates", `${name}.json`), '{"type":"doc","content":[]}');
-  fs.writeFileSync(path.join(dir, "sample.txt"), content);
+  fs.mkdirSync(path.dirname(path.join(dir, filePath)), { recursive: true });
+  fs.writeFileSync(path.join(dir, filePath), content);
   const registration = buildThemesRegistrations({
     workspaceId: "ws",
     themesDir: root,
@@ -38,7 +41,7 @@ function fixture(t: test.TestContext, content: string | Buffer, allow = true) {
         executionId: "exec",
         principal: { id: "owner" },
         run: { id: "run" },
-        input: { themeId: "plain", path: "sample.txt", ...params },
+        input: { themeId, path: filePath, ...params },
         signal: new AbortController().signal,
       };
       return registration.handler(ctx);
@@ -178,13 +181,14 @@ test("find caps all windows per item and all find content in a maximum-sized bat
   const { registration } = fixture(t, content);
   const [batched] = applyBatchInputs({ registrations: [registration] });
   assert.ok(batched);
-  const result = await batched.handler({
-    executionId: "exec", principal: { id: "owner" }, run: { id: "run" },
-    signal: new AbortController().signal,
+  const { executeRegisteredTool } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const execution = await executeRegisteredTool({ registration: batched,
     input: { themeId: "plain", find: "needle", context: 0,
       items: Array.from({ length: 20 }, () => ({ path: "sample.txt" })),
     },
-  }) as BatchResult;
+  });
+  assert.equal(execution.status, 'completed');
+  const result = execution.output as BatchResult;
   assert.equal(result.succeeded, 20);
   let totalChars = 0;
   for (const item of result.results) {
@@ -197,11 +201,11 @@ test("find caps all windows per item and all find content in a maximum-sized bat
     totalChars += read.content.length;
   }
   assert.ok(totalChars <= 80_000);
-  await assert.rejects(() => batched.handler({
-    executionId: "exec", principal: { id: "owner" }, run: { id: "run" },
-    signal: new AbortController().signal,
+  const refused = await executeRegisteredTool({ registration: batched,
     input: { items: Array.from({ length: 21 }, () => ({ themeId: "plain", path: "sample.txt", find: "needle" })) },
-  }), /most one call takes is 20/);
+  });
+  assert.equal(refused.errorKind, 'validation');
+  assert.match(refused.error!, /most one call takes is 20/);
 });
 
 test("theme file descriptions make find discoverable as the existing text search", (t) => {
@@ -282,16 +286,16 @@ test("t02: find and context accept their upper bounds and empty find is a plain 
   });
 });
 
-test("t02: find and either window param refuse with the exact conflict text", async (t) => {
-  const { read } = fixture(t, "one");
+test("t02: find accepts either window param and confines matches and context to the range", async (t) => {
+  const { read } = fixture(t, "one\ntwo\none\n");
   for (const window of [{ startLine: 1 }, { lineCount: 1 }]) {
-    await assert.rejects(
-      read({ find: "one", ...window }),
-      (error: unknown) =>
-        error instanceof ToolInputError &&
-        error.message === "theme_read_file: pass either find or startLine/lineCount, not both.",
-    );
+    const result = await read({ find: "one", ...window }) as { content: string; returned: { matches: number } };
+    assert.equal(result.returned.matches, "lineCount" in window ? 1 : 2);
+    assert.equal(result.content, "lineCount" in window ? "one\n" : "one\ntwo\none\n");
   }
+  const result = await read({ find: "one", startLine: 2, lineCount: 1 }) as { content: string; returned: { matches: number } };
+  assert.equal(result.content, "");
+  assert.equal(result.returned.matches, 0);
 });
 
 test("t02: numeric bounds and find length/types are validated with ToolInputError", async (t) => {
@@ -348,4 +352,33 @@ test("t02: published schema exposes optional bounded selectors and keeps reads r
   assert.equal(schema.properties.context?.default, 3);
   assert.deepEqual(schema.required, ["themeId", "path"]);
   assert.equal(registration.descriptor.readOnly, true);
+});
+
+test('normalization: real find plus startLine searches to EOF; ambiguous find spelling fails', async t => {
+  const { executeRegisteredTool } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const { registration } = fixture(t, Array.from({ length: 2100 }, (_, index) => index === 2099 ? 'padding: 8px 0\n' : `line ${index}\n`).join(''), true, { themeId: 'open-heart', filePath: 'css/theme.css' });
+  const input = { themeId: 'open-heart', path: 'css/theme.css', find: 'padding: 8px 0', startLine: 1 };
+  const result = await executeRegisteredTool({ registration, input });
+  assert.equal(result.status, 'completed');
+  const output = result.output as { content: string; returned: { matches: number } };
+  assert.equal(output.returned.matches, 1);
+  assert.match(output.content, /padding: 8px 0/);
+  const ambiguous = await executeRegisteredTool({ registration, input: { ...input, FIND: 'line' } });
+  assert.equal(ambiguous.errorKind, 'validation');
+  assert.match(ambiguous.error!, /Send only 'find'/);
+});
+
+test('delegated normalization: find with a string startLine reaches EOF through the real theme registration', async t => {
+  const { executeDelegatedRegisteredTool, delegatedText } = await import('../../../assistant/__tests__/fixtures/execute-registered-tool.js');
+  const { registration } = fixture(t, Array.from({ length: 2100 }, (_, index) => index === 2099 ? 'padding: 8px 0\n' : `line ${index}\n`).join(''), true, { themeId: 'open-heart', filePath: 'css/theme.css' });
+  const input = { theme_id: 'open-heart', path: 'css/theme.css', find: 'padding: 8px 0', start_line: '1' };
+  const reply = await executeDelegatedRegisteredTool({ registration, input });
+  const visible = JSON.parse(delegatedText(reply));
+  assert.equal(visible.status, 'completed');
+  assert.equal(visible.output.returned.matches, 1);
+  assert.match(visible.output.content, /padding: 8px 0/);
+  assert.match(delegatedText(reply), /start_line→startLine/);
+  const refused = await executeDelegatedRegisteredTool({ registration, input: { ...input, FIND: 'line' } });
+  assert.equal(refused.isError, true);
+  assert.match(delegatedText(refused), /Send only 'find'/);
 });
