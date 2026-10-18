@@ -19,14 +19,28 @@ export function createSitesWorkspace(_required: Record<string, never>, { homeDir
     ...(catalogRecovery ? { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } } : {}),
     userConfig: { appName: "Tovu", rootsEnvName: "TOVU_SITE_ROOTS", legacyDefaultFolder: "Tovu Sites",
       legacySettingsFile: path.join(homeDir, ".tovu", "sites-home.json"),
-      sourceRoots: sourceRoots ?? (fs.existsSync(path.join(cwd, "apps", "website", "src")) ? [path.join(cwd, "sites")] : []),
+      sourceRoots: desktopSourceRoots({ cwd, sourceRoots }),
     } }, { env, cwd, ...directoryOptions,
-      // The inherited override also reaches CLI/MCP callers without an Electron app instance.
-      appDataDir: appDataDir ?? (env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? (directoryOptions.platform === "win32" ? path.win32 : path).resolve(cwd, env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : undefined),
+      appDataDir: desktopAppDataDir({ appDataDir, env, cwd, platform: directoryOptions.platform }),
     });
   return { ...workspace, ...nestedSitesCompat({ workspace }, { ports: directoryOptions.ports }), invalidCatalogNotices: new Set<string>() };
 }
 export type SitesWorkspace = ReturnType<typeof createSitesWorkspace>;
+
+/** Select Tovu checkout discovery roots only when the caller supplied no roots. O(1) disk probe. */
+export function desktopSourceRoots(
+  { cwd, sourceRoots }: { cwd: string; sourceRoots?: readonly string[] }, _options = {},
+): readonly string[] {
+  return sourceRoots ?? (fs.existsSync(path.join(cwd, "apps", "website", "src")) ? [path.join(cwd, "sites")] : []);
+}
+
+/** Resolve Tovu's inherited profile override before the Jini directory resolver. O(n) path bytes. */
+export function desktopAppDataDir(
+  { appDataDir, env, cwd, platform }: { appDataDir?: string; env: NodeJS.ProcessEnv; cwd: string; platform?: NodeJS.Platform }, _options = {},
+): string | undefined {
+  // The inherited override also reaches CLI/MCP callers without an Electron app instance.
+  return appDataDir ?? (env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? (platform === "win32" ? path.win32 : path).resolve(cwd, env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : undefined);
+}
 
 /** The released 0.1.14 default nested sites in Documents/Tovu/sites; desktop startup moves them back up.
  * Explicit homes (saved setting or environment override) keep their contracts and never qualify.
@@ -105,6 +119,29 @@ function noticeSkippedEntry({ notices, dir, report }: { notices: Set<string>; di
   report(`tovu desktop: skipped shared catalog entry ${dir}; its metadata, identity or folder is unavailable/invalid.`);
 }
 
+/** Share available Tovu folders independently; report whether a missing volume needs retry.
+ * @returns True if any folder failed with ENOENT, even when later siblings succeed.
+ * @complexity O(n) metadata reads and O(n * r) registry work for n folders and r records.
+ */
+export function shareAvailableDirectories(
+  { workspace, registry, registered, dirs, createdBy, allowRelocation, notices, report }: {
+    workspace: SitesWorkspace; registry: SitesRegistry; registered: Map<string, DirectoryRecord>; dirs: readonly string[];
+    createdBy: string; allowRelocation: boolean; notices: Set<string>; report: (message: string) => void;
+  }, _options = {},
+): boolean {
+  let unavailable = false;
+  for (const dir of dirs) {
+    try {
+      shareOneDirectory({ workspace, registry, registered, dir, createdBy, allowRelocation });
+      notices.delete(dir);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") unavailable = true;
+      noticeSkippedEntry({ notices, dir, report });
+    }
+  }
+  return unavailable;
+}
+
 /** Desktop keeps deletion authority/aliases locally; this catalog only owns discoverability.
  * A record for an unavailable volume retains its saved path and metadata.
  * @complexity O(n) metadata reads and O(n * r) catalog work for n directories and r records.
@@ -117,16 +154,7 @@ export function shareSiteDirectories(
     const registry = workspace.registry({});
     if (migration && registry.hasMigration({ migration })) return registry.list({});
     const registered = new Map(registry.list({}).map((entry) => [entry.id, entry]));
-    let unavailable = false;
-    for (const dir of dirs) {
-      try {
-        shareOneDirectory({ workspace, registry, registered, dir, createdBy, allowRelocation });
-        notices.delete(dir);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") unavailable = true;
-        noticeSkippedEntry({ notices, dir, report });
-      }
-    }
+    const unavailable = shareAvailableDirectories({ workspace, registry, registered, dirs, createdBy, allowRelocation, notices, report });
     // Missing-volume MRU entries are retried after remount; do not certify an incomplete import.
     if (migration && !unavailable) registry.merge({ entries: [], migration });
     return registry.list({});

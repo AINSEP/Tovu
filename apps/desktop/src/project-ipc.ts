@@ -314,10 +314,10 @@ function siteDisplayName(row: SiteRow, validSite: boolean, readSiteName: (siteDi
   return row.displayNameAlias ?? (validSite ? readSiteName(row.siteDir) : row.displayName ?? path.basename(row.siteDir));
 }
 
-function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
-  const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site";
-  const openEntry = deps.openSites.get(row.siteDir);
-  const sharedRunning: SharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
+/** Join local liveness and shared-lease startup with the explicit transition's intent. O(1). */
+export function siteRecordLifecycle(
+  { siteDir, openEntry, sharedRunning, transitions }: { siteDir: string; openEntry: OpenSiteEntry | undefined; sharedRunning: SharedRunning; transitions: SiteRecordDeps["transitions"] }, _options = {},
+): { sharedPort: number; lifecycle: ReturnType<typeof siteLifecycle> } {
   const sharedPort = sharedRunning?.port ?? 0;
   const running = openEntry !== undefined || sharedPort > 0;
   // `openSites` answers "is it alive", which is a two-valued answer to a four-valued question:
@@ -327,7 +327,15 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
-  const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? sharedStarting);
+  const lifecycle = siteLifecycle(running, transitions?.get(siteDir) ?? sharedStarting);
+  return { sharedPort, lifecycle };
+}
+
+function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
+  const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site";
+  const openEntry = deps.openSites.get(row.siteDir);
+  const sharedRunning: SharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
+  const { sharedPort, lifecycle } = siteRecordLifecycle({ siteDir: row.siteDir, openEntry, sharedRunning, transitions: deps.transitions });
   const externalUrl = siteExternalUrl(openEntry, sharedRunning, lifecycle.status);
   return {
     id: row.siteDir,
@@ -374,6 +382,19 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   };
 }
 
+/** Import catalog discovery without transferring local origin or deletion authority. O(n) rows. */
+export function importSharedSiteDiscovery(
+  { projectsPath, sharedSites }: Pick<ProjectIpcDeps, "projectsPath" | "sharedSites">, _options = {},
+): void {
+  if (!sharedSites) return;
+  try {
+    // The shared catalog supplies discovery, never the local origin/deletion authority.
+    const rows = readTrackedSites(projectsPath);
+    if (rows.length) shareSiteDirectories({ workspace: sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${projectsPath}` });
+    adoptDiscoveredSites(projectsPath, sharedSites.registry({}).list({}).map((entry) => entry.path));
+  } catch { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards."); }
+}
+
 /**
  * Every tracked project's record, after healing any whose folder was renamed or moved
  * (`site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
@@ -389,14 +410,7 @@ function handleList(
   deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> &
     Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
 ) {
-  if (deps.sharedSites) {
-    try {
-    // The shared catalog supplies discovery, never the local origin/deletion authority.
-    const rows = readTrackedSites(deps.projectsPath);
-    if (rows.length) shareSiteDirectories({ workspace: deps.sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${deps.projectsPath}` });
-    adoptDiscoveredSites(deps.projectsPath, deps.sharedSites.registry({}).list({}).map((entry) => entry.path));
-    } catch { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards."); }
-  }
+  importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites });
   const file = readProjectsFile(deps.projectsPath);
   if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {

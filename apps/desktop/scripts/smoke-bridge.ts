@@ -6,28 +6,12 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { resolveSmokeTargets } from "../src/smoke-native.ts";
 import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
-import { buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand, parseJiniEntries, smokeBridge } from "../src/smoke-bridge.ts";
+import { buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand, parseJiniEntries, resolveBridgeSmokeTargets, smokeBridge } from "../src/smoke-bridge.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** --app copies the exact mounted DMG app; --platform-dir reuses the native smoke layout. */
 async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  const appAt = argv.indexOf("--app");
-  const platformAt = argv.indexOf("--platform-dir");
-  let targets: ReturnType<typeof resolveSmokeTargets>;
-  if (appAt !== -1 && argv[appAt + 1]) {
-    const app = path.resolve(DESKTOP_ROOT, argv[appAt + 1]!);
-    targets = {
-      executablePath: path.join(app, "Contents", "MacOS", "Tovu"),
-      nodeModulesDir: path.join(app, "Contents", "Resources", "tovu", "node_modules"),
-    };
-  } else if (platformAt !== -1 && argv[platformAt + 1]) {
-    const platformDir = path.resolve(DESKTOP_ROOT, argv[platformAt + 1]!);
-    targets = resolveSmokeTargets(platformDir, readdirSync(platformDir));
-  } else {
-    throw new Error("smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required");
-  }
+  const targets = resolveBridgeSmokeTargets({ argv: process.argv.slice(2), desktopRoot: DESKTOP_ROOT, readDirectory: readdirSync });
   if (!existsSync(targets.executablePath) || !existsSync(targets.nodeModulesDir)) {
     throw new Error("smoke-bridge: packaged executable or node_modules is missing");
   }

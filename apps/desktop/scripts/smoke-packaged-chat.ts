@@ -17,7 +17,7 @@ import { PackagedGateIsolationError, withIsolatedSmokeTargets } from "../src/pac
 import { allocatePort, buildServeEnv, startTovuServer } from "../src/tovu-server.ts";
 import { initSiteDir } from "../src/site-dir-store.ts";
 import { buildPackagedChatServerPlan, PackagedChatSmokeError,
-  runPackagedChatSmoke, selectPackagedChatModel, PACKAGED_CHAT_PROMPT } from "../src/smoke-packaged-chat.ts";
+  readPackagedChatModel, runPackagedChatSmoke, signalPackagedChatGroup, PACKAGED_CHAT_PROMPT } from "../src/smoke-packaged-chat.ts";
 import type { PackagedChatEvidence } from "../src/smoke-packaged-chat.ts";
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,8 +81,7 @@ async function findDaemonRoot(snapshots: Awaited<ReturnType<typeof listProcessSn
 async function signalGroupUntilGone(pid: number): Promise<void> {
   for (const signal of ["SIGTERM", "SIGKILL"] as const) {
     if (!groupAlive(pid)) return;
-    try { process.kill(-pid, signal); }
-    catch (error) { if (!["ESRCH", "EPERM"].includes(String((error as NodeJS.ErrnoException).code))) throw error; }
+    signalPackagedChatGroup({ pid, signal, kill: process.kill });
     for (let attempt = 0; attempt < 50; attempt++) {
       if (!groupAlive(pid)) return;
       await delay(100);
@@ -176,14 +175,8 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
       requestSignal.throwIfAborted();
       const response = await fetch(new URL("/api/agents", server.origin), {
         headers: { cookie }, signal: AbortSignal.any([requestSignal, AbortSignal.timeout(15_000)]) });
-      if (response.ok) {
-        const inventory = await response.json() as Parameters<typeof selectPackagedChatModel>[0];
-        const claude = inventory.agents.find(agent => agent.id === "claude");
-        if (claude && !claude.discoveryPending) return selectPackagedChatModel(inventory);
-      } else {
-        await response.body?.cancel();
-        if (response.status !== 503) throw new PackagedChatSmokeError("Packaged agent inventory is unavailable.");
-      }
+      const model = await readPackagedChatModel({ response });
+      if (model !== undefined) return model;
       await delay(500, undefined, { signal: requestSignal });
     }
     return undefined;

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createSitesWorkspace, shareSiteDirectories, attachRunningSite, rememberSharedSiteOpen } from "./shared-sites.ts";
+import { createSitesWorkspace, desktopSourceRoots, desktopAppDataDir, shareAvailableDirectories, shareSiteDirectories, attachRunningSite, rememberSharedSiteOpen } from "./shared-sites.ts";
 import { handleCreate, handleList } from "./project-ipc.ts";
 import { discoverSiteDirs } from "./tracked-sites.ts";
 import { assertSpecificSiteRoot } from "./site-scan-policy.ts";
@@ -184,6 +184,56 @@ test("the selected local nested sites home permits scanning its Tovu parent", ()
   const root = path.join(homeDir, "Tovu");
   assert.doesNotThrow(() => assertSpecificSiteRoot({ root }, { homeDir, sitesHome: path.join(root, "sites") }));
   assert.throws(() => assertSpecificSiteRoot({ root }, { homeDir, sitesHome: path.join(homeDir, "Documents", "Tovu", "sites") }), /too broad/);
+});
+
+test("desktop source roots honor explicit roots and detect only Tovu source checkouts", (t) => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-source-roots-")));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  assert.deepEqual(desktopSourceRoots({ cwd: root }), []);
+  fs.mkdirSync(path.join(root, "apps", "website", "src"), { recursive: true });
+  assert.deepEqual(desktopSourceRoots({ cwd: root }), [path.join(root, "sites")]);
+  const explicit: string[] = [];
+  assert.equal(desktopSourceRoots({ cwd: root, sourceRoots: explicit }), explicit);
+  const custom = [path.join(root, "custom")];
+  assert.equal(desktopSourceRoots({ cwd: root, sourceRoots: custom }), custom);
+  const workspace = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, platform: "linux" });
+  assert.deepEqual(workspace.config({}).siteRoots, [path.join(root, "sites")]);
+});
+
+test("desktop profile adapter preserves explicit precedence, blank values and platform path semantics", () => {
+  const input = { cwd: "/launch", env: { TOVU_DESKTOP_USER_DATA_DIR: " scratch " } };
+  assert.equal(desktopAppDataDir(input), path.resolve("/launch", "scratch"));
+  assert.equal(desktopAppDataDir({ ...input, appDataDir: "/explicit" }), "/explicit");
+  assert.equal(desktopAppDataDir({ ...input, appDataDir: "" }), "", "Jini retains ownership of explicit-path validation");
+  assert.equal(desktopAppDataDir({ ...input, env: {} }), undefined);
+  assert.equal(desktopAppDataDir({ ...input, env: { TOVU_DESKTOP_USER_DATA_DIR: " \t " } }), undefined);
+  assert.equal(desktopAppDataDir({ cwd: "C:\\launch", platform: "win32", env: { TOVU_DESKTOP_USER_DATA_DIR: " scratch " } }), "C:\\launch\\scratch");
+});
+
+test("sharing available folders keeps missing imports pending and checks sibling identities within the batch", (t) => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-share-available-")));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const workspace = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
+  const missing = path.join(root, "missing"), good = path.join(root, "good"), copy = path.join(root, "copy"), invalid = path.join(root, "invalid"), last = path.join(root, "last");
+  writeSite(good, "same-id"); writeSite(copy, "same-id"); writeSite(invalid, "invalid-id", ""); writeSite(last, "last-id");
+  const registry = workspace.registry({});
+  const registered = new Map(registry.list({}).map((row) => [row.id, row]));
+  const notices = workspace.invalidCatalogNotices;
+  notices.add(good);
+  const warnings: string[] = [];
+  const input = { workspace, registry, registered, dirs: [missing, good, copy, invalid, last], createdBy: "Desktop", allowRelocation: false, notices, report: (message: string) => { warnings.push(message); } };
+  assert.equal(shareAvailableDirectories(input), true);
+  assert.deepEqual(registry.list({}).map((row) => row.path), [good, last]);
+  assert.equal(registered.get("same-id")?.path, good);
+  assert.equal(notices.has(good), false);
+  assert.equal(warnings.length, 3);
+  assert.equal(shareAvailableDirectories(input), true);
+  assert.equal(warnings.length, 3, "unchanged failures warn once per directory");
+  writeSite(missing, "remounted-id");
+  assert.equal(shareAvailableDirectories({ ...input, dirs: [missing, invalid] }), false);
+  assert.equal(notices.has(missing), false);
+  assert.equal(registry.list({}).some((row) => row.path === missing), true);
+  assert.equal(shareAvailableDirectories({ ...input, dirs: [] }), false);
 });
 
 for (const oldOverride of ["documents", "local"]) test(`desktop retains sites when env selects the ${oldOverride} old home`, () => {

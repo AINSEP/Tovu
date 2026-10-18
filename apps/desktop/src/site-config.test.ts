@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { normalizeSiteName, writeSiteName } from "./site-config.ts";
+import { normalizeSiteName, writeSiteName, readCatalogSite, catalogSiteIdentity } from "./site-config.ts";
 
 function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-site-config-"));
@@ -120,4 +120,39 @@ test("the written file is valid JSON that round-trips, with a trailing newline",
   const raw = fs.readFileSync(path.join(dir, "config.json"), "utf8");
   assert.equal(raw.endsWith("\n"), true, "POSIX text file should end with a newline");
   assert.equal(JSON.parse(raw).name, "Café Münster");
+});
+
+test("catalog identity accepts legacy markers and preserves a nonblank ID verbatim", () => {
+  assert.deepEqual(catalogSiteIdentity({ meta: null }), {});
+  assert.deepEqual(catalogSiteIdentity({ meta: {} }), {});
+  assert.deepEqual(catalogSiteIdentity({ meta: { schemaVersion: 58 } }), {});
+  assert.deepEqual(catalogSiteIdentity({ meta: { siteId: "  site-a  " } }), { siteId: "  site-a  " });
+});
+
+test("catalog identity refuses primitive/array markers and invalid identity fields", () => {
+  for (const meta of [undefined, false, 42, "site-a", []]) {
+    assert.throws(() => catalogSiteIdentity({ meta }), { message: "Invalid site marker" });
+  }
+  for (const siteId of [null, false, 42, {}, [], "", " \t "]) {
+    assert.throws(() => catalogSiteIdentity({ meta: { siteId } }), { message: "Invalid site identity" });
+  }
+});
+
+test("catalog admission combines the validated name and optional identity without writing", (t) => {
+  const dir = writeConfig({ name: "  Site A  " });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const marker = path.join(dir, ".site-meta.json");
+  for (const meta of [null, {}, { siteId: " site-a " }]) {
+    const body = JSON.stringify(meta);
+    fs.writeFileSync(marker, body);
+    assert.deepEqual(readCatalogSite({ siteDir: dir }), meta && "siteId" in meta ? { name: "Site A", siteId: " site-a " } : { name: "Site A" });
+    assert.equal(fs.readFileSync(marker, "utf8"), body);
+  }
+  fs.writeFileSync(marker, " ".repeat(64 * 1024 + 1));
+  assert.throws(() => readCatalogSite({ siteDir: dir }), { message: "Invalid site markers" });
+  fs.writeFileSync(marker, "{broken");
+  assert.throws(() => readCatalogSite({ siteDir: dir }), SyntaxError);
+  fs.writeFileSync(path.join(dir, "config.json"), '{"name":""}');
+  fs.unlinkSync(marker);
+  assert.throws(() => readCatalogSite({ siteDir: dir }), { message: "Invalid site markers" });
 });

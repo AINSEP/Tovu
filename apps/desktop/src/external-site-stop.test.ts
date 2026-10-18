@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  EXTERNAL_STOP_UNCONFIRMED, NODE_PORTS, createExternalSiteStopper, readProcessStartMs, resolveExternalStopTarget, stopExternalSite,
+  EXTERNAL_STOP_UNCONFIRMED, NODE_PORTS, createExternalSiteStopper, readProcessStartMs, resolveExternalStopTarget, stopExternalSite, waitForExternalSiteStop,
   type ExternalStopPorts,
 } from "./external-site-stop.ts";
 
@@ -104,6 +104,36 @@ test("a stack that does not exit in time is reported, never SIGKILLed", async ()
   const { ports, signals } = fakePorts(DEV_TREE);
   await assert.rejects(stopExternalSite({ lease: LEASE, readLease: () => LEASE }, { ports, timeoutMs: 1_000, pollMs: 200 }), /did not stop within 1 s/);
   assert.deepEqual(signals, [[11, "SIGTERM"]]);
+});
+
+test("stop polling waits for the matching lease even after the target exits", async () => {
+  let lease: typeof LEASE | undefined = LEASE;
+  const { ports, signals } = fakePorts({});
+  let polls = 0;
+  const sleep = ports.sleep;
+  ports.sleep = async (ms) => { assert.equal(ms, 75); polls++; lease = undefined; await sleep(ms); };
+  await waitForExternalSiteStop({ lease: LEASE, target: { pid: 11, launcher: "npm-run-dev", command: "dev.mjs" }, readLease: () => lease, ports }, { pollMs: 75 });
+  assert.equal(polls, 1);
+  assert.deepEqual(signals, [], "polling itself must never signal");
+});
+
+test("stop polling waits for the original launcher after the lease changes", async () => {
+  const table = structuredClone(DEV_TREE);
+  const { ports } = fakePorts(table);
+  let polls = 0;
+  const sleep = ports.sleep;
+  ports.sleep = async (ms) => { polls++; table[11]!.startMs = CLAIMED + 1; await sleep(ms); };
+  await waitForExternalSiteStop({ lease: LEASE, target: { pid: 11, launcher: "npm-run-dev", command: "dev.mjs" }, readLease: () => ({ token: "new-owner" }), ports });
+  assert.equal(polls, 1, "a recycled launcher PID ends this wait");
+});
+
+test("stop polling returns immediately after drain, and times out without signalling", async () => {
+  const target = { pid: 11, launcher: "npm-run-dev" as const, command: "dev.mjs" };
+  const { ports, signals } = fakePorts({});
+  ports.sleep = async () => assert.fail("an already-drained stop must not sleep");
+  await waitForExternalSiteStop({ lease: LEASE, target, readLease: () => null, ports });
+  await assert.rejects(waitForExternalSiteStop({ lease: LEASE, target, readLease: () => LEASE, ports }, { timeoutMs: 0 }), /did not stop within 0 s/);
+  assert.deepEqual(signals, []);
 });
 
 test("launcherOf caches proved answers per lease token, and never caches a failure", () => {

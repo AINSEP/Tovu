@@ -148,10 +148,20 @@ export function readCatalogSite({ siteDir }: { siteDir: string }, _options = {})
   const marker = path.join(siteDir, ".site-meta.json");
   if (name === null || fs.statSync(marker).size > MAX_CONFIG_BYTES) throw new Error("Invalid site markers");
   const meta = JSON.parse(fs.readFileSync(marker, "utf8")) as { siteId?: unknown } | null;
+  return { name, ...catalogSiteIdentity({ meta }) };
+}
+
+/** Validate the optional identity in a Tovu catalog marker without normalizing the stored ID.
+ * @returns An identity field, or no field for legacy markers.
+ * @throws The existing invalid-marker/identity refusals.
+ * @complexity O(n) in the identity string, bounded by the marker reader.
+ */
+export function catalogSiteIdentity({ meta }: { meta: unknown }, _options = {}): { siteId?: string } {
   // Legacy null markers have no identity; the catalog uses its existing canonical-path hash.
-  if (meta === null) return { name };
+  if (meta === null) return {};
   if (typeof meta !== "object" || Array.isArray(meta)) throw new Error("Invalid site marker");
-  if (meta.siteId === undefined) return { name };
-  if (typeof meta.siteId !== "string" || !meta.siteId.trim()) throw new Error("Invalid site identity");
-  return { name, siteId: meta.siteId };
+  const marker = meta as { siteId?: unknown };
+  if (marker.siteId === undefined) return {};
+  if (typeof marker.siteId !== "string" || !marker.siteId.trim()) throw new Error("Invalid site identity");
+  return { siteId: marker.siteId };
 }

@@ -45,6 +45,41 @@ export function selectPackagedChatModel({ agents }: { agents: readonly {
   return model.id;
 }
 
+/** Interpret one inventory poll, leaving retry timing and cancellation with the gate.
+ * @param input The authenticated inventory response.
+ * @param _options Reserved optional settings.
+ * @returns The selected Haiku model, or undefined while inventory discovery is pending.
+ * @throws On an unexpected HTTP status, invalid inventory or failed body cancellation.
+ */
+export async function readPackagedChatModel(
+  { response }: { response: Response },
+  _options: Record<string, never> = {},
+): Promise<string | undefined> {
+  if (response.ok) {
+    const inventory = await response.json() as Parameters<typeof selectPackagedChatModel>[0];
+    const claude = inventory.agents.find(agent => agent.id === "claude");
+    if (claude && !claude.discoveryPending) return selectPackagedChatModel(inventory);
+  } else {
+    await response.body?.cancel();
+    if (response.status !== 503) throw new PackagedChatSmokeError("Packaged agent inventory is unavailable.");
+  }
+  return undefined;
+}
+
+/** The local release gate tolerates absent or inaccessible groups before verifying exit.
+ * @param input Group leader PID, signal and process-signaling port.
+ * @param _options Reserved optional settings.
+ * @returns Nothing; exit verification remains with the caller.
+ * @throws The original signaling error unless its code is ESRCH or EPERM.
+ */
+export function signalPackagedChatGroup(
+  { pid, signal, kill }: { pid: number; signal: NodeJS.Signals; kill: typeof process.kill },
+  _options: Record<string, never> = {},
+): void {
+  try { kill(-pid, signal); }
+  catch (error) { if (!["ESRCH", "EPERM"].includes(String((error as NodeJS.ErrnoException).code))) throw error; }
+}
+
 export interface PackagedChatEvidence {
   run_id: string;
   run_status: string;
@@ -89,6 +124,21 @@ function rawFrames(events: readonly Record<string, unknown>[]): Record<string, u
   });
 }
 
+/** Require the overview call's own successful result, preserving the first matching result.
+ * @param input Durable events and the previously selected delegated overview call.
+ * @param _options Reserved optional settings.
+ * @returns Nothing when the matching result explicitly reports success.
+ * @throws PackagedChatSmokeError when the call or successful result is absent.
+ */
+export function assertPackagedSiteGuideResult(
+  { events, delegated }: { events: readonly Record<string, unknown>[]; delegated: Record<string, unknown> | undefined },
+  _options: Record<string, never> = {},
+): void {
+  if (!delegated) throw new PackagedChatSmokeError("The run did not call site_guide overview through the jini gateway.");
+  const result = events.find(event => event.kind === "tool_result" && event.toolUseId === delegated.id);
+  if (!result || result.isError !== false) throw new PackagedChatSmokeError("The delegated site_guide call did not return a successful result.");
+}
+
 /** Assert durable evidence for precisely the run we started, without returning transcript data.
  * @param input Joined chat.db row, expected run ID, and daemon log text.
  * @throws PackagedChatSmokeError with credential-free diagnostics on a failed gate.
@@ -110,9 +160,7 @@ export function assertPackagedChatEvidence(
   const delegated = tools.find(event => ["mcp__jini__execute_readonly_delegated_tool", "mcp__jini__execute_delegated_tool"].includes(String(event.name))
     && record(event.input) && event.input.toolId === "site_guide"
     && record(event.input.input) && event.input.input.operation === "overview");
-  if (!delegated) throw new PackagedChatSmokeError("The run did not call site_guide overview through the jini gateway.");
-  const result = events.find(event => event.kind === "tool_result" && event.toolUseId === delegated.id);
-  if (!result || result.isError !== false) throw new PackagedChatSmokeError("The delegated site_guide call did not return a successful result.");
+  assertPackagedSiteGuideResult({ events, delegated });
   if (row.content.trim() !== "DONE") throw new PackagedChatSmokeError("The packaged chat reply was not exactly DONE.");
   if (!daemonLogMessages(daemonLog).some(message => /^.*\[agent-daemon\] jini bridge preflight ok \(\d+ms\)\s*$/.test(message))) {
     throw new PackagedChatSmokeError("daemon.log has no successful jini bridge preflight.");

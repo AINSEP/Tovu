@@ -6,10 +6,56 @@ import type { spawn } from "node:child_process";
 import path from "node:path";
 import {
   assertBridgeReplies, buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand,
-  parseBridgeReply, parseJiniEntries, smokeBridge,
+  parseBridgeReply, parseJiniEntries, parseJiniEntryEnv, resolveBridgeSmokeTargets, smokeBridge,
 } from "./smoke-bridge.ts";
 import type { BridgeCommand } from "./smoke-bridge.ts";
 import { buildSitesMcpLauncherScript, buildSitesMcpRegistration } from "./sites-mcp-registration.ts";
+
+test("bridge CLI layout keeps app precedence and delegates platform layouts to the native resolver", () => {
+  const reads: string[] = [];
+  const input = { desktopRoot: path.resolve("/checkout/desktop"), readDirectory(directory: string) {
+    reads.push(directory);
+    return ["mac-arm64"];
+  } };
+  const app = path.resolve(input.desktopRoot, "mounted/Tovu.app");
+  const platformDir = path.resolve(input.desktopRoot, "release");
+  assert.deepEqual(resolveBridgeSmokeTargets({ ...input, argv: ["--platform-dir", "release", "--app", "mounted/Tovu.app"] }), {
+    executablePath: path.join(app, "Contents", "MacOS", "Tovu"),
+    nodeModulesDir: path.join(app, "Contents", "Resources", "tovu", "node_modules"),
+  });
+  assert.deepEqual(reads, [], "an explicit app must not read the platform directory");
+  const targets = resolveBridgeSmokeTargets({ ...input, argv: ["--platform-dir", "release", "--app"] }, {});
+  assert.deepEqual(reads, [platformDir]);
+  assert.deepEqual(targets, {
+    executablePath: path.join(platformDir, "mac-arm64", "Tovu.app", "Contents", "MacOS", "Tovu"),
+    nodeModulesDir: path.join(platformDir, "mac-arm64", "Tovu.app", "Contents", "Resources", "tovu", "node_modules"),
+  });
+  assert.deepEqual(resolveBridgeSmokeTargets({ ...input, argv: ["--platform-dir", "/win"], readDirectory: () => ["win-unpacked"] }), {
+    executablePath: path.resolve("/win/win-unpacked/Tovu.exe"), nodeModulesDir: path.resolve("/win/win-unpacked/resources/tovu/node_modules"),
+  });
+});
+
+test("bridge CLI layout preserves usage, directory-read and native-layout failures", () => {
+  const input = { desktopRoot: "/desktop", readDirectory: () => [] };
+  for (const argv of [[], ["--app"], ["--platform-dir"], ["--app", ""], ["--platform-dir", ""]]) {
+    assert.throws(() => resolveBridgeSmokeTargets({ ...input, argv }), {
+      message: "smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required",
+    });
+  }
+  assert.throws(() => resolveBridgeSmokeTargets({ ...input, argv: ["--platform-dir", "release"] }), /no mac-prefixed/);
+  const failure = new Error("directory unavailable");
+  assert.throws(() => resolveBridgeSmokeTargets({ ...input, argv: ["--platform-dir", "release"],
+    readDirectory() { throw failure; } }), error => error === failure);
+});
+
+test("packaged Jini environment requires string values and the fixed release identity without copying", () => {
+  const env = { ELECTRON_RUN_AS_NODE: "1", JINI_RUN_ID: "release-smoke", EXTRA: "retained" };
+  assert.equal(parseJiniEntryEnv({ env }), env);
+  for (const invalid of [null, undefined, [], "env", {}, { ...env, EXTRA: 42 },
+    { ...env, JINI_RUN_ID: "other" }, { ...env, ELECTRON_RUN_AS_NODE: "0" }]) {
+    assert.throws(() => parseJiniEntryEnv({ env: invalid }), { message: "malformed packaged Jini entry" });
+  }
+});
 
 test("bridge env keeps only the CLI baseline and entry environment", () => {
   assert.deepEqual(buildBridgeEnv({ hostEnv: {

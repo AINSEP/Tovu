@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
@@ -1932,4 +1932,74 @@ test("stalecard: same-name different-id cards survive list and retain their dist
   assert.deepEqual(handleList(deps).map((row) => [row.installDir, row.displayName, row.folderMissing]), [
     [stale, "tovu-dev", true], [valid, "tovu-dev", false],
   ]);
+});
+
+test("card lifecycle combines local liveness with absent, starting and running shared leases", () => {
+  const lease = { pid: 10, token: "shared", started: "2026-10-17T00:00:00.000Z", app: "Web", scheme: "http" as const, port: 3456 };
+  const local = { server: {} }, starting = { ...lease, port: 0 };
+  for (const [openEntry, sharedRunning, sharedPort, status, desiredState] of [
+    [undefined, undefined, 0, "stopped", "stopped"],
+    [undefined, null, 0, "stopped", "stopped"],
+    [undefined, starting, 0, "starting", "running"],
+    [undefined, lease, 3456, "running", "running"],
+    [local, undefined, 0, "running", "running"],
+    [local, null, 0, "running", "running"],
+    [local, starting, 0, "starting", "running"],
+    [local, lease, 3456, "running", "running"],
+  ] as const) {
+    const actual = siteRecordLifecycle({ siteDir: "/site", openEntry, sharedRunning, transitions: undefined });
+    assert.deepEqual(actual, { sharedPort, lifecycle: { status, desiredState } });
+  }
+});
+
+test("explicit card transitions override shared startup and current local liveness for the same site", async () => {
+  const transitions = createSiteTransitions();
+  const input = { siteDir: "/alpha", openEntry: { server: { port: 3456 } }, transitions,
+    sharedRunning: { pid: 10, token: "shared", started: "2026-10-17T00:00:00.000Z", app: "Web", scheme: "http" as const, port: 0 } };
+  await transitions.during("/alpha", "stopping", async () => {
+    assert.deepEqual(siteRecordLifecycle(input), { sharedPort: 0, lifecycle: { status: "stopping", desiredState: "stopped" } });
+    assert.equal(siteRecordLifecycle({ ...input, siteDir: "/beta" }).lifecycle.status, "starting");
+  });
+  await transitions.during("/alpha", "starting", async () => {
+    assert.deepEqual(siteRecordLifecycle({ ...input, sharedRunning: null }), { sharedPort: 0, lifecycle: { status: "starting", desiredState: "running" } });
+  });
+});
+
+test("shared discovery imports new paths while preserving local creation authority and migration state", (t) => {
+  const root = fs.realpathSync(tempDir());
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const local = writeSite(path.join(root, "local"), "local-id");
+  const discovered = writeSite(path.join(root, "discovered"), "discovered-id");
+  const projectsPath = sitesFilePath(root);
+  const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
+  sharedSites.registry({}).merge({ entries: [{ id: "discovered-id", name: "Discovered", path: discovered, createdBy: "Web", lastOpened: null }] });
+  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  trackSite(projectsPath, local, SITE_ORIGIN.created, { siteId: "local-id" });
+  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  const rows = readTrackedSites(projectsPath);
+  assert.equal(rows.length, 2);
+  assert.equal(rows.find((row) => row.siteDir === local)?.origin, SITE_ORIGIN.created);
+  assert.equal(rows.find((row) => row.siteDir === local)?.siteId, "local-id");
+  assert.equal(rows.find((row) => row.siteDir === discovered)?.origin, SITE_ORIGIN.adopted);
+  assert.equal(sharedSites.registry({}).hasMigration({ migration: `projects:${projectsPath}` }), true);
+  assert.deepEqual(new Set(sharedSites.registry({}).list({}).map((row) => row.path)), new Set([local, discovered]));
+});
+
+test("shared discovery with no workspace is inert and unavailable discovery preserves local records", (t) => {
+  const root = tempDir();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const projectsPath = sitesFilePath(root);
+  importSharedSiteDiscovery({ projectsPath, sharedSites: undefined });
+  assert.equal(fs.existsSync(projectsPath), false);
+  trackSite(projectsPath, path.join(root, "local"));
+  const before = fs.readFileSync(projectsPath, "utf8");
+  const sharedSites = { registry: () => { throw new Error("Catalog unavailable"); } } as unknown as NonNullable<ProjectIpcDeps["sharedSites"]>;
+  const warn = t.mock.method(console, "warn", () => {});
+  importSharedSiteDiscovery({ projectsPath, sharedSites });
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
+    "tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.",
+    "tovu desktop: shared discovery is unavailable; showing local website cards.",
+  ]);
+  assert.equal(fs.readFileSync(projectsPath, "utf8"), before);
 });

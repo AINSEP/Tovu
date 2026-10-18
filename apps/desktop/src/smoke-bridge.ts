@@ -2,6 +2,34 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { buildSitesMcpLauncherScript, buildSitesMcpRegistration } from "./sites-mcp-registration.ts";
+import { resolveSmokeTargets } from "./smoke-native.ts";
+
+/** --app copies the exact mounted DMG app; --platform-dir reuses the native smoke layout.
+ * Directory reads remain at the script boundary.
+ * @param input CLI arguments, desktop root and directory-reading port.
+ * @param _options Reserved optional settings.
+ * @returns The packaged executable and staged native modules.
+ * @throws If arguments or the native layout are missing, or the directory read fails.
+ */
+export function resolveBridgeSmokeTargets(
+  { argv, desktopRoot, readDirectory }: { argv: string[]; desktopRoot: string; readDirectory: (directory: string) => string[] },
+  _options: Record<string, never> = {},
+): ReturnType<typeof resolveSmokeTargets> {
+  const appAt = argv.indexOf("--app");
+  const platformAt = argv.indexOf("--platform-dir");
+  if (appAt !== -1 && argv[appAt + 1]) {
+    const app = path.resolve(desktopRoot, argv[appAt + 1]!);
+    return {
+      executablePath: path.join(app, "Contents", "MacOS", "Tovu"),
+      nodeModulesDir: path.join(app, "Contents", "Resources", "tovu", "node_modules"),
+    };
+  } else if (platformAt !== -1 && argv[platformAt + 1]) {
+    const platformDir = path.resolve(desktopRoot, argv[platformAt + 1]!);
+    return resolveSmokeTargets(platformDir, readDirectory(platformDir));
+  } else {
+    throw new Error("smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required");
+  }
+}
 
 export interface BridgeCommand {
   label: string;
@@ -61,17 +89,33 @@ export function parseJiniEntries({ stdout }: { stdout: string }): BridgeCommand[
   if (!Array.isArray(entries) || entries.length !== 2) throw new Error("expected two packaged Jini entries");
   return entries.map((entry: unknown, index) => {
     if (!isRecord(entry) || typeof entry.command !== "string" || entry.command.length === 0
-      || !Array.isArray(entry.args) || !entry.args.every((arg: unknown) => typeof arg === "string")
-      || !isRecord(entry.env) || !Object.values(entry.env).every(value => typeof value === "string")
-      || entry.env.JINI_RUN_ID !== "release-smoke" || entry.env.ELECTRON_RUN_AS_NODE !== "1") {
+      || !Array.isArray(entry.args) || !entry.args.every((arg: unknown) => typeof arg === "string")) {
       throw new Error("malformed packaged Jini entry");
     }
+    const env = parseJiniEntryEnv({ env: entry.env });
     return {
       label: index === 0 ? "site jini-mcp" : "desktop jini-mcp",
-      command: entry.command, args: entry.args as string[], env: entry.env as Record<string, string>,
+      command: entry.command, args: entry.args as string[], env,
       serverName: "jini-mcp", toolName: "execute_delegated_tool",
     };
   });
+}
+
+/** Require the packaged resolver's fixed smoke identity and Electron Node mode.
+ * @param input The environment reported by the packaged resolver.
+ * @param _options Reserved optional settings.
+ * @returns The validated environment, retaining its identity and extra string values.
+ * @throws If the environment is malformed or has the wrong smoke identity.
+ */
+export function parseJiniEntryEnv(
+  { env }: { env: unknown },
+  _options: Record<string, never> = {},
+): Record<string, string> {
+  if (!isRecord(env) || !Object.values(env).every(value => typeof value === "string")
+    || env.JINI_RUN_ID !== "release-smoke" || env.ELECTRON_RUN_AS_NODE !== "1") {
+    throw new Error("malformed packaged Jini entry");
+  }
+  return env as Record<string, string>;
 }
 
 /** Uses the production launcher on POSIX, and production registration argv on Windows. Pure. */

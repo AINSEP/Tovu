@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { buildServeEnv } from "./tovu-server.ts";
 import { assertPackagedChatEvidence, buildPackagedChatServerPlan, PackagedChatSmokeError,
-  runPackagedChatSmoke, selectPackagedChatModel, PACKAGED_CHAT_PROMPT } from "./smoke-packaged-chat.ts";
+  assertPackagedSiteGuideResult, readPackagedChatModel, runPackagedChatSmoke, selectPackagedChatModel,
+  signalPackagedChatGroup, PACKAGED_CHAT_PROMPT } from "./smoke-packaged-chat.ts";
 import type { PackagedChatEvidence, PackagedChatSmokePorts } from "./smoke-packaged-chat.ts";
 
 const init = { kind: "raw", line: JSON.stringify({ type: "system", subtype: "init",
@@ -17,6 +18,66 @@ function evidence(events: unknown[] = [init, tool, result]): PackagedChatEvidenc
   return { run_id: "smoke-run", run_status: "succeeded", content: "DONE", attempt_base_json: "[]",
     events_json: JSON.stringify(events) };
 }
+
+test("inventory poll waits for Claude discovery and uses the existing model selection policy", async () => {
+  for (const agents of [[], [{ id: "other" }], [{ id: "claude", discoveryPending: true, models: [{ id: "haiku" }] }]]) {
+    assert.equal(await readPackagedChatModel({ response: Response.json({ agents }) }), undefined);
+  }
+  assert.equal(await readPackagedChatModel({ response: Response.json({ agents: [{ id: "claude", models: [{ id: "haiku" }] }] }) }), "haiku");
+  assert.equal(await readPackagedChatModel({ response: Response.json({ agents: [{ id: "claude", models: [{ id: "claude-haiku-4-5" }] }] }) }), "claude-haiku-4-5");
+  for (const claude of [{ id: "claude", available: false }, { id: "claude", authStatus: "missing" },
+    { id: "claude", models: [{ id: "opus" }] }]) {
+    await assert.rejects(readPackagedChatModel({ response: Response.json({ agents: [claude] }) }), PackagedChatSmokeError);
+  }
+  await assert.rejects(readPackagedChatModel({ response: new Response("not JSON") }), SyntaxError);
+});
+
+test("inventory poll cancels failed bodies, retries only 503 and preserves cancellation failures", async () => {
+  for (const status of [503, 401, 500]) {
+    let canceled = false;
+    const response = new Response(new ReadableStream({ cancel() { canceled = true; } }), { status });
+    if (status === 503) assert.equal(await readPackagedChatModel({ response }), undefined);
+    else await assert.rejects(readPackagedChatModel({ response }), {
+      message: "Packaged agent inventory is unavailable.",
+    });
+    assert.equal(canceled, true);
+  }
+  assert.equal(await readPackagedChatModel({ response: new Response(null, { status: 503 }) }), undefined);
+  const failure = new Error("cancel failed");
+  const response = new Response(new ReadableStream({ cancel() { throw failure; } }), { status: 503 });
+  await assert.rejects(readPackagedChatModel({ response }), error => error === failure);
+});
+
+test("packaged chat signals the entire group and preserves the gate's tolerated signal errors", () => {
+  const sent: unknown[] = [];
+  const kill: typeof process.kill = (pid, signal) => { sent.push([pid, signal]); return true; };
+  signalPackagedChatGroup({ pid: 123, signal: "SIGTERM", kill });
+  signalPackagedChatGroup({ pid: 123, signal: "SIGKILL", kill });
+  assert.deepEqual(sent, [[-123, "SIGTERM"], [-123, "SIGKILL"]]);
+  for (const code of ["ESRCH", "EPERM"]) {
+    assert.doesNotThrow(() => signalPackagedChatGroup({ pid: 123, signal: "SIGTERM",
+      kill() { throw Object.assign(new Error(code), { code }); } }));
+  }
+  for (const code of ["EACCES", undefined]) {
+    const failure = Object.assign(new Error("signal failed"), { code });
+    assert.throws(() => signalPackagedChatGroup({ pid: 123, signal: "SIGKILL", kill() { throw failure; } }), error => error === failure);
+  }
+});
+
+test("site guide evidence requires the delegated call's first matching result to succeed", () => {
+  assert.doesNotThrow(() => assertPackagedSiteGuideResult({ events: [
+    { ...result, kind: "tool_use", isError: true }, { ...result, toolUseId: "other", isError: true }, result,
+  ], delegated: tool }));
+  assert.throws(() => assertPackagedSiteGuideResult({ events: [result], delegated: undefined }), {
+    message: "The run did not call site_guide overview through the jini gateway.",
+  });
+  for (const events of [[], [{ ...result, toolUseId: "other" }], [{ ...result, isError: true }],
+    [{ ...result, isError: undefined }], [{ ...result, isError: 0 }], [{ ...result, isError: true }, result]]) {
+    assert.throws(() => assertPackagedSiteGuideResult({ events, delegated: tool }), {
+      message: "The delegated site_guide call did not return a successful result.",
+    });
+  }
+});
 
 test("the spawn plan uses only the shipped binary, entry and assets and preserves shell env policy", () => {
   const baseEnv = { PATH: "/cli/bin", HOME: "/synthetic/home", PORT: "3600", TOVU_CONTENT_DB: "/foreign/db",

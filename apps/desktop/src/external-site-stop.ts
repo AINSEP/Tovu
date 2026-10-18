@@ -124,6 +124,18 @@ export async function stopExternalSite(
   if (readLease()?.token !== lease.token) return;
   if (ports.readCommand(target.pid) !== target.command || !predatesLease(target.pid, lease, ports)) throw new Error(EXTERNAL_STOP_UNCONFIRMED);
   ports.kill(target.pid, "SIGTERM");
+  await waitForExternalSiteStop({ lease, target, readLease, ports }, { timeoutMs, pollMs });
+}
+
+/** Wait for both the lease and launcher to drain; the launcher may outlive the server's lease.
+ * @returns When neither still belongs to this stop request.
+ * @throws The existing timeout refusal; never escalates to SIGKILL.
+ * @complexity O(timeoutMs / pollMs) lease/process probes.
+ */
+export async function waitForExternalSiteStop(
+  { lease, target, readLease, ports }: { lease: ExternalLease; target: ExternalStopTarget; readLease: () => Pick<ExternalLease, "token"> | null | undefined; ports: ExternalStopPorts },
+  { timeoutMs = STOP_TIMEOUT_MS, pollMs = STOP_POLL_MS }: { timeoutMs?: number; pollMs?: number } = {},
+): Promise<void> {
   const deadline = ports.nowMs() + timeoutMs;
   while (readLease()?.token === lease.token || predatesLease(target.pid, lease, ports)) {
     if (ports.nowMs() >= deadline) throw new Error(`The site did not stop within ${Math.round(timeoutMs / 1000)} s. Stop it where it was started.`);

@@ -14,7 +14,16 @@ export async function moveSiteHome({ dir, repoRoot, cliMode, projectsPath }: { d
   delete env.TOVU_ADMIN_PASSWORD;
   const result = await execute(plan.command, plan.args, { env, timeout: 1_200_000 });
   if (!result.ok) throw new Error(result.stderr || result.error?.message || "Could not move the stopped site.");
-  const line = result.stdout.split(/\r?\n/).at(-1) ?? "";
+  return parseMovedSiteDestination({ stdout: result.stdout });
+}
+
+/** Read the move owner's final JSON line, preserving its destination contract.
+ * @returns The reported destination, including an empty string if the CLI supplies one.
+ * @throws JSON parse errors or the existing missing-destination refusal.
+ * @complexity O(n) in captured stdout bytes.
+ */
+export function parseMovedSiteDestination({ stdout }: { stdout: string }, _options = {}): string {
+  const line = stdout.split(/\r?\n/).at(-1) ?? "";
   const value = JSON.parse(line) as { to?: unknown };
   if (typeof value.to !== "string") throw new Error("Site move returned no destination.");
   return value.to;

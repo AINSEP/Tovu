@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { moveSiteHome } from "./move-site-home.ts";
+import { moveSiteHome, parseMovedSiteDestination } from "./move-site-home.ts";
 import { buildCliSpawnPlan } from "./tovu-server.ts";
 
 /** Real entry paths satisfy the spawn owner's admission without executing either CLI. */
@@ -39,4 +39,17 @@ test("CLI running-site refusals reach the desktop without invoking a stop", asyn
 test("a missing destination contract is rejected", async (t) => {
   const input = fixture({ t });
   await assert.rejects(moveSiteHome(input, { execute: async () => ({ ok: true, error: null, code: 0, stdout: "{}", stderr: "" }) }), /no destination/);
+});
+
+test("move destination parser reads exactly the final line and preserves its string", () => {
+  assert.equal(parseMovedSiteDestination({ stdout: 'progress\n{"to":"/sites/alpha"}' }), "/sites/alpha");
+  assert.equal(parseMovedSiteDestination({ stdout: 'progress\r\n{"to":"  /sites/alpha  "}' }), "  /sites/alpha  ");
+  assert.equal(parseMovedSiteDestination({ stdout: '{"to":""}' }), "");
+  for (const stdout of ['{}', '{"to":null}', '{"to":42}']) {
+    assert.throws(() => parseMovedSiteDestination({ stdout }), /Site move returned no destination/);
+  }
+  for (const stdout of ["", "not json", '{"to":"/sites/alpha"}\n']) {
+    assert.throws(() => parseMovedSiteDestination({ stdout }), SyntaxError);
+  }
+  assert.throws(() => parseMovedSiteDestination({ stdout: "null" }), TypeError);
 });
