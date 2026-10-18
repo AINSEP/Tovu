@@ -622,6 +622,7 @@ export const t = (locale: string, key: string): string => translateDockCopy({ lo
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Rename chat": "Renombrar chat",
     Conversations: "Conversaciones",
     New: "Nueva",
     "Search conversations": "Buscar conversaciones",
@@ -648,6 +649,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Razonamiento",
   },
   id: {
+    "Rename chat": "Ganti nama obrolan",
     Conversations: "Percakapan",
     New: "Baru",
     "Search conversations": "Cari percakapan",
@@ -674,6 +676,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Penalaran",
   },
   de: {
+    "Rename chat": "Chat umbenennen",
     Conversations: "Unterhaltungen",
     New: "Neu",
     "Search conversations": "Unterhaltungen durchsuchen",
@@ -700,6 +703,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Denkprozess",
   },
   "zh-CN": {
+    "Rename chat": "重命名聊天",
     Conversations: "对话",
     New: "新建",
     "Search conversations": "搜索对话",
@@ -726,6 +730,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考过程",
   },
   "zh-TW": {
+    "Rename chat": "重新命名聊天",
     Conversations: "對話",
     New: "新增",
     "Search conversations": "搜尋對話",
@@ -752,6 +757,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考過程",
   },
   "pt-BR": {
+    "Rename chat": "Renomear conversa",
     Conversations: "Conversas",
     New: "Nova",
     "Search conversations": "Buscar conversas",
@@ -778,6 +784,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Raciocínio",
   },
   ru: {
+    "Rename chat": "Переименовать чат",
     Conversations: "Беседы",
     New: "Новая",
     "Search conversations": "Поиск бесед",
@@ -804,6 +811,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Рассуждения",
   },
   fa: {
+    "Rename chat": "تغییر نام گفتگو",
     Conversations: "گفتگوها",
     New: "جدید",
     "Search conversations": "جستجوی گفتگوها",
@@ -830,6 +838,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "استدلال",
   },
   ar: {
+    "Rename chat": "إعادة تسمية المحادثة",
     Conversations: "المحادثات",
     New: "جديد",
     "Search conversations": "البحث في المحادثات",
@@ -856,6 +865,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "التفكير",
   },
   ja: {
+    "Rename chat": "チャットの名前を変更",
     Conversations: "会話",
     New: "新規",
     "Search conversations": "会話を検索",
@@ -882,6 +892,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考",
   },
   ko: {
+    "Rename chat": "채팅 이름 변경",
     Conversations: "대화",
     New: "새로 만들기",
     "Search conversations": "대화 검색",
@@ -908,6 +919,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "사고 과정",
   },
   pl: {
+    "Rename chat": "Zmień nazwę czatu",
     Conversations: "Rozmowy",
     New: "Nowa",
     "Search conversations": "Szukaj rozmów",
@@ -934,6 +946,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Rozumowanie",
   },
   hu: {
+    "Rename chat": "Csevegés átnevezése",
     Conversations: "Beszélgetések",
     New: "Új",
     "Search conversations": "Beszélgetések keresése",
@@ -960,6 +973,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Gondolkodás",
   },
   fr: {
+    "Rename chat": "Renommer la discussion",
     Conversations: "Conversations",
     New: "Nouvelle",
     "Search conversations": "Rechercher des conversations",
@@ -986,6 +1000,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Réflexion",
   },
   uk: {
+    "Rename chat": "Перейменувати чат",
     Conversations: "Розмови",
     New: "Нова",
     "Search conversations": "Пошук розмов",
@@ -1012,6 +1027,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Міркування",
   },
   tr: {
+    "Rename chat": "Sohbeti yeniden adlandır",
     Conversations: "Konuşmalar",
     New: "Yeni",
     "Search conversations": "Konuşmalarda ara",
@@ -1038,6 +1054,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Düşünme",
   },
   th: {
+    "Rename chat": "เปลี่ยนชื่อแชต",
     Conversations: "การสนทนา",
     New: "ใหม่",
     "Search conversations": "ค้นหาการสนทนา",
@@ -1064,6 +1081,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "การคิด",
   },
   it: {
+    "Rename chat": "Rinomina chat",
     Conversations: "Conversazioni",
     New: "Nuova",
     "Search conversations": "Cerca conversazioni",
@@ -1090,6 +1108,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Ragionamento",
   },
   hi: {
+    "Rename chat": "चैट का नाम बदलें",
     Conversations: "बातचीत",
     New: "नया",
     "Search conversations": "बातचीत खोजें",
@@ -1116,6 +1135,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "सोच",
   },
   ur: {
+    "Rename chat": "چیٹ کا نام تبدیل کریں",
     Conversations: "گفتگو",
     New: "نیا",
     "Search conversations": "گفتگو تلاش کریں",
@@ -1142,6 +1162,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "سوچ",
   },
   bn: {
+    "Rename chat": "চ্যাটের নাম পরিবর্তন করুন",
     Conversations: "কথোপকথন",
     New: "নতুন",
     "Search conversations": "কথোপকথন খুঁজুন",

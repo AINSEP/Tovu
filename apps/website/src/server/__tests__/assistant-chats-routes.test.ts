@@ -103,6 +103,34 @@ test("round-trips messages in position order", async (t) => {
   assert.deepEqual(messages, expected);
 });
 
+test("rejects a 51-character rename, then saves a trimmed 50-character manual title", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const { conversation } = await (await api(baseUrl, cookie, "", {
+    method: "POST", body: JSON.stringify({}),
+  })).json() as { conversation: { id: string } };
+  const path = `/${conversation.id}`;
+  const rejected = await api(baseUrl, cookie, path, {
+    method: "PATCH", body: JSON.stringify({ title: "x".repeat(51) }),
+  });
+  assert.equal(rejected.status, 400);
+  assert.deepEqual(await rejected.json(), {
+    error: "'title' must be at most 50 characters", code: "VALIDATION_ERROR",
+  });
+  const unchanged = await (await api(baseUrl, cookie, "")).json() as { conversations: { title: string | null }[] };
+  assert.equal(unchanged.conversations[0]?.title, null, "an invalid rename must not write");
+  const title = "y".repeat(50);
+  const valid = await api(baseUrl, cookie, path, {
+    method: "PATCH", body: JSON.stringify({ title: `  ${title}  ` }),
+  });
+  assert.equal(valid.status, 200);
+  const saved = await valid.json() as { conversation: { title: string; titleSource: string } };
+  assert.equal(saved.conversation.title, title);
+  assert.equal(saved.conversation.titleSource, "manual");
+  const listed = await (await api(baseUrl, cookie, "")).json() as { conversations: { title: string; titleSource: string }[] };
+  assert.equal(listed.conversations[0]?.title, title);
+  assert.equal(listed.conversations[0]?.titleSource, "manual");
+});
+
 test("names an untitled conversation from its first user message", async (t) => {
   // The dock creates the conversation when "New" is clicked, before anything is typed, so this is
   // the only path that can ever name an admin chat. Without it every conversation in the switcher

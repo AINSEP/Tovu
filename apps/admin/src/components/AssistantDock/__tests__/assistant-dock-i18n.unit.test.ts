@@ -42,6 +42,10 @@ const CHAT_LOCALES = [
   "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW",
 ];
 
+it.each(CHAT_LOCALES)("%s translates the shared Rename chat label", (locale) => {
+  expect(createChatI18nAdapter(locale).t("Rename chat")).not.toBe("Rename chat");
+});
+
 describe("createChatI18nAdapter — the approval card's countdown and expired label", () => {
   it.each(CHAT_LOCALES)("%s translates the countdown and keeps the time in it", (locale) => {
     const text = createChatI18nAdapter(locale).t("Expires in {time}", { time: "4:59" });

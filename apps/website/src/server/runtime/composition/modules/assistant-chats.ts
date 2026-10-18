@@ -23,7 +23,7 @@ import type { Express, Request, Response } from "express";
 import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
 import { deriveContentConversationTitle } from "#src/contracts/headless/content-chat-title";
-import { deriveConversationTitle, redactUserMessage, redactUserText } from "@jini-ai/chat/core";
+import { MAX_CONVERSATION_TITLE_LENGTH, deriveConversationTitle, redactUserMessage, redactUserText } from "@jini-ai/chat/core";
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
@@ -165,6 +165,10 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         const title = typeof body.title === "string" ? body.title.trim() : "";
         if (!title) {
           res.status(400).json({ error: "'title' must be a non-empty string", code: "VALIDATION_ERROR" });
+          return;
+        }
+        if (title.length > MAX_CONVERSATION_TITLE_LENGTH) {
+          res.status(400).json({ error: `'title' must be at most ${MAX_CONVERSATION_TITLE_LENGTH} characters`, code: "VALIDATION_ERROR" });
           return;
         }
         // `source` defaults to `manual` in the store. A caller may pass `generated` for an

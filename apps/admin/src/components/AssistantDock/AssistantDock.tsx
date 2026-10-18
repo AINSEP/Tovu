@@ -24,6 +24,7 @@ import {
   ChatSettingsDialog,
   useChatSettingsDialog,
   ConversationList,
+  ConversationTitle,
   JiniChatProvider,
   createMidRunMessagePoster,
   type FrontendSessionBridge,
@@ -507,8 +508,14 @@ export function AssistantDock({
                     instead of competing with the page's own `<h1>`. Class names, not the element
                     type, drive this component's styling (`styles/assistant.css`), so the tag change
                     is visually inert. */}
-                <h2 className="jini-chat-pane__title" title={activeTitle}>
-                  {activeTitle}
+                <h2 className="jini-chat-pane__title" title={activeTitle} aria-label={activeTitle}>
+                  <ConversationTitle
+                    key={chats.activeId ?? 'new'}
+                    title={chats.conversations.find((chat) => chat.id === chats.activeId)?.title ?? null}
+                    displayTitle={activeTitle}
+                    disabled={!chats.activeId}
+                    onRename={(title) => chats.activeId ? chats.rename(chats.activeId, title) : undefined}
+                  />
                 </h2>
               </div>
               {/* Beside the conversation switcher, not under the title (owner, 2026-10-10). */}

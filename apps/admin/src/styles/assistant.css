@@ -1547,7 +1547,8 @@ button.jini-composer-leading,
 /* Hidden until the row is hovered or the button itself is focused. Keeping the focus-visible
    case is what stops this being keyboard-inaccessible — a delete you can tab to but never see
    is worse than no delete at all. */
-.jini-conv-item-delete {
+.jini-conv-item-delete,
+.jini-conv-item-rename {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1564,13 +1565,46 @@ button.jini-composer-leading,
 }
 
 .jini-conv-item:hover .jini-conv-item-delete,
-.jini-conv-item-delete:focus-visible {
+.jini-conv-item-delete:focus-visible,
+.jini-conv-item:hover .jini-conv-item-rename,
+.jini-conv-item:focus-within .jini-conv-item-rename {
   opacity: 1;
 }
 
 .jini-conv-item-delete:hover {
   background: var(--surface);
   color: var(--danger);
+}
+
+.jini-conv-item-rename:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+@media (hover: none), (pointer: coarse), (max-width: 640px) {
+  .jini-conv-item-rename { opacity: 1; }
+}
+
+.jini-conv-title-button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.jini-conv-title-button:disabled { cursor: default; }
+
+.jini-conv-title-button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
 }
 
 .jini-conv-rename {
