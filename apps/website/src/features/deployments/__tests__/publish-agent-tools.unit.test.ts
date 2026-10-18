@@ -138,6 +138,7 @@ for (const allConfigured of [false, true]) test(`environment-configured Vercel r
     resolve: async () => assert.fail("capabilities must not resolve credentials"),
   } });
   deps.publishExecutionMode = "self-hosted-cli";
+  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.ownerPrincipalId = Promise.resolve(PRINCIPAL_ID);
   deps.localCredentialCopy = { localHost: true, copy: async () => assert.fail("discovery must not copy"), list: async () => [
     { siteId: "luv", name: "luvira", keys: [
@@ -147,16 +148,19 @@ for (const allConfigured of [false, true]) test(`environment-configured Vercel r
   ] };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities")) as {
-    providers: { providerId: string; credentialConfigured: boolean; credentialOrigin: string | null; savedCredentials: unknown[]; guidance?: string }[];
+    providers: { providerId: string; credentialConfigured: boolean; credentialOrigin: string | null; savedCredentials: unknown[]; verified: string | null; ready: boolean; guidance?: string }[];
     credentialSources: unknown[];
   };
   const vercel = result.providers.find(provider => provider.providerId === "vercel")!;
   assert.equal(vercel.credentialConfigured, true);
   assert.equal(vercel.credentialOrigin, "environment");
   assert.deepEqual(vercel.savedCredentials, []);
-  assert.match(vercel.guidance!, /server environment variable/i);
-  assert.match(vercel.guidance!, /no key is stored/i);
-  assert.doesNotMatch(vercel.guidance!, /saved/i);
+  assert.equal(vercel.verified, null);
+  assert.equal(vercel.ready, false);
+  assert.match(vercel.guidance!, /vercel key is configured on this server \(environment\)/i);
+  assert.match(vercel.guidance!, /publish with it/i);
+  assert.match(vercel.guidance!, /don't ask for or save another key/i);
+  assert.doesNotMatch(vercel.guidance!, /no key|not stored|no .+ stored/i);
   if (!allConfigured) assert.equal(result.providers.find(provider => provider.providerId === "github-pages")!.credentialOrigin, null);
   assert.deepEqual(result.credentialSources, [
     { siteId: "luv", name: "luvira", keys: [{ kind: "custom", label: "Vercel", provider: null, publishHosts: ["vercel"] }] },
@@ -711,6 +715,12 @@ test("deployment_get_static_publish_capabilities's description explains credenti
   assert.match(entry.description, /credentialConfigured/);
   assert.match(entry.description, /credentialConfigured:true with accountLabel:null/i);
   assert.ok(entry.description.includes("credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known"));
+});
+
+test("deployment_get_static_publish_capabilities's description makes unverified environment credentials publishable without opening credential_save", () => {
+  const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
+  assert.ok(entry.description.includes("credentialOrigin 'environment' means a working server key exists; publish with it; never open credential_save for that host unless a publish with it failed."));
+  assert.ok(entry.description.includes("credentialOrigin 'environment' with verified null is publishable even when ready is false"));
 });
 
 test("deployment_get_static_publish_capabilities's description forbids ever offering an example/placeholder account name when accountLabel is unknown", () => {
