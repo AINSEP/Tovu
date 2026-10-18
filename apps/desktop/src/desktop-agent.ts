@@ -254,6 +254,32 @@ function defaultAgentExecutor(
 }
 
 /**
+ * Resolves the desktop turn's access snapshot before any run is created, using the shared policy.
+ * @param required The captured site addressee and the app-owned runtime's host environment.
+ * @param optional Fresh settings and login-shell readers; failures reject the turn unchanged.
+ * @returns Native capabilities, their aggregate grant, and the optional login environment.
+ * @complexity O(1) policy work plus the login reader's bounded process and environment copy.
+ * @example await resolveDesktopTurnAccess({ addressee: null, hostEnv: runtime.hostEnv }, readers);
+ */
+async function resolveDesktopTurnAccess(
+  required: { addressee: TurnAddressee | null; hostEnv: NativeAgentRuntime["hostEnv"] },
+  optional: Pick<DesktopAgentRuntimeOptions, "readFullCliAccess" | "readLoginShellEnvironment"> = {},
+): Promise<{
+  nativeCapabilities: AssistantCliPermissions["capabilities"];
+  nativeToolAccess: boolean;
+  parityEnv: Record<string, string> | undefined;
+}> {
+  const setting = resolveFullCliAccess({ isOwner: true, env: required.hostEnv }, {})
+    ? await optional.readFullCliAccess?.({ addressee: required.addressee }, {}) : false;
+  const settings = typeof setting === "object" ? setting : assistantCliPermissions({ enabled: setting ?? true });
+  const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.hostEnv, settings });
+  const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+  const parityEnv = nativeCapabilities.loginEnvironment ? await (optional.readLoginShellEnvironment ?? readLoginShellEnvironment)({ baseEnv: required.hostEnv,
+    excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
+  return { nativeCapabilities, nativeToolAccess, parityEnv };
+}
+
+/**
  * Builds and starts the desktop agent. Resolves once the loopback listener is bound.
  *
  * @param required `workDir` (the CLI's cwd), `buildTools`, and the app-owned `agentRuntime`.
@@ -312,13 +338,7 @@ async function createDesktopAgentRuntime(
 
   async function startTurn(input: DesktopTurnInput, options: DesktopTurnOptions = {}): Promise<{ runId: string }> {
     const addressee = options.addressee ?? null;
-    const setting = resolveFullCliAccess({ isOwner: true, env: required.agentRuntime.hostEnv }, {})
-      ? await optional.readFullCliAccess?.({ addressee }, {}) : false;
-    const settings = typeof setting === "object" ? setting : assistantCliPermissions({ enabled: setting ?? true });
-    const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.agentRuntime.hostEnv, settings });
-    const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
-    const parityEnv = nativeCapabilities.loginEnvironment ? await (optional.readLoginShellEnvironment ?? readLoginShellEnvironment)({ baseEnv: required.agentRuntime.hostEnv,
-      excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
+    const { nativeCapabilities, nativeToolAccess, parityEnv } = await resolveDesktopTurnAccess({ addressee, hostEnv: required.agentRuntime.hostEnv }, optional);
     const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
     liveRuns.set(run.id, { addressee });
     void lifecycle.waitForTerminal({ runId: run.id }).finally(() => {
@@ -376,5 +396,5 @@ async function createDesktopAgentRuntime(
   };
 }
 
-export { createDesktopAgentRuntime, authorizeBridgeRequest, bearerToken, registryCatalog, turnPrompt, DESKTOP_OPERATOR, DESKTOP_SYSTEM_OVERLAY, DELEGATED_TOOL_CALLS_PATH };
+export { createDesktopAgentRuntime, resolveDesktopTurnAccess, authorizeBridgeRequest, bearerToken, registryCatalog, turnPrompt, DESKTOP_OPERATOR, DESKTOP_SYSTEM_OVERLAY, DELEGATED_TOOL_CALLS_PATH };
 export type { DesktopAgentRuntime, DesktopAgentRuntimeOptions, DesktopAgentRuntimeRequired, DesktopTurnInput, DesktopTurnOptions };
