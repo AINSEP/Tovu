@@ -20,7 +20,7 @@ class BootEventSource {
 }
 
 const namespaces = ["core.language", "core.interface", "core.appearance", "core.execution"];
-const resources = ["/auth/me", "/system/sites", "/system/assistant-subagents", "/chart-providers", "/assistant/execution-credential"];
+const resources = ["/auth/me", "/system/sites", "/system/assistant-full-cli", "/chart-providers", "/assistant/execution-credential"];
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -54,7 +54,7 @@ it("shares boot reads, retains per-pane health probes, and honors post-save sett
     if (url.pathname === "/api/agents") body = { agents: [{ id: "claude", name: "Claude", available: true }] };
     if (url.pathname.endsWith("/system/sites")) body = { switchingEnabled: true, sites: [], currentSite: { name: "test", dir: "/tmp/test" } };
     if (url.pathname.endsWith("/assistant/settings")) body = { adminAssistantEnabled: true };
-    if (url.pathname.endsWith("/assistant-subagents")) body = { enabled: false, canEdit: true };
+    if (url.pathname.endsWith("/assistant-full-cli")) body = { enabled: false, canEdit: true };
     if (url.pathname.endsWith("/chart-providers")) body = { data: { generation: "boot", providers: [] } };
     if (url.pathname.endsWith("/execution-credential")) body = { data: { isSet: false, masked: null, baseUrl: null } };
     if (url.pathname.endsWith("/deployment-overview")) body = { mode: "local" };

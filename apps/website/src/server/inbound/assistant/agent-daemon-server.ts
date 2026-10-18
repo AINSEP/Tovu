@@ -1,3 +1,8 @@
+import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
+import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
+import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -118,7 +123,7 @@ import { createConversationStartLock } from "../../../assistant/agent-session-pr
 import { readChatPermanentDeletesPolicy } from "../../../assistant/permanent-delete-settings.js";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "../../../assistant/permanent-delete-tool-gate.js";
 import { isChatToolAllowed } from "../../../contracts/headless/assistant-permanent-deletes-policy.js";
-import { readAssistantSubagentsEnabled } from "../../../assistant/subagent-settings.js";
+import { readAssistantCliPermissions } from "../../../assistant/subagent-settings.js";
 import {
   resolveAssistantDisallowedTools,
   ASSISTANT_SETTING_SOURCES,
@@ -387,7 +392,7 @@ const bashProhibitionEnabled = resolveBashProhibitionEnabled();
 /**
  * The agent CLI's permission mode for this daemon process. The rule and its full "why" (no TTY to
  * answer a prompt; bypass unless `TOVU_RUNTIME_MODE=production`; explicit
- * `TOVU_AGENT_PERMISSION_MODE` wins) live in `contracts/core/agent-permission-mode.ts`, shared with
+ * local `TOVU_AGENT_PERMISSION_MODE` overrides, hosted always restricted) live in `contracts/core/agent-permission-mode.ts`, shared with
  * the boot-readiness warning so both always agree on the mode this daemon actually runs in.
  */
 function resolvePermissionMode(): "bypass" | "restricted" {
@@ -685,6 +690,7 @@ const customInstructionsCache = createCustomInstructionsCache(
 // Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
 // concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.
 const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
 
 /**
  * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
@@ -703,7 +709,7 @@ const assistantPromptAugmenter: PromptAugmenter = {
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
-    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled) +
+    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, { nativeToolAccess: assistantNativeToolsContext.getStore() === true }) +
       buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: assistantSubagentsContext.getStore() === true }, {});
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
@@ -1190,29 +1196,47 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         }
       }
 
-      // Read immediately before launch: API-process writes must affect the next Claude run.
-      const subagentsEnabled = sessionBinding.agentId === "claude" && await readAssistantSubagentsEnabled({
-        settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-        settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId,
-      }, {});
-      await assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ run: () => agentExecutor.run({
+      const isOwner = principal.id === await routeDeps.ownerPrincipalId;
+      // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
+      const settings = resolveFullCliAccess({ isOwner, env: process.env }, {})
+        ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
+          settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
+        : assistantCliPermissions({ enabled: false });
+      const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
+        settings });
+      const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+      // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
+      if (isOwner) {
+        const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
+          workspaceId: routeDeps.workspaceId, principalId: principal.id, site: routeDeps.siteBinding.dir,
+          chatId: conversationId ?? run.id, runId: run.id, provider: sessionBinding.agentId,
+          redact: text => redactSecretShapes({ text }).text,
+        }, { onError: () => console.error("[tool-gaps] audit write failed") });
+        await runLifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
+      }
+      // One launch snapshot supplies every dimension; edits affect only subsequent runs.
+      const subagentsEnabled = nativeCapabilities.subagents;
+      const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
+        excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
+      await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
         runId: run.id,
         agentId: sessionBinding.agentId,
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
       }, {
         permissionMode: resolvePermissionMode(),
-        // Finding 2 (SEC-assistant-env-isolation-2026-09-07): the actual, enforced tool-grant
-        // restriction — see ASSISTANT_DISALLOWED_TOOLS's own doc for the evidence behind this exact
-        // list. Only Agent/Task may be removed by the owner's Claude-only setting; all other restrictions
-        // remain unconditional, unlike resolveBashProhibitionEnabled()'s prompt-only diagnostic.
-        disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled }, {}),
-        // Owner call 2026-09-28: no personal or repo CLI settings layers (hooks, plugins, defaults)
-        // in assistant runs — see ASSISTANT_SETTING_SOURCES's own doc.
-        settingSources: ASSISTANT_SETTING_SOURCES,
-        // Per-run `--settings` always disables auto-memory and restores the owner's no-system-search
-        // hook when its file exists — see resolveAssistantRunSettings's own doc.
-        settings: resolveAssistantRunSettings(homedir(), existsSync),
+        nativeToolAccess,
+        nativeCapabilities,
+        cliParity: nativeToolAccess,
+        ...(parityEnv ? { env: parityEnv } : {}),
+        // Explicit capability denies are applied by the runtime after this legacy native grant.
+        // Read path denies remain defense in depth for owner-authorized local filesystem access.
+        disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled, nativeToolAccess }, {}),
+        // Keep the locked settings policy when the owner switches personal configuration off.
+        // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
+        ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
+        // Locked runs retain the host's auto-memory/no-system-search policy rather than user hooks.
+        ...(nativeCapabilities.userSettings ? {} : { settings: resolveAssistantRunSettings(homedir(), existsSync) }),
         ...(model !== undefined ? { model } : {}),
         // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
         // def's own `buildArgs` options, which is where it becomes real argv.
@@ -1225,7 +1249,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
         // id that was persisted and the id handed to the CLI can never drift apart.
         ...sessionBinding.sessionFields,
-      }) }));
+      }) })));
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.

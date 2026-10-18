@@ -1,3 +1,5 @@
+import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
+import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/system/tool-gaps.js";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
@@ -393,6 +395,7 @@ function createLazyProxy<T extends object>(factory: () => T): T {
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
+  const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink();
   const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
   const postRepo = new InMemoryPostRepo(seededPosts);
   const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [seededPresentation] });
@@ -1422,7 +1425,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // seeded from `./seed`"), so its tool-attempt audit sink is the in-memory half of the same
     // rule-of-two split every adapter above follows — see `RouteDeps.toolAttemptAuditSink`'s own doc
     // for why the root constructs this rather than handing a module a path to open for itself.
-    toolAttemptAuditSink: createInMemoryToolAttemptAuditSink(),
+    toolAttemptAuditSink,
+    toolGaps: { list: async (required, optional = {}) => toolGapsFromAuditEvents({ ...required, events: toolAttemptAuditSink.events }, optional) },
     siteStatusRepo: new InMemorySiteStatusRepo(),
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
@@ -1925,6 +1929,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
   registerAdminObservabilityStatusRoute(app, routeDeps);
+  registerAdminToolGapsRoute(app, routeDeps);
   registerAdminServerLogsRoute(app, routeDeps);
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.

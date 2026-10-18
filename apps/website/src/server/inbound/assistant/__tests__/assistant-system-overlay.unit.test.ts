@@ -134,26 +134,25 @@ test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the se
   );
 });
 
-test("both Claude spawn names follow the effective grant and leave other restrictions intact", () => {
-  for (const subagentsEnabled of [false, true]) {
-    const tools = resolveAssistantDisallowedTools({ agentId: "claude", subagentsEnabled });
-    for (const tool of ["Agent", "Task"]) assert.equal(tools.includes(tool), !subagentsEnabled);
-    for (const tool of ASSISTANT_DISALLOWED_TOOLS.filter(tool => tool !== "Agent" && tool !== "Task")) assert.ok(tools.includes(tool));
+test("one full-access grant controls native tools on every CLI while preserving Read path denies", () => {
+  for (const agentId of ["claude", "codex"]) for (const nativeToolAccess of [false, true]) {
+    const tools = resolveAssistantDisallowedTools({ agentId, subagentsEnabled: nativeToolAccess, nativeToolAccess });
+    for (const tool of ["Bash", "Edit", "Write", "Agent", "Task", "Workflow"]) assert.equal(tools.includes(tool), !nativeToolAccess);
+    for (const tool of ASSISTANT_DISALLOWED_TOOLS.filter(tool => tool.startsWith("Read("))) assert.ok(tools.includes(tool));
   }
-  assert.deepEqual(resolveAssistantDisallowedTools({ agentId: "codex", subagentsEnabled: true }), ASSISTANT_DISALLOWED_TOOLS);
 });
 
-test("ON overlay explains native CLI delegation, scoped briefs and cheaper model parameters", () => {
-  const overlay = buildAssistantSubagentsOverlay({ agentId: "claude", subagentsEnabled: true });
-  for (const phrase of ["native Claude CLI", "Agent", "Task", "not a Tovu catalog tool", "tedious", "parallel", "bulk", "importing many posts", "model", "haiku", "sonnet", "clear, scoped brief"]) assert.ok(overlay.includes(phrase), phrase);
+test("ON overlay permits delegation without imposing a model choice on any native CLI", () => {
+  for (const agentId of ["claude", "codex"]) {
+    const overlay = buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: true });
+    for (const phrase of ["Full CLI access is ON", "agents/subagents/Task", "workflows", "not Tovu catalog tools"]) assert.ok(overlay.includes(phrase), phrase);
+    assert.doesNotMatch(overlay, /haiku|sonnet|Avoid fork/);
+  }
 });
 
-test("OFF and other runtimes explicitly forbid delegation", () => {
-  for (const required of [{ agentId: "claude", subagentsEnabled: false }, { agentId: "codex", subagentsEnabled: true }]) {
-    const overlay = buildAssistantSubagentsOverlay(required);
-    assert.match(overlay, /cannot spawn subagents/);
-    assert.match(overlay, /not a Tovu catalog tool/);
-    assert.ok(!overlay.includes("may spawn"));
+test("OFF explicitly forbids native delegation on all runtimes", () => {
+  for (const agentId of ["claude", "codex"]) {
+    assert.match(buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: false }), /unavailable/);
   }
 });
 

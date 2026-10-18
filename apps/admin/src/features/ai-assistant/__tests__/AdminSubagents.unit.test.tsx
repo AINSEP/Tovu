@@ -1,3 +1,4 @@
+import { assistantCliPermissions } from "@tovu/headless";
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -12,13 +13,13 @@ function fakePort(initial: AssistantSubagentsSettings = { enabled: false, canEdi
   let settings = initial;
   let failure: Error | null = null;
   let readFailure: Error | null = null;
-  const writes: { enabled: boolean; riskAcknowledged: boolean }[] = [];
+  const writes: Parameters<AssistantSubagentsPort["write"]>[0][] = [];
   const port: AssistantSubagentsPort = {
     read: async () => { if (readFailure) throw readFailure; return settings; },
-    write: async (input) => { writes.push(input); if (failure) throw failure; settings = { ...settings, enabled: input.enabled }; return settings; },
+    write: async (input) => { writes.push(input); if (failure) throw failure; settings = { ...settings, ...assistantCliPermissions(input) }; return settings; },
   };
   return { port, writes, failRead: (message: string) => { readFailure = new Error(message); }, fail: (message: string) => { failure = new Error(message); },
-    changeElsewhere: (enabled: boolean) => { settings = { ...settings, enabled }; } };
+    changeElsewhere: (enabled: boolean) => { settings = { ...settings, ...assistantCliPermissions({ enabled }) }; } };
 }
 
 function mount(port: AssistantSubagentsPort) {
@@ -27,7 +28,7 @@ function mount(port: AssistantSubagentsPort) {
     <SubagentsIndicator mode="local-cli" agentId="claude" useSettings={(input) => useAssistantSubagentsSettings({ ...input, port })} />
   </>);
 }
-const toggle = () => screen.getByRole("checkbox", { name: "Allow the admin assistant to spawn subagents" });
+const toggle = () => screen.getByRole("checkbox", { name: "Full CLI access" });
 const ready = () => waitFor(() => expect(toggle()).toBeEnabled());
 // The icon is an InfoTip trigger since 2026-10-10 (white bubble below it), named by its tip text.
 const icon = () => screen.queryByRole("button", { name: "This chat can use subagents" });
@@ -38,7 +39,7 @@ describe("owner subagent setting", () => {
     mount(f.port);
     await ready();
     expect(toggle()).toBeChecked();
-    expect(toggle()).toHaveAccessibleDescription("On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.");
+    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Loads your CLI settings, skills, agents and MCP servers, and allows shell commands, file edits, subagents and workflows. Like a hand-run CLI, it can read local key files and write other sites. Forced off in production and hosted environments; visitors and other admins never receive it. Changes apply to new runs.");
     expect(icon()).toBeVisible();
     expect(icon()).toHaveAccessibleName("This chat can use subagents");
     expect(icon()?.querySelector(".ri-group-line")).not.toBeNull();
@@ -49,7 +50,7 @@ describe("owner subagent setting", () => {
     await ready();
     await userEvent.setup().click(toggle());
     await waitFor(() => expect(toggle()).toBeChecked());
-    expect(f.writes).toEqual([{ enabled: false, riskAcknowledged: false }, { enabled: true, riskAcknowledged: false }]);
+    expect(f.writes).toEqual([{ ...assistantCliPermissions({ enabled: false }), riskAcknowledged: false }, { ...assistantCliPermissions({ enabled: true }), riskAcknowledged: false }]);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(icon()).toBeVisible();
   });
@@ -69,11 +70,19 @@ describe("owner subagent setting", () => {
   it("renders a disabled owner-only control for non-owners while exposing the active grant in the dock", async () => {
     const f = fakePort({ enabled: true, canEdit: false });
     mount(f.port);
-    await screen.findByText("Only the owner can change subagent access.");
+    await screen.findByText("Only the owner can change Full CLI access.");
     expect(toggle()).toBeDisabled();
-    expect(toggle()).toHaveAccessibleDescription("On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue. Only the owner can change subagent access.");
+    expect(toggle()).toHaveAccessibleDescription("On by default for the local owner. Loads your CLI settings, skills, agents and MCP servers, and allows shell commands, file edits, subagents and workflows. Like a hand-run CLI, it can read local key files and write other sites. Forced off in production and hosted environments; visitors and other admins never receive it. Changes apply to new runs. Only the owner can change Full CLI access.");
     expect(toggle()).toBeChecked();
     expect(icon()).toBeVisible();
+    expect(f.writes).toEqual([]);
+  });
+
+  it("locks the owner's switch with the server's env-lock reason instead of letting it snap back", async () => {
+    const f = fakePort({ enabled: false, canEdit: true, unavailableReason: "Turned off on this computer by TOVU_AGENT_FORBID_BASH." });
+    mount(f.port);
+    await screen.findByText("Turned off on this computer by TOVU_AGENT_FORBID_BASH.");
+    expect(toggle()).toBeDisabled();
     expect(f.writes).toEqual([]);
   });
 
@@ -115,7 +124,7 @@ describe("owner subagent setting", () => {
     });
     expect(asks).toBe(0);
     await act(async () => { finish(); await first; });
-    expect(f.writes).toEqual([{ enabled: true, riskAcknowledged: false }]);
+    expect(f.writes).toEqual([{ ...assistantCliPermissions({ enabled: true }), riskAcknowledged: false }]);
   });
 });
 
@@ -144,7 +153,7 @@ it("the hook hides the icon for OFF, BYOK and other CLIs and reacts to runtime c
   expect(icon()).toBeNull();
   rerender(<SubagentsIndicator mode="local-cli" agentId="codex"
     useSettings={input => useAssistantSubagentsSettings({ ...input, port: f.port })} />);
-  expect(icon()).toBeNull();
+  await waitFor(() => expect(icon()).toBeVisible());
 });
 
 it("translates the icon tooltip through the existing assistant dictionary", async () => {

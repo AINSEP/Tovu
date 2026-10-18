@@ -82,6 +82,7 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   skill: 'Skills run installed code.',
   'fs-files': 'Filesystem roots are captured from the active installation.',
   'system-server-logs': 'Logs describe the active process.',
+  'tool-gaps': 'Tool gap observability reads the active site owner\'s native CLI audit.',
   web: 'Public web reads are site-agnostic.',
   'web-screenshot': 'Browser capture uses the active server and attachment paths.',
   'site-inspection': 'Inspection reads the live server and process configuration.',

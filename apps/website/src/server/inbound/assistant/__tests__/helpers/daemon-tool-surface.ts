@@ -15,7 +15,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
-import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
+import { readChatPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
 import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 
@@ -34,7 +34,7 @@ export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Pr
     createPluginInstallAttachmentReader, messageAttachmentRefsByRunId: new Map<string, readonly string[]>(),
     buildAssistantToolRegistrations, listToolCatalogEntries, createNativeApprovalMemory,
     liveRunTracker: createLiveRunTracker({}, {}),
-    createChatDeleteScope, readAssistantPermanentDeletesPolicy, isChatToolAllowed, ALL_CHAT_DELETE_TOOLS,
+    createChatDeleteScope, readChatPermanentDeletesPolicy, isChatToolAllowed, ALL_CHAT_DELETE_TOOLS,
     magicLinkPerEmailLimiter: { check: async () => ({ allowed: true }) },
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
   }, "({ registry, visibleRegistry })");

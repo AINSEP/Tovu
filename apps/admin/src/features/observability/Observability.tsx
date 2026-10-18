@@ -6,6 +6,7 @@ import { AlertIcon, GaugeIcon, PulseIcon, QueriesIcon } from "./observability-vi
 import { useWiredObservabilityStatus, type ObservabilityStatusController } from "./hooks/use-observability-status.hooks";
 import { useWiredRecentServerErrors } from "./hooks/use-recent-server-errors.hooks";
 import { RecentErrorsPanel } from "./recent-errors-panel";
+import { ToolGapsPanel } from "./tool-gaps-panel";
 import { QueriesPanel } from "./queries-panel";
 import { useWiredQueriesTab } from "./hooks/use-queries-tab.hooks";
 import { useObservabilityTab } from "./hooks/use-observability-tab.hooks";
@@ -188,6 +189,11 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
       title: t("Observability"),
       subtitle: t("Where a Datadog/Grafana connection will live."),
       panel: <ProvidersPanel t={t} />,
+    },
+    {
+      id: 'tool-gaps', label: t('Tool gaps'), icon: <AlertIcon />,
+      title: t('Observability'), subtitle: t('Native CLI fallbacks recorded for the owner.'),
+      panel: <ToolGapsPanel t={t} />,
     },
     ...(queriesTab.visible ? [{
       id: "queries",

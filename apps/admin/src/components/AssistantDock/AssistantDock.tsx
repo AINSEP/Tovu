@@ -6,6 +6,7 @@ import { DockSettingsMenu } from "./DockSettingsMenu";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
+import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
@@ -20,6 +21,8 @@ import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
 import {
   ChatPane,
+  ChatSettingsDialog,
+  useChatSettingsDialog,
   ConversationList,
   JiniChatProvider,
   createMidRunMessagePoster,
@@ -323,6 +326,8 @@ export function AssistantDock({
   const conversationDelete = useConfirmRequest({});
   // Gear menu: per-operator transcript display, applied to the pane at once.
   const chatDisplay = useChatDisplayPreferencesOverride();
+  const chatSettings = useChatSettingsDialog({});
+  const agentPermissions = useDockAgentPermissions({ t, openSettings: chatSettings.show });
 
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
@@ -533,7 +538,7 @@ export function AssistantDock({
               </DockHeaderTip>
               {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
               <DockHeaderTip label={t("Settings")}>
-                <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay })}
+                <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, onMoreSettings: agentPermissions.onMoreSettings })}
                   notice={chatDisplay.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
               </DockHeaderTip>
             </div>
@@ -667,6 +672,8 @@ export function AssistantDock({
         // ]}
       />
       <ConfirmDialog {...conversationDelete.dialog} />
+      <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={t}
+        displaySections={dockSettingsMenuSections({ t }, { display: chatDisplay })} permissions={agentPermissions} />
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>

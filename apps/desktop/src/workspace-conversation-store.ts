@@ -1,3 +1,5 @@
+import { decodeToolGapEntry } from '@jini-ai/daemon/tool-audit';
+import type { ToolGapEntry } from "@jini-ai/daemon/tool-audit";
 /**
  * @file The desktop chat's ONE conversation store (SPEC-051 REQ-18): app-level, independent of
  * every site's own `/api/assistant/chats`. Backs the six `workspace:conversations:*` channels the
@@ -10,7 +12,7 @@
  */
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { WorkspaceConversationSummary } from "./contracts/workspace-conversations.ts";
-import { readJsonFile, writeJsonFileAtomic } from "./durable-json-file.ts";
+import { readJsonFile, writeJsonFileAtomic, withFileLock } from "./durable-json-file.ts";
 
 interface StoredConversation {
   id: string;
@@ -21,6 +23,9 @@ interface StoredConversation {
 }
 
 interface ConversationStore {
+  /** Redacted native-tool audit, persisted in the existing app-level chat file. */
+  appendToolGap(required: { entry: ToolGapEntry }, optional?: {}): void;
+  listToolGaps(required: {}, optional?: { limit?: number }): readonly ToolGapEntry[];
   list(): WorkspaceConversationSummary[];
   create(): WorkspaceConversationSummary;
   rename(required: { id: string; title: string }): void;
@@ -36,6 +41,7 @@ interface ConversationStorePorts {
   write: (filePath: string, value: unknown) => void;
   now: () => number;
   newId: () => string;
+  withLock: typeof withFileLock;
 }
 
 /** Summary row for one conversation. Pure. @complexity O(1). */
@@ -70,6 +76,7 @@ function createConversationStore(
     write: writeJsonFileAtomic,
     now: Date.now,
     newId: () => crypto.randomUUID(),
+    withLock: withFileLock,
     ...optional,
   };
   const load = (): StoredConversation[] => {
@@ -78,26 +85,42 @@ function createConversationStore(
     const rows = (read.value as { conversations?: unknown } | null)?.conversations;
     return Array.isArray(rows) ? (rows as StoredConversation[]) : [];
   };
-  const save = (rows: StoredConversation[]) => ports.write(required.filePath, { conversations: rows });
-  const mutate = (id: string, change: (row: StoredConversation) => void) => {
+  const readGaps = (): ToolGapEntry[] => {
+    const read = ports.read(required.filePath);
+    if (read.state !== "ok") return [];
+    const entries = (read.value as { toolGaps?: unknown } | null)?.toolGaps;
+    return Array.isArray(entries) ? entries.flatMap(entry => {
+      const decoded = decodeToolGapEntry({ json: JSON.stringify(entry) }, {});
+      return decoded ? [decoded] : [];
+    }) : [];
+  };
+  // Every chat write preserves audit metadata; renderer message saves cannot erase it.
+  const save = (rows: StoredConversation[]) => ports.write(required.filePath, { conversations: rows, toolGaps: readGaps() });
+  const locked = <T>(critical: () => T) => ports.withLock(required.filePath, critical);
+  const mutate = (id: string, change: (row: StoredConversation) => void) => locked(() => {
     const rows = load();
     const row = rows.find((candidate) => candidate.id === id);
     if (row === undefined) throw new Error(`Conversation ${id} does not exist.`);
     change(row);
     row.updatedAt = ports.now();
     save(rows);
-  };
+  });
 
   return {
+    appendToolGap: ({ entry }) => locked(() => {
+      const entries = readGaps().filter(existing => existing.id !== entry.id);
+      ports.write(required.filePath, { conversations: load(), toolGaps: [...entries, entry].slice(-1000) });
+    }),
+    listToolGaps: (_required, { limit = 100 } = {}) => readGaps().slice(-Math.max(1, Math.min(200, limit))).reverse(),
     list: () => load().map(summarize).sort((a, b) => b.updatedAt - a.updatedAt),
-    create: () => {
+    create: () => locked(() => {
       const now = ports.now();
       const row: StoredConversation = { id: ports.newId(), title: null, createdAt: now, updatedAt: now, messages: [] };
       save([...load(), row]);
       return summarize(row);
-    },
+    }),
     rename: ({ id, title }) => mutate(id, (row) => { row.title = title; }),
-    remove: ({ id }) => save(load().filter((row) => row.id !== id)),
+    remove: ({ id }) => locked(() => save(load().filter((row) => row.id !== id))),
     loadMessages: ({ conversationId }) => load().find((row) => row.id === conversationId)?.messages ?? [],
     saveMessage: ({ conversationId, message }) => mutate(conversationId, (row) => {
       const index = row.messages.findIndex((existing) => existing.id === message.id);

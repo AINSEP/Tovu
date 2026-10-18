@@ -18,13 +18,13 @@ describe("resolveSiteAssistantMode", () => {
     assert.equal(result.refusedReason, undefined);
   });
 
-  it("grants cli only when BOTH the mode and the separate opt-in are set", () => {
+  it("refuses native CLI execution even when BOTH legacy opt-ins are set", () => {
     const result = resolveSiteAssistantMode({
       TOVU_SITE_ASSISTANT_MODE: "cli",
       TOVU_SITE_ASSISTANT_ALLOW_CLI: "1",
     });
-    assert.equal(result.mode, "cli");
-    assert.equal(result.refusedReason, undefined);
+    assert.equal(result.mode, "byok");
+    assert.match(result.refusedReason ?? "", /owner-only/);
   });
 
   it("refuses cli when the mode is set but the opt-in is absent", () => {
@@ -68,7 +68,7 @@ describe("resolveSiteAssistantMode", () => {
       TOVU_SITE_ASSISTANT_MODE: "  CLI  ",
       TOVU_SITE_ASSISTANT_ALLOW_CLI: "1",
     });
-    assert.equal(result.mode, "cli");
+    assert.equal(result.mode, "byok");
   });
 
   it("explicit byok is honored silently, not reported as a refusal", () => {

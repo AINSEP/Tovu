@@ -47,6 +47,8 @@ export interface WorkspaceChatStartInput {
   prompt: string;
   /** A `RunnerAgentSummary.id` from the runtime inventory. */
   agentId: string;
+  /** Stable conversation identity for automatic fallback audit attribution. */
+  conversationId?: string;
   model?: string;
   reasoning?: string;
   /** Absolute paths of this turn's staged `+` attachments (`chat-attachments.ts`). */

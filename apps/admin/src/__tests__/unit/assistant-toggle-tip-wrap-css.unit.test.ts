@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 /**
  * @file Regression (ui-46, 2026-10-15): at 375px the ⓘ after "Enable the AI assistant on the
- * public site" (and "Allow the admin assistant to spawn subagents") dropped onto a line of its own.
+ * public site" (and "Full CLI access") dropped onto a line of its own.
  * The 44px phone floor made the ⓘ wider than the room left beside the label, and the label-to-ⓘ
  * join was breakable. jsdom has no layout, so this pins the rule text; the result (ⓘ beside the
  * final word, one-line rows 40px tall) was measured in Chrome at 375px.

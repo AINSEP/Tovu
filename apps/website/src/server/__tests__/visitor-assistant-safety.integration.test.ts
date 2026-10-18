@@ -224,3 +224,44 @@ test("visitorsafe: credential decryption failures retain the real operator reaso
   assert.match(log.diagnostic, /authentication-tag failure with server-key context/);
   assert.equal(calls, 0);
 });
+
+test('visitor provider policy is structurally locked even with owner Full CLI access and both env switches ON', async t => {
+  const saved = { full: process.env.TOVU_AGENT_FULL_CLI_ACCESS, alias: process.env.TOVU_AGENT_NATIVE_FALLBACKS };
+  process.env.TOVU_AGENT_FULL_CLI_ACCESS = '1'; process.env.TOVU_AGENT_NATIVE_FALLBACKS = '1';
+  t.after(() => {
+    for (const [key, value] of [['TOVU_AGENT_FULL_CLI_ACCESS', saved.full], ['TOVU_AGENT_NATIVE_FALLBACKS', saved.alias]] as const) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  });
+  const requests: Record<string, unknown>[] = [];
+  const forbidden = ['Bash', 'Edit', 'Write', 'Task', 'Agent', 'execute_delegated_tool', 'mcp__claude-in-chrome__read_page'];
+  const f = await boot({ t, reply: (count, body) => {
+    requests.push(body);
+    return googleReply({ parts: count === 1 ? forbidden.map((name, index) => ({ functionCall: { name, args: {}, id: `native-${index}` } })) : [{ text: 'Public answer' }] });
+  } });
+  await f.deps.settingsUiTabsReady;
+  await setLegacySetting({ deps: { repo: f.deps.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen,
+    principals: f.deps.principalRepo, authorize: async () => ({ allowed: true, reason: 'fixture' }) },
+    input: { namespace: 'core.assistant-full-cli', key: 'enabled', scope: 'workspace',
+      workspaceId: f.deps.workspaceId, value: true, callerPrincipalId: await f.deps.ownerPrincipalId } });
+  const read = f.deps.getEffective;
+  f.deps.getEffective = ((required, input) => {
+    assert.notEqual(input.namespace, 'core.assistant-full-cli', 'visitor must never read owner Full CLI access');
+    return read(required, input);
+  }) as typeof read;
+  const response = await post(f);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Public answer/);
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    const tools = JSON.stringify(request.tools);
+    for (const name of forbidden) assert.equal(tools.includes(`"${name}"`), false, name);
+    assert.equal(tools.includes('mcp__'), false);
+    assert.equal(request.cliParity, undefined);
+    assert.equal(request.nativeToolAccess, undefined);
+  }
+  const continuation = JSON.stringify(requests[1]);
+  // Each attempted native call must get a refusal, rather than silently invoking a native transport.
+  for (const name of forbidden) assert.ok(continuation.includes(name), name);
+  assert.match(continuation, /unknown|not.allowed|not.available|unsupported/i);
+});

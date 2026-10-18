@@ -5,6 +5,10 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 /** assistant registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   ...assistantHistoryToolMetadata,
+  "tool_gaps_list": {
+    search: { keywords: "tool gaps fallback Bash shell direct file edit write missing tools audit" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   "assistant_admin_screen_link": {
     approval: { class: 'read', confirmation: 'direct' },
   },

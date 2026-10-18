@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 /**
  * @file The desktop app's ONE chat agent: a co-located Jini daemon living in Electron's main process.
  *
@@ -32,6 +34,11 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, create
 import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
+import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
+import { redactSecretShapes } from "@jini-ai/diagnostics/redaction/secrets-only";
+import { assistantCliPermissions, type AssistantCliPermissions } from "../../website/src/contracts/headless/assistant-subagents-policy.ts";
+import { resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
+import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
 
 /** The one identity every desktop-agent tool call acts as: the local operator. */
 const DESKTOP_OPERATOR: Principal = Object.freeze({ id: "desktop-operator", roles: Object.freeze(["owner"]) });
@@ -50,6 +57,7 @@ interface DesktopTurnInput {
 
 /** Optional per-turn fields. `addressee` is captured ONCE here, at turn start (REQ-05). */
 interface DesktopTurnOptions {
+  chatId?: string;
   model?: string;
   reasoning?: string;
   addressee?: TurnAddressee | null;
@@ -77,6 +85,9 @@ interface DesktopAgentRuntimeRequired {
 }
 
 interface DesktopAgentRuntimeOptions {
+  readLoginShellEnvironment?: typeof readLoginShellEnvironment;
+  readFullCliAccess?: (required: { addressee: TurnAddressee | null }, optional?: {}) => Promise<boolean | AssistantCliPermissions>;
+  toolGapStore?: Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
   /** Test seam: a fake executor so no real CLI is spawned. */
   createAgentExecutor?: (...args: Parameters<typeof createAgentExecutor>) => Pick<AgentExecutor, "run">;
   /** Test seam: the `jini-mcp` entry script. Defaults to the installed `@jini-ai/mcp`'s `bin/serve.js`. */
@@ -93,7 +104,7 @@ const DESKTOP_SYSTEM_OVERLAY = [
   "Your tools are Jini tools reached through the `jini` MCP server: find them with search_tools, read one with describe_tool, run one with execute_delegated_tool.",
   "desktop.* tools act on the desktop app itself (list websites, add an existing one, reveal a folder, switch screens).",
   "site.list_tools and site.call_tool act on the website that was on screen when the current message was sent — and only that one.",
-  "Prefer these tools over shell commands for anything about the operator's websites.",
+  TOOLS_FIRST_RULE,
 ].join("\n");
 
 /**
@@ -213,7 +224,7 @@ function defaultMcpServeScript(): string {
  * @example defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime });
  */
 function defaultAgentExecutor(
-  ports: { lifecycle: RunLifecycle; daemonUrl: string; credentials: RunScopedCredentials; agentRuntime: NativeAgentRuntime },
+  ports: { lifecycle: RunLifecycle; daemonUrl: string; credentials: RunScopedCredentials; agentRuntime: NativeAgentRuntime; fullCliContext: AsyncLocalStorage<boolean> },
   optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
 ): Pick<AgentExecutor, "run"> {
   const runtime = ports.agentRuntime;
@@ -234,7 +245,7 @@ function defaultAgentExecutor(
     promptAugmenter: {
       contextKinds: () => [],
       augmentUserRequest: ({ basePrompt }: { basePrompt: string }) => basePrompt,
-      systemOverlay: () => DESKTOP_SYSTEM_OVERLAY,
+      systemOverlay: () => ports.fullCliContext.getStore() ? DESKTOP_SYSTEM_OVERLAY : DESKTOP_SYSTEM_OVERLAY.replace(TOOLS_FIRST_RULE, "Native shell/file tools, agents and workflows are unavailable for this chat. Use the registered catalog tools."),
     },
     // Same reason as the site daemon: an isolated CLAUDE_CONFIG_DIR loses the operator's Keychain
     // login on macOS and every run fails "Not logged in". See `agent-daemon-server.ts`'s own note.
@@ -268,6 +279,15 @@ async function createDesktopAgentRuntime(
 
   const registry = (await loadDaemonToolRegistryFactory())({});
   for (const registration of required.buildTools({ addresseeOf })) registry.register(registration);
+  const gapStore = optional.toolGapStore ?? createConversationStore({ filePath: path.join(required.workDir, '..', 'desktop-chat-conversations.json') });
+  const gapCollectors = new Set<ReturnType<typeof createToolGapCollector>>();
+  registry.register({
+    descriptor: { id: 'tool_gaps_list', readOnly: true,
+      description: 'List recent owner tool gaps and native tool use (type tool_gap or native_tool_used): Bash, file edits, agents, workflows and external MCP, with time, site, chat id, provider, tool, redacted command/path summary and Tool gap line if present. Read-only.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
+    policy: { authorize: ({ principal }) => principal.id === DESKTOP_OPERATOR.id ? 'allow' : 'deny' },
+    handler: async () => ({ entries: gapStore.listToolGaps({}, {}) }),
+  });
   const toolExecutor = createToolExecutor({ registry });
 
   const app = express();
@@ -277,7 +297,7 @@ async function createDesktopAgentRuntime(
     if (decision.allowed) return next();
     res.status(decision.status).json({ error: decision.error });
   });
-  const adapter = { resolvedPortRef: { current: 0 }, env: process.env, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
+  const adapter = { resolvedPortRef: { current: 0 }, env: required.agentRuntime.hostEnv, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
   registerToolCatalogRoutes({ app, deps: { catalog: registryCatalog(registry) }, adapter });
   registerDelegatedToolRoutes({
     app,
@@ -287,26 +307,50 @@ async function createDesktopAgentRuntime(
   const { server, url: daemonUrl } = await listenOnLoopback(app);
   adapter.resolvedPortRef.current = (server.address() as AddressInfo).port;
 
-  const executor = defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime: required.agentRuntime }, optional);
+  const fullCliContext = new AsyncLocalStorage<boolean>();
+  const executor = defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime: required.agentRuntime, fullCliContext }, optional);
 
   async function startTurn(input: DesktopTurnInput, options: DesktopTurnOptions = {}): Promise<{ runId: string }> {
-    const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
     const addressee = options.addressee ?? null;
+    const setting = resolveFullCliAccess({ isOwner: true, env: required.agentRuntime.hostEnv }, {})
+      ? await optional.readFullCliAccess?.({ addressee }, {}) : false;
+    const settings = typeof setting === "object" ? setting : assistantCliPermissions({ enabled: setting ?? true });
+    const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.agentRuntime.hostEnv, settings });
+    const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+    const parityEnv = nativeCapabilities.loginEnvironment ? await (optional.readLoginShellEnvironment ?? readLoginShellEnvironment)({ baseEnv: required.agentRuntime.hostEnv,
+      excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
+    const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
     liveRuns.set(run.id, { addressee });
     void lifecycle.waitForTerminal({ runId: run.id }).finally(() => {
       liveRuns.delete(run.id);
       credentials.revoke({ runId: run.id });
     });
     const attachments = options.attachmentPaths ?? [];
-    void executor.run(
-      { runId: run.id, agentId: input.agentId, prompt: turnPrompt(input.prompt, addressee), cwd: required.workDir },
+    const gaps = createToolGapCollector({
+      sink: { append: async (_event, detail = {}) => {
+        if (detail.detail) gapStore.appendToolGap({ entry: JSON.parse(detail.detail) as ToolGapEntry }, {});
+      } },
+      workspaceId: DESKTOP_CHAT_CONTEXT_REF, principalId: DESKTOP_OPERATOR.id,
+      site: addressee?.siteDir ?? 'desktop', chatId: options.chatId ?? run.id,
+      runId: run.id, provider: input.agentId, redact: text => redactSecretShapes({ text }).text,
+    }, { onError: () => log.error('[tool-gaps] desktop audit write failed') });
+    gapCollectors.add(gaps);
+    void lifecycle.waitForTerminal({ runId: run.id }).then(() => gaps.flush()).finally(() => gapCollectors.delete(gaps));
+    await lifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
+    void fullCliContext.run(nativeToolAccess, () => executor.run(
+      { runId: run.id, agentId: input.agentId, prompt: turnPrompt(input.prompt, addressee), cwd: nativeToolAccess ? addressee?.siteDir ?? required.workDir : required.workDir },
       {
-        permissionMode: "bypass",
+        permissionMode: isHostedAssistantRuntime({ env: required.agentRuntime.hostEnv }, {}) ? 'restricted' : 'bypass',
+        nativeToolAccess,
+        nativeCapabilities,
+        cliParity: nativeToolAccess,
+        ...(parityEnv ? { env: parityEnv } : {}),
+        disallowedTools: resolveAssistantDisallowedTools({ nativeToolAccess }, {}),
         ...(options.model === undefined ? {} : { model: options.model }),
         ...(options.reasoning === undefined ? {} : { reasoning: options.reasoning }),
         ...(attachments.length === 0 ? {} : { imagePaths: attachments, extraAllowedDirs: [...new Set(attachments.map((file) => path.dirname(file)))] }),
       },
-    ).catch(async (error: unknown) => {
+    )).catch(async (error: unknown) => {
       // `AgentExecutor.run()` terminalizes the run itself on every failure it knows about; this only
       // covers a rejection before that, so the run (and its credential) never stays live forever.
       log.error(`[desktop-agent] run ${run.id} failed to start`, error);
@@ -325,7 +369,10 @@ async function createDesktopAgentRuntime(
     addresseeOf,
     toolIds: () => registry.list({}).map((descriptor) => descriptor.id),
     startTurn,
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    close: async () => {
+      await Promise.all([...gapCollectors].map(collector => collector.flush()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
   };
 }
 

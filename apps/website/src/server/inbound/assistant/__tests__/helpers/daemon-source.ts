@@ -1,3 +1,7 @@
+import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
+import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
@@ -61,8 +65,11 @@ export async function captureDaemonRun(
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
     formatRunEndLogLine, formatRunErrorLogLine,
-    readAssistantSubagentsEnabled: async () => false,
+    readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true }),
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
+    assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
+    resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
@@ -81,7 +88,7 @@ export async function captureDaemonRun(
     routeDeps: { workspaceId: "ws-daemon-test" },
     randomUUID: () => "unused-session-id",
     process: { env: {}, cwd: () => "/tmp/daemon-test" },
-    resolvePermissionMode: () => "bypassPermissions",
+    resolvePermissionMode: () => "bypass",
     homedir: () => "/home/daemon-test",
     existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
     failRunBeforeStart: async ({ message }: { message: string }) => { reject(new Error(message)); },

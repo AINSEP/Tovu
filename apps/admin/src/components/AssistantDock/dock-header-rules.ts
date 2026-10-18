@@ -41,15 +41,16 @@ export interface DockSettingsMenuItem {
 export interface DockSettingsMenuSection {
   key: string;
   label?: string;
+  /** One line explaining the whole section, shown under its heading in the Chat settings dialog. */
+  description?: string;
   items: DockSettingsMenuItem[];
 }
 
 /**
  * The gear menu (owner, 2026-10-11): the chat's display settings right in the dropdown — Tool calls
  * as a Show/Collapsed/Hidden radio group, then Done line and Thinking as on/off rows. They replaced
- * the one-tab Chat settings modal ("Open chat settings…"); a modal comes back only once there are
- * advanced chat options to put in it. Sections rather than one fixed list so settings can be added
- * later without reshaping the menu.
+ * the one-tab Chat settings modal. More settings now opens the advanced dialog while these quick
+ * changes stay available. Both surfaces receive these same actions and stored preferences.
  * @param input.t - The dock's translator.
  * @param options.display - The current choices and their saver (`useChatDisplayPreferences`).
  * @returns The sections, in display order.
@@ -57,7 +58,7 @@ export interface DockSettingsMenuSection {
  */
 export function dockSettingsMenuSections(
   { t }: { t: (key: string) => string },
-  { display }: { display: Pick<ChatDisplayPreferencesController, "preferences" | "update"> },
+  { display, onMoreSettings }: { display: Pick<ChatDisplayPreferencesController, "preferences" | "update">; onMoreSettings?: () => void },
 ): DockSettingsMenuSection[] {
   const { preferences, update } = display;
   const toolCallsHint = t("Show: every tool call. Collapsed: one line per reply, click to open. Hidden: only failed calls.");
@@ -65,6 +66,7 @@ export function dockSettingsMenuSections(
     {
       key: "tool-calls",
       label: t("Tool calls"),
+      description: t("How tool calls appear in the chat."),
       items: CHAT_TOOL_CALL_OPTIONS.map((option) => ({
         key: `tool-calls-${option.value}`,
         label: t(option.label),
@@ -80,9 +82,10 @@ export function dockSettingsMenuSections(
         { key: "done-line", label: t("Done line"), role: "menuitemcheckbox", checked: preferences.showUsageLine,
           hint: t("Time, cost and running total under each reply."), onSelect: () => update({ showUsageLine: !preferences.showUsageLine }) },
         { key: "thinking", label: t("Thinking"), role: "menuitemcheckbox", checked: preferences.showThinking,
-          hint: t("The model's reasoning, folded where it happened, when the agent shares it."), onSelect: () => update({ showThinking: !preferences.showThinking }) },
+          hint: t("Shows the model's reasoning when the agent shares it."), onSelect: () => update({ showThinking: !preferences.showThinking }) },
       ],
     },
+    ...(onMoreSettings ? [{ key: "more-settings", items: [{ key: "more-settings", label: t("More settings…"), onSelect: onMoreSettings }] }] : []),
   ];
 }
 

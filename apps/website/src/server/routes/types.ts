@@ -899,6 +899,8 @@ export interface ObservabilityDeps {
    * environment reads or a deferral wrapper.
    */
   toolAttemptAuditSink: ToolAttemptAuditSink;
+  /** Existing audit store, projected for the owner-only Tool gaps read surfaces. */
+  toolGaps?: import("../../features/tool-audit/tool-gaps.js").ToolGapReadPort;
 }
 
 /**

@@ -15,6 +15,8 @@ import { registerWorkspaceChatIpc, WORKSPACE_CHAT_IPC, type ChatIpcMain } from "
 import { readTrackedSites } from "./tracked-sites.ts";
 
 interface DesktopChatMainDeps {
+  /** Optional site-settings binding; standalone desktop uses the same environment/default policy. */
+  readFullCliAccess?: (input: { addressee: TurnAddressee | null }, options?: {}) => Promise<boolean | import("../../website/src/contracts/headless/assistant-subagents-policy.ts").AssistantCliPermissions>;
   /** Created once at app boot, shared by detection and execution, disposed by app shutdown. */
   agentRuntime: NativeAgentRuntime;
   ipcMain: ChatIpcMain;
@@ -52,6 +54,7 @@ function resolveTrackedAddressee(
  * @complexity O(1) beyond the runtime's own startup.
  */
 function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: SiteToolGateway; createDesktopAgentRuntime?: typeof createDesktopAgentRuntime } = {}): Promise<DesktopAgentRuntime> {
+  const conversations = createConversationStore({ filePath: path.join(deps.userDataDir, "desktop-chat-conversations.json") });
   const runtime = (optional.createDesktopAgentRuntime ?? createDesktopAgentRuntime)({
     agentRuntime: deps.agentRuntime,
     workDir: path.join(deps.userDataDir, "desktop-agent"),
@@ -61,12 +64,12 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
       siteTools: optional.siteTools ?? UNBUILT_SITE_TOOL_GATEWAY,
       navigate: ({ section }) => deps.broadcast(WORKSPACE_CHAT_IPC.navigate, section),
     }),
-  });
+  }, { toolGapStore: conversations, ...(deps.readFullCliAccess ? { readFullCliAccess: deps.readFullCliAccess } : {}) });
   runtime.catch((error: unknown) => console.error("tovu-desktop: the desktop chat agent did not start", error));
   registerWorkspaceChatIpc({
     ipcMain: deps.ipcMain,
     runtime,
-    conversations: createConversationStore({ filePath: path.join(deps.userDataDir, "desktop-chat-conversations.json") }),
+    conversations,
     resolveAddressee: (siteDir) => resolveTrackedAddressee(siteDir, {
       readTracked: () => readTrackedSites(deps.projectsPath),
       readSiteName: deps.readSiteName,

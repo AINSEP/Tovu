@@ -1,0 +1,102 @@
+import { assistantCliPermissions, type AssistantCliPermissions } from "../headless/assistant-subagents-policy.js";
+/** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */
+export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Use Bash or direct file edits only when no Tovu tool can do the job. When you do, say in one line: `Tool gap: <what you needed> — no Tovu tool for it.`';
+
+/** Hosted signals override every owner opt-in, including legacy permission-mode overrides. */
+export function isHostedAssistantRuntime(required: {
+  env: Readonly<Record<string, string | undefined>>;
+}, _optional: Record<string, never> = {}): boolean {
+  const env = required.env;
+  return env.TOVU_RUNTIME_MODE === 'production' || env.TOVU_HOSTED === '1' || env.TOVU_HOSTED === 'true' ||
+    !!(env.FLY_APP_NAME || env.FLY_MACHINE_ID || env.FLY_ALLOC_ID) ||
+    /^https?:\/\/(?:[^/]+\.)?tovu\.dev(?::\d+)?(?:\/|$)/i.test(env.TOVU_PUBLIC_URL ?? '');
+}
+
+/** Names the local env switch that turns Full CLI access off on this machine, or undefined.
+ * Hosted runtimes are reported separately. The settings route shows this name so a locked switch
+ * explains itself instead of snapping back. Pure, O(1).
+ * TOVU_AGENT_NATIVE_FALLBACKS remains an alias; either explicit OFF switch denies access.
+ */
+export function fullCliEnvLock(required: {
+  env: Readonly<Record<string, string | undefined>>;
+}, _optional: Record<string, never> = {}): string | undefined {
+  const env = required.env;
+  if (env.TOVU_AGENT_PERMISSION_MODE === 'restricted') return 'TOVU_AGENT_PERMISSION_MODE';
+  if (env.TOVU_AGENT_FORBID_BASH === '1') return 'TOVU_AGENT_FORBID_BASH';
+  return (['TOVU_AGENT_FULL_CLI_ACCESS', 'TOVU_AGENT_NATIVE_FALLBACKS'] as const)
+    .find(key => ['0', 'false'].includes(env[key] ?? ''));
+}
+
+/** One fresh owner grant governs every CLI capability. Missing local settings default ON;
+ * failed reads supply false. Request/contextRef fields never participate. Pure, O(1).
+ */
+export function resolveFullCliAccess(required: {
+  isOwner: boolean; setting?: boolean | undefined; env: Readonly<Record<string, string | undefined>>;
+}, _optional: Record<string, never> = {}): boolean {
+  const env = required.env;
+  return required.isOwner && required.setting !== false && !isHostedAssistantRuntime({ env }, {}) &&
+    fullCliEnvLock({ env }, {}) === undefined;
+}
+
+/** Compatibility alias; there is no second grant resolver. */
+export const resolveAssistantNativeFallbacks = resolveFullCliAccess;
+
+/** Apply the structural owner/host gate before projecting any persisted per-capability choice.
+ * The master is a default, not a second veto: individual toggles can be turned back on below it.
+ * @complexity O(1), a fixed number of permissions. No I/O.
+ */
+export function resolveAssistantCliPermissions(required: {
+  isOwner: boolean; env: Readonly<Record<string, string | undefined>>; settings: AssistantCliPermissions;
+}, _optional = {}): AssistantCliPermissions {
+  if (!resolveFullCliAccess({ isOwner: required.isOwner, env: required.env }, {})) return assistantCliPermissions({ enabled: false });
+  return assistantCliPermissions(required.settings);
+}
+
+/** Locked run policy (SEC-assistant-env-isolation-2026-09-07 Finding 2).
+ * Owner decision 2026-10-17 supersedes native-tool restrictions for local full-access runs.
+ * Those runs retain Read path denies as defense in depth only: Bash can still read keys and
+ * write other sites, as the owner explicitly accepted. Bridge/site tool credentials stay scoped.
+ * All other principals keep the complete list; native providers must enforce it or refuse spawn.
+ */
+export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
+  "Bash",
+  "Edit",
+  "Write",
+  "MultiEdit",
+  "NotebookEdit",
+  "BashOutput",
+  "KillShell",
+  "Task",
+  // Claude Code 2.1.296 names the spawn tool Agent and recognizes Task as its legacy name.
+  "Agent",
+  "CronCreate",
+  "CronDelete",
+  "CronList",
+  "EnterWorktree",
+  "ExitWorktree",
+  "RemoteTrigger",
+  "Workflow",
+  // Read/Grep/Glob path denies remain useful in locked runs and as defense in depth locally.
+  // Full CLI access explicitly accepts Bash reading these same files (owner, 2026-10-17). `//`
+  // anchors at the filesystem root, so `//**/.tovu/**` covers the folder at any depth; `/proc` is
+  // the Linux `/proc/<pid>/environ` route to the env-held key. Confirmed live on Claude Code
+  // 2.1.281 under bypassPermissions: Read refused, Grep/Glob return no match on the denied files.
+  "Read(//**/.tovu/**)",
+  "Read(~/.tovu/**)",
+  "Read(//**/*-key*.hex)",
+  "Read(//proc/**)",
+];
+
+
+/** Project the one verified grant into native tool denies for both site and desktop hosts.
+ * Legacy agent/subagent fields are accepted for compatibility but never establish a grant.
+ * The owner accepted hand-run filesystem access; Read path denies remain defense in depth.
+ * @complexity O(t) for t fixed deny entries when enabled, O(1) for the locked policy.
+ */
+export function resolveAssistantDisallowedTools(required: {
+  nativeToolAccess?: boolean; agentId?: string; subagentsEnabled?: boolean;
+}, _optional: Record<string, never> = {}): readonly string[] {
+  return required.nativeToolAccess
+    ? ASSISTANT_DISALLOWED_TOOLS.filter(tool => tool.startsWith("Read("))
+    : ASSISTANT_DISALLOWED_TOOLS;
+}

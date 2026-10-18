@@ -1,4 +1,5 @@
 import { resolveRuntimeMode } from "./runtime-mode.js";
+import { isHostedAssistantRuntime } from "./assistant-native-fallbacks.js";
 
 /**
  * @file The assistant agent CLI's permission mode, resolved from env. Extracted from
@@ -12,13 +13,14 @@ import { resolveRuntimeMode } from "./runtime-mode.js";
  * call hangs on an unanswerable "requested permission... but you haven't granted it yet" prompt
  * without an explicit bypass.
  *
- * `TOVU_AGENT_PERMISSION_MODE` still wins when set explicitly, either direction. With no
+ * Hosted deployments always stay restricted, including when an env override asks for bypass.
+ * Locally `TOVU_AGENT_PERMISSION_MODE` wins when set explicitly. With no
  * override, this follows `resolveRuntimeMode()`'s own safe-default philosophy (SPEC-022 INV-04:
  * anything not explicitly `TOVU_RUNTIME_MODE=production` resolves to the permissive/local case) —
  * bypass unless running in production. A fresh clone with no env vars at all (`git clone && npm
  * install && npm run dev`) gets a working assistant with no setup step to discover, regardless of
  * which script or command actually launches this process; a real production deployment stays
- * restricted-by-default unless an operator explicitly opts into bypass.
+ * restricted regardless of an operator's bypass override.
  */
 
 export type AgentPermissionMode = "bypass" | "restricted";
@@ -28,6 +30,7 @@ export function resolveAgentPermissionMode(
   required: { env: Record<string, string | undefined> },
   _optional: Record<string, never> = {}
 ): AgentPermissionMode {
+  if (isHostedAssistantRuntime({ env: required.env }, {})) return "restricted";
   if (required.env.TOVU_AGENT_PERMISSION_MODE === "bypass") return "bypass";
   if (required.env.TOVU_AGENT_PERMISSION_MODE === "restricted") return "restricted";
   return resolveRuntimeMode({ env: required.env }) === "production" ? "restricted" : "bypass";

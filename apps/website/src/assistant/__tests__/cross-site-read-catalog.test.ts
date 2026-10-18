@@ -13,6 +13,7 @@ import { componentCatalogDerivedRisk } from '../component-catalog-tool.js';
 import { askChoiceDerivedRisk } from '../ask-choice-tool.js';
 import { externalMcpReauthDerivedRisk } from '../external-mcp-reauth-tool.js';
 import { adminScreenLinkDerivedRisk } from '../admin-screen-link-tool.js';
+import { toolGapsDerivedRisk } from '../tool-gaps-tool.js';
 import { CROSS_SITE_READ_DOMAINS, CROSS_SITE_EXCLUDED, CrossSiteUnavailable } from '#src/server/runtime/composition/peer-site-reads';
 import { peerFixture } from '#src/server/runtime/composition/__tests__/peer-site-reads.fixture';
 import { sitesReadAgentToolCatalog } from '#src/features/sites/agent-tools';
@@ -42,6 +43,7 @@ test('complete production catalog classifies every reader and exercises every sc
     ['demo-choices', demoChoicesDerivedRisk], ['demo-a2ui', demoA2uiDerivedRisk], ['demo-image', demoImageDerivedRisk],
     ['render-ui', renderUiDerivedRisk], ['component-catalog', componentCatalogDerivedRisk], ['ask-choice', askChoiceDerivedRisk],
     ['external-mcp-reauth', externalMcpReauthDerivedRisk], ['admin-screen-link', adminScreenLinkDerivedRisk],
+    ['tool-gaps', toolGapsDerivedRisk],
   ] as const;
   for (const [domain, risk] of assistantDomains) for (const id of risk.keys()) byTool.set(id, domain);
   for (const slice of [...f.contributions.contributors.list({}), ...f.contributions.derivedContributors.list({})]) {

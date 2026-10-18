@@ -1,3 +1,4 @@
+import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
@@ -2395,6 +2396,7 @@ async function composeSiteRouteDeps(
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
     toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel),
+    toolGaps: createToolGapReader({ kernel }, {}),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     contentKernel: kernel,

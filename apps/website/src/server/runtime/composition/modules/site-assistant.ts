@@ -52,7 +52,7 @@ import type { ServerModuleHandle } from "./types.js";
  *    key is server-side, always") is the one that governs.
  * 2. **No process spawn by default.** `runByokProviderTurn` is an in-process HTTP relay. The
  *    agent-CLI path spawns an OS process per run, so N visitors is N processes — available only
- *    under the demo gate in `assistant/site/mode.ts`, never by default.
+ *    disabled for visitors, including legacy demo opt-ins (`assistant/site/mode.ts`).
  * 3. **No tool the allowlist did not name.** The executor below dispatches through
  *    `assistant/site/capability-registry.ts`'s `invoke()` (SPEC-046 REQ-0) — a typed registry over a
  *    fixed, literal capability list, not dynamic/config-driven registration, so an unknown tool name
@@ -681,6 +681,8 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           if (!res.writableEnded) abort.abort();
         });
 
+        // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
+        // Never spread admin CLI options or read the Full CLI access setting here (K1).
         await runByokProviderTurn({
           protocol: provider.protocol,
           apiKey: provider.apiKey,

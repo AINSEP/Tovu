@@ -8,6 +8,8 @@ import ts from "typescript";
 import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../assistant/agent-session-preset.js";
 import { resolveResumeSessionField } from "../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
+import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 
 /**
  * @file Wiring proof for the Defect 1 fix (2026-09-11 chat-lifecycle repair), in the same
@@ -78,10 +80,12 @@ function sessionHarness() {
     } },
     process: { env: {}, cwd: () => "/isolated" }, resolvePermissionMode: () => "default",
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
-    resolveAssistantDisallowedTools: () => [], readAssistantSubagentsEnabled: async () => false,
+    resolveAssistantDisallowedTools: () => [], readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
+    resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
     console: { error: (...args: unknown[]) => failures.push(args), log() {} },
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
+    assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },
     failRunBeforeStart: async ({ message }: { message: string }) => assert.fail(message),
   }) as (input: unknown) => void;
@@ -175,7 +179,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned", () => {
-    const runCallIndex = onStartedSource.indexOf("await assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "the awaited agentExecutor.run call must exist");
     const preDispatch = onStartedSource.slice(0, runCallIndex);
     const bindingFnIndex = preDispatch.indexOf("async function resolveSessionBinding(");
@@ -199,7 +203,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the minted id is both persisted and handed to AgentExecutor.run — one id, not two", () => {
-    const runCallIndex = onStartedSource.indexOf("await assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     const mintIndex = onStartedSource.indexOf("resolveHostMintedSessionId({");
     assert.ok(mintIndex > -1, "onStarted must call resolveHostMintedSessionId to decide whether to mint");
     assert.ok(mintIndex < runCallIndex, "the mint decision must be made before agentExecutor.run is called");
@@ -241,7 +245,7 @@ describe("Defect 1 wiring — run starts must be serialized per conversation", (
       "onStarted must run its session-binding section through conversationStartLock.run — without it two near-simultaneous turns both read an empty session slot and both mint, forking the conversation",
     );
 
-    const runCallIndex = onStartedSource.indexOf("await assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(lockCallIndex < runCallIndex, "the lock must be entered before agentExecutor.run is reached");
 
     // The critical section is the function handed to the lock. Both halves of the read-modify-write

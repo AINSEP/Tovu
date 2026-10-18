@@ -16,3 +16,5 @@ export type { AdminChartProviderSnapshot } from "./chart-providers.js";
 export { directPageAction, TOOL_APPROVAL_POLICY } from "./assistant-tool-approval-policy.js";
 export * from "./assistant-permanent-deletes-policy.js";
 export { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY } from "./assistant-subagents-policy.js";
+export { ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions } from "./assistant-subagents-policy.js";
+export type { AssistantCliCapability, AssistantCliPermissions } from "./assistant-subagents-policy.js";

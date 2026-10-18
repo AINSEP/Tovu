@@ -77,10 +77,17 @@ test("warnOnBootReadinessGaps: never throws, even when the probe and the log sin
   assert.doesNotThrow(() => warnOnBootReadinessGaps({ env: { NODE_ENV: "production" }, pathExists: noFiles, log: () => { throw new Error("stderr closed"); } }));
 });
 
-test("resolveAgentPermissionMode: explicit override wins either way; otherwise bypass unless production", () => {
+test("resolveAgentPermissionMode: local overrides win; production always stays restricted", () => {
   assert.equal(resolveAgentPermissionMode({ env: {} }), "bypass");
   assert.equal(resolveAgentPermissionMode({ env: { NODE_ENV: "production" } }), "bypass", "NODE_ENV never changes the mode (INV-02)");
   assert.equal(resolveAgentPermissionMode({ env: { TOVU_RUNTIME_MODE: "production" } }), "restricted");
-  assert.equal(resolveAgentPermissionMode({ env: { TOVU_RUNTIME_MODE: "production", TOVU_AGENT_PERMISSION_MODE: "bypass" } }), "bypass");
+  assert.equal(resolveAgentPermissionMode({ env: { TOVU_RUNTIME_MODE: "production", TOVU_AGENT_PERMISSION_MODE: "bypass" } }), "restricted");
   assert.equal(resolveAgentPermissionMode({ env: { TOVU_AGENT_PERMISSION_MODE: "restricted" } }), "restricted");
+});
+
+test("resolveAgentPermissionMode: an unrecognized permission override follows the runtime's safe default", () => {
+  for (const override of ["", "BYPASS", "restrictedd"]) {
+    assert.equal(resolveAgentPermissionMode({ env: { TOVU_AGENT_PERMISSION_MODE: override } }, {}), "bypass");
+    assert.equal(resolveAgentPermissionMode({ env: { TOVU_AGENT_PERMISSION_MODE: override, TOVU_RUNTIME_MODE: "production" } }, {}), "restricted");
+  }
 });

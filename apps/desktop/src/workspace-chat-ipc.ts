@@ -148,6 +148,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
     const { runId } = await (await deps.runtime).startTurn(
       { prompt: input.prompt, agentId: input.agentId },
       {
+        ...(input.conversationId === undefined ? {} : { chatId: input.conversationId }),
         ...(input.model === undefined ? {} : { model: input.model }),
         ...(input.reasoning === undefined ? {} : { reasoning: input.reasoning }),
         ...(input.attachmentPaths === undefined ? {} : { attachmentPaths: input.attachmentPaths }),

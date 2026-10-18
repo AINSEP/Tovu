@@ -257,6 +257,7 @@ export interface WorkspaceChatTransport extends ChatTransport {
 }
 
 interface ChatStartPayload {
+  conversationId?: string;
   subscriptionId: string;
   prompt: string;
   agentId: string;
@@ -269,6 +270,7 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
   return {
     subscriptionId,
     prompt: buildTranscript({ history: input.history }, { targetAgentId: agentId }),
+    ...(input.conversationId == null ? {} : { conversationId: input.conversationId }),
     agentId,
     ...(input.context?.['model'] === undefined ? {} : { model: String(input.context['model']) }),
     ...(input.context?.['reasoning'] === undefined ? {} : { reasoning: String(input.context['reasoning']) }),

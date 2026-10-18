@@ -357,6 +357,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   // The daemon's own function delegates to the shared resolver (hardwiring audit #5); evaluate its
   // real body against that real resolver with an empty env, i.e. local mode.
   const { resolveAgentPermissionMode } = await import("#src/contracts/core/agent-permission-mode");
+  const { assistantCliPermissions } = await import("#src/contracts/headless/assistant-subagents-policy");
   const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", permissionFunction.body.getText(daemonSource));
   const mode = resolvePermissionMode({ env }, resolveAgentPermissionMode);
   assert.equal(mode, "bypass");
@@ -365,8 +366,9 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     run: { id: "run-dev" }, sessionBinding: { agentId: "claude", sessionFields: {} },
     prompt: "Review a page", process: { env, cwd: () => "/tmp/dev-run" },
     resolvePermissionMode: () => mode,
-    // Since 74ac1f7ff the daemon resolves the list per run (the owner's Claude subagent setting).
     resolveAssistantDisallowedTools: () => ["Bash"], subagentsEnabled: false, ASSISTANT_SETTING_SOURCES: [],
+    // This expression runs outside onStarted; supply the locked launch snapshot it closes over.
+    nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
     model: undefined, reasoning: undefined, attachmentRunFields: {},
   });

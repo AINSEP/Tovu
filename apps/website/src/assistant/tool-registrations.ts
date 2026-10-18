@@ -1,3 +1,4 @@
+import { buildToolGapsRegistrations, toolGapsDerivedRisk, type ToolGapsToolDeps } from "./tool-gaps-tool.js";
 import { isChatToolAllowed, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/assistant-permanent-deletes-policy.js";
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
@@ -111,7 +112,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink } &
   import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
@@ -182,6 +183,7 @@ type DomainSlice = ToolContributor;
  * duplicate ids rather than letting a later entry win. Stable order keeps catalog snapshots readable.
  */
 const DOMAIN_SLICES: readonly DomainSlice[] = [
+  { domain: "tool-gaps", build: buildToolGapsRegistrations, risk: toolGapsDerivedRisk },
   // The four in-chat UI surfaces register unconditionally. Each module explains why its
   // transport demonstration belongs in a real chat pane.
   { domain: "demo-choices", build: buildDemoChoicesRegistrations, risk: demoChoicesDerivedRisk },

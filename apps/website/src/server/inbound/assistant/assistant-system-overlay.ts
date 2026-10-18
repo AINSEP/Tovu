@@ -1,11 +1,12 @@
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
+import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the
  * two mutually-exclusive Bash-guidance variants spliced into the same slot — {@link
- * BASH_GUIDANCE_BLOCK} (the product default) and the opt-in {@link BASH_PROHIBITION_BLOCK}
+ * BASH_GUIDANCE_BLOCK} (locked chats) and the opt-in {@link BASH_PROHIBITION_BLOCK}
  * diagnostic instrument.
  *
  * `agent-daemon-server.ts` cannot be imported directly by a unit test without inheriting its own
@@ -30,83 +31,12 @@ export const BASH_PROHIBITION_BLOCK =
   "Tovu's own source to answer a code-level question is NOT an exception either — that carve-out used " +
   "to live here and has been deliberately removed. ";
 
-/**
- * Finding 2 of SEC-assistant-env-isolation-2026-09-07: the actual, enforced restriction on the
- * assistant's default tool grant — resolved by `resolveAssistantDisallowedTools` for the sole
- * owner-controlled Agent/Task grant, then forwarded to `AgentExecutorRunInput.disallowedTools`
- * (`agent-daemon-server.ts`'s `agentExecutor.run()` call), which reaches the spawned `claude` CLI's
- * own `--disallowedTools` flag (`@jini-ai/agent-runtime`'s `defs/claude.ts`). Confirmed live against
- * installed Claude Code 2.1.263 that this refuses the named tool's execution outright — even under
- * `--permission-mode bypassPermissions` — unlike {@link BASH_PROHIBITION_BLOCK}, which is prompt
- * text only.
- *
- * **Evidence, not opinion**: read read-only from `sites/tovu-com/chat.db`'s
- * `ai_chat_messages.events_json` (32 real admin-chat runs, 2026-09), the only host-CLI-builtin tool
- * names ever actually invoked were `Read` and `ToolSearch` — plus Tovu's own catalog, reached
- * exclusively through `search_tools`/`describe_tool`/`execute_delegated_tool`/
- * `execute_readonly_delegated_tool` (both the bare and `mcp__jini__`-prefixed forms observed) and
- * federated external MCP tools (e.g. `mcp__higgsfield__*`). Zero occurrences of `Bash`, `Edit`,
- * `Write`, `Task`, any `Cron*`, `EnterWorktree`/`ExitWorktree`, `RemoteTrigger`, or `Workflow` — the
- * exact set the security report identified as both dangerous (unaudited file writes, arbitrary
- * subagent spawn, scheduling/worktree levers) and, per this evidence, never legitimately needed by
- * the product. `Read` and `ToolSearch` are deliberately left OFF this list — restricting a tool with
- * real observed use, on no more than "the report didn't call it out," is exactly the over-tight list
- * this fix must not become; scoping anything beyond this evidence-backed set is a later product
- * decision, not this fix's call.
- *
- * `MultiEdit`, `NotebookEdit`, `BashOutput`, and `KillShell` were added later (2026-09-24): the
- * original security report and chat.db sweep above predate these four and never named them, but
- * they are the same shape of risk — `MultiEdit`/`NotebookEdit` write files to disk exactly like
- * `Edit`/`Write`, and `BashOutput`/`KillShell` are the read/kill halves of a Bash-started background
- * process, the same category `Cron*`/`EnterWorktree`/`ExitWorktree`/`RemoteTrigger`/`Workflow`
- * already cover. Left off, `NotebookEdit` alone let this assistant write files to disk (as a
- * `.ipynb`) despite the public FAQ's "can't … edit files" claim.
- *
- * Kept independent of {@link BASH_PROHIBITION_BLOCK}/`TOVU_AGENT_FORBID_BASH`: this list applies
- * unconditionally to every run regardless of that diagnostic flag's state, which is what makes the flag's own
- * "not a security control" framing accurate rather than aspirational. The owner-approved subagent
- * setting removes only Agent/Task for Claude CLI; every other entry remains enforced.
- */
-export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
-  "Bash",
-  "Edit",
-  "Write",
-  "MultiEdit",
-  "NotebookEdit",
-  "BashOutput",
-  "KillShell",
-  "Task",
-  // Claude Code 2.1.296 names the spawn tool Agent and recognizes Task as its legacy name.
-  "Agent",
-  "CronCreate",
-  "CronDelete",
-  "CronList",
-  "EnterWorktree",
-  "ExitWorktree",
-  "RemoteTrigger",
-  "Workflow",
-  // Owner rule: the agent never reads the site key. `Read` stays allowed everywhere else, but the
-  // CLI runs under bypassPermissions with a cwd that holds `sites/.tovu`, so these path denies are
-  // what keep its built-in Read/Grep/Glob off the key (Grep and Glob honour `Read()` denies). `//`
-  // anchors at the filesystem root, so `//**/.tovu/**` covers the folder at any depth; `/proc` is
-  // the Linux `/proc/<pid>/environ` route to the env-held key. Confirmed live on Claude Code
-  // 2.1.281 under bypassPermissions: Read refused, Grep/Glob return no match on the denied files.
-  "Read(//**/.tovu/**)",
-  "Read(~/.tovu/**)",
-  "Read(//**/*-key*.hex)",
-  "Read(//proc/**)",
-];
+// Shared with the Electron host; the rationale travels with the policy declaration.
+export { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native-fallbacks";
+import { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native-fallbacks";
 
-/** Claude-only owner setting; never mutate the default grant or loosen another isolation.
- * @complexity O(t) for the fixed tool list, O(1) when the setting does not apply.
- */
-export function resolveAssistantDisallowedTools(required: {
-  agentId: string; subagentsEnabled: boolean;
-}, _optional: Record<string, never> = {}): readonly string[] {
-  return required.agentId === "claude" && required.subagentsEnabled === true
-    ? ASSISTANT_DISALLOWED_TOOLS.filter((tool) => tool !== "Task" && tool !== "Agent")
-    : ASSISTANT_DISALLOWED_TOOLS;
-}
+// One product-policy owner is shared with Electron; this re-export preserves the existing seam.
+export { resolveAssistantDisallowedTools } from "#src/contracts/core/assistant-native-fallbacks";
 
 /** Explain the same per-run grant enforced by the CLI, outside catalog discovery.
  * @param required - Bound runtime and its freshly read site-owner subagent setting.
@@ -115,17 +45,11 @@ export function resolveAssistantDisallowedTools(required: {
 export function buildAssistantSubagentsOverlay(required: {
   agentId: string; subagentsEnabled: boolean;
 }, _optional: Record<string, never> = {}): string {
-  return required.agentId === "claude" && required.subagentsEnabled
-    ? "Subagents are ON for this chat. You may spawn subagents using the native Claude CLI Agent tool " +
-      "(Task in older versions); this is not a Tovu catalog tool, so do not search the catalog for it. " +
-      "Use subagents for tedious, parallel or bulk work, such as importing many posts. Give each a " +
-      "clear, scoped brief and choose a cheaper/faster model through the tool's model parameter: " +
-      "prefer haiku for simple tasks or sonnet for tasks needing more reasoning. Avoid fork agents, " +
-      "which inherit the parent model instead of honoring the model parameter. Subagents must follow " +
-      "the same tool-catalog, authorization and confirmation rules as you. "
-    : "Subagents are OFF for this chat; you cannot spawn subagents. The native Claude CLI Agent tool " +
-      "(Task in older versions) is not a Tovu catalog tool. Do not search the catalog for it or try " +
-      "to bypass this chat's tool grant. ";
+  return required.subagentsEnabled
+    ? "Full CLI access is ON. Use the CLI's native agents/subagents/Task and workflows when useful, " +
+      "including other local agent CLIs. These are native tools, not Tovu catalog tools. " +
+      "Subagents follow the same catalog authorization and permanent-delete confirmation rules. "
+    : "Native agents/subagents/Task and workflows are unavailable for this chat. ";
 }
 
 /**
@@ -189,35 +113,11 @@ export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: 
 }
 
 /**
- * `TOVU_AGENT_FORBID_BASH=1` opts a single install into {@link BASH_PROHIBITION_BLOCK}. Unset — the
- * default, and the only state a downloaded Tovu or the desktop app ever sees — leaves the base
- * overlay carrying {@link BASH_GUIDANCE_BLOCK} instead: byte-for-byte the same overlay this file
- * produced before the prohibition instrument existed at all. See `buildBaseSystemOverlay`'s own doc
- * for the exact splice point.
- *
- * This is NOT a security control, and must never be described as one in code, docs, or an operator
- * -facing message: it only removes an instruction line asking the model not to reach for a tool it
- * may otherwise still be technically permitted to call. The actual runtime gate is
- * {@link ASSISTANT_DISALLOWED_TOOLS} — forwarded to the spawned CLI's own `--disallowedTools` flag
- * (`agent-daemon-server.ts`'s `agentExecutor.run()` call), which removes Bash and the other listed
- * tools from the grant entirely, independent of `agent-daemon-server.ts`'s own
- * `resolvePermissionMode()` (which only chooses whether the CLI auto-approves the tools it DOES
- * have — see SEC-assistant-env-isolation-2026-09-07 Finding 2). Turn this prohibition text on for
- * exactly one reason — to surface real gaps in Tovu's own tool catalog. With no shell to fall back
- * on, the assistant must either find a registered tool for a request or say plainly that none
- * exists, and that plain "no tool for this yet" report is the gap surfacing itself: every silent
- * shell workaround is a gap nobody ever hears about. See `.env.example` for the operator-facing
- * version of this same explanation.
- *
- * Sentinel is the literal string `"1"`, matching this repo's own `TOVU_DISABLE_PARENT_WATCHDOG`
- * precedent (`index.ts`) rather than inventing a new `"true"`/`"false"` convention.
- *
- * Read once per process: `agent-daemon-server.ts` calls this at module scope and threads the
- * resulting boolean into `systemOverlay()`, rather than re-reading `process.env` on every call —
- * this is a boot-time operator choice with no legitimate reason to change mid-process, the same
- * footing as that file's own `ATTACHMENT_UPLOAD_DIRECTORY`/`routeDeps` module-scope reads.
- *
- * @complexity O(1)
+ * Legacy gap-discovery diagnostic: `TOVU_AGENT_FORBID_BASH=1` selects the exact hard-prohibition
+ * text above. The native-fallback policy also treats it as an OFF switch, so prompt and CLI grant
+ * agree. Without it, locked chats keep the availability guidance; local-owner chats receive the
+ * tools-first fallback rule instead. This text selector itself grants or denies no CLI tool.
+ * @complexity O(1).
  */
 export function resolveBashProhibitionEnabled(
   env: { readonly TOVU_AGENT_FORBID_BASH?: string | undefined } = process.env,
@@ -226,7 +126,7 @@ export function resolveBashProhibitionEnabled(
 }
 
 /**
- * Returns {@link BASH_GUIDANCE_BLOCK} verbatim when disabled — every install's default — or {@link
+ * Returns {@link BASH_GUIDANCE_BLOCK} verbatim when the diagnostic is disabled, or {@link
  * BASH_PROHIBITION_BLOCK} verbatim when enabled. Never reworded, and never both: the two are
  * mutually exclusive variants of the same slot in {@link buildBaseSystemOverlay}, not a base text
  * plus an addition.
@@ -240,16 +140,17 @@ export function buildBashProhibitionBlock(enabled: boolean): string {
  * custom instructions are appended (`custom-instructions.ts`'s `readOverlay()` — see
  * `agent-daemon-server.ts`'s `assistantPromptAugmenter.systemOverlay()` for that composition).
  * Moved here unchanged from where it used to be inlined, parameterized only by
- * `bashProhibitionEnabled`, so the exact text a run receives can be asserted directly without
+ * `bashProhibitionEnabled` and the verified per-run native grant, so its text is asserted without
  * booting the daemon process that used to be its only home.
  *
  * @complexity O(1) — string concatenation of a fixed number of fixed-size literals.
  */
-export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string {
+export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean } = {}): string {
   return (
     SITE_GUIDE_POINTER +
     "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
-    "not doing general development work on the Tovu codebase. Keep replies short and direct: " +
+    (optional.nativeToolAccess ? "Use the site's tools before native CLI fallbacks. Keep replies short and direct: " :
+      "not doing general development work on the Tovu codebase. Keep replies short and direct: ") +
     "lead with the answer, skip preamble and skip restating the request. Use headers, lists, or " +
     "tables only when they carry real structure. For created, updated or published content, link to the " +
     "tool's publicUrl first when present; adminUrl is only a secondary edit link. Never use a raw UUID " +
@@ -279,8 +180,9 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
-    buildBashProhibitionBlock(bashProhibitionEnabled) +
+    (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock(bashProhibitionEnabled)) +
     PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
+    (optional.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :
     "What to do instead when you believe no tool fits: search_tools again with different phrasing and a " +
     "higher limit, and if it still does not exist, SAY SO. State plainly that the catalog has no tool " +
     "for this, and describe what the missing tool would need to do and what inputs it would take. That " +
@@ -288,15 +190,17 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "for or route around. Reporting the gap is the most valuable thing you can do in that situation, " +
     "because every shell workaround silently papers over a real hole in this site's tooling and " +
     "guarantees nobody ever fixes it. An honest 'there is no tool for this yet' always beats a shell " +
-    "command that appears to work. In particular: when asked to show, draw, chart, or visualize " +
-    "something, that is a rendering request for the live admin UI, not a request to author a " +
-    "standalone artifact — search_tools for the rendering tool (assistant_render_ui) and " +
+    "command that appears to work. ") +
+    (optional.nativeToolAccess ? "For live admin rendering, prefer assistant_render_ui; use native skills and standalone artifacts when requested. " :
+      "When asked to show, draw, chart, or visualize something in the live admin UI, prefer the live rendering tool over a standalone artifact. ") +
+    "Search_tools for the rendering tool (assistant_render_ui) and " +
     "search_components/describe_component for the exact chart/component id, the same way you " +
     "would look up any other tool here — and if you ever forget those two exact names, " +
     "search_tools/describe_tool/execute_delegated_tool can find and run them too, the same as any " +
-    "other registered tool. Do not reach for a general-purpose charting/dataviz skill " +
-    "or write a static HTML file as a substitute; those produce a file on disk nobody asked for " +
-    "instead of something the administrator actually sees. When you need a decision, a " +
+    "other registered tool. " +
+    (optional.nativeToolAccess ? "Use native skills or standalone artifacts when the request needs them. " :
+      "Do not reach for a general-purpose charting/dataviz skill or write a static HTML file as a substitute. ") +
+    "When you need a decision, a " +
     "confirmation, or a choice between options from the administrator — especially before any " +
     "action that writes, overwrites, or changes what the live site serves — ask through an " +
     "interactive surface, not by describing the options in prose and waiting: an administrator " +

@@ -93,3 +93,31 @@ test("desktop chat detection and executor receive the same app runtime across li
   assert.equal(launches.length, first.length * 2);
   assert.deepEqual(probes, launches);
 });
+
+test('desktop owner setting and environment control the same provider grant and scoped cwd on each turn', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-full-cli-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const runtime = createNativeAgentRuntime({ env: {} });
+  t.after(() => runtime.dispose({}));
+  let enabled = false; let loginReads = 0;
+  const captured: { cliParity?: boolean; nativeToolAccess?: boolean; cwd: string; disallowedTools?: readonly string[] }[] = [];
+  const chat = await createDesktopAgentRuntime({ workDir: dir, buildTools: () => [], agentRuntime: runtime }, {
+    readFullCliAccess: async () => enabled,
+    readLoginShellEnvironment: async () => { loginReads++; return { PATH: '/operator/bin' }; },
+    createAgentExecutor: ({ lifecycle }) => ({ run: async (required, options = {}) => {
+      captured.push({ ...required, ...options });
+      await lifecycle.finish({ runId: required.runId, status: 'succeeded', code: 0, signal: null, resumable: false });
+    } }),
+  });
+  t.after(() => chat.close());
+  for (const grant of [false, true, false]) {
+    enabled = grant;
+    const { runId } = await chat.startTurn({ prompt: 'Use Task', agentId: 'codex' }, { addressee: { siteDir: dir, name: 'site' } });
+    await chat.lifecycle.waitForTerminal({ runId });
+    const input = captured.at(-1)!;
+    assert.equal(input.cliParity, grant); assert.equal(input.nativeToolAccess, grant);
+    for (const tool of ['Bash', 'Edit', 'Write', 'Task', 'Workflow']) assert.equal(input.disallowedTools?.includes(tool), !grant);
+    assert.equal(input.cwd, dir);
+  }
+  assert.equal(loginReads, 1);
+});

@@ -1,6 +1,6 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Observability } from "../Observability";
 import type { ObservabilityStatusController } from "../hooks/use-observability-status.hooks";
@@ -148,4 +148,31 @@ describe("Observability — Providers tab", () => {
       expect(name).not.toMatch(/connect|save|configure/i);
     }
   });
+});
+
+it("A7: selecting Tool gaps fetches the owner projection and renders the redacted Bash entry", async () => {
+  const requests: string[] = [];
+  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    expect(url).toBe("/api/admin/v1/workspaces/workspace-local/system/tool-gaps");
+    requests.push(url);
+    return new Response(JSON.stringify({ entries: [{
+      id: "bash-gap", at: "2026-10-17T00:00:00Z", site: "site-a", chatId: "chat-a", runId: "run-a",
+      provider: "claude", toolUsed: "Bash", summary: "curl password=[REDACTED:labeled_secret]",
+      type: "tool_gap", gapLine: "Tool gap: download — no Tovu tool for it.",
+    }] }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const view = renderObservability();
+  try {
+    expect(requests).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Tool gaps" }));
+    expect(await screen.findByText("curl password=[REDACTED:labeled_secret]")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Tool gaps" })).toHaveTextContent("claude · Bash");
+    expect(screen.getByText("Tool gap: download — no Tovu tool for it.")).toBeInTheDocument();
+    expect(screen.getByText(/site-a · Chat: chat-a/)).toBeInTheDocument();
+    expect(requests).toEqual(["/api/admin/v1/workspaces/workspace-local/system/tool-gaps"]);
+  } finally {
+    view.unmount();
+    fetch.mockRestore();
+  }
 });
