@@ -121,6 +121,8 @@ const SERVER_EVIDENCE: Record<string, string> = {
   pages: `${ROUTES}/pages/list.ts`,
   posts: `${ROUTES}/posts/list.ts`,
   media: `${ROUTES}/media/list.ts`,
+  // Library lists `media?kind=document` through the same route and permission.
+  library: `${ROUTES}/media/list.ts`,
   collections: `${ROUTES}/content-types/list.ts`,
   menus: `${ROUTES}/menus/list.ts`,
   taxonomy: `${ROUTES}/taxonomy/list.ts`,

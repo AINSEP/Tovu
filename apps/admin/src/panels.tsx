@@ -13,6 +13,7 @@ import { Members } from "./features/members";
 import { Comments } from "./features/comments";
 import { Analytics } from "./features/analytics";
 import { renderMediaPanel } from "./media-panel";
+import { Library } from "./features/library";
 import { Menus, MenuEditor } from "./features/menus";
 import { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrations";
 import { Providers } from "./features/providers";
@@ -235,6 +236,21 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       label: "Media",
       group: "Content",
       icon: '<rect x="2" y="3" width="14" height="11" rx="1.5"/><path d="M2 11l4-3 3 2 3-3 4 3"/><circle cx="6" cy="6.5" r="1"/>',
+    },
+  },
+  {
+    id: "library",
+    // Library documents are `media` rows of kind "document"; the list route checks `media.read`.
+    anyOfPermissions: ["media.read"],
+    // `?tab=upload|documents` — same `?tab=` deep-linking convention as `roles`/`sites`.
+    render: (ctx) => <Library tabId={ctx.query.get("tab")} />,
+    nav: {
+      // Beside Media (owner, 2026-10-18): private documents the assistant reads, never public.
+      label: "Library",
+      group: "Content",
+      // Two upright book spines and a leaning third — distinct from Media's picture frame and
+      // Pages' sheet.
+      icon: '<path d="M3 3h3v12H3zM7 3h3v12H7z"/><path d="M11.5 4.2l2.9-.8 2.4 11.1-2.9.8z"/>',
     },
   },
   {

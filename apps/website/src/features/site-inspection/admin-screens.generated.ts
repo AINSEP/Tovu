@@ -16,6 +16,7 @@ export const ADMIN_SCREENS: readonly { readonly id: string; readonly label: stri
   { id: "pages", label: "Pages", path: "/pages" },
   { id: "posts", label: "Posts", path: "/posts" },
   { id: "media", label: "Media", path: "/media" },
+  { id: "library", label: "Library", path: "/library" },
   { id: "collections", label: "Collections", path: "/collections" },
   { id: "menus", label: "Menus", path: "/menus" },
   { id: "widgets", label: "Widgets", path: "/widgets" },

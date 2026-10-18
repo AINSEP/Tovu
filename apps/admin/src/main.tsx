@@ -12,6 +12,7 @@ import "./styles/forms.css";
 import "./styles/editor.css";
 import "./styles/pages.css";
 import "./styles/media.css";
+import "./styles/library.css";
 import "./integrations/jini-admin/jini-media.css";
 import "./styles/source-control.css";
 import "./styles/access-tokens.css";

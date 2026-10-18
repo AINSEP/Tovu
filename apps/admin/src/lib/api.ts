@@ -1535,6 +1535,12 @@ export interface AdminWidgetRegionBinding {
 
 export interface AdminMedia {
   id: string;
+  /** `"document"` for a private Library document, `"media"` for ordinary media. Legacy servers omit it. */
+  kind?: "media" | "document";
+  /** A document's immutable upload filename (its extension never changes); `null` for media. */
+  originalFilename?: string | null;
+  /** A document's display name: the editable `title` plus the original extension. */
+  displayFilename?: string;
   /** Original blob bytes; null when unavailable. Legacy servers omit the field. */
   byteSize?: number | null;
   /** Read-only acting principal at creation; absent/null on legacy servers or assets. */
@@ -3250,6 +3256,19 @@ export const api = {
     request<{ purged: boolean }>(`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}`, {
       method: "DELETE",
     }),
+  /** Library documents (`kind=document`): private, active only, never in media pickers. */
+  listDocuments: () => request<{ media: AdminMedia[] }>(`/workspaces/${WORKSPACE_ID}/media?kind=document`),
+  /** The server takes the document type from the filename's extension and checks the bytes. */
+  uploadDocument: (input: { filename: string; dataBase64: string }) =>
+    request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, kind: "document" }),
+    }),
+  /** A Markdown/text/CSV/JSON document's UTF-8 source, 64 KiB per page (`nextOffset` continues it). */
+  readDocumentText: ({ id }: { id: string }, options: { offset?: number } = {}) =>
+    request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
+      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${options.offset ? `?offset=${options.offset}` : ""}`,
+    ),
   listUsers: () => request<{ users: AdminIdentityUser[] }>(`/workspaces/${WORKSPACE_ID}/users`),
   createUser: (
     input: { username: string; password: string },

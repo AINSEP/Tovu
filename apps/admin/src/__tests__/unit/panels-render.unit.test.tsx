@@ -40,6 +40,7 @@ import { WorkspaceRedirect } from "../../features/workspace";
 import { AiAssistant } from "../../features/ai-assistant";
 import { Playground } from "../../features/playground";
 import { Sites } from "../../features/sites";
+import { Library } from "../../features/library";
 import { Skills } from "../../features/skills/Skills";
 
 /**
@@ -75,9 +76,10 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // 48 as of 2026-10-17: Admin UI adds one panel. The three former presentation ids stay
   // as nav-less redirects, so bookmarks remain valid without duplicate navigation entries.
   // Design System has no placeholder or tab; its retained route redirects to Appearance.
-  it("has 48 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(48);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(48);
+  // 49 as of 2026-10-18: Library (private documents) sits beside Media.
+  it("has 49 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(49);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(49);
   });
 });
 
@@ -141,6 +143,7 @@ describe("panel 'users'", () => {
 
 /** Panels whose default view reads `ctx.query.get("tab")` straight into a `tabId` prop. */
 const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
+  ["library", Library],
   ["media", Media],
   ["ai-assistant", AiAssistant],
   ["deployment", Deployment],
