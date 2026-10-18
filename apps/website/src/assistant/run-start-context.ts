@@ -1,3 +1,4 @@
+import { readChatAgentPluginState, type ChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "./credential-guidance.js";
 import { guardUserText } from "@jini-ai/chat/core";
 /**
@@ -77,6 +78,8 @@ export function parseRunStartContextRef(contextRef: string): {
   model?: string;
   reasoning?: string;
   pluginRefIds: readonly string[];
+  agentPluginState: ChatAgentPluginState;
+  userPrompt?: string;
   conversationId?: string;
   pageContext?: RunPageContext;
   assistantMessageId?: string;
@@ -91,6 +94,8 @@ export function parseRunStartContextRef(contextRef: string): {
     model?: unknown;
     reasoning?: unknown;
     pluginRefIds?: unknown;
+    agentPluginState?: unknown;
+    userPrompt?: unknown;
     conversationId?: unknown;
     pageContext?: unknown;
     assistantMessageId?: unknown;
@@ -127,6 +132,8 @@ export function parseRunStartContextRef(contextRef: string): {
     principalId,
     attachmentIds,
     pluginRefIds,
+    agentPluginState: readChatAgentPluginState({ value: parsed.agentPluginState }),
+    ...(typeof parsed.userPrompt === "string" ? { userPrompt: guardUserText({ text: parsed.userPrompt.slice(0, 16000) }, { modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true }) } : {}),
     ...(model === undefined ? {} : { model }),
     ...(reasoning === undefined ? {} : { reasoning }),
     ...(conversationId === undefined ? {} : { conversationId }),

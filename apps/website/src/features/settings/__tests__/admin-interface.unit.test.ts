@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { getEffective, InMemorySettingsRepo, resolveDefinitionRaw, SCOPE_BIT } from "@jini-ai/core/settings";
+import { getEffective, InMemorySettingsRepo, resolveDefinitionRaw, set, SCOPE_BIT } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup } from "../index.js";
 import {
@@ -121,4 +121,27 @@ test("registering again on the next boot leaves the definitions unchanged", asyn
   assert.equal(after.settingId, before.settingId);
   assert.equal(after.version, before.version);
   assert.equal(after.defaultValue, "collapsed");
+});
+
+test('Agent plugins defaults Auto and supports independent per-person values', async () => {
+  const { settingsRepo } = await registeredLedger();
+  const def = await definition(settingsRepo, 'chatAgentPlugins');
+  assert.ok(def, 'the preference must be registered before the UI can persist it');
+  assert.deepEqual(def.schema, { type: 'enum', values: ['auto', 'ask', 'off'] });
+  assert.equal(def.scopes, PER_OPERATOR);
+  const read = (principalId: string) => getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scopeContext: { workspaceId: 'workspace-1', principalId } });
+  assert.equal((await read('alice')).value, 'auto');
+  // Use the actual write service so validation and effective-value cache invalidation participate.
+  for (const [principalId, value] of [['alice', 'ask'], ['bob', 'off']] as const) {
+    await set({ deps: { repo: settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: 'test' }), principals: { findActiveById: async ({ id }) => ({ id }) } }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scope: 'user', workspaceId: 'workspace-1', principalId, callerPrincipalId: principalId, authWorkspaceId: 'workspace-1', value } });
+  }
+  assert.equal((await read('alice')).value, 'ask');
+  assert.equal((await read('bob')).value, 'off');
+  assert.equal((await read('charlie')).value, 'auto');
+  const writeDeps = { repo: settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: 'test' }), principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } };
+  const input = { namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scope: 'user' as const, workspaceId: 'workspace-1', principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: 'workspace-1', value: 'auto' };
+  await set({ deps: writeDeps, input });
+  assert.equal((await read('alice')).value, 'auto');
+  assert.equal((await read('bob')).value, 'off');
+  await assert.rejects(set({ deps: writeDeps, input: { ...input, value: 'invalid' } }));
 });

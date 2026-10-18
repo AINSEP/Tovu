@@ -145,3 +145,11 @@ test("daemon model prompt removes pasted credentials and preserves the request",
   assert.equal(prompt, 'Use this [token removed] to connect my account\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.');
   assert.equal(prompt.includes(secret), false, 'raw credential reached daemon model input');
 });
+
+test('carries validated per-chat plugin decisions and the actual current request', () => {
+  const state = { decision: { selected: ['synthetic'] }, excluded: ['excluded'] };
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: 'full transcript', userPrompt: 'design a theme', principalId: 'p1', agentPluginState: state }));
+  assert.deepEqual(result.agentPluginState, state);
+  assert.equal(result.userPrompt, 'design a theme');
+  assert.deepEqual(parseRunStartContextRef(JSON.stringify({ prompt: 'hi', principalId: 'p1', agentPluginState: { decision: 'forged', excluded: [42] } })).agentPluginState, { decision: null, excluded: [] });
+});

@@ -5,6 +5,7 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 export const toolMetadata = {
   // Movers use order/position vocabulary only; edit verbs belong to section writers.
   "pages_move_region": {
+    guidanceCapabilities: ["theme-authoring", "ui-design"],
     search: {
       keywords: "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
       queries: [
@@ -34,6 +35,7 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "pages_write_html": {
+    guidanceCapabilities: ["theme-authoring", "ui-design"],
     search: {
       keywords: "custom page html code write create new design page build a page landing page whole entire full complete rewrite rewriting redo start over from scratch replace the page restructure add a section remove a section",
       queries: [
@@ -47,6 +49,7 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "pages_write_region": {
+    guidanceCapabilities: ["theme-authoring", "ui-design"],
     search: {
       keywords: "section sections region regions part parts piece block chunk area one single just the only the " +
         "hero headline heading title banner cta call to action pricing faq testimonial footer text copy " +

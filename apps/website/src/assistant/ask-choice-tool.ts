@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import { ToolInputError, buildDomainRegistrations, decorateWithSchema, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { ASK_CHOICE_INPUT_SCHEMA, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
+import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
 import { buildUIToolResult, type UIResource } from "./mcp-ui.js";
 import { askOnce, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
@@ -199,6 +199,7 @@ function buildAskChoiceFields(parsed: AskChoiceQuestion): SurfaceField[] {
       label: parsed.multiSelect.label,
       ...(parsed.multiSelect.hint === undefined ? {} : { hint: parsed.multiSelect.hint }),
       options: parsed.multiSelect.options,
+      ...(parsed.multiSelect.value ? { value: [...parsed.multiSelect.value] } : {}),
     });
   }
   return fields;
@@ -220,9 +221,10 @@ function buildAskChoiceFormSurface(
     ...(parsed.description === undefined ? {} : { description: parsed.description }),
     submitLabel: parsed.submitLabel ?? "Submit",
     toolName,
-    baseParams,
+    baseParams: { ...baseParams, ...(parsed.actions?.[0] ? { __choiceAction: parsed.actions[0].id } : {}) },
+    additionalSubmitActions: parsed.actions?.slice(1).map(action => ({ id: action.id, label: action.label, params: { __choiceAction: action.id } })) ?? [],
     fields: buildAskChoiceFields(parsed),
-    cancel: cancelParams ? { label: "Cancel", toolName, params: cancelParams } : { label: "Cancel" },
+    cancel: cancelParams ? { label: parsed.actions ? "Skip" : "Cancel", toolName, params: cancelParams } : { label: "Cancel" },
     app: { appName: "tovu-ask-choice", appVersion: "1" },
     preferredFrameSize: ["100%", "420px"],
   });
@@ -253,6 +255,26 @@ const askChoiceMessages: AskChoiceMessages = {
   cancelled: "The administrator cancelled the form without answering. Do not assume any answer.",
 };
 
+/** Adapt the host's expiry-aware exchange port; Jini owns the choice lifecycle. */
+function askChoiceExchanges({ surfaces }: { surfaces: AssistantSurfaceDeps }, _options = {}): AskChoiceExchangeStore {
+  return {
+    open: ({ toolId, principalId, emit }) => {
+      const exchange = surfaces.surfaceExchanges.open({ binding: { toolId, principalId }, emit: (emission) => emit({
+        emission: { channel: "mcp-ui", payload: { resource: emission.payload["resource"] } },
+      }) });
+      // Adapt the one-shot port through Jini's expiry-aware helper. Rendering may outlast the TTL;
+      // askOnce returns the terminal answer in that race while transport failures still propagate.
+      let answer: Awaited<ReturnType<typeof askOnce>>;
+      return {
+        id: exchange.id,
+        send: async ({ emission }) => { answer = await askOnce({ exchange, emission }); },
+        receive: async () => answer,
+        close: () => exchange.close({}),
+      };
+    },
+  };
+}
+
 /**
  * Builds this tool's registration, binding Tovu's policy/presentation to the package handler.
  * The generic parser, answer validation and ticket lifecycle live at `@jini-ai/mcp/tools/ask-choice`.
@@ -280,22 +302,7 @@ export function buildAskChoiceRegistrations(
     newTicketId: () => randomUUID(),
     ttlMs: ASK_CHOICE_TICKET_TTL_MS,
   });
-  const surfaceExchanges: AskChoiceExchangeStore = {
-    open: ({ toolId, principalId, emit }) => {
-      const exchange = surfaces.surfaceExchanges.open({ binding: { toolId, principalId }, emit: (emission) => emit({
-        emission: { channel: "mcp-ui", payload: { resource: emission.payload["resource"] } },
-      }) });
-      // Adapt the one-shot port through Jini's expiry-aware helper. Rendering may outlast the TTL;
-      // askOnce returns the terminal answer in that race while transport failures still propagate.
-      let answer: Awaited<ReturnType<typeof askOnce>>;
-      return {
-        id: exchange.id,
-        send: async ({ emission }) => { answer = await askOnce({ exchange, emission }); },
-        receive: async () => answer,
-        close: () => exchange.close({}),
-      };
-    },
-  };
+  const surfaceExchanges = askChoiceExchanges({ surfaces });
   const presentation: AskChoicePresentation = {
     render: buildAskChoiceFormSurface,
     buildResult: ({ modelText, ui }) => {
@@ -344,4 +351,28 @@ export function buildAskChoiceRegistrations(
     },
     derivedRisk: askChoiceDerivedRisk,
   });
+}
+
+/** Ask the same principal-bound choice exchange for automatic plugin use. Only real form actions
+ * can select Auto; typed/model-authored answers and dismissal mean Skip. No preference is written here.
+ * @complexity O(m) offered matches, bounded by the automatic-use owner.
+ */
+export async function askAgentPluginChoice(
+  { surfaces, principalId, emitSurface, signal, matches }: {
+    surfaces: AssistantSurfaceDeps; principalId: string; emitSurface: import('@jini-ai/core').SurfaceEmitter;
+    signal: AbortSignal; matches: readonly { id: string; name: string; why: string }[];
+  }, _options = {},
+): Promise<{ action: 'use' | 'skip' | 'auto'; selected: readonly string[] }> {
+  const question: AskChoiceQuestion = { title: 'Agent plugins', description: 'Use these installed plugins for this chat?', submitLabel: 'Use',
+    multiSelect: { label: 'Matching plugins', value: matches.map(match => match.id),
+      options: matches.map(match => ({ value: match.id, label: `${match.name} — ${match.why}` })) },
+    actions: [{ id: 'use', label: 'Use' }, { id: 'auto', label: "Don't ask again" }],
+  };
+  const exchange = askChoiceExchanges({ surfaces }).open({ toolId: ASK_CHOICE_TOOL_ID, principalId, emit: ({ emission }) => emitSurface(emission) });
+  const answer = await askChoice({ exchange, question, toolId: ASK_CHOICE_TOOL_ID, principalId, signal, messages: askChoiceMessages,
+    presentation: { render: buildAskChoiceFormSurface },
+  });
+  // Only a validated form action can change plugin policy; typed answers and dismissal mean Skip.
+  if (answer.submitted !== true || !Array.isArray(answer.selections) || (answer.action !== 'use' && answer.action !== 'auto')) return { action: 'skip', selected: [] };
+  return { action: answer.action, selected: answer.selections as string[] };
 }

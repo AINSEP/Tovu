@@ -92,7 +92,11 @@ export async function captureDaemonRun(
     homedir: () => "/home/daemon-test",
     existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
     failRunBeforeStart: async ({ message }: { message: string }) => { reject(new Error(message)); },
-    console: { error: (...args: unknown[]) => { if (!options.terminalFailure) reject(new Error(args.map(String).join(" "))); }, log() {} },
+    console: { error: (...args: unknown[]) => { if (!options.terminalFailure) reject(new Error(args.map(String).join(" "))); }, log() {}, warn() {} },
+    // Automatic Agent plugins preflight is fail-open and owned by its own tests; this capture
+    // isolates onStarted's other wiring.
+    AbortController,
+    automaticPluginRuns: { start: async () => "", prepareGuidance: async () => "", forget() {} },
     // `run()` takes Jini's (required, optional) pair; the executor reassembles one
     // AgentExecutorRunInput from them, so the capture does the same.
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
@@ -110,12 +114,18 @@ export async function captureDaemonRun(
     onStarted({
       request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", ...context }), ...options.request },
       run: { id: "daemon-test-run" },
-      lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) },
+      lifecycle: withCancelSubscription(options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) }),
     });
     return await captured;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Minimal lifecycle fakes predate onStarted's cancel subscription; real lifecycles keep their own. */
+function withCancelSubscription(lifecycle: unknown): unknown {
+  if (typeof (lifecycle as { onCancelRequested?: unknown }).onCancelRequested === "function") return lifecycle;
+  return Object.assign(Object.create(lifecycle as object), { onCancelRequested: () => () => {} });
 }
 
 /** Select only direct statements: a commented-out or unreachable lookalike cannot satisfy a seam. */

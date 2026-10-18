@@ -115,6 +115,7 @@ test("the daemon's composed executor diagnoses a refusal introduced after constr
     registry: createToolRegistry({}), surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     auditSink: createInMemoryToolAttemptAuditSink(), routeDeps: { workspaceId: "ws-live-refusal" },
     toolExtensions: { federation: { reports: () => reports } },
+    automaticPluginRuns: { prepareGuidance: async () => "" },
   });
   const request = { principal: { id: "principal" }, run: { id: "run" }, toolId: "mcp__probe__lookup", input: {} };
   await assert.rejects(executor.execute(request), /unknown tool/);

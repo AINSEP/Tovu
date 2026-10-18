@@ -129,7 +129,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     normalizeBundledDigests: (value: unknown) => owner.normalizeBundledDigests({ value }),
     preferBundledAgentPluginDigests: <T extends { readonly pluginId: string; readonly archiveDigest: string }>(installed: readonly T[], bundled: Parameters<typeof owner.preferBundledAgentPluginDigests>[0]['bundled']) => owner.preferBundledAgentPluginDigests({ installed, bundled }),
     recordBundledAgentPluginDigests: (input: Parameters<typeof owner.recordBundledAgentPluginDigests>[0] & { readonly now?: () => Date }) => owner.recordBundledAgentPluginDigests(input, input.now ? { now: input.now } : {}),
-    rankInstalledAgentPlugins: (query: string, candidates: Parameters<typeof owner.rankInstalledAgentPlugins>[0]['candidates'], limit: number) => owner.rankInstalledAgentPlugins({ query, candidates, limit }),
+    rankInstalledAgentPlugins: (query: string, candidates: Parameters<typeof owner.rankInstalledAgentPlugins>[0]['candidates'], limit: number, optional: { automatic?: boolean } = {}) => owner.rankInstalledAgentPlugins({ query, candidates, limit }, optional),
     packAgentPluginDirectory: (sourceDir: string) => owner.packAgentPluginDirectory({ sourceDir }),
     createBundledSourceArchiveReader: (): AgentPluginArchiveReaderPort => {
       const reader = owner.createBundledSourceArchiveReader({});

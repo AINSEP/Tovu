@@ -296,3 +296,11 @@ test('delegated normalization: dotted settings persist once and an ambiguous reg
   assert.match(delegatedText(refused), /dotted key is ambiguous/);
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), before);
 });
+
+for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} cannot change or clear the person's Agent plugins preference`, async () => {
+  const f = fixture('core.interface', 'chatAgentPlugins');
+  await assert.rejects(f.call(toolId, { namespace: 'core.interface', key: 'chatAgentPlugins', ...(toolId === 'settings_set_value' ? { value: 'auto' } : {}) }), /Agent plugins preference belongs to the person/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+  const listed = await f.call('settings_list_definitions', {}) as { data: { agentWritable: boolean }[] };
+  assert.equal(listed.data[0]!.agentWritable, false);
+});

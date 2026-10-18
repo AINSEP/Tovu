@@ -1,3 +1,7 @@
+import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
+import { createDocumentArchiveReader } from "#src/features/media/document-archive";
+import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
+import { createAutomaticPluginRuns } from "../../../assistant/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
@@ -73,7 +77,7 @@ import { createSkillRefreshMiddleware } from "#src/features/skills/live-registra
 import { isDaemonLifecycleLogQuiet } from "#src/server/runtime/lifecycle/daemon-lifecycle-log";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 
 import express from "express";
@@ -529,6 +533,19 @@ for (const registration of assistantRegistrations) {
  * Silently skipped (not thrown) when `media_upload_asset` is somehow unwired: this bridge is strictly
  * additive to that tool and must never be the reason the whole daemon fails to boot.
  */
+registry.register(buildLibrarySaveAttachmentTool({
+  deps: routeDeps,
+  getStore: () => attachmentStore,
+  getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
+  archiveReader: createDocumentArchiveReader({}),
+  readFile: async path => {
+    // The resolver already checked this issued path's run and integrity. Bound allocation too:
+    // chat accepts larger media than Library documents, and unsaved attachments stay temporary.
+    if ((await stat(path)).size > MAX_DOCUMENT_BYTES) throw new Error("document exceeds the 10 MiB limit");
+    return readFile(path);
+  },
+}));
+
 const mediaUploadAssetRegistration = assistantRegistrations.find(
   (registration) => registration.descriptor.id === "media_upload_asset",
 );
@@ -664,9 +681,11 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // model as an opaque `INTERNAL_ERROR` that names neither the tool nor the reason. This layer catches
 // exactly that throw and, only when the id matches a refusal in `toolExtensions.federation.reports()`,
 // returns a real result naming the tool, the server, and the fix instead. See that file's own header.
+const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges } });
 const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
     registry,
     surfaceExchanges,
+    prepareGuidance: automaticPluginRuns.prepareGuidance,
     toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
   }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {});
 
@@ -898,6 +917,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let principal: Principal;
   let attachmentIds: readonly string[] = [];
   let pluginRefIds: readonly string[] = [];
+  let agentPluginState: import('@jini-ai/agent-plugins/lifecycle').ChatAgentPluginState = { decision: null, excluded: [] };
+  let userPrompt: string | undefined;
   let model: string | undefined;
   let reasoning: string | undefined;
   let conversationId: string | undefined;
@@ -919,6 +940,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     principal = { id: decoded.principalId };
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
+    agentPluginState = decoded.agentPluginState;
+    userPrompt = decoded.userPrompt;
     model = decoded.model;
     reasoning = decoded.reasoning;
     conversationId = decoded.conversationId;
@@ -933,6 +956,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     return;
   }
 
+  const pluginAbort = new AbortController();
+  const unsubscribePluginCancel = runLifecycle.onCancelRequested({ runId: run.id, listener: () => pluginAbort.abort() });
   principalByRunId.set(run.id, principal);
   messageAttachmentRefsByRunId.set(run.id, attachmentIds);
   if (durableMessageId !== undefined) durableMessageIdsByRunId.set(run.id, durableMessageId);
@@ -945,6 +970,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   if (conversationId !== undefined) liveRunTracker.register({ conversationId: conversationId, runId: run.id }, {});
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
   void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
+    pluginAbort.abort();
+    unsubscribePluginCancel();
+    automaticPluginRuns.forget({ runId: run.id });
     principalByRunId.delete(run.id);
     messageAttachmentRefsByRunId.delete(run.id);
     durableMessageIdsByRunId.delete(run.id);
@@ -1039,8 +1067,21 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
       const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId: request.agentId ?? DEFAULT_AGENT_ID }, {});
       if (!attachmentRunFields) return;
-      const pluginPromptPrefix = await resolveAgentPluginPromptPrefix({ run, pluginRefIds, runLifecycle, workspaceId: routeDeps.workspaceId, agentPluginLayout: routeDeps.agentPluginLayout });
+      let pluginPromptPrefix = await resolveAgentPluginPromptPrefix({ run, pluginRefIds, runLifecycle, workspaceId: routeDeps.workspaceId, agentPluginLayout: routeDeps.agentPluginLayout });
       if (pluginPromptPrefix === null) return;
+      if (conversationId !== undefined) {
+        try {
+          const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, context: {
+            principal, conversationId, state: agentPluginState, query: userPrompt ?? prompt, pinned: pluginRefIds,
+            signal: pluginAbort.signal,
+            emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: {
+              type: 'mcp-ui', toolUseId: `agent-plugins:${run.id}`, resource: emission.payload['resource'],
+            } } }); },
+            publish: async value => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'agent_plugins', ...value } } }); },
+          } });
+          pluginPromptPrefix = [pluginPromptPrefix, automaticPrefix].filter(Boolean).join('\n\n');
+        } catch { console.warn('[agent-plugins] automatic preflight unavailable'); }
+      }
 
       /*
        * This run's entire session-binding decision, in ONE function so it can be handed to

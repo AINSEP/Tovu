@@ -37,6 +37,7 @@ import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDe
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { set } from "./site-title-write.js";
+import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "./admin-interface.js";
 
 export { settingsDerivedRisk } from "@jini-ai/core/settings";
 
@@ -60,7 +61,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
     // This opt-in belongs to the owner UI, never the assistant changing its own tool grant.
-    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
+    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Agent plugins preference belongs to the person; use the settings UI or the principal-bound plugin choice." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
     setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.

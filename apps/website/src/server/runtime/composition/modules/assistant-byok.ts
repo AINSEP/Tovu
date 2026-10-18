@@ -1,3 +1,6 @@
+import { createAutomaticPluginRuns } from "#src/assistant/automatic-agent-plugins";
+import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
+import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
@@ -408,16 +411,19 @@ export function createAssistantByokModule(
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }) });
   // The public contract and both roots require complete BYOK dependencies;
   // no cast may conceal a missing runtime port.
+  let automaticPluginRuns: ReturnType<typeof createAutomaticPluginRuns>;
   const resolvedToolSurface =
     toolSurface ??
     createByokToolSurface(routeDeps, {
       contributions,
+      prepareGuidance: (required, optional) => automaticPluginRuns.prepareGuidance(required, optional),
       // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
       // consumers must not open their own database. A supplied toolSurface bypasses this branch.
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
       // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
       registerInstalledExtensions: registerInstalledExtensionTools,
     });
+  automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
@@ -464,7 +470,7 @@ export function createAssistantByokModule(
     // live — empty before federation has admitted anything, and always when this surface was built
     // with `installExtensions: false` (`federation` is `undefined` there).
     const federationOutcome = await resolvedToolSurface.awaitFederation(FEDERATION_TURN_WAIT_MS);
-    const system = await resolveByokSystemPrompt(routeDeps, {
+    let system = await resolveByokSystemPrompt(routeDeps, {
       refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
       stillConnecting: !federationOutcome.settled,
     });
@@ -478,6 +484,28 @@ export function createAssistantByokModule(
     res.on("close", () => {
       if (!res.writableEnded) abort.abort();
     });
+
+    // Preflight uses the same catalog/consent/guidance owner as CLI, before the provider plans.
+    const pluginBody = (req.body ?? {}) as { conversationId?: unknown; agentPluginState?: unknown; pluginRefIds?: unknown; userPrompt?: unknown };
+    const conversationId = typeof pluginBody.conversationId === 'string' ? pluginBody.conversationId : undefined;
+    const pinned = Array.isArray(pluginBody.pluginRefIds) ? pluginBody.pluginRefIds.filter((id): id is string => typeof id === 'string') : [];
+    if (pinned.length) {
+      const resolved = await resolveAgentPluginRefs(pinned, routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
+      if (!resolved.ok) { sse(res, 'error', { message: 'A selected Agent Plugin could not be loaded.' }); res.end(); return; }
+      system += `\n\n${resolved.promptPrefix}`;
+    }
+    res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
+    if (conversationId) {
+      try {
+        const guidance = await automaticPluginRuns.start({ runId: run.id, context: {
+          principal, conversationId, state: readChatAgentPluginState({ value: pluginBody.agentPluginState }),
+          query: typeof pluginBody.userPrompt === 'string' ? pluginBody.userPrompt.slice(0, 16000) : messages[messages.length - 1]?.content ?? '', pinned, signal: abort.signal,
+          emitSurface: async emission => { sse(res, 'agent', toWireSurfacePayload(emission, `agent-plugins:${run.id}`)); },
+          publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
+        } });
+        if (guidance) system += `\n\n${guidance}`;
+      } catch { console.warn('[agent-plugins] automatic BYOK preflight unavailable'); }
+    }
 
     // Dispatches against the META-tool set, not the raw catalog: `call.name` is one of
     // `search_tools`/`describe_tool`/`execute_delegated_tool`, and a real tool id arrives as the

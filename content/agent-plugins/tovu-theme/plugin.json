@@ -11,7 +11,8 @@
       "id": "tovu/tovu-theme",
       "provides": [
         "theme-authoring"
-      ]
+      ],
+      "displayName": "Tovu Theme"
     }
   },
   "keywords": [

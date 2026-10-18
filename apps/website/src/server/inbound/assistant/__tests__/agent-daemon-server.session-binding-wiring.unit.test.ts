@@ -49,7 +49,7 @@ function sessionHarness(coldStartContext?: string) {
   const launches: { runId: string; newSessionId?: string; resumeSessionId?: string; stored: string | null }[] = [];
   const failures: unknown[][] = [];
   const prompts: string[] = [];
-  const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: () => {} };
+  const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: () => {}, onCancelRequested: () => () => {} };
   const onStarted = runInNewContext(`${compiled}\nonStarted`, {
     parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
@@ -84,7 +84,8 @@ function sessionHarness(coldStartContext?: string) {
     resolveAssistantDisallowedTools: () => [], readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
     resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
-    console: { error: (...args: unknown[]) => failures.push(args), log() {} },
+    console: { error: (...args: unknown[]) => failures.push(args), log() {}, warn() {} },
+    AbortController, automaticPluginRuns: { start: async () => "", forget() {} },
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },

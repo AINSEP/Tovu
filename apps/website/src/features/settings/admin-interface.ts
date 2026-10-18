@@ -31,6 +31,7 @@ export const WRAP_TABS_KEY = "wrapTabs";
 export const CHAT_TOOL_CALLS_KEY = "chatToolCalls";
 export const CHAT_SHOW_USAGE_LINE_KEY = "chatShowUsageLine";
 export const CHAT_SHOW_THINKING_KEY = "chatShowThinking";
+export const CHAT_AGENT_PLUGINS_KEY = "chatAgentPlugins";
 export const ADMIN_THEME_KEY = "adminTheme";
 /** Per-admin-theme colours; Classic retains core.appearance.accentColor's scalar contract. */
 export const ADMIN_THEME_ACCENTS_KEY = "adminThemeAccents";
@@ -45,7 +46,7 @@ export interface EnsureAdminInterfaceSettingDefinitionsInput {
 /**
  * Idempotently registers Tovu's admin interface and theme-accent definitions. Safe on every boot.
  *
- * @complexity O(1), seven definitions.
+ * @complexity O(1), eight definitions.
  */
 export async function ensureAdminInterfaceSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
@@ -58,6 +59,7 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: WRAP_TABS_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_TOOL_CALLS_KEY, schema: { type: "enum", values: ["show", "collapsed", "hidden"] }, defaultValue: "collapsed", scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_USAGE_LINE_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
+      { key: CHAT_AGENT_PLUGINS_KEY, schema: { type: "enum", values: ["auto", "ask", "off"] }, defaultValue: "auto", scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
       { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
     ],

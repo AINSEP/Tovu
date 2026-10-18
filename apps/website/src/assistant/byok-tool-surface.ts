@@ -447,6 +447,7 @@ export function createByokToolSurface(
   routeDeps: ByokToolSurfaceDeps,
   options: {
     readonly surfaceExchangeStore?: SurfaceExchangeStore;
+    readonly prepareGuidance?: import("@jini-ai/daemon").PrepareToolGuidance;
     /**
      * Where every tool-execution attempt is logged, for BOTH halves of this surface: the two
      * meta-tools (`search_tools`/`describe_tool`, via `tool-catalog-audit.ts`'s own
@@ -588,6 +589,7 @@ export function createByokToolSurface(
   const executor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
       registry,
       surfaceExchanges,
+      ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
       ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
     }, {}), getSnapshot: () => federation?.reports() ?? [], getBootStatus: () =>
       federation
