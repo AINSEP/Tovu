@@ -12,6 +12,7 @@
  * orphaning bytes.
  */
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
+import { MediaStillReferencedError } from "../../media/index.js";
 import { flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 
 export const MEDIA_ENTITY_TYPE = "media";
@@ -82,7 +83,12 @@ export function createMediaTrashAdapter(deps: MediaTrashAdapterDeps): TrashAdapt
       const version = await currentVersion(required.workspaceId, required.entityId);
       if (version === null) return "already-gone";
       if (required.expectedVersion !== null && version !== required.expectedVersion) return "version-changed";
-      await deps.purgeAsset({ workspaceId: required.workspaceId, entityId: required.entityId });
+      try {
+        await deps.purgeAsset({ workspaceId: required.workspaceId, entityId: required.entityId });
+      } catch (error) {
+        if (error instanceof MediaStillReferencedError) return "still-referenced";
+        throw error;
+      }
       return (await currentVersion(required.workspaceId, required.entityId)) === null ? "purged" : "version-changed";
     },
   };

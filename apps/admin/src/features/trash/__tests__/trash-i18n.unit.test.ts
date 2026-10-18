@@ -96,6 +96,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "Restored.",
     "Nothing was restored.",
     "Nothing was deleted.",
+    "Items still in use were not deleted.",
     "Deleted permanently.",
     "You do not have permission for this item.",
     "It is no longer in the Trash.",

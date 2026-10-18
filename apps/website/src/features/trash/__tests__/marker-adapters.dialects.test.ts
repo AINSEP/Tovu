@@ -5,6 +5,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
 import { createMediaTrashAdapter } from "../adapters/media.js";
+import { MediaStillReferencedError } from "../../media/index.js";
 import { createPostTrashAdapter } from "../adapters/post.js";
 import { createRedirectTrashAdapter } from "../adapters/redirect.js";
 
@@ -176,5 +177,19 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["status", "version"]).executeTakeFirstOrThrow()), { status: "trashed", version: 2 });
     assert.deepEqual(await media.unhide({ workspaceId: WS, entityId: "m-restore", at: AT, expectedVersion: 2 }), { ok: true, version: 3 });
     assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["status", "version"]).executeTakeFirstOrThrow()), { status: "active", version: 3 });
+  });
+
+  test("media: referenced assets stay trashed and unexpected purge errors still propagate", async () => {
+    const kernel = make();
+    await seedMedia(kernel, "m-referenced");
+    let error: Error = new MediaStillReferencedError({ message: "media is still used", referencing: ["post-1:bodyHtml"] });
+    const media = createMediaTrashAdapter({ db: kernel, purgeAsset: async () => { throw error; } });
+    await media.hide({ workspaceId: WS, entityId: "m-referenced", at: AT, expectedVersion: 1 });
+    const input = { workspaceId: WS, entityId: "m-referenced", expectedVersion: 2 };
+
+    assert.equal(await media.purge(input), "still-referenced");
+    assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["status", "version"]).executeTakeFirstOrThrow()), { status: "trashed", version: 2 });
+    error = new Error("reference lookup failed");
+    await assert.rejects(media.purge(input), caught => caught === error);
   });
 });

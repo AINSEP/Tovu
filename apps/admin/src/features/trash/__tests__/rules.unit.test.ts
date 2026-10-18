@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminTrashItem } from "@/lib/api";
-import { actorLabel, entityTypeLabel, itemSubtitle } from "../rules";
+import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport } from "../rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/api";
 import { describeTrashLoadError } from "../rules";
 
@@ -8,6 +8,25 @@ it("localizes a settled Trash timeout with a refresh action", () => {
   const error = new ApiError("the API timed out", 0, REQUEST_TIMEOUT_CODE, {});
   expect(describeTrashLoadError({ error, locale: "en" })).toBe("The Tovu API did not respond. Try refreshing the Trash.");
   expect(describeTrashLoadError({ error, locale: "es" })).toBe("La API de Tovu no respondió. Prueba a actualizar la papelera.");
+});
+
+describe("describePurgeReport", () => {
+  it("explains retained media when all or some selected items are still used", () => {
+    expect(describePurgeReport("en", { purged: 0, results: [{ outcome: "still-referenced" }] })).toBe(
+      "Nothing was deleted. Items still in use were not deleted.",
+    );
+    expect(describePurgeReport("en", { purged: 1, results: [{ outcome: "still-referenced" }, { outcome: "purged" }] })).toBe(
+      "Deleted permanently. 1/2 Items still in use were not deleted.",
+    );
+    expect(describePurgeReport("es", { purged: 0, results: [{ outcome: "still-referenced" }] })).toBe(
+      "No se eliminó nada. Los elementos que siguen en uso no se eliminaron.",
+    );
+  });
+
+  it("preserves report copy when no item is still referenced", () => {
+    expect(describePurgeReport("en", { purged: 1, results: [{ outcome: "purged" }] })).toBe("Deleted permanently.");
+    expect(describePurgeReport("en", { purged: 0, results: [{ outcome: "forbidden" }] })).toBe("Nothing was deleted.");
+  });
 });
 
 /**

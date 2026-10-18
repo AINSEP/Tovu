@@ -5,6 +5,10 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteTrashDb } from "#src/features/trash/db-port.sqlite";
 import { buildTrashRegistry } from "#src/features/trash/registry";
+import { createMediaTrashAdapter } from "#src/features/trash/adapters/media";
+import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
+import { createTrashService } from "@jini-ai/cms/trash";
+import { MediaStillReferencedError } from "#src/features/media/index";
 import { registerAdminTrashListRoute } from "../list.js";
 import { registerAdminTrashMoveToTrashRoute } from "../items.js";
 import { registerAdminTrashPurgeRoute } from "../purge.js";
@@ -87,6 +91,36 @@ test("purge accepts 200 ids, preserves duplicates, and returns every port outcom
     { id: "row-0", outcome: "purged" }, ...Array.from({ length: 198 }, (_, n) => ({ id: `row-${n + 1}`, outcome: "not-found" })), { id: "row-0", outcome: "already-gone" },
   ] } });
   assert.equal(writes, 1);
+});
+test("purge returns 200 for referenced media and continues purging later selected rows", async (t) => {
+  const db = openContentDb(":memory:");
+  const client = db.$client;
+  t.after(() => client.close());
+  client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run("ws-7", "Site", "site", now);
+  for (const id of ["media-used", "media-free"]) {
+    client.prepare(`INSERT INTO media (id, workspace_id, title, alt, caption, credit, source_sha256, status, created_at, updated_at, version)
+      VALUES (?, 'ws-7', ?, '', '', '', ?, 'active', ?, ?, 1)`).run(id, id, "0".repeat(64), now, now);
+  }
+  const adapter = createMediaTrashAdapter({ db: client, purgeAsset: async ({ entityId }) => {
+    if (entityId === "media-used") throw new MediaStillReferencedError({ message: "still used by a post", referencing: ["post-8:bodyHtml"] });
+    client.prepare("DELETE FROM media WHERE workspace_id = ? AND id = ?").run("ws-7", entityId);
+  } });
+  const repo = new SqliteTrashRepo(client);
+  let id = 0;
+  const trash = createTrashService({ repo, adapters: new Map([["media", adapter]]),
+    idGen: { newId: () => `row-${++id}` }, entityPolicy: () => true,
+    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+  });
+  for (const entityId of ["media-used", "media-free"]) {
+    await trash.trash({ workspaceId: "ws-7", entityType: "media", entityId, actor: { principalId: "principal-7" },
+      display: { title: entityId }, at: now, expectedVersion: 1 });
+  }
+  const invoke = harness({ trash });
+  assert.deepEqual(await invoke("post", "/purge", { ids: ["row-1", "row-2"] }), { statusCode: 200, jsonBody: {
+    purged: 1, results: [{ id: "row-1", outcome: "still-referenced" }, { id: "row-2", outcome: "purged" }],
+  } });
+  assert.deepEqual(client.prepare("SELECT id, status, version FROM media").all(), [{ id: "media-used", status: "trashed", version: 2 }]);
+  assert.deepEqual(client.prepare("SELECT id FROM trashed_items").all(), [{ id: "row-1" }]);
 });
 test("restore accepts 200 items and counts only restored outcomes while retaining duplicate results", async () => {
   const items = Array.from({ length: 200 }, () => ({ entityType: "post", entityId: "post-8" }));

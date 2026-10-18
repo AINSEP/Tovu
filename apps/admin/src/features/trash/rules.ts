@@ -210,7 +210,10 @@ export function describePurgeReport(
   locale: string,
   report: { purged: number; results: { outcome: AdminTrashPurgeOutcome }[] }
 ): string {
-  return describeBatch(locale, report.purged, report.results.length, "deleted");
+  const summary = describeBatch(locale, report.purged, report.results.length, "deleted");
+  return report.results.some(result => result.outcome === "still-referenced")
+    ? `${summary} ${t({ locale, key: "Items still in use were not deleted." })}`
+    : summary;
 }
 
 /**
