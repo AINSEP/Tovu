@@ -150,3 +150,5 @@ export {
 
 export { getSettingsAgentToolCatalog } from "@jini-ai/core/settings";
 export type { AgentToolDefinition } from "@jini-ai/core";
+
+export { ensureFeatureFlag, readFeatureFlag, FEATURE_FLAGS_NAMESPACE, type FeatureFlagDefinition } from './feature-flags.js';
