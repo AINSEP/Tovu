@@ -159,3 +159,29 @@ test("custom error contracts do not replay a write that may already have reached
   expect(waitUntilReachable).not.toHaveBeenCalled();
   expect(fetchFake).toHaveBeenCalledTimes(1);
 });
+
+// The route pilot must remain readable while other route families still return legacy errors.
+test.each([
+  { error: 'analytics.read permission is required', code: 'FORBIDDEN' },
+  { error: { message: 'analytics.read permission is required', code: 'FORBIDDEN', requestId: 'req-1' } },
+])('shared transport decodes both API error generations: %j', async body => {
+  stubFetch(async () => new Response(JSON.stringify(body), { status: 403 }));
+  const error = await requestOnce({ path: '/analytics/recent-hits' }).catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(ApiError);
+  if (!(error instanceof ApiError)) throw error;
+  expect(error.message).toBe('analytics.read permission is required');
+  expect(error.code).toBe('FORBIDDEN');
+  expect(error.body).toEqual(body);
+});
+
+test('canonical UNAUTHENTICATED notifies listeners, while canonical vendor UNAUTHORIZED does not', async () => {
+  const listener = vi.fn();
+  const unsubscribe = onUnauthenticated(listener);
+  try {
+    for (const code of ['UNAUTHORIZED', 'UNAUTHENTICATED']) {
+      stubFetch(async () => new Response(JSON.stringify({ error: { code, message: 'sign in' } }), { status: 401 }));
+      await expect(requestOnce({ path: '/session' })).rejects.toMatchObject({ code, message: 'sign in', status: 401 });
+      expect(listener).toHaveBeenCalledTimes(code === 'UNAUTHORIZED' ? 0 : 1);
+    }
+  } finally { unsubscribe(); }
+});

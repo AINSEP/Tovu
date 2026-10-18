@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser } from "@/lib/api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
+import { createFakeUsersPort, defaultUsersPort, toJiniUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
 
 /**
@@ -971,5 +971,85 @@ describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice
 
     expect(result.current.notice).toBe("Password changed. Sign in again with your new password.");
     expect(result.current.notice).not.toContain(USER_B.username);
+  });
+});
+
+
+describe("users dependency port contracts", () => {
+  it("the live me adapter defaults fields omitted by older servers and preserves explicit permissions", async () => {
+    const responses = [
+      { user: { id: "legacy-admin" } },
+      { user: { id: "new-admin" }, canManageUserTrash: true, effectivePermissions: ["users:manage"] },
+      { user: { id: "limited-admin" }, canManageUserTrash: false, effectivePermissions: [] },
+    ];
+    vi.stubGlobal("fetch", async (url: string) => {
+      expect(String(url)).toBe("/api/admin/v1/auth/me");
+      if (responses.length === 0) throw new Error("Unexpected extra auth read");
+      return jsonResponse(responses.shift());
+    });
+    await expect(defaultUsersPort.me()).resolves.toEqual({ user: { id: "legacy-admin" }, canManageUserTrash: false, effectivePermissions: [] });
+    await expect(defaultUsersPort.me()).resolves.toEqual({ user: { id: "new-admin" }, canManageUserTrash: true, effectivePermissions: ["users:manage"] });
+    await expect(defaultUsersPort.me()).resolves.toEqual({ user: { id: "limited-admin" }, canManageUserTrash: false, effectivePermissions: [] });
+  });
+
+  it("the live password-reset adapter sends the principal and new password", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    });
+    await defaultUsersPort.resetUserPassword({ principalId: "u2", password: "new-password" });
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe("/api/admin/v1/workspaces/workspace-local/users/u2/reset-password");
+    expect(requests[0].init?.method).toBe("POST");
+    expect(JSON.parse(String(requests[0].init?.body))).toEqual({ password: "new-password" });
+  });
+
+  it("an empty fake uses its fallback caller id and creates users with or without email", async () => {
+    const port = createFakeUsersPort();
+    await expect(port.me()).resolves.toEqual({ user: { id: "fake-user-1" }, canManageUserTrash: true });
+    await expect(port.listRoles()).resolves.toEqual({ roles: [] });
+    await expect(port.listPolicies()).resolves.toEqual({ policies: [] });
+    await port.createUser({ username: "first", password: "password" });
+    await port.createUser({ username: "second", password: "password" }, { email: "second@example.test" });
+    expect((await port.listUsers()).users.map(({ principalId, username, email }) => ({ principalId, username, email }))).toEqual([
+      { principalId: "fake-user-1", username: "first", email: undefined },
+      { principalId: "fake-user-2", username: "second", email: "second@example.test" },
+    ]);
+  });
+
+  it("Jini's object-shaped status and delete adapters change the backing user list", async () => {
+    const fake = createFakeUsersPort({ users: [USER_A, USER_B], canManageUserTrash: false });
+    const port = toJiniUsersPort({ port: fake });
+    await expect(port.me({})).resolves.toEqual({ user: { id: "u1" }, canManageUserTrash: false });
+    await port.disableUser({ principalId: "u2" });
+    expect((await port.listUsers({})).users).toEqual([USER_A, { ...USER_B, status: "disabled" }]);
+    await port.enableUser({ principalId: "u2" });
+    expect((await port.listUsers({})).users).toEqual([USER_A, USER_B]);
+    await port.deleteUser({ principalId: "u2" });
+    expect((await port.listUsers({})).users).toEqual([USER_A]);
+  });
+
+  it("the fake rejects a missing user without changing the store", async () => {
+    const port = createFakeUsersPort({ users: [USER_A] });
+    await expect(port.updateUser({ principalId: "missing" })).rejects.toThrow("fake user not found: missing");
+    expect((await port.listUsers()).users).toEqual([USER_A]);
+  });
+
+  it.each([
+    ["toggleStatusError", "disable"], ["toggleStatusError", "enable"],
+    ["resetPasswordError", "reset"], ["attachPolicyError", "attach"],
+    ["updateUserError", "update"], ["createUserError", "create"],
+  ] as const)("the fake preserves users when %s rejects %s", async (option, operation) => {
+    const port = createFakeUsersPort({ users: [USER_A], [option]: new Error(`${operation} unavailable`) });
+    const attempts = {
+      disable: () => port.disableUser("u1"), enable: () => port.enableUser("u1"),
+      reset: () => port.resetUserPassword({ principalId: "u1", password: "new-password" }),
+      attach: () => port.attachPolicy({ principalId: "u1", policyId: "p1" }),
+      update: () => port.updateUser({ principalId: "u1" }, { email: "changed@example.test" }),
+      create: () => port.createUser({ username: "new", password: "password" }),
+    };
+    await expect(attempts[operation]()).rejects.toThrow(`${operation} unavailable`);
+    expect((await port.listUsers()).users).toEqual([USER_A]);
   });
 });
