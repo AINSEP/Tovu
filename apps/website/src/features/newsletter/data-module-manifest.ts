@@ -49,6 +49,8 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
   tables: [
     {
       name: "lists",
+      // Lists are site configuration; subscribers and delivery history never travel.
+      portability: { kind: "portable", columns: ["id", "workspace_id", "name", "slug", "is_default", "status", "created_at", "updated_at"] },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         { name: "workspace_id", type: "TEXT", notNull: true },
@@ -62,6 +64,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
     },
     {
       name: "subscriptions",
+      portability: { kind: "private" },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         { name: "workspace_id", type: "TEXT", notNull: true },
@@ -78,6 +81,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
     },
     {
       name: "audience_snapshots",
+      portability: { kind: "private" },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         { name: "workspace_id", type: "TEXT", notNull: true },
@@ -89,6 +93,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
     },
     {
       name: "sends",
+      portability: { kind: "private" },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         { name: "workspace_id", type: "TEXT", notNull: true },
@@ -108,6 +113,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
     },
     {
       name: "confirmation_tokens",
+      portability: { kind: "private" },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         { name: "workspace_id", type: "TEXT", notNull: true },

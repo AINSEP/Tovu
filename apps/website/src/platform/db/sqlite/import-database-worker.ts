@@ -5,8 +5,8 @@ import Database from "better-sqlite3";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { openContentDb } from "./content-db.js";
-import { closeSqliteConnection } from "../kernel/drivers/sqlite.js";
-import { sanitizeShareDatabase } from "./share-database.js";
+import { sqliteKernel, closeSqliteConnection } from "../kernel/drivers/sqlite.js";
+import { sanitizeShareDatabase, prepareSharePluginTables } from "./share-database.js";
 import { SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
@@ -55,11 +55,14 @@ function validatePortableReferences(required: { db: Database.Database }, _option
 async function run(required: { root: string }, _options: Record<string, never> = {}): Promise<void> {
   const source = new Database(path.join(required.root, "input.db"), { readonly: true, fileMustExist: true, timeout: 1000 });
   const trusted = openContentDb({ filePath: ":memory:" });
+  let portablePluginTables = new Set<string>();
   try {
     source.pragma("trusted_schema = OFF");
     source.pragma("query_only = ON");
     // Extension loading remains disabled: this helper never exposes/calls loadExtension.
     const actual = source.prepare(schemaSql).all() as SchemaObject[];
+    const plugins = await prepareSharePluginTables({ target: sqliteKernel(trusted), present: new Set(actual.filter(object => object.type === "table").map(object => object.name)) });
+    portablePluginTables = plugins.portable;
     const expected = trusted.$client.prepare(schemaSql).all() as SchemaObject[];
     if (!supportedSchema({ actual, expected })) throw new Error("Unsupported SQLite schema objects");
     if (source.prepare("SELECT id FROM workspaces LIMIT 2").all().length !== 1) throw new Error("Import requires one workspace");
@@ -77,11 +80,11 @@ async function run(required: { root: string }, _options: Record<string, never> =
     // Runtime queries use the recipient template workspace. Content/media IDs stay stable.
     fresh.pragma("foreign_keys = OFF");
     fresh.transaction(() => {
-      for (const table of [...SHARE_TABLES, "setting_values_workspace"]) {
+      for (const table of [...SHARE_TABLES, ...portablePluginTables, "setting_values_workspace"]) {
         const columns = fresh.prepare("SELECT name FROM pragma_table_info(?)").all(table) as { name: string }[];
         if (columns.some(column => column.name === "workspace_id")) {
           if (fresh.prepare('SELECT 1 FROM "' + table + '" WHERE workspace_id <> ? LIMIT 1').get(workspaces[0]!.id)) throw new Error("Portable row belongs to a missing workspace");
-          // Identifiers come exclusively from A's closed trusted-table allowlist.
+          // Identifiers come exclusively from the trusted core allowlist and bundled declarations.
           fresh.prepare('UPDATE "' + table + '" SET workspace_id = ?').run(recipient);
         }
       }

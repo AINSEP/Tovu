@@ -16,6 +16,34 @@ import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, closeSqliteConnecti
 import type { StorageKernel } from "../kernel/port.js";
 import { CHAT_TABLE_NAMES } from "./chat-orphan-check.js";
 import { openContentDb } from "./content-db.js";
+import { FIRST_PARTY_DATA_MODULES } from "#src/features/plugins/data-modules";
+import { declareDataModule, type TableDecl } from "#src/features/plugins/data-module";
+
+/** Build only present portable plugin tables through the existing trusted DDL owner.
+ * Private tables contribute neither schema nor rows. O(declared tables + columns).
+ * @throws SiteShareRefusal if the trusted declaration cannot be installed.
+ */
+export async function prepareSharePluginTables(required: { target: Kernel; present: ReadonlySet<string> }, _options: Record<string, never> = {}): Promise<{ portable: Set<string>; private: Set<string> }> {
+  const portable = new Set<string>();
+  const privateTables = new Set<string>();
+  for (const decl of FIRST_PARTY_DATA_MODULES) {
+    const tables: TableDecl[] = [];
+    for (const table of decl.tables) {
+      const name = `p_${decl.pluginId}__${table.name}`;
+      const policy = table.portability;
+      if (policy?.kind === "private") privateTables.add(name);
+      if (policy?.kind !== "portable" || !required.present.has(name)) continue;
+      portable.add(name);
+      const columns = table.columns.filter(column => policy.columns.includes(column.name));
+      if (columns.length !== policy.columns.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Invalid portable columns for '${name}'.` });
+      tables.push({ ...table, columns });
+    }
+    if (!tables.length) continue;
+    const result = await declareDataModule({ db: required.target, dbPath: ":memory:", decl: { ...decl, tables } });
+    if (!result.ok) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Cannot build portable plugin schema: ${result.error?.message}` });
+  }
+  return { portable, private: privateTables };
+}
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row>;
@@ -30,15 +58,19 @@ async function refuseUnknownTables(source: Kernel, trusted: Set<string>): Promis
   }
 }
 
-/** Bound columns to the trusted schema; unexpected extension columns require an explicit policy. */
-async function copyTable(source: Kernel, target: Kernel, table: string, signal?: AbortSignal): Promise<void> {
+/** Copy rows using the trusted schema, preserving only explicit portable plugin columns.
+ * Core extension columns still refuse; historical Library columns retain their trusted defaults.
+ * O(rows × columns) projection/insertion; rows remain bounded by the snapshot cap.
+ * @throws SiteShareRefusal for missing required columns or unapproved core columns.
+ */
+async function copyTable({ source, target, table }: { source: Kernel; target: Kernel; table: string }, { signal, portablePlugin = false }: { signal?: AbortSignal; portablePlugin?: boolean } = {}): Promise<void> {
   const columns = (await listColumns(target, table)).map(row => row.name);
   const sourceColumns = (await listColumns(source, table)).map(row => row.name);
   // Only the additive Library columns may be absent in an older share. Never accept an
-  // archive's extra columns or substitute its DDL for the trusted destination schema.
+  // archive's DDL. Plugin owners explicitly allow dropping fields outside their column policy.
   const defaults: Row = table === "media" ? { kind: "media", original_filename: null } : table === "asset_blobs" ? { document_owned: 0 } : {};
-  if (sourceColumns.some(column => !columns.includes(column)) || columns.some(column => !sourceColumns.includes(column) && !Object.hasOwn(defaults, column))) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Cannot share '${table}': its columns differ from the trusted current schema. Update the site first.` });
-  const rows = await source.run(db => db.selectFrom(table).selectAll().execute());
+  if ((!portablePlugin && sourceColumns.some(column => !columns.includes(column))) || columns.some(column => !sourceColumns.includes(column) && !Object.hasOwn(defaults, column))) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Cannot share '${table}': its columns differ from the trusted current schema. Update the site first.` });
+  const rows = await source.run(db => db.selectFrom(table).select(columns.filter(column => sourceColumns.includes(column))).execute());
   const project = await mediaRowProjection({ target, table });
   for (const [index, sourceRow] of rows.entries()) {
     if (index % 1000 === 0) { await scheduler.yield(); signal?.throwIfAborted(); }
@@ -151,14 +183,16 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer }, opti
     source = openSqliteFileKernel<Tables>(filePath, { readOnly: true });
     fresh = openContentDb({ filePath: ":memory:" });
     const target = sqliteKernel<Tables>(fresh);
-    await refuseUnknownTables(source, new Set(await listTables(target)));
     const from = source;
     const present = new Set(await listTables(from));
+    const plugins = await prepareSharePluginTables({ target, present });
+    await refuseUnknownTables(source, new Set([...await listTables(target), ...plugins.private]));
     await target.transaction(async () => {
       for (const table of SHARE_TABLES) {
         if (!present.has(table)) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Share requires current table '${table}'. Update this site first.` });
-        await copyTable(from, target, table, optional.signal);
+        await copyTable({ source: from, target, table }, { signal: optional.signal });
       }
+      for (const table of plugins.portable) await copyTable({ source: from, target, table }, { signal: optional.signal, portablePlugin: true });
       await copySettings(from, target);
     });
     await backfillPostSearchIndex(fresh);

@@ -301,6 +301,9 @@ export interface TableDecl {
   readonly name: string;
   readonly columns: readonly ColumnDecl[];
   readonly indexes?: readonly IndexDecl[];
+  /** Share policy belongs to the table owner. Missing declarations still refuse nonempty data.
+   * Portable columns are explicit so later personal fields cannot silently enter an archive. */
+  readonly portability?: { readonly kind: "private" } | { readonly kind: "portable"; readonly columns: readonly string[] };
 }
 
 export interface DataModuleDecl {

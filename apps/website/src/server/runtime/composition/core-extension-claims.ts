@@ -1,6 +1,5 @@
 import type { ExtensionClaim } from "@jini-ai/plugins/host";
-import { LIPAY_MANIFEST } from "#src/features/plugins/lipay/manifest";
-import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
+import { FIRST_PARTY_DATA_MODULES } from "#src/features/plugins/data-modules";
 
 /**
  * @file The names Tovu core itself holds, as conflict-detection claims (2026-10-04) — what a
@@ -24,7 +23,7 @@ import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
  * - tools: `plugins_*`, the plugin-management tool family — a plugin naming one of those could
  *   shadow the very tools an operator uses to turn it off. Generated plugin tool prefixes
  *   (`plugin_capability_`, `agent_plugin_`) are refused earlier, by `validateManifest`.
- * - tables: the first-party data-module plugins' table namespaces (`p_store__*`, `p_lipay__*`),
+ * - tables: the bundled data-module plugins' table namespaces (store, lipay, newsletter, comments),
  *   derived from their own declarations so the reservation follows them.
  * - settings, widgets: none yet — no reserved core namespace; plugin widget declarations remain
  *   exclusive against each other and are rendered through the public SSR partial owner.
@@ -39,7 +38,6 @@ const CORE_PERMISSION_NAMESPACES = [
   "widget", "widgets", "workspace",
 ] as const;
 const CORE_TOOL_PREFIXES = ["plugins_*"] as const;
-const FIRST_PARTY_DATA_MODULES = [STORE_MANIFEST, LIPAY_MANIFEST] as const;
 
 const exclusive = (kind: string) => (key: string): ExtensionClaim => ({ kind, key, mode: "exclusive" });
 

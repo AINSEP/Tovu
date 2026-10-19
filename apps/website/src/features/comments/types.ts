@@ -19,6 +19,8 @@ export const COMMENTS_DATA_MODULE = {
   tables: [
     {
       name: "comments",
+      // Visitor content and moderation history contain personal data.
+      portability: { kind: "private" },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         T("workspace_id", true),
@@ -47,6 +49,8 @@ export const COMMENTS_DATA_MODULE = {
     },
     {
       name: "moderation_log",
+      // Visitor content and moderation history contain personal data.
+      portability: { kind: "private" },
       columns: [
         { name: "id", type: "TEXT", primaryKey: true },
         T("workspace_id", true),

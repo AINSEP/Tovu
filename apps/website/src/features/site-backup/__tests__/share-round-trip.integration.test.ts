@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
-import { importFixture, OWNER_PASSWORD, HASH, STORAGE_KEY, reader } from "./import.fixture.js";
+import { importFixture, seedPluginShareData, OWNER_PASSWORD, HASH, STORAGE_KEY, reader } from "./import.fixture.js";
 import { loadTheme } from "../../theme/theme.js";
 
 // Real installed packages include both MCP transport declarations and credential schema metadata.
@@ -33,6 +33,7 @@ const packageFiles = new Map([
 
 for (const placement of ["inSite", "appData"] as const) test("A production preparation → public download → B import preserves content: " + placement, async t => {
   const h = await importFixture(t, placement);
+  await seedPluginShareData({ db: h.db });
   for (const [name, bytes] of packageFiles) h.files.set(`${packageRoot}/${name}`, bytes);
   const prepared = await h.prepareProductionShare();
   const shareRegistry = new SiteShareRegistry({ directory: path.join(h.root, "shares") });
@@ -70,6 +71,10 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   const exported = openContentDb({ filePath: archivePath });
   try {
     for (const table of ["principals", "identity_users", "sessions", "api_keys", "secrets_vault", "external_mcp_servers"]) assert.equal((exported.$client.prepare('SELECT count(*) AS n FROM "' + table + '"').get() as { n: number }).n, 0, "source rows in ZIP: " + table);
+    assert.deepEqual(exported.$client.prepare("SELECT name,is_default FROM p_newsletter__lists").all(), [{ name: "All subscribers", is_default: 1 }]);
+    assert.equal(exported.$client.serialize().includes(Buffer.from("private-visitor@example.test")), false);
+    const privateTables = ["p_newsletter__subscriptions", "p_newsletter__sends", "p_newsletter__audience_snapshots", "p_newsletter__confirmation_tokens", "p_comments__comments", "p_comments__moderation_log"];
+    for (const table of privateTables) assert.equal(exported.$client.prepare("SELECT 1 FROM sqlite_schema WHERE name=?").get(table), undefined, table);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-secret")), false);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-session")), false);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-chat-private")), false);
@@ -79,6 +84,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   const stage = h.registry.stagePath({ importId: pending.importId });
   const projected = openContentDb({ filePath: path.join(stage, "database/content.db") });
   try {
+    assert.deepEqual(projected.$client.prepare("SELECT id,name,is_default,workspace_id FROM p_newsletter__lists").all(), [{ id: "default-list", name: "All subscribers", is_default: 1, workspace_id: (projected.$client.prepare("SELECT id FROM workspaces").get() as { id: string }).id }]);
     for (const table of ["principals", "identity_users", "sessions", "api_keys", "secrets_vault", "external_mcp_servers"]) {
       const count = projected.$client.prepare('SELECT count(*) AS n FROM "' + table + '"').get() as { n: number };
       assert.equal(count.n, 0, table + " must contribute zero source rows before owner setup");
@@ -101,6 +107,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     const rows = (db: typeof imported, table: string) => (db.$client.prepare('SELECT * FROM "' + table + '" ORDER BY 1').all() as Record<string, unknown>[]).map(({ workspace_id, ...rest }) => rest);
     for (const table of ["posts", "menus", "nav_location_bindings", "media", "asset_blobs", "presentation_settings"]) assert.deepEqual(rows(imported, table), rows(h.db, table), table);
     for (const table of ["sessions", "api_keys", "secrets_vault", "external_mcp_servers"]) assert.equal((imported.$client.prepare('SELECT count(*) AS n FROM "' + table + '"').get() as { n: number }).n, 0);
+    assert.deepEqual(imported.$client.prepare("SELECT id,name,is_default FROM p_newsletter__lists").all(), [{ id: "default-list", name: "All subscribers", is_default: 1 }]);
     const accounts = imported.$client.prepare("SELECT principal_id FROM identity_users").all() as { principal_id: string }[];
     assert.equal(accounts.length, 1);
     assert.notEqual(accounts[0]!.principal_id, "source-owner");

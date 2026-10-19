@@ -32,6 +32,10 @@ import { SHARE_LIMITS } from "../share-policy.js";
 import { prepareShareContent } from "../share-preparation.js";
 import { buildSiteBackupManifest } from "../sources.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
+import { FIRST_PARTY_DATA_MODULES } from "../../plugins/data-modules.js";
+import { declareDataModule } from "../../plugins/data-module.js";
+import { ensureDefaultList } from "../../newsletter/lists.js";
+import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
 
 export const OWNER_PASSWORD = "recipient-only-password";
@@ -151,4 +155,22 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     } finally { closeSqliteConnection(imported); }
   };
   return { root, db, safe, files, archive, plan, registry, backend, backendPorts, workspace, started, assertOwnerLogin, archiveWithDatabase, prepareProductionShare };
+}
+
+/** Seed the real default list plus populated private tables; all private fields carry a sentinel. */
+export async function seedPluginShareData({ db }: { db: ReturnType<typeof openContentDb> }, _options: Record<string, never> = {}): Promise<void> {
+  for (const decl of FIRST_PARTY_DATA_MODULES.filter(decl => ["newsletter", "comments"].includes(decl.pluginId))) {
+    const result = await declareDataModule({ db, dbPath: ":memory:", decl });
+    assert.equal(result.ok, true, result.error?.message);
+    for (const table of decl.tables) {
+      if (table.portability?.kind !== "private") continue;
+      const columns = table.columns.map(column => '"' + column.name + '"').join(",");
+      const values = table.columns.map(column => column.name === "workspace_id" ? "ws" : column.type === "TEXT" ? "private-visitor@example.test" : 1);
+      db.$client.prepare(`INSERT INTO "p_${decl.pluginId}__${table.name}" (${columns}) VALUES (${values.map(() => "?").join(",")})`).run(...values);
+    }
+  }
+  await ensureDefaultList({ deps: { listRepo: new SqliteNewsletterListRepo(db), clock: { nowIso: () => stamp }, ids: { newId: () => "default-list" } }, input: { workspaceId: "ws" } });
+  // Historical/additive per-person fields must not travel with otherwise portable lists.
+  db.$client.exec("ALTER TABLE p_newsletter__lists ADD COLUMN owner_email TEXT");
+  db.$client.prepare("UPDATE p_newsletter__lists SET owner_email=?").run("private-visitor@example.test");
 }
