@@ -1,0 +1,40 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cloudflare",
+  "version": "0.2.0",
+  "description": "Publishes static exports to Cloudflare Workers or Pages and attaches reviewed custom domains using your saved Cloudflare connection. Preview reads current infrastructure; domain changes require human confirmation.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Cloudflare",
+      "summary": "Publish static exports with Workers or Pages and review apex/www domain changes before applying them.",
+      "id": "tovu/cloudflare",
+      "provides": [
+        "deploy-target:cloudflare-workers",
+        "deploy-target:cloudflare-pages"
+      ]
+    }
+  },
+  "keywords": [
+    "cloudflare-pages",
+    "cloudflare",
+    "deploy",
+    "publish",
+    "hosting",
+    "static-site",
+    "static-export",
+    "go-live",
+    "website",
+    "deploy-target:cloudflare-pages",
+    "workers",
+    "deploy-target:cloudflare-workers",
+    "custom-domain",
+    "dns",
+    "pages",
+    "cloudflare-workers",
+    "custom domain",
+    "apex",
+    "www"
+  ]
+}
