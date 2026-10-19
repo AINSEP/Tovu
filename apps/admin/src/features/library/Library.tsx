@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { FileDropzone } from "@jini-ai/ui";
@@ -22,9 +22,8 @@ import {
  * @file The Library screen (`/admin/library`) — markup only; state lives in
  * `hooks/use-library.hooks.ts`. Private documents for this site that the assistant can read
  * (`library_list` / `library_read`) and visitors never see. Two `?tab=` tabs: Upload and
- * Documents (owner, 2026-10-18). The Documents tab carries the same drop zone under an "Upload
- * documents" button that opens its file picker, so uploading never needs a tab switch (owner,
- * 2026-10-18).
+ * Documents (owner, 2026-10-18). The Upload tab leads with an "Upload documents" button that opens
+ * the drop zone's own file picker; Documents is only the list (owner, 2026-10-18).
  *
  * A thin Tovu page rather than a Jini `@jini-ai/admin/media` page: the Jini media page is parked
  * (`media-panel.ts`) and the legacy Media screen this sits beside is a Tovu feature too, so a Jini
@@ -86,53 +85,47 @@ function uploadStatusLabel(row: LibraryUploadRow, t: (key: string) => string): s
   }
 }
 
-/** The one Library drop zone (Upload and Documents tabs). `hostRef` lets a button open the
- *  zone's own file input, so both paths share its accept list and upload path. */
-function LibraryDropzone({ controller, hostRef }: { controller: LibraryController; hostRef?: RefObject<HTMLDivElement | null> }) {
-  const { t, addFiles } = controller;
-  return (
-    <div ref={hostRef} className="library-dropzone">
-      <FileDropzone
-        accept={LIBRARY_ACCEPT}
-        prompt={t("Drop documents here, or click to browse")}
-        helper={t("Markdown, text, PDF, Word, CSV or JSON · up to 10 MiB each")}
-        onFiles={addFiles}
-      />
-    </div>
-  );
-}
-
-/** `rows` defaults to every upload; the Documents tab passes only the unfinished and failed ones,
- *  since a finished upload already shows in its table. */
-function UploadRows({ controller, rows = controller.uploads }: { controller: LibraryController; rows?: readonly LibraryUploadRow[] }) {
-  const { t } = controller;
-  if (rows.length === 0) return null;
-  return (
-    <ul className="library-upload-list" aria-label={t("Uploads")}>
-      {rows.map((row) => (
-        <li key={row.key} className={`library-upload-row is-${row.status}`}>
-          <span className="library-upload-name">{row.name}</span>
-          <span className="library-upload-size">{formatLibraryBytes(row.size)}</span>
-          <span className="library-upload-status" role={row.status === "failed" ? "alert" : undefined}>
-            {row.status === "uploading" ? <span className="library-spinner" aria-hidden="true" /> : null}
-            {uploadStatusLabel(row, t)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export function UploadTab({ controller }: { controller: LibraryController }) {
-  const { t, permissions, uploads, uploadedCount, clearUploads } = controller;
+  const { t, permissions, uploads, uploadedCount, addFiles, clearUploads } = controller;
+  const zoneRef = useRef<HTMLDivElement>(null);
   if (permissions.known && !permissions.canUpload) {
     return <div className="notice">{t("You don't have permission to upload documents.")}</div>;
   }
   const finished = uploads.some((row) => row.status === "done" || row.status === "failed");
   return (
     <section className="library-upload" aria-label={t("Upload")}>
-      <LibraryDropzone controller={controller} />
-      <UploadRows controller={controller} />
+      {/* Opens the drop zone's own file input, so both paths share its accept list and upload path. */}
+      <button
+        type="button"
+        className="btn-primary library-upload-button"
+        onClick={() => zoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
+        {...agentHandle({ handle: "library-upload-documents" }, { role: "button", label: "Open the file picker to upload documents to the Library" })}
+      >
+        <UploadIcon />
+        {t("Upload documents")}
+      </button>
+      <div ref={zoneRef}>
+        <FileDropzone
+          accept={LIBRARY_ACCEPT}
+          prompt={t("Drop documents here, or click to browse")}
+          helper={t("Markdown, text, PDF, Word, CSV or JSON · up to 10 MiB each")}
+          onFiles={addFiles}
+        />
+      </div>
+      {uploads.length > 0 ? (
+        <ul className="library-upload-list" aria-label={t("Uploads")}>
+          {uploads.map((row) => (
+            <li key={row.key} className={`library-upload-row is-${row.status}`}>
+              <span className="library-upload-name">{row.name}</span>
+              <span className="library-upload-size">{formatLibraryBytes(row.size)}</span>
+              <span className="library-upload-status" role={row.status === "failed" ? "alert" : undefined}>
+                {row.status === "uploading" ? <span className="library-spinner" aria-hidden="true" /> : null}
+                {uploadStatusLabel(row, t)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {finished ? (
         <div className="library-upload-actions">
           {uploadedCount > 0 ? (
@@ -213,93 +206,60 @@ function RenameField({ item, controller }: { item: AdminMedia; controller: Libra
   );
 }
 
-/** Documents tab: "Upload documents" (opens the drop zone's file picker) above the drop zone,
- *  then the list. Both hide without `media.upload`. */
-function DocumentsUpload({ controller }: { controller: LibraryController }) {
-  const { t, uploads, clearUploads } = controller;
-  const zoneRef = useRef<HTMLDivElement>(null);
-  const pending = uploads.filter((row) => row.status !== "done");
-  return (
-    <div className="library-upload">
-      <button
-        type="button"
-        className="btn-primary library-upload-button"
-        onClick={() => zoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
-        {...agentHandle({ handle: "library-upload-documents" }, { role: "button", label: "Open the file picker to upload documents to the Library" })}
-      >
-        <UploadIcon />
-        {t("Upload documents")}
-      </button>
-      <LibraryDropzone controller={controller} hostRef={zoneRef} />
-      <UploadRows controller={controller} rows={pending} />
-      {pending.some((row) => row.status === "failed") ? (
-        <div className="library-upload-actions">
-          <button type="button" className="btn-secondary" onClick={clearUploads}>
-            {t("Clear list")}
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function DocumentsTab({ controller }: { controller: LibraryController }) {
-  const { t, documents, listError, permissions, userNames, trashingId } = controller;
+  const { t, documents, listError, userNames, trashingId } = controller;
+  if (listError) return <div className="notice error">{listError}</div>;
+  if (!documents) return <div className="notice">{t("Loading documents…")}</div>;
   return (
     <section className="library-documents" aria-label={t("Documents")}>
-      {permissions.canUpload ? <DocumentsUpload controller={controller} /> : null}
-      {listError ? <div className="notice error">{listError}</div> : null}
-      {!listError && !documents ? <div className="notice">{t("Loading documents…")}</div> : null}
-      {!listError && documents ? (
-        <DataTable
-          rows={documents}
-          rowKey={(item) => item.id}
-          label={t("Documents")}
-          empty={<p className="library-documents-empty">{t("No documents yet.")}</p>}
-          columns={[
-            {
-              key: "name",
-              header: t("Name"),
-              // Agent handles use the row position: ids are not handle-safe words.
-              cell: (item, index) =>
-                controller.rename.editingId === item.id ? (
-                  <RenameField item={item} controller={controller} />
-                ) : (
-                  <button
-                    type="button"
-                    className="link-button library-name-button"
-                    onClick={() => controller.openPreview(item)}
-                    {...agentHandle({ handle: `library-doc-${index + 1}-preview` }, { role: "button", label: "Preview this document" })}
-                  >
-                    {documentName(item)}
-                  </button>
-                ),
-            },
-            { key: "type", header: t("Type"), cell: (item) => <span className="library-type">{documentTypeLabel(item)}</span> },
-            { key: "size", header: t("Size"), cellClassName: "library-num", cell: (item) => formatLibraryBytes(item.byteSize) },
-            { key: "uploaded", header: t("Upload date"), cellClassName: "library-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
-            {
-              key: "by",
-              header: t("Uploaded by"),
-              cell: (item) => documentUploaderLabel({ item, unknownLabel: t("Unknown") }, { userNames }),
-            },
-            {
-              key: "actions",
-              header: t("More"),
-              cell: (item, index) =>
-                trashingId === item.id ? (
-                  <span className="muted-cell">{t("Moving…")}</span>
-                ) : (
-                  <RowMenu
-                    triggerLabel={t('Actions for "{title}"').replace("{title}", documentName(item))}
-                    agentHandle={`library-doc-${index + 1}-menu`}
-                    items={documentMenuItems(item, controller)}
-                  />
-                ),
-            },
-          ]}
-        />
-      ) : null}
+      <DataTable
+        rows={documents}
+        rowKey={(item) => item.id}
+        label={t("Documents")}
+        empty={<p className="library-documents-empty">{t("No documents yet.")}</p>}
+        columns={[
+          {
+            key: "name",
+            header: t("Name"),
+            // Agent handles use the row position: ids are not handle-safe words.
+            cell: (item, index) =>
+              controller.rename.editingId === item.id ? (
+                <RenameField item={item} controller={controller} />
+              ) : (
+                <button
+                  type="button"
+                  className="link-button library-name-button"
+                  onClick={() => controller.openPreview(item)}
+                  {...agentHandle({ handle: `library-doc-${index + 1}-preview` }, { role: "button", label: "Preview this document" })}
+                >
+                  {documentName(item)}
+                </button>
+              ),
+          },
+          { key: "type", header: t("Type"), cell: (item) => <span className="library-type">{documentTypeLabel(item)}</span> },
+          { key: "size", header: t("Size"), cellClassName: "library-num", cell: (item) => formatLibraryBytes(item.byteSize) },
+          { key: "uploaded", header: t("Upload date"), cellClassName: "library-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
+          {
+            key: "by",
+            header: t("Uploaded by"),
+            cell: (item) => documentUploaderLabel({ item, unknownLabel: t("Unknown") }, { userNames }),
+          },
+          {
+            key: "actions",
+            header: t("More"),
+            cell: (item, index) =>
+              trashingId === item.id ? (
+                <span className="muted-cell">{t("Moving…")}</span>
+              ) : (
+                <RowMenu
+                  triggerLabel={t('Actions for "{title}"').replace("{title}", documentName(item))}
+                  agentHandle={`library-doc-${index + 1}-menu`}
+                  items={documentMenuItems(item, controller)}
+                />
+              ),
+          },
+        ]}
+      />
     </section>
   );
 }

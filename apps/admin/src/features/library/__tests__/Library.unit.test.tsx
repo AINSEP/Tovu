@@ -92,25 +92,28 @@ describe("Library tabs", () => {
     expect(within(table).getByText("Unknown")).toBeInTheDocument();
   });
 
-  it("shows an empty state below the drop zone, with no card", async () => {
+  it("shows a small empty state with no card", async () => {
     renderLibrary(createFakeLibraryPort(), "documents");
     const empty = await screen.findByText("No documents yet.");
     expect(empty.closest(".card")).toBeNull();
-    const zone = await screen.findByTestId("file-dropzone-zone");
-    expect(zone.compareDocumentPosition(empty) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("puts an Upload documents button above the drop zone on the Documents tab, with documents listed", async () => {
+  it("Documents is only the list: no upload button and no drop zone", async () => {
     renderLibrary(createFakeLibraryPort({ documents: [fakeDocument("notes.md")] }), "documents");
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload documents" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("file-dropzone-zone")).not.toBeInTheDocument();
+  });
+
+  it("puts an Upload documents button above the drop zone on the Upload tab", async () => {
+    renderLibrary(createFakeLibraryPort(), "upload");
     const button = await screen.findByRole("button", { name: "Upload documents" });
     const zone = await screen.findByTestId("file-dropzone-zone");
     expect(button.compareDocumentPosition(zone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(zone.compareDocumentPosition(await screen.findByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getAllByRole("tab")[1]).toHaveAttribute("aria-selected", "true");
   });
 
-  it("Upload documents opens the drop zone's own file picker, not the Upload tab", async () => {
-    renderLibrary(createFakeLibraryPort(), "documents");
+  it("Upload documents opens the drop zone's own file picker", async () => {
+    renderLibrary(createFakeLibraryPort(), "upload");
     const input = (await screen.findByTestId("file-dropzone-zone")).querySelector("input[type=file]") as HTMLInputElement;
     const click = vi.spyOn(input, "click").mockImplementation(() => {});
     await userEvent.click(await screen.findByRole("button", { name: "Upload documents" }));
@@ -119,13 +122,12 @@ describe("Library tabs", () => {
     expect(input.getAttribute("accept")).toBe(LIBRARY_ACCEPT);
   });
 
-  it("uploads files dropped on the Documents tab's zone and lists them", async () => {
+  it("uploads files dropped on the Upload tab's zone", async () => {
     const port = createFakeLibraryPort();
-    renderLibrary(port, "documents");
+    renderLibrary(port, "upload");
     const zone = await screen.findByTestId("file-dropzone-zone");
-    const dropped = new File(["# hi"], "dropped.md", { type: "text/markdown" });
-    fireEvent.drop(zone, { dataTransfer: { items: [], files: [dropped] } });
-    expect(await screen.findByRole("button", { name: "dropped.md" })).toBeInTheDocument();
+    fireEvent.drop(zone, { dataTransfer: { items: [], files: [new File(["# hi"], "dropped.md", { type: "text/markdown" })] } });
+    expect(await screen.findByRole("button", { name: "View in Documents" })).toBeInTheDocument();
     expect(port.calls).toEqual(["upload:dropped.md"]);
   });
 });
@@ -241,11 +243,10 @@ describe("Library permissions", () => {
     expect(documentMenuItems(fakeDocument("report.docx"), full.current).map((item) => item.key)).toEqual(["download", "rename", "trash"]);
   });
 
-  it("hides the Documents tab's upload button and drop zone without media.upload", async () => {
-    renderLibrary(createFakeLibraryPort({ permissions: ["media.read"] }), "documents");
-    expect(await screen.findByText("No documents yet.")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Upload documents" })).not.toBeInTheDocument());
-    expect(screen.queryByTestId("file-dropzone-zone")).not.toBeInTheDocument();
+  it("hides the Upload documents button without media.upload", async () => {
+    renderLibrary(createFakeLibraryPort({ permissions: ["media.read"] }), "upload");
+    expect(await screen.findByText("You don't have permission to upload documents.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload documents" })).not.toBeInTheDocument();
   });
 });
 

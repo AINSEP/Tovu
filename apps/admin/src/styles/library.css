@@ -4,7 +4,7 @@
  * its own. Only this app's tokens (`--surface*`/`--border*`/`--fg*`/`--space-*`/`--r-*`).
  */
 
-/* --- Upload tab, and the Documents tab's upload block --- */
+/* --- Upload tab --- */
 .library-upload { display: flex; flex-direction: column; gap: var(--space-3); max-width: 40rem; }
 /* Left-aligned above the zone, at its own width rather than stretched by the column. */
 .library-upload-button { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-2); }
@@ -51,7 +51,6 @@
 .library-upload-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* --- Documents tab --- */
-.library-documents { display: flex; flex-direction: column; gap: var(--space-4); }
 .library-documents-empty { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 /* The name also carries `.link-button`: `.list-table td button:not(...):not(.link-button)` in
    styles.css otherwise boxes every unclassed row button. This adds weight and wrapping only. */
