@@ -130,7 +130,7 @@ export const sitesAgentToolCatalog: readonly AgentToolDefinition[] = [
       "Does NOT switch to it: call sites_switch_site afterwards to serve it. To start from a copy of an existing site instead, use sites_duplicate_site.",
       "Refuses if name already names a site directory. Returns {name, dir, siteId}.",
       "A real, disk-affecting write. Disabled where site switching is off (the desktop app, where each site is its own window, and hosted sites).",
-    ].join(" "),
+    ].join("\n\n"),
     sideEffects: "mutates-durable-state",
     authorization: { permission: SITES_WRITE_PERMISSION },
     inputSchema: CREATE_SITE_INPUT_SCHEMA,

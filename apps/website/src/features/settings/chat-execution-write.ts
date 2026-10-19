@@ -1,7 +1,6 @@
 import { ToolInputError } from "@jini-ai/core";
 import { getEffective, resolveDefinitionRaw } from "@jini-ai/core/settings";
 import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
-import { listAssistantAgents, listDetectedAssistantAgents, type AssistantAgentInventory } from "#src/assistant/agents";
 import type { SettingsToolDeps } from "./tool-registrations.js";
 
 /** These coordinates already belong to the composer ledger; no parallel selection store. */
@@ -47,7 +46,9 @@ export async function prepareChatExecutionWrite({ deps, request }: {
   resulting[axis] = request.toolId === "settings_clear_value" ? inherited?.value ?? "" : request.value;
   const [agentId, modelId, effort] = resulting;
   if (typeof agentId !== "string" || !agentId) throw new ToolInputError({ message: "Set core.execution localCli.agentId at scope='user' first, using an available agent from the chat picker." });
-  const inventory: Pick<AssistantAgentInventory, "listAssistantAgents" | "listDetectedAssistantAgents"> = deps.assistantAgentInventory ?? { listAssistantAgents, listDetectedAssistantAgents };
+  // The composition root owns the live picker inventory; never fall back to another runtime.
+  const inventory = deps.assistantAgentInventory;
+  if (!inventory) throw new ToolInputError({ message: "Chat agent inventory is unavailable. Try again after the assistant starts." });
   // Await the shared scan rather than accepting an initial fallback while live discovery is pending.
   await inventory.listAssistantAgents({}, { waitForProbe: true });
   const agents = await inventory.listDetectedAssistantAgents();

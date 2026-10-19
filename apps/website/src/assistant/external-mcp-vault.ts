@@ -31,6 +31,8 @@ export function externalMcpVaultRecord(
 function service({ repo, sealer, keyring, identity, kind }: {
   repo: VaultRepoPort; sealer: SecretSealerPort; keyring: KeyringPort; identity: Identity; kind: Kind;
 }) {
+  // Refuse a foreign kind before its metadata parser or any crypto can run.
+  if (kind !== "mcp-env" && kind !== "mcp-auth") throw new VaultError({ code: "context" });
   const registry = createTovuVaultKinds({ policy: {
     validateMeta: ({ kind: requested, meta }) => {
       if (requested !== "mcp-env" && requested !== "mcp-auth") throw new VaultError({ code: "context" });

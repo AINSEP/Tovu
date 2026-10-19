@@ -87,6 +87,16 @@ async function chatFixture() {
   return { ...f, answer, cards: () => cards };
 }
 
+test("chat selection refuses a missing composed inventory before confirmation or writing", async () => {
+  const f = await chatFixture();
+  delete f.deps.assistantAgentInventory;
+  await assert.rejects(f.call("settings_set_value", {
+    namespace: "core.execution", key: "localCli.agentId", scope: "user", value: "new",
+  }, f.answer()), /Chat agent inventory is unavailable/);
+  assert.equal(f.cards(), 0);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+});
+
 /** Seed through the same ledger writer; no mocked effective-value payloads. */
 async function seedChat(f: Awaited<ReturnType<typeof chatFixture>>, key: string, value: string, scope: "user" | "workspace" = "user") {
   await set({ deps: { repo: f.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen, principals: f.deps.principalRepo, authorize: f.deps.authorize },
