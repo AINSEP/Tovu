@@ -221,6 +221,41 @@ describe("Library rename and Trash", () => {
     expect(port.calls).toEqual(["trash:doc-notes.md"]);
     await waitFor(() => expect(result.current.documents?.map((doc) => doc.id)).toEqual(["doc-b.txt"]));
     expect(result.current.notice).toBe("Moved to Trash.");
+    act(() => result.current.dismissNotice());
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("shows Moved to Trash as a toast with Open Trash, not a banner above the tabs", async () => {
+    const dismissNotice = vi.fn();
+    const port = createFakeLibraryPort();
+    function useHook(): LibraryController {
+      return { ...useLibrary({ port, locale: "en", t: english }), notice: "Moved to Trash.", dismissNotice };
+    }
+    const { container } = render(<Library tabId="documents" useLibraryHook={useHook} />, { wrapper });
+    const toast = await screen.findByRole("status");
+    expect(toast).toHaveClass("jini-toast");
+    expect(toast).toHaveTextContent("Moved to Trash.");
+    expect(container.querySelector(".library-notice")).toBeNull();
+    await userEvent.click(within(toast).getByRole("button", { name: "Open Trash" }));
+    expect(window.location.pathname).toMatch(/\/trash$/);
+    await userEvent.click(within(toast).getByRole("button", { name: "Dismiss" }));
+    expect(dismissNotice).toHaveBeenCalled();
+  });
+
+  it("the Trash toast dismisses itself", () => {
+    vi.useFakeTimers();
+    try {
+      const dismissNotice = vi.fn();
+      const port = createFakeLibraryPort();
+      function useHook(): LibraryController {
+        return { ...useLibrary({ port, locale: "en", t: english }), notice: "Moved to Trash.", dismissNotice };
+      }
+      render(<Library tabId="documents" useLibraryHook={useHook} />, { wrapper });
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(dismissNotice).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

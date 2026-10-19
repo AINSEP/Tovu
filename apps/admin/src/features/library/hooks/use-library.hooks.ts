@@ -81,8 +81,10 @@ export interface LibraryController {
   trash: (item: AdminMedia) => Promise<void>;
   trashingId: string | null;
   rowError: string | null;
-  /** "Moved to Trash." after a trash (the page links to Trash for restore); cleared by the next action. */
+  /** "Moved to Trash." after a trash, shown as a toast that links to Trash for restore; cleared by
+   *  `dismissNotice` (the toast's timer or its X) or the next action. */
   notice: string | null;
+  dismissNotice: () => void;
   preview: LibraryPreviewState | null;
   openPreview: (item: AdminMedia) => void;
   closePreview: () => void;
@@ -307,6 +309,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
     trashingId,
     rowError,
     notice,
+    dismissNotice: () => setNotice(null),
     preview,
     openPreview,
     closePreview,

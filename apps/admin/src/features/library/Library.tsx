@@ -1,11 +1,11 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { FileDropzone } from "@jini-ai/ui";
+import { FileDropzone, Toast } from "@jini-ai/ui";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "@/lib/api";
-import { adminHref } from "@/lib/router";
+import { navigate } from "@/lib/router";
 import { UploadIcon, goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "./Library.hooks";
 import { useWiredLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "./hooks/use-library.hooks";
 import {
@@ -54,11 +54,6 @@ export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProp
         </div>
       </div>
       {rowError ? <div className="notice error" role="alert">{rowError}</div> : null}
-      {notice ? (
-        <div className="notice library-notice" role="status">
-          {notice} <a href={adminHref("/trash")}>{t("Open Trash")}</a>
-        </div>
-      ) : null}
       <TabBar
         ariaLabel={t("Library")}
         tabs={resolveLibraryTabs(t, { documentCount: documents?.length })}
@@ -68,6 +63,19 @@ export function Library({ tabId, useLibraryHook = useWiredLibrary }: LibraryProp
       />
       {activeTabId === "upload" ? <UploadTab controller={controller} /> : <DocumentsTab controller={controller} />}
       {controller.preview ? <PreviewDialog controller={controller} preview={controller.preview} /> : null}
+      {/* A toast, not a banner above the tabs (owner, 2026-10-18): it confirms something the owner just
+          did, so it clears itself, like the Themes trash toast. Open Trash stays inside it for restore. */}
+      {notice ? (
+        <Toast
+          message={notice}
+          role="status"
+          tone="success"
+          ttlMs={6000}
+          actionLabel={t("Open Trash")}
+          onAction={() => navigate("/trash")}
+          onDismiss={controller.dismissNotice}
+        />
+      ) : null}
     </div>
   );
 }

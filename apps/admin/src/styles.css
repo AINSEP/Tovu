@@ -835,6 +835,21 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   color: var(--fg-3, var(--fg-2)); cursor: pointer;
 }
 .jini-toast-close:hover { background: var(--surface); color: var(--fg-1); opacity: 1; }
+/* The component's optional action (`actionLabel` + `onAction`, e.g. Library's "Open Trash"). A toast
+   with one lays out as a row so the action sits beside the message; the right padding keeps it clear
+   of the absolutely positioned X. 44px tall so it is a comfortable tap target. */
+.jini-toast:has(> .jini-toast-action) {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding-block: var(--space-1); padding-right: var(--space-6);
+}
+.jini-toast:has(> .jini-toast-action) .jini-toast-body { padding-right: 0; }
+.jini-toast-action {
+  flex: none; min-height: 44px; padding: 0 var(--space-3);
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--link); font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.jini-toast-action:hover { background: var(--surface); }
+.jini-toast-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 @keyframes jini-toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes jini-toast-out { to { opacity: 0; transform: translate(-50%, 6px); } }
 /* Honors the OS "reduce motion" setting: the toast still appears and still leaves on the same
