@@ -36,6 +36,9 @@ export interface SigV4Client {
   sign(input: string, init?: RequestInit): Promise<Request>;
 }
 export interface DeployHostKit {
+  /** Optional newer plugin ports; installed older modules keep their existing ABI. */
+  now?(): number;
+  probeContent?(required: { readonly url: string; readonly expected: string }, optional?: Record<string, never>): Promise<boolean>;
   fetch(url: string, init: RequestInit, options: { readonly timeoutMs: number }): Promise<Response>;
   readonly timeouts: DevopsDeployHostKit["timeouts"];
   sleep(ms: number): Promise<void>;
@@ -70,6 +73,14 @@ export interface HostDeployTarget extends Omit<DeployTarget, "publish" | "checkR
  * base path, no summary rows, no credential check, no hosting steps).
  */
 export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "create" | "createArtifactStore" | "validateConfig" | "basePath" | "verifyCredential"> {
+  /** Authenticated read-only provider inspection. Never uploads or provisions infrastructure. */
+  preview?(required: DeployTargetCreateContext & { readonly projectName: string }, optional?: Record<string, never>): Promise<DeployTargetInspection>;
+  readonly defaultForNewDestination?: boolean;
+  /** A new capability may require explicit compatibility instead of inheriting an old vendor ID. */
+  acceptsCredential?(required: { readonly worksFor: readonly string[] }, optional?: Record<string, never>): boolean;
+  readonly defaultCredentialWorksFor?: readonly string[];
+  /** Exact remote identity, projected through descriptor-allowlisted history fields. */
+  destinationConfig?(required: { readonly providerMetadata?: Readonly<Record<string, unknown>> }, optional?: Record<string, never>): Readonly<Record<string, string>>;
   /** Separate single-object lifecycle; never enters static publish's cleanup manifest. */
   createArtifactStore?(required: DeployTargetCreateContext, optional?: Record<string, never>): ArtifactStorePort;
   create(context: DeployTargetCreateContext): HostDeployTarget;
@@ -84,6 +95,21 @@ export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "crea
    *  credential fields the agent passed. Throws a plain `Error` with a person-facing message for a
    *  missing field. */
   hostingSetup?(input: { readonly fields: Readonly<Record<string, string>> }): DeployHostingSetup;
+}
+
+/** Plugin-owned inspection data; opaque vendor facts remain outside Jini's generic port. */
+export interface DeployTargetInspection {
+  readonly resourceName: string;
+  readonly targetId: string;
+  readonly hostingChanges: readonly Readonly<Record<string, unknown>>[];
+  readonly domains?: {
+    readonly inventoryStatus: "complete" | "unknown";
+    readonly fingerprint?: string;
+    readonly message: string;
+    readonly errorCode?: string;
+    readonly hostnames: readonly Readonly<Record<string, unknown>>[];
+    readonly changes: readonly Readonly<Record<string, unknown>>[];
+  };
 }
 
 /** A module's hosting-setup answer, relayed to the person as prose plus copyable `consoleJson`. */

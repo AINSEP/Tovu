@@ -142,3 +142,38 @@ test("create rejects null compatibility rather than treating it as omission", as
     workspaceId: "site", label: "Custom", worksFor: null, category: "general", baseUrl: "https://example.test", connection: { token: "synthetic-key" },
   }), /worksFor/);
 });
+
+for (const worksFor of [['cloudflare'], ['cloudflare-pages']]) test(`existing ${worksFor[0]} compatibility stays Pages-only without rewriting the credential`, async () => {
+  const { updatePublishCredential } = await import('../store.js');
+  const f = fixture();
+  const saved = await createPublishCredential(f.deps, { workspaceId: 'site', label: 'Existing Pages connection', worksFor,
+    connection: { providerId: 'cloudflare-pages', token: 'synthetic-cloudflare-token', accountId: 'account' } });
+  const before = await f.deps.repo.vault.find({ workspaceId: 'site', id: saved.id });
+  assert.equal((await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-pages', credentialId: saved.id })).ok, true);
+  assert.equal((await f.source.isConfigured({ workspaceId: 'site', target: 'cloudflare-workers' })).configured, false);
+  assert.equal((await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-workers', credentialId: saved.id })).ok, false);
+  assert.deepEqual(await f.deps.repo.vault.find({ workspaceId: 'site', id: saved.id }), before);
+  await updatePublishCredential(f.deps, { workspaceId: 'site', id: saved.id, worksFor: ['cloudflare-pages', 'cloudflare-workers'] });
+  assert.equal((await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-workers', credentialId: saved.id })).ok, true);
+  assert.equal((await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-pages', credentialId: saved.id })).ok, true);
+});
+
+test('new Workers connection stores an explicit Workers grant on the same Cloudflare vendor kind', async () => {
+  const f = fixture();
+  const saved = await createPublishCredential(f.deps, { workspaceId: 'site', label: 'New Workers connection',
+    connection: { providerId: 'cloudflare-workers', token: 'synthetic-worker-token', accountId: 'account' } });
+  const row = await f.deps.repo.vault.find({ workspaceId: 'site', id: saved.id });
+  assert.equal(row?.kind, 'vendor');
+  assert.equal(row?.provider, 'cloudflare');
+  assert.deepEqual(row?.meta.worksFor, ['cloudflare-workers']);
+  assert.equal((await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-workers', credentialId: saved.id })).ok, true);
+  assert.equal((await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-pages', credentialId: saved.id })).ok, false);
+});
+
+test('plugin compatibility checks deny malformed metadata without treating a label as authority', async () => {
+  const { publishHostsForCredential } = await import('../store.js');
+  const registry = await loadBundledDeployTargets();
+  for (const worksFor of [undefined, 'cloudflare-workers', [123]]) {
+    assert.deepEqual(publishHostsForCredential({ registry, credential: { kind: 'vendor', provider: 'cloudflare', label: 'Cloudflare Workers', meta: { credentialType: 'vendor', worksFor } } }), []);
+  }
+});

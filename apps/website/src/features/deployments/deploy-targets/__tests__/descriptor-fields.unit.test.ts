@@ -138,7 +138,8 @@ test("the shipped hosting plugins declare the publish fields and env vars core u
   assert.deepEqual(fields("github-pages"), ["owner*", "repo*", "branch"]);
   assert.deepEqual(fields("vercel"), ["teamId"]);
   assert.deepEqual(fields("netlify"), []);
-  assert.deepEqual(fields("cloudflare-pages"), []);
+  assert.deepEqual(fields("cloudflare-pages"), ["customDomain", "zoneId", "resourceName"]);
+  assert.deepEqual(fields("cloudflare-workers"), ["customDomain", "zoneId", "resourceName", "assetPlan"]);
   assert.deepEqual(fields("s3-compatible"), []);
   assert.deepEqual(byId.get("github-pages")?.env, { tokenVars: ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ACCESS_TOKEN"] });
   assert.deepEqual(byId.get("vercel")?.env, { tokenVars: ["VERCEL_TOKEN", "VERCEL_ACCESS_TOKEN"] });
@@ -221,7 +222,7 @@ test("the shipped hosting plugins declare the credential fields and vendors core
   assert.deepEqual(credential("github-pages"), { vendorId: "github", tokenField: "token", fields: ["token*!"] });
   assert.deepEqual(credential("vercel"), { vendorId: "vercel", tokenField: "token", fields: ["token*!"] });
   assert.deepEqual(credential("netlify"), { vendorId: "netlify", tokenField: "token", fields: ["token*!"] });
-  assert.deepEqual(credential("cloudflare-pages"), { vendorId: "cloudflare", tokenField: "token", fields: ["token*!", "accountId*"] });
+  assert.deepEqual(credential("cloudflare-pages"), { vendorId: "cloudflare", tokenField: "token", fields: ["token*!", "accountId*", "zoneId"] });
   assert.deepEqual(credential("s3-compatible"), {
     vendorId: "s3-compatible",
     tokenField: "secretAccessKey",

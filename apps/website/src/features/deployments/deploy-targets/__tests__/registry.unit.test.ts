@@ -348,7 +348,7 @@ test("the product's own bundled plugins load every host with no refusal (no targ
   const registry = await loadBundledDeployTargetRegistry({ sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
 
   assert.deepEqual(registry.refusals, []);
-  assert.deepEqual(registry.list().map((target) => target.descriptor.id).sort(), ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"]);
+  assert.deepEqual(registry.list().map((target) => target.descriptor.id).sort(), ["cloudflare-pages", "cloudflare-workers", "github-pages", "netlify", "s3-compatible", "vercel"]);
   // R1: the vault's legacy publish-row migration reads this credential spec by target id; a host that
   // moved to its own plugin must still answer from its own source dir.
   assert.equal(registry.get("vercel")?.pluginId, "vercel");

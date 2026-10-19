@@ -100,8 +100,8 @@ export type StaticPublishOutcome =
  * changes.
  *
  * TWO separate methods, not one, on purpose (2026-08-15 split, Terra's design): {@link resolve}
- * is the ONLY one of the two that may decrypt/expose a real credential, and must never be called from
- * a preview, a status display, or anything agent-facing — only from an actual publish attempt.
+ * is the ONLY one of the two that may decrypt/expose a real credential, and must never expose usable credentials to a status display or model. Authenticated provider inspection
+ * may resolve server-side for read-only API calls; local readiness previews still use isConfigured.
  * {@link isConfigured} answers the read-only "would a publish work" question every preview/education
  * surface actually needs, without decrypting anything (the DB-backed source's `isConfigured` only
  * ever calls `describeCredential`-shaped reads — never `resolveForPublish`). Before this split, the

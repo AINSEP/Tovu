@@ -1,6 +1,8 @@
 import { listPublishContentPeers } from "#src/features/publish-content/peers";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express } from "express";
+import { ToolInputError } from "@jini-ai/core";
+import { inspectStaticPublish } from "#src/features/deployments/static-publish/inspection";
 
 import {
   composePublishCredentialSource,
@@ -12,6 +14,7 @@ import {
   startPublishRun,
   unknownTargetMessage,
   type StaticPublishConfig,
+  type PublishCredentialSource,
 } from "#src/features/deployments/static-publish/index";
 import type {
   DeployTargetCredentialSpec,
@@ -72,7 +75,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * question. This route reuses the SAME `planStaticPublish` the tool calls, plus this file's own
  * `credentialSource`, so a preview here and a preview from the assistant can never disagree.
  * `system.read`-gated, matching every other GET in this directory (`export-site.ts`,
- * `deployment-overview.ts`) — it performs zero writes and zero network calls.
+ * `deployment-overview.ts`) — it performs zero remote mutations; provider inspections may issue authenticated reads.
  *
  * A FOURTH, `GET .../system/publish-targets` (`system.read`), lists the registry's targets (id,
  * label, config field specs) so the admin UI can render the publish card from descriptors.
@@ -175,6 +178,30 @@ function publicCredentialSpec(spec: DeployTargetCredentialSpec): {
   };
 }
 
+function credentialChoice({ value }: { value: unknown }, _options = {}): { credentialId?: string } {
+  if (value === undefined) return {};
+  if (typeof value !== "string" || !value.trim()) throw new ToolInputError({ message: "credentialId must be a non-empty string naming the selected connection. Reload and choose it again." });
+  return { credentialId: value };
+}
+
+/** The HTTP projection calls the same authenticated inspection used by the chat preview. */
+async function httpPublishPreview(required: {
+  deps: AdminPublishSiteDeps; credentialSource: PublishCredentialSource; registry: DeployTargetRegistry;
+  config: StaticPublishConfig; query: Record<string, unknown>;
+}, _options = {}) {
+  const { deps, credentialSource, registry, config, query } = required;
+  const plan = planStaticPublish(registry, config);
+  const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: config.target });
+  const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
+    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability },
+    input: { workspaceId: deps.workspaceId, config, projectName: typeof query.projectName === "string" ? query.projectName : "", ...credentialChoice({ value: query.credentialId }) },
+  }) : {};
+  return { target: config.target, valid: plan.ok, validationError: plan.ok ? null : plan.message,
+    basePath: plan.ok ? (plan.basePath ?? null) : null, credentialsConfigured: credential.configured,
+    credentialGuidance: credential.configured ? null : credential.reason,
+    providerInspection: inspected.inspection };
+}
+
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
   // Built once per `registerAdminPublishSiteRoutes` call (this route file's own registration is
   // itself a once-per-process composition step), bound to `deps.workspaceId` — see
@@ -222,6 +249,10 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         res.status(400).json({ error: plan.message });
         return;
       }
+      if (read.config.customDomain) {
+        res.status(409).json({ code: "DOMAIN_CONFIRMATION_REQUIRED", error: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation." });
+        return;
+      }
 
       // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
       // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
@@ -250,7 +281,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
           // The connection the operator actually chose in the Static Site tab. Never defaulted here:
           // an absent id means "this caller has no chosen connection", which the credential source
           // answers with its own default lookup — see `parsePublishRequestBody` above.
-          ...(parsed.credentialId !== undefined ? { credentialId: parsed.credentialId } : {}),
+          ...credentialChoice({ value: parsed.credentialId }),
         },
         deps.clock,
         deps.publishHistoryStore
@@ -325,26 +356,20 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       }
 
       // Same reads `deployment_preview_static_publish`'s handler performs (this file's header) — the
-      // registry's plan (config check + base path) and one credential lookup. No export runs, no
-      // network I/O. `isConfigured()`, NOT `resolve()` (2026-08-15 split, see
+      // registry's plan (config check + base path) and local credential readiness. No export runs.
+      // Authenticated provider inspection is separate from `isConfigured()` (2026-08-15 split, see
       // `static-publish/types.ts`'s `PublishCredentialSource` header) — a preview must never resolve a
       // real credential just to read a boolean off it.
-      const plan = planStaticPublish(read.registry, read.config);
-      const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: read.config.target });
-
-      res.status(200).json({
-        target: read.config.target,
-        valid: plan.ok,
-        validationError: plan.ok ? null : plan.message,
-        basePath: plan.ok ? (plan.basePath ?? null) : null,
-        credentialsConfigured: credential.configured,
-        credentialGuidance: credential.configured ? null : credential.reason,
-      });
+      res.status(200).json(await httpPublishPreview({ deps, credentialSource, registry: read.registry, config: read.config, query }));
     } catch (err) {
       // `credentialSource.isConfigured` is the one awaited call here that can reach a real backing
       // store (DB-backed source, per this file's header) — a failure there used to escape this
       // handler entirely (no `try`/`catch` at all; found by an AST scan over every `app.<verb>()`
       // handler in `src/server/routes/**`).
+      if (err instanceof ToolInputError) {
+        res.status(400).json({ error: err.message, code: "PROVIDER_INSPECTION_FAILED" });
+        return;
+      }
       console.error("[publish-site] unexpected error building a publish preview", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
@@ -410,6 +435,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         targets: registry.list().map(({ descriptor }) => ({
           id: descriptor.id,
           label: descriptor.label,
+          defaultForNewDestination: registry.get(descriptor.id)?.module.defaultForNewDestination === true,
+          authenticatedPreview: registry.get(descriptor.id)?.module.preview !== undefined,
           configFields: descriptor.configFields,
           ...(descriptor.projectName !== undefined ? { projectName: descriptor.projectName } : {}),
           ...(descriptor.credential !== undefined ? { credential: publicCredentialSpec(descriptor.credential) } : {}),

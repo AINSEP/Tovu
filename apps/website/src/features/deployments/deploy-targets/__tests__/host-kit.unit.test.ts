@@ -153,3 +153,30 @@ test("the kit signs an S3 request using the supplied credentials and bucket endp
   const signature = createHmac("sha256", key).update(toSign).digest("hex");
   assert.equal(request.headers.get("authorization"), `AWS4-HMAC-SHA256 Credential=fixture-key/20260102/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=${signature}`);
 });
+
+test('content proof uses guarded HTTPS, exact bytes, bounded bodies and closes every dispatcher', async () => {
+  for (const [body, status, expected] of [['digest', 200, true], ['old site', 200, false], ['x'.repeat(4097), 200, false], ['', 503, false]] as const) {
+    const dispatchers: Array<{ closed: boolean }> = [];
+    const kit = createDeployHostKit({ fetchFn: async (_url, init) => {
+      dispatchers.push((init as RequestInit & { dispatcher: { closed: boolean } }).dispatcher);
+      return new Response(body, { status });
+    } });
+    assert.equal(await kit.probeContent!({ url: 'https://8.8.8.8/proof.txt', expected: 'digest' }), expected);
+    assert.equal(dispatchers.length, 1);
+    assert.equal(dispatchers[0]!.closed, true);
+  }
+  const kit = createDeployHostKit({ fetchFn: async () => assert.fail('private targets must be blocked before egress') });
+  assert.equal(await kit.probeContent!({ url: 'https://127.0.0.1/proof', expected: 'digest' }), false);
+});
+
+test('content proof network/stream failure and a bodyless response fail closed', async () => {
+  const factories: Array<() => Response> = [
+    () => new Response(null, { status: 204 }),
+    () => new Response(new ReadableStream({ start(controller) { controller.error(new Error('broken stream')); } })),
+    () => { throw new Error('network'); },
+  ];
+  for (const response of factories) {
+    const kit = createDeployHostKit({ fetchFn: async () => response() });
+    assert.equal(await kit.probeContent!({ url: 'https://8.8.8.8/proof', expected: 'digest' }), false);
+  }
+});

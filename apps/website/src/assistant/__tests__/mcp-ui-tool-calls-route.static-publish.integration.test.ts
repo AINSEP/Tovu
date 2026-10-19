@@ -210,5 +210,5 @@ test("deployment_get_static_publish_capabilities still runs fine through the ord
   // 5 providers as of the s3-compatible ("Custom" tab) addition — spec
   // `custom-publish-provider-contract.md` §10.7 — not 4.
   assert.deepEqual(output.providers.map(({ providerId }) => providerId).sort(),
-    ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"]);
+    ["cloudflare-pages", "cloudflare-workers", "github-pages", "netlify", "s3-compatible", "vercel"]);
 });

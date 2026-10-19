@@ -668,10 +668,10 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 
   assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
   const output = result.output as { executionMode: string; providers: Array<{ providerId: string }> };
-  assert.equal(output.providers.length, 5, "all five static-publish providers must be reported");
+  assert.equal(output.providers.length, 6, "all six static-publish providers must be reported");
   assert.deepEqual(
     output.providers.map((p) => p.providerId).sort(),
-    ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"],
+    ["cloudflare-pages", "cloudflare-workers", "github-pages", "netlify", "s3-compatible", "vercel"],
   );
 });
 

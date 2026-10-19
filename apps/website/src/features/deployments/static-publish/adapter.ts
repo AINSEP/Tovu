@@ -1,6 +1,7 @@
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { rmSync } from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
 
@@ -237,6 +238,12 @@ export interface StaticPublishDeps {
 export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
 
 export interface StaticPublishInput {
+  /** Server-held approval from the existing human exchange/gateway; never read from JSON input. */
+  readonly domainApproval?: {
+    readonly credentialBinding: string;
+    readonly plan: NonNullable<import("../deploy-targets/types.js").DeployTargetInspection["domains"]>;
+    readonly authorize: (required: { readonly fingerprint: string; readonly accountId: string }) => Promise<boolean>;
+  };
   readonly workspaceId: string;
   /** `RouteDeps.publishOutputRootDir`, threaded down rather than the whole `RouteDeps` bag — see
    *  {@link ExportSiteBoundFn}'s own doc immediately above for why. */
@@ -422,7 +429,8 @@ async function publishAndMapOutcome(
   basePath: string | undefined
 ): Promise<StaticPublishOutcome> {
   try {
-    const result = await jiniTarget.publish(publishInput, { responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS });
+    const result = await jiniTarget.publish(publishInput, { responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS,
+      metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}) } });
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);
     }
@@ -464,6 +472,9 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   if (!credentialResult.ok) {
     return credentialResult.outcome;
   }
+  if (input.domainApproval && input.domainApproval.credentialBinding !== createHash("sha256").update(JSON.stringify(toDeployTargetCredential(credentialResult.credential))).digest("hex")) {
+    return { ok: false, code: "INVALID_CONFIG", message: "CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing." };
+  }
 
   const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
   const exportResult = await runExportForPublish(input, outputDir, plan.basePath);
@@ -480,15 +491,17 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
 
   const publishInput: DeployPublishInput = { files, projectName: input.projectName };
   const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath);
+  return finishPublishOutcome({ outcome, credential: credentialResult.credential });
+}
+
+/** Final credential-safe projection, including partial provider failures. @complexity O(message bytes). */
+function finishPublishOutcome({ outcome, credential }: { outcome: StaticPublishOutcome; credential: ResolvedCredentialSourceSuccess }, _options = {}): StaticPublishOutcome {
   // A plugin can include its credential in an error message. Keep the useful provider explanation
   // while removing the resolved token before this site-publish response reaches HTTP or a tool.
-  if (!outcome.ok && resolvedCredential.token) {
-    return { ...outcome, message: outcome.message.replaceAll(resolvedCredential.token, "[REDACTED]") };
-  }
+  const safe = "message" in outcome && credential.token
+    ? { ...outcome, message: outcome.message.replaceAll(credential.token, "[REDACTED]") } : outcome;
   // Bind history to the row opened for this run, never a later default lookup.
-  return outcome.ok && credentialResult.credential.credentialId !== undefined
-    ? { ...outcome, credentialId: credentialResult.credential.credentialId }
-    : outcome;
+  return safe.ok && credential.credentialId !== undefined ? { ...safe, credentialId: credential.credentialId } : safe;
 }
 
 /**

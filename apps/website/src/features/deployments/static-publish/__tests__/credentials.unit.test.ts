@@ -702,3 +702,11 @@ test("saved API keys publish by worksFor, never by their label", async () => {
     assert.equal((await source.resolve({ workspaceId: WORKSPACE, target: "github-pages", credentialId: saved.id })).ok, false);
   }
 });
+
+test('historical Pages env variables do not silently configure Workers; its explicit env credential works', async () => {
+  const pagesOnly = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { CLOUDFLARE_TOKEN: 'pages-token', CLOUDFLARE_ACCOUNT_ID: 'account' });
+  assert.equal((await pagesOnly.isConfigured({ workspaceId: WORKSPACE, target: 'cloudflare-pages' })).configured, true);
+  assert.equal((await pagesOnly.isConfigured({ workspaceId: WORKSPACE, target: 'cloudflare-workers' })).configured, false);
+  const workers = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { CLOUDFLARE_WORKERS_TOKEN: 'workers-token', CLOUDFLARE_ACCOUNT_ID: 'account' });
+  assert.deepEqual(await workers.resolve({ workspaceId: WORKSPACE, target: 'cloudflare-workers' }), { ok: true, token: 'workers-token', accountId: 'account' });
+});

@@ -169,7 +169,9 @@ async function recordHistoryIfPublished(
     await historyStore.recordSuccess({ workspaceId: input.workspaceId, entry: {
       ...entry,
       ...(credentialId !== undefined ? { credentialId } : {}),
-      ...(target !== undefined ? { configFields: publicPublishConfigFields({ descriptor: target.descriptor, config: input.config }) } : {}),
+      ...(target !== undefined ? { configFields: publicPublishConfigFields({ descriptor: target.descriptor, config: {
+        ...input.config, ...target.module.destinationConfig?.({ providerMetadata: outcome.providerMetadata }),
+      } }) } : {}),
     } });
   } catch {
     // Keep the true publish result; database errors can embed secret parameters.

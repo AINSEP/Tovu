@@ -73,6 +73,37 @@ function reachabilityOptions(options: NonNullable<Parameters<DeployHostKit["wait
   return { ...rest, ...(detectProtected ? { detectProtected: ({ resp, body }: { resp: Response; body: string }) => detectProtected(resp, body) } : {}) };
 }
 
+/** At most 4 KiB is needed for the content digest; cancel oversized or stalled responses. */
+async function matchesContentProof({ response, expected }: { response: Response; expected: string }, _options = {}): Promise<boolean> {
+  if (!response.ok || !response.body) return false;
+  const reader = response.body.getReader();
+  try {
+    const body = await readProofBody({ reader });
+    return body !== undefined && body.toString("utf8") === expected;
+  } finally { await reader.cancel(); }
+}
+
+async function readProofBody({ reader }: { reader: ReadableStreamDefaultReader<Uint8Array> }, _options = {}): Promise<Buffer | undefined> {
+  let bytes = 0;
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) return Buffer.concat(chunks);
+    bytes += chunk.value.length;
+    if (bytes > 4096) return undefined;
+    chunks.push(chunk.value);
+  }
+}
+
+/** Guard and transport come from one Jini binding, enforcing policy at connection time. */
+async function probeDeploymentContent({ ports, url, expected }: { ports: ReturnType<typeof createNodeReachabilityPorts>; url: string; expected: string }, _options = {}): Promise<boolean> {
+  try {
+    ports.guard.assertSafeUrl({ raw: url, label: "deployment content proof" });
+    const response = await ports.fetch({ url }, { init: { signal: AbortSignal.timeout(DEPLOY_FETCH_TIMEOUTS.QUICK), redirect: "error" } });
+    return await matchesContentProof({ response, expected });
+  } catch { return false; }
+}
+
 /**
  * The kit handed to a deploy module.
  *
@@ -94,6 +125,10 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
     finally { await reachability.close(); }
   }
   return {
+    now: () => Date.now(),
+    // The paired Jini transport enforces policy at connection time, including every redirect.
+    // A 200 alone cannot distinguish a previous site from the content just deployed.
+    probeContent: ({ url, expected }) => withReachability(ports => probeDeploymentContent({ ports, url, expected })),
     fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
     timeouts: options.timeouts ?? DEPLOY_FETCH_TIMEOUTS,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),

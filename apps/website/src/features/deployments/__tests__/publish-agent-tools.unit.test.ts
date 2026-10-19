@@ -346,7 +346,7 @@ test("deployment_execute_static_publish's schema carries no token/credential fie
   const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_execute_static_publish")!;
   const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: unknown; required: string[] };
   assert.deepEqual(schema.additionalProperties, { type: "string" }, "a host's config fields are top-level strings; the handler refuses any key its host does not declare");
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["projectName", "target"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["credentialId", "projectName", "target"]);
   assert.deepEqual(schema.required.sort(), ["projectName", "target"]);
 });
 
@@ -516,7 +516,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   assert.equal(result.executionMode, deps.publishExecutionMode);
   // 5 providers as of the s3-compatible ("Custom" tab) addition — spec
   // `custom-publish-provider-contract.md` §10.7 — not 4.
-  assert.equal(result.providers.length, 5);
+  assert.equal(result.providers.length, 6);
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.credentialConfigured, true);
@@ -1598,7 +1598,7 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
 
   // Plugin-id order since the deploy split (0030358d7): each host is its own plugin.
   await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), {
-    message: "publish target 'bogus-provider' is not available; choose one of: cloudflare-pages, github-pages, netlify, s3-compatible, vercel",
+    message: "publish target 'bogus-provider' is not available; choose one of: cloudflare-workers, cloudflare-pages, github-pages, netlify, s3-compatible, vercel",
   });
   assert.deepEqual(authorizeCalls, [], "unknown targets must fail before authorization");
 });

@@ -38,10 +38,30 @@ export function publishHostsForCredential({ credential, registry }: {
   credential: Pick<VaultSummary, "kind" | "provider" | "label" | "meta">; registry: DeployTargetRegistry;
 }, _options = {}): string[] {
   return matchingCredentialProviderIds({ credential, providers: registry.list().flatMap(({ descriptor }) => {
+    if (!moduleAcceptsCredential({ credential, registry, targetId: descriptor.id })) return [];
     const spec = descriptor.credential;
     return spec ? [{ id: descriptor.id, vendorId: spec.vendorId,
       acceptsCustomToken: !spec.fields.some(field => field.required && field.name !== spec.tokenField) }] : [];
   }) });
+}
+
+/** Only narrow eligibility here; the existing Jini matcher still owns worksFor/default selection.
+ * No persisted metadata changes, so an old vendor grant cannot silently acquire a new capability. */
+function moduleAcceptsCredential({ credential, registry, targetId }: {
+  credential: Pick<VaultSummary, "meta">; registry: DeployTargetRegistry; targetId: string;
+}, _options = {}): boolean {
+  const accepts = registry.get(targetId)?.module.acceptsCredential;
+  if (!accepts) return true;
+  const worksFor = credential.meta.worksFor;
+  if (!Array.isArray(worksFor) || !worksFor.every(id => typeof id === "string")) return false;
+  return accepts({ worksFor });
+}
+
+function selectPublishCredential({ registry, credentials, provider, id }: {
+  registry: DeployTargetRegistry; credentials: readonly VaultSummary[];
+  provider: NonNullable<ReturnType<typeof providerContract>>; id?: string;
+}, _options = {}): VaultSummary | null {
+  return selectCredentialForProvider({ credentials: credentials.filter(credential => moduleAcceptsCredential({ credential, registry, targetId: provider.id })), provider, id });
 }
 /** Compatibility edits invalidate only hosts whose eligibility changed, through the existing cache
  * port. Catalog adaptation and custom token shape rules are shared with runtime matching.
@@ -107,7 +127,7 @@ export async function listPublishCredentials(deps: PublishCredentialReadDeps, in
   const defaults = new Map<string, string>();
   for (const { descriptor } of registry.list()) {
     const provider = providerContract({ registry, providerId: descriptor.id });
-    const selected = provider && selectCredentialForProvider({ credentials: rows, provider });
+    const selected = provider && selectPublishCredential({ registry, credentials: rows, provider });
     if (selected) defaults.set(descriptor.id, selected.id);
   }
   return rows.flatMap(row => {
@@ -130,7 +150,7 @@ export async function describeCredential(deps: PublishCredentialReadDeps, input:
 export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<boolean> {
   const registry = await deps.loadDeployTargets(input.workspaceId);
   const provider = providerContract({ registry, providerId: input.providerId });
-  return provider !== null && selectCredentialForProvider({ credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider }) !== null;
+  return provider !== null && selectPublishCredential({ registry, credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider }) !== null;
 }
 
 function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
@@ -293,12 +313,13 @@ async function saveConnection({ deps, input, providerId }: { deps: PublishCreden
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */
 export async function createPublishCredential(deps: PublishCredentialWriteDeps, input: CreatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const label = validateLabel(input.label);
-  const validated = validateConnection(input.connection, await deps.loadDeployTargets(input.workspaceId));
+  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const validated = validateConnection(input.connection, registry);
   const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
   const { providerId, ...fields } = validated.connection;
   const summary = await saveConnection({ deps, providerId, input: {
     ...credentialScope({ workspaceId: input.workspaceId, kind: "vendor" }), id: deps.idGen.newId(), expectedRevision: null,
-    provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
+    provider: validated.spec.vendorId, label, meta: { credentialType: "vendor", worksFor: validatedWorksFor({ value: input.worksFor === undefined ? registry.get(providerId)?.module.defaultCredentialWorksFor ?? [validated.spec.vendorId] : input.worksFor }), accountLabel: null }, payload: { vendorId: validated.spec.vendorId, ...fields },
     hintToken: fields[validated.spec.tokenField], isDefault,
   } });
   return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
@@ -436,22 +457,42 @@ async function resolveFromInventory({ deps, input, registry, rows }: {
   registry: DeployTargetRegistry; rows: VaultSummary[];
 }, _options = {}): ReturnType<typeof resolveForPublish> {
   const candidate = rows.find(row => row.id === input.id);
-  const providerId = input.providerId ?? (candidate && publishHostsForCredential({ credential: candidate, registry })[0]);
+  const providerId = selectedCandidateProviderId({ explicitId: input.providerId, candidate, registry });
   if (!candidate || !providerId) return null;
   const provider = providerContract({ registry, providerId });
-  if (!provider || !selectCredentialForProvider({ credentials: rows, provider, id: input.id })) return null;
-  try {
-    const resolved = await vault(deps).get({ ...credentialScope({ workspaceId: input.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id });
-    if (!resolved || !selectCredentialForProvider({ credentials: [resolved.summary], provider, id: input.id })) return null;
-    if (!resolved.payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-    const spec = registry.get(providerId)!.descriptor.credential!;
-    const { vendorId: _vendorId, ...fields } = resolved.payload as Record<string, string>;
-    const connection = resolved.summary.meta.credentialType === "custom"
-      ? { providerId, [spec.tokenField]: fields.token! } : { ...fields, providerId };
-    if (typeof connection[spec.tokenField] !== "string" || !connection[spec.tokenField]!.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-    return { providerId, vendorId: provider.vendorId, label: resolved.summary.label,
-      isDefault: selectCredentialForProvider({ credentials: rows, provider })?.id === input.id, connection };
-  } catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
+  if (!provider || !selectPublishCredential({ registry, credentials: rows, provider, id: input.id })) return null;
+  const resolved = await openPublishVaultRecord({ deps, input, candidate });
+  if (!resolved || !selectPublishCredential({ registry, credentials: [resolved.summary], provider, id: input.id })) return null;
+  const connection = publishConnectionFromPayload({ providerId, spec: registry.get(providerId)!.descriptor.credential!,
+    summary: resolved.summary, payload: resolved.payload });
+  return { providerId, vendorId: provider.vendorId, label: resolved.summary.label,
+    isDefault: selectPublishCredential({ registry, credentials: rows, provider })?.id === input.id, connection };
+}
+
+function selectedCandidateProviderId({ explicitId, candidate, registry }: {
+  explicitId: string | undefined; candidate: VaultSummary | undefined; registry: DeployTargetRegistry;
+}, _options = {}): string | undefined {
+  if (explicitId !== undefined) return explicitId;
+  if (!candidate) return undefined;
+  return publishHostsForCredential({ credential: candidate, registry })[0];
+}
+
+/** Crypto faults retain the established typed refusal and never echo payloads. */
+async function openPublishVaultRecord({ deps, input, candidate }: {
+  deps: PublishCredentialResolveDeps; input: { workspaceId: UUID; id: UUID }; candidate: VaultSummary;
+}, _options = {}) {
+  try { return await vault(deps).get({ ...credentialScope({ workspaceId: input.workspaceId, kind: candidate.kind === "custom" ? "custom" : "vendor" }), id: input.id }); }
+  catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
+}
+
+function publishConnectionFromPayload({ providerId, spec, summary, payload }: {
+  providerId: string; spec: DeployTargetCredentialSpec; summary: VaultSummary; payload: unknown;
+}, _options = {}): PublishConnectionInput {
+  if (!payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  const { vendorId: _vendorId, ...fields } = payload as Record<string, string>;
+  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token! } : { ...fields, providerId };
+  if (typeof connection[spec.tokenField] !== "string" || !connection[spec.tokenField]!.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  return connection;
 }
 
 /** The same selection policy serves implicit publishing, readiness and explicit-ID resolution.
@@ -464,7 +505,7 @@ export async function resolveDefaultForPublish(deps: PublishCredentialResolveDep
   const provider = providerContract({ registry, providerId: input.providerId });
   if (!provider) return null;
   const rows = await inventory({ deps, workspaceId: input.workspaceId });
-  const selected = selectCredentialForProvider({ credentials: rows, provider });
+  const selected = selectPublishCredential({ registry, credentials: rows, provider });
   if (!selected) return null;
   const resolved = await resolveFromInventory({ deps, input: { ...input, id: selected.id }, registry, rows });
   return resolved ? { id: selected.id, label: resolved.label, connection: resolved.connection } : null;

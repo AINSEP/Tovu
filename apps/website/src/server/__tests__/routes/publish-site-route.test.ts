@@ -957,7 +957,7 @@ test("publish-targets: a target with a saved credential carries its form's field
   assert.deepEqual(
     cloudflare.credential.fields.map((field) => [field.name, field.required, field.secret === true]),
     // No credential `projectName`: the host module never read it, so 53c8fddec stopped declaring it.
-    [["token", true, true], ["accountId", true, false]],
+    [["token", true, true], ["accountId", true, false], ["zoneId", false, false]],
   );
   const s3 = body.targets.find((target) => target.id === "s3-compatible");
   assert.equal(s3?.credential?.tokenField, "secretAccessKey");
@@ -1055,4 +1055,17 @@ test("publish destinations: peer rows and deploy links require publish_content.r
   peerReadAllowed = true;
   await deps.publishContentPeerRepo.delete({ workspaceId: deps.workspaceId, id: "peer-saved" });
   assert.deepEqual(await read(), restricted);
+});
+
+test('publish-site HTTP cannot substitute a request flag for exact human domain confirmation', async t => {
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish`, {
+    method: 'POST', headers: { cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ target: 'cloudflare-workers', projectName: 'demo', customDomain: 'example.com', confirmed: true }),
+  });
+  assert.equal(response.status, 409);
+  const body = await response.json() as { code: string; error: string };
+  assert.equal(body.code, 'DOMAIN_CONFIRMATION_REQUIRED');
+  assert.match(body.error, /exact domain changes.*chat/);
 });
