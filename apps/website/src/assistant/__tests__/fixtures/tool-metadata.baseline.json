@@ -727,9 +727,9 @@
     "comments_get_settings": [
       "What are our current comment moderation settings?",
       "Is comment approval required before comments show up?",
-      "How many comments can one visitor post per hour right now?",
+      "What is the current per-visitor hourly comment limit?",
       "What's our spam auto-reject threshold set to?",
-      "Do we have comments closed after a certain number of days?"
+      "Are comments automatically closed after a configured number of days?"
     ],
     "comments_update_settings": [
       "Can you turn on comment moderation for the site?",
@@ -821,10 +821,10 @@
       "What database events happened most recently?"
     ],
     "database_list_restore_points": [
-      "What restore points do we have for the database?",
+      "Which database restore points are available?",
       "When was the last database backup point taken?",
       "Can you list all the snapshots I could roll back to?",
-      "How many restore points exist and what triggered them?",
+      "List database restore points with their triggers.",
       "Show me the database recovery points available."
     ],
     "database_get_health": [
@@ -1043,7 +1043,10 @@
       "I need the id of an image before I can edit its alt text.",
       "Can you list every uploaded file, including trashed ones?",
       "What media assets do we have and what are their checksums?",
-      "Show me our full media library."
+      "Show me our full media library.",
+      "How many images do I have in my media library?",
+      "How many photos do I have uploaded?",
+      "How many files do I have in the media library?"
     ],
     "media_upload_asset": [
       "Can you upload this image to the media library?",

@@ -68,10 +68,10 @@ export const toolMetadata = {
     search: {
       keywords: "backup snapshot history available recovery points",
       queries: [
-        "What restore points do we have for the database?",
+        "Which database restore points are available?",
         "When was the last database backup point taken?",
         "Can you list all the snapshots I could roll back to?",
-        "How many restore points exist and what triggered them?",
+        "List database restore points with their triggers.",
         "Show me the database recovery points available.",
       ],
     },

@@ -27,9 +27,9 @@ export const toolMetadata = {
       queries: [
         "What are our current comment moderation settings?",
         "Is comment approval required before comments show up?",
-        "How many comments can one visitor post per hour right now?",
+        "What is the current per-visitor hourly comment limit?",
         "What's our spam auto-reject threshold set to?",
-        "Do we have comments closed after a certain number of days?",
+        "Are comments automatically closed after a configured number of days?",
       ],
     },
     approval: { class: 'read', confirmation: 'direct' },

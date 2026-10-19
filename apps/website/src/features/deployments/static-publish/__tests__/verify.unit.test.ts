@@ -4,7 +4,7 @@ import { createHash, createHmac } from "node:crypto";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
+import { createPublishCredential, PublishCredentialSecretStoreUnconfiguredError, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import type { PublishCredentialSource } from "../types.js";
 import {
@@ -539,18 +539,18 @@ test("verifyPublishCredentialById handles removed hosts and changed token fields
         ...host, descriptor: { ...host.descriptor, credential: { ...host.descriptor.credential!, tokenField: "newToken" } },
       });
       let probes = 0;
-      const result = await verifyPublishCredentialById({ ...writeDeps, cache, clock,
+      const verification = verifyPublishCredentialById({ ...writeDeps, cache, clock,
         loadDeployTargets: async () => ({ get: (id) => hosts.find((host) => host.descriptor.id === id), list: () => hosts, refusals: [] }),
         fetchFn: (async () => { probes++; assert.fail("must not probe an unprojectable row"); }) as typeof fetch,
       }, { workspaceId: WORKSPACE, id: row.id });
-      assert.equal(probes, 0);
       if (mode === "removed") {
-        assert.equal(result, null);
+        assert.equal(await verification, null);
       } else {
-        assert.equal(result?.status, "unreachable");
-        assert.match(result!.message, /has no newToken/);
+        // The unified vault resolver rejects unusable payloads before provider verification.
+        await assert.rejects(verification, PublishCredentialSecretStoreUnconfiguredError);
       }
-      assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), mode === "missing-token" && isDefault ? result : stale);
+      assert.equal(probes, 0);
+      assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), stale);
     }
   }
 });

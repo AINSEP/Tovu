@@ -47,8 +47,11 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
   const regressions: string[] = [];
   for (const request of requests) {
     const previouslyFound = baseline.search({ query: request.query }, { limit: 3 }).some(h => request.expect.includes(h.id));
-    const nowFound = catalog.search({ query: request.query }, { limit: 3 }).some(h => request.expect.includes(h.id));
-    if (previouslyFound && !nowFound) regressions.push(request.id);
+    const currentHits = catalog.search({ query: request.query }, { limit: 4 });
+    const nowFound = currentHits.slice(0, 3).some(h => request.expect.includes(h.id));
+    if (previouslyFound && !nowFound) {
+      regressions.push(`${request.id}: ${currentHits.map(h => `${h.id} (${h.score})`).join(", ")}`);
+    }
   }
   assert.deepEqual(regressions, [], "new deploy ops registrations must not displace existing operator requests");
   const raw = hits.indexOf("custom_credential_make_request");
