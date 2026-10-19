@@ -682,6 +682,7 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // exactly that throw and, only when the id matches a refusal in `toolExtensions.federation.reports()`,
 // returns a real result naming the tool, the server, and the fix instead. See that file's own header.
 const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges } });
+registry.register(automaticPluginRuns.loadRegistration);
 const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
     registry,
     surfaceExchanges,

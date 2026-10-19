@@ -232,7 +232,7 @@ async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnap
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 
-test("the shared base (installFirstPartyToolContributors + buildAssistantToolRegistrations) and the real BYOK module build the identical tool id, publish-content-type, and duplicate-resource-handler sets", async () => {
+test("BYOK adds only its run-scoped guidance loader to the shared base and preserves all resource sets", async () => {
   // `base` never calls the installed-extension-tools registrars, so it can never see this dev
   // checkout's own real installed agent-plugins/skills for `routeDeps.workspaceId` — `byok` now does
   // (S1's fix), so it needs the same "nothing installed" isolation the daemon construction tests below
@@ -246,7 +246,8 @@ test("the shared base (installFirstPartyToolContributors + buildAssistantToolReg
     const base = buildBaseRole(routeDeps);
     const byok = await buildByokRole(routeDeps);
 
-    assert.deepEqual([...byok.ids].sort(), [...base.ids].sort());
+    // A base registry has no live-run consent owner. Both execution roots add the same loader.
+    assert.deepEqual([...byok.ids].sort(), [...base.ids, 'load_agent_plugin'].sort());
     assert.deepEqual(byok.publishContentTypes, base.publishContentTypes);
     assert.ok(byok.publishContentTypes.length > 0, "the publish-content type registry must not be empty — that is the f0cfd0c67 regression this pins from the other side");
     assert.deepEqual(byok.duplicateResources, base.duplicateResources);
@@ -268,6 +269,8 @@ test("the daemon construction seam and real BYOK root expose identical installed
 
   assert.ok(daemon.ids.has("skill_incident_response"), "daemon's actual registerInstalled port must install the fixture skill");
   assert.ok(byok.ids.has("skill_incident_response"), "the real BYOK root must install the same fixture skill");
+  assert.ok(daemon.ids.has('load_agent_plugin'), 'the daemon must expose on-demand plugin guidance');
+  assert.ok(byok.ids.has('load_agent_plugin'), 'BYOK must expose the same loader');
   assert.ok(daemon.publishContentTypes.includes("post"), "daemon boot must install first-party publish content types");
 
   const missingFromDaemon = [...byok.ids].filter((id) => !daemon.ids.has(id));

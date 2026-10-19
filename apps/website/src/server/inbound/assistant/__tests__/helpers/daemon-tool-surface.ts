@@ -18,6 +18,7 @@ import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
 import { readChatPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
 import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { createAutomaticPluginRuns } from "#src/assistant/automatic-agent-plugins";
 
 
 /** Execute the real daemon's base construction and installed-extension seam. Federation is
@@ -38,6 +39,13 @@ export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Pr
     magicLinkPerEmailLimiter: { check: async () => ({ allowed: true }) },
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
   }, "({ registry, visibleRegistry })");
+  // Include the run-scoped guidance loader's real construction and registration too.
+  const automaticPlugins = daemonVariableStatement(daemonSource.statements, "automaticPluginRuns");
+  const automaticIndex = daemonSource.statements.indexOf(automaticPlugins);
+  await evaluateDaemonStatements(daemonSource.statements.slice(automaticIndex, automaticIndex + 2), {
+    registry, routeDeps, createAutomaticPluginRuns,
+    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
+  });
   const statements = daemonFunction("start").body!.statements;
   const extensions = daemonVariableStatement(statements, "extensions");
   const waitInstalled = statements.find((statement) => ts.isExpressionStatement(statement) && ts.isAwaitExpression(statement.expression) && statement.expression.expression.getText(daemonSource) === "extensions.installed");

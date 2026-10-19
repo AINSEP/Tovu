@@ -31,7 +31,7 @@ for (const [query, expected] of [
   ["what's 2+2", []],
   ['Design a theme inspired by Vercel', ['tovu-theme', 'ui-ux-design']],
 ] as const) {
-  test(`Auto loads only relevant bundled guidance: ${query}`, async () => {
+  test(`Auto suggests only relevant bundled plugins: ${query}`, async () => {
     const candidates = await bundledCandidates();
     const rank = ({ query, candidates, limit }: { query: string; candidates: readonly AgentPluginSearchCandidate[]; limit: number }) =>
       rankInstalledAgentPlugins(query, candidates, limit, { automatic: true });
@@ -43,7 +43,9 @@ for (const [query, expected] of [
       ask: async () => { throw new Error('Auto must not ask'); },
       saveAuto: async () => {}, publish: async () => {},
     } });
-    await controller.prepare({ query });
-    assert.deepEqual(loaded.sort(), [...expected].sort());
+    // Auto discloses relevant plugins in a note; guidance loads only on demand or at the write backstop.
+    const note = await controller.prepare({ query });
+    assert.deepEqual([...note.matchAll(/\(([^()\s]+)\) — /g)].map(match => match[1]).sort(), [...expected].sort());
+    assert.deepEqual(loaded, []);
   });
 }

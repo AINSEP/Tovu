@@ -3,6 +3,7 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
+import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../automatic-agent-plugins.js";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -15,6 +16,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
@@ -115,6 +119,8 @@ const contributions = {
 // Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 installFirstPartyToolContributors({ contributions });
+// Roots supply the run-bound handler separately; its risk declaration participates in these checks.
+contributions.contributors.register({ contribution: { domain: 'agent-plugin-guidance', build: () => [], risk: agentPluginGuidanceRisk } });
 
 /**
  * @file The model-facing contract half of `tool-registrations.ts` — companion to
@@ -163,7 +169,10 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegistration> {
-  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: fakeRouteDeps(existing) }), options: { contributions } }).map((r) => [r.descriptor.id, r]));
+  const routeDeps = fakeRouteDeps(existing);
+  // Both production roots add this run-scoped registration after the static contributions.
+  const guidance = createAutomaticPluginRuns({ deps: createRouteDeps(), surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
+  return new Map([...buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), options: { contributions } }), guidance.loadRegistration].map((r) => [r.descriptor.id, r]));
 }
 
 /** The one registration under test, asserted present so no call site needs a non-null assertion. */
@@ -245,6 +254,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "system-server-logs": serverLogsAgentToolCatalog as unknown as AgentToolDefinition[],
   "media-video-view": mediaVideoCatalog as unknown as AgentToolDefinition[],
   "agent-plugins-install": agentPluginsInstallCatalog as unknown as AgentToolDefinition[],
+  "agent-plugin-guidance": agentPluginGuidanceCatalog,
   "media-view": mediaViewImageAgentToolCatalog as unknown as AgentToolDefinition[],
   // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
@@ -610,6 +620,7 @@ async function buildRealAssembledSurface() {
   for (const registration of buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), options: { contributions } })) {
     registry.register(registration);
   }
+  registry.register(createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } }).loadRegistration);
   const toolExecutor = createToolExecutor({ registry });
   const catalog = buildToolCatalogQuery(registry);
   return { routeDeps, registry, toolExecutor, catalog };
@@ -801,4 +812,14 @@ test("publish pull tools are wired with honest risk and the human-confirmed exec
     assert.equal(wiredRegistration(id).descriptor.readOnly, false);
   }
   assert.equal(catalogEntry("publish_content_execute_pull").actorClassRule, "confirmer-must-equal-own-delegatedBy");
+});
+
+test('root-added load_agent_plugin is discoverable and publishes the shared domain approval contract', async () => {
+  const { registry, catalog } = await buildRealAssembledSurface();
+  assert.equal(registry.has({ toolId: 'load_agent_plugin' }), true);
+  const described = catalog.describe({ id: 'load_agent_plugin' });
+  assert.ok(described);
+  assert.deepEqual(described.inputSchema, agentPluginGuidanceCatalog[0]!.inputSchema);
+  assert.equal(described.description, agentPluginGuidanceCatalog[0]!.description);
+  assert.deepEqual(wiredRegistration('load_agent_plugin').descriptor.metadata?.approval, { class: 'read', confirmation: 'direct' });
 });

@@ -421,7 +421,11 @@ export function createAssistantByokModule(
       // consumers must not open their own database. A supplied toolSurface bypasses this branch.
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
       // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
-      registerInstalledExtensions: registerInstalledExtensionTools,
+      registerInstalledExtensions: async (registry, deps, log) => {
+        await registerInstalledExtensionTools(registry, deps, log);
+        // The awaited extension pass also lets the run controller bind to this surface below.
+        registry.register(automaticPluginRuns.loadRegistration);
+      },
     });
   automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
   const credentialPort = createStoredExecutionCredentialPort({

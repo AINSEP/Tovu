@@ -10,7 +10,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
-import { installAgentPlugin } from "../../features/agent-plugins/lifecycle.js";
+import { installAgentPlugin, recordBundledAgentPluginDigests } from "../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 
 import { createServer } from "node:http";
@@ -1349,4 +1349,47 @@ test("BYOK a saved-setting revoke while the human reads the card prevents perman
   assert.equal(cards, 1); assert.equal(result.isError, true);
   assert.ok(JSON.stringify(result.content).includes("permanent deletes from chat are disabled"));
   assert.equal(await trashRowFor(deps, postId), trashItemId);
+});
+
+test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the real delegated tool surface`, async t => {
+  const cwd = await mkdtemp(path.join(tmpdir(), 'byok-hint-plugins-'));
+  t.after(() => forceRemove(cwd));
+  const layout = resolveAgentPluginLayout({ cwd, env: {} });
+  const deps = createRouteDeps();
+  deps.agentPluginLayout = layout;
+  const archive = new Uint8Array(Buffer.from('byok-hint-fixture'));
+  const installed = await installAgentPlugin({ archive, expectedSha256: createHash('sha256').update(archive).digest('hex'), layout, workspaceId: deps.workspaceId,
+    archiveReader: { async *entries() {
+      for (const [entryPath, content] of [
+        ['plugin.json', JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'synthetic-hint', version: '1.0.0', keywords: ['holography'], extensions: { tovu: { id: 'test/synthetic-hint', displayName: 'Holography Author', provides: ['theme-authoring'] } } })],
+        ['skills/synthetic-hint/SKILL.md', '---\nname: synthetic-hint\ndescription: Holography guidance\n---\nFollow the unique BYOK holography discipline.'],
+      ] as const) {
+        const bytes = new TextEncoder().encode(content);
+        yield { entryPath, kind: 'file' as const, declaredSize: bytes.length, async *openReadStream() { yield bytes; } };
+      }
+    } },
+  });
+  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(deps.workspaceId).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  let calls = 0;
+  const providerUrl = await stubProvider(t, (count, body) => {
+    calls++;
+    if (count === 1) {
+      assert.match(JSON.stringify(body.system), /Relevant agent plugins for this request:/);
+      assert.match(JSON.stringify(body.system), /Holography Author/);
+      assert.doesNotMatch(JSON.stringify(body), /Follow the unique BYOK holography discipline/);
+      return sseBody(messageStart(), toolUseBlock(0, 'hint_load', 'execute_delegated_tool', { toolId: 'load_agent_plugin', input: { pluginId: 'synthetic-hint' } }), messageDelta('tool_use'), messageStop());
+    }
+    assert.equal(count, 2);
+    assert.match(JSON.stringify(body.messages), /Follow the unique BYOK holography discipline/);
+    return sseBody(messageStart('hint_done'), textBlock(0, 'Loaded holography.'), messageDelta('end_turn'), messageStop());
+  });
+  const response = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, messages: [{ role: 'user', content: 'Design holography' }], userPrompt: 'Design holography', conversationId: 'hint-conversation', byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  assert.equal(response.status, 200);
+  const frames = parseSseFrames(await response.text());
+  assert.equal(calls, 2);
+  assert.equal(frames.some(frame => frame.event === 'error'), false);
+  const usage = frames.filter(frame => frame.event === 'agent' && frame.payload.type === 'agent_plugins');
+  assert.equal(usage.length, 1, 'a suggestion alone must not publish loaded usage');
+  assert.deepEqual(usage[0]!.payload.plugins, [{ id: 'synthetic-hint', name: 'Holography Author' }]);
 });

@@ -9,7 +9,7 @@ import { appendPluginNotes } from "./memory.js";
 // Jini owns activation lifecycle; this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
 const { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
-import { buildDomainRegistrations, indexCatalogById, isRecord, optionalNumber, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, optionalNumber, optionalString, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
@@ -788,8 +788,8 @@ const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
   "keywords, whether it is currently enabled for this workspace (plugins_set_enabled with family " +
   "'agent-plugin' changes that), and what it " +
   "contributes (its skills, and any MCP server ids it declares — ids only, never connection details). " +
-  "Local installed packages only — never a marketplace or the web. Once you have the right id, call its " +
-  "own agent_plugin_<id> tool (e.g. agent_plugin_site_compliance) for that plugin's full guidance.";
+  "Local installed packages only — never a marketplace or the web. Once you have the right id, call " +
+  "load_agent_plugin({ pluginId }) for that plugin's full guidance. Page with the returned nextOffset as offset, keeping query and limit unchanged.";
 
 const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
   type: "object",
@@ -804,6 +804,7 @@ const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
         "'accessibility guidance', 'gdpr compliance checks'. Matched against each installed Agent " +
         "Plugin's id, author-declared keywords, description, and bundled skills. Required.",
     },
+    offset: { type: "integer", minimum: 0, description: "Zero-based result offset. Start at 0; continue with nextOffset until null." },
     limit: {
       type: "integer",
       minimum: 1,
@@ -925,13 +926,20 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
       const input = requireInputRecord({ input: ctx.input });
       const query = requireString({ input: input, key: "query" });
       const rawLimit = optionalNumber({ input, key: "limit" });
+      const rawOffset = optionalNumber({ input, key: "offset" });
+      if (rawOffset !== undefined && (!Number.isSafeInteger(rawOffset) || rawOffset < 0)) {
+        throw new ToolInputError({ message: 'offset must be a non-negative safe integer' });
+      }
+      const offset = rawOffset ?? 0;
       // Clamped, not rejected — an out-of-range limit is an optimization hint, not part of what the
       // caller is actually asking for, mirroring `component-catalog-tool.ts`'s identical treatment of
       // `search_components`' own `limit` argument.
       const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
 
       const candidates = await loadAgentPluginSearchCandidates(routeDeps);
-      const matches = rankInstalledAgentPlugins(query, candidates, limit);
+      // Rank the whole local catalog once, then page it; the response bound is not a discovery cap.
+      const ranked = rankInstalledAgentPlugins(query, candidates, candidates.length);
+      const matches = ranked.slice(offset, offset + limit);
 
       return {
         matches: matches.map((match) => ({
@@ -950,6 +958,8 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
         // are installed but none matched this query" — the model needs that distinction to decide
         // whether to suggest installing something new versus rephrasing the search.
         totalInstalled: candidates.length,
+        totalMatches: ranked.length,
+        nextOffset: offset + matches.length < ranked.length ? offset + matches.length : null,
       };
     },
   };

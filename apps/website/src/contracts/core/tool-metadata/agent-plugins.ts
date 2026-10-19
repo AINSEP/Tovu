@@ -3,6 +3,7 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** agent-plugins registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  load_agent_plugin: { approval: { class: 'read', confirmation: 'direct' } },
   
   // OAuth-authenticated Agent Plugins use the generic connection card.
   "agent_plugin_connect": {
