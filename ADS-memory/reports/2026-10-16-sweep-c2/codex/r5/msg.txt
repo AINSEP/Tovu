@@ -1,0 +1,14 @@
+test(website): 69 more node test files load the isolated catalog home; skill schema expects the file input
+
+- server/inbound, server/runtime and features tests failed with "Test home isolation required"
+  (guard fec2a6a9f, 10-15) because they never loaded isolated-catalog-home; each imports it first.
+  Includes agent-plugin-set-enabled-busy (whole file failed through the guard).
+- skill-tool-search-ranking: a8bd03a3d deliberately added the optional `file` input to skill tools;
+  the schema check now asserts that property (string, optional) instead of `properties: {}`.
+
+RED: the sweep-c2 10-16 run on HEAD failed every one of these 70 files (isolation guard or the stale
+schema).
+GREEN: batched run of the 70 files: 599/599 pass.
+Written by Codex (sweep-c2 round 5), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

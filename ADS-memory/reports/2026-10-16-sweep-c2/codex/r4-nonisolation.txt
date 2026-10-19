@@ -1,0 +1,124 @@
+### apps/website/src/features/webhooks/__tests__/integration/site-key-ensure-race.integration.test.ts › 2 concurrent processes minting the same siteKeyId under the same home converge on exactly 1 file, same fingerprint i
+```
+not ok 811 - 2 concurrent processes minting the same siteKeyId under the same home converge on exactly 1 file, same fingerprint in both
+  ---
+  location: 'apps/website/src/features/webhooks/__tests__/integration/site-key-ensure-race.integration.test.ts:1:1134'
+  error: 'both children must observe absence and reach the barrier'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  stack: |-
+    TestContext.<anonymous> (apps/website/src/features/webhooks/__tests__/integration/site-key-ensure-race.integration.test.ts:68:16)
+  ...
+# Subtest: readers refuse missing files, reuse an explicit key and never mint
+```
+### apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts › the CLI exits successfully and prints OK when the real repository has no seal violations
+```
+not ok 885 - the CLI exits successfully and prints OK when the real repository has no seal violations
+  ---
+  location: 'apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts:20:1599'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + Error: spawnSync /usr/local/Cellar/node/24.2.0/bin/node ETIMEDOUT
+    +     at spawnSync (node:child_process:878:24)
+    +     at TestContext.<anonymous> (apps/website/src/features/webhooks/__tests__/seal-aad-invariant.test.ts:172:18)
+    +     at Test.runInAsyncScope (node:async_hooks:214:14)
+```
+### apps/website/src/features/webhooks/__tests__/site-key-ensure.unit.test.ts › ensureSiteKeyForBoot: siteDir has no .site-meta.json, LOCAL mode → mints a minimal one and mints the per-site key file — no silent gap
+```
+not ok 949 - ensureSiteKeyForBoot: siteDir has no .site-meta.json, LOCAL mode â mints a minimal one and mints the per-site key file â no silent gap
+  ---
+  location: 'apps/website/src/features/webhooks/__tests__/site-key-ensure.unit.test.ts:1:10738'
+  error: 'a site with no meta file must still end up with a usable key in local mode'
+  name: 'AssertionError'
+  expected: true
+  stack: |-
+    TestContext.<anonymous> (apps/website/src/features/webhooks/__tests__/site-key-ensure.unit.test.ts:279:10)
+  ...
+# Subtest: ensureSiteKeyForBoot: siteDir has no .site-meta.json, PRODUCTION mode â still undefined, nothing written anywhere â production never mints
+ok 950 - ensureSiteKeyForBoot: siteDir has no .site-meta.json, PRODUCTION mode â still undefined, nothing written anywhere â production never mints
+```
+### apps/website/src/features/webhooks/__tests__/site-key-ensure.unit.test.ts › ensureSiteKeyForBoot: a .site-meta.json that already exists with real fields is preserved verbatim — only a genuinely ABSENT file is ever mi
+```
+not ok 952 - ensureSiteKeyForBoot: a .site-meta.json that already exists with real fields is preserved verbatim â only a genuinely ABSENT file is ever minted
+  ---
+  location: 'apps/website/src/features/webhooks/__tests__/site-key-ensure.unit.test.ts:1:12453'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'mint'
+    
+  name: 'AssertionError'
+  expected: 'mint'
+  stack: |-
+```
+### apps/website/src/features/widgets/__tests__/integration/embed-service.post-host.integration.test.ts › an unknown widgetEntryId against a valid post host still rejects with the existing WidgetInstanceNotFoundError, po
+```
+not ok 1071 - an unknown widgetEntryId against a valid post host still rejects with the existing WidgetInstanceNotFoundError, post unchanged
+  ---
+  location: 'apps/website/src/features/widgets/__tests__/integration/embed-service.post-host.integration.test.ts:1:15712'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + "embed references widget 'does-not-exist', which does not exist in workspace 'ws-1'"
+    - "embed references widget 'does-not-exist', which does not exist in workspace 'ws-1' (REQ-16/17)"
+    
+  name: 'AssertionError'
+  expected: "embed references widget 'does-not-exist', which does not exist in workspace 'ws-1' (REQ-16/17)"
+  actual: "embed references widget 'does-not-exist', which does not exist in workspace 'ws-1'"
+```
+### apps/website/src/features/widgets/__tests__/integration/tool-registrations.delegated-error-status.test.ts › widgets_insert_embed with an unknown widgetEntryId against a valid post host is BAD_REQUEST with the instanc
+```
+not ok 1178 - widgets_insert_embed with an unknown widgetEntryId against a valid post host is BAD_REQUEST with the instance-not-found message
+  ---
+  location: 'apps/website/src/features/widgets/__tests__/integration/tool-registrations.delegated-error-status.test.ts:1:9812'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   message: "WIDGETS_INSTANCE_NOT_FOUND: embed references widget 'nope', which does not exist in workspace 'ws-1'"
+    -   message: "WIDGETS_INSTANCE_NOT_FOUND: embed references widget 'nope', which does not exist in workspace 'ws-1' (REQ-16/17)"
+      }
+    
+  name: 'AssertionError'
+```
+### apps/website/src/features/skills/__tests__/unit/tool-registrations.unit.test.ts › two installed skill folders declaring the same frontmatter name refuse loudly instead of silently colliding
+```
+not ok 628 - two installed skill folders declaring the same frontmatter name refuse loudly instead of silently colliding
+  ---
+  location: 'apps/website/src/features/skills/__tests__/unit/tool-registrations.unit.test.ts:22:2237'
+  error: |-
+    The input did not match the regular expression /'code-review' is declared by more than one installed skill folder \('folder-one' and 'folder-two'\)/. Input:
+    
+    'Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'
+    
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'
+  stack: |-
+    assertTestHomeIsolation (apps/website/src/platform/site-dir/sites-home.ts:52:11)
+```
+### apps/website/src/features/skills/__tests__/unit/tool-registrations.unit.test.ts › different skill names that sanitize to the same tool id refuse loudly
+```
+not ok 639 - different skill names that sanitize to the same tool id refuse loudly
+  ---
+  location: 'apps/website/src/features/skills/__tests__/unit/tool-registrations.unit.test.ts:29:366'
+  error: |-
+    The input did not match the regular expression /folder-a.*folder-b.*same tool id 'skill_a_b'/. Input:
+    
+    'Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'
+    
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'
+  stack: |-
+    assertTestHomeIsolation (apps/website/src/platform/site-dir/sites-home.ts:52:11)
+```

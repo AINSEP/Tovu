@@ -1,0 +1,13 @@
+test(website): isolated catalog home for two tests; cover-image-head follows the X->OG fallback
+
+- tool-contribution-registry.test.ts (4 failing) and path-containment.integration.test.ts (3/3
+  failing) load isolated-catalog-home first, like their siblings, so they never read the real home.
+- cover-image-head: an absolute-HTTPS external body image now reaches twitter:image too. That is
+  the intended behaviour of Jini 391560e8 ("X card falls back to the Open Graph override before the
+  page default"); JSON-LD still excludes external body URLs. Test renamed to match.
+
+RED: 4 + 3 fails (10-16 reverify/sweep reports), cover-image-head 1 fail on HEAD.
+GREEN: these files pass in a batched run (80/80 with the theme files).
+Written by Codex (sweep-c2 round 1), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

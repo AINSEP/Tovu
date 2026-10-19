@@ -1,0 +1,21 @@
+test(website): 146 more node tests load the isolated catalog home; recovery texts follow Jini 13e90536; capability search phrasing
+
+- server/__tests__, assistant/__tests__, platform and remaining features tests failed with "Test
+  home isolation required" (guard fec2a6a9f, 10-15), some masked as other errors (workspace and
+  override validation, plugin validation, module-scope lifecycle). Each imports
+  isolated-catalog-home first.
+- assistant-chat-recovery-bounds + durable-runs recover.unit: stale since Jini 13e90536 (adopted by
+  c9105af5e): the bounded-recovery notice now reads "Recovery window ended." and exhaustion carries
+  details; expectations updated.
+- site_describe_capabilities was not in the top 3 for "what can this site do": its search metadata
+  (contracts/core/tool-metadata/site-inspection.ts) gains two natural capability questions;
+  tool-metadata.baseline.json follows.
+
+RED: the sweep-c2 10-16 run on HEAD failed every test file here; site-capabilities-search-
+discoverability ranked backup_get_capabilities first.
+GREEN: batched run of 155 files: 1389/1391 pass; the 2 failures are in files NOT in this commit
+(create-sqlite-route-deps-overrides, publish-content-export-no-leak: chat dir missing under the
+isolated home, back to Codex).
+Written by Codex (sweep-c2 round 7), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

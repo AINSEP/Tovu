@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /Users/la/Programming/Jini/packages/chat
+
+ ❯ src/server/durable-runs/__tests__/recover.test.ts (17 tests | 1 failed) 20ms
+   × durable recovery: saved omissions are system housekeeping > tells the model a saved [token removed] marker is not a user disclosure, and keeps the saved output 8ms
+     → expected -1 to be greater than -1
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/durable-runs/__tests__/recover.test.ts > durable recovery: saved omissions are system housekeeping > tells the model a saved [token removed] marker is not a user disclosure, and keeps the saved output
+AssertionError: expected -1 to be greater than -1
+ ❯ src/server/durable-runs/__tests__/recover.test.ts:54:38
+     52|     const { prompt } = JSON.parse(h.launches[0]!.request.contextRef);
+     53|     const guidance = "Omission markers in the saved work are system ho…
+     54|     expect(prompt.indexOf(guidance)).toBeGreaterThan(-1);
+       |                                      ^
+     55|     expect(prompt.indexOf(guidance)).toBeLessThan(prompt.indexOf("Acce…
+     56|     expect(prompt).toContain(`Saved partial answer:\n${content}`);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  02:38:50
+   Duration  1.80s (transform 895ms, setup 177ms, collect 1.35s, tests 20ms, environment 0ms, prepare 70ms)
+

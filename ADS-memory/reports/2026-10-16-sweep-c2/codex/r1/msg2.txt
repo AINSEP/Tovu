@@ -1,0 +1,12 @@
+fix(theme): theme_duplicate rebinds /theme-assets/<source-id>/ URLs to the copy
+
+A duplicated theme kept absolute asset URLs pointing at the source theme, so the copy loaded (and
+broke with) the source's assets. Duplication now rewrites exact `/theme-assets/<source-id>/`
+prefixes in copied text files (binary assets untouched; `<source-id>-other` untouched), reusing the
+migration rewriter, which moves into asset-path-rewrites.ts so both callers share it.
+
+RED: duplicate-theme.test.ts 21/22 with the fix reverted (the new rewrite test fails).
+GREEN: duplicate-theme + migrate-theme + theme-migration-plan pass (80/80 batched run).
+Written by Codex (sweep-c2 round 1), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

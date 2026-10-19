@@ -1,0 +1,66 @@
+diff --git a/apps/website/src/server/__tests__/assistant-run-finalizer.restart.test.ts b/apps/website/src/server/__tests__/assistant-run-finalizer.restart.test.ts
+index 8c54c1a7b..c140d015f 100644
+--- a/apps/website/src/server/__tests__/assistant-run-finalizer.restart.test.ts
++++ b/apps/website/src/server/__tests__/assistant-run-finalizer.restart.test.ts
+@@ -76,6 +76,61 @@ test("a missing daemon attempt without durable recovery settles canceled instead
+   } finally { db.close(); }
+ });
+ 
++test("serving boot cancels an orphaned running row even when durable recovery is available", async (t) => {
++  const db = openChatDb(":memory:");
++  const ledger = createChatRunLedger(db);
++  const store = createChatStoreFactory(db)(principal);
++  const startedAt = 1_790_000_000_000;
++  const events = [{ kind: "text" as const, text: "Saved partial" }];
++  const streams: Array<{ runId: string; controller: ReadableStreamDefaultController<Uint8Array> }> = [];
++  const launches: string[] = [];
++  const finalizer = createAssistantRunFinalizer({
++    ledger, now: () => startedAt + 20_000,
++    // Time stays frozen during boot. No deadline or reconnect is needed to prove a 404.
++    scheduler: { schedule: () => () => {} },
++    daemon: {
++      runStatus: async ({ principalId }) => {
++        assert.equal(principalId, "owner");
++        return 404;
++      },
++      launch: async ({ run }) => { launches.push(run.runId); },
++      // Keep an incorrectly launched continuation from racing the boot assertion. Teardown
++      // supplies its terminal frame so the test leaves no watch or database work behind.
++      openEvents: async ({ runId }) => new Response(new ReadableStream<Uint8Array>({
++        start(controller) { streams.push({ runId, controller }); },
++      })),
++    },
++  });
++  t.after(async () => {
++    try {
++      for (const { runId, controller } of streams) {
++        controller.enqueue(new TextEncoder().encode(`event: end\ndata: ${JSON.stringify({ runId, kind: "end", payload: { status: "canceled", code: null } })}\n\n`));
++        controller.close();
++      }
++      await finalizer.idle();
++    } finally { db.close(); }
++  });
++  await store.create({ id: "c1" });
++  await store.appendMessage({ conversationId: "c1", message: {
++    ...stub, content: "Saved partial", events, createdAt: startedAt, startedAt,
++  } });
++  assert.equal((await store.messages({ conversationId: "c1" })).find((message) => message.id === "a1")?.runStatus, "running");
++
++  await finalizer.reconcileInterrupted({}, {});
++
++  const saved = (await store.messages({ conversationId: "c1" })).find((message) => message.id === "a1");
++  assert.ok(saved);
++  assert.equal(saved.runStatus, "canceled", "boot must settle the orphan before returning, even with a durable store");
++  assert.equal(saved.runId, "run-1");
++  assert.equal(saved.content, "Saved partial");
++  assert.deepEqual(saved.events, [...events, { kind: "status", label: "Stopped. Saved work is above." }]);
++  assert.equal(saved.endedAt, startedAt + 20_000);
++  assert.deepEqual(launches, []);
++  assert.equal(finalizer.activeCount(), 0);
++  assert.equal(await finalizer.reconcileInterrupted({}, {}), 0);
++  assert.deepEqual((await store.messages({ conversationId: "c1" })).find((message) => message.id === "a1"), saved);
++});
++
+ for (const [reason, expectedLaunches] of [["HTTP 400: invalid_request_error", 0], ["HTTP 503: overloaded", 1]] as const) {
+   test(`a failed stream uses the shared retryability policy: ${reason}`, async () => {
+     const db = openChatDb(":memory:");

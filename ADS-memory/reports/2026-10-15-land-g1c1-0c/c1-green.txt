@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /Users/la/Programming/Jini/packages/chat
+
+ ✓ src/server/durable-runs/__tests__/recover.test.ts (17 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  02:38:46
+   Duration  2.38s (transform 1.12s, setup 500ms, collect 1.57s, tests 15ms, environment 0ms, prepare 90ms)
+

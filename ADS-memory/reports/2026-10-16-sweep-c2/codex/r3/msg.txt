@@ -1,0 +1,14 @@
+test(website): 8 more node test files load the isolated catalog home; redirects error text drops (REQ-22)
+
+- post preview-tool, publish-content plan-pull-tool, recovery deep-link validation, redirects
+  repo-identity binding, seo sitemap-invalidation, plugin-runtime activation + testimonials-faq,
+  agent-plugins install-tool: all failed with "Test home isolation required" (guard fec2a6a9f,
+  10-15); each now imports isolated-catalog-home first.
+- redirects tool-registrations.model-facing-errors: Jini 30290220 deliberately dropped "(REQ-22)"
+  from the REDIRECTS_VALIDATION message; expectation updated as in 0c6d3713c.
+
+RED: 19 fails in these 9 files (sweep-c2 10-16 run on HEAD).
+GREEN: batched run of the 9 files: 83/83 pass.
+Written by Codex (sweep-c2 round 3), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

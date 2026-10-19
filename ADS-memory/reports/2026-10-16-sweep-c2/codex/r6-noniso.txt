@@ -1,0 +1,149 @@
+### apps/website/src/server/runtime/boot/__tests__/site-key-boot-notice.unit.test.ts › with no injected probe, the REAL inspectSiteKeyMaterial is what decides
+```
+not ok 141 - with no injected probe, the REAL inspectSiteKeyMaterial is what decides
+  ---
+  location: 'apps/website/src/server/runtime/boot/__tests__/site-key-boot-notice.unit.test.ts:1:8764'
+  error: |-
+    a real, usable key must silence this â a false alarm trains it away
+    + actual - expected
+    
+    + [
+    +   '[site-key] could not determine whether this server has usable site key material.'
+    + ]
+    - []
+    
+```
+### apps/website/src/server/runtime/composition/__tests__/create-site-route-deps-boot-options.integration.test.ts › an unknown TOVU_MEDIA_BLOB_STORE refuses to boot, naming the accepted backends
+```
+not ok 212 - an unknown TOVU_MEDIA_BLOB_STORE refuses to boot, naming the accepted backends
+  ---
+  location: 'apps/website/src/server/runtime/composition/__tests__/create-site-route-deps-boot-options.integration.test.ts:1:4130'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      Comparison {
+    +   message: 'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'
+    -   message: "Unknown TOVU_MEDIA_BLOB_STORE 'gcs' â expected 'local' or 's3'."
+      }
+    
+```
+### apps/website/src/server/runtime/composition/__tests__/create-site-route-deps-boot-options.integration.test.ts › TOVU_MEDIA_BLOB_STORE=s3 with missing variables refuses to boot, naming every required one and exactly t
+```
+not ok 213 - TOVU_MEDIA_BLOB_STORE=s3 with missing variables refuses to boot, naming every required one and exactly the missing ones
+  ---
+  location: 'apps/website/src/server/runtime/composition/__tests__/create-site-route-deps-boot-options.integration.test.ts:1:4446'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      Comparison {
+    +   message: 'Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.'
+    -   message: 'TOVU_MEDIA_BLOB_STORE=s3 requires TOVU_S3_BUCKET, TOVU_S3_REGION, TOVU_S3_ACCESS_KEY_ID, TOVU_S3_SECRET_ACCESS_KEY â missing: TOVU_S3_REGION, TOVU_S3_SECRET_ACCESS_KEY.'
+      }
+    
+```
+### apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts › owner: SIGTERM closes content, chat and ops journal before exit
+```
+not ok 617 - owner: SIGTERM closes content, chat and ops journal before exit
+  ---
+  location: 'apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:337'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 'ready'
+    
+  name: 'AssertionError'
+  expected: 'ready'
+  actual: 1
+```
+### apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts › owner: SIGINT closes content, chat and ops journal before exit
+```
+not ok 618 - owner: SIGINT closes content, chat and ops journal before exit
+  ---
+  location: 'apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:337'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 'ready'
+    
+  name: 'AssertionError'
+  expected: 'ready'
+  actual: 1
+```
+### apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts › workspace-client: SIGTERM closes content, chat and ops journal before exit
+```
+not ok 619 - workspace-client: SIGTERM closes content, chat and ops journal before exit
+  ---
+  location: 'apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:337'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 'ready'
+    
+  name: 'AssertionError'
+  expected: 'ready'
+  actual: 1
+```
+### apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts › workspace-client: SIGINT closes content, chat and ops journal before exit
+```
+not ok 620 - workspace-client: SIGINT closes content, chat and ops journal before exit
+  ---
+  location: 'apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts:1:337'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 'ready'
+    
+  name: 'AssertionError'
+  expected: 'ready'
+  actual: 1
+```
+### whole file: embeds-everywhere.route
+```
+not ok 73 - apps/website/src/server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts
+  ---
+  type: 'test'
+  location: 'apps/website/src/server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: GET /feed.xml: RSS 2.0 with the sitemap's cache header, an absolute item link, date and excerpt
+not ok 777 - GET /feed.xml: RSS 2.0 with the sitemap's cache header, an absolute item link, date and excerpt
+  ---
+```
+### whole file: pages.member-access.route
+```
+not ok 83 - apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts
+  ---
+  type: 'test'
+  location: 'apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: GET /welcome: a missing presentation-settings row — not the empty post list — is what must not 500
+not ok 852 - GET /welcome: a missing presentation-settings row — not the empty post list — is what must not 500
+  ---
+```
+### whole file: static-post-previews-resolution
+```
+not ok 92 - apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
+  ---
+  type: 'test'
+  location: 'apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: a purchase preserves existing return query parameters and places the message before the fragment
+ok 942 - a purchase preserves existing return query parameters and places the message before the fragment
+  ---
+```

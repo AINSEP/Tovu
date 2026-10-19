@@ -1,0 +1,16 @@
+test(website): 22 more node test files load the isolated catalog home; widget errors drop spec ids
+
+- site-export, source-control, skills, taxonomy, trash, workspace, site-inspection, theme,
+  webhooks site-key and widgets tests failed with "Test home isolation required" (guard fec2a6a9f,
+  10-15), some indirectly (site-key boot swallows the guard and returns undefined; the race test's
+  children inherited the real home). Each imports isolated-catalog-home first; the race test passes
+  isolatedCatalogEnv to both children.
+- widgets embed-service.post-host + delegated-error-status: Jini 30290220 deliberately removed spec
+  ids from runtime messages; exact expectations updated, error codes still asserted.
+
+RED: 216 fails in these 22 files (sweep-c2 10-16 run on HEAD).
+GREEN: batched run of the 22 files: all pass (289/290 incl. skill-tool-search-ranking, which still
+fails on a stale schema expectation and is not in this commit).
+Written by Codex (sweep-c2 round 4), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

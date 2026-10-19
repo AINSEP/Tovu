@@ -1,0 +1,184 @@
+(node:81457) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ ancestor check allows a clean temp path and refuses node_modules above it, also via a symlink alias (3.752914ms)
+✖ mac copy cannot resolve a missing peer from the source checkout and is removed after success (8.517438ms)
+✖ windows copy cannot resolve a missing peer from the source checkout and is removed after success (4.483203ms)
+✖ a contaminated temp root never runs the gate, and copy or gate failures still remove the copy (2.650614ms)
+(node:81458) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ bridge env keeps only the CLI baseline and entry environment (1.822885ms)
+✔ packaged resolver script calls the real resolver and entry builder with isolated runtime facts (0.584457ms)
+✔ resolver output requires both bridge entries, preserving their command/argv/env (0.796626ms)
+✔ POSIX bridge command executes the production launcher with a disposable user-data path (0.73701ms)
+✔ Windows bridge command uses registration argv and explicitly enables Electron Node mode (0.428961ms)
+✔ reply parser correlates ids and rejects malformed/error replies (0.380077ms)
+✔ identity and required tool assertions cannot pass on an empty or wrong roster (0.549211ms)
+✖ handshake sends initialize, initialized, tools/list in order and kills the child on success (3.566835ms)
+✔ failed roster, close, spawn, framing and watchdog all fail and kill the child (13.260495ms)
+(node:81460) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the generated script executes each staged package and reports its individual failure (240.647603ms)
+✔ the generated script preserves hostile require paths exactly without executing injected statements (1.65102ms)
+✔ resolves a mac-prefixed *.app layout (e.g. release/mac-arm64/Tovu.app) (0.28664ms)
+✔ resolves a plain 'mac' output directory the same way as 'mac-arm64' (0.176533ms)
+✔ resolves a win-unpacked layout when no mac-prefixed directory is present (0.182412ms)
+✔ a mac-prefixed directory takes precedence over win-unpacked when both are present (0.160823ms)
+✔ throws a clear error when neither layout is found under platformDir (0.504741ms)
+✔ an entry merely starting with 'mac' as a substring elsewhere is not mistaken for the mac layout (e.g. 'macos-notes') (0.215664ms)
+✔ all three checks ok -> overall ok true (0.316799ms)
+✔ any single check failing makes the overall result false, and the failing check's error is preserved (0.249674ms)
+✔ malformed JSON is a parse failure, not a silent pass -- the raw stdout is included for diagnosis (0.309127ms)
+✔ empty stdout (process crashed before printing) is a parse failure (0.173495ms)
+✔ a missing check key (e.g. the child process died between checks) is treated as a failure, not skipped (0.151935ms)
+✔ JSON that parses but is not an object (e.g. a bare number or array) is treated as every check missing, not a crash (0.137047ms)
+✔ embeds the resolved node_modules dir as a JSON-quoted absolute require path for each package (0.248918ms)
+✔ a node_modules dir containing a quote or backslash is embedded safely (JSON.stringify escaping), not string-concatenated raw (0.378959ms)
+✔ the generated script is syntactically valid JavaScript (constructible, never invoked) (0.258819ms)
+✔ the entry-load script names all five shipped process entries (0.197954ms)
+✔ the entry-load script reports every unresolvable static import without evaluating any module (685.499235ms)
+✔ entry-load output that is not JSON throws; any other shape fails (0.279736ms)
+(node:81473) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the spawn plan uses only the shipped binary, entry and assets and preserves shell env policy (2.9151ms)
+✔ the prompt is the release contract and Haiku comes from the actual picker (0.750719ms)
+✔ durable first-attempt evidence uses the live projection beside its empty recovery baseline (1.145461ms)
+✔ rejects missing init (0.20011ms)
+✔ rejects unrelated connected server (0.321965ms)
+✔ rejects failed jini (0.147444ms)
+✔ rejects non-init connected claim (0.151873ms)
+✔ rejects unrelated tool mentioning site_guide (0.160645ms)
+✔ rejects wrong delegated tool (0.182604ms)
+✔ rejects wrong operation (0.246589ms)
+✔ rejects no result (0.145899ms)
+✔ rejects error result (0.115363ms)
+✔ rejects other call result (0.136775ms)
+✔ rejects missing/wrong runs, failed status, malformed JSON, wrong reply and absent preflight (0.549325ms)
+✔ accepts the preflight line inside the packaged daemon's JSONL log (0.165353ms)
+✔ DI journey holds the lock through server and site teardown (0.587099ms)
+✔ DI failure at lock cleans every acquired resource and fails the gate (0.337057ms)
+✔ DI failure at site cleans every acquired resource and fails the gate (0.138773ms)
+✔ DI failure at start cleans every acquired resource and fails the gate (0.150043ms)
+✔ DI failure at chat cleans every acquired resource and fails the gate (0.134372ms)
+✔ DI failure at evidence cleans every acquired resource and fails the gate (0.125565ms)
+✔ DI failure at stop cleans every acquired resource and fails the gate (0.233253ms)
+✔ DI failure at remove cleans every acquired resource and fails the gate (0.215796ms)
+✔ DI failure at unlock cleans every acquired resource and fails the gate (0.217028ms)
+✔ DI assertion failure still stops the server, removes the site and unlocks (0.301024ms)
+✔ simultaneous teardown failures are all retained and never skip unlock (0.416725ms)
+ℹ tests 59
+ℹ suites 0
+ℹ pass 54
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1861.703286
+
+✖ failing tests:
+
+test at src/packaged-gate-isolation.test.ts:10:1
+✖ ancestor check allows a clean temp path and refuses node_modules above it, also via a symlink alias (3.752914ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception (Error).
+      at TestContext.<anonymous> (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:19:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.start (node:internal/test_runner/test:959:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:332:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { name: 'Error', message: 'Packaged gate isolation refused: /private/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-ancestor-FwXRoe/checkout/node_modules exists above /var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-ancestor-FwXRoe/checkout/nested/gate' },
+    operator: 'throws'
+  }
+
+test at src/packaged-gate-isolation.test.ts:26:3
+✖ mac copy cannot resolve a missing peer from the source checkout and is removed after success (8.517438ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-xTJB6u/checkout/release/Tovu.app/Contents'
+  - '/private/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-xTJB6u'
+  
+      at run (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:46:14)
+      at withIsolatedSmokeTargets (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.ts:27:9)
+      at TestContext.<anonymous> (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:44:11)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-xTJB6u/checkout/release/Tovu.app/Contents',
+    expected: '/private/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-xTJB6u',
+    operator: 'strictEqual'
+  }
+
+test at src/packaged-gate-isolation.test.ts:26:3
+✖ windows copy cannot resolve a missing peer from the source checkout and is removed after success (4.483203ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-inNETx/checkout/release'
+  - '/private/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-inNETx'
+  
+      at run (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:46:14)
+      at withIsolatedSmokeTargets (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.ts:27:9)
+      at TestContext.<anonymous> (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:44:11)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-inNETx/checkout/release',
+    expected: '/private/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/gate-copy-inNETx',
+    operator: 'strictEqual'
+  }
+
+test at src/packaged-gate-isolation.test.ts:60:1
+✖ a contaminated temp root never runs the gate, and copy or gate failures still remove the copy (2.650614ms)
+  AssertionError [ERR_ASSERTION]: The error is expected to be an instance of "PackagedGateIsolationError". Received "AssertionError"
+  
+  Error message:
+  
+  a contaminated gate must never launch
+      at async TestContext.<anonymous> (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:72:3)
+      at async Test.run (node:internal/test_runner/test:1069:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: a contaminated gate must never launch
+        at run (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:72:75)
+        at withIsolatedSmokeTargets (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.ts:27:9)
+        at TestContext.<anonymous> (file:///Users/la/Programming/Tovu/apps/desktop/src/packaged-gate-isolation.test.ts:72:24)
+        at async Test.run (node:internal/test_runner/test:1069:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:752:7),
+    operator: 'rejects'
+  }
+
+test at src/smoke-bridge.test.ts:137:1
+✖ handshake sends initialize, initialized, tools/list in order and kills the child on success (3.566835ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  -   cwd: '/isolated/gate',
+      env: {
+        ELECTRON_RUN_AS_NODE: '1',
+        PATH: '/bin'
+      },
+      stdio: [
+  
+      at TestContext.<anonymous> (file:///Users/la/Programming/Tovu/apps/desktop/src/smoke-bridge.test.ts:142:10)
+      at async Test.run (node:internal/test_runner/test:1069:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { env: { PATH: '/bin', ELECTRON_RUN_AS_NODE: '1' }, stdio: [ 'pipe', 'pipe', 'pipe' ] },
+    expected: { env: { PATH: '/bin', ELECTRON_RUN_AS_NODE: '1' }, stdio: [ 'pipe', 'pipe', 'pipe' ], cwd: '/isolated/gate' },
+    operator: 'deepStrictEqual'
+  }

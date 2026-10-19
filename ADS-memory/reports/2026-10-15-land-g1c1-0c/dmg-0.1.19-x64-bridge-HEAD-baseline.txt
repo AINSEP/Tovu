@@ -1,0 +1,7 @@
+== HEAD smoke-bridge (in place, pre-isolation) against same mounted 0.1.19 x64 app
+(node:82650) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+smoke-bridge: OK — site jini-mcp initialize + tools/list
+smoke-bridge: OK — desktop jini-mcp initialize + tools/list
+smoke-bridge: OK — tovu-desktop initialize + tools/list
+exit=0

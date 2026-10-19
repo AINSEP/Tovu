@@ -1,0 +1,17 @@
+test(website): 18 node test files load the isolated catalog home; served-site-dir teardown removes frozen plugin dirs
+
+- Since fec2a6a9f (10-15) node:test refuses sites/site-key I/O against the real home. These 18
+  files (agent-plugins, database, deployments, fs-files, media, members) never loaded
+  isolated-catalog-home, so 115 tests failed with "Test home isolation required". Each now imports
+  it first, like their siblings.
+- composition-served-site-dir.integration.test.ts: the describe-level after() hit ENOTEMPTY because
+  the contribution fixture installs frozen (0555/0444) plugin package dirs that rmSync cannot clear.
+  Teardown now uses the existing removeFrozenPackageTree, closes the composition store first, and
+  restores env in a finally.
+
+RED: 115 fails in these 18 files (sweep-c2 10-16 run on HEAD); hookFailed ENOTEMPTY 2/2 (reverify-d4)
+and again after round 1's partial fix.
+GREEN: batched run of the 19 files: 245 pass, 0 fail in them.
+Written by Codex (sweep-c2 round 2), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

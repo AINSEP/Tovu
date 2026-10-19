@@ -1,0 +1,14 @@
+test(website): 46 more node test files load the isolated catalog home (server inbound/runtime)
+
+server/inbound public-http + admin-http routes, server/runtime boot/composition/lifecycle and
+remaining features tests failed with "Test home isolation required" (guard fec2a6a9f, 10-15),
+several indirectly: module-scope createRouteDeps() crashed whole files; site-key-boot-notice and
+create-site-route-deps-boot-options saw the guard masked as an indeterminate key / wrong boot error;
+sqlite-shutdown's child died before readiness. Each imports isolated-catalog-home first; tests that
+spawn children pass isolatedCatalogEnv.
+
+RED: the sweep-c2 10-16 run on HEAD failed every one of these 46 files.
+GREEN: batched run of the 46 files: 319/319 pass.
+Written by Codex (sweep-c2 round 6), reviewed by Claude.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

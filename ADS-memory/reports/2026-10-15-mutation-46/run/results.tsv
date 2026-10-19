@@ -1,0 +1,18 @@
+row	file	mutants	killed	survived	inconclusive	noop	secs	note	tests
+1	apps/admin/src/features/security/security-i18n.ts	3	0	3	0	0	353	rc=0	apps/admin/src/features/security/__tests__/security-i18n.unit.test.ts apps/admin/src/features/security/__tests__/rules.unit.test.ts apps/admin/src/features/settings/__tests__/ai-agent-locales.unit.test.ts apps/admin/src/features/security/__tests__/site-key-copy.i18n.unit.test.tsx apps/admin/src/features/security/__tests__/site-key-status.rules.unit.test.ts
+2	apps/admin/src/features/security/rules.ts							SKIPPED-SCOPE	
+3	apps/website/src/features/webhooks/site-key-ensure.ts							SKIPPED-SCOPE	
+4	apps/admin/src/features/security/AccessTokensTab.tsx	8	6	2	0	0	4395	rc=0	apps/admin/src/features/security/__tests__/AccessTokensTab.unit.test.tsx apps/admin/src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx apps/admin/src/features/security/__tests__/access-tokens-revoke-copy.unit.test.tsx
+5	apps/website/src/server/inbound/admin-http/dev-auth.ts						1951	BASELINE-RED NO-JSON 	apps/website/src/server/__tests__/identity-routes.test.ts apps/website/src/server/__tests__/routes/forms-auth.test.ts apps/website/src/server/__tests__/admin-media-routes.test.ts apps/website/src/server/__tests__/admin-trash-routes.test.ts apps/website/src/server/__tests__/route-async-guards.test.ts apps/website/src/server/__tests__/admin-menus-routes.test.ts
+6	apps/website/src/assistant/external-mcp-oauth.ts							SKIPPED-SCOPE	
+7	apps/website/src/server/inbound/admin-http/publish-trust-auth.ts	13	1	12	0	0	216	rc=0	apps/website/src/server/inbound/admin-http/__tests__/publish-trust-keyless.unit.test.ts
+8	apps/website/src/features/agent-plugins/import-access-token.ts	10	5	4	0	1	960	rc=0	apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/token-sign-in.unit.test.ts apps/website/src/features/agent-plugins/__tests__/unit/apply-tool-renames.unit.test.ts
+9	apps/website/src/features/custom-credentials/credentialed-request.ts							SKIPPED-SCOPE	
+10	apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	52	31	10	10	1	3450	rc=0	apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx apps/admin/src/features/security/__tests__/Security.unit.test.tsx apps/admin/src/features/security/__tests__/AccessTokensTab.unit.test.tsx apps/admin/src/features/security/__tests__/AccessTokensTab.hooks.unit.test.tsx apps/admin/src/features/security/__tests__/access-tokens-revoke-copy.unit.test.tsx apps/admin/src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx
+11	apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts							SKIPPED-SCOPE	
+12	apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts							SKIPPED-SCOPE	
+13	apps/website/src/features/agent-plugins/access-token-tool.ts							SKIPPED-SCOPE	
+14	apps/website/src/features/custom-credentials/write-files-validation.ts	10	9	1	0	0	1437	rc=0	apps/website/src/features/custom-credentials/__tests__/write-files-validation.unit.test.ts
+15	apps/admin/src/features/security/OtherCredentialsSection.tsx							SKIPPED-SCOPE	
+16	apps/website/src/features/custom-credentials/store.ts							SKIPPED-DIRTY	
+17	apps/website/src/features/source-control/credential-setup.ts	9	4	1	0	4	924	rc=0	apps/website/src/features/source-control/__tests__/propose-credential-tool.test.ts

@@ -1,0 +1,7 @@
+# Cloudflare full-site storage — Opus research (2026-10-19)
+- Containers GA 2026-04-13, needs Workers Paid ($5/mo). Disk ALL ephemeral (wiped on sleep/restart/redeploy); no persistent volume ("not slated near term"). Sleep default 10 min, scale to zero, can be stopped any time (SIGTERM, 15 min grace). One instance per Durable Object name; rolling deploys overlap.
+- Sizes lite→standard-4; Tovu likely standard-1 (4GiB, 8GB) — estimate. WebSockets OK; SSE through Worker UNVERIFIED. Outbound incl. Postgres 5432 allowed (untested).
+- Native stores: D1 (hosted SQLite, async HTTP — new driver, poor fit), Durable Objects SQLite (only inside DO — rewrite, no), R2 (S3, media/backups — good), KV (no), Hyperdrive (Postgres pooler for Workers — little use in container). Cloudflare sells PlanetScale Postgres via its billing since Apr 2026.
+- SQLite on container disk: lost on every sleep/deploy; split-brain with 2 instances; only Litestream-to-R2 hack (not recommended).
+- RECOMMENDATION: DB → Postgres (existing postgres driver + secretRef:{env}; `tovu storage move --to postgres` exists but only from PGlite — SQLite sites need DB transfer tools first); media → R2 via TOVU_MEDIA_BLOB_STORE=s3 env adapter (blob-store.s3.ts); site key from secret env (file fallback vanishes); themes baked in image (admin theme edits won't persist — check); logs → stdout/Workers Logs (+ optional Logpush R2); one named instance "main".
+- Open: boot reads .site-meta.json from image without volume; SSE test; cold start time.

@@ -1,0 +1,18 @@
+tmpdir=/var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T
+before:        0 tovu-gate dirs
+== smoke-native
+(node:82214) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+smoke-native: running against /var/folders/7_/7kj6s9m95qg_fg8klr38hg_w0000gn/T/tovu-gate-xazs4O/Tovu.app/Contents/MacOS/Tovu
+{"betterSqlite3":{"ok":true},"sharp":{"ok":true},"argon2":{"ok":true}}
+smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped
+smoke-native: OK — every static import of the shell and server entries resolves
+smoke-native exit=0
+== smoke-bridge
+(node:82375) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+smoke-bridge: OK — site jini-mcp initialize + tools/list
+smoke-bridge: OK — desktop jini-mcp initialize + tools/list
+tovu-desktop: bridge closed before completing MCP handshake
+smoke-bridge exit=1
+after:        0 tovu-gate dirs

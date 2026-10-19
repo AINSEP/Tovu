@@ -1,0 +1,180 @@
+### apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts › B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the id matches no workspace row
+```
+not ok 553 - B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the id matches no workspace row
+  ---
+  location: 'apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:1:3283'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Error'
+    - 'ValidationError'
+    
+  name: 'AssertionError'
+  expected: 'ValidationError'
+  actual: 'Error'
+  stack: |-
+    Object.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:112:16)
+```
+### apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts › AC-09/REQ-06: zero workspace rows -> SiteCorruptError
+```
+not ok 554 - AC-09/REQ-06: zero workspace rows -> SiteCorruptError
+  ---
+  location: 'apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:1:3656'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Error'
+    - 'SiteCorruptError'
+    
+  name: 'AssertionError'
+  expected: 'SiteCorruptError'
+  actual: 'Error'
+  stack: |-
+    Object.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:128:16)
+```
+### apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts › AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRuntimeError, content.db is not written
+```
+not ok 555 - AC-06: site schemaVersion greater than the runtime's -> SiteNewerThanRuntimeError, content.db is not written
+  ---
+  location: 'apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:1:3969'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Error'
+    - 'SiteNewerThanRuntimeError'
+    
+  name: 'AssertionError'
+  expected: 'SiteNewerThanRuntimeError'
+  actual: 'Error'
+  stack: |-
+    Object.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:147:16)
+```
+### apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts › RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> SiteNewerThanRuntimeError (not treated as compatible)
+```
+not ok 556 - RT-005/U-002-B1: equal schemaVersion index but a DIVERGENT schemaTag -> SiteNewerThanRuntimeError (not treated as compatible)
+  ---
+  location: 'apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:1:4727'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Error'
+    - 'SiteNewerThanRuntimeError'
+    
+  name: 'AssertionError'
+  expected: 'SiteNewerThanRuntimeError'
+  actual: 'Error'
+  stack: |-
+    Object.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:167:16)
+```
+### apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts › EC-05: content.db locked by another process -> SiteCorruptError-class failure naming the lock cause
+```
+not ok 559 - EC-05: content.db locked by another process -> SiteCorruptError-class failure naming the lock cause
+  ---
+  location: 'apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:1:8688'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Error'
+    - 'SiteCorruptError'
+    
+  name: 'AssertionError'
+  expected: 'SiteCorruptError'
+  actual: 'Error'
+  stack: |-
+    Object.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:273:16)
+```
+### apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts › U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration preserves the OLD stamp byte-for-byte, and a retry bumps both fields tog
+```
+not ok 560 - U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration preserves the OLD stamp byte-for-byte, and a retry bumps both fields together
+  ---
+  location: 'apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:1:9384'
+  error: |-
+    The validation function is expected to return "true". Received false
+    
+    Caught error:
+    
+    Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts:312:3)
+  ...
+# Subtest: bootSiteDir on a postgres site opens the store (migrated, workspace resolved) without a content.db
+```
+### apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts › no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+```
+not ok 270 - no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+  ---
+  location: 'apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:1:1784'
+  error: |-
+    New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+    + actual - expected
+    
+    + [
+    +   'apps/website/src/server/runtime/composition/peer-site-reads.ts: pragma 0 -> 1'
+    + ]
+    - []
+    
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'apps/website/src/server/runtime/composition/peer-site-reads.ts: pragma 0 -> 1'
+```
+### apps/website/src/cli/__tests__/unit/export-command-boot-work.unit.test.ts › export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle
+```
+not ok 122 - export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle
+  ---
+  location: 'apps/website/src/cli/__tests__/unit/export-command-boot-work.unit.test.ts:1:450'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   fixture: 'composed'
+    - }
+    
+  name: 'AssertionError'
+  expected:
+    fixture: 'composed'
+```
+### apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts › CLI install changed: real disk, no import, closes store
+```
+not ok 134 - CLI install changed: real disk, no import, closes store
+  ---
+  location: 'apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts:1:1413'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + Comparison {}
+    - Comparison {
+    -   code: 'PLUGIN_CHANGED_SINCE_PREVIEW'
+    - }
+    
+  name: 'AssertionError'
+  expected:
+  actual:
+```
+### apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts › runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting
+```
+not ok 146 - runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting
+  ---
+  location: 'apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:1:4914'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - {
+    -   fixture: 'composed'
+    - }
+    
+  name: 'AssertionError'
+  expected:
+    fixture: 'composed'
+```
