@@ -52,3 +52,22 @@ it("localizes settings, safety defaults and external-running status using the Si
   expect(t({ locale: "ja", key: "Running in {app} (port {port})" })).toBe("{app} で実行中（ポート {port}）");
   expect(t({ locale: "zh-CN", key: "{provider} syncs this folder. New databases use app-data for safety." })).toBe("{provider} 同步此文件夹。新数据库使用应用数据以保证安全。");
 });
+
+it("localizes the Export Site and Import Site tabs in every Sites locale", () => {
+  // Mutation: drop the SITE_TRANSFER_DICT merge loop; every lookup below falls back to English.
+  expect(t({ locale: "de", key: "Export Site" })).toBe("Website exportieren");
+  expect(t({ locale: "fr", key: "Import as a new site" })).toBe("Importer comme nouveau site");
+  expect(t({ locale: "ja", key: "Choose a password for {name}" })).toBe("{name} のパスワードを設定");
+  expect(t({ locale: "ar", key: "Copy link" })).toBe("نسخ الرابط");
+  expect(t({ locale: "zh-TW", key: "Past imports" })).toBe("過去的匯入");
+  // Words the screen already owned keep their existing translation.
+  expect(t({ locale: "de", key: "New site" })).toBe("Neue Website");
+});
+
+it("carries every Export/Import key in all 21 locales", async () => {
+  const { SITE_TRANSFER_DICT } = await import("../site-transfer-i18n");
+  const locales = Object.keys(SITE_TRANSFER_DICT);
+  expect(locales).toHaveLength(21);
+  const keys = Object.keys(SITE_TRANSFER_DICT.de!).sort();
+  for (const locale of locales) expect(Object.keys(SITE_TRANSFER_DICT[locale]!).sort()).toEqual(keys);
+});

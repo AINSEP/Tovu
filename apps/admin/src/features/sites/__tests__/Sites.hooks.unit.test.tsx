@@ -46,22 +46,26 @@ describe("resolveSitesTabId", () => {
     // A stale bookmark from an earlier layout, and a plausible near-miss for the real id.
     expect(resolveSitesTabId("create")).toBe("all");
     expect(resolveSitesTabId("New")).toBe("all");
+    expect(resolveSitesTabId("Export")).toBe("all");
   });
 });
 
 describe("resolveSitesTabs", () => {
-  it("is exactly two tabs, All sites first", () => {
+  it("is exactly four tabs, All sites first, then Export Site and Import Site", () => {
     // The shape the owner asked for in words, twice. A pass that reduced this to one entry is what
     // led to the bar being deleted, so the LENGTH is asserted, not just the presence of each id.
+    // Export Site / Import Site joined on 2026-10-18 (owner).
     const tabs = resolveSitesTabs({ t: fakeT, listedCount: 0 });
-    expect(tabs).toHaveLength(2);
-    expect(tabs.map((tab) => tab.id)).toEqual(["all", "new"]);
+    expect(tabs).toHaveLength(4);
+    expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "export", "import"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["All sites", "New site", "Export Site", "Import Site"]);
+    expect(tabs.map((tab) => tab.handle)).toEqual(["sites-tab-all", "sites-tab-new", "sites-tab-export", "sites-tab-import"]);
   });
 
   it("counts the listed sites on All sites, and puts no count on an action tab", () => {
     const tabs = resolveSitesTabs({ t: fakeT, listedCount: 3 });
     expect(tabs[0].count).toBe(3);
-    expect(tabs[1].count).toBeUndefined();
+    expect(tabs.slice(1).map((tab) => tab.count)).toEqual([undefined, undefined, undefined]);
   });
 });
 
@@ -166,6 +170,6 @@ describe("resolveSiteRegistrationBadge", () => {
 
 it("offers a counted Trash tab only to local-management hosts", () => {
   const tabs = resolveSitesTabs({ t: fakeT, listedCount: 2 }, { localManagementEnabled: true, trashCount: 4 });
-  expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "trash"]);
-  expect(tabs[2].label).toBe("Trash"); expect(tabs[2].count).toBe(4);
+  expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "export", "import", "trash"]);
+  expect(tabs[4].label).toBe("Trash"); expect(tabs[4].count).toBe(4);
 });

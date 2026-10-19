@@ -43,6 +43,26 @@ export function NewSiteIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Export Site — an arrow leaving a tray: a copy of this site going out as a `.tovu.zip`. */
+export function ExportSiteIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M4.5 14.5v4h15v-4" />
+      <path d="M12 15V4.5M8 8.5l4-4 4 4" />
+    </svg>
+  );
+}
+
+/** Import Site — the same tray with the arrow coming in. */
+export function ImportSiteIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M4.5 14.5v4h15v-4" />
+      <path d="M12 4.5V15M8 11l4 4 4-4" />
+    </svg>
+  );
+}
+
 /** The registration footnote's glyph (`resolveSiteRegistrationBadge` → `.site-card-flag`): a
  *  triangle with a mark, the generic "take note" shape. It is what makes that line read as a note
  *  about the folder rather than a second state badge competing with the one in the card's head —

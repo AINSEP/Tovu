@@ -26,6 +26,17 @@ function isFinishedShare(result: SiteShareCreateResult): result is SiteShare & {
   return "shareId" in result;
 }
 
+/** Starts an export and re-posts its job id until a finished share returns, the caller stops
+ *  wanting it (`alive()` false, the tab unmounted) or the poll cap is spent.
+ *  @returns The last answer: a finished share, or a still-running job. */
+async function createShareUntilDone({ port, alive }: { port: SiteTransferPort; alive: () => boolean }): Promise<SiteShareCreateResult> {
+  let result = await port.createShare({});
+  for (let polls = 0; !isFinishedShare(result) && alive() && polls < MAX_EXPORT_POLLS; polls += 1) {
+    result = await port.createShare({ jobId: result.jobId });
+  }
+  return result;
+}
+
 export interface SiteExportController {
   shares: SiteShare[] | undefined;
   listError: string | null;
@@ -63,10 +74,7 @@ export function useSiteExport(
     setExporting(true);
     setExportError(null);
     try {
-      let result = await port.createShare({});
-      for (let polls = 0; !isFinishedShare(result) && alive.current && polls < MAX_EXPORT_POLLS; polls += 1) {
-        result = await port.createShare({ jobId: result.jobId });
-      }
+      const result = await createShareUntilDone({ port, alive: () => alive.current });
       if (alive.current && !isFinishedShare(result)) setExportError(t("The export is taking too long. Try again later."));
     } catch (failure) {
       if (alive.current) setExportError(describeApiError(failure, t("Export failed.")));
@@ -232,7 +240,8 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   const passwordProblem = passwordProblemFor({ password, confirm, t });
 
   async function completeOwner() {
-    if (!current || settingOwner || passwordProblem || password.length === 0 || confirm !== password) return;
+    const passwordsReady = password.length > 0 && confirm === password;
+    if (!current || settingOwner || !passwordsReady) return;
     setSettingOwner(true);
     setOwnerError(null);
     try {

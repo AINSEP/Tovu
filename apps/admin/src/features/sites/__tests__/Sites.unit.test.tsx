@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Sites } from "../Sites";
 import type { SitesController } from "../hooks/use-sites.hooks";
 import type { AdminSitesSnapshot } from "@/lib/api";
@@ -568,5 +569,21 @@ describe("Sites — the All sites empty state", () => {
   it("renders the grid, not the empty state, as soon as there is one listed site", () => {
     renderSites();
     expect(screen.queryByText("No listed sites")).toBeNull();
+  });
+});
+
+describe("Sites — Export Site and Import Site tabs (owner, 2026-10-18)", () => {
+  it.each([
+    { tabId: "export", tab: /Export Site/, marker: "Export this site", list: { shares: [] } },
+    { tabId: "import", tab: /Import Site/, marker: "Import as a new site", list: { imports: [] } },
+  ])("?tab=$tabId opens its tab with the tab bar still on screen", async ({ tabId, tab, marker, list }) => {
+    vi.stubGlobal("fetch", async () => Response.json(list));
+    try {
+      const controller = controllerFixture();
+      render(<FetchQueryProvider><Sites useSitesHook={() => controller} tabId={tabId} /></FetchQueryProvider>);
+      expect(screen.getByRole("tab", { name: tab }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByRole("button", { name: marker })).toBeTruthy();
+      await waitFor(() => expect(screen.queryByText(/Loading (exports|imports)…/)).toBeNull());
+    } finally { vi.unstubAllGlobals(); }
   });
 });

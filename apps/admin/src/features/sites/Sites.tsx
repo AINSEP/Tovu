@@ -1,4 +1,6 @@
 import { SiteTrashTab } from "./SiteTrashTab";
+import { SiteExportTab } from "./SiteExportTab";
+import { SiteImportTab } from "./SiteImportTab";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -285,10 +287,12 @@ function resolveSitesHook(override: typeof useWiredSites | undefined): typeof us
 /** Dispatches the active tab's panel as a flat if-chain — a plain function rather than a ternary
  *  written directly in `Sites`'s JSX, which would be counted against that component's own
  *  complexity. Same split `Deployment.tsx`'s own `deploymentTabPanel` makes for the identical gate.
- *  @complexity O(1) — two mutually exclusive branches, no iteration. */
+ *  @complexity O(1) — mutually exclusive branches, no iteration. */
 function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
   if (tab === "trash") return <SiteTrashTab snapshot={snapshot} controller={controller.localSites} t={controller.t} />;
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
+  if (tab === "export") return <SiteExportTab t={controller.t} />;
+  if (tab === "import") return <SiteImportTab t={controller.t} />;
   return (
     <AllSitesTab
       sites={controller.sites}

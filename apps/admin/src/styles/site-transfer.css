@@ -1,0 +1,55 @@
+/**
+ * `/admin/sites?tab=export|import` — the Sites screen's Export Site and Import Site tabs
+ * (`features/sites/SiteExportTab.tsx`, `SiteImportTab.tsx`). The two source forms reuse the New
+ * site tab's `.onboarding-card`/`.onboarding-section` and `.field` rules, the tables are the shared
+ * `DataTable` (`.list-table`), and the drop zone is styled by `library.css`. Tokens only.
+ */
+
+.site-transfer { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+
+.site-transfer-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.site-transfer-lead { margin: 0; display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg-2); font-size: var(--text-sm); max-width: 40rem; }
+.site-transfer-head > .btn-primary { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+.site-transfer-subtitle { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.site-transfer-empty { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+
+/* Table cells: dates and sizes line up; a long link wraps instead of widening the table. */
+.site-transfer-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.site-transfer-link { font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-2); overflow-wrap: anywhere; }
+.site-transfer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.site-transfer-actions > .btn-secondary,
+.site-transfer-actions > .btn-danger,
+.site-transfer-actions > .btn-primary { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+
+/* The "or" between the link field and the drop zone: a quiet rule-and-word divider. */
+.site-transfer-or {
+  margin: 0; display: flex; align-items: center; gap: var(--space-3);
+  color: var(--muted); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.site-transfer-or::before, .site-transfer-or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+
+/* The chosen zip, in place of the drop zone until it is removed or imported. */
+.site-transfer-file {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2);
+}
+.site-transfer-file-name { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; color: var(--fg); font-weight: 600; font-size: var(--text-sm); }
+
+.site-transfer-done { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+
+.site-transfer-spinner {
+  width: 0.8rem; height: 0.8rem; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent;
+  animation: site-transfer-spin 0.8s linear infinite;
+}
+@keyframes site-transfer-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .site-transfer-spinner { animation: none; } }
+
+/* Touch: every control on these tabs is at least 44px tall. */
+@media (pointer: coarse) {
+  .site-transfer button, .site-transfer a.btn-secondary, .site-transfer a.btn-primary, .site-transfer input { min-height: 44px; }
+}
+
+@media (max-width: 720px) {
+  .site-transfer-head > .btn-primary { width: 100%; justify-content: center; }
+}

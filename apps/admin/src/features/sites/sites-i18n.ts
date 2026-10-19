@@ -1,4 +1,5 @@
 import { t as settingsTranslator } from "./sites-settings-i18n";
+import { SITE_TRANSFER_DICT } from "./site-transfer-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
@@ -289,6 +290,10 @@ const SITE_CARD_DICT: Record<string, Record<string, string>> = {
   "ur": {"Stop or remove isn't available for the site you're using.": "جو سائٹ آپ استعمال کر رہے ہیں اسے روکنا یا ہٹانا دستیاب نہیں ہے۔", "Running on :{port}": ":{port} پر چل رہی ہے", "Default": "ڈیفالٹ", "Delete…": "حذف کریں…", "More actions for {name}": "{name} کے لیے مزید کارروائیاں", "Open {name} in a new tab": "{name} کو نئے ٹیب میں کھولیں", "Move site to Trash?": "سائٹ کو ردی کی ٹوکری میں منتقل کریں؟", "Move to Trash": "ردی کی ٹوکری میں منتقل کریں", "Delete site permanently?": "سائٹ کو مستقل طور پر حذف کریں؟", "Switch to this site now?": "ابھی اس سائٹ پر تبدیل کریں؟", "In Trash": "ردی کی ٹوکری میں"},
 };
 for (const [locale, detail] of Object.entries(SITE_CARD_DICT)) {
+  Object.assign(Reflect.get(SITES_DICT, locale), detail);
+}
+
+for (const [locale, detail] of Object.entries(SITE_TRANSFER_DICT)) {
   Object.assign(Reflect.get(SITES_DICT, locale), detail);
 }
 
