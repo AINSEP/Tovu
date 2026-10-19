@@ -73,7 +73,7 @@ const TARGET = { baseUrl: "https://api.github.com", connection: { token: "ghp_fa
 const PRIVATE_REPO = { private: true, visibility: "private", default_branch: "main", html_url: "https://github.com/octo/backups", permissions: { push: true } };
 
 function bodyOf(request: HttpRequest): Record<string, unknown> {
-  return JSON.parse(request.body ?? "{}") as Record<string, unknown>;
+  return JSON.parse(Buffer.from(request.body ?? "{}").toString("utf8")) as Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ test("a private repo: resolves the default branch, its tip and tree, and whether
   assert.ok(client.calls.every((c) => c.method === "GET"), "inspection is read-only");
   for (const call of client.calls) {
     assert.equal(call.headers.Authorization, "Bearer ghp_fake_never_real");
-    assert.equal((call.body ?? "").includes(TARGET.connection.token), false);
+    assert.equal(Buffer.from(call.body ?? "").toString("utf8").includes(TARGET.connection.token), false);
   }
 });
 
@@ -244,7 +244,7 @@ test("the folder becomes a fresh tree (stale files inside it disappear) grafted 
   assert.equal("force" in ref, false, "never a force push");
   for (const call of client.calls) {
     assert.equal(call.headers.Authorization, "Bearer ghp_fake_never_real");
-    assert.equal((call.body ?? "").includes(TARGET.connection.token), false);
+    assert.equal(Buffer.from(call.body ?? "").toString("utf8").includes(TARGET.connection.token), false);
   }
 });
 

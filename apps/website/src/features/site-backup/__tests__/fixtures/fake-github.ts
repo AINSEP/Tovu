@@ -50,7 +50,7 @@ export class FakeGitHub implements HttpClientPort {
     if (route === "GET /contents/demo-site?ref=main") return s.folderExists ? json(200, [{ name: "tovu-backup.json" }]) : json(404, { message: "Not Found" });
     if (route === "POST /git/blobs") return this.createBlob(request);
     if (route === "POST /git/trees") {
-      const body = JSON.parse(request.body ?? "{}");
+      const body = JSON.parse(Buffer.from(request.body ?? "{}").toString("utf8"));
       if (body.base_tree) assert.ok(this.treeFiles.has(body.base_tree), "base tree must exist");
       const files = new Map(this.treeFiles.get(body.base_tree) ?? []);
       for (const entry of body.tree) {
@@ -75,7 +75,7 @@ export class FakeGitHub implements HttpClientPort {
       return json(201, { sha });
     }
     if (route === "POST /git/commits") {
-      const body = JSON.parse(request.body ?? "{}");
+      const body = JSON.parse(Buffer.from(request.body ?? "{}").toString("utf8"));
       assert.deepEqual(body.parents, [s.tip]);
       assert.ok(this.treeFiles.has(body.tree));
       this.commitTree = body.tree;
@@ -83,7 +83,7 @@ export class FakeGitHub implements HttpClientPort {
     }
     if (route === "PATCH /git/refs/heads/main") {
       if (s.patchStatus !== 200) return json(s.patchStatus, { message: "Update is not a fast forward" });
-      const body = JSON.parse(request.body ?? "{}");
+      const body = JSON.parse(Buffer.from(request.body ?? "{}").toString("utf8"));
       assert.equal(body.sha, "new-commit");
       assert.notEqual(body.force, true);
       assert.ok(this.commitTree);
@@ -106,7 +106,7 @@ export class FakeGitHub implements HttpClientPort {
       const fault = this.blobFaults.shift();
       if (fault && "throws" in fault) throw fault.throws;
       if (fault) return { status: fault.status, headers: fault.headers ?? {}, bodyText: JSON.stringify({ message: fault.message ?? "fault" }) };
-      const body = JSON.parse(request.body ?? "{}") as { content: string; encoding: string };
+      const body = JSON.parse(Buffer.from(request.body ?? "{}").toString("utf8")) as { content: string; encoding: string };
       this.blobContents.push(Buffer.from(body.content, body.encoding === "base64" ? "base64" : "utf8"));
       return json(201, { sha: `blob-${this.blobContents.length}` });
     } finally {

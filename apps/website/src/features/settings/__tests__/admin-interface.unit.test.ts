@@ -129,7 +129,11 @@ test('Agent plugins defaults Auto and supports independent per-person values', a
   assert.ok(def, 'the preference must be registered before the UI can persist it');
   assert.deepEqual(def.schema, { type: 'enum', values: ['auto', 'ask', 'off'] });
   assert.equal(def.scopes, PER_OPERATOR);
-  const read = (principalId: string) => getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scopeContext: { workspaceId: 'workspace-1', principalId } });
+  const read = async (principalId: string) => {
+    const setting = await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: 'chatAgentPlugins', scopeContext: { workspaceId: 'workspace-1', principalId } });
+    assert.ok(setting, 'the registered preference must resolve');
+    return setting;
+  };
   assert.equal((await read('alice')).value, 'auto');
   // Use the actual write service so validation and effective-value cache invalidation participate.
   for (const [principalId, value] of [['alice', 'ask'], ['bob', 'off']] as const) {

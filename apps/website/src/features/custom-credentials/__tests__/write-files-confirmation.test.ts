@@ -204,13 +204,13 @@ test("the direct call performs the real write (blob, tree, commit, ref) and repo
   for (const request of httpClient.calls) assert.equal(request.headers?.Authorization, "Bearer github-secret-token");
   const [modeLookup, blob, tree, commit, ref] = httpClient.calls.slice(3);
   assert.equal(modeLookup!.method, "GET");
-  const blobBody = JSON.parse(blob!.body!);
+  const blobBody = JSON.parse(Buffer.from(blob!.body!).toString("utf8"));
   assert.equal(blob!.method, "POST");
   assert.equal(blobBody.encoding, "base64");
   assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), VALID_INPUT.files[0]!.content);
-  assert.deepEqual(JSON.parse(tree!.body!), { base_tree: "base-tree-sha", tree: [{ path: "fly.toml", mode: "100644", type: "blob", sha: "blob-sha" }] });
-  assert.deepEqual(JSON.parse(commit!.body!), { message: VALID_INPUT.commitMessage, tree: "new-tree-sha", parents: ["parent-sha"] });
-  assert.deepEqual(JSON.parse(ref!.body!), { sha: "new-commit-sha" });
+  assert.deepEqual(JSON.parse(Buffer.from(tree!.body!).toString("utf8")), { base_tree: "base-tree-sha", tree: [{ path: "fly.toml", mode: "100644", type: "blob", sha: "blob-sha" }] });
+  assert.deepEqual(JSON.parse(Buffer.from(commit!.body!).toString("utf8")), { message: VALID_INPUT.commitMessage, tree: "new-tree-sha", parents: ["parent-sha"] });
+  assert.deepEqual(JSON.parse(Buffer.from(ref!.body!).toString("utf8")), { sha: "new-commit-sha" });
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/blobs")));
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/trees")));
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/commits")));

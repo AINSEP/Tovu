@@ -411,7 +411,7 @@ test("send() called during the boot-time credential-resolution window must not r
     1,
     "the message must actually reach the resolved (real) adapter, not be swallowed by the Console fallback while still reporting success"
   );
-  assert.deepEqual(JSON.parse(httpClient.calls[0]!.body!), {
+  assert.deepEqual(JSON.parse(Buffer.from(httpClient.calls[0]!.body!).toString("utf8")), {
     from: "b@example.com", to: "a@example.com", subject: "hi", text: "hi",
   });
   assert.deepEqual(warnings, []);
@@ -491,7 +491,7 @@ test("registry load rejection diagnoses the failure and a later successful load 
   assert.equal(result.ok, true);
   assert.equal(httpClient.calls.length, 1);
   assert.equal(httpClient.calls[0].headers.Authorization, "Bearer registry-recovery-key");
-  assert.equal(JSON.parse(httpClient.calls[0].body!).subject, "Registry recovery");
+  assert.equal(JSON.parse(Buffer.from(httpClient.calls[0].body!).toString("utf8")).subject, "Registry recovery");
   assert.equal(warnings.length, 1);
 });
 
@@ -550,7 +550,7 @@ test("sendBatch waits for pending resolution and delivers each distinct message 
   assert.equal(httpClient.calls.length, 4);
   assert.deepEqual(httpClient.calls.map((call) => ({
     method: call.method, url: call.url, token: call.headers.Authorization,
-    key: call.headers["Idempotency-Key"], timeout: call.timeoutMs, body: JSON.parse(call.body!),
+    key: call.headers["Idempotency-Key"], timeout: call.timeoutMs, body: JSON.parse(Buffer.from(call.body!).toString("utf8")),
   })), [
     { method: "POST", url: "https://api.resend.com/emails", token: "Bearer batch-api-key", key: "pending-batch:0", timeout: 4321, body: { from: "sender@example.com", to: "one@example.com", subject: "Batch one", text: "Body one" } },
     { method: "POST", url: "https://api.resend.com/emails", token: "Bearer batch-api-key", key: "pending-batch:1", timeout: 4321, body: { from: "sender@example.com", to: "two@example.com", subject: "Batch two", text: "Body two" } },

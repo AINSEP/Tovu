@@ -175,7 +175,7 @@ test("password-status bounds memoization and rechecks an evicted hash", async (t
   const principalId = await deps.ownerPrincipalId;
   const row = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
   assert.ok(row);
-  const checks = t.mock.method(deps.passwordHasher, "verify", async ({ hash, password }) => {
+  const checks = t.mock.method(deps.passwordHasher, "verify", async ({ hash, password }: Parameters<RouteDeps["passwordHasher"]["verify"]>[0]) => {
     assert.equal(password, "tovu-dev");
     assert.match(hash, /^fixture-hash-\d+$/);
     return Number(hash.slice("fixture-hash-".length)) % 2 === 0;

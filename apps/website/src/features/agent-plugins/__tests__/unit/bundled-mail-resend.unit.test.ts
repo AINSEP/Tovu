@@ -182,7 +182,7 @@ test("send() POSTs to /emails with bearer auth, JSON body, and the idempotency k
   assert.equal(req.headers["Idempotency-Key"], "idem-1");
   assert.equal(req.timeoutMs, 10_000);
 
-  const body = JSON.parse(req.body ?? "{}") as Record<string, unknown>;
+  const body = JSON.parse(Buffer.from(req.body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal(body.from, "Tovu <no-reply@tovu.local>");
   assert.equal(body.to, "member@example.com");
   assert.equal(body.subject, "Your sign-in link");
@@ -202,7 +202,7 @@ test("send() forwards attachments using Resend's snake_case field shape", async 
   const http = new FakeHttpClient();
   const adapter = await makeAdapter(http);
   await adapter.send(makeMessage({ attachments: [{ filename: "invoice.pdf", contentType: "application/pdf", contentBase64: "QUFB" }] }), SEND_OPTIONS);
-  const body = JSON.parse(http.calls[0]!.body ?? "{}") as { attachments?: unknown[] };
+  const body = JSON.parse(Buffer.from(http.calls[0]!.body ?? "{}").toString("utf8")) as { attachments?: unknown[] };
   assert.deepEqual(body.attachments, [{ filename: "invoice.pdf", content: "QUFB", content_type: "application/pdf" }]);
 });
 
@@ -262,7 +262,7 @@ test("sendBatch() keeps every per-message result after empty and malformed succe
   );
   assert.deepEqual(results.map((result) => result.ok ? result.providerMessageId : result.errorCode),
     ["idem-1:0", "idem-1:1", "validation_error", "last-accepted"]);
-  assert.deepEqual(http.calls.map((call) => JSON.parse(call.body!).to),
+  assert.deepEqual(http.calls.map((call) => JSON.parse(Buffer.from(call.body!).toString("utf8")).to),
     ["one@example.com", "two@example.com", "three@example.com", "four@example.com"]);
 });
 
@@ -309,7 +309,7 @@ test("sendBatch() loops send() once per message, preserving result[i] <-> messag
     ["ok-1", "validation_error", "ok-3"],
   );
   assert.deepEqual(
-    http.calls.map((call) => (JSON.parse(call.body ?? "{}") as { to: string }).to),
+    http.calls.map((call) => (JSON.parse(Buffer.from(call.body ?? "{}").toString("utf8")) as { to: string }).to),
     ["one@example.com", "two@example.com", "three@example.com"],
   );
 });
@@ -332,7 +332,7 @@ test("send() forwards replyTo, html, and custom headers when provided", async ()
     makeMessage({ replyTo: { email: "support@example.com", name: "Support" }, html: "<p>Hello</p>", headers: { "X-Custom": "val" } }),
     SEND_OPTIONS,
   );
-  const body = JSON.parse(http.calls[0]!.body ?? "{}") as Record<string, unknown>;
+  const body = JSON.parse(Buffer.from(http.calls[0]!.body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal(body.reply_to, "Support <support@example.com>");
   assert.equal(body.html, "<p>Hello</p>");
   assert.deepEqual(body.headers, { "X-Custom": "val" });

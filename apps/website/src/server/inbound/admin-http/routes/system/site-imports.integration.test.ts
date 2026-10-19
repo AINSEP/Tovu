@@ -2,12 +2,22 @@
  * Baseline RED: route family and needs-owner handoff absent. Never executes source markup.
  */
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import test from "node:test";
 import express from "express";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSiteImportRoutes } from "./site-imports.js";
 import type { SiteImportBackend } from "#src/features/site-backup/import-backend";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+
+// Narrow route probes override only the exercised operation; unexpected backend calls must fail.
+const unexpectedBackend: SiteImportBackend = {
+  upload: async () => assert.fail("unexpected upload"),
+  importBackup: async () => assert.fail("unexpected import"),
+  completeOwner: async () => assert.fail("unexpected owner completion"),
+  list: async () => assert.fail("unexpected import listing"),
+  get: () => assert.fail("unexpected import lookup"),
+};
 
 test("B raw upload and setup routes reject unauthorized principals, machine credentials and foreign origins", async t => {
   const calls: string[] = [];
@@ -99,7 +109,7 @@ test("upload admission rejects a concurrent body and releases the lane when the 
   let uploads = 0;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; next(); });
-  const backend = { upload: async ({ archive, principalId }: { archive: Buffer; principalId: string }) => { assert.deepEqual(archive, Buffer.from("zip")); assert.equal(principalId, "recipient"); uploads++; if (uploads === 1) { entered(); await holding; } return { uploadId: String(uploads) }; } } as SiteImportBackend;
+  const backend: SiteImportBackend = { ...unexpectedBackend, upload: async ({ archive, principalId }) => { assert.deepEqual(archive, Buffer.from("zip")); assert.equal(principalId, "recipient"); uploads++; if (uploads === 1) { entered(); await holding; } return { uploadId: String(uploads) }; } };
   registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
   const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports/uploads";
   const post = () => fetch(root, { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
@@ -110,11 +120,11 @@ test("upload admission rejects a concurrent body and releases the lane when the 
 });
 
 test("raw parser refuses compressed uploads, clears admission and reports the real byte cap", { timeout: 30000 }, async t => {
-  const { request } = await import("node:http"); const { once } = await import("node:events");
+  const { request } = await import("node:http");
   const { SHARE_LIMITS } = await import("#src/features/site-backup/share-policy");
   let uploads = 0;
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: { upload: async () => { uploads++; return { uploadId: "uploaded" }; } } as SiteImportBackend } });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: { ...unexpectedBackend, upload: async () => { uploads++; return { uploadId: "uploaded" }; } } } });
   const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports/uploads";
   const compressed = await fetch(root, { method: "POST", headers: { "content-type": "application/zip", "content-encoding": "gzip" }, body: "invalid gzip" });
   assert.equal(compressed.status, 400); assert.equal((await compressed.json()).code, "IMPORT_FAILED");
@@ -139,10 +149,12 @@ test("disconnecting during import cancels the backend signal", async t => {
   let entered!: () => void, cancelled!: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; }), aborted = new Promise<void>(resolve => { cancelled = resolve; });
   let observed: AbortSignal | undefined;
-  const backend = { importBackup: async (_input: unknown, options: { signal: AbortSignal }) => {
-    observed = options.signal; entered();
-    return new Promise<never>((_resolve, reject) => { options.signal.addEventListener("abort", () => { cancelled(); reject(new SiteShareRefusal({ code: "CANCELLED", message: "Import cancelled" })); }, { once: true }); });
-  } } as SiteImportBackend;
+  const backend: SiteImportBackend = { ...unexpectedBackend, importBackup: async (_input, options) => {
+    const signal = options?.signal;
+    assert.ok(signal, "the route must supply its cancellation signal");
+    observed = signal; entered();
+    return new Promise<never>((_resolve, reject) => { signal.addEventListener("abort", () => { cancelled(); reject(new SiteShareRefusal({ code: "CANCELLED", message: "Import cancelled" })); }, { once: true }); });
+  } };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
   const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports";

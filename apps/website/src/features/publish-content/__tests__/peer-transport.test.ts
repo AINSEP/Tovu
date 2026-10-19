@@ -203,7 +203,7 @@ test("push uploads only the blobs the peer is missing, BEFORE staging and planni
       "POST /api/admin/v1/workspaces/remote-ws-9/publish-content/import/plan",
     ]
   );
-  assert.deepEqual(JSON.parse(http.calls[1].body ?? "{}"), { dataBase64: Buffer.from([1, 2, 3]).toString("base64") });
+  assert.deepEqual(JSON.parse(Buffer.from(http.calls[1].body ?? "{}").toString("utf8")), { dataBase64: Buffer.from([1, 2, 3]).toString("base64") });
 });
 
 test("a blob the peer lacks and this instance no longer holds is reported, never silently skipped", async () => {
@@ -278,10 +278,10 @@ test("push probes capabilities BEFORE blobs/bundle/plan, trims to the legacy set
 
   // The redirect's own blob is never even probed — its entity was already trimmed out before the
   // blob leg ran, so no bytes are wasted uploading something that will not be sent.
-  assert.deepEqual(JSON.parse(http.calls[1].body ?? "{}"), { shas: [shaMedia] });
+  assert.deepEqual(JSON.parse(Buffer.from(http.calls[1].body ?? "{}").toString("utf8")), { shas: [shaMedia] });
 
   // The bundle actually staged on the peer holds only the two accepted types.
-  const staged = JSON.parse(http.calls[2].body ?? "{}") as { entities: Array<{ entityType: string }> };
+  const staged = JSON.parse(Buffer.from(http.calls[2].body ?? "{}").toString("utf8")) as { entities: Array<{ entityType: string }> };
   assert.deepEqual(staged.entities.map((entity) => entity.entityType), ["post", "media"]);
 });
 
@@ -378,7 +378,7 @@ test("confirm and execute relay to the peer's own gated ceremony", async () => {
 
   const confirmed = await confirmPeerImport({ httpClient: http, credential: CREDENTIAL }, { planId: "p1", planHash: "h1" });
   assert.deepEqual(confirmed, { confirmationToken: "tok-1" });
-  assert.deepEqual(JSON.parse(http.calls[0].body ?? "{}"), { planId: "p1", planHash: "h1" });
+  assert.deepEqual(JSON.parse(Buffer.from(http.calls[0].body ?? "{}").toString("utf8")), { planId: "p1", planHash: "h1" });
 
   const executed = await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
   assert.deepEqual(executed, { restorePointId: "rp-1", runId: "run-1", changeSetIds: ["cs-1"] });
@@ -524,7 +524,7 @@ test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and
   ]);
   await pushBundleToPeer(pushDeps(http), { bundle: bundle(), overwriteEntityKeys: ["post:p1"] });
   const planCall = http.calls.find((call) => call.url.includes("/import/plan"));
-  assert.deepEqual(JSON.parse(planCall?.body ?? "{}"), { bundleId: "remote-bundle-1", overwriteEntityKeys: ["post:p1"] });
+  assert.deepEqual(JSON.parse(Buffer.from(planCall?.body ?? "{}").toString("utf8")), { bundleId: "remote-bundle-1", overwriteEntityKeys: ["post:p1"] });
 
   const http2 = new FakeHttpClient([
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-2" } },
@@ -532,7 +532,7 @@ test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and
   ]);
   await pushBundleToPeer(pushDeps(http2), { bundle: bundle() });
   const planCall2 = http2.calls.find((call) => call.url.includes("/import/plan"));
-  const parsed = JSON.parse(planCall2?.body ?? "{}") as Record<string, unknown>;
+  const parsed = JSON.parse(Buffer.from(planCall2?.body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal("overwriteEntityKeys" in parsed, false, "an unspecified overwriteEntityKeys must not appear as an empty array or null");
 });
 
@@ -543,7 +543,7 @@ test("executePeerImport sends overwriteEntityKeys when given, and omits the fiel
   ]);
   await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] });
   const executeCall = http.calls.find((call) => call.url.includes("/import/execute"));
-  assert.deepEqual(JSON.parse(executeCall?.body ?? "{}"), {
+  assert.deepEqual(JSON.parse(Buffer.from(executeCall?.body ?? "{}").toString("utf8")), {
     bundleId: "b1",
     confirmationToken: "tok-1",
     overwriteEntityKeys: ["post:p1"],
@@ -551,7 +551,7 @@ test("executePeerImport sends overwriteEntityKeys when given, and omits the fiel
 
   const http2 = new FakeHttpClient([{ match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } }]);
   await executePeerImport({ httpClient: http2, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
-  const parsed = JSON.parse(http2.calls[0].body ?? "{}") as Record<string, unknown>;
+  const parsed = JSON.parse(Buffer.from(http2.calls[0].body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal("overwriteEntityKeys" in parsed, false);
 });
 

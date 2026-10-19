@@ -171,6 +171,7 @@ test("processDueDeliveries signs, POSTs, and marks a successful attempt delivere
   assert.equal(request.headers["tovu-delivery-id"], enqueued[0].id);
   assert.equal(request.headers["tovu-event-id"], "event-1");
   assert.ok(request.body);
+  assert.ok(typeof request.body === "string", "webhook signatures cover the exact JSON text");
   assert.deepEqual(JSON.parse(request.body), {
     deliveryId: enqueued[0].id,
     eventId: "event-1",
@@ -539,10 +540,11 @@ test("hooks run in priority order and a later hook sees an earlier hook's redact
   );
 
   assert.deepEqual(seenBySecondHook, ["[redacted]"]);
-  assert.match(httpClient.calls[0].request.body ?? "", /\[redacted\]/);
-  assert.doesNotMatch(httpClient.calls[0].request.body ?? "", /user@example\.com/);
   const request = httpClient.calls[0].request;
   assert.ok(request.body);
+  assert.ok(typeof request.body === "string", "webhook signatures cover the exact JSON text");
+  assert.match(request.body, /\[redacted\]/);
+  assert.doesNotMatch(request.body, /user@example\.com/);
   assert.equal(verifySignature({ secret, rawBody: request.body, header: request.headers["tovu-signature"], toleranceSeconds: 300 }), true);
 });
 

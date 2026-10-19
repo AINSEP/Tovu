@@ -354,7 +354,7 @@ test("runtime adapter rejects key/URL tampering and verifies every anonymous dow
   const calls: unknown[] = [];
   const runtime = createRuntimeShareDelivery({ registry: r, site: "ws", publicOrigin: "https://public.example", http: { send: async (input, options) => { calls.push({ input, options }); return { status, headers, bodyText: "" }; } } });
   const store = runtime.store, url = "https://public.example/" + key;
-  await assert.rejects(store.upload({ key: "../bad", bytes: Buffer.from("zip") }), { code: "INVALID_INPUT" });
+  await assert.rejects(store.upload({ key: "../bad", bytes: Buffer.from("zip"), headers: {} }), { code: "INVALID_INPUT" });
   assert.equal(await store.verify({ key, url: "https://evil.example/" + key, present: true, bytes: 3 }), false);
   assert.deepEqual(calls, []);
   assert.equal(await store.verify({ key, url, present: true, bytes: 3 }), true);
@@ -374,11 +374,11 @@ test("runtime adapter rejects key/URL tampering and verifies every anonymous dow
   const call = calls[0] as { input: { request: { method: string; headers: unknown; maxResponseBytes: number } }; options: unknown };
   assert.equal(call.input.request.method, "HEAD"); assert.deepEqual(call.input.request.headers, {});
   assert.equal(call.input.request.maxResponseBytes, 1024); assert.deepEqual(call.options, { redirect: "error" });
-  await store.upload({ key, bytes: Buffer.from("zip") });
-  await store.upload({ key, bytes: Buffer.from("zip") }); // Same bytes are idempotent.
-  await assert.rejects(store.upload({ key, bytes: Buffer.from("different") }), { code: "ARTIFACT_CHANGED" });
+  await store.upload({ key, bytes: Buffer.from("zip"), headers: {} });
+  await store.upload({ key, bytes: Buffer.from("zip"), headers: {} }); // Same bytes are idempotent.
+  await assert.rejects(store.upload({ key, bytes: Buffer.from("different"), headers: {} }), { code: "ARTIFACT_CHANGED" });
   const alien = createRuntimeShareDelivery({ registry: r, site: "other", publicOrigin: "https://public.example", http: { send: async () => assert.fail() } });
-  await assert.rejects(alien.store.upload({ key, bytes: Buffer.from("zip") }), { code: "ARTIFACT_CHANGED" });
+  await assert.rejects(alien.store.upload({ key, bytes: Buffer.from("zip"), headers: {} }), { code: "ARTIFACT_CHANGED" });
   await store.delete({ key: `_share/${"b".repeat(64)}/site.tovu.zip` });
   await store.delete({ key });
   assert.equal(await r.findToken({ token: "a".repeat(64), file: "site.tovu.zip" }), null);

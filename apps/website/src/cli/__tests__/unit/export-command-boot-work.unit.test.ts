@@ -111,10 +111,10 @@ test("export reports all failures and warnings honestly, honors flags, and close
       assert.equal(input.outputDir, "/tmp/chosen");
       assert.equal(input.clean, true);
       assert.equal(input.basePath, "/docs");
-      return { outputDir: input.outputDir, routes: { succeeded: ["/"], failed: [{ path: "/broken", kind: "render", reason: "template missing" }] },
+      return { outputDir: input.outputDir, routes: { succeeded: [{ path: "/", kind: "page", outputFile: "index.html", data: "<html></html>" }], failed: [{ path: "/broken", kind: "render", reason: "template missing" }] },
         assets: { succeeded: [], failed: [{ url: "/lost.png", reason: "not found" }] },
         skippedManifestEntries: [{ reason: "private", detail: "draft route" }], unreferencedThemeFiles: ["unused.css", "unused.js"],
-        basePath: "/docs", basePathRewriteWarning: "dynamic URLs require review" } as Awaited<ReturnType<NonNullable<RunExportCommandOptional["exportSite"]>>>;
+        droppedReferences: [], basePath: "/docs", basePathRewriteWarning: "dynamic URLs require review" } satisfies Awaited<ReturnType<NonNullable<RunExportCommandOptional["exportSite"]>>>;
     },
   }), { name: "ExportIncompleteError", message: /1 failed route/ });
   assert.deepEqual(stdout, ["tovu export: wrote 1/2 routes and 0/1 assets to /tmp/chosen\n", "tovu export: rewrote root-relative links/assets for base path '/docs'\n"]);

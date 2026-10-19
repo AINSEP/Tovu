@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import crypto from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
@@ -373,7 +374,6 @@ test("registerAdminStatic proxies HTTPS content through a self-signed developmen
 
 test("upgrade to an unavailable upstream closes the client socket", { timeout: 8_000 }, async (t) => {
   const { registerAdminDevProxyUpgrade } = await import("../admin-dev-proxy.js");
-  const { once } = await import("node:events");
   const { request } = await import("node:http");
   // Drop the handshake at the transport boundary, without depending on a local unused port.
   const upstream = createHttpServer((req) => req.socket.destroy());

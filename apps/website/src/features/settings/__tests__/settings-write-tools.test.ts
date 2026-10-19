@@ -18,7 +18,16 @@ import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from 
 import { set } from "../site-title-write.js";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
-const pickerAgents = [{ id: "new", available: true, authStatus: "ok", defaultModelResolution: { status: "resolved", id: "model-a" }, modelsSource: "live", models: [{ id: "model-a", label: "Model A", reasoning: [{ id: "medium", label: "Medium" }] }], reasoningOptions: [{ id: "medium", label: "Medium" }] }] as DetectedAgent[];
+const pickerAgents: DetectedAgent[] = [{
+  id: "new", name: "Fixture Agent", bin: "fixture-agent", versionArgs: ["--version"], streamFormat: "plain",
+  available: true, authStatus: "ok", modelsSource: "live",
+  defaultModelResolution: {
+    status: "resolved", id: "model-a", source: "cli",
+    resolvedAt: "2026-10-01T00:00:00.000Z", launchFingerprint: "fixture-launch",
+  },
+  models: [{ id: "model-a", label: "Model A", reasoning: [{ id: "medium", label: "Medium" }] }],
+  reasoningOptions: [{ id: "medium", label: "Medium" }],
+}];
 
 
 function fixture(namespace: string, key: string, schema: SettingDefinitionRecord["schema"] = { type: "string" }) {
@@ -241,7 +250,7 @@ test("chat revalidates the live catalog after confirmation", async () => {
   await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "localCli.model", scope: "user", value: "model-a" }, {
     emitSurface: async () => {
       // Default moves too: a resolved default stays a picker choice even outside the listed models.
-      f.deps.assistantAgentInventory = { ...f.deps.assistantAgentInventory!, listDetectedAssistantAgents: async () => [{ ...pickerAgents[0]!, defaultModelResolution: { status: "resolved", id: "model-b" }, models: [{ id: "model-b", label: "Model B" }] }] };
+      f.deps.assistantAgentInventory = { ...f.deps.assistantAgentInventory!, listDetectedAssistantAgents: async () => [{ ...pickerAgents[0]!, defaultModelResolution: { status: "resolved", id: "model-b", source: "cli", resolvedAt: "2026-10-01T00:00:00.000Z", launchFingerprint: "fixture-launch" }, models: [{ id: "model-b", label: "Model B" }] }] };
       await f.answer().emitSurface();
     },
   }), /Unknown model.*Available models: model-b/);

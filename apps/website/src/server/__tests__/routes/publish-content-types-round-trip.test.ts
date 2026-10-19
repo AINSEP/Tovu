@@ -222,7 +222,7 @@ test("publish types: a push to an OLD-build destination trims redirects and menu
 
   const staged = peerClient.calls.find((call) => call.method === "POST" && call.url.endsWith("/publish-content/bundles"));
   assert.ok(staged?.body);
-  const types = new Set((JSON.parse(staged.body) as { entities: Array<{ entityType: string }> }).entities.map((e) => e.entityType));
+  const types = new Set((JSON.parse(Buffer.from(staged.body).toString("utf8")) as { entities: Array<{ entityType: string }> }).entities.map((e) => e.entityType));
   assert.deepEqual([...types].filter((type) => !["post", "page", "media"].includes(type)), [], "an old build must only receive post/page/media");
   const heldBack = new Map(pushed.notSupportedByLive.map((entry) => [entry.entityType, entry.count]));
   assert.equal(heldBack.get("redirect"), 1);

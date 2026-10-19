@@ -220,7 +220,8 @@ test("backstop sessions sign the default generation and retain requested capabil
       derive: async () => new Uint8Array(32).fill(7),
     },
     httpClient: { send: async request => {
-      requests.push(request);
+      assert.ok(request.body === undefined || typeof request.body === "string", "handshake requests carry JSON text");
+      requests.push({ url: request.url, body: request.body });
       const body = requests.length === 1 ? identity : requests.length === 2
         ? { nonce: "n", targetInstallationId: "dest" } : { token: "session" };
       return { status: 200, headers: {}, bodyText: JSON.stringify(body) };

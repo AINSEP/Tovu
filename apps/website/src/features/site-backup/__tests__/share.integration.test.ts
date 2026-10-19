@@ -97,7 +97,9 @@ test("ZIP target uses the common plan/manifest; repository plans retain their or
     if (uploaded.ok) {
       assert.equal(uploaded.entries[0]!.path, "database/content.db");
       assert.equal(uploaded.entries.at(-1)!.path, "tovu-backup.json");
-      assert.equal(uploaded.entries.at(-1)!.text?.includes('"profile"'), false, "repository manifests keep their original format");
+      const manifest = uploaded.entries.at(-1);
+      assert.ok(manifest && 'text' in manifest, "the repository manifest is inline text");
+      assert.equal(manifest.text.includes('"profile"'), false, "repository manifests keep their original format");
     }
   }
   const zip = await buildShareZip({ plan: { ...common(bytes), profile: "share", target: { kind: "zip" }, bufferedFiles: [] }, zip: zipFolderFiles });

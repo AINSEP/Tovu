@@ -33,6 +33,7 @@ import { buildSiteBackupManifest } from "../sources.js";
 import { buildZipFixture } from "../../agent-plugins/__tests__/fixtures/build-zip.js";
 import { MAX_DOCUMENT_BYTES, validateDocumentIngress, registerTransform } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/index.js";
+import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../../members/index.js";
 import { createDocumentArchiveReader } from "../../media/document-archive.js";
 import { downloadDocuments } from "../../media/__tests__/download-documents.fixture.js";
 import { importFixture, OWNER_PASSWORD, MEDIA, HASH, stamp } from "./import.fixture.js";
@@ -131,10 +132,12 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   }
   assert.equal(fs.existsSync(path.join(site.path, "uploads", trashed.storageKey)), false);
   const { deps: defaults } = libraryFixture();
-  const deps = { ...defaults, workspaceId, mediaRepo, assetBlobRepo, assetRenditionRepo: new SqliteAssetRenditionRepo(imported), blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }) };
+  const deps = { ...defaults, workspaceId, mediaRepo, assetBlobRepo, assetRenditionRepo: new SqliteAssetRenditionRepo(imported), blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }),
+    postRepo: new InMemoryPostRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
+  } satisfies MediaRenditionRouteDeps;
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "recipient" }; next(); });
   registerAdminMediaListRoute(app, deps);
-  registerMediaRenditionRoute(app, deps as MediaRenditionRouteDeps); registerMediaOriginalVideoRoute(app, deps as MediaRenditionRouteDeps);
+  registerMediaRenditionRoute(app, deps); registerMediaOriginalVideoRoute(app, deps);
   const base = await startTestServer(app, t);
   const listed = await (await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}/media`)).json();
   assert.equal(listed.media.some((item: { kind: string }) => item.kind === "document"), false);
@@ -242,8 +245,9 @@ test("L3 forged ordinary rendition cannot expose a private document through anon
   await registerTransform({ deps: { transformRepo: defaults.transformDefinitionRepo, clock: defaults.clock, idGen: defaults.idGen },
     input: { workspaceId, name: "public", params: { format: "png" }, owner: "core" } });
   registerMediaRenditionRoute(app, { ...defaults, workspaceId, postRepo: new InMemoryPostRepo(),
+    memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo(),
     mediaRepo: new SqliteMediaRepo(imported), assetBlobRepo: new SqliteAssetBlobRepo(imported), assetRenditionRepo: new SqliteAssetRenditionRepo(imported),
-    blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }) } as MediaRenditionRouteDeps);
+    blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }) } satisfies MediaRenditionRouteDeps);
   const response = await fetch(`${await startTestServer(app, t)}/m/media/public.v1/image.txt`);
   assert.equal(response.status, 404);
   assert.equal(Buffer.from(await response.arrayBuffer()).includes(bytes), false);

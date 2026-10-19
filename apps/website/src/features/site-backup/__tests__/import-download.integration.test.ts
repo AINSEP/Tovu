@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createSiteImportBackend } from "../import-backend.js";
 import { SHARE_LIMITS } from "../share-policy.js";
+import type { HttpResponse } from "../../../platform/http/index.js";
 import { createHttpClient } from "../../../platform/http/client.js";
 import { SITE_IMPORT_EGRESS_POLICY } from "../../../platform/http/egress-policies.js";
 import { importFixture } from "./import.fixture.js";
@@ -10,7 +11,7 @@ import { importFixture } from "./import.fixture.js";
 test("B guarded HTTPS import pins public download, refuses private initial/redirect peers, propagates caps and cancellation", async t => {
   const h = await importFixture(t);
   const hops: string[] = [];
-  const http = createHttpClient({ policy: SITE_IMPORT_EGRESS_POLICY, transport: { requestPinned: async request => {
+  const http = createHttpClient({ policy: SITE_IMPORT_EGRESS_POLICY, transport: { requestPinned: async (request): Promise<HttpResponse> => {
     hops.push(request.url);
     assert.equal(request.maxResponseBytes, SHARE_LIMITS.maxArchiveBytes);
     assert.ok(request.signal);

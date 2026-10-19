@@ -223,7 +223,7 @@ class CapturingPeerClient implements HttpClientPort {
   stagedBundle(): { entities: Array<{ entityType: string; id: string }>; blobManifest: string[] } {
     const staged = this.calls.find((call) => call.method === "POST" && call.url.endsWith("/publish-content/bundles"));
     assert.ok(staged?.body, "the push driver must have staged a bundle on the peer");
-    return JSON.parse(staged.body) as { entities: Array<{ entityType: string; id: string }>; blobManifest: string[] };
+    return JSON.parse(Buffer.from(staged.body).toString("utf8")) as { entities: Array<{ entityType: string; id: string }>; blobManifest: string[] };
   }
 }
 

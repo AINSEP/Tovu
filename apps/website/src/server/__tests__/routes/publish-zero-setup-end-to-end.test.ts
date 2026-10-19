@@ -95,7 +95,7 @@ function clientTo(port: () => number): HttpClientPort {
       const response = await fetch(url, {
         method: request.method,
         headers: request.headers as Record<string, string>,
-        ...(request.body === undefined ? {} : { body: request.body }),
+        ...(request.body === undefined ? {} : { body: typeof request.body === "string" ? request.body : new Uint8Array(request.body) }),
       });
       const bodyText = await response.text();
       return {

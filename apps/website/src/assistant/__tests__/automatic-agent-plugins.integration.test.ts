@@ -15,7 +15,7 @@ import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout
 import { toolMetadata as themeMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { ASK_CHOICE_TOOL_ID } from '../ask-choice-tool.js';
 import { ensureAdminInterfaceSettingDefinitions } from '../../features/settings/admin-interface.js';
-import { set } from '../../features/settings/index.js';
+import { createSettingsPrincipalLookup, set } from '../../features/settings/index.js';
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { resolveAgentPluginRefs } from '../../features/agent-plugins/lifecycle.js';
@@ -42,7 +42,8 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const clock = { nowIso: () => '2026-10-18T00:00:00.000Z', nowMs: () => 0 };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
-  const principalRepo = new InMemoryPrincipalRepo({});
+  const principalRecords = new InMemoryPrincipalRepo({});
+  const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
   const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const runs = createAutomaticPluginRuns({ deps: { workspaceId, agentPluginLayout: layout, settingsRepo, getEffective, set, siteTitleReady: settingsUiTabsReady, principalRepo, clock, idGen, authorize: async () => ({ allowed: true, reason: 'test' }) }, surfaces: { surfaceExchanges } });
@@ -181,12 +182,12 @@ test('controller identity binds principal and conversation; disposal removes eve
   await assert.rejects(f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, principal: { id: 'bob' } } }), /unavailable/);
   await f.runs.start({ runId: 'two', messageId: 'answer', context: f.context });
   f.runs.forget({ runId: 'one' });
-  assert.match(await f.runs.prepareGuidance({ run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
+  assert.match(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
   f.runs.forget({ runId: 'two' });
-  assert.equal(await f.runs.prepareGuidance({ run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
+  assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
   // Reusing both identities after disposal constructs a clean, independently bound controller.
   await f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat', principal: { id: 'bob' } } });
-  assert.match(await f.runs.prepareGuidance({ run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
+  assert.match(await f.runs.prepareGuidance({ principal: { id: 'bob' }, run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
   f.runs.forget({ runId: 'two' });
 });
 
@@ -199,7 +200,11 @@ test("Don't ask again writes Auto only for the answering principal through the r
     await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen, principals, authorize: async () => ({ allowed: true, reason: 'test' }) },
       input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: id, callerPrincipalId: id, authWorkspaceId: f.workspaceId, value: 'ask' } });
   }
-  const read = (principalId: string) => getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId } });
+  const read = async (principalId: string) => {
+    const setting = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId } });
+    assert.ok(setting, 'the registered preference must resolve');
+    return setting;
+  };
   assert.match(await f.runs.start({ runId: 'ask-auto', context: { ...f.context, emitSurface: async emission => {
     assert.equal((await read('alice')).value, 'ask', 'opening the form must not change the setting');
     const html = (emission.payload.resource as { resource: { text: string } }).resource.text;

@@ -672,7 +672,7 @@ test("the push re-checks the repository, uploads only the database as a blob (te
     "PATCH /git/refs/heads/main",
   ]);
   assert.deepEqual(h.github.blobContents.map((bytes) => [...bytes]), [DB_BYTES], "only the database (it holds a NUL byte) is a blob; the plan's snapshot");
-  const folderTree = JSON.parse(h.github.writes()[1]!.body ?? "{}") as { base_tree?: string; tree: { path: string; sha?: string; content?: string }[] };
+  const folderTree = JSON.parse(Buffer.from(h.github.writes()[1]!.body ?? "{}").toString("utf8")) as { base_tree?: string; tree: { path: string; sha?: string; content?: string }[] };
   assert.equal(folderTree.base_tree, undefined, "the folder starts empty, so stale files in it disappear");
   assert.deepEqual(folderTree.tree.filter((entry) => entry.sha !== undefined).map((entry) => entry.path), ["database/content.db"]);
 
@@ -693,12 +693,12 @@ test("the push re-checks the repository, uploads only the database as a blob (te
   ] as const) assert.deepEqual(h.github.files.get(name), bytes, name);
 
   const writes = h.github.writes();
-  const rootTree = JSON.parse(writes.at(-3)!.body ?? "{}") as { base_tree: string };
+  const rootTree = JSON.parse(Buffer.from(writes.at(-3)!.body ?? "{}").toString("utf8")) as { base_tree: string };
   assert.equal(rootTree.base_tree, "tree-of-tip-1", "everything outside the folder is kept");
-  const commit = JSON.parse(writes.at(-2)!.body ?? "{}") as { parents: string[]; message: string };
+  const commit = JSON.parse(Buffer.from(writes.at(-2)!.body ?? "{}").toString("utf8")) as { parents: string[]; message: string };
   assert.deepEqual(commit.parents, ["tip-1"], "committed on the planned parent");
   assert.equal(commit.message, `Tovu site backup: Demo Site (${NOW})`);
-  const ref = JSON.parse(writes.at(-1)!.body ?? "{}") as Record<string, unknown>;
+  const ref = JSON.parse(Buffer.from(writes.at(-1)!.body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal("force" in ref, false, "never a force push");
   assert.doesNotMatch(JSON.stringify(result), new RegExp(TOKEN));
   assert.deepEqual(h.sleeps, [], "nothing failed, so nothing was retried");
@@ -906,7 +906,7 @@ test("a large site: each distinct binary is one blob, at most 4 in flight; ~750 
   const writes = h.github.writeRoutes();
   assert.equal(writes.filter((w) => w === "POST /git/blobs").length, 1 + 40, "the database and each DISTINCT binary once (the copy of media-07 is deduped)");
   assert.deepEqual(writes.slice(41), ["POST /git/trees", "POST /git/trees", "POST /git/trees", "POST /git/trees", "POST /git/commits", "PATCH /git/refs/heads/main"]);
-  const trees = h.github.writes().filter((c) => c.url.endsWith("/git/trees")).map((c) => JSON.parse(c.body ?? "{}") as { base_tree?: string; tree: unknown[] });
+  const trees = h.github.writes().filter((c) => c.url.endsWith("/git/trees")).map((c) => JSON.parse(Buffer.from(c.body ?? "{}").toString("utf8")) as { base_tree?: string; tree: unknown[] });
   assert.deepEqual(trees.map((tree) => tree.tree.length), [300, 300, fileCount + 1 - 600, 1], "folder entries in chunks of 300, then the root tree grafts the folder");
   assert.deepEqual(trees.map((tree) => tree.base_tree), [undefined, "new-tree-1", "new-tree-2", "tree-of-tip-1"], "each chunk builds on the previous one; the folder starts empty");
   assert.equal(h.github.files.get("demo-site/themes/static/big/page-699.html")?.toString("utf8"), "<p>page 699</p>");
@@ -1063,7 +1063,7 @@ test("an explicit branch and commit message replace existing folder contents wit
   assert.equal(pushed.pushed, true);
   const commit = h.github.calls.find(request => request.method === "POST" && request.url.endsWith("/git/commits"));
   assert.ok(commit);
-  assert.equal(JSON.parse(commit.body!).message, "Reviewed backup");
+  assert.equal(JSON.parse(Buffer.from(commit.body!).toString("utf8")).message, "Reviewed backup");
   assert.equal(h.github.files.has("demo-site/old.txt"), false);
   assert.equal(h.github.files.has("demo-site/tovu-backup.json"), true);
   assert.equal(h.github.files.get("README.md")?.toString("utf8"), "Outside the backup folder");
@@ -1299,7 +1299,7 @@ test("the default plan store and job registry carry a backup from planning throu
   assert.equal(manifest.createdAt, NOW);
   const commit = h.github.calls.find(request => request.method === "POST" && request.url.endsWith("/git/commits"));
   assert.ok(commit);
-  assert.equal(JSON.parse(commit.body!).message, `Tovu site backup: Demo Site (${NOW})`);
+  assert.equal(JSON.parse(Buffer.from(commit.body!).toString("utf8")).message, `Tovu site backup: Demo Site (${NOW})`);
   const repeated = await call(pusher, { planId: planned.planId }) as Result;
   assert.equal(repeated.code, "PLAN_NOT_FOUND");
   assert.equal(h.github.writeRoutes().filter(route => route === "POST /git/commits").length, 1);
@@ -1313,7 +1313,7 @@ test("stopping the backup as the manifest upload completes prevents the commit",
   const httpClient: NonNullable<SiteBackupToolDeps["siteBackupHttpClient"]> = { send: async request => {
     const response = await h.github.send(request);
     if (request.method === "POST" && request.url.endsWith("/git/blobs")) {
-      const body = JSON.parse(request.body!);
+      const body = JSON.parse(Buffer.from(request.body!).toString("utf8"));
       const bytes = Buffer.from(body.content, "base64");
       if (bytes.toString("utf8").includes('"tovu-site-backup"')) {
         const job = h.deps.siteBackupPushJobs!.find({ planId, principalId: OWNER_PRINCIPAL, workspaceId: WORKSPACE_ID });

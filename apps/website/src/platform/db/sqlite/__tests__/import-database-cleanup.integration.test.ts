@@ -13,7 +13,8 @@ for (const interruption of ["cancellation", "timeout"] as const) test(`B worker 
   let root = "", projection = "";
   let ready!: (message: { projection: string; env: Record<string, string> }) => void;
   const started = new Promise<{ projection: string; env: Record<string, string> }>(resolve => { ready = resolve; });
-  t.mock.method(childProcess, "fork", (_helper, args, options) => {
+  t.mock.method(childProcess, "fork", (_helper: string | URL, args: readonly string[] = [], options?: childProcess.ForkOptions) => {
+    assert.ok(args[0], "the worker receives its disposable root");
     root = args[0];
     const child = fork(fileURLToPath(new URL("./import-database-hanging.fixture.ts", import.meta.url)), args, options);
     t.after(() => { child.kill("SIGKILL"); if (projection) fs.rmSync(projection, { recursive: true, force: true }); });

@@ -241,16 +241,16 @@ test("commit: one file — blob, tree (with base_tree), commit, non-force ref up
   const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "app = 'demo'" }]), PLAN);
   assert.deepEqual(result, { ok: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha" });
   for (const call of client.calls) assert.equal(call.headers.Authorization, buildAuthorizationHeader({ connection: CONNECTION, schemes: [] }));
-  const blobBody = JSON.parse(client.calls.find(c => c.url.endsWith("/git/blobs"))!.body!);
+  const blobBody = JSON.parse(Buffer.from(client.calls.find(c => c.url.endsWith("/git/blobs"))!.body!).toString("utf8"));
   assert.equal(blobBody.encoding, "base64");
   assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), "app = 'demo'");
-  const commitBody = JSON.parse(client.calls.find((c) => c.url.endsWith("/git/commits"))!.body!);
+  const commitBody = JSON.parse(Buffer.from(client.calls.find((c) => c.url.endsWith("/git/commits"))!.body!).toString("utf8"));
   assert.deepEqual(commitBody, { message: "deploy", tree: "new-tree-sha", parents: ["parent-sha"] });
   assert.equal(client.remainingCount(), 0);
 
   const treeCall = client.calls.find((c) => c.url.endsWith("/git/trees"));
   assert.ok(treeCall, "the tree-creation call must have been made");
-  const treeBody = JSON.parse(treeCall!.body!);
+  const treeBody = JSON.parse(Buffer.from(treeCall!.body!).toString("utf8"));
   // The 2026-08-19 data-loss class this must never regress: a tree POST with no `base_tree` REPLACES
   // the branch's entire file listing rather than adding to it. This asserts the exact field a future
   // edit could silently drop.
@@ -259,7 +259,7 @@ test("commit: one file — blob, tree (with base_tree), commit, non-force ref up
 
   const refCall = client.calls.find((c) => c.url.endsWith("/git/refs/heads/main"));
   assert.equal(refCall!.method, "PATCH");
-  const refBody = JSON.parse(refCall!.body!);
+  const refBody = JSON.parse(Buffer.from(refCall!.body!).toString("utf8"));
   assert.equal(refBody.force, undefined, "the ref update must never force — a real race must be refused, never overwritten");
   assert.equal(refBody.sha, "new-commit-sha");
 });
@@ -283,7 +283,7 @@ test("commit: two files with identical content create exactly one blob", async (
   assert.equal(blobCalls.length, 1, "identical content must be uploaded as exactly one blob, reused for both paths");
 
   const treeCall = client.calls.find((c) => c.url.endsWith("/git/trees"));
-  const treeBody = JSON.parse(treeCall!.body!);
+  const treeBody = JSON.parse(Buffer.from(treeCall!.body!).toString("utf8"));
   assert.deepEqual(treeBody.tree, [
     { path: "a.txt", mode: "100644", type: "blob", sha: "shared-blob-sha" },
     { path: "b.txt", mode: "100644", type: "blob", sha: "shared-blob-sha" },
@@ -362,7 +362,7 @@ test("commit preserves executable and regular modes from the confirmed base tree
   const result = await commitGitHubFiles({ httpClient: client }, commitInput(files), PLAN);
   assert.equal(result.ok, true);
   assert.equal(client.remainingCount(), 0);
-  const body = JSON.parse(client.calls.find(c => c.method === "POST" && c.url.endsWith("/git/trees"))!.body!);
+  const body = JSON.parse(Buffer.from(client.calls.find(c => c.method === "POST" && c.url.endsWith("/git/trees"))!.body!).toString("utf8"));
   assert.deepEqual(body.tree.map((entry: { path: string; mode: string }) => [entry.path, entry.mode]), [
     ["scripts/run.sh", "100755"], ["scripts/notes.txt", "100644"], ["new.txt", "100644"],
   ]);
