@@ -4,6 +4,9 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { EXHAUSTED_NOTICE } from "#src/assistant/durable-runs/recover";
+import { AWAITING_ANSWER_NOTICE } from "@jini-ai/chat/server/durable-runs";
+import { createSurfaceExchangeStore, DEFAULT_SURFACE_IDLE_TTL_MS } from "@jini-ai/daemon/surface-exchanges";
+import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import { createAssistantRunFinalizer, createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
 
@@ -12,7 +15,7 @@ import { createAssistantRunFinalizer, createHttpRunDaemonClient, type RunDaemonC
  * stay separate evidence. All clocks, storage and daemon calls are injected ports. */
 async function flush() { for (let i = 0; i < 64; i++) await Promise.resolve(); }
 
-function recoveryHarness({ daemon, statusTimeoutMs = 10 }: { daemon: RunDaemonClient; statusTimeoutMs?: number }, _optional = {}) {
+function recoveryHarness({ daemon, statusTimeoutMs = 10, resolutionTimeoutMs = 300_000 }: { daemon: RunDaemonClient; statusTimeoutMs?: number; resolutionTimeoutMs?: number }, _optional = {}) {
   let time = 1000;
   const timers = new Set<{ at: number; run: () => void }>();
   const scheduler: SupervisorScheduler = { schedule({ delayMs, run }) {
@@ -21,7 +24,7 @@ function recoveryHarness({ daemon, statusTimeoutMs = 10 }: { daemon: RunDaemonCl
   const message: ChatMessage = { id: "answer", role: "assistant", content: "Partial answer", events: [{ kind: "text", text: "Partial answer" }], runId: "old", runStatus: "running" };
   const { ledger } = recoveryLedgerFixture({ message, now: () => time }, {});
   const finalizer = createAssistantRunFinalizer({ ledger, daemon, now: () => time, scheduler,
-    resolutionTimeoutMs: 300_000, statusTimeoutMs, reconnectDelayMs: 0, checkpointIntervalMs: 0,
+    resolutionTimeoutMs, statusTimeoutMs, reconnectDelayMs: 0, checkpointIntervalMs: 0,
   }, {});
   async function elapse({ ms }: { ms: number }, _options = {}) {
     await flush(); const end = time + ms;
@@ -32,7 +35,79 @@ function recoveryHarness({ daemon, statusTimeoutMs = 10 }: { daemon: RunDaemonCl
     }
     time = end; await flush();
   }
-  return { finalizer, message, timers, elapse };
+  return { finalizer, message, timers, elapse, scheduler, now: () => time };
+}
+
+// A real Ask exchange owns its five-minute deadline. The finalizer's two-minute probe window
+// must neither expire that exchange early nor let its existence conceal a dead owning daemon.
+for (const outcome of ["answered", "expired", "dead"] as const) {
+  test(`a pending Ask card ${outcome}: preserves one card and the same turn across the default probe window`, async t => {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({ start(value) { controller = value; } });
+    let dead = false;
+    let launches = 0;
+    let probes = 0;
+    let opened = 0;
+    const h = recoveryHarness({ resolutionTimeoutMs: 120_000, daemon: {
+      runStatus: async () => { probes++; return dead ? 404 : 200; },
+      openEvents: async () => { opened++; return new Response(body); },
+      launch: async () => { launches++; },
+      cancel: async () => {},
+    } }, {});
+    // Preflight has emitted no model text or tool call yet.
+    h.message.content = "";
+    h.message.events = [];
+    const exchanges = createSurfaceExchangeStore({
+      scheduler: { schedule: ({ delayMs, callback }) => h.scheduler.schedule({ delayMs, run: callback }) },
+      clock: { nowMs: h.now },
+      idGenerator: { newId: () => "pending-card" }, defaultChannel: "mcp-ui",
+    });
+    const abort = new AbortController();
+    t.after(() => abort.abort());
+    const send = (kind: string, payload: Record<string, unknown>) => controller.enqueue(new TextEncoder().encode(
+      `event: ${kind}\ndata: ${JSON.stringify({ runId: "old", kind, payload })}\n\n`,
+    ));
+    let cards = 0;
+    const choice = askAgentPluginChoice({ surfaces: { surfaceExchanges: exchanges }, principalId: "owner",
+      signal: abort.signal, matches: [{ id: "synthetic", name: "Synthetic", why: "Matches the task" }],
+      emitSurface: async emission => { cards++; send("agent", { type: "mcp-ui", resource: emission.payload.resource }); },
+    });
+    await h.finalizer.reconcileInterrupted({}, {});
+    await h.elapse({ ms: 128_000 }, {});
+    assert.equal(h.message.runStatus, "running");
+    assert.equal(h.message.runId, "old");
+    assert.equal(cards, 1); assert.equal(exchanges.size(), 1);
+    assert.equal(probes, 2, "boot and the default two-minute renewal both prove this attempt live");
+
+    if (outcome === "dead") {
+      dead = true;
+      await h.elapse({ ms: 112_000 }, {});
+      await h.finalizer.idle();
+      assert.equal(h.message.runStatus, "failed");
+      assert.equal(h.message.events?.filter(event => event.kind === "status" && event.label === AWAITING_ANSWER_NOTICE).length, 1);
+    } else {
+      await h.elapse({ ms: DEFAULT_SURFACE_IDLE_TTL_MS - 128_000 - 1 }, {});
+      assert.equal(h.message.runStatus, "running");
+      assert.equal(exchanges.size(), 1);
+      if (outcome === "expired") await h.elapse({ ms: 1 }, {});
+    }
+    if (outcome !== "expired") {
+      assert.deepEqual(exchanges.deliver({ exchangeId: "pending-card", principalId: "owner",
+        params: { __choiceAction: "use", selections: ["synthetic"] } }, { toolId: ASK_CHOICE_TOOL_ID }), { ok: true });
+    }
+    assert.deepEqual(await choice, outcome === "expired" ? { action: "skip", selected: [] } : { action: "use", selected: ["synthetic"] });
+    if (!dead) {
+      send("agent", { type: "text_delta", delta: "Continued the same turn." });
+      send("end", { status: "succeeded", code: 0 }); controller.close();
+      await h.finalizer.idle();
+      assert.equal(h.message.runStatus, "succeeded");
+      assert.match(h.message.content, /Continued the same turn\./);
+    }
+    assert.equal(h.message.runId, "old");
+    assert.equal(h.message.events?.filter(event => event.kind === "ext" && event.name === "mcp-ui").length, 1);
+    assert.equal(cards, 1); assert.equal(opened, 1); assert.equal(launches, 0);
+    assert.equal(exchanges.size(), 0); assert.equal(h.finalizer.activeCount(), 0); assert.equal(h.timers.size, 0);
+  });
 }
 
 test("a quiet stream without live proof waits five minutes, finalizes once and keeps its saved text", async () => {
