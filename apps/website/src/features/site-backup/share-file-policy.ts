@@ -12,7 +12,11 @@ export function excludedSharePath(required: { path: string }, _optional: Record<
       /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/.test(p) ||
       /^uploads\/chat-attachments(?:\/|$)/.test(p) ||
       parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part))) return true;
-  if (parts.some(part => [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"].includes(part) ||
+  // Installed packages ship MCP declarations and credential schemas as content, not runtime secrets.
+  // Exempt only those names below the seven-segment package root; their bytes still get secret-scanned.
+  const packageContent = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//.test(p);
+  const suspiciousParts = parts.filter((part, index) => !(packageContent && index >= 7 && ["mcp.json", "tovu-credential-schemes.json"].includes(part)));
+  if (suspiciousParts.some(part => [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"].includes(part) ||
       part.startsWith(".share-") || /(?:credential|vault|keyring|site-key|private[-_]?key)/.test(part) ||
       /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(part) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(part) ||
       /\.(?:db|sqlite|sqlite3)(?:$|[.-])/.test(part) || /^\.mcp(?:\..*)?\.json$/.test(part) ||

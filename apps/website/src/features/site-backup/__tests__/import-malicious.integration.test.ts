@@ -75,6 +75,47 @@ function appendListed(items: ZipItem[], additions: ZipItem[]): ZipItem[] {
   }), ...additions];
 }
 
+test("package filename exceptions require the exact content-addressed root on export and import", async t => {
+  const root = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
+  for (const name of [
+    "themes/site/mcp.json", "plugins/portable/mcp.json",
+    "themes/site/tovu-credential-schemes.json",
+    `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(63)}/mcp.json`,
+    `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(65)}/mcp.json`,
+    `agent-plugins/ws/ws/portable/package/sha256/${"g".repeat(64)}/mcp.json`,
+    `themes/${root}/mcp.json`,
+    `agent-plugins/ws/mcp.json/portable/package/sha256/${"a".repeat(64)}/plugin.json`,
+    `${root}/.npmrc`, `${root}/nested/private-key.pem`, `${root}/vendor-credentials.json`,
+  ]) await t.test(name, async t => {
+    const h = await importFixture(t);
+    const bytes = Buffer.from("{}");
+    h.files.set(name, bytes);
+    await assert.rejects(h.prepareProductionShare(), { code: "UNSAFE_FILE" });
+    // B must independently reject a listed, correctly hashed file that bypassed A's collector.
+    // B's tree-path gate refuses credential filenames (.npmrc, *.pem) before the file policy runs.
+    const archive = await pack(appendListed(await archiveItems(h.archive), [{ name, bytes }]));
+    const upload = await h.backend.upload({ principalId: "recipient", archive });
+    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: /^UNSAFE_(?:FILE|PATH)$/ });
+    assert.deepEqual(h.workspace.registry({}).list({}), []);
+  });
+});
+
+test("package manifest filename exceptions preserve secret scanning on export and import", async t => {
+  for (const filename of ["mcp.json", "tovu-credential-schemes.json"]) await t.test(filename, async t => {
+    const h = await importFixture(t);
+    const name = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}/${filename}`;
+    const bytes = Buffer.from(JSON.stringify({ token: "ghp_" + "x".repeat(36) }));
+    h.files.set(name, bytes);
+    // Baseline RED: UNSAFE_FILE masks the required byte-level SECRET_IN_CONTENT refusal.
+    await assert.rejects(h.prepareProductionShare(), { code: "SECRET_IN_CONTENT" });
+    assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "refusal must not damage package bytes");
+    const archive = await pack(appendListed(await archiveItems(h.archive), [{ name, bytes }]));
+    const upload = await h.backend.upload({ principalId: "recipient", archive });
+    await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), { code: "SECRET_IN_CONTENT" });
+    assert.deepEqual(h.workspace.registry({}).list({}), []);
+  });
+});
+
 test("B malicious ZIP matrix: no registered/partial site and no mutation to an existing site", async t => {
   const h = await importFixture(t);
   const existing = await createSite({ name: "existing", adminPassword: OWNER_PASSWORD }, { ...h.backendPorts.creationOptions, workspace: h.workspace });

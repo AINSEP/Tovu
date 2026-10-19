@@ -17,8 +17,23 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
 import { importFixture, OWNER_PASSWORD, HASH, STORAGE_KEY, reader } from "./import.fixture.js";
 import { loadTheme } from "../../theme/theme.js";
 
+// Real installed packages include both MCP transport declarations and credential schema metadata.
+const packageRoot = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
+const packageFiles = new Map([
+  ["plugin.json", Buffer.from('{"name":"portable","version":"1.0.0"}')],
+  ["mcp.json", Buffer.from('{"mcpServers":{"portable":{"command":"node","args":["server.mjs"]}}}')],
+  ["server.mjs", Buffer.from("throw new Error('must never execute during import');")],
+  ["tovu-credential-schemes.json", Buffer.from('{"schemes":[]}')],
+  ["tovu-deploy-targets.json", Buffer.from('{"targets":[]}')],
+  ["tovu-deploy-configs.json", Buffer.from('{"configs":[]}')],
+  ["targets/vercel.mjs", Buffer.from("export const target = 'vercel';")],
+  ["source-control/write-files.mjs", Buffer.from("export const writeFiles = () => {};")],
+  ["skills/web-compliance/SKILL.md", Buffer.from("Portable plugin documentation")],
+]);
+
 for (const placement of ["inSite", "appData"] as const) test("A production preparation → public download → B import preserves content: " + placement, async t => {
   const h = await importFixture(t, placement);
+  for (const [name, bytes] of packageFiles) h.files.set(`${packageRoot}/${name}`, bytes);
   const prepared = await h.prepareProductionShare();
   const shareRegistry = new SiteShareRegistry({ directory: path.join(h.root, "shares") });
   const shared = await createSiteShare({ registry: shareRegistry, site: "source-site", name: "portable", archive: prepared.archive });
@@ -40,11 +55,15 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     return { status: response.status, headers: Object.fromEntries(response.headers), bodyText: "", bodyBytes, bodyBytesTruncated: false };
   } } });
   let archivedDatabase: Buffer | undefined;
-  for await (const file of reader.entries({ archive: prepared.archive })) if (file.kind === "file" && file.entryPath === "database/content.db") {
+  const archivedPackage = new Map<string, Buffer>();
+  for await (const file of reader.entries({ archive: prepared.archive })) if (file.kind === "file" && (file.entryPath === "database/content.db" || file.entryPath.startsWith(packageRoot + "/"))) {
     const chunks: Buffer[] = [];
     for await (const chunk of file.openReadStream({})) chunks.push(Buffer.from(chunk));
-    archivedDatabase = Buffer.concat(chunks);
+    const bytes = Buffer.concat(chunks);
+    if (file.entryPath === "database/content.db") archivedDatabase = bytes;
+    else archivedPackage.set(file.entryPath.slice(packageRoot.length + 1), bytes);
   }
+  assert.deepEqual(archivedPackage, packageFiles, "A exports every required package byte");
   assert.deepEqual(archivedDatabase, prepared.plan.database!.bytes, "A's exact projected DB is what its ZIP contains");
   const archivePath = path.join(h.root, "exported.db");
   fs.writeFileSync(archivePath, archivedDatabase!);
@@ -88,5 +107,6 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   } finally { closeSqliteConnection(imported); }
   assert.equal(createHash("sha256").update(fs.readFileSync(path.join(entry.path, "uploads", STORAGE_KEY))).digest("hex"), HASH);
   assert.deepEqual(fs.readFileSync(path.join(entry.path, "themes/static/site/index.html")), h.files.get("themes/static/site/index.html"));
+  for (const [name, bytes] of packageFiles) assert.deepEqual(fs.readFileSync(path.join(entry.path, ".import-quarantine", packageRoot, name)), bytes, "B preserves quarantined " + name);
   assert.equal(loadTheme({ themeDir: path.join(entry.path, "themes/static/site"), id: "site", source: "site" }).status, "valid");
 });
