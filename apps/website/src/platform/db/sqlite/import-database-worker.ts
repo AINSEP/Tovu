@@ -9,9 +9,27 @@ import { closeSqliteConnection } from "../kernel/drivers/sqlite.js";
 import { sanitizeShareDatabase } from "./share-database.js";
 import { SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/read-template";
+import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
+import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
+import { computeBlobStorageKey } from "#src/features/media/index";
 
 type SchemaObject = { type: string; name: string; tbl_name: string; sql: string | null };
 const schemaSql = "SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name";
+
+/** Derive historical schemas only from frozen trusted ADD COLUMN statements. No archived SQL
+ * is executed or relaxed: all other table/index/trigger definitions must match byte-for-byte.
+ * O(schema bytes) time/space, limited to the two additive Library predecessors.
+ */
+function supportedSchema(required: { actual: SchemaObject[]; expected: SchemaObject[] }, _options: Record<string, never> = {}): boolean {
+  const withoutColumn = (objects: SchemaObject[], statement: string) => {
+    const match = /^ALTER TABLE (\w+) ADD COLUMN (.+)$/.exec(statement)!;
+    return objects.map(object => object.type === "table" && object.name === match[1] && object.sql
+      ? { ...object, sql: object.sql.replace(", " + match[2], "") } : object);
+  };
+  const beforeOwnership = withoutColumn(required.expected, documentBlobOwnershipStatements({ dialect: "sqlite" })[0]!);
+  const beforeLibrary = MEDIA_LIBRARY_STATEMENTS.reduce((objects, statement) => withoutColumn(objects, statement), beforeOwnership);
+  return [required.expected, beforeOwnership, beforeLibrary].some(expected => JSON.stringify(required.actual) === JSON.stringify(expected));
+}
 
 /** These portable relationships are application-owned rather than SQLite FKs. Identity actor
  * strings are intentionally excluded: the share policy omits source accounts, not attribution.
@@ -43,7 +61,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
     // Extension loading remains disabled: this helper never exposes/calls loadExtension.
     const actual = source.prepare(schemaSql).all() as SchemaObject[];
     const expected = trusted.$client.prepare(schemaSql).all() as SchemaObject[];
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error("Unsupported SQLite schema objects");
+    if (!supportedSchema({ actual, expected })) throw new Error("Unsupported SQLite schema objects");
     if (source.prepare("SELECT id FROM workspaces LIMIT 2").all().length !== 1) throw new Error("Import requires one workspace");
     if (source.pragma("quick_check", { simple: true }) !== "ok") throw new Error("Invalid SQLite integrity");
   } finally { source.close(); closeSqliteConnection(trusted); }
@@ -51,6 +69,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
   const output = path.join(required.root, "output.db");
   await writeFile(output, projection.bytes, { flag: "wx", mode: 0o600 });
   const fresh = new Database(output);
+  const documentKeys = new Map<string, string>();
   try {
     const workspaces = fresh.prepare("SELECT id FROM workspaces LIMIT 2").all() as { id: string }[];
     if (workspaces.length !== 1) throw new Error("Import requires exactly one workspace");
@@ -67,13 +86,30 @@ async function run(required: { root: string }, _options: Record<string, never> =
         }
       }
       fresh.prepare("UPDATE workspaces SET id = ?").run(recipient);
+      // Documents must keep canonical keys in the recipient workspace, including blobs shared
+      // with ordinary media. Return the mapping so the verifier moves only verified bytes.
+      const documents = fresh.prepare("SELECT DISTINCT b.storage_key, b.sha256 FROM asset_blobs b JOIN media m ON m.workspace_id=b.workspace_id AND m.source_sha256=b.sha256 WHERE m.kind='document'").all() as { storage_key: string; sha256: string }[];
+      for (const blob of documents) {
+        const destination = computeBlobStorageKey({ workspaceId: recipient, sha256: blob.sha256 });
+        documentKeys.set(blob.storage_key, destination);
+        fresh.prepare("UPDATE asset_blobs SET storage_key=? WHERE workspace_id=? AND sha256=?").run(destination, recipient, blob.sha256);
+      }
+      // Scan renditions once rather than issuing one unindexed storage-key scan per blob.
+      const renditions = fresh.prepare("SELECT id,storage_key FROM asset_renditions").all() as { id: string; storage_key: string }[];
+      for (const rendition of renditions) {
+        const destination = documentKeys.get(rendition.storage_key);
+        if (destination) fresh.prepare("UPDATE asset_renditions SET storage_key=? WHERE id=?").run(destination, rendition.id);
+      }
     })();
     fresh.pragma("foreign_keys = ON");
     if ((fresh.pragma("foreign_key_check") as unknown[]).length) throw new Error("Invalid imported references");
     validatePortableReferences({ db: fresh });
     if (fresh.pragma("quick_check", { simple: true }) !== "ok") throw new Error("Invalid rebuilt database");
   } finally { fresh.close(); }
-  await writeFile(path.join(required.root, "media.json"), JSON.stringify(projection.media), { flag: "wx", mode: 0o600 });
+  const media = projection.media.map(blob => documentKeys.has(blob.storageKey) ? { ...blob, destinationStorageKey: documentKeys.get(blob.storageKey) } : blob);
+  await writeFile(path.join(required.root, "media.json"), JSON.stringify(media), { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents ?? []), { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(required.root, "excluded-blobs.json"), JSON.stringify(projection.excludedBlobKeys ?? []), { flag: "wx", mode: 0o600 });
 }
 
 run({ root: process.argv[2]! }).then(() => process.exit(0), () => process.exit(1));

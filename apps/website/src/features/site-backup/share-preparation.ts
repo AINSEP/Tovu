@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { BlobStorePort } from "#src/features/media/index";
+import { MAX_DOCUMENT_BYTES, type BlobStorePort } from "#src/features/media/index";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/index";
 import { captureDatabaseSnapshot, collectSiteBackupFiles, readPlannedFile, type PlannedDiskFile, type SiteBackupSources } from "./sources.js";
@@ -35,6 +35,7 @@ export async function prepareShareContent(required: { dbOps: DbOpsPort; sources:
     bufferedFiles.push(file);
   };
   const seen = new Set<string>();
+  const documentKeys = new Set(projected.documents?.map(document => document.storageKey));
   for (const media of projected.media) {
     optional.signal?.throwIfAborted();
     if (seen.has(media.storageKey)) continue;
@@ -45,6 +46,7 @@ export async function prepareShareContent(required: { dbOps: DbOpsPort; sources:
     const size = await required.blobStore.sizeOf({ storageKey: media.storageKey });
     if (size === null) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Share media '${media.storageKey}' is missing from the blob store.` });
     if (!Number.isSafeInteger(size) || size < 0) throw new SiteShareRefusal({ code: "UNBOUNDED_MEDIA", message: "Media storage returned an invalid byte count; nothing was shared." });
+    if (documentKeys.has(media.storageKey) && (size === 0 || size > MAX_DOCUMENT_BYTES)) throw new SiteShareRefusal({ code: "INVALID_DOCUMENT", message: "Library document blobs must be non-empty and at most 10 MiB; nothing was shared." });
     checkShareLimits({ files: [...sizes, { path: entryPath, bytes: size }] });
     const content = Buffer.from(await required.blobStore.get({ storageKey: media.storageKey }));
     if (content.length !== size || (media.sha256 && createHash("sha256").update(content).digest("hex") !== media.sha256)) throw new SiteShareRefusal({ code: "MEDIA_CHANGED", message: `Share media '${media.storageKey}' changed or failed its checksum.` });

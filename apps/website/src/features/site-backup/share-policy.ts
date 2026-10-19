@@ -51,6 +51,10 @@ export function checkShareLimits(required: { files: readonly { path: string; byt
 
 export interface ShareDatabaseProjection {
   readonly bytes: Buffer;
-  readonly media: readonly { storageKey: string; sha256?: string }[];
+  /** Source DB sidecars intentionally omitted by projection, never arbitrary ZIP uploads. */
+  readonly excludedBlobKeys?: readonly string[];
+  readonly media: readonly { storageKey: string; sha256?: string; destinationStorageKey?: string }[];
+  /** Original document policies travel separately from deduplicated blob references. */
+  readonly documents?: readonly { storageKey: string; sha256: string; originalFilename: string }[];
 }
 export type ShareDatabaseSanitizer = (required: { snapshot: Buffer }, optional?: { signal?: AbortSignal }) => Promise<ShareDatabaseProjection>;

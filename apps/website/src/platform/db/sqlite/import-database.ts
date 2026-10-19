@@ -47,6 +47,8 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer }, opti
     const bytes = await readFile(output);
     if (bytes.length > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Rebuilt import database exceeds 300 MiB." });
     const media = JSON.parse(await readFile(path.join(root, "media.json"), "utf8")) as ShareDatabaseProjection["media"];
-    return { bytes, media };
+    const documents = JSON.parse(await readFile(path.join(root, "documents.json"), "utf8")) as NonNullable<ShareDatabaseProjection["documents"]>;
+    const excludedBlobKeys = JSON.parse(await readFile(path.join(root, "excluded-blobs.json"), "utf8")) as string[];
+    return { bytes, media, documents, excludedBlobKeys };
   } finally { await rm(root, { recursive: true, force: true }); }
 }

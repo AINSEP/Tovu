@@ -3,6 +3,8 @@ import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jin
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias } from "./share-file-policy.js";
 import { SITE_BACKUP_MANIFEST_PATH, SITE_BACKUP_DATABASE_PATH } from "./sources.js";
+import { validateDocumentIngress } from "#src/features/media/index";
+import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 
 export interface VerifiedSiteImport {
   name: string;
@@ -48,8 +50,11 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   let manifest: any;
   try { manifest = JSON.parse(manifestBytes.toString("utf8")); } catch { refuse("Invalid share manifest JSON."); }
   const schema = required.schema;
+  // Library added columns, not a new manifest identity. Historical database compatibility
+  // belongs to the worker's trusted schema matcher, never invented migration-ID aliases.
+  const schemaSupported = manifest?.schema?.index === schema.index && manifest?.schema?.tag === schema.tag;
   if (manifest?.format !== "tovu-site-backup" || manifest.formatVersion !== 1 || manifest.profile !== "share" || manifest.sanitizationVersion !== 1 ||
-      manifest.schema?.index !== schema.index || manifest.schema?.tag !== schema.tag ||
+      !schemaSupported ||
       manifest.database?.engine !== "sqlite" || manifest.database?.path !== SITE_BACKUP_DATABASE_PATH ||
       !Array.isArray(manifest.files) || manifest.files.length + 1 > SHARE_LIMITS.maxFiles ||
       typeof manifest.site?.name !== "string" || !manifest.site.name.trim() || manifest.site.name.length > 200) refuse("Unsupported share format/profile/version, schema identity, database or site name.");
@@ -78,11 +83,37 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   }
   const projection = await required.sanitize({ snapshot: files.get(SITE_BACKUP_DATABASE_PATH)! }, { signal: optional.signal });
   const referencedMedia = new Set(projection.media.map(media => "uploads/" + media.storageKey));
+  const documentKeys = new Set(projection.documents?.map(document => document.storageKey));
+  for (const key of projection.excludedBlobKeys ?? []) {
+    const file = "uploads/" + key;
+    validateSharePath({ path: file });
+    if (!referencedMedia.has(file)) files.delete(file);
+  }
   for (const file of files.keys()) if (file.startsWith("uploads/") && !referencedMedia.has(file)) refuse("Unreferenced uploads are outside the portable share media policy.");
   for (const media of projection.media) {
     validateSharePath({ path: "uploads/" + media.storageKey });
     const content = files.get("uploads/" + media.storageKey);
-    if (!content || media.sha256 && createHash("sha256").update(content).digest("hex") !== media.sha256) refuse("Referenced media is missing or failed its hash.");
+    if (!content || media.sha256 && createHash("sha256").update(content).digest("hex") !== media.sha256) refuse(documentKeys.has(media.storageKey) ? "Referenced document blob is missing or corrupt." : "Referenced media is missing or failed its hash.");
+  }
+  const archiveReader = createDocumentArchiveReader({});
+  for (const document of projection.documents ?? []) {
+    optional.signal?.throwIfAborted();
+    const content = files.get("uploads/" + document.storageKey);
+    if (!content || createHash("sha256").update(content).digest("hex") !== document.sha256) refuse("Referenced document blob is missing or corrupt.");
+    // A valid outer ZIP checksum cannot grant document admission. Reuse upload policy,
+    // including bounded DOCX package validation, before staging or creating the new site.
+    try { await validateDocumentIngress({ filename: document.originalFilename, bytes: content }, { archiveReader }); }
+    catch (error) { refuse(`Invalid Library document: ${error instanceof Error ? error.message : "document ingress rejected"}`); }
+  }
+  // The isolated DB owner has already remapped document keys to the new workspace. Move only
+  // fully verified bytes, once per source key, and refuse any conflicting destination claim.
+  const moves = new Map(projection.media.filter(media => media.destinationStorageKey && media.destinationStorageKey !== media.storageKey).map(media => ["uploads/" + media.storageKey, "uploads/" + media.destinationStorageKey]));
+  for (const [source, destination] of moves) {
+    validateSharePath({ path: destination });
+    const bytes = files.get(source)!;
+    if (files.has(destination) && !files.get(destination)!.equals(bytes)) refuse("Conflicting imported document blob keys.");
+    files.set(destination, bytes);
+    files.delete(source);
   }
   files.delete(SITE_BACKUP_DATABASE_PATH);
   checkShareLimits({ files: [...files].map(([path, content]) => ({ path, bytes: content.length })).concat({ path: SITE_BACKUP_DATABASE_PATH, bytes: projection.bytes.length }) });
