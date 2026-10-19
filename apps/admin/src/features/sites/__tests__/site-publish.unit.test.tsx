@@ -230,6 +230,10 @@ describe("SitePublishButton", () => {
     const link = await within(item).findByRole("link", { name: "https://blog.example.test/new" }, { timeout: 4000 });
     expect(link.closest("p")!.textContent).toMatch(/^Published:/);
     await waitFor(() => expect(listCalls()).toBe(2));
+    fireEvent.keyDown(document, { key: "Escape" });
+    const reopened = await openPanel();
+    await within(reopened).findByText("Host A: blog");
+    expect(within(reopened).queryByRole("status")).toBeNull();
   });
 
   it("pushes content to a Tovu peer through plan, confirm and execute, with no forced overwrite", async () => {
@@ -295,7 +299,7 @@ describe("SitePublishButton", () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => { release = resolve; });
     const base = createFakePublishContentPort({ report: report(["created"]) });
-    const port = createFakeSitePublishPort({ listDestinations: () => Promise.resolve([peerRow, staticRow]) });
+    const port = createFakeSitePublishPort({ listDestinations: () => Promise.resolve([peerRow, staticRow, pendingDeploy]) });
     render(
       <FetchQueryProvider>
         <SitePublishButton t={t} usePublish={({ t: tr }) => useSitePublish({
@@ -308,12 +312,81 @@ describe("SitePublishButton", () => {
         })} />
       </FetchQueryProvider>,
     );
-    const panel = await openPanel();
+    let panel = await openPanel();
     fireEvent.click(await within(panel).findByRole("button", { name: "Publish to live.example.test" }));
     await waitFor(() => expect(within(panel).getByRole("button", { name: "Publish to Host A: blog" })).toHaveProperty("disabled", true));
     expect(within(panel).getByRole("button", { name: "Publish to live.example.test" }).textContent).toBe("Publishing…");
+    expect(within(panel).getByRole("button", { name: "Connect other" })).toHaveProperty("disabled", true);
+    fireEvent.keyDown(document, { key: "Escape" });
+    panel = await openPanel();
+    expect(within(panel).getByRole("button", { name: "Publish to live.example.test" }).textContent).toBe("Publishing…");
+    expect(within(panel).getByRole("button", { name: "Connect other" })).toHaveProperty("disabled", true);
     await act(async () => { release(); await gate; });
     await waitFor(() => expect(within(panel).getByRole("button", { name: "Publish to Host A: blog" })).toHaveProperty("disabled", false));
+  });
+
+  it("clears the result of a publish that settles while the panel is closed", async () => {
+    let finish!: (run: AdminPublishRunSnapshot) => void;
+    const pending = new Promise<AdminPublishRunSnapshot>((resolve) => { finish = resolve; });
+    renderPanel({ destinations: [staticRow], staticPort: createFakeStaticPublishPort({ triggerPublish: () => pending }) });
+    const panel = await openPanel();
+    fireEvent.click(await within(panel).findByRole("button", { name: "Publish to Host A: blog" }));
+    expect(within(panel).getByRole("button", { name: "Publish to Host A: blog" }).textContent).toBe("Publishing…");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await act(async () => {
+      finish({ status: "completed", startedAtIso: "x", finishedAtIso: "2026-10-18T12:01:00.000Z", target: "host-a",
+        result: { ok: true, targetId: "host-a", url: "https://blog.example.test/new", status: "ready" } });
+      await pending;
+    });
+    const reopened = await openPanel();
+    await within(reopened).findByText("Host A: blog");
+    expect(within(reopened).queryByRole("status")).toBeNull();
+    expect(within(reopened).getByRole("button", { name: "Publish to Host A: blog" })).toHaveProperty("disabled", false);
+  });
+
+  it("fetches exactly once on each open, including a quick reopen with fresh cached data", async () => {
+    const { listCalls } = renderPanel({ destinations: [peerRow] });
+    let panel = await openPanel();
+    await within(panel).findByText("live.example.test");
+    await act(async () => {});
+    expect(listCalls()).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
+    panel = await openPanel();
+    await waitFor(() => expect(listCalls()).toBe(2));
+    await act(async () => {});
+    expect(within(panel).getByText("live.example.test")).toBeTruthy();
+    expect(listCalls()).toBe(2);
+  });
+
+  it.each(["result", "error"])("clears a settled %s when closed", async (outcome) => {
+    renderPanel({ destinations: [peerRow], peer: { report: report([], outcome === "error") } });
+    let panel = await openPanel();
+    fireEvent.click(await within(panel).findByRole("button", { name: "Publish to live.example.test" }));
+    await within(panel).findByText(outcome === "error" ? "Content versions differ." : "Already up to date.");
+    fireEvent.keyDown(document, { key: "Escape" });
+    panel = await openPanel();
+    await within(panel).findByText("live.example.test");
+    expect(within(panel).queryByRole("status")).toBeNull();
+  });
+
+  it.each([{ cached: [] }, { cached: [peerRow] }])("shows a refresh failure instead of cached empty or stale destinations and retries", async ({ cached }) => {
+    let calls = 0;
+    renderPanel({ port: { listDestinations: async () => {
+      calls += 1;
+      if (calls === 2) throw new Error("destinations offline");
+      return cached;
+    } } });
+    let panel = await openPanel();
+    await within(panel).findByText(cached.length ? "live.example.test" : /Nothing published yet/);
+    fireEvent.keyDown(document, { key: "Escape" });
+    panel = await openPanel();
+    expect((await within(panel).findByRole("alert")).textContent).toContain("destinations offline");
+    expect(within(panel).queryByText(/Nothing published yet/)).toBeNull();
+    expect(within(panel).queryByText("live.example.test")).toBeNull();
+    fireEvent.click(within(panel).getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(within(panel).queryByRole("alert")).toBeNull());
+    expect(calls).toBe(3);
+    expect(within(panel).getByText(cached.length ? "live.example.test" : /Nothing published yet/)).toBeTruthy();
   });
 
   it("hides actions the viewer cannot run", async () => {

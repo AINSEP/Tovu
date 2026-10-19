@@ -15,7 +15,8 @@ import type { QueryKey } from "@jini-ai/core/fetch";
 
 /** One cache identity for this screen's single resource, defined once so a write's `invalidates`
  *  and the read's `key` cannot drift apart (`@jini-ai/ui/fetch-query`'s own `QueryKey` warning). */
-export const KEYS = { list: ["sites"] as QueryKey, tokenSignInPlugins: ["sites-token-sign-in-plugins"] as QueryKey };
+// List refreshes must not invalidate sibling shares, permissions or publish destinations.
+export const KEYS = { list: ["sites", "list"] as QueryKey, tokenSignInPlugins: ["sites-token-sign-in-plugins"] as QueryKey };
 
 /** The create body's `agentPluginTokens`: trimmed, empty fields dropped, `undefined` when nothing
  *  was typed — so a create with no token sends exactly the body it always did.

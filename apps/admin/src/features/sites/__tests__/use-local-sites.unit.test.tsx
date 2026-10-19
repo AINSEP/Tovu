@@ -123,8 +123,9 @@ describe("local site card controller", () => {
     unmount();
   });
 
-  it("polls only while a local-management host is visible and releases timers and listeners", () => {
+  it("polls an unfinished start only while visible and releases timers and listeners", () => {
     const snapshot = fixture();
+    snapshot.localSites = [{ name: "child", status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }];
     const listeners = new Set<() => void>();
     const active = new Set<unknown>();
     const periods: number[] = [];
@@ -154,6 +155,9 @@ describe("local site card controller", () => {
     expect(listeners.size).toBe(0);
     snapshot.localManagementEnabled = true; rerender();
     expect(active.size).toBe(1);
+    snapshot.localSites![0]!.status = "running"; rerender();
+    expect(active.size).toBe(0);
+    expect(listeners.size).toBe(0);
     unmount();
     expect(active.size).toBe(0);
     expect(listeners.size).toBe(0);
@@ -197,7 +201,7 @@ describe("local site card controller", () => {
     await act(async () => { await result.current.run("alpha", "switch"); });
     expect(confirms).toEqual(["Switch now? Unsaved changes will be lost."]);
     expect(result.current.error).toBe("This host could not switch now. The default is saved for the next launch.");
-    expect([...polling.active.values()]).toEqual([3000]);
+    expect([...polling.active.values()]).toEqual([]);
   });
 
   it("invalidates the list every 300 ms after restart acceptance until the live site matches", async () => {
@@ -221,11 +225,11 @@ describe("local site card controller", () => {
     snapshot.persistedSiteName = "alpha"; rerender();
     expect([...polling.active.values()]).toEqual([300]);
     snapshot.currentSite = { ...snapshot.currentSite, name: "alpha" }; rerender();
-    expect([...polling.active.values()]).toEqual([3000]);
+    expect([...polling.active.values()]).toEqual([]);
     await act(async () => { polling.tick(300); });
     expect(list).toHaveBeenCalledTimes(3);
     await act(async () => { polling.tick(3000); });
-    await waitFor(() => expect(list).toHaveBeenCalledTimes(4));
+    expect(list).toHaveBeenCalledTimes(3);
     unmount();
     expect(polling.active.size).toBe(0);
     expect(polling.listeners.size).toBe(0);
@@ -250,7 +254,7 @@ describe("local site card controller", () => {
         }
         clock.mockReturnValue(61_000);
         act(() => { if (stop === "hidden deadline") polling.setVisibility("visible"); else polling.tick(300); });
-        expect([...polling.active.values()]).toEqual([3000]);
+        expect([...polling.active.values()]).toEqual([]);
       }
     } finally {
       unmount();

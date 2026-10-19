@@ -57,7 +57,12 @@ export function SitePublishButton({ t, usePublish = useWiredSitePublish }: SiteP
 function PublishPanelBody({ controller }: { controller: SitePublishController }) {
   const { t } = controller;
   if (controller.status === "loading") return <p className="site-publish-note">{t("Loading destinations…")}</p>;
-  if (controller.status === "error") return <p className="notice error" role="alert">{controller.error}</p>;
+  if (controller.status === "error") return (
+    <div className="notice error" role="alert">
+      <p>{controller.error}</p>
+      <button type="button" className="btn-secondary" onClick={controller.retry}>{t("Retry")}</button>
+    </div>
+  );
   if (controller.rows.length === 0) {
     return (
       <div className="site-publish-empty">
@@ -96,7 +101,7 @@ function PublishRowAction({ row, controller }: { row: SitePublishRowView; contro
   const { t } = controller;
   if (row.action === "connect") {
     return (
-      <button type="button" className="btn-secondary site-publish-action" onClick={controller.openPublishDialog}
+      <button type="button" className="btn-secondary site-publish-action" disabled={controller.busy} onClick={controller.openPublishDialog}
         aria-label={interpolate({ template: t("Connect {name}"), vars: { name: row.label } })}
         {...agentHandle({ handle: `sites-publish-connect-${agentHandleSegment({ value: row.id })}` }, { role: "button", label: "Open the Publish dialog to connect this deploy as a Tovu site" })}
       >{t("Connect")}</button>

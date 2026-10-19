@@ -37,20 +37,21 @@ export function useLocalSites(
   const enabled = snapshot?.localManagementEnabled === true;
   const activeSiteName = snapshot?.currentSite.name;
   const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  // Background polling is for local-management hosts. A crash/ready transition is host state,
-  // not a content event; an accepted switch also needs refreshes while its host restarts.
+  const starting = enabled && snapshot?.localSites?.some((site) => site.status === "starting") === true;
+  // Idle hosts need no timer. Refresh only an unfinished start or accepted restart; broad
+  // idle invalidation used to refetch shares and publish permissions every three seconds.
   useEffect(() => {
     if (switchTarget && activeSiteName === switchTarget.name) {
       setSwitchTarget(null);
       return;
     }
-    if (!enabled && !switchTarget) return;
+    if (!starting && !switchTarget) return;
     // Replace the slow poll while a restart is pending; a saved default alone is not completion.
     return startVisibleInterval(() => {
       if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
       refresh();
     }, switchTarget ? 300 : 3000, visibility, timers);
-  }, [enabled, switchTarget, activeSiteName, refresh, visibility, timers]);
+  }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
   const run = useCallback(async (name: string, action: AdminLocalSiteAction) => {
     if (busy.current || !port.manageLocalSite) return;
     if (action === "switch" ? snapshot?.canSwitchNow !== true : !enabled) return;

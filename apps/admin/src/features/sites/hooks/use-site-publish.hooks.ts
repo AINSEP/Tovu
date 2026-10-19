@@ -66,6 +66,8 @@ export interface SitePublishController {
   readonly close: () => void;
   readonly status: "loading" | "error" | "ready";
   readonly error: string | null;
+  /** Explicitly retry a failed destinations read. */
+  readonly retry: () => void;
   readonly rows: readonly SitePublishRowView[];
   /** A run is in flight: every row's action is disabled until it settles. */
   readonly busy: boolean;
@@ -99,8 +101,9 @@ interface ActiveRun {
 export function useSitePublish(deps: SitePublishDependencies, options: { now?: () => number } = {}): SitePublishController {
   const { port, peerPort, t, locale, liveAvailable } = deps;
   const [open, setOpen] = useState(false);
-  const destinations = useFetchQuery({ key: DESTINATIONS_KEY, fetch: () => port.listDestinations() }, { enabled: open });
-  const me = useFetchQuery({ key: PERMISSIONS_KEY, fetch: () => port.me() }, { enabled: open });
+  // A fresh read on each enabled edge; rerenders keep the same key and do not fetch again.
+  const destinations = useFetchQuery({ key: DESTINATIONS_KEY, fetch: () => port.listDestinations() }, { enabled: open, staleTime: 0 });
+  const me = useFetchQuery({ key: PERMISSIONS_KEY, fetch: () => port.me() }, { enabled: open, staleTime: 0 });
   const staticPublish = useStaticPublish(deps.staticPort, t, locale);
   const [active, setActive] = useState<ActiveRun | null>(null);
   // Synchronous double-click guard for content pushes, same reason `useStaticPublish`'s own
@@ -110,6 +113,16 @@ export function useSitePublish(deps: SitePublishDependencies, options: { now?: (
   const permissions = permissionsFrom(me.data?.effectivePermissions);
   const { staticState, busy, staticActive } = runFlags(active, staticPublish);
   useRefetchAfterStaticRun(staticPublish.run, staticActive, destinations.refetch);
+  // Closing clears settled feedback, including a run that finishes while hidden. A running
+  // publish keeps its owner and progress so reopening cannot start a competing run.
+  useEffect(() => {
+    if (!open && !busy) setActive(null);
+  }, [open, busy]);
+
+  function close() {
+    setOpen(false);
+    if (!busy) setActive(null);
+  }
 
   async function pushContent(id: string, peerId: string, url: string) {
     if (pushingRef.current) return;
@@ -140,14 +153,15 @@ export function useSitePublish(deps: SitePublishDependencies, options: { now?: (
   const rowContext = { active, staticState, permissions, liveAvailable, nowMs: (options.now ?? Date.now)(), locale, t };
   return {
     open,
-    toggle: () => setOpen((value) => !value),
-    close: () => setOpen(false),
+    toggle: () => { if (open) close(); else setOpen(true); },
+    close,
+    retry: destinations.refetch,
     ...listView(destinations, t),
     rows: listRows(destinations.data, rowContext),
     busy,
     publish,
     openPublishDialog: () => {
-      setOpen(false);
+      close();
       void requestPublish({});
     },
     t,
@@ -213,11 +227,11 @@ function rowState(id: string, context: RowContext): SitePublishRowState | null {
   return active.state ?? null;
 }
 
-/** `loading` until the first list lands, `error` only when there is no list to show. */
+/** A failed refresh takes precedence over cached data; stale empty copy would hide the failure. */
 function listView(query: { data: unknown; error: unknown }, t: Translate): Pick<SitePublishController, "status" | "error"> {
   const error = query.error ? describeApiError(query.error, t("Could not load publish destinations.")) : null;
-  if (query.data !== undefined) return { status: "ready", error };
-  return { status: error ? "error" : "loading", error };
+  if (error) return { status: "error", error };
+  return { status: query.data === undefined ? "loading" : "ready", error: null };
 }
 
 /** @complexity O(d) destinations. */
