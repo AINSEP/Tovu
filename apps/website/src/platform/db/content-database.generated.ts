@@ -144,6 +144,7 @@ export interface AssetBlobsTable {
   created_at: string;
   status: string;
   tombstoned_at: string | null;
+  document_owned: GeneratedBool;
   content_type: string | null;
 }
 

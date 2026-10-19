@@ -88,6 +88,7 @@ export const assetBlobs = pgTable("asset_blobs", {
   createdAt: text("created_at").notNull(),
   status: text("status").notNull(),
   tombstonedAt: text("tombstoned_at"),
+  documentOwned: boolean("document_owned").notNull().default(false),
   contentType: text("content_type"),
 }, (t) => [
     uniqueIndex("idx_asset_blobs_workspace_sha256").on(t.workspaceId, t.sha256),

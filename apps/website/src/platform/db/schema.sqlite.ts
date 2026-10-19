@@ -1488,6 +1488,8 @@ export const assetBlobs = sqliteTable(
     createdAt: text("created_at").notNull(),
     status: text("status").notNull(),
     tombstonedAt: text("tombstoned_at"),
+    /** Survives document purge until blob GC; only document ingress sets this flag. */
+    documentOwned: integer("document_owned", { mode: "boolean" }).notNull().default(false),
     /**
      * The blob's real media type, as `sniffContentType(bytes)` (`@jini-ai/cms/media`'s
      * `content-type-sniffer.ts`) reports it — NEVER the client's upload-time `contentType` string.

@@ -18,6 +18,7 @@ import { dropEmptyCoreCommerceTables } from "./0011_drop_empty_core_commerce_tab
 import { secretsVault } from "./0012_secrets_vault.js";
 import { unifyVaultCredentials } from "./0013_unify_vault_credentials.js";
 import { mediaLibrary } from "./0014_media_library.js";
+import { documentBlobOwnership } from "./0015_document_blob_ownership.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -56,6 +57,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   secretsVault({ checksum: pinned("0012_secrets_vault") }),
   unifyVaultCredentials({ checksum: pinned("0013_unify_vault_credentials") }),
   mediaLibrary({ checksum: pinned("0014_media_library") }),
+  documentBlobOwnership({ checksum: pinned("0015_document_blob_ownership") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

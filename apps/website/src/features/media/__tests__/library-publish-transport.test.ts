@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import express from 'express';
 import { uploadMedia, trashMedia, purgeMedia } from '@jini-ai/cms/media';
 import { createHash } from 'node:crypto';
-import { mkdtemp, realpath, mkdir, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, realpath, mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
@@ -114,4 +114,59 @@ test('Library sidecars cannot escape as manually selected raw publish rows', asy
       rows: { columns: async () => columns, read: async () => row, upsert: async () => {}, removeCreated: async () => {}, transaction: async ({ work }) => work() } } });
   const packed = []; for await (const entity of handler.pack()) packed.push(entity);
   assert.deepEqual(packed, []);
+});
+
+// RED: an ordinary blob retained after purge was denied by every shared hash gate.
+test('ordinary retained blobs allow peer download, raw-file/theme apply and media publish', async t => {
+  const siteDir = await realpath(await mkdtemp(join(tmpdir(), 'ordinary-publish-')));
+  t.after(() => rm(siteDir, { recursive: true, force: true }));
+  const themesDir = join(siteDir, 'themes'); await mkdir(themesDir);
+  const { deps } = libraryFixture();
+  const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
+    referenceCheck: { findReferences: async () => [] } };
+  const bytes = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>');
+  const { media } = await uploadMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId,
+    filename: 'ordinary.svg', bytes, contentType: 'image/svg+xml', createdByPrincipal: 'owner' } });
+  await trashMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId, id: media.id } });
+  await purgeMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId, id: media.id } });
+  assert.equal(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), null);
+  const retained = (await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: media.source.sha256 }))!;
+  const storedBytes = Buffer.from(await deps.blobStore.get({ storageKey: retained.storageKey }));
+  // Cover both the pending-GC tombstone and an orphan already present on a destination.
+  const outbox = new InMemoryOutbox();
+  const publishDeps: PublishContentDeps = { ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    ports: { media: { repo: deps.mediaRepo, assetBlobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore },
+      'theme-files': { themesDir } },
+    backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ siteDir }), blobs: deps.blobStore } };
+  const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
+  registerPublishContentBlobGetRoute(app, { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps);
+  const base = await startTestServer(app, t);
+  for (const status of ['tombstoned', 'active'] as const) {
+    await deps.assetBlobRepo.save({ ...retained, status });
+    const response = await fetch(`${base}/api/admin/v1/workspaces/site-a/publish-content/blobs/${media.source.sha256}`);
+    assert.equal(response.status, 200, status);
+    assert.equal((await response.json() as { dataBase64: string }).dataBase64, storedBytes.toString('base64'));
+    const rawState = { path: `snippets/${status}.html`, sha256: media.source.sha256, size: storedBytes.length, mode: 0o644 };
+    const themeState = { title: `Theme: static/${status}`, kind: 'theme-files', treeKey: `static/${status}`,
+      files: [{ path: 'render/partials/ordinary.html', sha256: media.source.sha256, size: storedBytes.length, mode: 0o644 }] };
+    for (const [contributor, state, id, path] of [
+      [contributeRawFilePublish(), rawState, rawState.path, join(siteDir, rawState.path)],
+      [contributeThemeFilesPublish(), themeState, themeState.treeKey, join(themesDir, themeState.treeKey, 'render/partials/ordinary.html')],
+    ] as const) {
+      const handler = contributor.build(publishDeps);
+      const entity: PackedEntity = { entityType: contributor.entityType, id, state, schemaVersion: 1, hashVersion: 1,
+        contentHash: contentHash(contributor.entityType, state), requiredBlobs: [media.source.sha256] };
+      await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `${contributor.entityType}-${status}` });
+      assert.deepEqual(await readFile(path), storedBytes);
+    }
+    const handler = contributeMediaPublish().build(publishDeps);
+    const state = { ...media, id: `republished-${status}`, slug: `republished-${status}` };
+    const entity: PackedEntity = { entityType: 'media', id: state.id, state, schemaVersion: 1, hashVersion: 1,
+      contentHash: contentHash('media', state), requiredBlobs: [media.source.sha256] };
+    assert.equal(await handler.precheck(entity), null, status);
+    await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `ordinary-media-${status}` });
+    assert.equal((await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: state.id }))?.source.sha256, media.source.sha256);
+    // Drop the new live owner so the next status case still has no ordinary media row.
+    await deps.mediaRepo.remove({ workspaceId: deps.workspaceId, id: state.id });
+  }
 });

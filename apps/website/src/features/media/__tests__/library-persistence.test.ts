@@ -42,7 +42,12 @@ for (const adapter of eachDialect({ tables: ['media_slug_history', 'asset_rendit
       await trash.hide({ workspaceId: 'site-a', entityId: media.id, at: memory.clock.nowIso(), expectedVersion: restored!.version });
       assert.equal(await trash.purge({ workspaceId: 'site-a', entityId: media.id, expectedVersion: null }), 'purged');
       assert.equal(await mediaRepo.findById({ workspaceId: 'site-a', id: media.id }), null);
-      assert.equal((await blobRepo.findByHash({ workspaceId: 'site-a', sha256: media.source.sha256 }))?.status, 'tombstoned');
+      const owned = (await blobRepo.findByHash({ workspaceId: 'site-a', sha256: media.source.sha256 }))!;
+      assert.equal(owned.status, 'tombstoned');
+      // RED: ownership must persist after the editorial row is physically removed.
+      assert.equal(owned.documentOwned, true);
+      await blobRepo.save({ ...owned, documentOwned: false });
+      assert.equal((await blobRepo.findByHash({ workspaceId: 'site-a', sha256: media.source.sha256 }))?.documentOwned, true);
     } finally { if (adapter.name === 'sqlite') await kernel.close(); }
   });
 }
@@ -59,6 +64,7 @@ test('Library: document metadata and original bytes survive a real SQLite and fi
   db.$client.close(); db = openContentDb(filename);
   try {
     const later = makeDeps();
+    assert.equal((await later.blobRepo.findByHash({ workspaceId: 'site-a', sha256: media.source.sha256 }))?.documentOwned, true);
     assert.equal((await later.mediaRepo.findById({ workspaceId: 'site-a', id: media.id }))?.originalFilename, 'restart.md');
     assert.equal((await readDocumentText({ deps: later, input: { workspaceId: 'site-a', id: media.id } })).text, 'Persistent source');
     await assert.rejects(readDocumentText({ deps: later, input: { workspaceId: 'site-b', id: media.id } }));

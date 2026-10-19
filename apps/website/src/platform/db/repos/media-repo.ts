@@ -447,6 +447,7 @@ function toAssetBlobRecord(row: Selectable<AssetBlobsTable>): AssetBlobRecord {
   // is NOT deep-equal to an absent key under `assert.deepStrictEqual` (see origin-repo.ts's
   // identical fix for the same class of bug).
   if (row.tombstoned_at != null) record.tombstonedAt = row.tombstoned_at;
+  if (row.document_owned === true || row.document_owned === 1) record.documentOwned = true;
   return record;
 }
 
@@ -477,6 +478,7 @@ export class SqlAssetBlobRepo implements AssetBlobRepoPort {
       created_at: record.createdAt,
       status: record.status,
       tombstoned_at: record.tombstonedAt ?? null,
+      document_owned: record.documentOwned === true,
     };
     await this.kernel.transaction(async () => {
       await this.kernel.lockKey(`asset_blobs:${record.workspaceId}:${record.sha256}`);
@@ -489,7 +491,8 @@ export class SqlAssetBlobRepo implements AssetBlobRepoPort {
           // branch runs on `uploadMedia`'s dedup RESURRECT path (tombstoned -> active), which would
           // then silently erase the recorded type of a blob that is being re-referenced, not deleted.
           // The type is owned by `SqlMediaContentTypeStore` below; this repo never writes it.
-          await db.updateTable("asset_blobs").set(values).where("workspace_id", "=", record.workspaceId).where("sha256", "=", record.sha256).execute();
+          // Ownership is monotonic until GC removes the blob; stale saves cannot clear it.
+          await db.updateTable("asset_blobs").set({ ...values, document_owned: existing.documentOwned === true || record.documentOwned === true }).where("workspace_id", "=", record.workspaceId).where("sha256", "=", record.sha256).execute();
         } else {
           await db.insertInto("asset_blobs").values(values).execute();
         }
