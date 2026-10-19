@@ -237,6 +237,7 @@ test("an unknown label says not-found on every tool that resolves one, rather th
   }
 });
 
+// 13138e356 adopted Jini normalization before handlers; unknown keys are refused there.
 /* ------------------------------------------------------------------------------------------------
  * Validation — including the two smuggling refusals, which must not echo the smuggled VALUE
  * ---------------------------------------------------------------------------------------------- */
@@ -252,8 +253,7 @@ test("custom_credential_set_username refuses a smuggled token field by NAME, and
   assert.deepEqual(result.error, {
     code: "BAD_REQUEST",
     message:
-      "CUSTOM_CREDENTIALS_VALIDATION_FAILED: custom_credential_set_username accepts only 'label' and 'username' — refusing unexpected field(s): token. " +
-      "This tool writes ONLY the plaintext username column; it can never accept, read, or change a token.",
+      "Unknown input 'token'. Use only the declared properties; declare target and permission fields in the tool schema before using them.",
   });
   assert.ok(!JSON.stringify(result).includes("smuggled-token-value-123"), "the smuggled VALUE must never be echoed");
 });
@@ -269,8 +269,7 @@ test("custom_credential_set_token refuses a smuggled token field by NAME, and ne
   assert.deepEqual(result.error, {
     code: "BAD_REQUEST",
     message:
-      "CUSTOM_CREDENTIALS_VALIDATION_FAILED: custom_credential_set_token accepts only 'label' — refusing unexpected field(s): token. " +
-      "The token itself can only be supplied by a human, through the form this tool renders — never by this call.",
+      "Unknown input 'token'. Use only the declared properties; declare target and permission fields in the tool schema before using them.",
   });
   const wire = JSON.stringify(result);
   assert.ok(!wire.includes("smuggled-token-value-456"), "the smuggled VALUE must never be echoed");

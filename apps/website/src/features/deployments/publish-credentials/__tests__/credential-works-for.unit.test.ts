@@ -30,8 +30,8 @@ test("a custom Vercel key configures and resolves the same publish source as ven
   const f = fixture();
   const key = await f.save();
   assert.deepEqual(await f.source.isConfigured({ workspaceId: "site", target: "vercel" }), { configured: true });
-  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel" }), { ok: true, token: "synthetic-publish-token" });
-  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel", credentialId: key.id }), { ok: true, token: "synthetic-publish-token" });
+  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel" }), { ok: true, token: "synthetic-publish-token", credentialId: key.id });
+  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel", credentialId: key.id }), { ok: true, token: "synthetic-publish-token", credentialId: key.id });
   assert.equal((await f.source.resolve({ workspaceId: "site", target: "github-pages", credentialId: key.id })).ok, false);
   assert.equal((await f.source.resolve({ workspaceId: "other", target: "vercel", credentialId: key.id })).ok, false);
   // Capabilities need only stored metadata, even with a broken/unavailable sealer.
@@ -52,7 +52,7 @@ test("multiple case variants require selection; a vendor default wins without hi
   assert.equal((await f.source.resolve({ workspaceId: "site", target: "vercel", credentialId: first.id })).ok, true);
   const vendor = await createPublishCredential(f.deps, { workspaceId: "site", label: "Vendor connection",
     connection: { providerId: "vercel", token: "synthetic-vendor-token" } });
-  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel" }), { ok: true, token: "synthetic-vendor-token" });
+  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel" }), { ok: true, token: "synthetic-vendor-token", credentialId: vendor.id });
   const rows = await listPublishCredentials(f.deps, { workspaceId: "site" });
   assert.equal(rows.length, 3);
   assert.deepEqual(rows.filter(row => row.isDefault).map(row => row.id), [vendor.id]);
@@ -117,7 +117,7 @@ test("unmigrated custom keys gain publish eligibility only after an explicit wor
   assert.equal((await f.source.isConfigured({ workspaceId: "site", target: "vercel" })).configured, false);
   const repo = new CustomCredentialVaultRepo({ vault: f.deps.repo.vault });
   await updateCustomCredential({ ...f.deps, repo }, { ...identity, worksFor: ["vercel"] });
-  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel", credentialId: identity.id }), { ok: true, token: "synthetic-publish-token" });
+  assert.deepEqual(await f.source.resolve({ workspaceId: "site", target: "vercel", credentialId: identity.id }), { ok: true, token: "synthetic-publish-token", credentialId: identity.id });
   assert.deepEqual((await f.deps.repo.vault.find(identity))!.sealed, sealed);
   assert.equal((await f.deps.repo.vault.find(identity))!.kind, "custom");
 });

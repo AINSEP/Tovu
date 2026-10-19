@@ -106,7 +106,7 @@ test("copy inventory retains every eligible kind, labels custom host compatibili
     const publish = createDbPublishCredentialSource({ repo: new VendorCredentialSetVaultRepo({ vault: f.target.repo, kind: "vendor", vendor: true }),
       sealer: f.target.sealer, loadDeployTargets: loadBundledDeployTargets });
     assert.deepEqual(await publish.isConfigured({ workspaceId: "target", target: "vercel" }), { configured: true });
-    assert.deepEqual(await publish.resolve({ workspaceId: "target", target: "vercel" }), { ok: true, token });
+    assert.deepEqual(await publish.resolve({ workspaceId: "target", target: "vercel" }), { ok: true, token, credentialId: "Production access" });
     assert.deepEqual(fs.readFileSync(f.source.dbPath), before);
   } finally { await f.close(); }
 });

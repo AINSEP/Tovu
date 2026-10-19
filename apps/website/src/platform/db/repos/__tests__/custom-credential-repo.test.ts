@@ -32,6 +32,8 @@ function makeRecord(overrides: Partial<CustomCredentialSetRecord> = {}): CustomC
     // `[]`, never omitted — `CustomCredentialSetRecord.additionalHosts`'s own contract is "empty,
     // never null/undefined" (types.ts), so a fixture that skips this field is not a valid record.
     additionalHosts: [],
+    // 1d96267e3 makes compatibility explicit even when no providers are declared.
+    worksFor: [],
     sealed: { keyId: "k1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     createdAt: NOW,
     updatedAt: NOW,
@@ -43,12 +45,12 @@ function vaultRow(overrides: Partial<VaultRecord> = {}): VaultRecord {
   const record = makeRecord();
   return { ...customVaultScope(record), id: record.id, provider: null, label: record.label,
     sealed: record.sealed, isDefault: true, revision: 1, last4: "tail", tokenLength: 20,
-    meta: { category: record.category, baseUrl: record.baseUrl, additionalHosts: [], username: null },
+    meta: { credentialType: "custom", worksFor: [], category: record.category, baseUrl: record.baseUrl, additionalHosts: [], username: null },
     createdAt: NOW, updatedAt: NOW, ...overrides };
 }
 
-for (const patch of [{ kind: "vendor" }, { ownerKey: "foreign" }, { principalId: "foreign" },
-  { binding: "https://foreign.example" }, { provider: "foreign" }] as const) {
+for (const patch of [{ kind: "vendor", meta: { credentialType: "vendor", worksFor: ["github"], accountLabel: null } }, { ownerKey: "foreign" }, { principalId: "foreign" },
+  { binding: "https://foreign.example" }, { provider: "foreign" }] satisfies Partial<VaultRecord>[]) {
   test(`custom records reject a foreign ${Object.keys(patch)[0]} before exposing credential data`, () => {
     assert.throws(() => customVaultRecord({ row: vaultRow(patch) }, {}), {
       name: "VaultError", message: "Secrets vault: context",
@@ -66,23 +68,29 @@ test("custom record summaries hide the envelope revision and preserve an explici
   const row = vaultRow();
   const record = customVaultRecord({ row, expectedRevision: null });
   assert.deepEqual(record, makeRecord());
-  assert.equal(record.vaultRecord, row);
+  assert.deepEqual(record.vaultRecord, row);
+  assert.notEqual(record.vaultRecord, row, "1d96267e3 keeps parsed metadata in a private copy");
   assert.equal(record.vaultExpectedRevision, null);
   assert.equal(Object.hasOwn(record, "username"), false);
   assert.equal(Object.keys(record).includes("vaultRecord"), false);
   assert.equal(JSON.stringify(record).includes("vaultExpectedRevision"), false);
   assert.deepEqual(customVaultScope({ workspaceId: WORKSPACE }, {}), {
-    workspaceId: WORKSPACE, kind: "custom", ownerKey: "tovu", principalId: null, binding: null,
+    workspaceId: WORKSPACE, kind: "vendor", ownerKey: "tovu", principalId: null, binding: null,
   });
 });
 
 test("legacy metadata without a username produces a summary without a username field", () => {
-  const row = vaultRow();
+  const row = vaultRow({ kind: "custom" });
+  delete row.meta.credentialType;
+  delete row.meta.worksFor;
   delete row.meta.username;
   const record = customVaultRecord({ row });
   assert.deepEqual(record, makeRecord());
   assert.equal(Object.hasOwn(record, "username"), false);
   assert.equal(Object.hasOwn(record, "vaultExpectedRevision"), false);
+  assert.equal(record.vaultRecord?.kind, "custom", "normalization never changes authenticated identity");
+  assert.deepEqual(record.vaultRecord?.meta.worksFor, []);
+  assert.equal(Object.hasOwn(row.meta, "worksFor"), false, "read normalization must not mutate stored metadata");
 });
 
 test("a revision-bearing DTO without a prepared row uses its explicit create CAS", async () => {
@@ -108,7 +116,7 @@ test("custom credentials list by label rather than by vault id", async () => {
 
 test("custom lookups ignore a different vault kind and leave that row intact on delete", async () => {
   const vault = new InMemoryVaultRepo({});
-  const saved = await vault.put({ record: vaultRow({ kind: "vendor" }), expectedRevision: null });
+  const saved = await vault.put({ record: vaultRow({ kind: "source-control" }), expectedRevision: null });
   const repo = new CustomCredentialVaultRepo({ vault }, {});
   assert.equal(await repo.findById(saved), null);
   await repo.delete(saved);

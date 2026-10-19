@@ -31,6 +31,8 @@ function makeRecord(overrides: Partial<VendorCredentialSetRecord> = {}): VendorC
     workspaceId: WORKSPACE,
     id: "cred-1",
     vendorId: "github",
+    credentialType: "vendor",
+    worksFor: [overrides.vendorId ?? "github"],
     label: "Main account",
     sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     tokenTail: "",

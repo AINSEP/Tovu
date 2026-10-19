@@ -60,9 +60,9 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const WORKSPACE_ID = "workspace-local";
 const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
 
-/** Mirrors `admin-assistant-execution-routes.test.ts`'s identical helper. */
 let grantCounter = 0;
-async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permissions: readonly string[]): Promise<string> {
+/** Seed real grants independently of HTTP login so direct surface calls use the same identity. */
+async function principalWithPermissions({ deps, permissions }: { deps: RouteDeps; permissions: readonly string[] }, _options = {}): Promise<{ id: string; username: string }> {
   await deps.identityReady;
   const suffix = `${++grantCounter}`;
   const principalId = `grant-principal-byok-${suffix}`;
@@ -95,7 +95,12 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
     });
   }
   await deps.principalPolicyRepo.save({ id: `grant-link-${suffix}`, workspaceId: deps.workspaceId, principalId, policyId });
+  return { id: principalId, username };
+}
 
+/** Mirrors `admin-assistant-execution-routes.test.ts`'s identical helper. */
+async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permissions: readonly string[]): Promise<string> {
+  const { username } = await principalWithPermissions({ deps, permissions });
   const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -1301,14 +1306,15 @@ async function grantChatDeletes(deps: ReturnType<typeof createRouteDeps>) {
 test("BYOK discovery is OFF by default and updates checked tools without rebuilding the surface", async () => {
   const deps = createRouteDeps(); await deps.identityReady; await deps.settingsUiTabsReady;
   const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
-  const principal = { id: await deps.ownerPrincipalId }, run = { id: "pdel-discovery" };
+  // d1c1fbd9a grants owners all deletes; the site switch still governs authorized non-owners.
+  const principal = await principalWithPermissions({ deps, permissions: ["content.read"] }), run = { id: "pdel-discovery" };
   const describe = () => surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_empty" } });
   const off = await describe(); assert.equal(off.isError, true);
   await grantChatDeletes(deps);
   assert.equal((await describe()).isError, undefined);
   await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
     key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: true, allowedToolIds: ["trash_empty"] },
-    workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id } });
+    workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
   assert.equal((await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_purge_item" } })).isError, true);
   assert.equal((await describe()).isError, undefined);
 });
@@ -1317,11 +1323,11 @@ test("BYOK discovery is OFF by default and updates checked tools without rebuild
 test("BYOK execute-time revocation refuses a previously discovered handler without opening a card", async () => {
   const deps = createRouteDeps(); await grantChatDeletes(deps);
   const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
-  const principal = { id: await deps.ownerPrincipalId }, run = { id: "pdel-revoke" };
+  const principal = await principalWithPermissions({ deps, permissions: ["content.read"] }), run = { id: "pdel-revoke" };
   assert.equal((await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_empty" } })).isError, undefined);
   await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
     key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: false, allowedToolIds: ["trash_empty"] },
-    workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id } });
+    workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
   const result = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "trash_empty", input: {} } }, undefined,
     async () => assert.fail("revoked access must not open a card"));
   assert.equal(result.isError, true);
@@ -1336,13 +1342,13 @@ test("BYOK a saved-setting revoke while the human reads the card prevents perman
   const trashItemId = await trashRowFor(deps, postId);
   assert.ok(trashItemId);
   const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
-  const principal = { id: await deps.ownerPrincipalId }, run = { id: "pdel-revoke-at-card" };
+  const principal = await principalWithPermissions({ deps, permissions: ["content.read", "content.write"] }), run = { id: "pdel-revoke-at-card" };
   let cards = 0;
   const result = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: PURGE_TOOL_ID, input: { trashItemId } } }, undefined, async () => {
     cards++;
     await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
       key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: false, allowedToolIds: [PURGE_TOOL_ID] },
-      workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id } });
+      workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
     const exchangeId = surface.surfaceExchanges.findTypedAnswerTarget({ principalId: principal.id, toolId: PURGE_TOOL_ID })!;
     assert.deepEqual(surface.surfaceExchanges.deliver({ exchangeId, principalId: principal.id, params: { decision: "confirm" } }, { toolId: PURGE_TOOL_ID }), { ok: true });
   });
@@ -1387,6 +1393,8 @@ test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the re
   const response = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, messages: [{ role: 'user', content: 'Design holography' }], userPrompt: 'Design holography', conversationId: 'hint-conversation', byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(response.status, 200);
   const frames = parseSseFrames(await response.text());
+  // Surface the route's actual refusal before a downstream zero-call assertion hides its cause.
+  assert.deepEqual(frames.filter(frame => frame.event === 'error'), []);
   assert.equal(calls, 2);
   assert.equal(frames.some(frame => frame.event === 'error'), false);
   const usage = frames.filter(frame => frame.event === 'agent' && frame.payload.type === 'agent_plugins');

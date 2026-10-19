@@ -179,7 +179,7 @@ test("custom_credential_set_token has a catalog entry gated on the WRITE permiss
   const schema = entry!.inputSchema as { required: unknown[]; additionalProperties: boolean; properties: Record<string, unknown> };
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual([...schema.required], ["kind"]);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target", "worksFor"]);
   assert.ok(!("token" in schema.properties));
 });
 

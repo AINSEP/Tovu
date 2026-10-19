@@ -108,7 +108,7 @@ test('t10 source registration uses credential write permission, durable risk and
   const f = fixture(); const entry = credentialSaveCatalog.find(t => t.name === ID); assert.ok(entry, 'source credential catalog entry exists');
   assert.equal(entry.authorization.permission, 'resolved-per-kind'); assert.equal(entry.sideEffects, 'mutates-durable-state');
   assert.equal(credentialSaveDerivedRisk.get(ID), 'mutates-durable-state'); assert.equal(f.tool().descriptor.readOnly, false);
-  assert.deepEqual(Object.keys((entry.inputSchema as any).properties).sort(), ['baseUrl', 'category', 'kind', 'label', 'prefill', 'reason', 'target']);
+  assert.deepEqual(Object.keys((entry.inputSchema as any).properties).sort(), ['baseUrl', 'category', 'kind', 'label', 'prefill', 'reason', 'target', 'worksFor']);
   assert.equal(entry.inputSchema!.additionalProperties, false);
 });
 
