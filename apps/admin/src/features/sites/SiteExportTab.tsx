@@ -22,7 +22,7 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
       <div className="site-transfer-head">
-        <p className="site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
+        <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
         <button
           type="button"
           className="btn-primary"
@@ -52,7 +52,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       rows={controller.shares}
       rowKey={(share) => share.shareId}
       label={t("Exports")}
-      empty={<p className="site-transfer-empty">{t("No exports yet.")}</p>}
+      empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No exports yet.")}</p></div>}
       columns={[
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
         { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },

@@ -71,8 +71,10 @@
 
 /* The tabs row follows the PANE (2026-10-11): it wrapped badly on desktop with the nav + dock open
    too. 38.5rem ≈ the old 40rem viewport minus a phone's page padding. Touch sizes, iOS-zoom font
-   size and the sticky footer stay viewport-only below. */
-@container admin-content (max-width: 38.5rem) {
+   size and the sticky footer stay viewport-only below.
+   44rem since the Export Site / Import Site tabs (2026-10-18): five tabs plus the button need
+   ~680px on one line, and below that "Trash" wrapped onto a second row of its own. */
+@container admin-content (max-width: 44rem) {
   .sites-tabs-row { flex-wrap: wrap; border-bottom: none; }
   .sites-tabs-row > .tab-bar { flex-basis: 100%; border-bottom: 1px solid var(--border); }
   .sites-tabs-row > .sites-settings-button { order: -1; margin: 0 0 0 auto; }

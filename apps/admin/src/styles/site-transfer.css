@@ -8,15 +8,26 @@
 .site-transfer { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 
 .site-transfer-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.site-transfer-lead { margin: 0; display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg-2); font-size: var(--text-sm); max-width: 40rem; }
+/* Type and colour come from `.onboarding-section-lead` (the New site tab's description copy); this only lays out the InfoTip. */
+.site-transfer-lead { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 40rem; }
+/* The tapped-open InfoTip copy is a full row under the lead (Jini's `.info-tip-inline-copy` is
+   `flex-basis: 100%`, which needs the wrap above); its "• " lines stay one per line. */
+.site-transfer-lead .info-tip-inline-copy { white-space: pre-line; }
 .site-transfer-head > .btn-primary { display: inline-flex; align-items: center; gap: var(--space-2); }
 
 .site-transfer-subtitle { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
-.site-transfer-empty { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 
 /* Table cells: dates and sizes line up; a long link wraps instead of widening the table. */
 .site-transfer-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .site-transfer-link { font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-2); overflow-wrap: anywhere; }
+/* As a table column a full share link broke one letter per line at 700px; it is one ellipsised
+   line there (the full link is the cell's title, and Copy link copies it). Phone cards keep it whole. */
+@container admin-content (min-width: 620.02px) {
+  .site-transfer-link { display: block; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@container admin-content (min-width: 56rem) {
+  .site-transfer-link { max-width: 28ch; }
+}
 .site-transfer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .site-transfer-actions > .btn-secondary,
 .site-transfer-actions > .btn-danger,
@@ -48,6 +59,15 @@
 /* Touch: every control on these tabs is at least 44px tall. */
 @media (pointer: coarse) {
   .site-transfer button, .site-transfer a.btn-secondary, .site-transfer a.btn-primary, .site-transfer input { min-height: 44px; }
+}
+
+/* Phone card rows (styles.css "Phone card rows for every .list-table"): the date title is
+   nowrap, so letting it shrink put Copy link / Download zip / Revoke on top of it at 390px.
+   The title keeps its width and the actions wrap to their own line under it instead. */
+@container admin-content (max-width: 620px) {
+  .site-transfer table.list-table > tbody > tr > td:first-child { flex: 1 0 auto; }
+  /* A row with no actions (revoked, failed) shows "—" there; on a card it is an unlabelled stray dash. */
+  .site-transfer table.list-table > tbody > tr > td:last-child:has(> .muted-cell:only-child) { display: none; }
 }
 
 @media (max-width: 720px) {

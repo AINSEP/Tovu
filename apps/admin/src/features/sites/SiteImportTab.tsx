@@ -27,7 +27,7 @@ export function SiteImportTab({ t, useImport = useWiredSiteImport }: SiteImportT
   return (
     <section className="site-transfer" aria-label={t("Import Site")}>
       <div className="site-transfer-head">
-        <p className="site-transfer-lead">
+        <p className="onboarding-section-lead site-transfer-lead">
           {t("Bring in a site from a Tovu export or a live website.")}
           <InfoTip label={importOptionsTip(t)} triggerLabel={t("About importing")} placement="inline" agentHandle="sites-import-info" />
         </p>
@@ -221,10 +221,10 @@ function ImportList({ controller, t }: { controller: SiteImportController; t: Tr
       rows={controller.imports}
       rowKey={(item) => item.importId}
       label={t("Past imports")}
-      empty={<p className="site-transfer-empty">{t("No imports yet.")}</p>}
+      empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No imports yet.")}</p></div>}
       columns={[
         { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
-        { key: "source", header: t("Source"), cell: (item) => <span className="site-transfer-link">{importSourceLabel(item.source, t)}</span> },
+        { key: "source", header: t("Source"), cell: (item) => "url" in item.source ? <span className="site-transfer-link" title={item.source.url}>{importSourceLabel(item.source, t)}</span> : importSourceLabel(item.source, t) },
         { key: "site", header: t("New site"), cell: (item) => item.newSiteName ?? <span className="muted-cell">—</span> },
         {
           key: "status",
