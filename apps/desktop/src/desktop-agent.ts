@@ -35,7 +35,7 @@ import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalo
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
-import { redactSecretShapes } from "@jini-ai/diagnostics/redaction/secrets-only";
+import { redactSecretShapes } from "../../website/src/contracts/core/secret-redaction.ts";
 import { assistantCliPermissions, type AssistantCliPermissions } from "../../website/src/contracts/headless/assistant-subagents-policy.ts";
 import { resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
 import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
