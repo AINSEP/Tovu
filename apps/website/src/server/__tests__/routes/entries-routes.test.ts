@@ -1107,3 +1107,44 @@ test("entries lifecycle: `req.body ?? {}` fallback, forced via a direct handler 
   assert.equal(capture.statusCode, 400);
   assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 });
+
+for (const body of [{ type: 1, slug: "recipe", title: "Recipe" }, { type: "recipe", slug: 1, title: "Recipe" }, { type: "recipe", slug: "recipe", title: 1 }]) {
+  test(`entry create rejects an invalid required string ${JSON.stringify(body)}`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const write = t.mock.method(deps.entryRepo, "save");
+    const response = await fetch(`${baseUrl}/api/admin/v1/entries`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body) });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "'type', 'slug', and 'title' (strings) are required", code: "VALIDATION_ERROR" });
+    assert.equal(write.mock.callCount(), 0);
+  });
+}
+
+for (const status of ["deprecated", "tombstone"] as const) {
+  test(`entry create refuses an owning type in ${status} state without writing`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    await registerRecipeType(baseUrl, cookie);
+    const owningType = await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: "recipe" });
+    assert.ok(owningType);
+    await deps.contentTypeRepo.save({ ...owningType, status });
+    const response = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+      method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ type: "recipe", slug: "eggs", title: "Eggs" }),
+    });
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, "CONTENT_TYPE_NOT_ACTIVE");
+    assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }), []);
+  });
+}
+
+test("entry create refuses invalid fields rather than persisting an un-enveloped object", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const response = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ type: "recipe", slug: "eggs", title: "Eggs", fieldsJson: { unexpected: "value" } }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "VALIDATION_ERROR");
+  assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }), []);
+});

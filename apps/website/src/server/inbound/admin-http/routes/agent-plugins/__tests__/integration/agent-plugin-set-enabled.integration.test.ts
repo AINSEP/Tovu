@@ -65,7 +65,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
   };
 }
 
-function manifestJson(name: string, fields: { version?: string; description?: string; keywords?: readonly string[] } = {}): string {
+function manifestJson(name: string, fields: { version?: string; description?: string; keywords?: readonly string[]; extensions?: unknown } = {}): string {
   return JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name, ...fields });
 }
 
@@ -114,6 +114,8 @@ function buildTestApp(overrides: Pick<AgentPluginsRouteDeps, "setAgentPluginEnab
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
   const baseDeps = createRouteDeps();
   const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
+    // Pin the port so failure injection and the request use the same layout object.
+    agentPluginLayout: resolveAgentPluginLayout(),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,
@@ -515,3 +517,58 @@ test("AGENT_PLUGIN_SET_ENABLED: an MCP-store failure preserves the successful ac
     assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), before);
   });
 });
+
+
+for (const failure of [new Error("private activation failure"), "private activation failure"]) {
+  test(`AGENT_PLUGIN_SET_ENABLED: unexpected lifecycle failure is redacted (${typeof failure})`, async (t) => {
+    await withAgentPluginsDir(async () => {
+      await installReal("site-compliance", "seed-route-failure");
+      let writes = 0;
+      const { app } = buildTestApp({ setAgentPluginEnabled: async () => { writes++; throw failure; } });
+      const { baseUrl, cookie } = await bootAuthenticated(app, t);
+      const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
+      assert.equal(response.status, 500);
+      assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+      assert.equal(writes, 1);
+    });
+  });
+}
+
+
+test("AGENT_PLUGIN_SET_ENABLED: a package removed after discovery is still a 404", async (t) => {
+  await withAgentPluginsDir(async () => {
+    const { AgentPluginNotInstalledError } = await import("#src/features/agent-plugins/set-enabled");
+    await installReal("site-compliance", "seed-disappearing-plugin");
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const before = await readAgentPluginActivations({ workspaceRoot });
+    const { app } = buildTestApp({ setAgentPluginEnabled: async ({ pluginId }) => { throw new AgentPluginNotInstalledError({ pluginId }); } });
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: "agent plugin 'site-compliance' is not installed in this workspace", code: "AGENT_PLUGIN_NOT_FOUND" });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), before);
+  });
+});
+
+for (const failure of [new Error("layout unavailable"), "layout unavailable"]) {
+  test(`AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (${typeof failure})`, async (t) => {
+    await withAgentPluginsDir(async () => {
+      const { setAgentPluginEnabled } = await import("#src/features/agent-plugins/set-enabled");
+      // A qualified identity avoids unrelated legacy-manifest warnings during discovery.
+      await installReal("site-compliance", "seed-discovery-failure", { extensions: { tovu: { id: "test/site-compliance" } } });
+      const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+      const warnings = t.mock.method(console, "warn", () => {});
+      const { app } = buildTestApp({ setAgentPluginEnabled: async (input) => {
+        const written = await setAgentPluginEnabled(input);
+        t.mock.method(input.agentPluginLayout, "forWorkspace", () => { throw failure; });
+        return written;
+      } });
+      const { baseUrl, cookie } = await bootAuthenticated(app, t);
+      const response = await patch(baseUrl, cookie, "site-compliance", { enabled: true });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).agentPlugin.enabled, true);
+      assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins["site-compliance"]?.enabled, true);
+      assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [["[agent-plugins] 'site-compliance': MCP provisioning could not run — layout unavailable"]]);
+    });
+  });
+}

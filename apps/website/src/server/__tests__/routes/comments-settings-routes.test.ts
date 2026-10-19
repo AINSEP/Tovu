@@ -209,3 +209,15 @@ test("a principal without comments.configure is refused on both GET and PUT", as
   });
   assert.equal(putRes.status, 403);
 });
+
+test("comments settings PUT with no body preserves the stored settings", async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`;
+  const before = await (await fetch(url, { headers: { cookie } })).json();
+  const response = await fetch(url, { method: "PUT", headers: { cookie } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), before);
+  assert.deepEqual(await (await fetch(url, { headers: { cookie } })).json(), before);
+});

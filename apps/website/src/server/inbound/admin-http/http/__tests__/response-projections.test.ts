@@ -160,3 +160,22 @@ test("workspace projection includes creation time and emits only the public iden
     id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z",
   });
 });
+
+
+test("media projection preserves an explicit document kind", () => {
+  const record = { ...media("doc-1", "doc-sha"), kind: "document" as const, originalFilename: "report.pdf" };
+  const result = toAdminMediaResponse({ media: record, contentType: "application/pdf", publicUrl: "/m/report.pdf", byteSize: 123 });
+  assert.equal(result.kind, "document");
+  assert.equal(result.originalFilename, "report.pdf");
+  assert.equal(result.displayFilename, "Launch clip.pdf");
+  assert.equal(result.publicUrl, null);
+  assert.equal(result.contentType, "application/pdf");
+  assert.equal(result.byteSize, 123);
+});
+
+test("a document without an original filename fails validation instead of fabricating its type", () => {
+  const record = { ...media("doc-legacy", "doc-sha"), kind: "document" as const, originalFilename: null };
+  assert.throws(() => toAdminMediaResponse({ media: record, contentType: "application/pdf", publicUrl: "/m/unsafe", byteSize: 123 }), {
+    message: "document filename must be a plain filename of at most 255 characters",
+  });
+});

@@ -164,3 +164,16 @@ test("toExecutionTabAgent reports an unavailable agent and preserves missing-aut
     id: "claude", name: "Claude Code", available: false, authStatus: "missing", authMessage: "Run claude login",
   })), { id: "claude", label: "Claude Code", installed: false, modelsSource: "fallback", authStatus: "missing", authMessage: "Run claude login" });
 });
+
+test("empty optional discovery collections stay absent rather than claiming reported support", () => {
+  const result = toExecutionTabAgent(buildAgent({
+    models: [], modelsSource: undefined, reasoningOptions: [], reasoningInModelId: { levels: [] },
+    version: "", path: "", authStatus: undefined, authMessage: "",
+  }));
+  assert.deepEqual(result, { id: "test-cli", label: "Test CLI", installed: true });
+});
+
+test("a model with no reported effort levels retains its identity without a reasoning claim", () => {
+  const result = toExecutionTabAgent(buildAgent({ models: [{ id: "plain", label: "Plain", reasoning: [] }], modelsSource: undefined }));
+  assert.deepEqual(result, { id: "test-cli", label: "Test CLI", installed: true, models: [{ id: "plain", label: "Plain" }] });
+});

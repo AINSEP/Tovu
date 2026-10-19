@@ -49,6 +49,33 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
     assert.deepEqual(packageBody.files.map(file => file.relativePath).sort(), ['plugin.json', 'skills/example/SKILL.md']);
     const fresh = await fetch(`${prefix}/memory`, { headers: { cookie } });
     assert.deepEqual((await fresh.json() as { notes: unknown[] }).notes, body.notes);
+    // Malformed notes must not replace the note that was already persisted.
+    for (const invalid of [[], {}, { text: 'missing path' }, { entryPath: 7, text: 'wrong path type' }, { entryPath: 'project.md' }, { entryPath: 'project.md', text: false }]) {
+      const refused = await put(invalid);
+      assert.equal(refused.status, 400);
+      assert.deepEqual(await refused.json(), { error: 'entryPath and text are required', code: 'VALIDATION_ERROR' });
+    }
+    assert.deepEqual((await (await fetch(`${prefix}/memory`, { headers: { cookie } })).json()).notes, body.notes);
+    for (const method of ['GET', 'PUT']) {
+      const wrongWorkspace = await fetch(`${prefix.replace('/workspace-local/', '/other/')}/memory`, { method, headers: { cookie } });
+      assert.equal(wrongWorkspace.status, 404);
+      assert.deepEqual(await wrongWorkspace.json(), { error: 'workspace was not found' });
+    }
+    const authorize = deps.authorize;
+    deps.authorize = async () => ({ allowed: false, reason: 'no_grant' });
+    for (const method of ['GET', 'PUT']) {
+      const denied = await fetch(`${prefix}/memory`, { method, headers: { cookie } });
+      assert.equal(denied.status, 403);
+      const deniedBody = await denied.json();
+      assert.equal(deniedBody.code, 'FORBIDDEN');
+      assert.equal(deniedBody.details.permission, method === 'GET' ? 'admin.plugins.read' : 'admin.plugins.enable');
+    }
+    deps.authorize = authorize;
+    const fault = t.mock.method(deps.agentPluginLayout, 'forWorkspace', () => { throw new Error('private /secret/plugins'); });
+    const failed = await fetch(`${prefix}/memory`, { headers: { cookie } });
+    assert.equal(failed.status, 500);
+    assert.deepEqual(await failed.json(), { error: 'internal error', code: 'INTERNAL_ERROR' });
+    assert.equal(fault.mock.callCount(), 1);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(temporary);

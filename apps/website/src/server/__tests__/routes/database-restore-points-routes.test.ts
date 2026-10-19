@@ -326,3 +326,20 @@ test("database restore-points routes: POST 500s with a generic message when a no
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
 });
+
+
+test("restore-point retry refuses an inconsistent idempotency lookup before capturing", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  t.mock.method(deps.restorePointsRepo, "findByIdempotencyKey", async () => ({ restorePointId: "lost-snapshot", idempotencyKey: "retry" }));
+  t.mock.method(deps.restorePointsRepo, "list", async () => []);
+  const capture = t.mock.method(deps.dbOps, "captureRestorePoint");
+  const save = t.mock.method(deps.restorePointsRepo, "save");
+  const response = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ idempotencyKey: "retry" }),
+  });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "restore point 'lost-snapshot' has a known idempotency key but no persisted row", code: "INTERNAL_ERROR" });
+  assert.equal(capture.mock.callCount(), 0);
+  assert.equal(save.mock.callCount(), 0);
+});

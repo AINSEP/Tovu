@@ -115,3 +115,55 @@ test("register and update-fields persist definitions and forward exact index eff
   assert.deepEqual(await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }), persisted);
   assert.deepEqual(indexCalls, effects);
 });
+
+
+for (const fault of [new Error("index unavailable"), "private failure"]) {
+  test(`register: index provisioning failure returns an internal error (${typeof fault})`, async (t) => {
+    const { baseUrl, deps, repo } = await buildApp(t);
+    const provision = t.mock.method(deps.contentTypeIndexProvisioner, "provisionIndexesForNewContentType", async () => { throw fault; });
+    const response = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", { key: "recipe", label: "Recipe", fields: FIELDS });
+    assert.equal(response.status, 500);
+    assert.deepEqual(response.json, { error: fault instanceof Error ? fault.message : "internal error", code: "INTERNAL_ERROR" });
+    assert.equal(provision.mock.callCount(), 1);
+    assert.equal((await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }))?.label, "Recipe");
+  });
+}
+
+test("register: the domain rechecks authorization after the HTTP precheck", async (t) => {
+  const { baseUrl, deps, repo, indexCalls } = await buildApp(t);
+  let calls = 0;
+  deps.authorize = async () => ({ allowed: ++calls === 1, reason: "revoked" });
+  const response = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", { key: "recipe", label: "Recipe", fields: FIELDS });
+  assert.equal(response.status, 403);
+  assert.equal(response.json.code, "FORBIDDEN");
+  assert.equal(calls, 2);
+  assert.equal(await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }), null);
+  assert.deepEqual(indexCalls, []);
+});
+
+for (const body of [{ key: 1, label: "Recipe" }, { key: "recipe", label: 1 }, {}]) {
+  test(`register: rejects invalid required fields ${JSON.stringify(body)} without indexing`, async (t) => {
+    const { baseUrl, indexCalls } = await buildApp(t);
+    const response = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", body);
+    assert.deepEqual(response, { status: 400, json: { error: "'key' (string) and 'label' (string) are required", code: "VALIDATION_ERROR" } });
+    assert.deepEqual(indexCalls, []);
+  });
+}
+
+
+for (const [method, suffix, body] of [
+  ["POST", "", { key: "recipe", label: "Recipe", fields: [{ name: "title", kind: "text", required: "yes", queryable: false }] }],
+  ["POST", "", { key: "recipe", label: "Recipe", fields: [{ name: "title", kind: "invalid", required: false, queryable: false }] }],
+  ["POST", "", { key: "recipe", label: "Recipe", fields: [{ name: "Bad Name", kind: "text", required: false, queryable: false }] }],
+  ["PUT", "/recipe/fields", { expectedVersion: 3, fields: [{ name: "title", kind: "text", queryable: "yes", required: false }] }],
+] as const) {
+  test(`content type rejects malformed field definitions ${JSON.stringify(body.fields)}`, async (t) => {
+    const { baseUrl, repo, indexCalls } = await buildApp(t, "active");
+    const before = structuredClone(await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }));
+    const response = await send(`${baseUrl}/api/admin/v1/content-types${suffix}`, method, body);
+    assert.equal(response.status, 400);
+    assert.equal(response.json.code, "VALIDATION_ERROR");
+    assert.deepEqual(await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }), before);
+    assert.deepEqual(indexCalls, []);
+  });
+}

@@ -180,3 +180,13 @@ test("database schema-state route: an unauthenticated caller never reaches the h
   const res = await fetch(`${baseUrl}/api/admin/v1/database/schema-state`);
   assert.equal(res.status, 401);
 });
+
+test("schema-state non-Error read rejection returns a generic failure without a fabricated status", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const read = t.mock.method(deps.databaseIntrospection, "getSchemaState", async () => { throw "private failure"; });
+  const response = await fetch(`${baseUrl}/api/admin/v1/database/schema-state`, { headers: { cookie } });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(read.mock.callCount(), 1);
+});

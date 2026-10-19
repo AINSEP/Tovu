@@ -149,3 +149,50 @@ test("password-status: repeat reads of an unchanged hash reuse one argon2 verify
   assert.deepEqual(await res.json(), { usesDefaultPassword: false });
   assert.equal(defaultChecks.length - afterChange, 1);
 });
+
+test("an authenticated principal without a user row uses its display name and has no default password", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const id = await deps.ownerPrincipalId;
+  const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
+  assert.ok(principal);
+  // An operator session resolves a principal independently of its optional login row.
+  const read = t.mock.method(deps.userRepo, "findByPrincipalId", async () => null);
+  const verify = t.mock.method(deps.passwordHasher, "verify");
+  const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });
+  assert.equal(me.status, 200);
+  assert.deepEqual((await me.json()).user, { id, username: principal.displayName });
+  const status = await fetch(`${baseUrl}/api/admin/v1/auth/me/password-status`, { headers: { cookie } });
+  assert.equal(status.status, 200);
+  assert.deepEqual(await status.json(), { usesDefaultPassword: false });
+  assert.equal(read.mock.callCount(), 2);
+  assert.equal(verify.mock.callCount(), 0);
+});
+
+test("password-status bounds memoization and rechecks an evicted hash", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const principalId = await deps.ownerPrincipalId;
+  const row = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
+  assert.ok(row);
+  const checks = t.mock.method(deps.passwordHasher, "verify", async ({ hash, password }) => {
+    assert.equal(password, "tovu-dev");
+    assert.match(hash, /^fixture-hash-\d+$/);
+    return Number(hash.slice("fixture-hash-".length)) % 2 === 0;
+  });
+  const url = `${baseUrl}/api/admin/v1/auth/me/password-status`;
+  // Each save represents an independently salted hash; no expensive cryptography is needed to
+  // exercise the route's bounded memoization policy through the accepted hasher port.
+  for (let index = 0; index <= 256; index++) {
+    await deps.userRepo.save({ ...row, passwordHash: `fixture-hash-${index}` });
+    const response = await fetch(url, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { usesDefaultPassword: index % 2 === 0 });
+  }
+  assert.equal(checks.mock.callCount(), 257);
+  await deps.userRepo.save({ ...row, passwordHash: "fixture-hash-0" });
+  const response = await fetch(url, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { usesDefaultPassword: true });
+  assert.equal(checks.mock.callCount(), 258, "overflow must evict old cached password verdicts");
+});

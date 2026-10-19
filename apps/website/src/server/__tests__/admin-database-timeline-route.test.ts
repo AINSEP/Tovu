@@ -154,3 +154,15 @@ test("database timeline route: a non-positive or non-numeric limit and an invali
     assert.deepEqual(await res.json(), { error, code: "VALIDATION_ERROR" }, query);
   }
 });
+
+for (const failure of [new Error("ledger unavailable"), "private ledger failure"]) {
+  test(`timeline read failure stays a 500 (${typeof failure})`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const read = t.mock.method(deps.databaseLedgerRepo, "query", async () => { throw failure; });
+    const response = await fetch(`${baseUrl}/api/admin/v1/database/timeline`, { headers: { cookie } });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: failure instanceof Error ? failure.message : "internal error", code: "INTERNAL_ERROR" });
+    assert.equal(read.mock.callCount(), 1);
+  });
+}

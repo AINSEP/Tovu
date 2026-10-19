@@ -229,3 +229,35 @@ test("execution PUT with a null body preserves the caller's saved settings", asy
     ...stored, updatedAt: NOW,
   });
 });
+
+import { registerAdminAssistantPutSiteCredentialRoute } from "../put-site-credential.js";
+import { ValueValidationFailedError } from "#src/features/settings/index";
+
+test("settings PUT maps ledger value validation to the public validation envelope", async () => {
+  const deps = depsForHandler();
+  const writes: unknown[] = [];
+  deps.set = async (input) => { writes.push(input.input); throw new ValueValidationFailedError("widget must be supported"); };
+  const result = await invoke(registerAdminAssistantPutSettingsRoute, deps, "put", "settings", { publicEnabled: true });
+  assert.deepEqual(result, { statusCode: 400, jsonBody: { error: "widget must be supported", code: "ASSISTANT_SETTINGS_VALIDATION_ERROR" } });
+  assert.deepEqual(writes, [{
+    namespace: "site.assistant", key: "public_enabled", scope: "workspace", value: true,
+    workspaceId: "ws-7", authWorkspaceId: "ws-7", callerPrincipalId: "admin-9", requiredPermissionOverride: "admin.assistant.manage",
+  }]);
+});
+
+test("site credential PUT redacts a failed metadata write", async (t) => {
+  const deps = depsForHandler();
+  const write = t.mock.method(assistantVaultRepo({ repo: deps.siteAssistantCredentialRepo }), "put", fail);
+  assertInternalError(await invoke(registerAdminAssistantPutSiteCredentialRoute, deps, "put", "site-credential", { provider: "openai", baseUrl: "https://example.org/v1", model: "example-model" }));
+  assert.equal(write.mock.callCount(), 1);
+  assert.equal(await deps.siteAssistantCredentialRepo.findByWorkspaceId("ws-7"), null);
+});
+
+for (const [field, value] of [["apiKey", 123], ["provider", null], ["baseUrl", false], ["model", []]] as const) {
+  test(`site credential PUT rejects a non-string ${field} before saving`, async () => {
+    const deps = depsForHandler();
+    const result = await invoke(registerAdminAssistantPutSiteCredentialRoute, deps, "put", "site-credential", { [field]: value });
+    assert.deepEqual(result, { statusCode: 400, jsonBody: { error: `${field} must be a string`, code: "SITE_CREDENTIAL_VALIDATION_ERROR" } });
+    assert.equal(await deps.siteAssistantCredentialRepo.findByWorkspaceId("ws-7"), null);
+  });
+}

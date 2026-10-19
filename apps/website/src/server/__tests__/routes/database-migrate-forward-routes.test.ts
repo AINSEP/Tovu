@@ -329,3 +329,118 @@ test("instance-scope fix (internal audit, 2026-08-12): a principal holding datab
   assert.equal(executeBody.code, "FORBIDDEN");
   assert.equal(executeBody.details.permission, "database.migrate");
 });
+
+
+for (const [step, bodies] of [
+  ["confirm", [undefined, {}, { planId: "id" }, { planId: 7, planHash: "hash" }, { planId: "id", planHash: 7 }]],
+  ["execute", [undefined, {}, { confirmationToken: 7 }]],
+] as const) {
+  test(`migration ${step} rejects malformed bodies before any database effect`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const capture = t.mock.method(deps.dbOps, "captureRestorePoint");
+    for (const body of bodies) {
+      const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/${step}`, {
+        method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), {
+        error: step === "confirm" ? "'planId' and 'planHash' (strings) are required" : "'confirmationToken' (string) is required",
+        code: "VALIDATION_ERROR",
+      });
+    }
+    assert.equal(capture.mock.callCount(), 0);
+    assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  });
+}
+
+for (const fault of [new Error("plan read failed"), "private plan failure"]) {
+  test(`migration plan maps a capability-read failure (${typeof fault})`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const read = t.mock.method(deps.dbOps, "getCapabilities", async () => { throw fault; });
+    const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, { method: "POST", headers: { cookie } });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: fault instanceof Error ? fault.message : "internal error", code: "INTERNAL_ERROR" });
+    assert.equal(read.mock.callCount(), 1);
+    assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  });
+}
+
+
+test("migration refuses an unavailable restore capability before any capture", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const capabilities = await deps.dbOps.getCapabilities();
+  t.mock.method(deps.dbOps, "getCapabilities", async () => ({ ...capabilities, restorePoint: { ...capabilities.restorePoint, costClass: "unavailable" as const } }));
+  const capture = t.mock.method(deps.dbOps, "captureRestorePoint");
+  const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/execute`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ confirmationToken: "unused" }),
+  });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    error: `site '${deps.workspaceId}' has costClass 'unavailable' — the in-product forward migrate is refused with no attestation override`,
+    code: "RESTORE_POINT_UNAVAILABLE",
+  });
+  assert.equal(capture.mock.callCount(), 0);
+  assert.deepEqual(await deps.restorePointsRepo.list(), []);
+});
+
+test("an authorized migration reports the shared operation lock conflict without capturing", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const held = await acquireOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, operationKind: "restore" } });
+  assert.ok(held.ok);
+  try {
+    const capture = t.mock.method(deps.dbOps, "captureRestorePoint");
+    const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/execute`, {
+      method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ confirmationToken: "unused" }),
+    });
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, "OPERATION_IN_FLIGHT");
+    assert.equal(capture.mock.callCount(), 0);
+    assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  } finally {
+    await releaseOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, handle: held.value } });
+  }
+});
+
+test("migration refuses an expired confirmation without capturing or recording a migration", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const prefix = `${baseUrl}/api/admin/v1/database/migrate-forward`;
+  const planned = await fetch(`${prefix}/plan`, { method: "POST", headers: { cookie } });
+  assert.equal(planned.status, 200);
+  const { planId, planHash } = await planned.json();
+  const confirmed = await fetch(`${prefix}/confirm`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ planId, planHash }) });
+  assert.equal(confirmed.status, 200);
+  const { confirmationToken } = await confirmed.json();
+  const future = deps.gatedMutations.gatewayDeps.clock.nowMs() + 60 * 60 * 1000;
+  t.mock.method(deps.gatedMutations.gatewayDeps.clock, "nowMs", () => future);
+  const capture = t.mock.method(deps.dbOps, "captureRestorePoint");
+  const response = await fetch(`${prefix}/execute`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ confirmationToken }) });
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "TOKEN_EXPIRED");
+  assert.equal(capture.mock.callCount(), 0);
+  assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  assert.deepEqual((await deps.databaseLedgerRepo.query({ limit: 10 })).items, []);
+});
+
+for (const failure of [new Error("token store unavailable"), "private token failure"]) {
+  test(`migration confirm maps failed token persistence (${typeof failure})`, async (t) => {
+    const { app, deps } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const response = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, { method: "POST", headers: { cookie } });
+    assert.equal(response.status, 200);
+    const { planId, planHash } = await response.json();
+    const save = t.mock.method(deps.gatedMutations.gatewayDeps.tokens, "save", async () => { throw failure; });
+    const confirmed = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/confirm`, {
+      method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ planId, planHash }),
+    });
+    assert.equal(confirmed.status, 500);
+    assert.deepEqual(await confirmed.json(), { error: failure instanceof Error ? failure.message : "internal error", code: "INTERNAL_ERROR" });
+    assert.equal(save.mock.callCount(), 1);
+    assert.equal(await deps.gatedMutations.gatewayDeps.tokens.count(), 0);
+    assert.deepEqual(await deps.restorePointsRepo.list(), []);
+  });
+}

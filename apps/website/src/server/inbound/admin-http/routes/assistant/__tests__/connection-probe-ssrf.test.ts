@@ -150,3 +150,53 @@ for (const registrar of registrars) {
     }
   });
 }
+
+// Reuse undici's maintained in-memory transport rather than a second dispatcher harness.
+import { MockAgent } from "undici";
+
+test("list-models sends only discovered IDs and omits an absent success message", async (t) => {
+  const dispatcher = new MockAgent();
+  dispatcher.disableNetConnect();
+  t.after(() => dispatcher.close());
+  dispatcher.get("http://127.0.0.1:4321").intercept({ path: "/v1/models", method: "GET" })
+    .reply(200, { data: [{ id: "gpt-4o", owned_by: "private-owner" }, { id: "gpt-4o-mini" }] });
+  const body = await probe(registerAdminAssistantListModelsRoute, "http://127.0.0.1:4321", { probeRequestInit: { dispatcher } });
+  assert.deepEqual(body, { ok: true, models: ["gpt-4o", "gpt-4o-mini"] });
+  dispatcher.assertNoPendingInterceptors();
+});
+
+test("list-models explains the empty key using the server credential contract", async () => {
+  const body = await probe(registerAdminAssistantListModelsRoute, "http://127.0.0.1:4321", {}, {
+    body: { protocol: "openai", baseUrl: "http://127.0.0.1:4321", apiKey: "" }, expectedStatus: 200,
+  });
+  assert.deepEqual(body, { ok: false, models: [], message: "No API key saved on the server. Save one first." });
+});
+
+for (const [status, providerBody, expected] of [
+  [200, { choices: [{ message: { content: "ok" } }] }, { ok: true, message: "valid completion" }],
+  [500, "", { ok: false, message: "Connection failed (upstream_unavailable)" }],
+] as const) {
+  test(`test-connection renders the ${status} provider outcome`, async (t) => {
+    const dispatcher = new MockAgent();
+    dispatcher.disableNetConnect();
+    t.after(() => dispatcher.close());
+    dispatcher.get("http://127.0.0.1:4321").intercept({ path: "/v1/chat/completions", method: "POST" }).reply(status, providerBody);
+    const body = await probe(registerAdminAssistantTestConnectionRoute, "http://127.0.0.1:4321", { probeRequestInit: { dispatcher } });
+    assert.deepEqual(body, expected);
+    dispatcher.assertNoPendingInterceptors();
+  });
+}
+
+test("test-connection forwards Azure's explicit API version to the provider", async (t) => {
+  const dispatcher = new MockAgent();
+  dispatcher.disableNetConnect();
+  t.after(() => dispatcher.close());
+  dispatcher.get("http://127.0.0.1:4321").intercept({
+    path: "/openai/deployments/guard-model/chat/completions?api-version=2025-01-01-preview", method: "POST",
+  }).reply(200, { choices: [{ message: { content: "ok" } }] });
+  const body = await probe(registerAdminAssistantTestConnectionRoute, "http://127.0.0.1:4321", { probeRequestInit: { dispatcher } }, {
+    body: { protocol: "azure", baseUrl: "http://127.0.0.1:4321", apiKey: "fake-key", model: "guard-model", apiVersion: "2025-01-01-preview" }, expectedStatus: 200,
+  });
+  assert.deepEqual(body, { ok: true, message: "valid completion" });
+  dispatcher.assertNoPendingInterceptors();
+});

@@ -222,3 +222,119 @@ test("AGENT_PLUGIN_INSTALL_ZIP: replace=true upgrades the same plugin id and rep
     assert.equal(body.agentPlugin.enabled, false);
   });
 });
+
+
+test("AGENT_PLUGIN_INSTALL_ZIP: compressed HTTP bodies are refused by the raw parser", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(archive)}`, {
+      method: "POST", headers: { cookie, "content-type": "application/zip", "content-encoding": "gzip" }, body: Uint8Array.from(archive),
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ARCHIVE_UNREADABLE", error: "The upload could not be read." });
+    const root = resolveAgentPluginLayout().forWorkspace(WORKSPACE).root;
+    await assert.rejects(readFile(path.join(root, "activations.json")), { code: "ENOENT" });
+  });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: body size limit returns the actionable 413 before installation", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const response = await upload(baseUrl, cookie, Buffer.alloc(32 * 1024 * 1024 + 1));
+    assert.equal(response.status, 413);
+    assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ARCHIVE_TOO_LARGE", error: "The .zip is larger than the 32 MiB limit." });
+    const root = resolveAgentPluginLayout().forWorkspace(WORKSPACE).root;
+    await assert.rejects(readFile(path.join(root, "activations.json")), { code: "ENOENT" });
+  });
+});
+
+
+test("AGENT_PLUGIN_INSTALL_ZIP: an enabled plugin cannot be replaced", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { agentPluginActivations } = await import("#src/features/agent-plugins/activation-effects");
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const old = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const next = await buildZipFixture([{ path: "plugin.json", content: manifest("2.0.0") }]);
+    assert.equal((await upload(baseUrl, cookie, old)).status, 201);
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE).root;
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test" });
+    const before = await readFile(path.join(workspaceRoot, "activations.json"), "utf8");
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(next)}&replace=true`, {
+      method: "POST", headers: { cookie, "content-type": "application/zip" }, body: Uint8Array.from(next),
+    });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_PLUGIN_ENABLED", error: "Switch off the installed plugin before replacing its version." });
+    assert.equal(await readFile(path.join(workspaceRoot, "activations.json"), "utf8"), before);
+  });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: an unreadable activation record refuses installation without rewriting it", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE).root;
+    await mkdir(workspaceRoot, { recursive: true });
+    const activations = path.join(workspaceRoot, "activations.json");
+    await writeFile(activations, "{malformed");
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const response = await upload(baseUrl, cookie, archive);
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ACTIVATIONS_BUSY", error: "Could not install the plugin. Try again." });
+    assert.equal(await readFile(activations, "utf8"), "{malformed");
+  });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted internal error", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
+  const fault = t.mock.method(deps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/layout"); });
+  const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+  const response = await upload(baseUrl, cookie, archive);
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { code: "INTERNAL_ERROR", error: "internal error" });
+  assert.equal(fault.mock.callCount(), 1);
+});
+
+for (const oversized of ["file", "entries"] as const) {
+  test(`AGENT_PLUGIN_INSTALL_ZIP: expanded ${oversized} limit has an actionable refusal`, async (t) => {
+    await withTempPluginsDir(async () => {
+      const { listInstalledPlugins } = await import("#src/features/agent-plugins/lifecycle");
+      const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+      const archive = await buildZipFixture([
+        { path: "plugin.json", content: manifest("1.0.0") },
+        ...(oversized === "file"
+          ? [{ path: "huge.bin", content: Buffer.alloc(16 * 1024 * 1024 + 1) }]
+          : Array.from({ length: 4096 }, (_, index) => ({ path: `files/${index}.txt`, content: "small" }))),
+      ]);
+      const response = await upload(baseUrl, cookie, archive);
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), {
+        code: oversized === "file" ? "AGENT_PLUGIN_FILE_TOO_LARGE" : "AGENT_PLUGIN_TOO_MANY_ENTRIES",
+        error: "The .zip is too big once unpacked: at most 4096 files, 16 MiB per file, 64 MiB in all.",
+      });
+      assert.deepEqual(await listInstalledPlugins(resolveAgentPluginLayout().forWorkspace(WORKSPACE).root), []);
+    });
+  });
+}
+
+test("AGENT_PLUGIN_INSTALL_ZIP: a blocked publish destination is an internal install failure with no path leak", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    const { listInstalledPlugins } = await import("#src/features/agent-plugins/lifecycle");
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const workspace = resolveAgentPluginLayout().forWorkspace(WORKSPACE);
+    const packages = workspace.pluginPackagesDir({ pluginId: PLUGIN_ID });
+    await mkdir(packages, { recursive: true });
+    const blocker = path.join(packages, sha(archive));
+    await writeFile(blocker, "not a package directory");
+    const response = await upload(baseUrl, cookie, archive);
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), {
+      code: "AGENT_PLUGIN_PUBLISH_FAILED", error: "This .zip contains files or links that plugins may not include.",
+    });
+    assert.equal(await readFile(blocker, "utf8"), "not a package directory");
+    assert.deepEqual(await listInstalledPlugins(workspace.root), []);
+  });
+});

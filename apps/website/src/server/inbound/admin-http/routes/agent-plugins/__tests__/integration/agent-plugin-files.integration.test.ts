@@ -162,3 +162,14 @@ test("AGENT_PLUGIN_FILES: a signed-in principal without admin.plugins.read canno
     assert.equal(JSON.stringify(body).includes("Real skill body."), false);
   });
 });
+
+
+test("AGENT_PLUGIN_FILES: layout I/O failure returns a fixed error without disclosing paths", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
+  const fault = t.mock.method(deps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/plugins"); });
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/${PLUGIN_ID}/files`, { headers: { cookie } });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(fault.mock.callCount(), 1);
+});

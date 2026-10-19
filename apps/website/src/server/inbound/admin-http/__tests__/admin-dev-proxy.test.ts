@@ -167,7 +167,8 @@ test("registerAdminStatic: falls back to the 'admin shell not built' pointer pag
 });
 
 for (const protocol of ["http", "https"] as const) {
-test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real ${protocol} upstream`, { timeout: 8_000 }, async (t) => {
+for (const immediateFrame of [false, true]) {
+test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through a real ${protocol} upstream (immediate frame: ${immediateFrame})`, { timeout: 8_000 }, async (t) => {
   const { registerAdminDevProxyUpgrade } = await import("../admin-dev-proxy.js");
   const tunnelSockets = new Set<import("node:stream").Duplex>();
   t.after(() => { for (const socket of tunnelSockets) socket.destroy(); });
@@ -178,9 +179,12 @@ test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through
   const fakeVite = protocol === "https" ? createHttpsServer(DEV_PROXY_TLS, rejectPlainRequest) : createHttpServer(rejectPlainRequest);
   const clientFrame = Buffer.from([0x81, 0x82, 1, 2, 3, 4, 0x68 ^ 1, 0x69 ^ 2]); // masked "hi"
   const serverFrame = Buffer.concat([Buffer.from([0x81, 9]), Buffer.from("hmr-reply")]);
+  const greetingFrame = immediateFrame ? Buffer.concat([Buffer.from([0x81, 5]), Buffer.from("hello")]) : Buffer.alloc(0);
+  const expectedFrames = Buffer.concat([greetingFrame, serverFrame]);
   let upstreamClosed!: () => void;
   const upstreamTermination = new Promise<void>((resolve) => { upstreamClosed = resolve; });
-  fakeVite.on("upgrade", (req, socket) => {
+  fakeVite.on("upgrade", (req, socket, head) => {
+    assert.equal(req.url, "/admin/?token=abc");
     tunnelSockets.add(socket);
     socket.on("close", upstreamClosed);
     const key = req.headers["sec-websocket-key"];
@@ -192,21 +196,24 @@ test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through
       .createHash("sha1")
       .update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
       .digest("base64");
-    socket.write(
-      `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\nSec-WebSocket-Protocol: vite-hmr\r\n\r\n`
-    );
+    socket.write(Buffer.concat([
+      Buffer.from(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\nSec-WebSocket-Protocol: vite-hmr\r\n\r\n`),
+      greetingFrame,
+    ]));
     // A real WS server (the `ws` package Vite itself uses) closes its side on disconnect; this bare
     // stand-in must do the same or `fakeVite.close()` below hangs forever. `http.Server` sockets are
     // `allowHalfOpen: true`, so a graceful disconnect only ever delivers `end`, never `close` — the
     // exact gap `admin-dev-proxy.ts`'s own `destroyOnTermination` exists to close on the proxy side.
     socket.on("end", () => socket.destroy());
     let buffered = Buffer.alloc(0);
-    socket.on("data", (bytes) => {
+    const receiveFrame = (bytes: Buffer) => {
       buffered = Buffer.concat([buffered, bytes]);
       if (buffered.length < clientFrame.length) return;
       if (!buffered.equals(clientFrame)) { socket.destroy(); return; }
       socket.write(serverFrame);
-    });
+    };
+    socket.on("data", receiveFrame);
+    if (head.length > 0) receiveFrame(head);
   });
   fakeVite.listen(0);
   t.after(() => new Promise<void>((resolve) => fakeVite.close(() => resolve())));
@@ -234,7 +241,33 @@ test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through
     .digest("base64");
 
   const { request } = await import("node:http");
-  const upgrade = await new Promise<{ statusCode?: number; headers: Record<string, unknown> }>((resolve, reject) => {
+  // A raw client can put the first frame in the same write as its handshake. Node exposes those
+  // already-read bytes as `head`; the ordinary HTTP client below sends its frame after upgrading.
+  const { connect } = await import("node:net");
+  const upgrade = immediateFrame ? await new Promise<{ statusCode?: number; headers: Record<string, unknown> }>((resolve, reject) => {
+    const socket = connect(proxyAddress.port, "127.0.0.1");
+    tunnelSockets.add(socket);
+    let buffered = Buffer.alloc(0);
+    socket.on("error", reject);
+    socket.on("connect", () => socket.write(Buffer.concat([
+      Buffer.from(`GET /admin?token=abc HTTP/1.1\r\nHost: 127.0.0.1:${proxyAddress.port}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: ${clientKey}\r\n\r\n`),
+      clientFrame,
+    ])));
+    socket.on("data", (bytes) => {
+      buffered = Buffer.concat([buffered, bytes]);
+      const boundary = buffered.indexOf("\r\n\r\n");
+      if (boundary < 0 || buffered.length < boundary + 4 + expectedFrames.length) return;
+      try {
+        const header = buffered.subarray(0, boundary).toString("utf8");
+        assert.match(header, /^HTTP\/1\.1 101 Switching Protocols\r\n/);
+        const accept = /^Sec-WebSocket-Accept: (.+)$/m.exec(header)?.[1]?.trim();
+        assert.equal(accept, expectedAccept);
+        assert.deepEqual(buffered.subarray(boundary + 4), expectedFrames, "both handshake heads survive unchanged");
+        socket.resetAndDestroy();
+        resolve({ statusCode: Number(header.split(" ")[1]), headers: { "sec-websocket-accept": accept } });
+      } catch (error) { socket.destroy(); reject(error); }
+    });
+  }) : await new Promise<{ statusCode?: number; headers: Record<string, unknown> }>((resolve, reject) => {
     const req = request({
       hostname: "127.0.0.1",
       port: proxyAddress.port,
@@ -251,9 +284,9 @@ test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through
       let buffered = head;
       socket.on("data", (bytes) => {
         buffered = Buffer.concat([buffered, bytes]);
-        if (buffered.length < serverFrame.length) return;
+        if (buffered.length < expectedFrames.length) return;
         try {
-          assert.deepEqual(buffered, serverFrame, "upstream HMR payload must cross the pipe unchanged");
+          assert.deepEqual(buffered, expectedFrames, "upstream HMR payload must cross the pipe unchanged");
           // Destroy rather than half-close: the upstream keeps a WebSocket open for its lifetime,
           // so end() can leave server.close() waiting forever. This also exercises the proxy's
           // cross-destroy cleanup, whose upstream close is awaited below.
@@ -276,6 +309,7 @@ test(`registerAdminDevProxyUpgrade: forwards HMR data in both directions through
   assert.equal(upgrade.headers["sec-websocket-accept"], expectedAccept);
   await upstreamTermination;
 });
+}
 }
 
 test("registerAdminDevProxyUpgrade: no-ops (no 'upgrade' listener added) when TOVU_ADMIN_DEV_PROXY_URL is unset", async () => {
@@ -335,4 +369,34 @@ test("registerAdminStatic proxies HTTPS content through a self-signed developmen
   const res = await fetch(`${baseUrl}/admin/tls-probe`);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), "TLS upstream content");
+});
+
+test("upgrade to an unavailable upstream closes the client socket", { timeout: 8_000 }, async (t) => {
+  const { registerAdminDevProxyUpgrade } = await import("../admin-dev-proxy.js");
+  const { once } = await import("node:events");
+  const { request } = await import("node:http");
+  // Drop the handshake at the transport boundary, without depending on a local unused port.
+  const upstream = createHttpServer((req) => req.socket.destroy());
+  upstream.listen(0);
+  await once(upstream, "listening");
+  const address = upstream.address();
+  assert.ok(address && typeof address !== "string");
+  t.after(() => new Promise<void>((resolve) => upstream.close(() => resolve())));
+  const previous = process.env.TOVU_ADMIN_DEV_PROXY_URL;
+  process.env.TOVU_ADMIN_DEV_PROXY_URL = `http://127.0.0.1:${address.port}`;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_ADMIN_DEV_PROXY_URL; else process.env.TOVU_ADMIN_DEV_PROXY_URL = previous; });
+  const server = createHttpServer();
+  registerAdminDevProxyUpgrade(server);
+  server.listen(0);
+  await once(server, "listening");
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const proxyAddress = server.address();
+  assert.ok(proxyAddress && typeof proxyAddress !== "string");
+  const error = await new Promise<NodeJS.ErrnoException>((resolve, reject) => {
+    const req = request({ hostname: "127.0.0.1", port: proxyAddress.port, path: "/admin/", headers: { Connection: "Upgrade", Upgrade: "websocket" } });
+    req.on("error", resolve);
+    req.on("response", () => reject(new Error("an unavailable websocket upstream must close the socket")));
+    req.end();
+  });
+  assert.equal(error.code, "ECONNRESET");
 });

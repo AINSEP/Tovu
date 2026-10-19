@@ -99,6 +99,8 @@ function buildTestApp(): { app: express.Express; agentPluginsDeps: AgentPluginsR
   // reason.
   const baseDeps = createRouteDeps();
   const agentPluginsDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
+    // Pin the port so failure injection and the request use the same layout object.
+    agentPluginLayout: resolveAgentPluginLayout(),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,
@@ -224,4 +226,15 @@ test("AGENT_PLUGINS_LIST: a workspace id that does not match the route's own wor
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/agent-plugins`, { headers: { cookie } });
     assert.equal(response.status, 404);
   });
+});
+
+
+test("AGENT_PLUGINS_LIST: discovery failure is redacted", async (t) => {
+  const { app, agentPluginsDeps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const fault = t.mock.method(agentPluginsDeps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/packages"); });
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(fault.mock.callCount(), 1);
 });
