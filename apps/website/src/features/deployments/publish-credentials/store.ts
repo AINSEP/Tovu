@@ -212,6 +212,9 @@ function requireNonEmptyString(raw: unknown, field: string, providerId: string):
 
 function optionalString(raw: unknown, field: string): string | undefined {
   if (raw === undefined) return undefined;
+  // A blank optional form field (e.g. Cloudflare's Zone ID left empty) means "not provided", not an
+  // invalid value: secure forms send every field, so rejecting "" blocked saving a valid credential.
+  if (typeof raw === "string" && raw.trim() === "") return undefined;
   return assertNonEmptyTrimmed(raw, `'${field}' must be a non-empty string when provided`);
 }
 

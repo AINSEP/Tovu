@@ -20,7 +20,7 @@ import { InMemoryVendorCredentialSetRepo } from "../publish-credentials/repo.mem
 import { createCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 
-import type { LoadedDeployTarget } from "../deploy-targets/types.js";
+import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -1865,4 +1865,53 @@ test("capabilities list explicit host compatibility without leaking keys across 
   assert.deepEqual(a.savedCredentials.map(row => [row.id, row.worksFor]), [[saved.id, ["vercel-a"]]]);
   assert.equal(a.credentialOrigin, "saved");
   assert.deepEqual(result.providers.find(provider => provider.providerId === "vercel-b")!.savedCredentials, []);
+});
+
+/** The bundled registry with Cloudflare Pages' provider inspection replaced by a recording fake. */
+async function inspectingRegistry(preview: NonNullable<LoadedDeployTarget["module"]["preview"]>): Promise<DeployTargetRegistry> {
+  const registry = await loadBundledDeployTargets();
+  const bundled = registry.get("cloudflare-pages")!;
+  const target: LoadedDeployTarget = { ...bundled, module: { ...bundled.module, preview } };
+  return { ...registry, list: () => registry.list().map(entry => entry.descriptor.id === "cloudflare-pages" ? target : entry), get: id => id === "cloudflare-pages" ? target : registry.get(id) };
+}
+
+const selectedConnection: PublishCredentialSource = {
+  async resolve() { return { ok: true, token: "synthetic-cloudflare-token", accountId: "account", credentialId: "chosen" }; },
+  async isConfigured() { return { configured: true }; },
+};
+
+test("deployment_preview_static_publish returns the provider inspection for the person's selected connection, never the credential", async () => {
+  const inspection: DeployTargetInspection = { resourceName: "jini-demo", targetId: "cloudflare-pages", hostingChanges: [{ action: "update", targetId: "cloudflare-pages", resourceName: "jini-demo" }] };
+  const seen: unknown[] = [];
+  const { deps } = fakeDeps({ credentialSource: selectedConnection });
+  deps.loadDeployTargets = async () => inspectingRegistry(async input => { seen.push(input.credential); return inspection; });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+  const result = (await call(preview, { input: { target: "cloudflare-pages", projectName: "demo", credentialId: "chosen" } })) as Record<string, unknown>;
+  assert.deepEqual(result.providerInspection, inspection);
+  assert.equal(seen.length, 1);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic-cloudflare-token/);
+  // Without a project label (and no domain) the answer stays local-only: no provider read at all.
+  const local = (await call(preview, { input: { target: "cloudflare-pages" } })) as Record<string, unknown>;
+  assert.equal("providerInspection" in local, false);
+  assert.equal(seen.length, 1);
+});
+
+for (const credentialId of [42, "   "]) test(`deployment_preview_static_publish refuses a malformed credentialId (${JSON.stringify(credentialId)}) before any provider read`, async () => {
+  const { deps } = fakeDeps({ credentialSource: selectedConnection });
+  deps.loadDeployTargets = async () => inspectingRegistry(async () => assert.fail("no provider read for a malformed connection choice"));
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+  await assert.rejects(call(preview, { input: { target: "cloudflare-pages", projectName: "demo", credentialId } }),
+    /credentialId must be a non-empty string naming the person's selected connection/);
+});
+
+test("deployment_execute_static_publish sends a custom-domain publish through the shared gateway tool, refusing when it is absent", async () => {
+  const { deps } = fakeDeps({ credentialSource: selectedConnection });
+  deps.loadDeployTargets = async () => inspectingRegistry(async () => assert.fail("no inspection without the gateway"));
+  deps.gatedMutations = undefined;
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const execute = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+  await assert.rejects(call(execute, { input: { target: "cloudflare-pages", projectName: "demo", customDomain: "example.com", credentialId: "chosen" } }),
+    /DOMAIN_APPROVAL_UNAVAILABLE: The shared mutation gateway is not configured/);
 });

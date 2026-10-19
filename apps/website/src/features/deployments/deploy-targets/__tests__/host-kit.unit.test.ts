@@ -7,6 +7,7 @@ import test from "node:test";
 import { DeployError, safeDnsLabel } from "@jini-ai/devops/deploy";
 
 import { DEPLOY_FETCH_TIMEOUTS, createDeployHostKit } from "../host-kit.js";
+import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 test("probe operations close owned dispatchers while sharing one during a candidate sweep", async () => {
   const dispatchers: Array<{ closed: boolean }> = [];
@@ -179,4 +180,26 @@ test('content proof network/stream failure and a bodyless response fail closed',
     const kit = createDeployHostKit({ fetchFn: async () => response() });
     assert.equal(await kit.probeContent!({ url: 'https://8.8.8.8/proof', expected: 'digest' }), false);
   }
+});
+
+test("kit.now reads the wall clock and a waiting sweep sleeps between attempts", async () => {
+  // One sweep may probe a candidate twice (HEAD, then GET), so only a third request can follow a sleep.
+  let attempts = 0;
+  const kit = createDeployHostKit({ fetchFn: async () => new Response(null, { status: attempts++ < 2 ? 503 : 200 }) });
+  const before = Date.now();
+  const now = kit.now!();
+  assert.ok(now >= before && now <= Date.now());
+  const result = await kit.waitForReachableDeploymentUrl(["https://8.8.8.8/later"], { intervalMs: 5, timeoutMs: 2_000 });
+  assert.equal(result.status, "ready");
+  assert.equal(attempts, 3);
+});
+
+test("a traced SigV4 client signs without sending, identically to the untraced client", async () => {
+  const { exporter, port } = createInMemoryOtel();
+  const clientOptions = { accessKeyId: "fixture-key", secretAccessKey: "fixture-secret", service: "s3", region: "us-east-1" };
+  const init = { method: "GET", aws: { datetime: "20260102T030405Z" } };
+  const traced = await createDeployHostKit({ observability: port }).createSigV4Client(clientOptions).sign("https://fixture-bucket.s3.us-east-1.amazonaws.com/index.html", init);
+  const plain = await createDeployHostKit().createSigV4Client(clientOptions).sign("https://fixture-bucket.s3.us-east-1.amazonaws.com/index.html", init);
+  assert.equal(traced.headers.get("authorization"), plain.headers.get("authorization"));
+  assert.deepEqual(exporter.getFinishedSpans(), []);
 });

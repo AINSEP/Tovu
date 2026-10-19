@@ -540,7 +540,7 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
 test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => ({
         id: "fake",
         async publish() {
@@ -560,7 +560,7 @@ for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
   test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
     const deps: RouteDeps = testRouteDeps();
     const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-        credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+        credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
         buildTarget: () => ({
           id: "fake",
           async publish() {
@@ -626,7 +626,7 @@ test("publishStaticSite: a buildTarget that THROWS (credential missing a target-
   // own check is covered by its plugin test); a plain throw isolates `publishStaticSite`'s own catch.
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => {
         throw new Error("s3-compatible credential is missing required field 'bucket'");
       },
@@ -679,7 +679,7 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
   const deps: RouteDeps = testRouteDeps();
   let runDir: string | undefined;
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => {
         throw new Error("buildTarget must not be called when exportSiteBound itself threw");
       },
@@ -710,7 +710,7 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
 test("publishStaticSite: a partial outcome with no statusMessage falls back to the default not-yet-reachable message", async () => {
   const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
-      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => ({
         id: "fake",
         async publish() {

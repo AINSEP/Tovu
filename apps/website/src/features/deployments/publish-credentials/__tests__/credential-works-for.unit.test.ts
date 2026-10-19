@@ -6,7 +6,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createCustomCredential, updateCustomCredential } from "#src/features/custom-credentials/store";
-import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { createDbPublishCredentialSource } from "../../static-publish/credentials.js";
 import { invalidatePublishCredentialCompatibility, createPublishCredential, listPublishCredentials, resolveForPublish, PublishCredentialSecretStoreUnconfiguredError } from "../store.js";
@@ -173,7 +173,18 @@ test('new Workers connection stores an explicit Workers grant on the same Cloudf
 test('plugin compatibility checks deny malformed metadata without treating a label as authority', async () => {
   const { publishHostsForCredential } = await import('../store.js');
   const registry = await loadBundledDeployTargets();
-  for (const worksFor of [undefined, 'cloudflare-workers', [123]]) {
-    assert.deepEqual(publishHostsForCredential({ registry, credential: { kind: 'vendor', provider: 'cloudflare', label: 'Cloudflare Workers', meta: { credentialType: 'vendor', worksFor } } }), []);
+  for (const meta of [{ credentialType: 'vendor' }, { credentialType: 'vendor', worksFor: 'cloudflare-workers' }, { credentialType: 'vendor', worksFor: [123] }] as VaultMeta[]) {
+    assert.deepEqual(publishHostsForCredential({ registry, credential: { kind: 'vendor', provider: 'cloudflare', label: 'Cloudflare Workers', meta } }), []);
+  }
+});
+
+test('a blank optional Zone ID means "not provided": the connection saves without a zoneId field', async () => {
+  const f = fixture();
+  for (const zoneId of ['', '   ']) {
+    const saved = await createPublishCredential(f.deps, { workspaceId: 'site', label: `Blank zone ${JSON.stringify(zoneId)}`,
+      connection: { providerId: 'cloudflare-pages', token: 'synthetic-cloudflare-token', accountId: 'account', zoneId } });
+    const resolved = await f.source.resolve({ workspaceId: 'site', target: 'cloudflare-pages', credentialId: saved.id });
+    assert.equal(resolved.ok, true);
+    assert.equal('zoneId' in resolved, false);
   }
 });

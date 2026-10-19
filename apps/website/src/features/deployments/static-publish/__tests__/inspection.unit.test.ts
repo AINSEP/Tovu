@@ -62,3 +62,28 @@ test('unavailable credential and provider errors are actionable and redact secre
     });
   }
 });
+
+test('a connection that cannot be opened refuses with the repair step and never echoes the vault fault', async () => {
+  const f = setup();
+  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }), resolve: async () => { throw new Error('vault fault secret-token'); } };
+  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, credentialSource }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
+    { message: 'CREDENTIAL_RESOLUTION_FAILED: The saved connection could not be opened. Reopen the secure connection form and select or repair it before previewing again.' });
+});
+
+test('a provider preview that throws a non-Error value gets the generic actionable message', async () => {
+  const f = setup();
+  const registry = await f.deps.loadDeployTargets();
+  const fixture = registry.get('fixture')!;
+  const throwing: DeployTargetRegistry = { ...registry, get: target => target === 'fixture' ? { ...fixture, module: { ...fixture.module, preview: async () => { throw 'opaque provider value'; } } } : undefined };
+  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, loadDeployTargets: async () => throwing }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
+    { message: 'Provider inspection failed. Check the connection and preview again.' });
+});
+
+test('without an injected host kit the preview receives the default traced kit', async () => {
+  const f = setup();
+  const { hostKit: _injected, ...deps } = f.deps;
+  assert.equal((await inspectStaticPublish({ deps, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } })).inspection, f.inspection);
+  const previewInput = f.seen[1] as { kit: DeployHostKit };
+  assert.equal(typeof previewInput.kit.fetch, 'function');
+  assert.equal(typeof previewInput.kit.waitForReachableDeploymentUrl, 'function');
+});
