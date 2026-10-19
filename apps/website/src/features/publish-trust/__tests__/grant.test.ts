@@ -275,7 +275,10 @@ test("a non-object grant is refused", () => {
 
 test("every publishing route is reachable by a publishing credential", () => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content";
+  const artifacts = "/api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file";
   const required = [
+    { method: "PUT", path: artifacts },
+    { method: "DELETE", path: artifacts },
     { method: "GET", path: `${base}/export` },
     { method: "GET", path: `${base}/capabilities` },
     { method: "POST", path: `${base}/blobs/probe` },
@@ -288,11 +291,11 @@ test("every publishing route is reachable by a publishing credential", () => {
   ];
   assert.deepEqual(PUBLISH_TRUST_ROUTES, required);
   for (const route of required) {
-    const concrete = route.path.replace(":workspaceId", "ws-1").replace(":sha", "a".repeat(64));
+    const concrete = route.path.replace(":workspaceId", "ws-1").replace(":sha", "a".repeat(64)).replace(":token", "b".repeat(64)).replace(":file", "site.tovu.zip");
     assert.equal(isPublishTrustRoute(route.method, concrete), true, `${route.method} ${concrete}`);
   }
   for (const route of PUBLISH_TRUST_ROUTES) {
-    const concrete = route.path.replace(":workspaceId", "ws-1").replace(":sha", "a".repeat(64));
+    const concrete = route.path.replace(":workspaceId", "ws-1").replace(":sha", "a".repeat(64)).replace(":token", "b".repeat(64)).replace(":file", "site.tovu.zip");
     assert.equal(isPublishTrustRoute(route.method, concrete), true, `${route.method} ${concrete}`);
   }
 });

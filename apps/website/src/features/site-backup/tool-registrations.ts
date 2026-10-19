@@ -1,4 +1,7 @@
+import type { SiteShareBackend } from "./share-backend.js";
+import { SiteShareRefusal } from "./share-policy.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/site-backup.js';
+import { parseSiteImportInput, type SiteImportBackend } from "./import-backend.js";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -152,6 +155,16 @@ const PUSH_SCHEMA = {
 
 export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: "site_import_backup",
+    description: "Install a Tovu site from a share URL or uploaded .tovu.zip into a NEW separate site. Use when the user says ‘install the site at this link’. Existing sites are never overwritten. Returns owner setup and opening instructions.",
+    sideEffects: "mutates-durable-state", authorization: { permission: "system.write" },
+    inputSchema: { type: "object", additionalProperties: false, oneOf: [{ required: ["url"] }, { required: ["uploadId"] }], properties: { url: { type: "string", description: "Public HTTPS share URL." }, uploadId: { type: "string", description: "ID from the authenticated application/zip upload endpoint; never a filesystem path." }, displayName: { type: "string", maxLength: 200 }, requestId: { type: "string", maxLength: 128, description: "Reuse for a retry of the same import. Omit for a separate import." } } },
+  },
+  {
+    name: "site_import_list", description: "List your private import history: date, source, new site, status and opening/setup instructions. Does not include other principals' imports or credentials.",
+    sideEffects: "none", authorization: { permission: "system.read" }, inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
     name: PLAN_TOOL_ID,
     description:
       "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through the host's connection saved with credential_save with kind source-control or a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). With no connection yet, tell the person the repository rules below and ask which repository first, then open that form. Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (a media, theme or plugin file over the host's maxFileBytes is left out and listed in skipped; the database over it fails the plan; at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
@@ -167,12 +180,35 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PUSH_SCHEMA,
   },
+  {
+    name: "site_share_create",
+    description: "Export THIS SITE to a portable .tovu.zip share: all pages/posts including drafts, scheduled content and autosaves, media (including object storage), themes, menus, portable plugins and settings. Accounts, sessions, API keys, vault/legacy credentials, chats and operational history are excluded by a fresh-database allowlist. Anyone with the link receives unpublished content; revocation cannot recall downloads. Uses persistent running-server storage or the configured S3-compatible artifact capability. With no public storage it returns a ZIP download and setup instructions, never a localhost share link. V1 caps: 300 MiB expanded/archive, 2,000 files; unsupported populated plugin tables and secret-bearing content are refused by name. Returns {shareId,url,bytes,sha256,downloadUrl}, or {jobId,phase,progress}; poll using that SAME jobId to resume without creating another export.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: PUSH_PERMISSION },
+    inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling: the jobId returned by this same create operation." } } },
+  },
+  {
+    name: "site_share_list",
+    description: "List THIS SITE's private export registry, including active, failed and revoked exports: shareId, site, creation/revocation dates, bytes, sha256, status, link and ZIP download path. Requires site-backup.push; there is no anonymous export index. Does not create an export or reveal storage credentials.",
+    sideEffects: "none",
+    authorization: { permission: PUSH_PERMISSION },
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
+    name: "site_share_revoke",
+    description: "Revoke THIS SITE's export by shareId. Disables its public token first, deletes the ZIP from private and remote storage, and verifies remote disappearance. Revoked entries remain in site_share_list. Cleanup/purge failures are reported and retrying the same shareId retries deletion. Already downloaded copies cannot be recalled.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: PUSH_PERMISSION },
+    inputSchema: { type: "object", additionalProperties: false, required: ["shareId"], properties: { shareId: { type: "string" } } },
+  },
 ];
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: siteBackupAgentToolCatalog });
 
 /** This wiring layer's own risk classification, cross-checked against the catalog's `sideEffects`. */
 export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  ["site_import_backup", "mutates-durable-state"],
+  ["site_import_list", "none"],
   // -> a non-decrypting credential list, one decrypting resolve, four read-only host GETs, a
   // database snapshot held in memory (its restore-point file deleted at once), a disk walk, and an
   // in-memory plan. Nothing durable is written anywhere.
@@ -180,11 +216,15 @@ export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
   // -> blobs, trees, a commit and a non-force ref update in a
   // THIRD-PARTY repository — the same classification custom_credential_write_files carries.
   [SITE_BACKUP_PUSH_TOOL_ID, "mutates-durable-state"],
+  ["site_share_create", "mutates-durable-state"],
+  ["site_share_list", "none"],
+  ["site_share_revoke", "mutates-durable-state"],
 ]);
 
 /** The slice of the route-deps bag these tools read. Structural, so this module never imports
  *  `server/routes/types`. */
 export interface SiteBackupToolDeps {
+  readonly siteImportBackend?: SiteImportBackend;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
@@ -205,6 +245,7 @@ export interface SiteBackupToolDeps {
   /** Where this site's files live. Absent in the in-memory `app.ts` runtime, which has no site
    *  folder — both tools then answer `UNAVAILABLE`. */
   readonly siteBackupSources?: SiteBackupSources;
+  readonly siteShareBackend?: SiteShareBackend;
   /** Test-only; defaults to the process-wide store. */
   readonly siteBackupPlanStore?: SiteBackupPlanStore;
   /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
@@ -596,6 +637,7 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
     principalId: ctx.principal.id,
     workspaceId: deps.workspaceId,
     content: {
+      target: { kind: "repository" },
       credentialLabel: credential.label,
       owner,
       repo: repoName,
@@ -772,6 +814,29 @@ const SITE_BACKUP_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: CustomCredentialValidationError, code: "SITE_BACKUP_INVALID_INPUT" },
 ];
 
+/** Authorization stays on the existing backup contributor; backend effects are shared with HTTP. */
+async function handleShare(required: { deps: SiteBackupToolDeps; ctx: ToolExecutionContext; action: "create" | "list" | "revoke" }, _optional: Record<string, never> = {}): Promise<unknown> {
+  const { deps, ctx, action } = required;
+  const raw = requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: PUSH_PERMISSION }, { entityType: DOMAIN });
+  if (!deps.siteShareBackend) return { ok: false, code: "UNAVAILABLE", message: "Site sharing requires a site folder and private storage." };
+  try {
+    if (action === "list") {
+      if (Object.keys(raw).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_share_list takes no fields." });
+      return { shares: await deps.siteShareBackend.list({}) };
+    }
+    if (action === "revoke") {
+      if (Object.keys(raw).some(key => key !== "shareId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only shareId is accepted." });
+      return await deps.siteShareBackend.revoke({ shareId: requireString({ input: raw, key: "shareId" }) });
+    }
+    if (Object.keys(raw).some(key => key !== "jobId") || raw.jobId !== undefined && (typeof raw.jobId !== "string" || !/^[0-9a-f-]{36}$/.test(raw.jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional share jobId is accepted." });
+    return await deps.siteShareBackend.create({ principalId: ctx.principal.id, signal: ctx.signal, ...(typeof raw.jobId === "string" ? { jobId: raw.jobId } : {}) });
+  } catch (error) {
+    if (error instanceof SiteShareRefusal) return { ok: false, code: error.code, message: error.message };
+    throw error;
+  }
+}
+
 /**
  * Builds this domain's `ToolRegistration[]`.
  *
@@ -779,8 +844,13 @@ const SITE_BACKUP_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
  */
 export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    site_import_backup: ctx => handleImport({ deps, ctx, list: false }),
+    site_import_list: ctx => handleImport({ deps, ctx, list: true }),
     [PLAN_TOOL_ID]: (ctx) => handlePlan(deps, ctx),
     [SITE_BACKUP_PUSH_TOOL_ID]: (ctx) => handlePush(deps, surfaces, ctx),
+    site_share_create: (ctx) => handleShare({ deps, ctx, action: "create" }),
+    site_share_list: (ctx) => handleShare({ deps, ctx, action: "list" }),
+    site_share_revoke: (ctx) => handleShare({ deps, ctx, action: "revoke" }),
   };
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
@@ -795,4 +865,22 @@ export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, surfaces:
  *  tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeSiteBackupTools(): ToolContributor {
   return { domain: DOMAIN, build: buildSiteBackupRegistrations, risk: siteBackupDerivedRisk };
+}
+
+/** Local creation permissions precede all download, upload consumption and registry effects. */
+async function handleImport(required: { deps: SiteBackupToolDeps; ctx: ToolExecutionContext; list: boolean }, _options: Record<string, never> = {}): Promise<unknown> {
+  const { deps, ctx, list } = required;
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: list ? "system.read" : "system.write" }, { entityType: "site-registry" });
+  if (!deps.siteImportBackend) return { ok: false, code: "UNAVAILABLE", message: "Import requires local site creation and a configured sites home." };
+  try {
+    const input = requireInputRecord({ input: ctx.input });
+    if (list) {
+      if (Object.keys(input).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_import_list takes no fields." });
+      return { imports: await deps.siteImportBackend.list({ principalId: ctx.principal.id }) };
+    }
+    return await deps.siteImportBackend.importBackup({ ...parseSiteImportInput({ input }), principalId: ctx.principal.id }, { signal: ctx.signal });
+  } catch (error) {
+    if (error instanceof SiteShareRefusal) return { ok: false, code: error.code, message: error.message };
+    throw error;
+  }
 }

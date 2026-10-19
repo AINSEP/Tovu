@@ -19,15 +19,7 @@ import type { PlannedDiskFile, SiteBackupInclude, SiteBackupScope, SkippedSiteBa
  */
 
 /** Everything `site_backup_push` needs from the plan, so it never re-derives what the human saw. */
-export interface SiteBackupPlanContent {
-  readonly credentialLabel: string;
-  readonly owner: string;
-  readonly repo: string;
-  readonly folder: string;
-  readonly commitMessage: string;
-  /** Branch, tip and tree at plan time. The push commits on THIS parent, so a branch that moved in
-   *  between is refused by GitHub's non-force ref update. */
-  readonly repository: BackupRepositoryState;
+export interface SiteBackupCommonContent {
   readonly include: SiteBackupInclude;
   /** `null` when the database scope is off. */
   readonly database: { readonly bytes: Buffer; readonly watermarkAtCapture: number } | null;
@@ -43,20 +35,39 @@ export interface SiteBackupPlanContent {
   readonly createdAt: string;
 }
 
-export interface SiteBackupPlan extends SiteBackupPlanContent {
+/** Repository fields remain source-compatible; ZIP targets never need a credential or git state. */
+export interface SiteBackupPlanContent extends SiteBackupCommonContent {
+  readonly target?: { readonly kind: "repository" };
+  readonly credentialLabel: string;
+  readonly owner: string;
+  readonly repo: string;
+  readonly folder: string;
+  readonly commitMessage: string;
+  /** Branch, tip and tree at plan time. The push commits on THIS parent, so a branch that moved in
+   *  between is refused by GitHub's non-force ref update. */
+  readonly repository: BackupRepositoryState;
+}
+
+export interface SiteSharePlanContent extends SiteBackupCommonContent {
+  readonly target: { readonly kind: "zip" };
+  readonly profile: "share";
+  readonly bufferedFiles?: readonly { readonly path: string; readonly content: Buffer }[];
+}
+
+export type SiteBackupPlan<T extends SiteBackupCommonContent = SiteBackupPlanContent> = T & {
   readonly planId: string;
   readonly principalId: string;
   readonly workspaceId: string;
   readonly expiresAtMs: number;
 }
 
-export type TakeSiteBackupPlanResult = { ok: true; plan: SiteBackupPlan } | { ok: false; code: "PLAN_NOT_FOUND" | "PLAN_EXPIRED" };
+export type TakeSiteBackupPlanResult<T extends SiteBackupCommonContent = SiteBackupPlanContent> = { ok: true; plan: SiteBackupPlan<T> } | { ok: false; code: "PLAN_NOT_FOUND" | "PLAN_EXPIRED" };
 
 export const DEFAULT_PLAN_TTL_MS = 10 * 60 * 1000;
 export const DEFAULT_MAX_PLANS = 2;
 
-export class SiteBackupPlanStore {
-  private readonly plans = new Map<string, SiteBackupPlan>();
+export class SiteBackupPlanStore<T extends SiteBackupCommonContent = SiteBackupPlanContent> {
+  private readonly plans = new Map<string, SiteBackupPlan<T>>();
   private readonly now: () => number;
   private readonly ttlMs: number;
   private readonly maxPlans: number;
@@ -75,7 +86,7 @@ export class SiteBackupPlanStore {
    *
    * @complexity O(plans held), which is at most `maxPlans`.
    */
-  save(input: { principalId: string; workspaceId: string; content: SiteBackupPlanContent }): SiteBackupPlan {
+  save(input: { principalId: string; workspaceId: string; content: T }): SiteBackupPlan<T> {
     const nowMs = this.now();
     for (const [id, plan] of this.plans) {
       if (plan.expiresAtMs <= nowMs) this.plans.delete(id);
@@ -85,7 +96,7 @@ export class SiteBackupPlanStore {
       if (oldest === undefined) break;
       this.plans.delete(oldest);
     }
-    const plan: SiteBackupPlan = { ...input.content, planId: this.newId(), principalId: input.principalId, workspaceId: input.workspaceId, expiresAtMs: nowMs + this.ttlMs };
+    const plan: SiteBackupPlan<T> = { ...input.content, planId: this.newId(), principalId: input.principalId, workspaceId: input.workspaceId, expiresAtMs: nowMs + this.ttlMs };
     this.plans.set(plan.planId, plan);
     return plan;
   }
@@ -96,7 +107,7 @@ export class SiteBackupPlanStore {
    *
    * @complexity O(1).
    */
-  take(input: { planId: string; principalId: string; workspaceId: string }): TakeSiteBackupPlanResult {
+  take(input: { planId: string; principalId: string; workspaceId: string }): TakeSiteBackupPlanResult<T> {
     const plan = this.plans.get(input.planId);
     if (!plan || plan.principalId !== input.principalId || plan.workspaceId !== input.workspaceId) return { ok: false, code: "PLAN_NOT_FOUND" };
     this.plans.delete(input.planId);

@@ -3,6 +3,8 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** site-backup registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  site_import_backup: { search: { keywords: "install import site share url link zip new separate restore", queries: ["Install the site at this link", "Import a Tovu ZIP"] }, approval: { class: 'edit', confirmation: 'direct' } },
+  site_import_list: { search: { keywords: "list past site imports history open imported sites" }, approval: { class: 'read', confirmation: 'direct' } },
   // --- site backup ------------------------------------------------------------------------------------------
   "site_backup_plan": {
     search: {
@@ -19,4 +21,7 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
+  site_share_create: { search: { keywords: "share export site zip portable link download drafts", queries: ["Share this site", "Export this site as a Tovu ZIP"] }, approval: { class: 'edit', confirmation: 'direct' } },
+  site_share_list: { search: { keywords: "list site exports shares links archive downloads" }, approval: { class: 'read', confirmation: 'direct' } },
+  site_share_revoke: { search: { keywords: "revoke remove delete site export share link" }, approval: { class: 'edit', confirmation: 'direct' } },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

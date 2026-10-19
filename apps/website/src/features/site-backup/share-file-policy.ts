@@ -1,0 +1,67 @@
+import { checkTreePath } from "../publish-content/file-tree-policy.js";
+import { SiteShareRefusal, SHARE_LIMITS } from "./share-policy.js";
+import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+
+/** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth). */
+export function excludedSharePath(required: { path: string }, _optional: Record<string, never> = {}): boolean {
+  const p = required.path.toLowerCase();
+  const parts = p.split("/");
+  // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
+  if (/^plugins\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/.test(p) ||
+      /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/.test(p) ||
+      /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/.test(p) ||
+      /^uploads\/chat-attachments(?:\/|$)/.test(p) ||
+      parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part))) return true;
+  if (parts.some(part => [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"].includes(part) ||
+      part.startsWith(".share-") || /(?:credential|vault|keyring|site-key|private[-_]?key)/.test(part) ||
+      /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(part) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(part) ||
+      /\.(?:db|sqlite|sqlite3)(?:$|[.-])/.test(part) || /^\.mcp(?:\..*)?\.json$/.test(part) ||
+      part.startsWith("restore-point-") || part.startsWith("superseded-"))) {
+    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${required.path}'. Remove it before sharing.` });
+  }
+  return false;
+}
+
+/** A ZIP path has one canonical spelling on every supported recipient filesystem. O(path). */
+export function validateSharePath(required: { path: string }, _optional: Record<string, never> = {}): void {
+  const p = required.path;
+  // This one exact path is produced by trusted projection, never by a filesystem walk.
+  const reason = p === "database/content.db" ? null : checkTreePath(p);
+  if (reason || /[:%\x00-\x1f\x7f\\]/.test(p) || p.normalize("NFC") !== p || p.normalize("NFKC") !== p || /[<>"|?*]/.test(p) || p.split("/").some(part => /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)) || p.split("/").length > SHARE_LIMITS.maxPathSegments || p.split("/").some(part => /[. ]$/.test(part))) {
+    throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${p}' is unsafe${reason ? `: ${reason}` : "."}` });
+  }
+}
+
+/** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes). */
+export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, _optional: Record<string, never> = {}): void {
+  const text = Buffer.from(required.bytes).toString("latin1");
+  if (redactSecretShapes({ text }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
+}
+
+function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }
+
+/** Upper/lower expansion also catches sharp-s/SS and final-sigma aliases, including ancestors. */
+export function sharePathAlias(required: { path: string }, _options: Record<string, never> = {}): string { return required.path.normalize("NFKC").toUpperCase().toLowerCase().normalize("NFC"); }
+
+/** Reject aliases, including aliases in directory ancestors, before any content is read.
+ * Mutates only the caller's per-archive claim sets; throws UNSAFE_PATH on conflicts.
+ * @complexity O(path depth² + prior claims), bounded by 32 segments and 2,000 ZIP entries.
+ */
+export function claimSharePath(required: { path: string; directory: boolean; aliases: Map<string, string>; files: Set<string> }, _options: Record<string, never> = {}): void {
+  validateSharePath({ path: required.path });
+  const parts = required.path.split("/");
+  for (let index = 1; index <= parts.length; index++) {
+    const spelling = parts.slice(0, index).join("/");
+    const alias = sharePathAlias({ path: spelling });
+    const prior = required.aliases.get(alias);
+    if (prior !== undefined && prior !== spelling) unsafeSharePath("ZIP contains unsafe case or Unicode aliases.");
+    required.aliases.set(alias, spelling);
+    if (index < parts.length && required.files.has(alias)) unsafeSharePath("ZIP file/directory collision.");
+  }
+  const key = sharePathAlias(required);
+  if (!required.directory) {
+    if (required.files.has(key) || [...required.aliases.keys()].some(alias => alias.startsWith(key + "/"))) unsafeSharePath("Duplicate file or file/directory collision.");
+    required.files.add(key);
+  }
+}
+

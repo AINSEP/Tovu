@@ -175,6 +175,15 @@ export const SITE_BACKUP_EGRESS_POLICY: EgressPolicy = {
   connectTimeoutMs: 120_000,
 };
 
+/** Anonymous Tovu-share download: buffered v1, public HTTPS only. The guard re-vets every hop,
+ * pins DNS peers and bounds decoded bytes too; provider credentials never accompany this read.
+ * Keep these byte limits equal to site-backup/share-policy's v1 caps (contract-tested).
+ */
+export const SITE_IMPORT_EGRESS_POLICY: EgressPolicy = {
+  allowedSchemes: ["https"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 5,
+  connectTimeoutMs: 30_000, maxResponseBytes: 300 * 1024 * 1024, maxDecompressedBytes: 300 * 1024 * 1024,
+};
+
 /**
  * The maximum publish-content bundle a peer may answer a PULL with. Deliberately far above
  * {@link SINGLE_HOP_HTTPS_EGRESS_POLICY}'s 1 MB: an export envelope is the workspace's whole

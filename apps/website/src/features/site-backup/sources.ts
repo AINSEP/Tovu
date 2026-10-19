@@ -1,5 +1,7 @@
+import { excludedSharePath, validateSharePath } from "./share-file-policy.js";
+import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
-import { lstat, open, readdir, readFile, unlink } from "node:fs/promises";
+import { lstat, open, readdir, readFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
@@ -119,6 +121,7 @@ interface WalkSink {
   readonly files: PlannedDiskFile[];
   readonly skipped: SkippedSiteBackupFile[];
   readonly fileSystem: SiteBackupWalkFileSystem;
+  readonly profile?: "share";
 }
 
 /** The filesystem reads used by backup collection, including files removed during the walk. */
@@ -154,6 +157,7 @@ async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem)
  * @complexity O(1) — one `lstat`.
  */
 async function addFile(sink: WalkSink, input: { absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
+  if (sink.profile === "share" && excludedSharePath({ path: input.relPath })) return;
   let info;
   try {
     info = await sink.fileSystem.lstat(input.absPath);
@@ -169,6 +173,11 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
     sink.skipped.push({ path: input.relPath, reason: "not a regular file" });
     return;
   }
+  if (sink.profile === "share") {
+    validateSharePath({ path: input.relPath });
+    if (info.nlink > 1) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses hardlinked file '${input.relPath}'.` });
+    checkShareLimits({ files: [...sink.files, { path: input.relPath, bytes: info.size }] });
+  }
   sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, absPath: input.absPath, mtimeMs: info.mtimeMs });
 }
 
@@ -180,8 +189,16 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
  * @complexity O(entries under `absDir`) filesystem calls; recursion depth is the folder depth.
  */
 async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
+  if (sink.profile === "share") {
+    if (excludedSharePath({ path: input.relDir })) return;
+    const info = await sink.fileSystem.lstat(input.absDir).catch(err => isMissing(err) ? null : Promise.reject(err));
+    if (!info) return;
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses linked or special directory '${input.relDir}'.` });
+    validateSharePath({ path: input.relDir });
+  }
   const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
   for (const entry of entries) {
+    if (sink.profile === "share" && excludedSharePath({ path: `${input.relDir}/${entry.name}` })) continue;
     if (IGNORED_NAMES.has(entry.name) || input.excludeTopLevel?.has(entry.name)) continue;
     const absPath = path.join(input.absDir, entry.name);
     const relPath = `${input.relDir}/${entry.name}`;
@@ -299,9 +316,9 @@ const MEDIA_IN_OBJECT_STORAGE_NOTE =
  * @throws Only an unexpected filesystem error (a missing folder is treated as empty).
  * @complexity O(entries under every included scope's folder) filesystem calls, plus O(n log n) to sort.
  */
-export async function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }, optional: { fileSystem?: SiteBackupWalkFileSystem } = {}): Promise<CollectedSiteBackupFiles> {
+export async function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }, optional: { fileSystem?: SiteBackupWalkFileSystem; profile?: "share" } = {}): Promise<CollectedSiteBackupFiles> {
   const { sources, include } = input;
-  const sink: WalkSink = { files: [], skipped: [], fileSystem: optional.fileSystem ?? WALK_FILE_SYSTEM };
+  const sink: WalkSink = { files: [], skipped: [], fileSystem: optional.fileSystem ?? WALK_FILE_SYSTEM, ...(optional.profile ? { profile: optional.profile } : {}) };
   const scopeNotes: Partial<Record<SiteBackupScope, string>> = {};
 
   if (include.media) {
@@ -310,8 +327,18 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   }
   if (include.themes) await walkTree(sink, { absDir: sources.themesDir, relDir: "themes", scope: "themes" });
   if (include.plugins) {
+    if (optional.profile === "share") {
+      for (const root of [sources.agentPlugins.root, sources.agentPlugins.workspacesDir]) {
+        const info = await sink.fileSystem.lstat(root).catch(err => isMissing(err) ? null : Promise.reject(err));
+        if (info && (!info.isDirectory() || info.isSymbolicLink())) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: "Share refuses a linked plugin root." });
+      }
+    }
     await walkAgentPlugins(sink, sources.agentPlugins);
     await walkTree(sink, { absDir: sources.skillsDir, relDir: "skills", scope: "plugins" });
+  }
+  if (optional.profile === "share") {
+    if (include.plugins) await walkTree(sink, { absDir: path.join(sources.siteDir, "plugins"), relDir: "plugins", scope: "plugins" });
+    if (include.themes) await walkTree(sink, { absDir: path.join(sources.siteDir, "overrides"), relDir: "overrides", scope: "themes" });
   }
   if (include.settings) {
     for (const name of ["config.json", ".site-meta.json"]) {
@@ -337,7 +364,7 @@ export type DatabaseSnapshotResult = { ok: true; bytes: Buffer; watermarkAtCaptu
  *   capture failure's own text stays in `logDetail`, which is for the server log only).
  * @complexity O(database size) — one full copy, one read, one unlink.
  */
-export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }): Promise<DatabaseSnapshotResult> {
+export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId: string }, optional: { maxBytes?: number } = {}): Promise<DatabaseSnapshotResult> {
   const { restorePoint } = await input.dbOps.getCapabilities();
   if (restorePoint.costClass !== "cheap" || restorePoint.kind !== "file-snapshot") {
     return {
@@ -354,6 +381,7 @@ export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId
     return { ok: false, message: "the database snapshot failed; nothing was backed up", logDetail: describeErrorForLog({ err }) };
   }
   try {
+    if (optional.maxBytes !== undefined && (await stat(artifactRef)).size > optional.maxBytes) return { ok: false, message: "Database snapshot exceeds the v1 300 MiB share cap." };
     return { ok: true, bytes: await readFile(artifactRef), watermarkAtCapture };
   } catch (err) {
     return { ok: false, message: "the database snapshot could not be read back; nothing was backed up", logDetail: describeErrorForLog({ err }) };
@@ -464,6 +492,7 @@ export async function readPlannedFile(file: PlannedDiskFile, optional: { openFil
 }
 
 export interface SiteBackupManifestInput {
+  readonly profile?: "share";
   readonly createdAt: string;
   readonly tovuVersion: string;
   readonly schema: { readonly index: number; readonly tag: string };
@@ -492,6 +521,7 @@ export function buildSiteBackupManifest(input: SiteBackupManifestInput): string 
   const manifest = {
     format: "tovu-site-backup",
     formatVersion: 1,
+    ...(input.profile === "share" ? { profile: "share", sanitizationVersion: 1 } : {}),
     createdAt: input.createdAt,
     tovu: { version: input.tovuVersion },
     schema: { index: input.schema.index, tag: input.schema.tag },

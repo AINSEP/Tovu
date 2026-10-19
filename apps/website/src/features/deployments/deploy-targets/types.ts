@@ -1,4 +1,5 @@
 import type { DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
+import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
 import type { DeployPublishInput, DeployPublishOptions, DeployTarget, DeployPublishResult, DeployTargetModule as DevopsDeployTargetModule, DeployHostKit as DevopsDeployHostKit, DeployTargetCreateContext as DevopsCreateContext, DeployCredentialCheckContext as DevopsCheckContext, DeployError, SigV4ClientOptions, UnknownRecord } from "@jini-ai/devops/deploy";
 
 /**
@@ -68,7 +69,9 @@ export interface HostDeployTarget extends Omit<DeployTarget, "publish" | "checkR
  * Tovu-only extras. Only `create` is required; the rest have host defaults (no config errors, no
  * base path, no summary rows, no credential check, no hosting steps).
  */
-export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "create" | "validateConfig" | "basePath" | "verifyCredential"> {
+export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "create" | "createArtifactStore" | "validateConfig" | "basePath" | "verifyCredential"> {
+  /** Separate single-object lifecycle; never enters static publish's cleanup manifest. */
+  createArtifactStore?(required: DeployTargetCreateContext, optional?: Record<string, never>): ArtifactStorePort;
   create(context: DeployTargetCreateContext): HostDeployTarget;
   validateConfig?(config: UnknownRecord): string | null;
   basePath?(config: UnknownRecord): string | undefined;

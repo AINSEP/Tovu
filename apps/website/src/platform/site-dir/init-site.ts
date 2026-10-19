@@ -180,6 +180,12 @@ export function validateInitTarget(target: string): void {
   }
 }
 
+export interface InitSiteRestorePort {
+  readonly signal?: AbortSignal;
+  /** Trusted caller only: verified restoration runs before owner seeding and the final marker. */
+  restore(required: { dir: string; dbPath: string; siteId: string }, optional?: Record<string, never>): Promise<void>;
+}
+
 /**
  * Create a complete install dir from the starter template (BR-01).
  *
@@ -201,8 +207,10 @@ export function validateInitTarget(target: string): void {
  *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
-export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional & { workspace?: SitesWorkspace; filesystem?: AtomicFilesystemPort } = {}): Promise<InitSiteResult> {
+export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional & { workspace?: SitesWorkspace; filesystem?: AtomicFilesystemPort; verifiedRestore?: InitSiteRestorePort; onAllocated?: (required: InitSiteResult & { dbPath: string }) => void } = {}): Promise<InitSiteResult> {
   const { dir, name } = required;
+  // Imported sites must never inherit either the default password or process credentials.
+  if (options.verifiedRestore && (required.adminPassword === undefined || required.storage && required.storage.kind !== "sqlite")) throw new ValidationError("Verified import requires an explicit owner password and SQLite storage.");
   const adminPassword = resolveNewSiteAdminPassword(required);
   const target = resolveInstallDirTarget(dir);
 
@@ -223,6 +231,12 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
   try {
     // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
     await assertPostgresTargetEmpty(storage, required.connectionString);
+
+    if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`initSite: database target already exists at ${externalDbDir}`);
+
+    // Journal the minted identity and BOTH storage locations before any site bytes exist.
+    // Recovery must not guess an app-data path from settings that may change after a crash.
+    options.onAllocated?.({ dir: target, siteId, dbPath: dbPaths.contentDbPath });
 
     // Step 4: directory + subdirectory creation.
     if (!fs.existsSync(target)) {
@@ -254,17 +268,19 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
     // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
     if (storage.kind === "sqlite") {
       const dbPath = dbPaths.contentDbPath;
-      if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`initSite: database target already exists at ${externalDbDir}`);
       fs.mkdirSync(path.dirname(dbPath), { recursive: true });
       createdExternalDbDir = Boolean(externalDbDir);
+      await options.verifiedRestore?.restore({ dir: target, dbPath, siteId });
+      options.verifiedRestore?.signal?.throwIfAborted();
       const db = openSqliteContentConnection(dbPath);
       try {
         await migrateContentDatabase(sqliteKernel<unknown>(db));
-        await prepareContentStore(contentKernel(db), { seed });
+        if (!options.verifiedRestore) await prepareContentStore(contentKernel(db), { seed });
         // A freshly initialized site must already carry current repair markers, so its first boot
         // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
         await runBootDataRepairs({ kernel: contentKernel(db) });
         await seedNewSiteOwner({ kernel: contentKernel(db), seed, adminPassword });
+        options.verifiedRestore?.signal?.throwIfAborted();
       } finally {
         closeSqliteConnection(db);
       }
@@ -274,6 +290,7 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
 
     // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
     // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
+    options.verifiedRestore?.signal?.throwIfAborted();
     const runtime = runtimeSchemaVersion();
     const meta: SiteMetaJson = {
       siteId,

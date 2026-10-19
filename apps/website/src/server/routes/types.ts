@@ -1366,6 +1366,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
    */
   siteBackupSources?: SiteBackupSources;
+  /** Site-bound export operation shared by tools and authenticated routes. */
+  siteShareBackend?: import("#src/features/site-backup/share-backend").SiteShareBackend;
+  siteImportBackend?: import("#src/features/site-backup/import-backend").SiteImportBackend;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`

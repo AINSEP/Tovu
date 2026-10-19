@@ -1,3 +1,6 @@
+import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
+import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
+import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
 import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/system/tool-gaps.js";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -1805,6 +1808,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // single chokepoint that sees both `tovu serve` and `index.ts`'s boot paths (both call this exact
   // `createApp()` function; see `ADS-memory/.local-artifacts/metrics/
   // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
+  // Bearer share paths never enter request logging, page analytics, or public rendering.
+  registerPublicShareRoutes({ app, registry: routeDeps.siteShareBackend?.registry });
   applyRequestTracking(app, { observability: routeDeps.observability });
   // Only a `createSiteApp({ themeId })` loopback app has this; see `render-theme-override.ts`.
   if (options.themeIdOverride !== undefined) applyRenderThemeOverride(app, { themeId: options.themeIdOverride });
@@ -1959,6 +1964,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
   registerAdminExportSiteRoutes(app, routeDeps);
+  registerAdminSiteShareRoutes({ app, deps: routeDeps });
+  registerAdminSiteImportRoutes({ app, deps: routeDeps });
   // Deployment panel → publish-to-GitHub-Pages/Vercel: trigger + poll a one-shot static publish
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.

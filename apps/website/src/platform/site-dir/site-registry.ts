@@ -2,8 +2,9 @@ import fs from "node:fs";
 import { withFileLock } from "@jini-ai/platform/fs";
 import path from "node:path";
 
-import { ValidationError } from "./errors.js";
-import { initSite, type InitSiteResult } from "./init-site.js";
+import { ValidationError, InitDirNotEmptyError } from "./errors.js";
+import { initSite, type InitSiteResult, type InitSiteRestorePort } from "./init-site.js";
+import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
 import { createSitesWorkspace, resolveSitesHome } from "./sites-home.js";
@@ -139,7 +140,10 @@ function validateSiteName(name: string): string {
 export interface CreateSiteRequired {
   name: string;
   adminPassword?: string;
+  displayName?: string;
 }
+
+export interface SiteCreationAllocation extends InitSiteResult { name: string; dbPath: string }
 
 export interface CreateSiteResult extends InitSiteResult {
   name: string;
@@ -156,21 +160,75 @@ export interface CreateSiteResult extends InitSiteResult {
  * @throws whatever `initSite` throws for an occupied target or an internal failure (e.g.
  *   `InitDirNotEmptyError` when `sites/<name>/` already exists) — see that function's own contract;
  *   nothing here re-classifies those errors.
- * @complexity Bounded by `initSite`'s own cost (see that function's doc) plus one name-format
- *   check — never a function of caller-controlled input size.
+ * @complexity initSite's byte cost plus O(sites + name collisions) for collision-safe imports;
+ *   name selection is bounded to 10,000 candidates under a shared home lock.
  */
-export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite } = {}): Promise<CreateSiteResult> {
+export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite; workspace?: ReturnType<typeof createSitesWorkspace>; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void } = {}): Promise<CreateSiteResult> {
   const name = validateSiteName(required.name);
-  const workspace = createSitesWorkspace({}, optional);
+  const workspace = optional.workspace ?? createSitesWorkspace({}, optional);
   const home = workspace.home({});
   if (!workspace.homeAvailable({})) throw new ValidationError(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
   fs.mkdirSync(home, { recursive: true });
-  const dir = path.join(home, name);
-  return withFileLock({ lockPath: `${dir}.creation.lock`, run: async () => {
-    const result = await (optional.initSite ?? initSite)({ dir, name, adminPassword: required.adminPassword }, { workspace });
-    workspace.registry({}).merge({ entries: [{ id: result.siteId, name, path: result.dir, createdBy: "Web", lastOpened: null }] });
-    return { ...result, name };
+  const create = async (picked: string): Promise<CreateSiteResult> => {
+    const dir = path.join(home, picked);
+    return withFileLock({ lockPath: `${dir}.creation.lock`, run: async () => {
+      if (optional.collisionSafe && fs.existsSync(dir)) throw new InitDirNotEmptyError("Import target was occupied while waiting for its creation lock.");
+      const result = await (optional.initSite ?? initSite)({ dir, name: required.displayName ?? picked, adminPassword: required.adminPassword }, { workspace, onAllocated: allocation => optional.onAllocated?.({ ...allocation, name: picked }), ...(optional.verifiedRestore ? { verifiedRestore: optional.verifiedRestore } : {}) });
+      try {
+        optional.beforeRegister?.({ ...result, name: picked });
+        workspace.registry({}).merge({ entries: [{ id: result.siteId, name: picked, path: result.dir, createdBy: "Web", lastOpened: null }] });
+      } catch (error) {
+        if (optional.verifiedRestore) {
+          // The catalog write can fail after init committed. Roll back only this fresh import.
+          fs.rmSync(path.join(result.dir, ".site-meta.json"), { force: true });
+          const db = resolveSiteDatabasePaths({ dir: result.dir, siteId: result.siteId }, { workspace, placement: workspace.config({}).databases, reserveIdentity: false });
+          if (!db.contentDbPath.startsWith(result.dir + path.sep)) fs.rmSync(path.dirname(db.contentDbPath), { recursive: true, force: true });
+          fs.rmSync(result.dir, { recursive: true, force: true });
+          workspace.registry({}).remove({ path: result.dir });
+        }
+        throw error;
+      }
+      return { ...result, name: picked };
+    } }, { staleMs: Infinity });
+  };
+  if (!optional.collisionSafe) return create(name);
+  // Name selection and import creation share a home-level lane; ordinary creators retain their
+  // per-name lock, so an intervening ordinary create is retried with the next suffix.
+  return withFileLock({ lockPath: path.join(home, ".import-creation.lock"), run: async () => {
+    const occupied = new Set(workspace.registry({}).list({}).map(row => row.name));
+    for (let suffix = 1; suffix <= 10_000; suffix++) {
+      const candidate = suffix === 1 ? name : name.slice(0, 90) + "-" + suffix;
+      if (fs.existsSync(path.join(home, candidate)) || occupied.has(candidate)) continue;
+      try { return await create(candidate); }
+      catch (error) {
+        if ((error as Error).name !== "InitDirNotEmptyError") throw error;
+      }
+    }
+    throw new ValidationError("No collision-free import site name is available.");
   } }, { staleMs: Infinity });
+}
+
+/** Reconcile a journaled fresh import under the same locks as creation. A catalog commit
+ * plus initSite's marker is authoritative; otherwise discard only the allocated fresh files.
+ * Throws on conflicting ownership rather than removing another site. O(catalog + site bytes).
+ */
+export async function reconcileSiteCreation(required: { allocation: SiteCreationAllocation; workspace: ReturnType<typeof createSitesWorkspace> }, _options: Record<string, never> = {}): Promise<"ready" | "failed"> {
+  const { allocation, workspace } = required;
+  return withFileLock({ lockPath: path.join(path.dirname(allocation.dir), ".import-creation.lock"), run: () =>
+    withFileLock({ lockPath: `${allocation.dir}.creation.lock`, run: () => {
+      const entries = workspace.registry({}).list({});
+      const owner = entries.find(entry => entry.path === allocation.dir || entry.id === allocation.siteId);
+      if (owner) {
+        if (owner.path !== allocation.dir || owner.id !== allocation.siteId || readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError("Interrupted import has conflicting site ownership; manual recovery required.");
+        return "ready" as const;
+      }
+      if (fs.existsSync(path.join(allocation.dir, ".site-meta.json")) && readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError("Interrupted import directory belongs to another site; manual recovery required.");
+      fs.rmSync(path.join(allocation.dir, ".site-meta.json"), { force: true });
+      if (!allocation.dbPath.startsWith(allocation.dir + path.sep)) fs.rmSync(path.dirname(allocation.dbPath), { recursive: true, force: true });
+      fs.rmSync(allocation.dir, { recursive: true, force: true });
+      return "failed" as const;
+    } }, { staleMs: Infinity })
+  }, { staleMs: Infinity });
 }
 
 /**

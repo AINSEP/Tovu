@@ -322,9 +322,29 @@ async function rejection(promise: Promise<unknown>): Promise<ToolInputError> {
 
 test("both tools are registered; the plan is read-only and the push is not", (t) => {
   const h = harness(t);
-  assert.deepEqual([...h.tools.keys()].sort(), ["site_backup_plan", "site_backup_push"]);
+  assert.deepEqual([...h.tools.keys()].sort(), ["site_backup_plan", "site_backup_push", "site_import_backup", "site_import_list", "site_share_create", "site_share_list", "site_share_revoke"]);
   assert.equal(h.planTool.descriptor.readOnly, true);
   assert.equal(h.pushTool.descriptor.readOnly, false);
+});
+
+test("share tools use the site-bound backend and authorize before every effect", async (t) => {
+  const h = harness(t);
+  const calls: string[] = [];
+  const row = { shareId: "export-id", site: WORKSPACE_ID, file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null, status: "active" as const, createdAt: NOW, revokedAt: null, downloadUrl: "/private/download" };
+  const registrations = buildSiteBackupRegistrations({ ...h.deps, siteShareBackend: {
+    registry: {} as import("../share-registry.js").SiteShareRegistry,
+    create: async ({ principalId }) => { calls.push(`create:${principalId}`); return row; },
+    list: async () => { calls.push("list"); return [row]; },
+    revoke: async ({ shareId }) => { calls.push(`revoke:${shareId}`); return { ...row, status: "revoked" as const }; },
+  } }, { surfaceExchanges: h.surfaceExchanges });
+  const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
+  assert.deepEqual(await call(tools.get("site_share_create")!, {}), row);
+  assert.deepEqual(await call(tools.get("site_share_list")!, {}), { shares: [row] });
+  assert.equal((await call(tools.get("site_share_revoke")!, { shareId: row.shareId }) as Result).status, "revoked");
+  const before = [...calls];
+  h.setAllow(() => false);
+  for (const [id, input] of [["site_share_create", {}], ["site_share_list", {}], ["site_share_revoke", { shareId: row.shareId }]] as const) await assert.rejects(call(tools.get(id)!, input));
+  assert.deepEqual(calls, before, "permission denials never reach the export or registry ports");
 });
 
 // ---------------------------------------------------------------------------
@@ -1184,7 +1204,7 @@ test("the contributor exposes the backup registrations and their independent ris
   const contributor = contributeSiteBackupTools();
   assert.equal(contributor.domain, "site-backup");
   assert.equal(contributor.risk, siteBackupDerivedRisk);
-  assert.deepEqual(contributor.build(h.deps as never, { surfaceExchanges: h.surfaceExchanges }).map(registration => registration.descriptor.id), ["site_backup_plan", "site_backup_push"]);
+  assert.deepEqual(contributor.build(h.deps as never, { surfaceExchanges: h.surfaceExchanges }).map(registration => registration.descriptor.id), ["site_import_backup", "site_import_list", "site_backup_plan", "site_backup_push", "site_share_create", "site_share_list", "site_share_revoke"]);
 });
 
 test("a malformed saved API URL is ignored during automatic credential selection", async t => {

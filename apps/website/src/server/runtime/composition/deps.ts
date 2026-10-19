@@ -1,3 +1,22 @@
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
+import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
+import { rebuildImportDatabase } from "#src/platform/db/sqlite/import-database";
+import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
+import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
+import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
+import * as importYauzl from "yauzl";
+import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { switcherBaseForBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
+import { localSiteSupervisorForHost } from "../lifecycle/local-site-host.js";
+import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
+import { prepareShareContent } from "#src/features/site-backup/share-preparation";
+import { sanitizeShareDatabase } from "#src/platform/db/sqlite/share-database";
+import { createRuntimeShareDelivery, resolveShareDelivery } from "#src/features/site-backup/share-hosting";
+import { selectConnectedDestination } from "#src/features/publish-content/peers";
+import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
+import { composePublishCredentialSource, toDeployTargetCredential } from "#src/features/deployments/static-publish/credentials";
+import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
@@ -22,9 +41,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { executeCommand } from "@jini-ai/cms/core";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, type ObservabilityPort } from "#src/platform/observability/index";
@@ -63,6 +82,7 @@ import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origi
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
   SITE_BACKUP_EGRESS_POLICY,
+  SITE_IMPORT_EGRESS_POLICY,
   MEDIA_IMPORT_EGRESS_POLICY,
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
 } from "#src/platform/http/egress-policies";
@@ -2587,6 +2607,74 @@ async function composeSiteRouteDeps(
     // A boot pass can start another app (for example during export); drain until none remain.
     while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);
   });
+  if (routeDeps.siteBackupSources) {
+    try {
+      // App-data / mounted SQLite locations own persistence, even when the site source is ephemeral.
+      const shareDirectory = resolve(process.env.TOVU_SHARE_STORAGE_DIR || join(isInMemoryDbPath(dbPath) ? resolvedSiteBinding.dir : dirname(dbPath), "ops", "shares"));
+      mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
+      const physicalShares = realpathSync(shareDirectory);
+      const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
+      if (physicalShares === (existsSync(resolvedSiteBinding.dir) ? realpathSync(resolvedSiteBinding.dir) : resolve(resolvedSiteBinding.dir)) || contentRoots.some(root => {
+        const physicalRoot = existsSync(root) ? realpathSync(root) : resolve(root);
+        return physicalShares === physicalRoot || physicalShares.startsWith(physicalRoot + sep);
+      })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside served content folders.");
+      const registry = new SiteShareRegistry({ directory: physicalShares });
+      const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
+        dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
+      // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
+      // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
+      routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
+        prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore }, { signal }),
+        delivery: selection => resolveShareDelivery({
+          http: guardedOutboundHttpClient,
+          peer: async () => {
+            const rows = await routeDeps.publishContentPeerRepo.listByWorkspace({ workspaceId });
+            const connected = selectConnectedDestination(rows);
+            if (!connected || selection.binding !== undefined && selection.binding !== connected.baseUrl) return undefined;
+            const credential = await resolvePublishDestinationCredential({ repo: routeDeps.publishContentPeerRepo,
+              sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, httpClient: publishContentPeerHttpClient },
+            { workspaceId, id: connected.id });
+            return { credential, httpClient: publishContentPeerHttpClient };
+          },
+          ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {
+            runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
+          } : {}),
+          s3: async () => {
+            const module = (await routeDeps.loadDeployTargets(workspaceId)).get("s3-compatible")?.module;
+            if (!module?.createArtifactStore) return undefined;
+            const resolved = await credentials.resolve({ workspaceId, target: "s3-compatible" });
+            if (!resolved.ok) return undefined;
+            // A new default connection must never turn revocation into deletion in another bucket.
+            // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
+            const storageBinding = JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
+            // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
+            // A normal publish's kit remains unchanged, including its observability.
+            const kit = createDeployHostKit({});
+            const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+              const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
+              return new Response(null, { status: response.status, headers: response.headers });
+            } };
+            return { provider: "s3-compatible", binding: storageBinding, store: module.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+          },
+        }, selection),
+      });
+    } catch (error) {
+      console.error("[site-share] Private share storage unavailable; sharing is disabled:", error);
+      routeDeps.siteShareBackend = undefined;
+    }
+  }
+  const importBase = switcherBaseForBinding(resolvedSiteBinding);
+  const importSupervisor = isSiteSwitcherEnabled() ? localSiteSupervisorForHost({ binding: resolvedSiteBinding }) : undefined;
+  if (importBase !== null && importSupervisor) {
+    const workspace = createSitesWorkspace({}, { cwd: importBase });
+    // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
+    const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
+    const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
+    routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+      startSite: input => importSupervisor.start(input),
+      setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
+    }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
+  }
   return routeDeps;
 }
 

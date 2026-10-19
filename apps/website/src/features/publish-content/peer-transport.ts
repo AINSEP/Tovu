@@ -145,16 +145,16 @@ export interface PeerCallDeps {
 }
 
 /**
- * One authenticated JSON call to a peer route.
+ * One authenticated call to a peer route; share uploads reuse this credential/egress owner.
  *
  * @param path - An absolute route path on the peer, already carrying the peer's OWN workspace id.
  * @returns The parsed JSON body.
  * @throws {PublishContentPeerTransportError} for every failure class — see {@link toTransportError}.
  * @complexity O(1) plus one network round trip and one JSON parse of the response.
  */
-async function callPeer(
+export async function callPeer(
   deps: PeerCallDeps,
-  request: { method: "GET" | "POST" | "PUT"; path: string; body?: unknown }
+  request: { method: "GET" | "POST" | "PUT" | "DELETE"; path: string; body?: unknown; archive?: Uint8Array; signal?: AbortSignal }
 ): Promise<unknown> {
   const { baseUrl, apiKey } = deps.credential;
   let response;
@@ -172,9 +172,10 @@ async function callPeer(
         // ahead of the admin session gate. Both are `Bearer <opaque>` on the wire, so there is
         // still no transport-specific auth mechanism here to get wrong.
         authorization: `Bearer ${apiKey}`,
-        ...(request.body === undefined ? {} : { "content-type": "application/json" }),
+        ...(request.archive !== undefined ? { "content-type": "application/zip" } : request.body === undefined ? {} : { "content-type": "application/json" }),
       },
-      ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+      ...(request.archive !== undefined ? { body: request.archive } : request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+      signal: request.signal,
       timeoutMs: PEER_REQUEST_TIMEOUT_MS,
       // Publishing can carry a 96 MB bundle. Keep the feature's intended 60 s
       // total budget explicit; the egress policy's 30 s limit is socket inactivity.
@@ -195,6 +196,7 @@ async function callPeer(
     );
   }
 
+  if (response.status === 204) return undefined;
   try {
     return JSON.parse(response.bodyText);
   } catch {

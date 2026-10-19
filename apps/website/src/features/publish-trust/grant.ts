@@ -55,6 +55,9 @@ export function isBackstopEntityType(
  * to push content, not to enumerate or edit this install's own publishing configuration.
  */
 export const PUBLISH_TRUST_ROUTES = [
+  // A connected computer may host a ZIP on live; no share list/create/admin download authority.
+  { method: "PUT", path: "/api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file" },
+  { method: "DELETE", path: "/api/admin/v1/workspaces/:workspaceId/site-shares/artifacts/:token/:file" },
   { method: "GET", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/export" },
   // S-F1: the push driver asks what this destination accepts before it stages anything.
   { method: "GET", path: "/api/admin/v1/workspaces/:workspaceId/publish-content/capabilities" },

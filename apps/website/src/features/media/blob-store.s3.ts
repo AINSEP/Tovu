@@ -185,7 +185,7 @@ export class S3BlobStore implements BlobStorePort {
   async get(input: { storageKey: string }): Promise<Uint8Array> {
     let resp: Response;
     try {
-      resp = await this.send(objectUrl(this.config, input.storageKey), { method: "GET" });
+      resp = await this.send(objectUrl(this.config, input.storageKey), { method: "GET", signal: AbortSignal.timeout(120_000) });
     } catch (err) {
       throw new Error(`S3BlobStore.get: request failed for '${input.storageKey}' — ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -198,6 +198,16 @@ export class S3BlobStore implements BlobStorePort {
       throw new Error(`S3BlobStore.get: failed to read '${input.storageKey}' — HTTP ${resp.status}`);
     }
     return new Uint8Array(await resp.arrayBuffer());
+  }
+
+  /** A bounded exporter must know the size BEFORE buffering an object. No GET is needed. */
+  async sizeOf(required: { storageKey: string }, _optional: Record<string, never> = {}): Promise<number | null> {
+    const response = await this.send(objectUrl(this.config, required.storageKey), { method: "HEAD", signal: AbortSignal.timeout(30_000) });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`S3BlobStore.sizeOf: failed to check object — HTTP ${response.status}`);
+    const length = response.headers.get("content-length");
+    if (length === null || !/^\d+$/.test(length) || !Number.isSafeInteger(Number(length))) throw new Error("S3BlobStore.sizeOf: storage did not return a valid content length");
+    return Number(length);
   }
 
   /**

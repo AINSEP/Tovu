@@ -65,6 +65,9 @@ export function applyRequestTracking(app: Express, deps: {
   const logRequests = env.TOVU_LOG_REQUESTS === "1";
   const slowRequestMs = env.TOVU_LOG_SLOW_REQUESTS?.trim() ? Number(env.TOVU_LOG_SLOW_REQUESTS) : undefined;
   app.use((req: Request, res: Response, next: NextFunction) => {
+    // Management transfers carry the same bearer token as the public download. Keep their
+    // paths out of tracing and request logs too; the permission gate still runs normally.
+    if (/\/site-shares\/artifacts\//i.test(req.path)) { next(); return; }
     const startedAt = performance.now();
     const requestId = resolveRequestId({ header: req.headers[REQUEST_ID_HEADER] });
     res.setHeader(REQUEST_ID_HEADER, requestId);

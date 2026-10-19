@@ -253,7 +253,7 @@ export function bindS3Compatible(kit) {
               // `Uint8Array<ArrayBuffer>`) disagree on the typed array's generic parameter, a known
               // ecosystem type mismatch rather than a real runtime concern.
               body: file.data,
-              headers: { "Content-Type": file.contentType ?? DEFAULT_CONTENT_TYPE },
+              headers: { "Content-Type": file.contentType ?? DEFAULT_CONTENT_TYPE, ...(file.headers ?? {}) },
               signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
           });
       }
@@ -571,7 +571,7 @@ export function bindS3Compatible(kit) {
    * @complexity One HEAD request when the key has a recorded etag to verify; O(1) otherwise.
    */
   async function classifyManagedKey(client, config, previous, currentKeys) {
-      if (currentKeys.has(previous.key) || previous.key === MANAGED_MANIFEST_KEY)
+      if (currentKeys.has(previous.key) || previous.key === MANAGED_MANIFEST_KEY || previous.key.startsWith("_share/"))
           return "skip";
       if (previous.etag === undefined) {
           // No recorded provenance (a pre-provenance v1 manifest entry, or a malformed v2 one) — nothing
@@ -687,6 +687,34 @@ export function bindS3Compatible(kit) {
               region: config.region,
           });
       }
+      /** A share has its own exact object key and never participates in publish cleanup. */
+      artifactStore(_required, _optional = {}) {
+          const requireKey = (key) => {
+              if (!/^_share\/[0-9a-f]{64}\/[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/.test(key)) throw new DeployError("Invalid share artifact key.", 400);
+          };
+          const publicUrl = (key) => `${this.config.publicUrl.replace(/\/+$/, "")}/${key}`;
+          return {
+              upload: async ({ key, bytes, headers }, options = {}) => {
+                  requireKey(key);
+                  options.signal?.throwIfAborted();
+                  // S3 can persist cache/disposition headers. Arbitrary response headers (nosniff,
+                  // robots) are best-effort at a CDN and are not part of the S3 verification contract.
+                  const supported = Object.fromEntries(Object.entries(headers).filter(([name]) => /^(?:content-type|content-disposition|cache-control)$/i.test(name)));
+                  await uploadOne(this.client, this.config, { file: key, data: bytes, contentType: "application/zip", headers: supported });
+                  return { url: publicUrl(key) };
+              },
+              delete: async ({ key }, _options = {}) => { requireKey(key); await deleteOne(this.client, this.config, key); },
+              verify: async ({ key, url, present, bytes }, options = {}) => {
+                  requireKey(key);
+                  if (url !== publicUrl(key)) return false;
+                  const response = await kit.fetch(url, { method: "HEAD", redirect: "error", signal: options.signal }, { timeoutMs: kit.timeouts.QUICK });
+                  if (!present) return response.status === 404 || response.status === 410;
+                  return response.status === 200 && Number(response.headers.get("content-length")) === bytes &&
+                      response.headers.get("cache-control") === "no-store" &&
+                      /^attachment(?:;|$)/i.test(response.headers.get("content-disposition") ?? "");
+              },
+          };
+      }
       /**
        * Uploads every file, then checks whether `config.publicUrl` is actually reachable — see this file's
        * header for why this is checked here rather than left to a caller. A successful upload with an
@@ -722,6 +750,7 @@ export function bindS3Compatible(kit) {
        *   (`checkDeploymentUrl`, itself O(1)-O(2) requests).
        */
       async publish(input) {
+          if (input.files?.some(file => file.file.startsWith("_share/"))) throw new DeployError("Static publishing cannot write share artifacts.", 400);
           const currentKeys = new Set(input.files.map((file) => file.file));
           // Uploads happen ONCE, up front — a PUT is idempotent, so a conflict retry below never re-uploads.
           const observedEtags = await runBounded(input.files, (file) => uploadOne(this.client, this.config, file));
@@ -970,6 +999,10 @@ export default {
       publicUrl: credential.publicUrl,
       ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
     });
+  },
+  /** Minimal artifact capability on the existing vendor owner and signing helpers. */
+  createArtifactStore(required, _optional = {}) {
+    return this.create(required).artifactStore({});
   },
   /**
    * A SigV4-signed `HEAD` on the bucket (`HeadBucket`, the standard S3-API access check), sent through

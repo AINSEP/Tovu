@@ -6,6 +6,12 @@ argument-hint: "<the site's address, e.g. https://www.example.com/>"
 
 # Site import: an existing website into Tovu pages, posts and a matching theme
 
+**Route Tovu backups first.** For an uploaded `.tovu.zip`, a Tovu share link (`/_share/…`),
+or a request to install a shared Tovu site, call `site_import_backup` with exactly one of
+`{url}` or `{uploadId}` from the authenticated ZIP upload endpoint. It creates a NEW separate
+site and returns private owner setup/opening instructions. Never crawl a ZIP or write its content
+into the current site. This skill's crawl-and-write flow below is for live public websites.
+
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
 
 **Copy the source verbatim.** Import the source's real text, images, logo, brand names and fonts

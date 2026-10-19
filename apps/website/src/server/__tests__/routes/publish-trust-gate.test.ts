@@ -613,3 +613,26 @@ test("a publishing token may carry overwrite ticks to /import/plan and /import/e
     await stop(server);
   }
 });
+
+// RED: a real connected-computer session was refused before reaching either artifact route.
+test("publishing trust admits only artifact PUT/DELETE in the share namespace", async () => {
+  const { deps, token } = await directGateFixture();
+  const root = `/api/admin/v1/workspaces/${WORKSPACE}/site-shares`;
+  for (const method of ["PUT", "DELETE"]) {
+    const call = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+    call.req.method = method;
+    call.req.originalUrl = `${root}/artifacts/${"a".repeat(64)}/site.tovu.zip`;
+    await requirePublishTrust(deps)(call.req, call.res, call.next);
+    assert.deepEqual(call.statuses, []);
+    assert.deepEqual(call.nextCalls, [[]]);
+    assert.equal(call.res.locals.authCredentialKind, "publish_key");
+  }
+  for (const [method, suffix] of [["GET", ""], ["POST", ""], ["DELETE", "/id"], ["GET", "/id/download"], ["GET", `/artifacts/${"a".repeat(64)}/site.tovu.zip`]]) {
+    const call = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+    call.req.method = method;
+    call.req.originalUrl = root + suffix;
+    await requirePublishTrust(deps)(call.req, call.res, call.next);
+    assert.deepEqual(call.statuses, [401]);
+    assert.deepEqual(call.nextCalls, []);
+  }
+});
