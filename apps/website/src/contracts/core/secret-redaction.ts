@@ -50,6 +50,6 @@ const TOVU_SECRET_POLICY: RedactionPolicy = {
  * `(?!\[REDACTED)` guard (or, for the PEM/credential rules, simply cannot re-match its own already
  * -redacted output) so running this function twice on its own output is a no-op.
  */
-export function redactSecretShapes({ text }: { text: string }, options: { codeAware?: boolean } = {}): SecretRedaction {
-  return redactDiagnosticSecrets({ text, policy: { ...TOVU_SECRET_POLICY, codeAware: options.codeAware } });
+export function redactSecretShapes({ text }: { text: string }, options: { codeAware?: boolean; vendorOnly?: boolean } = {}): SecretRedaction {
+  return redactDiagnosticSecrets({ text, policy: { ...TOVU_SECRET_POLICY, codeAware: options.codeAware, vendorOnly: options.vendorOnly } });
 }

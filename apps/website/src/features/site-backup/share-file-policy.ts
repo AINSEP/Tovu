@@ -2,6 +2,9 @@ import { checkTreePath } from "../publish-content/file-tree-policy.js";
 import { SiteShareRefusal, SHARE_LIMITS } from "./share-policy.js";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 
+/** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
+const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
+
 /** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth). */
 export function excludedSharePath(required: { path: string }, _optional: Record<string, never> = {}): boolean {
   const p = required.path.toLowerCase();
@@ -14,7 +17,7 @@ export function excludedSharePath(required: { path: string }, _optional: Record<
       parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part))) return true;
   // Installed packages ship MCP declarations and credential schemas as content, not runtime secrets.
   // Exempt only those names below the seven-segment package root; their bytes still get secret-scanned.
-  const packageContent = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//.test(p);
+  const packageContent = PACKAGE_CONTENT_ROOT.test(p);
   const suspiciousParts = parts.filter((part, index) => !(packageContent && index >= 7 && ["mcp.json", "tovu-credential-schemes.json"].includes(part)));
   if (suspiciousParts.some(part => [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"].includes(part) ||
       part.startsWith(".share-") || /(?:credential|vault|keyring|site-key|private[-_]?key)/.test(part) ||
@@ -41,7 +44,11 @@ export function requireShareSecretFree(required: { path: string; bytes: Uint8Arr
   const text = Buffer.from(required.bytes).toString("latin1");
   // Only code can contain credential references; content/settings retain strict secret detection.
   const codeAware = /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path);
-  if (redactSecretShapes({ text }, { codeAware }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
+  // Package payloads are content-addressed installs of public plugin code, docs and manifests: their
+  // translated labels ("API token": "Token de API") and doc placeholders (`Authorization: Bearer <API_KEY>`)
+  // are not owner secrets, so only provider key formats, PEM and JWT shapes refuse them.
+  const vendorOnly = PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase());
+  if (redactSecretShapes({ text }, { codeAware, vendorOnly }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
 }
 
 function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }

@@ -50,6 +50,26 @@ test("share code awareness is restricted to code extensions", () => {
   }
 });
 
+test("plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict", () => {
+  const refused = (error: unknown) => (error as { code: string }).code === "SECRET_IN_CONTENT";
+  const at = (name: string) => `${packageRoot}/${name}`;
+  // Public package labels, doc placeholders and region ids are not credentials.
+  for (const [name, text] of [
+    ["tovu-deploy-targets.json", '{"i18n":{"es":{"API token": "Token de API", "token": "Zq7xK2mP9vR4tL8wN3bY6cH1"}}}'],
+    ["skills/jev/SKILL.md", "curl -H 'Authorization: Bearer <API_KEY>' https://api.example.com"],
+    ["deploy-configs/railway.mjs", 'export const regions = ["us-west2", "europe-west4-drams3a", "asia-southeast1-eqsg3a"];'],
+  ]) assert.doesNotThrow(() => requireShareSecretFree({ path: at(name), bytes: Buffer.from(text) }), name);
+  // A provider-shaped key is refused wherever it sits in a package.
+  for (const secret of [["sk", "proj", ""].join("-") + "Zq7xK2mP9vR4tL8wN3bY6cH1", "gh" + "p_" + "a1".repeat(18),
+    "-----BEGIN " + "PRIVATE KEY-----\nabc\n-----END " + "PRIVATE KEY-----"]) {
+    assert.throws(() => requireShareSecretFree({ path: at("tovu-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }), refused);
+    assert.throws(() => requireShareSecretFree({ path: at("skills/jev/SKILL.md"), bytes: Buffer.from(secret) }), refused);
+  }
+  // A malformed package root is not a package payload; non-package settings keep the strict scan.
+  assert.throws(() => requireShareSecretFree({ path: `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(63)}/m.json`, bytes: Buffer.from('{"API token": "abc123def456ghi789"}') }), refused);
+  assert.throws(() => requireShareSecretFree({ path: "settings/site.json", bytes: Buffer.from('{"API token": "abc123def456ghi789"}') }), refused);
+});
+
 for (const placement of ["inSite", "appData"] as const) test("A production preparation → public download → B import preserves content: " + placement, async t => {
   const h = await importFixture(t, placement);
   await seedPluginShareData({ db: h.db });
