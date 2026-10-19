@@ -9,6 +9,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const LIBRARY_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "No subas aquí claves, tokens ni secretos confidenciales.",
     Library: "Biblioteca", Content: "Contenido", Upload: "Subir", Documents: "Documentos",
     "Private documents the assistant can read. Visitors never see them.": "Documentos privados que el asistente puede leer. Los visitantes nunca los ven.",
     "Drop documents here, or click to browse": "Suelta documentos aquí o haz clic para buscarlos",
@@ -29,6 +30,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Se muestran los primeros 64 KB. Descarga el archivo para verlo completo.",
   },
   id: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Jangan unggah kunci, token, atau rahasia sensitif apa pun di sini.",
     Library: "Pustaka", Content: "Konten", Upload: "Unggah", Documents: "Dokumen",
     "Private documents the assistant can read. Visitors never see them.": "Dokumen pribadi yang dapat dibaca asisten. Pengunjung tidak pernah melihatnya.",
     "Drop documents here, or click to browse": "Letakkan dokumen di sini, atau klik untuk memilih",
@@ -49,6 +51,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Menampilkan 64 KB pertama. Unduh file untuk melihat seluruhnya.",
   },
   de: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Lade hier keine sensiblen Schlüssel, Tokens oder Geheimnisse hoch.",
     Library: "Bibliothek", Content: "Inhalt", Upload: "Hochladen", Documents: "Dokumente",
     "Private documents the assistant can read. Visitors never see them.": "Private Dokumente, die der Assistent lesen kann. Besucher sehen sie nie.",
     "Drop documents here, or click to browse": "Dokumente hier ablegen oder zum Auswählen klicken",
@@ -69,6 +72,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Die ersten 64 KB werden angezeigt. Lade die Datei herunter, um alles zu sehen.",
   },
   "zh-CN": {
+    "Do not load any sensitive keys, tokens, or secrets here.": "请勿在此上传任何敏感密钥、令牌或机密信息。",
     Library: "资料库", Content: "内容", Upload: "上传", Documents: "文档",
     "Private documents the assistant can read. Visitors never see them.": "助手可以读取的私有文档。访客永远看不到。",
     "Drop documents here, or click to browse": "将文档拖放到此处，或点击浏览",
@@ -89,6 +93,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "仅显示前 64 KB。下载文件以查看全部内容。",
   },
   "zh-TW": {
+    "Do not load any sensitive keys, tokens, or secrets here.": "請勿在此上傳任何敏感金鑰、權杖或機密資訊。",
     Library: "資料庫", Content: "內容", Upload: "上傳", Documents: "文件",
     "Private documents the assistant can read. Visitors never see them.": "助理可以讀取的私人文件。訪客永遠看不到。",
     "Drop documents here, or click to browse": "將文件拖放到這裡，或點擊瀏覽",
@@ -109,6 +114,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "僅顯示前 64 KB。下載檔案以檢視全部內容。",
   },
   "pt-BR": {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Não carregue aqui chaves, tokens ou segredos confidenciais.",
     Library: "Biblioteca", Content: "Conteúdo", Upload: "Enviar", Documents: "Documentos",
     "Private documents the assistant can read. Visitors never see them.": "Documentos privados que o assistente pode ler. Os visitantes nunca os veem.",
     "Drop documents here, or click to browse": "Solte documentos aqui ou clique para procurar",
@@ -129,6 +135,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Mostrando os primeiros 64 KB. Baixe o arquivo para ver tudo.",
   },
   ru: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Не загружайте сюда конфиденциальные ключи, токены или секреты.",
     Library: "Библиотека", Content: "Контент", Upload: "Загрузка", Documents: "Документы",
     "Private documents the assistant can read. Visitors never see them.": "Личные документы, которые может читать ассистент. Посетители их никогда не видят.",
     "Drop documents here, or click to browse": "Перетащите документы сюда или нажмите, чтобы выбрать",
@@ -149,6 +156,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Показаны первые 64 КБ. Скачайте файл, чтобы увидеть его целиком.",
   },
   fa: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "هیچ کلید، توکن یا اطلاعات محرمانهٔ حساسی را اینجا بارگذاری نکنید.",
     Library: "کتابخانه", Content: "محتوا", Upload: "بارگذاری", Documents: "اسناد",
     "Private documents the assistant can read. Visitors never see them.": "اسناد خصوصی که دستیار می‌تواند بخواند. بازدیدکنندگان هرگز آن‌ها را نمی‌بینند.",
     "Drop documents here, or click to browse": "اسناد را اینجا رها کنید یا برای انتخاب کلیک کنید",
@@ -169,6 +177,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "۶۴ کیلوبایت اول نمایش داده می‌شود. برای دیدن کل فایل آن را دانلود کنید.",
   },
   ar: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "لا ترفع هنا أي مفاتيح أو رموز وصول أو معلومات سرية حساسة.",
     Library: "المكتبة", Content: "المحتوى", Upload: "رفع", Documents: "المستندات",
     "Private documents the assistant can read. Visitors never see them.": "مستندات خاصة يمكن للمساعد قراءتها. لا يراها الزوار أبدًا.",
     "Drop documents here, or click to browse": "أفلت المستندات هنا، أو انقر للتصفح",
@@ -189,6 +198,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "يتم عرض أول 64 كيلوبايت. نزّل الملف لرؤيته كاملًا.",
   },
   ja: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "機密性の高いキー、トークン、シークレットはここにアップロードしないでください。",
     Library: "ライブラリ", Content: "コンテンツ", Upload: "アップロード", Documents: "ドキュメント",
     "Private documents the assistant can read. Visitors never see them.": "アシスタントが読める非公開のドキュメントです。訪問者には表示されません。",
     "Drop documents here, or click to browse": "ここにドキュメントをドロップするか、クリックして選択",
@@ -209,6 +219,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "最初の 64 KB を表示しています。すべて見るにはファイルをダウンロードしてください。",
   },
   ko: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "민감한 키, 토큰 또는 비밀 정보를 여기에 업로드하지 마세요.",
     Library: "라이브러리", Content: "콘텐츠", Upload: "업로드", Documents: "문서",
     "Private documents the assistant can read. Visitors never see them.": "어시스턴트가 읽을 수 있는 비공개 문서입니다. 방문자에게는 표시되지 않습니다.",
     "Drop documents here, or click to browse": "여기에 문서를 놓거나 클릭하여 찾아보기",
@@ -229,6 +240,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "처음 64KB만 표시합니다. 전체를 보려면 파일을 다운로드하세요.",
   },
   pl: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Nie przesyłaj tutaj żadnych poufnych kluczy, tokenów ani sekretów.",
     Library: "Biblioteka", Content: "Treść", Upload: "Prześlij", Documents: "Dokumenty",
     "Private documents the assistant can read. Visitors never see them.": "Prywatne dokumenty, które może czytać asystent. Odwiedzający nigdy ich nie widzą.",
     "Drop documents here, or click to browse": "Upuść dokumenty tutaj lub kliknij, aby wybrać",
@@ -249,6 +261,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Wyświetlono pierwsze 64 KB. Pobierz plik, aby zobaczyć całość.",
   },
   hu: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Ne tölts fel ide érzékeny kulcsokat, tokeneket vagy titkos adatokat.",
     Library: "Könyvtár", Content: "Tartalom", Upload: "Feltöltés", Documents: "Dokumentumok",
     "Private documents the assistant can read. Visitors never see them.": "Privát dokumentumok, amelyeket az asszisztens olvashat. A látogatók soha nem látják őket.",
     "Drop documents here, or click to browse": "Húzd ide a dokumentumokat, vagy kattints a tallózáshoz",
@@ -269,6 +282,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Az első 64 KB látható. Töltsd le a fájlt a teljes tartalomhoz.",
   },
   fr: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Ne chargez ici aucune clé, aucun jeton ni aucune information confidentielle.",
     Library: "Bibliothèque", Content: "Contenu", Upload: "Importer", Documents: "Fichiers",
     "Private documents the assistant can read. Visitors never see them.": "Documents privés que l’assistant peut lire. Les visiteurs ne les voient jamais.",
     "Drop documents here, or click to browse": "Déposez des documents ici ou cliquez pour parcourir",
@@ -289,6 +303,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Affichage des 64 premiers Ko. Téléchargez le fichier pour tout voir.",
   },
   uk: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Не завантажуйте сюди конфіденційні ключі, токени чи секрети.",
     Library: "Бібліотека", Content: "Вміст", Upload: "Завантаження", Documents: "Документи",
     "Private documents the assistant can read. Visitors never see them.": "Приватні документи, які може читати асистент. Відвідувачі їх ніколи не бачать.",
     "Drop documents here, or click to browse": "Перетягніть документи сюди або натисніть, щоб вибрати",
@@ -309,6 +324,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Показано перші 64 КБ. Звантажте файл, щоб побачити його повністю.",
   },
   tr: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Buraya hassas anahtarlar, erişim belirteçleri veya gizli bilgiler yüklemeyin.",
     Library: "Kitaplık", Content: "İçerik", Upload: "Yükle", Documents: "Belgeler",
     "Private documents the assistant can read. Visitors never see them.": "Asistanın okuyabildiği özel belgeler. Ziyaretçiler bunları asla görmez.",
     "Drop documents here, or click to browse": "Belgeleri buraya bırakın veya göz atmak için tıklayın",
@@ -329,6 +345,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "İlk 64 KB gösteriliyor. Tamamını görmek için dosyayı indirin.",
   },
   th: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "อย่าอัปโหลดคีย์ โทเค็น หรือข้อมูลลับที่มีความอ่อนไหวใด ๆ ที่นี่",
     Library: "คลังเอกสาร", Content: "เนื้อหา", Upload: "อัปโหลด", Documents: "เอกสาร",
     "Private documents the assistant can read. Visitors never see them.": "เอกสารส่วนตัวที่ผู้ช่วยอ่านได้ ผู้เยี่ยมชมจะไม่เห็นเอกสารเหล่านี้",
     "Drop documents here, or click to browse": "วางเอกสารที่นี่ หรือคลิกเพื่อเลือกไฟล์",
@@ -349,6 +366,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "แสดง 64 KB แรก ดาวน์โหลดไฟล์เพื่อดูทั้งหมด",
   },
   it: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Non caricare qui chiavi, token o segreti riservati.",
     Library: "Libreria", Content: "Contenuti", Upload: "Carica", Documents: "Documenti",
     "Private documents the assistant can read. Visitors never see them.": "Documenti privati che l’assistente può leggere. I visitatori non li vedono mai.",
     "Drop documents here, or click to browse": "Trascina qui i documenti o fai clic per sfogliare",
@@ -369,6 +387,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "Sono mostrati i primi 64 KB. Scarica il file per vederlo tutto.",
   },
   hi: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "यहाँ कोई भी संवेदनशील कुंजी, टोकन या गुप्त जानकारी अपलोड न करें।",
     Library: "लाइब्रेरी", Content: "सामग्री", Upload: "अपलोड", Documents: "दस्तावेज़",
     "Private documents the assistant can read. Visitors never see them.": "निजी दस्तावेज़ जिन्हें सहायक पढ़ सकता है। विज़िटर इन्हें कभी नहीं देखते।",
     "Drop documents here, or click to browse": "दस्तावेज़ यहाँ छोड़ें, या चुनने के लिए क्लिक करें",
@@ -389,6 +408,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "पहले 64 KB दिखाए जा रहे हैं। पूरी फ़ाइल देखने के लिए इसे डाउनलोड करें।",
   },
   ur: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "یہاں کوئی بھی حساس کلید، ٹوکن یا خفیہ معلومات اپ لوڈ نہ کریں۔",
     Library: "لائبریری", Content: "مواد", Upload: "اپ لوڈ", Documents: "دستاویزات",
     "Private documents the assistant can read. Visitors never see them.": "نجی دستاویزات جنہیں اسسٹنٹ پڑھ سکتا ہے۔ وزیٹرز انہیں کبھی نہیں دیکھتے۔",
     "Drop documents here, or click to browse": "دستاویزات یہاں چھوڑیں، یا منتخب کرنے کے لیے کلک کریں",
@@ -409,6 +429,7 @@ const LIBRARY_DICT: Record<string, Record<string, string>> = {
     "Showing the first 64 KB. Download the file to see all of it.": "پہلے 64 KB دکھائے جا رہے ہیں۔ پوری فائل دیکھنے کے لیے اسے ڈاؤن لوڈ کریں۔",
   },
   bn: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "এখানে কোনো সংবেদনশীল কী, টোকেন বা গোপন তথ্য আপলোড করবেন না।",
     Library: "লাইব্রেরি", Content: "কনটেন্ট", Upload: "আপলোড", Documents: "নথি",
     "Private documents the assistant can read. Visitors never see them.": "ব্যক্তিগত নথি যা সহকারী পড়তে পারে। দর্শকরা কখনও এগুলো দেখে না।",
     "Drop documents here, or click to browse": "নথি এখানে ছাড়ুন, অথবা বেছে নিতে ক্লিক করুন",

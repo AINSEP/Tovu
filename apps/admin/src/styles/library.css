@@ -23,6 +23,7 @@
 .jini-file-dropzone__icon { display: inline-flex; color: var(--accent); }
 .jini-file-dropzone__prompt { color: var(--fg); font-weight: 600; font-size: 0.9rem; }
 .jini-file-dropzone__hint { color: var(--muted); font-size: var(--text-sm); }
+.library-upload-warning { margin: 0.35rem 0 0; color: var(--danger); font-size: var(--text-sm); text-align: center; }
 
 .library-upload-list {
   list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--r-md);

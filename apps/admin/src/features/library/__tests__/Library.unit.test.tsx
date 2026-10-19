@@ -103,6 +103,16 @@ describe("Library tabs", () => {
     expect(await screen.findByRole("table")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload documents" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("file-dropzone-zone")).not.toBeInTheDocument();
+    expect(screen.queryByText("Do not load any sensitive keys, tokens, or secrets here.")).not.toBeInTheDocument();
+  });
+
+  it("shows the no-secrets warning below the file types on Upload", async () => {
+    renderLibrary(createFakeLibraryPort(), "upload");
+    await screen.findByTestId("file-dropzone-zone");
+    const types = screen.getByText("Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each");
+    const warning = screen.getByText("Do not load any sensitive keys, tokens, or secrets here.");
+    expect(warning).toBeInTheDocument();
+    expect(types.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("puts an Upload documents button above the drop zone on the Upload tab", async () => {
@@ -326,6 +336,7 @@ describe("Library previews never run document content", () => {
 
 describe("Library translations", () => {
   const KEYS = [
+    "Do not load any sensitive keys, tokens, or secrets here.",
     "Library", "Content", "Upload", "Documents", "Private documents the assistant can read. Visitors never see them.",
     "Drop documents here, or click to browse", "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each", "Uploads",
     "Waiting…", "Uploading…", "Uploaded", "Upload failed.", "This file type isn't supported.", "Larger than 10 MiB.",

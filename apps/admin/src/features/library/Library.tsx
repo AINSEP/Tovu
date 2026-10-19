@@ -129,6 +129,7 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
           helper={t("Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each")}
           onFiles={addFiles}
         />
+        <p className="library-upload-warning">{t("Do not load any sensitive keys, tokens, or secrets here.")}</p>
       </div>
       {uploads.length > 0 ? (
         <ul className="library-upload-list" aria-label={t("Uploads")}>
