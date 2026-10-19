@@ -10,6 +10,7 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/prim
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
+import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
 import { toolMetadata as themeMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { ASK_CHOICE_TOOL_ID } from '../ask-choice-tool.js';
@@ -68,6 +69,125 @@ test('Auto preflight suggests metadata only; the first guarded write still loads
   assert.equal(await runs.prepareGuidance({ ...gate, run: { id: 'backstop' } }), '');
   runs.forget({ runId: 'preflight' });
   runs.forget({ runId: 'backstop' });
+});
+
+for (const action of ['use', 'skip'] as const) {
+  for (const checkpointed of [false, true]) {
+    test(`pending Ask ${action}: ${checkpointed ? 'process loss ends the turn and honours a late answer' : 'real recovery replaces the attempt without another card'}`, async t => {
+      const f = await fixture(t, { count: 2 });
+      const { createSettingsPrincipalLookup } = await import('../../features/settings/index.js');
+      await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+      await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen, principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+        input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value: 'ask' } });
+      const selected = action === 'use' ? ['synthetic-00'] : [];
+      let cards = 0;
+      let exchangeId = '';
+      let savedCard: unknown;
+      let opened!: () => void;
+      const opening = new Promise<void>(resolve => { opened = resolve; });
+      const answer = (id: string) => f.surfaceExchanges.deliver({ exchangeId: id, principalId: 'alice', params: { __choiceAction: action, selections: selected } }, { toolId: ASK_CHOICE_TOOL_ID });
+      const abort = new AbortController();
+      const context = { ...f.context, signal: abort.signal,
+        publish: async (value: Parameters<AutomaticPluginRun['publish']>[0]) => {
+          if (abort.signal.aborted) throw new Error('cannot emit on a terminal attempt');
+          await f.context.publish(value);
+        }, emitSurface: async (emission: Parameters<AutomaticPluginRun['emitSurface']>[0]) => {
+        cards++;
+        savedCard = emission.payload.resource;
+        const html = (emission.payload.resource as { resource: { text: string } }).resource.text;
+        const id = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+        assert.ok(id);
+        if (cards === 1) { exchangeId = id; opened(); }
+        else answer(id); // Let broken duplicate-card behavior settle instead of hanging the test.
+      } };
+      const first = f.runs.start({ runId: 'old', messageId: 'answer', context });
+      t.after(() => { answer(exchangeId); f.runs.forget({ runId: 'old' }); f.runs.forget({ runId: 'next' }); });
+      await opening;
+      let current: DurableRun = {
+        messageId: 'answer', conversationId: 'chat', runId: 'old', workspaceId: f.workspaceId, principalId: 'alice', engine: 'daemon',
+        request: { agentId: 'claude', contextRef: JSON.stringify({ prompt: 'Design holography', conversationId: 'chat', agentPluginState: context.state }) },
+        // The card can be emitted before its checkpoint reaches storage. Recovery must still
+        // share the in-memory exchange when it advances this logical message to a new attempt.
+        message: { id: 'answer', role: 'assistant', content: '', runId: 'old', runStatus: 'running', events: checkpointed ? [{ kind: 'ext', name: 'mcp-ui', data: savedCard }] : [] },
+        transcript: [], recoveryCount: 0, recoveryDeadline: null, attemptStartedAt: 0, lastProgressAt: 20_000,
+        cancelReason: null, sessionId: null, sessionConfirmed: false, child: null, attemptBase: [],
+      };
+      const settlements: Parameters<RecoveryPorts['settle']>[0][] = [];
+      const launches: string[] = [];
+      let retry: Promise<string> | undefined;
+      const store = {
+        load: async () => current,
+        advance: async ({ nextRunId, events }: Parameters<DurableRunStore['advance']>[0]) => {
+          current = { ...current, runId: nextRunId, message: { ...current.message, runId: nextRunId, events: [...events] } };
+          return true;
+        },
+        recoveryClock: async () => {},
+      } as unknown as DurableRunStore;
+      const recovery = createDurableRecovery({
+        store, now: () => 20_000, mintRunId: () => 'next', probe: async () => 'dead', attach: () => {},
+        cancelAttempt: async ({ runId }) => { abort.abort(); f.runs.forget({ runId }, { preservePending: true }); },
+        verifyChildDead: async () => true, supportsNativeResume: () => false,
+        launch: async ({ run, request }) => {
+          launches.push(run.runId);
+          const decoded = JSON.parse(request.contextRef);
+          retry = f.runs.start({ runId: run.runId, messageId: decoded.assistantMessageId,
+            context: { ...context, publish: f.context.publish, signal: new AbortController().signal, state: decoded.agentPluginState } });
+        },
+        settle: async value => { settlements.push(value); return true; },
+      }, { logger: { info() {} } });
+      assert.equal(await recovery.recover({ messageId: 'answer', trigger: 'boot' }, {}), checkpointed ? 'finalized' : 'continued');
+      if (checkpointed) {
+        assert.deepEqual(launches, []);
+        assert.equal(settlements.length, 1);
+        assert.deepEqual(settlements[0]?.events.at(-1), { kind: 'status', label: AWAITING_ANSWER_NOTICE });
+      } else {
+        assert.deepEqual(launches, ['next']);
+        assert.equal(current.runId, 'next', 'exercise recover.ts minting a replacement attempt');
+      }
+      await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(f.surfaceExchanges.size(), 1, 'attempt disposal must keep the unanswered exchange');
+      assert.equal(answer(exchangeId).ok, true);
+      const notes = [await first];
+      if (retry) notes.push(await retry);
+      const decidedContext = { ...context, publish: f.context.publish, signal: new AbortController().signal };
+      notes.push(await f.runs.start({ runId: 'next', messageId: checkpointed ? 'following-answer' : 'answer', context: decidedContext }));
+      assert.equal(cards, 1, 'pending, decided and late-answer retries must reuse the original question');
+      assert.equal(f.surfaceExchanges.size(), 0);
+      const decided = { decision: { selected, asked: true }, excluded: action === 'use' ? ['synthetic-01'] : ['synthetic-00', 'synthetic-01'] };
+      assert.deepEqual(f.published.at(-1)?.state, decided);
+      assert.equal(f.published.length, 1, 'late consent is carried into the following turn');
+      for (const note of notes) {
+        if (action === 'use') { assert.match(note, /synthetic-00/); assert.doesNotMatch(note, /synthetic-01/); }
+        else assert.equal(note, '');
+      }
+      await assert.rejects(f.runs.start({ runId: 'next', context: { ...decidedContext, conversationId: 'another-chat' } }), /unavailable/);
+      await assert.rejects(f.runs.start({ runId: 'next', context: { ...decidedContext, principal: { id: 'bob' } } }), /unavailable/);
+      f.runs.forget({ runId: 'next' });
+      f.runs.forget({ runId: 'old' });
+      // Logical disposal allows a fresh controller, with no aliases pointing at the old one.
+      await f.runs.start({ runId: 'next', messageId: 'answer', context: decidedContext });
+      assert.equal(cards, 2);
+      assert.equal(f.surfaceExchanges.size(), 0);
+      f.runs.forget({ runId: 'next' });
+    });
+  }
+}
+
+test('controller identity binds principal and conversation; disposal removes every attempt alias', async t => {
+  const f = await fixture(t);
+  await f.runs.start({ runId: 'one', messageId: 'answer', context: f.context });
+  await assert.rejects(f.runs.start({ runId: 'one', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat' } }), /unavailable/);
+  await assert.rejects(f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat' } }), /unavailable/);
+  await assert.rejects(f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, principal: { id: 'bob' } } }), /unavailable/);
+  await f.runs.start({ runId: 'two', messageId: 'answer', context: f.context });
+  f.runs.forget({ runId: 'one' });
+  assert.match(await f.runs.prepareGuidance({ run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
+  f.runs.forget({ runId: 'two' });
+  assert.equal(await f.runs.prepareGuidance({ run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
+  // Reusing both identities after disposal constructs a clean, independently bound controller.
+  await f.runs.start({ runId: 'two', messageId: 'answer', context: { ...f.context, conversationId: 'other-chat', principal: { id: 'bob' } } });
+  assert.match(await f.runs.prepareGuidance({ run: { id: 'two' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), /Use holographic layout discipline/);
+  f.runs.forget({ runId: 'two' });
 });
 
 test("Don't ask again writes Auto only for the answering principal through the real setting service", async t => {

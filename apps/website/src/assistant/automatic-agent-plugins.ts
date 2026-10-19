@@ -28,18 +28,50 @@ export interface AutomaticPluginRun {
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
 
-/** Run-scoped controllers share preflight and the actual authorized tool gate. Cleanup is explicit.
+/** Logical-turn controllers share preflight and the actual authorized tool gate. Cleanup is explicit.
  * @returns start/forget, the read-only guidance loader and the tool preparation hook.
- * @complexity One controller per live run; catalog/resolution costs remain in the injected owners.
+ * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
  */
 export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticPluginDeps; surfaces: AssistantSurfaceDeps }, _options = {}) {
-  const runs = new Map<string, { controller: ReturnType<typeof createAutomaticAgentPluginUse>; principalId: string }>();
-  async function start({ runId, context }: { runId: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
+  type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; attempts: Set<string> };
+  const turns = new Map<string, Entry>();
+  const runs = new Map<string, Entry>();
+  // A terminal attempt cannot publish its late answer. Hand it to the next turn in this chat.
+  const lateAnswers = new Map<string, ChatAgentPluginState>();
+  const chatKey = (context: AutomaticPluginRun) => JSON.stringify([context.principal.id, context.conversationId]);
+  /** Release a detached, settled controller without deleting a replacement with the same id. O(1). */
+  function releaseDetached(entry: Entry): void {
+    if (!entry.pending && !entry.attempts.size && turns.get(entry.turnId) === entry) turns.delete(entry.turnId);
+  }
+  /** Bind an attempt to its logical turn; return its shared preflight note. Identity mismatches
+   * throw before using consent. Settings/catalog effects stay in their existing ports.
+   * @complexity O(1) ownership lookup plus the automatic-use owner's catalog work.
+   */
+  async function start({ runId, messageId, context }: { runId: string; messageId?: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
     // core.interface definitions are in this existing boot chain, after the UI-tab definitions.
     await deps.siteTitleReady;
     const effective = await deps.getEffective({ repo: deps.settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId: deps.workspaceId, principalId: context.principal.id } });
     if (context.signal.aborted) return '';
+    // A restarted attempt still owns the same pending/answered question. Reuse the controller's
+    // serialized preparation instead of rebuilding consent from the frozen request state.
+    // Check after setup awaits so simultaneous starts cannot replace one another's controller.
+    const turnId = messageId ?? runId;
+    const existing = runs.get(runId) ?? turns.get(turnId);
+    if (existing) {
+      if (existing.context.principal.id !== context.principal.id || existing.context.conversationId !== context.conversationId || (messageId !== undefined && existing.turnId !== messageId)) throw new Error('Agent Plugin run is unavailable');
+      existing.context = context;
+      existing.attempts.add(runId);
+      runs.set(runId, existing);
+      return existing.controller.prepare({ query: context.query, loaded: context.pinned }).finally(() => releaseDetached(existing));
+    }
+    const lateAnswer = lateAnswers.get(chatKey(context));
+    if (lateAnswer) {
+      context = { ...context, state: { ...lateAnswer, excluded: [...new Set([...context.state.excluded, ...lateAnswer.excluded])] } };
+      lateAnswers.delete(chatKey(context));
+    }
     const mode: ChatAgentPlugins = effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto';
+    const abort = new AbortController();
+    let entry: Entry;
     const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
       list: () => loadAgentPluginSearchCandidates(deps),
       rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),
@@ -47,22 +79,37 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
         const result = await resolveAgentPluginRefs([pluginId], deps.agentPluginLayout.forWorkspace(deps.workspaceId), 'inject');
         return result.ok ? result.promptPrefix : '';
       },
-      ask: ({ matches, signal }) => askAgentPluginChoice({ surfaces, principalId: context.principal.id, emitSurface: context.emitSurface, signal: signal ?? context.signal, matches }),
+      ask: async ({ matches }) => {
+        entry.pending = true;
+        try {
+          return await askAgentPluginChoice({ surfaces, principalId: context.principal.id, emitSurface: entry.context.emitSurface, signal: abort.signal, matches });
+        } finally { entry.pending = false; }
+      },
       saveAuto: async () => {
         await deps.set({ deps: { repo: deps.settingsRepo, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) }, ids: deps.idGen, authorize: deps.authorize,
           principals: createSettingsPrincipalLookup({ repo: deps.principalRepo }) }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: 'auto', scope: 'user',
           workspaceId: deps.workspaceId, principalId: context.principal.id, callerPrincipalId: context.principal.id, authWorkspaceId: deps.workspaceId } });
       },
-      publish: async value => { await context.publish({ conversationId: context.conversationId, ...value }); },
+      publish: async value => {
+        if (abort.signal.aborted) return;
+        if (!entry.attempts.size) lateAnswers.set(chatKey(context), value.state);
+        await entry.context.publish({ conversationId: context.conversationId, ...value });
+      },
     } });
-    runs.set(runId, { controller, principalId: context.principal.id });
+    entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]) };
+    turns.set(turnId, entry);
+    runs.set(runId, entry);
     // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
     if (mode === 'off') await context.publish({ conversationId: context.conversationId, state: context.state, plugins: [] });
-    return controller.prepare({ query: context.query, loaded: context.pinned });
+    try { return await controller.prepare({ query: context.query, loaded: context.pinned }); }
+    finally { releaseDetached(entry); }
   }
   const prepareGuidance: PrepareToolGuidance = async ({ run, tool, signal }) => {
-    try { return await runs.get(run.id)?.controller.prepare({ ...(tool.metadata?.guidanceCapabilities ? { capabilities: tool.metadata.guidanceCapabilities } : {}), signal }) ?? ''; }
+    const entry = runs.get(run.id);
+    if (!entry) return '';
+    try { return await entry.controller.prepare({ ...(tool.metadata?.guidanceCapabilities ? { capabilities: tool.metadata.guidanceCapabilities } : {}), signal }); }
     catch { console.warn('[agent-plugins] automatic tool guidance unavailable'); return ''; }
+    finally { releaseDetached(entry); }
   };
   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.
   // This small id loader uses the SAME trusted pinned-ref resolver as the capability backstop.
@@ -76,10 +123,22 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
       const pluginId = requireString({ input, key: 'pluginId' });
       if (Object.keys(input).some(key => key !== 'pluginId')) throw new ToolInputError({ message: 'Only pluginId is accepted' });
       const entry = runs.get(run.id);
-      if (!entry || entry.principalId !== principal.id) throw new Error('Agent Plugin run is unavailable');
-      const guidance = await entry.controller.load({ pluginId, signal });
+      if (!entry || entry.context.principal.id !== principal.id) throw new Error('Agent Plugin run is unavailable');
+      const guidance = await entry.controller.load({ pluginId, signal }).finally(() => releaseDetached(entry));
       return { pluginId, guidance, ...(!guidance ? { note: 'Guidance already loaded or unavailable for this chat.' } : {}) };
     } },
   })[0]!;
-  return { start, prepareGuidance, loadRegistration, forget: ({ runId }: { runId: string }, _options = {}) => { runs.delete(runId); } };
+  /** Dispose an attempt alias. Durable attempt replacement retains a pending exchange until its
+   * answer/normal exchange expiry; explicit disposal aborts it. O(1), no persistent writes.
+   */
+  function forget({ runId }: { runId: string }, { preservePending = false } = {}): void {
+    const entry = runs.get(runId);
+    if (!entry) return;
+    runs.delete(runId);
+    entry.attempts.delete(runId);
+    if (entry.attempts.size || (preservePending && entry.pending)) return;
+    entry.abort.abort();
+    if (turns.get(entry.turnId) === entry) turns.delete(entry.turnId);
+  }
+  return { start, prepareGuidance, loadRegistration, forget };
 }

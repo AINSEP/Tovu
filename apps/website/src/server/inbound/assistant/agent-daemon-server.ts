@@ -973,7 +973,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
     pluginAbort.abort();
     unsubscribePluginCancel();
-    automaticPluginRuns.forget({ runId: run.id });
+    automaticPluginRuns.forget({ runId: run.id }, { preservePending: durableMessageId !== undefined });
     principalByRunId.delete(run.id);
     messageAttachmentRefsByRunId.delete(run.id);
     durableMessageIdsByRunId.delete(run.id);
@@ -1072,7 +1072,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       if (pluginPromptPrefix === null) return;
       if (conversationId !== undefined) {
         try {
-          const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, context: {
+          const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, ...(durableMessageId === undefined ? {} : { messageId: durableMessageId }), context: {
             principal, conversationId, state: agentPluginState, query: userPrompt ?? prompt, pinned: pluginRefIds,
             signal: pluginAbort.signal,
             emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: {
