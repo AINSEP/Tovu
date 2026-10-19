@@ -27,6 +27,7 @@ import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.
 import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/project.js';
 import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
 import { sitePortPresentation } from './site-port.rules.js';
+import { SITE_ADMIN_PAGES, type SiteAdminPage } from './import-site-entry.js';
 
 /** Whether the guest's own session history has an entry either side of the current one. */
 export interface SiteHistory {
@@ -99,16 +100,21 @@ export function loadResetKey(state: SiteWorkspaceState): string {
 
 /**
  * A surface URL, or blank when no server is running. Trailing slash on `/admin/` on purpose:
- * `/admin` answers 301, a visible flash on every open. Pure; no effects or errors.
+ * `/admin` answers 301, a visible flash on every open. `adminPage` (the "Import site" entry) puts
+ * the admin view on one allowlisted page instead of its root. Pure; no effects or errors.
  * @complexity O(1) time and space.
  */
 export function siteSurfaceUrl(
-  input: { port: number | null | undefined; view: SiteSurface; status?: SiteRecord['status']; externalUrl?: string },
+  input: { port: number | null | undefined; view: SiteSurface; status?: SiteRecord['status']; externalUrl?: string; adminPage?: SiteAdminPage },
   _optional: Record<string, never> = {},
 ): string {
-  if (input.externalUrl) return input.view === "site" ? new URL("/", input.externalUrl).href : input.externalUrl;
+  const page = input.view === 'admin' && input.adminPage ? SITE_ADMIN_PAGES[input.adminPage] : '';
+  if (input.externalUrl) {
+    if (input.view === "site") return new URL("/", input.externalUrl).href;
+    return page ? new URL(`/admin/${page}`, input.externalUrl).href : input.externalUrl;
+  }
   const { origin } = sitePortPresentation(input);
-  return origin ? `${origin}${input.view === 'site' ? '/' : '/admin/'}` : '';
+  return origin ? `${origin}${input.view === 'site' ? '/' : `/admin/${page}`}` : '';
 }
 
 /** Which surface a guest url belongs to: the admin by its path, everything else is the site. */
@@ -296,7 +302,7 @@ export interface SiteWorkspace extends WorkspaceActions {
  * Per tab, never lifted into `App`: every open project stays mounted at once, so a shared value
  * would move every other tab's guest too.
  */
-export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWorkspace {
+export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPage }: { adminPage?: SiteAdminPage } = {}): SiteWorkspace {
   const [state, dispatch] = useReducer(siteWorkspaceReducer, initialSiteWorkspaceState);
   const [attachedUrl, setAttachedUrl] = useState<string | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
@@ -319,7 +325,7 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
 
   useEffect(() => subscribeSiteHistory({ bridge: runnerInventoryBridge(), hidden, guest }), [hidden, guest]);
 
-  const src = project.externalUrl && attachedUrl !== project.externalUrl ? "" : siteSurfaceUrl({ port: project.port, view: state.view, status: project.status, externalUrl: project.externalUrl });
+  const src = project.externalUrl && attachedUrl !== project.externalUrl ? "" : siteSurfaceUrl({ port: project.port, view: state.view, status: project.status, externalUrl: project.externalUrl, adminPage });
   useEffect(() => subscribeWorkspaceThemePreview({
     bridge: runnerInventoryBridge(), siteDir: project.installDir, port: project.port,
     running: src !== '', url: state.liveUrl ?? src, guest, dispatch,

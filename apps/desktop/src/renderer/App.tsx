@@ -28,6 +28,7 @@ import { chromeVisibility, workspaceOnScreen } from './expanded-mode.js';
 import { useWorkspaceChatPane, WORKSPACE_RUN_CONTEXT } from './use-workspace-chat-pane.hooks.js';
 import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
+import { resolveImportSiteTarget, type SiteAdminPage } from './import-site-entry.js';
 import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest } from './use-find-in-page.hooks.js';
 import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
 import { useAppVersion } from './use-app-version.hooks.js';
@@ -85,8 +86,11 @@ export function App({
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
-  const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab } = useTabs();
+  const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab, adminPages } = useTabs();
   const { adding, addError, addNotice, addSite } = useAddSite({ setProjects }, { onAlreadyTracked: openProjectTab });
+  // "Import site" opens a site's own admin on its Sites > Import tab; hidden when there is no site.
+  const importTarget = resolveImportSiteTarget({ projects });
+  const importSite = importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
   const {
     activeId,
     setActiveId,
@@ -175,6 +179,7 @@ export function App({
           onAddSite={addSite}
           adding={adding}
           addError={addError}
+          onImportSite={importSite}
         />
 
         <CreateWebsiteHost
@@ -197,6 +202,7 @@ export function App({
           // resolved record sits unused and the tab waits on `useSitesPolling`'s 4s poll to agree
           // the site is actually up.
           onSiteUpdated={applySiteRecord}
+          adminPages={adminPages}
         />
       </main>
 
@@ -554,6 +560,7 @@ function SiteWorkspaces({
   registerGuest,
   registerZoomGuest,
   onSiteUpdated,
+  adminPages,
 }: {
   inSites: boolean;
   openSites: readonly SiteRecord[];
@@ -564,6 +571,8 @@ function SiteWorkspaces({
   registerZoomGuest: (projectId: string, element: ZoomableGuest | null) => void;
   /** Applies main's refreshed record after a tab's own "Start site" — see `useSiteStart`. */
   onSiteUpdated: (record: SiteRecord) => void;
+  /** The admin page each tab was opened on (`useProjectTabs`). */
+  adminPages: Readonly<Record<string, SiteAdminPage>>;
 }) {
   if (!inSites) return null;
   return (
@@ -578,6 +587,7 @@ function SiteWorkspaces({
           registerGuest={registerGuest}
           registerZoomGuest={registerZoomGuest}
           onSiteUpdated={onSiteUpdated}
+          adminPage={adminPages[project.id]}
         />
       ))}
     </>
@@ -618,6 +628,7 @@ function SiteWorkspace({
   registerGuest,
   registerZoomGuest,
   onSiteUpdated,
+  adminPage,
 }: {
   project: SiteRecord;
   hidden: boolean;
@@ -627,11 +638,13 @@ function SiteWorkspace({
   registerZoomGuest: (projectId: string, element: ZoomableGuest | null) => void;
   /** Applies main's refreshed record after this tab's own "Start site" — see `useSiteStart`. */
   onSiteUpdated: (record: SiteRecord) => void;
+  /** Opens this tab's admin on that page rather than its root (the "Import site" entry). */
+  adminPage?: SiteAdminPage;
 }) {
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
   // `did-fail-load` (`failed`/`stalled`) still comes from `useWebviewLoadFailure`, inside it.
-  const workspace = useSiteWorkspace(project, hidden);
+  const workspace = useSiteWorkspace(project, hidden, { adminPage });
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
@@ -967,6 +980,7 @@ function MainArea({
   onAddSite,
   adding,
   addError,
+  onImportSite,
 }: {
   appearanceOpen: boolean;
   onCloseAppearance: () => void;
@@ -989,6 +1003,8 @@ function MainArea({
   onAddSite: () => Promise<void>;
   adding: boolean;
   addError: string | null;
+  /** Absent when there is no site to import into, which hides the button. */
+  onImportSite?: () => void;
 }) {
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
@@ -1005,6 +1021,7 @@ function MainArea({
         rescanning={rescanning}
         onAddSite={onAddSite}
         adding={adding}
+        onImportSite={onImportSite}
       />
       <MainContent
         activeId={activeId}
@@ -1035,6 +1052,7 @@ function MainHeader({
   rescanning,
   onAddSite,
   adding,
+  onImportSite,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
@@ -1044,6 +1062,7 @@ function MainHeader({
   rescanning: boolean;
   onAddSite: () => Promise<void>;
   adding: boolean;
+  onImportSite?: () => void;
 }) {
   return (
     <header className="main__head">
@@ -1066,6 +1085,12 @@ function MainHeader({
           <button type="button" className="button button--contrast" onClick={() => void onAddSite()} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
             {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
+          {/* Quiet like Rescan: it opens a site's own Sites > Import tab, where the import lives. */}
+          {onImportSite && (
+            <button type="button" className="button button--quiet" onClick={onImportSite}>
+              Import site
+            </button>
+          )}
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
             <span aria-hidden="true">+</span>
             Create website
