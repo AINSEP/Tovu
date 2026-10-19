@@ -56,6 +56,8 @@ export interface StaticPublishConfig {
 export type StaticPublishOutcome =
   | {
       readonly ok: true;
+      /** Saved connection used for this run; absent for environment credentials. */
+      readonly credentialId?: UUID;
       readonly targetId: StaticPublishTargetId;
       readonly url: string;
       readonly status: string;
@@ -74,6 +76,7 @@ export type StaticPublishOutcome =
        *  are new, so a caller migrating from a boolean-only reading of `ok` gets a compile error
        *  (an unhandled union member) rather than a silent misclassification. */
       readonly ok: "partial";
+      readonly credentialId?: UUID;
       readonly targetId: StaticPublishTargetId;
       readonly url: string;
       readonly status: string;
@@ -113,7 +116,12 @@ export type StaticPublishOutcome =
  */
 /** {@link PublishCredentialSource.resolve}'s success: `token` plus the host's other declared credential
  *  fields. `true` is in the index type only so `ok` itself fits it; every field is a string. */
-export type ResolvedPublishCredentialSuccess = { readonly ok: true; readonly token: string } & Readonly<Record<string, string | true | undefined>>;
+export type ResolvedPublishCredentialSuccess = {
+  readonly ok: true;
+  readonly token: string;
+  /** Saved row actually resolved, including default selection; absent for environment credentials. */
+  readonly credentialId?: UUID;
+} & Readonly<Record<string, string | true | undefined>>;
 
 export interface PublishCredentialSource {
   /**

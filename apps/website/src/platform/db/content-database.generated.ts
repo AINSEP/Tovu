@@ -726,6 +726,9 @@ export interface PublishHistoryTable {
   reachable: Bool;
   status: string;
   project_name: string;
+  credential_id: string | null;
+  config_fields_json: string | null;
+  kind: Generated<string | null>;
   published_at: string;
   owner: string | null;
   repo: string | null;

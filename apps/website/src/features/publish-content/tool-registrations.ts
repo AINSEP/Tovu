@@ -1,3 +1,4 @@
+import type { PublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
 import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -153,6 +154,7 @@ export interface PublishContentToolDeps extends PublishContentPullDeps, PublishC
   mediaRepo: PublishContentPorts["media"]["repo"];
   workspaceRepo: { findById(required: { id: string }): Promise<{ name?: string } | null> };
   publishContentPeerRepo: PublishContentPeerRepoPort;
+  publishHistoryStore?: PublishHistoryStore;
   publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["httpClient"];
   siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["sealer"];
   siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["keyring"];

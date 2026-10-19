@@ -162,14 +162,14 @@ export function createEnvPublishCredentialSource(
 }
 
 /**
- * The credential a deploy module is handed: a resolved success without its `ok` discriminant, string
- * fields only.
+ * The credential a deploy module is handed: string fields without the `ok` discriminant or saved
+ * row identity. Identity is bookkeeping metadata, never a provider credential field.
  *
  * @complexity O(f) fields, no I/O.
  */
 export function toDeployTargetCredential(resolved: ResolvedPublishCredentialSuccess): DeployTargetCredential {
   const fields: Record<string, string> = {};
-  for (const [name, value] of Object.entries(resolved)) if (typeof value === "string") fields[name] = value;
+  for (const [name, value] of Object.entries(resolved)) if (name !== "credentialId" && typeof value === "string") fields[name] = value;
   return { ...fields, token: resolved.token };
 }
 
@@ -243,7 +243,8 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
     if (!resolved) {
       return { ok: false, reason: CHOSEN_CREDENTIAL_UNAVAILABLE_REASON };
     }
-    return project(input.workspaceId, { ...resolved.connection, providerId: input.target });
+    const projected = await project(input.workspaceId, { ...resolved.connection, providerId: input.target });
+    return projected.ok ? { ...projected, credentialId: input.credentialId } : projected;
   }
 
   return {
@@ -257,7 +258,8 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
       if (!resolved) {
         return { ok: false, reason: notConfiguredReason(input.target) };
       }
-      return project(input.workspaceId, resolved.connection);
+      const projected = await project(input.workspaceId, resolved.connection);
+      return projected.ok ? { ...projected, credentialId: resolved.id } : projected;
     },
     async isConfigured(input) {
       const configured = await hasDefaultForPublish(deps, { workspaceId: input.workspaceId, providerId: input.target });

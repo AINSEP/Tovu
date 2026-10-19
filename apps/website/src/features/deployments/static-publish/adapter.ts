@@ -485,7 +485,10 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   if (!outcome.ok && resolvedCredential.token) {
     return { ...outcome, message: outcome.message.replaceAll(resolvedCredential.token, "[REDACTED]") };
   }
-  return outcome;
+  // Bind history to the row opened for this run, never a later default lookup.
+  return outcome.ok && credentialResult.credential.credentialId !== undefined
+    ? { ...outcome, credentialId: credentialResult.credential.credentialId }
+    : outcome;
 }
 
 /**

@@ -62,7 +62,8 @@ export async function publishContentFromTool(
   const credential = await resolvePublishDestinationCredential({ repo: deps.publishContentPeerRepo,
     sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient },
   { workspaceId: deps.workspaceId, id: peerId });
-  const peer = { credential, httpClient: deps.publishContentPeerHttpClient };
+  const peer = { credential, httpClient: deps.publishContentPeerHttpClient,
+    ...(deps.publishHistoryStore ? { publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock, triggeredBy: "agent_tool" as const } } : {}) };
   const contentDeps = deps.makePublishContentDeps?.() ?? { workspaceId: deps.workspaceId, clock: deps.clock,
     idGen: deps.idGen, ports: deps.publishContentPorts ?? {} };
   const plan = async (selection: { selectedEntityKeys?: readonly string[]; overwriteEntityKeys?: readonly string[] } = {}) => {

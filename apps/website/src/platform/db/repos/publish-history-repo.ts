@@ -27,10 +27,13 @@ import { toBool } from "../kernel/index.js";
 function toRecord(row: Selectable<PublishHistoryTable>): PublishHistoryEntry {
   return {
     target: row.target as StaticPublishTargetId,
+    ...(row.kind && row.kind !== "static" ? { kind: row.kind as NonNullable<PublishHistoryEntry["kind"]> } : {}),
     url: row.url,
     reachable: toBool(row.reachable) ?? false,
     status: row.status,
     projectName: row.project_name,
+    ...(row.credential_id !== null ? { credentialId: row.credential_id } : {}),
+    ...(row.config_fields_json !== null ? { configFields: JSON.parse(row.config_fields_json) as Record<string, string> } : {}),
     publishedAt: row.published_at,
     ...(row.owner !== null ? { owner: row.owner } : {}),
     ...(row.repo !== null ? { repo: row.repo } : {}),
@@ -46,11 +49,14 @@ function toRecord(row: Selectable<PublishHistoryTable>): PublishHistoryEntry {
 function toValues(workspaceId: UUID, entry: PublishHistoryEntry): Insertable<PublishHistoryTable> {
   return {
     workspace_id: workspaceId,
+    kind: entry.kind ?? "static",
     target: entry.target,
     url: entry.url,
     reachable: entry.reachable,
     status: entry.status,
     project_name: entry.projectName,
+    credential_id: entry.credentialId ?? null,
+    config_fields_json: entry.configFields === undefined ? null : JSON.stringify(entry.configFields),
     published_at: entry.publishedAt,
     owner: entry.owner ?? null,
     repo: entry.repo ?? null,
@@ -65,6 +71,21 @@ function toValues(workspaceId: UUID, entry: PublishHistoryEntry): Insertable<Pub
 export class SqlPublishHistoryStore implements PublishHistoryStore {
   constructor(protected readonly kernel: ContentKernel) {}
 
+  /** Group before limiting so frequent publishes cannot hide an older destination. One query over
+   * workspace history with database grouping/sorting and at most 201 returned rows. */
+  async listDestinationHistory(input: { workspaceId: UUID }, _options: Record<string, never> = {}): Promise<PublishHistoryEntry[]> {
+    const rows = await this.kernel.run(db => db.selectFrom("publish_history").selectAll()
+      .where("workspace_id", "=", input.workspaceId)
+      .where("id", "in", db.selectFrom("publish_history")
+        .select(eb => eb.fn.max<number>("id").as("id"))
+        .where("workspace_id", "=", input.workspaceId)
+        .where(eb => eb.or([eb("reachable", "=", true), eb.and([eb("kind", "=", "deploy"), eb("status", "=", "started")])]))
+        .where(eb => eb.or([eb("config_fields_json", "is not", null), eb("kind", "in", ["tovu-peer", "deploy"])]))
+        .groupBy(eb => [eb.fn.coalesce("kind", eb.val("static")), "target", "project_name"]))
+      .orderBy("id", "desc").limit(201).execute());
+    return rows.map(toRecord);
+  }
+
   async getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null> {
     const row = await this.kernel.run((db) =>
       db
@@ -72,6 +93,7 @@ export class SqlPublishHistoryStore implements PublishHistoryStore {
         .selectAll()
         .where("workspace_id", "=", input.workspaceId)
         .where("target", "=", input.target)
+        .where(eb => eb.or([eb("kind", "=", "static"), eb("kind", "is", null)]))
         .orderBy("id", "desc")
         .limit(1)
         .executeTakeFirst()

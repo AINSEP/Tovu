@@ -1,3 +1,4 @@
+import { publishHistoryKind } from "./0017_publish_history_kind.js";
 import { AI_CHAT_SCHEMA } from "../chat-kernel.js";
 import type { StorageKernel } from "../kernel/port.js";
 import { legacyBaseline } from "./0000_legacy_baseline.js";
@@ -19,6 +20,7 @@ import { secretsVault } from "./0012_secrets_vault.js";
 import { unifyVaultCredentials } from "./0013_unify_vault_credentials.js";
 import { mediaLibrary } from "./0014_media_library.js";
 import { documentBlobOwnership } from "./0015_document_blob_ownership.js";
+import { publishDestinationHistory } from "./0016_publish_destination_history.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -58,6 +60,8 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   unifyVaultCredentials({ checksum: pinned("0013_unify_vault_credentials") }),
   mediaLibrary({ checksum: pinned("0014_media_library") }),
   documentBlobOwnership({ checksum: pinned("0015_document_blob_ownership") }),
+  publishDestinationHistory({ checksum: pinned("0016_publish_destination_history") }),
+  publishHistoryKind({ checksum: pinned("0017_publish_history_kind") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

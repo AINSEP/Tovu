@@ -5,6 +5,8 @@ import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 import type { ResolvedPeerCredential } from "./peers.js";
 import type { PackedEntity } from "./type-registry.js";
+import { nowIso, type Clock } from "@jini-ai/core/primitives";
+import type { PublishHistoryStore, PublishTrigger } from "#src/features/deployments/static-publish/publish-history";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -142,6 +144,8 @@ export interface PeerBlobSource {
 export interface PeerCallDeps {
   readonly httpClient: HttpClientPort;
   readonly credential: ResolvedPeerCredential;
+  /** Local source scope, never the peer's remote workspace. Optional for transport-only consumers. */
+  readonly publishHistory?: { store: PublishHistoryStore; workspaceId: string; clock: Clock; triggeredBy?: PublishTrigger };
 }
 
 /**
@@ -557,7 +561,8 @@ export async function confirmPeerImport(
  *
  * @returns The peer's execute body verbatim (`{restorePointId, runId, changeSetIds, ...}`) — this driver
  * never reshapes a destination's own report.
- * @complexity O(1) plus one network round trip (the peer's apply loop dominates wall time).
+ * Records completed outbound applies in the injected local ledger; ledger failures only warn.
+ * @complexity O(1) plus one network round trip and one ledger append (the peer's apply loop dominates).
  */
 export async function executePeerImport(
   deps: PeerCallDeps,
@@ -568,7 +573,7 @@ export async function executePeerImport(
   if ((required.overwriteEntityKeys?.length ?? 0) > 0) {
     refuseOverwriteOnOlderPeer(deps.credential, await probePeerCapabilities(deps));
   }
-  return requireObject(
+  const result = requireObject(
     await callPeer(deps, {
       method: "POST",
       path: peerRoute(deps.credential, "/import/execute"),
@@ -587,6 +592,29 @@ export async function executePeerImport(
     "import execute",
     deps.credential.baseUrl
   );
+  // HTTP failures already throw. A completed apply may contain conflicts/partial writes; both
+  // outcomes remember the destination, but a body explicitly reporting failure never does.
+  if (deps.publishHistory && peerApplyCompleted({ result })) {
+    try {
+      await deps.publishHistory.store.recordSuccess({ workspaceId: deps.publishHistory.workspaceId, entry: {
+        kind: "tovu-peer", target: deps.credential.id, projectName: "", url: deps.credential.baseUrl,
+        configFields: { label: deps.credential.label }, reachable: true, status: "applied",
+        publishedAt: nowIso({ clock: deps.publishHistory.clock }), triggeredBy: deps.publishHistory.triggeredBy ?? "admin_ui",
+      } });
+    } catch {
+      // The remote apply already succeeded; bookkeeping must never invite a duplicate retry.
+      // Fixed diagnostics exclude credentials, remote bodies and database error parameters.
+      console.warn("[publish-content] destination history write failed after remote apply");
+    }
+  }
+  return result;
+}
+
+/** A completed (possibly partial) apply names a run; refusals never establish a past destination. */
+function peerApplyCompleted({ result }: { result: Record<string, unknown> }): boolean {
+  if (typeof result.runId !== "string" || result.ok === false) return false;
+  const report = result.report;
+  return !(typeof report === "object" && report !== null && "refused" in report && report.refused === true);
 }
 
 /**

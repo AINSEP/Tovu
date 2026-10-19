@@ -1,5 +1,6 @@
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
 import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history.js";
+import { publicPublishConfigFields } from "./publish-history.js";
 import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 /**
@@ -143,9 +144,10 @@ function stringField<K extends string>(meta: Readonly<Record<string, unknown>>, 
  * strictly smaller problem than a hard error on this genuinely non-essential bookkeeping step layered
  * on top of a publish that already succeeded.
  *
- * @complexity O(1) — see {@link PublishHistoryStore.recordSuccess}'s own cost note.
+ * @complexity One registry load, O(f*c) public-field filtering, one history insert.
  */
 async function recordHistoryIfPublished(
+  deps: StaticPublishDeps,
   historyStore: PublishHistoryStore,
   input: StaticPublishInput,
   outcome: StaticPublishOutcome,
@@ -153,11 +155,25 @@ async function recordHistoryIfPublished(
   triggeredBy: PublishTrigger
 ): Promise<void> {
   const entry = toHistoryEntry(input, outcome, clock, triggeredBy);
-  if (entry === undefined) return;
+  if (entry === undefined || !outcome.ok) return;
+  const credentialId = outcome.credentialId ?? input.credentialId;
   try {
-    await historyStore.recordSuccess({ workspaceId: input.workspaceId, entry });
+    // Reuse the descriptor contract, never copy raw config or the resolved credential into history.
+    // A registry reload failure must not erase the pre-existing outcome-only history behavior.
+    const registry = await deps.loadDeployTargets(input.workspaceId).catch(() => {
+      // Loader errors may embed plugin config or credentials; log only the failed operation.
+      console.warn("[static-publish] destination registry reload failed; recording outcome only");
+      return undefined;
+    });
+    const target = registry?.get(input.config.target);
+    await historyStore.recordSuccess({ workspaceId: input.workspaceId, entry: {
+      ...entry,
+      ...(credentialId !== undefined ? { credentialId } : {}),
+      ...(target !== undefined ? { configFields: publicPublishConfigFields({ descriptor: target.descriptor, config: input.config }) } : {}),
+    } });
   } catch {
-    // Swallowed deliberately — see this function's own doc.
+    // Keep the true publish result; database errors can embed secret parameters.
+    console.warn("[static-publish] destination history write failed after publish");
   }
 }
 
@@ -210,8 +226,9 @@ export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInp
 
   void publishStaticSite(deps, input)
     .then(async (outcome) => {
+      // Record first: callers that refresh destinations once the snapshot completes must see this run.
+      await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, "admin_ui");
       settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
-      await recordHistoryIfPublished(historyStore, input, outcome, clock, "admin_ui");
     })
     .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock));
 
@@ -256,7 +273,7 @@ export async function runPublishAndAwait(
   try {
     const outcome = await publishStaticSite(deps, input);
     settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
-    await recordHistoryIfPublished(historyStore, input, outcome, clock, "agent_tool");
+    await recordHistoryIfPublished(deps, historyStore, input, outcome, clock, "agent_tool");
     return outcome;
   } catch (err) {
     settleWithError(startedAtIso, input.config.target, err, clock);

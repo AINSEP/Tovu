@@ -10,9 +10,15 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import type { StaticPublishDeps, StaticPublishInput } from "../adapter.js";
-import { InMemoryPublishHistoryStore } from "../publish-history.js";
+import { InMemoryPublishHistoryStore, listStaticPublishDestinations } from "../publish-history.js";
 import { getPublishRunSnapshot, runPublishAndAwait, startPublishRun } from "../publish-run.js";
 import type { PublishCredentialSource } from "../types.js";
+import { createDbPublishCredentialSource } from "../credentials.js";
+import { createPublishCredential, deletePublishCredential } from "../../publish-credentials/store.js";
+import { InMemoryVendorCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `publish-run.ts`'s publish-history wiring (Defect 2, 2026-08-16) — the single-flight guard
@@ -204,13 +210,15 @@ test("runPublishAndAwait: a failed outcome is never recorded — no history for 
   assert.equal(await history.getLast({ workspaceId: routeDeps.workspaceId, target: "github-pages" }), null);
 });
 
-test("runPublishAndAwait: a history-store failure never changes the reported outcome — best-effort only", async () => {
+test("runPublishAndAwait: a history-store failure never changes the reported outcome — best-effort only", async (t) => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() };
   /** The real in-memory store, except every write fails. */
   class BrokenHistoryStore extends InMemoryPublishHistoryStore {
     override async recordSuccess(): Promise<never> {
-      throw new Error("disk full");
+      throw new Error("disk full; database parameters: PRIVATE_TOKEN");
     }
   }
   const brokenHistory = new BrokenHistoryStore();
@@ -218,6 +226,26 @@ test("runPublishAndAwait: a history-store failure never changes the reported out
 
   const outcome = await runPublishAndAwait(deps, input, clock, brokenHistory);
   assert.equal(outcome.ok, true, "the real, successful outcome must still be returned even though recording it failed");
+  assert.deepEqual(warnings, [["[static-publish] destination history write failed after publish"]]);
+});
+
+test("a registry reload failure logs a sanitized warning and preserves outcome-only history", async (t) => {
+  const routeDeps = testRouteDeps();
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
+  let loads = 0;
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget(),
+    loadDeployTargets: async workspaceId => {
+      if (++loads > 1) throw new Error("plugin config: PRIVATE_TOKEN");
+      return routeDeps.loadDeployTargets(workspaceId);
+    } };
+  const history = new InMemoryPublishHistoryStore();
+  const input = githubInput(routeDeps);
+  assert.equal((await runPublishAndAwait(deps, input, clock, history)).ok, true);
+  const recorded = await history.getLast({ workspaceId: input.workspaceId, target: input.config.target });
+  assert.equal(recorded?.url, "https://example.test/published");
+  assert.equal(recorded?.configFields, undefined);
+  assert.deepEqual(warnings, [["[static-publish] destination registry reload failed; recording outcome only"]]);
 });
 
 test("startPublishRun: the fire-and-forget path records history too, once the background publish settles", async () => {
@@ -270,5 +298,66 @@ for (const mode of ["awaited", "background"] as const) {
     const recovered = await runPublishAndAwait(deps, { ...input, projectName: "" }, clock, history);
     assert.deepEqual(recovered, { ok: false, code: "INVALID_CONFIG", message: "projectName must be 1-200 characters" });
     assert.equal(getPublishRunSnapshot().error, undefined);
+  });
+}
+
+test("Publish destinations: successful Vercel-like run records replay config and credential binding; failed run adds none", async () => {
+  const routeDeps = testRouteDeps();
+  const history = new InMemoryPublishHistoryStore();
+  const input: StaticPublishInput = {
+    ...githubInput(routeDeps),
+    config: { target: "vercel", teamId: "team-a", token: "SECRET", undeclared: "SECRET" },
+    projectName: "my-site",
+    credentialId: "connection-a",
+  };
+  const deps: StaticPublishDeps = {
+    credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets,
+    buildTarget: () => fakeDeployTarget("https://my-site.vercel.app"),
+  };
+  assert.equal((await runPublishAndAwait(deps, input, clock, history)).ok, true);
+  const rows = await listStaticPublishDestinations({ workspaceId: input.workspaceId, historyStore: history, registry: await routeDeps.loadDeployTargets(input.workspaceId) });
+  assert.deepEqual(rows, [{
+    id: "static:vercel:my-site", kind: "static", label: "Vercel: my-site", url: "https://my-site.vercel.app",
+    lastPublishedAt: clock.nowIso(),
+    target: "vercel", projectName: "my-site", credentialId: "connection-a", configFields: { teamId: "team-a" },
+  }]);
+  assert.deepEqual((await history.getLast({ workspaceId: input.workspaceId, target: "vercel" }))!.configFields, { teamId: "team-a" });
+  assert.equal((await runPublishAndAwait({ ...deps, buildTarget: () => failingDeployTarget() }, { ...input, projectName: "failed" }, clock, history)).ok, false);
+  assert.equal((await history.listDestinationHistory({ workspaceId: input.workspaceId })).length, 1);
+});
+
+for (const explicit of [false, true]) {
+  test(`replay refuses a deleted ${explicit ? "explicit" : "default"} credential even after a replacement default is saved`, async () => {
+    const routeDeps = testRouteDeps();
+    const keyring = new InMemoryKeyring();
+    let id = 0;
+    const writeDeps = { repo: new InMemoryVendorCredentialSetRepo({}), keyring,
+      sealer: new AesGcmSecretSealer(keyring), clock: createFakeClock({ startIso: clock.nowIso() }),
+      idGen: { newId: () => `saved-${++id}` }, loadDeployTargets: routeDeps.loadDeployTargets };
+    const saved = await createPublishCredential(writeDeps, { workspaceId: routeDeps.workspaceId, label: "Original",
+      connection: { providerId: "vercel", token: "ORIGINAL_SECRET" }, isDefault: true });
+    const input = { ...githubInput(routeDeps), config: { target: "vercel" },
+      ...(explicit ? { credentialId: saved.id } : {}) };
+    let publishes = 0;
+    const deps: StaticPublishDeps = { credentialSource: createDbPublishCredentialSource(writeDeps),
+      loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: (_config, credential) => {
+        assert.equal("credentialId" in credential, false, "saved row metadata must not enter the plugin credential");
+        publishes++;
+        return fakeDeployTarget();
+      } };
+    const history = new InMemoryPublishHistoryStore();
+    assert.equal((await runPublishAndAwait(deps, input, clock, history)).ok, true);
+    const [destination] = await listStaticPublishDestinations({ workspaceId: input.workspaceId,
+      historyStore: history, registry: await routeDeps.loadDeployTargets(input.workspaceId) });
+    assert.equal(destination!.credentialId, saved.id);
+    await deletePublishCredential(writeDeps, { workspaceId: input.workspaceId, id: saved.id });
+    const replacement = await createPublishCredential(writeDeps, { workspaceId: input.workspaceId, label: "Replacement",
+      connection: { providerId: "vercel", token: "REPLACEMENT_SECRET" }, isDefault: true });
+    assert.notEqual(replacement.id, saved.id);
+    const replay = await runPublishAndAwait(deps, { ...input, credentialId: destination!.credentialId! }, clock, history);
+    assert.equal(replay.ok, false);
+    if (replay.ok === false) assert.equal(replay.code, "NO_CREDENTIALS_CONFIGURED");
+    assert.equal(publishes, 1, "replay must never publish using the replacement account");
+    assert.equal((await history.list({ workspaceId: input.workspaceId })).length, 1);
   });
 }

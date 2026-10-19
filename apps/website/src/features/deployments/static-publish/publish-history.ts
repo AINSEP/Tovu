@@ -2,6 +2,8 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import type { StaticPublishTargetId } from "./types.js";
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
+import type { DeployTargetDescriptor, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { PublishContentPeerSummary } from "#src/features/publish-content/peers";
 
 /**
  * @file Durable, append-only publish-history ledger.
@@ -24,11 +26,13 @@ import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-hist
  * Architectural role:
  * `features/deployments/static-publish` domain logic — this file declares the port and its in-memory
  * test double only; no Drizzle/SQL import belongs here (that is the adapter's job, one layer down).
- * `publish-run.ts` is the ONE place a `PublishHistoryStore` is written to (both its shared entry
+ * Static publishes settle through `publish-run.ts` (both its shared entry
  * points — the admin route's fire-and-forget `startPublishRun` and the agent tool's awaited
  * `runPublishAndAwait` — settle through the same function, so both callers record identically with no
  * change needed at either call site). `publish-agent-tools.ts`'s capabilities handler is the one
  * place `getLast` is read from today, surfaced per provider as `lastPublish`.
+ * Coordinator decision (2026-10-18): outbound peer execution and deploy-ops also append here;
+ * destination memory belongs to this ledger rather than separate per-flow stores.
  */
 
 /** Which of this feature's two entry points produced a given {@link PublishHistoryEntry} — the admin
@@ -47,15 +51,21 @@ export type PublishTrigger = "admin_ui" | "agent_tool";
  *  commits); see `publish-run.ts`'s `toHistoryEntry` for where this is derived and verified against
  *  `@jini-ai/devops`'s own `GitHubPagesDeployTarget.publish()`. */
 export interface PublishHistoryEntry {
+  /** Absent/null legacy discriminator means static. Other kinds reuse target as their owner id. */
+  readonly kind?: "static" | "tovu-peer" | "deploy";
   readonly target: StaticPublishTargetId;
   readonly url: string;
-  /** `false` only for the s3-compatible "uploaded, not yet confirmed reachable" partial outcome
-   *  (`StaticPublishOutcome`'s own `ok: "partial"` branch) — everything else that reaches this store
+  /** `false` for an accepted deploy without confirmed landing, or an "uploaded, not yet confirmed
+   *  reachable" partial outcome (`StaticPublishOutcome`'s own `ok: "partial"` branch). Everything else that reaches this store
    *  at all is a full, confirmed-live success (see {@link PublishHistoryStore.recordSuccess}'s own
    *  doc: an `ok: false` outcome is never recorded, so `reachable` is never "the publish failed"). */
   readonly reachable: boolean;
   readonly status: string;
   readonly projectName: string;
+  /** Saved connection actually resolved, including default selection; never its secret. */
+  readonly credentialId?: string;
+  /** Descriptor-allowlisted non-secret settings. Absent on legacy, non-replayable history. */
+  readonly configFields?: Readonly<Record<string, string>>;
   readonly publishedAt: string;
   readonly owner?: string;
   readonly repo?: string;
@@ -74,6 +84,9 @@ export interface PublishHistoryEntry {
 
 /** Workspace-and-target-scoped read/write for the publish-history ledger. */
 export interface PublishHistoryStore {
+  /** Latest success or explicitly pending deploy per (kind, target, projectName), across the full workspace
+   * ledger. At most 201 rows; the read service refuses over 200 rather than hiding destinations. */
+  listDestinationHistory(input: { workspaceId: UUID }, options?: Record<string, never>): Promise<PublishHistoryEntry[]>;
   /** The single most recent recorded publish for `(workspaceId, target)`, or `null` if none has ever
    *  been recorded — what `deployment_get_static_publish_capabilities` surfaces as `lastPublish`. */
   getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null>;
@@ -103,10 +116,23 @@ export interface PublishHistoryStore {
 export class InMemoryPublishHistoryStore implements PublishHistoryStore {
   private readonly entriesByWorkspace = new Map<UUID, PublishHistoryEntry[]>();
 
+  /** Full-ledger selection, matching SQL's kind-scoped grouped max(id). O(n) time, O(d) space for n runs/d destinations. */
+  async listDestinationHistory(input: { workspaceId: UUID }, _options: Record<string, never> = {}): Promise<PublishHistoryEntry[]> {
+    const latest = new Map<string, PublishHistoryEntry>();
+    const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const row = rows[i]!;
+      const key = JSON.stringify([row.kind ?? "static", row.target, row.projectName]);
+      if ((row.reachable || (row.kind === "deploy" && row.status === "started")) && (row.kind === "tovu-peer" || row.kind === "deploy" || row.configFields !== undefined) && !latest.has(key)) latest.set(key, row);
+      if (latest.size > 200) break;
+    }
+    return [...latest.values()];
+  }
+
   async getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null> {
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      if (rows[i]!.target === input.target) return rows[i]!;
+      if ((rows[i]!.kind ?? "static") === "static" && rows[i]!.target === input.target) return rows[i]!;
     }
     return null;
   }
@@ -133,4 +159,122 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
     rows.push(input.entry);
     this.entriesByWorkspace.set(input.workspaceId, rows);
   }
+}
+
+/** Public replay contract; credentialId identifies a connection and never carries its secret. */
+export interface StaticPublishDestination {
+  readonly id: string;
+  readonly kind: "static";
+  readonly lastPublishedAt: string;
+  readonly label: string;
+  readonly url: string;
+  readonly target: string;
+  readonly projectName: string;
+  readonly credentialId?: string;
+  readonly configFields: Readonly<Record<string, string>>;
+}
+
+/** Only declared public config may enter history or a response. Credential fields are excluded even
+ * if a descriptor accidentally also declares them as config. O(f*c) for f config/c credential fields.
+ * @example publicPublishConfigFields({ descriptor, config: input.config }) */
+export function publicPublishConfigFields(input: {
+  descriptor: DeployTargetDescriptor;
+  config: Readonly<Record<string, unknown>>;
+}, _options: Record<string, never> = {}): Record<string, string> {
+  const credential = input.descriptor.credential;
+  return Object.fromEntries(input.descriptor.configFields
+    .filter(field => !field.secret && field.name !== "target" && field.name !== "credentialId"
+      && field.name !== "projectName" && field.name !== credential?.tokenField
+      && !credential?.fields.some(candidate => candidate.name === field.name)
+      && typeof input.config[field.name] === "string")
+    .map(field => [field.name, input.config[field.name] as string]));
+}
+
+/** Read saved destinations without resolving credentials. Store failures propagate to the HTTP
+ * boundary. Newest publish time first, independently of ledger insertion order.
+ * One bounded ledger read, O(d*f*c + d log d) time, O(d*f) response space; d <= 200.
+ * @example listStaticPublishDestinations({ workspaceId, historyStore, registry }) */
+export async function listStaticPublishDestinations(input: {
+  workspaceId: UUID;
+  historyStore: PublishHistoryStore;
+  registry: DeployTargetRegistry;
+}, _options: Record<string, never> = {}): Promise<StaticPublishDestination[]> {
+  const rows = await input.historyStore.listDestinationHistory({ workspaceId: input.workspaceId });
+  if (rows.length > 200) throw new Error("publish destination limit exceeded (200)");
+  return staticDestinations({ rows, registry: input.registry });
+}
+
+/** Descriptor-owned public static projection, shared by the static compatibility API and mixed list. */
+function staticDestinations(input: { rows: readonly PublishHistoryEntry[]; registry: DeployTargetRegistry }): StaticPublishDestination[] {
+  return input.rows.flatMap(row => {
+    const target = input.registry.get(row.target);
+    if ((row.kind ?? "static") !== "static" || !row.reachable || row.configFields === undefined || target === undefined) return [];
+    return [{
+      id: `static:${encodeURIComponent(row.target)}:${encodeURIComponent(row.projectName)}`,
+      kind: "static" as const,
+      lastPublishedAt: row.publishedAt,
+      label: `${target.descriptor.label}: ${row.projectName}`,
+      url: row.url,
+      target: row.target,
+      projectName: row.projectName,
+      ...(row.credentialId !== undefined ? { credentialId: row.credentialId } : {}),
+      configFields: publicPublishConfigFields({ descriptor: target.descriptor, config: row.configFields }),
+    }];
+  }).sort((a, b) => Date.parse(b.lastPublishedAt) - Date.parse(a.lastPublishedAt));
+}
+
+export type PublishDestination = StaticPublishDestination | {
+  readonly id: string;
+  readonly kind: "tovu-peer";
+  readonly peerId: string;
+  readonly label: string;
+  readonly url: string;
+  readonly lastPublishedAt: string;
+} | {
+  readonly id: string;
+  readonly kind: "deploy";
+  readonly status: "started" | "confirmed";
+  readonly statusMessage?: string;
+  readonly target: string;
+  readonly label: string;
+  readonly url: string;
+  readonly lastPublishedAt: string;
+  readonly linkedPeerId?: string;
+};
+
+/** One bounded ledger read, no credential resolution. Only caller-authorized saved peer summaries
+ * may enter this projection; deleted peers never become destinations from stale history.
+ * @returns Latest successful destinations and explicitly pending deploys, newest first; throws on the 200-destination cap.
+ * @complexity O(d*p + d*f*c + d log d), d <= 200, p saved peers; no per-row I/O.
+ * @example listPublishDestinations({ workspaceId, historyStore, registry, peers })
+ */
+export async function listPublishDestinations(input: {
+  workspaceId: UUID;
+  historyStore: PublishHistoryStore;
+  registry: DeployTargetRegistry;
+  peers: readonly Pick<PublishContentPeerSummary, "id" | "label" | "baseUrl">[];
+}, _options: Record<string, never> = {}): Promise<PublishDestination[]> {
+  const rows = await input.historyStore.listDestinationHistory({ workspaceId: input.workspaceId });
+  if (rows.length > 200) throw new Error("publish destination limit exceeded (200)");
+  const destinations: PublishDestination[] = staticDestinations({ rows, registry: input.registry });
+  const peers = new Map(input.peers.map(peer => [peer.id, peer]));
+  for (const row of rows) {
+    const pendingDeploy = row.kind === "deploy" && row.status === "started";
+    if (!row.reachable && !pendingDeploy) continue;
+    if (row.kind === "tovu-peer") {
+      const peer = peers.get(row.target);
+      if (peer) destinations.push({ id: `tovu-peer:${peer.id}`, kind: "tovu-peer", peerId: peer.id,
+        label: peer.label, url: peer.baseUrl, lastPublishedAt: row.publishedAt });
+    } else if (row.kind === "deploy" && row.url !== "") {
+      // Normalized addresses match root URLs with or without a trailing slash, never by hostname alone.
+      const peer = input.peers.find(candidate => candidate.baseUrl.replace(/\/+$/, "") === row.url.replace(/\/+$/, ""));
+      destinations.push({ id: `deploy:${encodeURIComponent(row.target)}:${encodeURIComponent(row.projectName)}`,
+        kind: "deploy", target: row.target, label: row.projectName, url: row.url,
+        // Acceptance alone never claims a live site, including rows written before this guard.
+        status: pendingDeploy ? "started" : "confirmed",
+        ...(pendingDeploy ? { statusMessage: "Deploy started, not confirmed" } : {}),
+        lastPublishedAt: row.publishedAt, ...(peer ? { linkedPeerId: peer.id } : {}) });
+    }
+  }
+  return destinations.sort((a, b) => Date.parse(b.lastPublishedAt) - Date.parse(a.lastPublishedAt));
 }

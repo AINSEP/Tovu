@@ -138,6 +138,14 @@ export function bootstrapFreshContentDb(
     "0015_document_blob_ownership": () => {
       for (const statement of documentBlobOwnershipStatements({ dialect: "sqlite" })) client.exec(statement);
     },
+    "0016_publish_destination_history": () => {
+      // Fresh-only copies: the applied migration sources are frozen; parity guards their DDL.
+      client.exec("ALTER TABLE publish_history ADD COLUMN credential_id text");
+      client.exec("ALTER TABLE publish_history ADD COLUMN config_fields_json text");
+    },
+    "0017_publish_history_kind": () => {
+      client.exec("ALTER TABLE publish_history ADD COLUMN kind text DEFAULT 'static'");
+    },
   };
   if (migrations.length !== Object.keys(operations).length ||
       migrations.some(step => !Object.hasOwn(operations, step.id))) {

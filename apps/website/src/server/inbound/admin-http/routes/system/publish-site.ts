@@ -1,8 +1,11 @@
+import { listPublishContentPeers } from "#src/features/publish-content/peers";
+import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express } from "express";
 
 import {
   composePublishCredentialSource,
   getPublishRunSnapshot,
+  listPublishDestinations,
   missingRequiredFieldMessage,
   planStaticPublish,
   readStaticPublishConfig,
@@ -73,6 +76,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  *
  * A FOURTH, `GET .../system/publish-targets` (`system.read`), lists the registry's targets (id,
  * label, config field specs) so the admin UI can render the publish card from descriptors.
+ * `GET .../system/publish/destinations` (`system.read`) derives saved destinations from successful
+ * history for this site's workspace. It never resolves credentials; only POST executes a publish.
  */
 export type AdminPublishSiteDeps = RouteDeps;
 
@@ -341,6 +346,41 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // handler entirely (no `try`/`catch` at all; found by an AST scan over every `app.<verb>()`
       // handler in `src/server/routes/**`).
       console.error("[publish-site] unexpected error building a publish preview", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
+  });
+
+  // Listing is read-only: execution still goes through the system.publish-gated POST above.
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/destinations", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
+        principalId: principal.id,
+        permission: "system.read",
+        workspaceId: deps.workspaceId,
+        entityType: "site-publish",
+      });
+      if (!authorized) return;
+      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      // Omit peer identities as well as peer rows without the additional permission.
+      const trust = getPublishTrustContext(res);
+      const peerAuthorization = await (trust ? publishTrustAuthorizeFor(trust) : deps.authorize)({
+        principalId: principal.id, permission: "publish_content.read", workspaceId: deps.workspaceId,
+      });
+      let peers: Awaited<ReturnType<typeof listPublishContentPeers>> = [];
+      if (peerAuthorization.allowed) peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
+      res.status(200).json(await listPublishDestinations({
+        workspaceId: deps.workspaceId,
+        historyStore: deps.publishHistoryStore,
+        registry,
+        peers,
+      }));
+    } catch (err) {
+      console.error("[publish-site] unexpected error listing publish destinations", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });

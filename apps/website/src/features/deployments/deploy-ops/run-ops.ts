@@ -1,3 +1,4 @@
+import type { PublishHistoryStore } from "../static-publish/publish-history.js";
 import type { OperatorLocaleDeps } from "#src/features/agent-plugins/operator-locale";
 import { issueCredentialSetup, type ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
 import { nowIso } from "@jini-ai/core/primitives";
@@ -16,6 +17,8 @@ export const MAX_WAIT_SECONDS = 300;
 export const MAX_MODULE_SLEEP_MS = 5_000;
 export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   authorize: AuthorizeFn;
+  /** Shared site ledger, injected by production; optional for credential-only consumers. */
+  publishHistoryStore?: PublishHistoryStore;
   workspaceId: string;
   clock: CredentialedRequestDeps["clock"];
   customCredentialSetRepo: CredentialedRequestDeps["repo"];
@@ -202,7 +205,23 @@ export async function runDeploy(required: { deps: DeployOpsToolDeps; input: Depl
   const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
   if (signal?.aborted) throw aborted();
   const result = await platform.module.deploy(ctx, { target: input.target, ...(input.ref !== undefined ? { ref: input.ref } : {}) });
-  return normalizeDeployResult(input, result);
+  const normalized = normalizeDeployResult(input, result);
+  // Accepted requests are successful dispatches, not proof of a healthy landing. Preserve that
+  // distinction in status; never invent a URL when the adapter cannot supply one.
+  // Status may describe an older healthy run (runId is optional), so acceptance stays pending.
+  if (deps.publishHistoryStore) {
+    try {
+      await deps.publishHistoryStore.recordSuccess({ workspaceId: deps.workspaceId, entry: {
+        kind: "deploy", target: platform.descriptor.id, projectName: normalized.target, url: normalized.url ?? "",
+        reachable: false, status: "started", publishedAt: nowIso({ clock: deps.clock }), triggeredBy: "agent_tool",
+      } });
+    } catch {
+      // Dispatch already succeeded; never turn a ledger failure into a duplicate deploy retry.
+      // No raw error: database parameters can contain credentials or provider response data.
+      console.warn("[deploy-ops] destination history write failed after accepted deploy");
+    }
+  }
+  return normalized;
 }
 
 /** Race an in-flight status against the deadline and cancellation. Listeners/timers always cleaned up. */

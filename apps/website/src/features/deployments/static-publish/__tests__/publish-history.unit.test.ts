@@ -4,7 +4,8 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
-import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from "../publish-history.js";
+import { InMemoryPublishHistoryStore, listPublishDestinations, listStaticPublishDestinations, publicPublishConfigFields, type PublishHistoryEntry } from "../publish-history.js";
+import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import {
   MAX_PUBLISH_HISTORY_LIST_LIMIT,
   resolvePublishHistoryListLimit,
@@ -129,5 +130,120 @@ test("both publish-history adapters return newest recorded first, even when publ
     assert.deepEqual((await store.list({ workspaceId: WORKSPACE_A })).map(row => row.url), ["u3", "u2", "u1"]);
     assert.deepEqual((await store.list({ workspaceId: WORKSPACE_A, target: "github-pages", limit: 1 })).map(row => row.url), ["u2"]);
     assert.deepEqual(await store.list({ workspaceId: WORKSPACE_B }), []);
+  }
+});
+
+test("Publish destinations: both adapters retain latest successful project across full ledger, isolate workspaces, and omit partial/legacy runs", async t => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  for (const id of [WORKSPACE_A, WORKSPACE_B]) {
+    db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
+  }
+  const registry = await loadBundledDeployTargets();
+  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+    const list = () => listStaticPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry });
+    assert.deepEqual(await list(), []);
+    const saved = entry({ target: "vercel", projectName: "first", credentialId: "connection-a", configFields: { teamId: "team-a", token: "NEVER_RETURN", unknown: "NEVER_RETURN" } });
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: saved });
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: { ...saved, projectName: "second" } });
+    // More than list()'s 50/default and 200/max: derive before limiting, never from a recent page.
+    for (let i = 0; i < 205; i++) {
+      await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: { ...saved, projectName: "second", url: `https://run-${i}.example.test` } });
+    }
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: { ...saved, projectName: "foreign" } });
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: { ...saved, projectName: "partial", reachable: false } });
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: { ...saved, projectName: "legacy", configFields: undefined } });
+    // A newer partial must not replace the last confirmed success for the same destination.
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: { ...saved, reachable: false, url: "https://partial.example.test" } });
+    const destinations = await list();
+    assert.deepEqual(destinations.map(row => row.projectName), ["second", "first"]);
+    assert.equal(destinations[0]!.url, "https://run-204.example.test");
+    assert.equal(destinations[1]!.credentialId, "connection-a");
+    assert.equal(destinations[1]!.lastPublishedAt, saved.publishedAt);
+    assert.deepEqual(destinations[1]!.configFields, { teamId: "team-a" });
+    assert.equal(JSON.stringify(destinations).includes("NEVER_RETURN"), false);
+  }
+});
+
+test("Publish destinations: sorts by publication time rather than insertion order", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const registry = await loadBundledDeployTargets();
+  const newer = entry({ projectName: "newer", configFields: {}, publishedAt: "2026-10-18T02:00:00Z" });
+  const older = entry({ projectName: "older", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
+  await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: newer });
+  await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: older });
+  const destinations = await listStaticPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry });
+  assert.deepEqual(destinations.map(row => [row.projectName, row.lastPublishedAt]), [
+    ["newer", newer.publishedAt], ["older", older.publishedAt],
+  ]);
+});
+
+test("Publish destinations: descriptor secrets and credential/config name collisions are never stored", async () => {
+  const descriptor = (await loadBundledDeployTargets()).get("vercel")!.descriptor;
+  const safe = publicPublishConfigFields({
+    descriptor: { ...descriptor, configFields: [
+      ...descriptor.configFields,
+      { name: "privateConfig", label: "private", required: false, secret: true },
+      { name: descriptor.credential!.tokenField, label: "collision", required: false },
+    ] },
+    config: { teamId: "team-a", privateConfig: "SECRET", [descriptor.credential!.tokenField]: "SECRET", undeclared: "SECRET" },
+  });
+  assert.deepEqual(safe, { teamId: "team-a" });
+});
+
+test("Publish destinations: over 200 distinct destinations refuses instead of silently truncating", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  for (let i = 0; i < 201; i++) {
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", projectName: `site-${i}`, configFields: {} }) });
+  }
+  await assert.rejects(listStaticPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry: await loadBundledDeployTargets() }), /limit exceeded/);
+});
+
+
+test("mixed destination kinds group independently, retain latest successes, and omit removed/never-pushed peers in both adapters", async t => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  for (const id of [WORKSPACE_A, WORKSPACE_B]) db.insert(workspaces).values({ id, name: id, slug: id, createdAt: "2026-10-18T00:00:00Z" }).run();
+  const registry = await loadBundledDeployTargets();
+  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+    const staticRow = entry({ target: "vercel", projectName: "site", configFields: {}, publishedAt: "2026-10-18T01:00:00Z" });
+    const peerRow = entry({ kind: "tovu-peer", target: "saved", projectName: "", configFields: undefined, url: "https://live.test", publishedAt: "2026-10-18T03:00:00Z" });
+    const deployRow = entry({ kind: "deploy", target: "vercel", projectName: "site", configFields: undefined, url: "https://live.test/", publishedAt: "2026-10-18T02:00:00Z" });
+    for (const row of [staticRow, peerRow, deployRow, { ...peerRow, publishedAt: "2026-10-18T04:00:00Z" },
+      { ...peerRow, reachable: false, url: "https://failed.test" }, { ...peerRow, target: "deleted" }]) {
+      await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: row });
+    }
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: { ...peerRow, target: "foreign" } });
+    const peers = [{ id: "saved", label: "Live", baseUrl: "https://live.test" },
+      { id: "never-pushed", label: "Unused", baseUrl: "https://unused.test" },
+      { id: "foreign", label: "Foreign", baseUrl: "https://foreign.test" }];
+    const rows = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers });
+    assert.deepEqual(rows.map(row => [row.kind, row.lastPublishedAt]), [["tovu-peer", "2026-10-18T04:00:00Z"], ["deploy", deployRow.publishedAt], ["static", staticRow.publishedAt]]);
+    assert.equal(rows[1]!.kind === "deploy" && rows[1]!.linkedPeerId, "saved");
+    assert.equal((await historyStore.getLast({ workspaceId: WORKSPACE_A, target: "vercel" }))?.kind, undefined,
+      "server deploys must not replace static capabilities even when target/project collide");
+    assert.deepEqual((await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers: [] })).map(row => row.kind), ["deploy", "static"]);
+  }
+});
+
+test("both adapters expose accepted deploys only as pending, including legacy reachable started rows", async t => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-10-18T00:00:00Z" }).run();
+  const registry = await loadBundledDeployTargets();
+  for (const historyStore of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+    for (const reachable of [false, true]) {
+      await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ kind: "deploy", target: "server",
+        projectName: String(reachable), url: "https://live.test", reachable, status: "started" }) });
+    }
+    const destinations = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry, peers: [] });
+    assert.equal(destinations.length, 2);
+    for (const destination of destinations) {
+      assert.equal(destination.kind, "deploy");
+      if (destination.kind !== "deploy") assert.fail("expected deploy destination");
+      assert.equal(destination.status, "started");
+      assert.equal(destination.statusMessage, "Deploy started, not confirmed");
+    }
+    assert.equal((await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_A })).length, 2);
   }
 });

@@ -1,3 +1,5 @@
+import { InMemoryPublishHistoryStore, listPublishDestinations } from "#src/features/deployments/static-publish/publish-history";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -638,4 +640,56 @@ test("executePeerImport refuses overwriteEntityKeys when the peer does not adver
     { name: "PublishContentPeerTransportError", code: "PEER_CANNOT_OVERWRITE", message: OLD_LIVE_OVERWRITE_REFUSAL }
   );
   assert.equal(http.calls.some((call) => call.url.includes("/import/execute")), false);
+});
+
+
+test("outbound successful and partial peer applies append saved-peer history and list only that workspace's saved destinations", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const at = "2026-10-18T10:00:00.000Z";
+  for (const report of [{ refused: false, rows: [] }, { refused: false, rows: [{ outcome: "conflict" }] }]) {
+    const result = { runId: "remote-run", report };
+    const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
+    assert.deepEqual(await executePeerImport({ httpClient: http, credential: CREDENTIAL,
+      publishHistory: { store: historyStore, workspaceId: "source-ws", clock: { nowMs: () => Date.parse(at) } },
+    }, { bundleId: "b1", confirmationToken: "token" }), result);
+  }
+  const rows = await historyStore.list({ workspaceId: "source-ws" });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]!.kind, "tovu-peer");
+  assert.equal(rows[0]!.target, CREDENTIAL.id);
+  const registry = await loadBundledDeployTargets();
+  const peers = [{ id: CREDENTIAL.id, label: CREDENTIAL.label, baseUrl: CREDENTIAL.baseUrl }];
+  const list = (workspaceId: string, saved = peers) => listPublishDestinations({ workspaceId, historyStore, registry, peers: saved });
+  assert.deepEqual(await list("source-ws"), [{ id: `tovu-peer:${CREDENTIAL.id}`, kind: "tovu-peer", peerId: CREDENTIAL.id,
+    label: CREDENTIAL.label, url: CREDENTIAL.baseUrl, lastPublishedAt: at }]);
+  assert.deepEqual(await list("source-ws", []), [], "removed peers or unauthorized peer metadata are omitted");
+  assert.deepEqual(await list("foreign-ws"), []);
+  assert.equal(JSON.stringify(rows).includes(API_KEY), false);
+});
+
+test("a throwing history store preserves the successful remote apply and logs no error payload", async (t) => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
+  const store = new InMemoryPublishHistoryStore();
+  store.recordSuccess = async () => { throw new Error(`database parameters: ${API_KEY}`); };
+  const result = { runId: "remote-run", report: { refused: false, rows: [] } };
+  const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
+  assert.deepEqual(await executePeerImport({ httpClient: http, credential: CREDENTIAL,
+    publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
+  }, { bundleId: "b1", confirmationToken: "token" }), result);
+  assert.equal(http.calls.length, 1);
+  assert.deepEqual(warnings, [["[publish-content] destination history write failed after remote apply"]]);
+});
+
+test("outbound failures, refusals and malformed success bodies never establish destinations", async () => {
+  const store = new InMemoryPublishHistoryStore();
+  for (const json of [{ ok: false, runId: "failed" }, { runId: "refused", report: { refused: true } }, {}]) {
+    await executePeerImport({ httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, json }]), credential: CREDENTIAL,
+      publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
+    }, { bundleId: "b1", confirmationToken: "token" });
+  }
+  await assert.rejects(executePeerImport({ httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, status: 500, json: {} }]), credential: CREDENTIAL,
+    publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
+  }, { bundleId: "b1", confirmationToken: "token" }));
+  assert.deepEqual(await store.list({ workspaceId: "source-ws" }), []);
 });

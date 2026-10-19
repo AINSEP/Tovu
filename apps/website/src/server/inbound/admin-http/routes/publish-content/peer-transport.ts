@@ -1,3 +1,4 @@
+import type { PeerCallDeps } from "#src/features/publish-content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Response } from "express";
 
@@ -14,7 +15,6 @@ import {
   PublishContentPeerCredentialMissingError,
   PublishContentPeerNotFoundError,
   PublishContentPeerSecretStoreUnconfiguredError,
-  type ResolvedPeerCredential,
 } from "#src/features/publish-content/peers";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import {
@@ -103,7 +103,7 @@ function respondWithError(res: { status(code: number): { json(body: unknown): vo
 
 /** The per-request transport bag: the guarded client plus the opened credential.
  *  @complexity O(1) plus one repo read and one AEAD open. */
-async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<{ credential: ResolvedPeerCredential; httpClient: PublishContentRouteDeps["publishContentPeerHttpClient"] }> {
+async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<PeerCallDeps> {
   const credential = await resolvePublishDestinationCredential(
     {
       repo: deps.publishContentPeerRepo,
@@ -113,7 +113,8 @@ async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<
     },
     { workspaceId: deps.workspaceId, id: peerId }
   );
-  return { credential, httpClient: deps.publishContentPeerHttpClient };
+  return { credential, httpClient: deps.publishContentPeerHttpClient,
+    publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock } };
 }
 
 /** Distinguishes "the body carried a malformed selection" (a 400) from "the body carried none"

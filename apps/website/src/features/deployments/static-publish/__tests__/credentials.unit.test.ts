@@ -684,9 +684,9 @@ test("env source: a plugin-only host's token and extra fields come from the env 
 
 test("db source: a plugin-only host's saved token field becomes the resolved token; other declared fields pass through", async () => {
   const writeDeps = { ...makeWriteDeps(), loadDeployTargets: pluginOnlyHostRegistry };
-  await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "main", connection: { providerId: "fixture-host", apiKey: "secret-k", zone: "eu" } });
+  const saved = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "main", connection: { providerId: "fixture-host", apiKey: "secret-k", zone: "eu" } });
   const source = createDbPublishCredentialSource(writeDeps);
-  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "secret-k", zone: "eu" });
+  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "fixture-host" }), { ok: true, token: "secret-k", zone: "eu", credentialId: saved.id });
 });
 
 test("saved API keys publish by worksFor, never by their label", async () => {

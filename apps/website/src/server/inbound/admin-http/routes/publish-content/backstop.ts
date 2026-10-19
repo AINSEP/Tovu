@@ -69,7 +69,8 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
       const backstop = { ...projection.backstop!, selection: checked.request.selection };
       const audit = backstop.audit;
       if (!audit || !(await audit.ready())) { res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
-      const resolvePeer = async () => ({ httpClient: deps.publishContentPeerHttpClient, credential: await resolvePublishDestinationCredential({
+      const resolvePeer = async () => ({ httpClient: deps.publishContentPeerHttpClient,
+        publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock }, credential: await resolvePublishDestinationCredential({
         repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient,
       }, { workspaceId: deps.workspaceId, id: peerId, backstop: true }) });
       if (req.body.action === "send") {

@@ -62,6 +62,16 @@ test("fresh synchronous content databases match every declared table's columns a
     }
     await migrateContentDatabase(sqliteKernel<unknown>(asyncDb));
     assert.deepEqual(actual, await readSchemaShape(sqliteKernel<unknown>(asyncDb), { exclude: BOOKKEEPING }));
+    // Check nullable replay columns and the legacy kind default explicitly in both paths.
+    for (const db of [sync, asyncDb]) {
+      const columns = db.$client.prepare("PRAGMA table_info(publish_history)").all() as Array<{ name: string; type: string; notnull: number; dflt_value: string | null }>;
+      assert.deepEqual(columns.filter(column => ["credential_id", "config_fields_json", "kind"].includes(column.name))
+        .map(({ name, type, notnull, dflt_value }) => ({ name, type: type.toLowerCase(), notnull, dflt_value })), [
+        { name: "credential_id", type: "text", notnull: 0, dflt_value: null },
+        { name: "config_fields_json", type: "text", notnull: 0, dflt_value: null },
+        { name: "kind", type: "text", notnull: 0, dflt_value: "'static'" },
+      ]);
+    }
   } finally {
     sync.$client.close();
     asyncDb.$client.close();

@@ -34,6 +34,8 @@ export {
 
 export {
   InMemoryPublishHistoryStore,
+  listStaticPublishDestinations,
+  listPublishDestinations,
   type PublishHistoryEntry,
   type PublishHistoryStore,
   type PublishTrigger,

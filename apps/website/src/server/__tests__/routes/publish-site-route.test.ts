@@ -15,6 +15,7 @@ import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/_
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
 
 
 /**
@@ -990,4 +991,68 @@ test("publish-targets: an unauthorized principal gets 403 and a mismatched works
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
   const forbidden = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie: bareCookie } });
   assert.equal(forbidden.status, 403);
+});
+
+test("publish destinations: empty array, saved public destination, system.read gate and workspace isolation", async t => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const deps = { ...testRouteDeps(), publishHistoryStore: historyStore };
+  // Prove listing needs only system.read, while the existing trigger still needs system.publish.
+  const permissions: string[] = [];
+  const originalAuthorize = deps.authorize;
+  deps.authorize = async input => { permissions.push(input.permission); return originalAuthorize(input); };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish/destinations`;
+  const empty = await fetch(url, { headers: { cookie } });
+  assert.equal(empty.status, 200);
+  assert.deepEqual(await empty.json(), []);
+  assert.deepEqual(permissions.slice(-2), ["system.read", "publish_content.read"]);
+  const saved = {
+    target: "vercel", projectName: "my-site", credentialId: "connection-a", url: "https://my-site.vercel.app",
+    configFields: { teamId: "team-a", token: "SECRET", undeclared: "SECRET" },
+    reachable: true, status: "ready", publishedAt: "2026-10-18T00:00:00Z", triggeredBy: "admin_ui" as const,
+  };
+  await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: saved });
+  await historyStore.recordSuccess({ workspaceId: "foreign", entry: { ...saved, projectName: "foreign" } });
+  await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...saved, projectName: "partial", reachable: false } });
+  const response = await fetch(url, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), [{
+    id: "static:vercel:my-site", kind: "static", label: "Vercel: my-site", url: saved.url,
+    target: "vercel", projectName: "my-site", credentialId: "connection-a", configFields: { teamId: "team-a" },
+    lastPublishedAt: saved.publishedAt,
+  }]);
+  assert.equal((await fetch(url.replace(deps.workspaceId, "foreign"), { headers: { cookie } })).status, 404);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  assert.equal((await fetch(url, { headers: { cookie: bareCookie } })).status, 403);
+});
+
+
+test("publish destinations: peer rows and deploy links require publish_content.read; deleted peers disappear", async t => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const deps = { ...testRouteDeps(), publishHistoryStore: historyStore };
+  let peerReadAllowed = true;
+  const authorize = deps.authorize;
+  deps.authorize = input => input.permission === "publish_content.read" && !peerReadAllowed
+    ? Promise.resolve({ allowed: false, reason: "denied" }) : authorize(input);
+  await deps.publishContentPeerRepo.insert({ workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
+    baseUrl: "https://live.example.test", remoteWorkspaceId: "remote", sealed: null, masked: null,
+    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" });
+  const common = { url: "https://live.example.test/", reachable: true, status: "applied", publishedAt: "2026-10-18T03:00:00Z", triggeredBy: "admin_ui" as const };
+  await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...common, kind: "tovu-peer", target: "peer-saved", projectName: "" } });
+  await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...common, kind: "deploy", target: "custom-server", projectName: "Site", publishedAt: "2026-10-18T02:00:00Z" } });
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish/destinations`;
+  const read = async () => { const res = await fetch(url, { headers: { cookie } }); assert.equal(res.status, 200); return await res.json(); };
+  const connected = await read();
+  assert.deepEqual(connected.map((row: any) => row.kind), ["tovu-peer", "deploy"]);
+  assert.equal(connected[0].peerId, "peer-saved");
+  assert.equal(connected[1].linkedPeerId, "peer-saved");
+  assert.equal(JSON.stringify(connected).includes("sealed"), false);
+  peerReadAllowed = false;
+  const restricted = await read();
+  assert.deepEqual(restricted.map((row: any) => row.kind), ["deploy"]);
+  assert.equal("linkedPeerId" in restricted[0], false);
+  peerReadAllowed = true;
+  await deps.publishContentPeerRepo.delete({ workspaceId: deps.workspaceId, id: "peer-saved" });
+  assert.deepEqual(await read(), restricted);
 });

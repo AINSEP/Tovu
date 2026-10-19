@@ -1,6 +1,8 @@
+import { InMemoryPublishHistoryStore, listPublishDestinations } from "../../static-publish/publish-history.js";
+import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runDeploy } from "../run-ops.js";
+import { runDeploy, runDeployOps } from "../run-ops.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import type { DeployOpsContext, DeployOpsDeployInput, DeployOpsDeployResult } from "../types.js";
 import { fixture, execution } from "./ops-fixture.js";
@@ -104,4 +106,58 @@ test("the chat tool requires write permission, validates input and calls runDepl
   await assert.rejects(tool.handler(execution({ platform: "fly", target: "shop", ref: "" })), { name: "ToolInputError", message: "ref must be a non-empty string of at most 200 characters." });
   const denied = buildDeployOpsRegistrations({ ...f.deps, authorize: async ({ permission }: { permission: string }) => ({ allowed: permission !== "custom-credentials.write", reason: "denied" }) } as typeof f.deps).find(r => r.descriptor.id === "deployment_ops_deploy")!;
   await assert.rejects(denied.handler(execution({ platform: "fly", target: "shop" })), { message: "principal 'principal' is not authorized for 'custom-credentials.write' (denied)" });
+});
+
+
+test("a throwing history store preserves an accepted deploy and logs no error payload", async (t) => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
+  const store = new InMemoryPublishHistoryStore();
+  store.recordSuccess = async () => { throw new Error("database parameters: PRIVATE_TOKEN"); };
+  let deploys = 0;
+  const f = await withDeploy(async () => { deploys++; return accepted({ runId: "42" }); });
+  assert.deepEqual(await runDeploy({ deps: { ...f.deps, publishHistoryStore: store }, input: { platform: "fly", target: "shop" } }),
+    { platform: "fly", target: "shop", started: true, summary: "accepted", runId: "42" });
+  assert.equal(deploys, 1);
+  assert.deepEqual(warnings, [["[deploy-ops] destination history write failed after accepted deploy"]]);
+});
+
+test("accepted deploys append descriptor identity to the shared ledger and link only matching saved peers", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const f = await withDeploy(async () => accepted({ url: "https://live.example.test/", runId: "42" }));
+  await runDeploy({ deps: { ...f.deps, publishHistoryStore: historyStore }, input: { platform: "fly", target: "shop" } });
+  const [recorded] = await historyStore.list({ workspaceId: "ws" });
+  assert.equal(recorded?.kind, "deploy");
+  assert.equal(recorded?.target, f.registry.get("fly")!.descriptor.id);
+  assert.equal(recorded?.projectName, "shop");
+  assert.equal(recorded?.reachable, false);
+  assert.equal(recorded?.status, "started");
+  const registry = await loadBundledDeployTargets();
+  const peers = [{ id: "saved-peer", label: "Live", baseUrl: "https://live.example.test" }];
+  const [destination] = await listPublishDestinations({ workspaceId: "ws", historyStore, registry, peers });
+  assert.deepEqual(destination, { id: "deploy:fly:shop", kind: "deploy", target: "fly", label: "shop",
+    status: "started", statusMessage: "Deploy started, not confirmed",
+    url: "https://live.example.test/", lastPublishedAt: recorded!.publishedAt, linkedPeerId: "saved-peer" });
+  const [unlinked] = await listPublishDestinations({ workspaceId: "ws", historyStore, registry, peers: [] });
+  assert.equal(unlinked?.kind === "deploy" && "linkedPeerId" in unlinked, false);
+  assert.deepEqual(await listPublishDestinations({ workspaceId: "foreign", historyStore, registry, peers }), []);
+  const failed = await withDeploy(async () => { throw new Error("deploy failed"); });
+  await assert.rejects(runDeploy({ deps: { ...failed.deps, publishHistoryStore: historyStore }, input: { platform: "fly", target: "other" } }));
+  assert.equal((await historyStore.list({ workspaceId: "ws" })).length, 1);
+});
+
+test("an accepted deploy followed by failing status never becomes a confirmed destination", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const f = await withDeploy(async () => accepted({ url: "https://failed.example.test", runId: "42" }));
+  const platform = f.deps.deployOpsRegistry!.get("fly")!;
+  platform.module.status = async () => ({ platform: "fly", target: "shop", state: "failing",
+    summary: "Deploy failed", items: [], checkedAt: "2026-10-18T00:00:00Z" });
+  const deps = { ...f.deps, publishHistoryStore: historyStore };
+  await runDeploy({ deps, input: { platform: "fly", target: "shop" } });
+  assert.equal((await runDeployOps(deps, { platform: "fly", target: "shop", runId: "42" }, "status")).state, "failing");
+  const destinations = await listPublishDestinations({ workspaceId: "ws", historyStore,
+    registry: await loadBundledDeployTargets(), peers: [] });
+  assert.equal(destinations.length, 1);
+  assert.equal(destinations[0]!.kind === "deploy" && destinations[0]!.status, "started");
+  assert.equal((await historyStore.list({ workspaceId: "ws" }))[0]!.reachable, false);
 });

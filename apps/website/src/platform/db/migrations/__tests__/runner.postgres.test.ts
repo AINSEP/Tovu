@@ -71,6 +71,7 @@ test("the content history through the current head applies on real Postgres", as
     "0006_submission_ip_retention", "0007_publish_backstop", "0008_posts_publish_at_featured_media",
     "0009_posts_author", "0010_members_credentials_revoked_at", "0011_drop_empty_core_commerce_tables", "0012_secrets_vault",
     "0013_unify_vault_credentials", "0014_media_library", "0015_document_blob_ownership",
+    "0016_publish_destination_history", "0017_publish_history_kind",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);

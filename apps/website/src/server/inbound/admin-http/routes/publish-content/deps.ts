@@ -76,6 +76,7 @@ export type PublishContentRouteDeps = Pick<
   | "publishContentApplyPort"
   | "publishContentSeedHash"
   | "publishContentPeerRepo"
+  | "publishHistoryStore"
   | "publishContentPeerHttpClient"
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"
