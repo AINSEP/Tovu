@@ -4,6 +4,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { withBatchInput, BATCHABLE_TOOLS } from "../../../assistant/batch-tool-inputs.js";
+import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import type { HttpRequest } from "#src/platform/http/index";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "../agent-tools.js";
@@ -139,7 +140,8 @@ test("the existing batch wrapper carries shared render options and per-item over
   const wrapped = withBatchInput({ registration: registration!, tool: BATCHABLE_TOOLS.find(tool => tool.toolId === "web_fetch_page")! });
   const schema = wrapped.descriptor.inputSchema as { properties: Record<string, unknown> };
   assert.deepEqual(schema.properties.render, { type: "boolean", description: (webAgentToolCatalog[0]!.inputSchema!.properties as Record<string, { description: string }>).render!.description });
-  await wrapped.handler(ctx({ render: true, waitFor: 1, captureData: true, items: [{ url: "https://a.example/" }, { url: "https://b.example/", waitFor: "#ready", captureData: false }] }));
+  // 13138e356 routes merged batch items through the real executor, including its gates.
+  await invokeRegisteredTool(wrapped, ctx({ render: true, waitFor: 1, captureData: true, items: [{ url: "https://a.example/" }, { url: "https://b.example/", waitFor: "#ready", captureData: false }] }));
   assert.deepEqual(inputs.map(input => [input.url, input.render, input.waitFor, input.captureData, input.maxChars]), [
     ["https://a.example/", true, 1, true, 8000], ["https://b.example/", true, "#ready", false, 8000],
   ]);
@@ -176,7 +178,7 @@ test("batch render filters inherit shared fields and let each item override filt
   };
   const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
   const wrapped = withBatchInput({ registration: registration!, tool: BATCHABLE_TOOLS.find(tool => tool.toolId === "web_fetch_page")! });
-  const result = await wrapped.handler(ctx({ render: true, captureDataMatch: "/rows", textMode: "none", items: [
+  const result = await invokeRegisteredTool(wrapped, ctx({ render: true, captureDataMatch: "/rows", textMode: "none", items: [
     { url: "https://a.example/" }, { url: "https://b.example/", captureDataMatch: ["*/records*"], textMode: "summary" },
   ] })) as { succeeded: number; results: Array<{ result: { content: string } }> };
   assert.equal(result.succeeded, 2);
@@ -248,7 +250,7 @@ test("single default truncates at 20000 characters while batch items retain 8000
   const tool = BATCHABLE_TOOLS.find(tool => tool.toolId === "web_fetch_page")!;
   assert.deepEqual(tool.itemDefaults, { maxChars: 8_000 });
   const wrapped = withBatchInput({ registration: registration!, tool });
-  const batch = await wrapped.handler(ctx({ items: [{ url: "https://a.example/" }, { url: "https://b.example/", maxChars: 25_000 }] })) as { results: Array<{ result: { content: string; truncated: boolean } }> };
+  const batch = await invokeRegisteredTool(wrapped, ctx({ items: [{ url: "https://a.example/" }, { url: "https://b.example/", maxChars: 25_000 }] })) as { results: Array<{ result: { content: string; truncated: boolean } }> };
   assert.deepEqual(batch.results.map(item => [item.result.content.length, item.result.truncated]), [[8_000, true], [25_000, true]]);
 });
 

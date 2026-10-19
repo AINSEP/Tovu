@@ -78,9 +78,20 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
 ]);
 
-// These open APIs operate on plugin sources or sealed credentials, never surface exchanges.
+// These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.
 // Match the complete reviewed call and file: a different argument or receiver still fails closed.
 const NON_EXCHANGE_OPEN_CALLS = new Map([
+  // c387a9b3e added the native theme watcher. Keep the full call reviewed, like the sealers below.
+  ["features/theme/theme-watcher.ts", `watchPort.open({
+      themesDir: required.themesDir,
+      onChange: (filename) => {
+        if (closed || ignoredThemeWatchPath(filename)) return;
+        clearTimeout(pending);
+        pending = setTimeout(refresh, settleMs);
+        pending.unref();
+      },
+      onError: (error) => { stop(); onError({ error }); },
+    })`],
   ["features/webhooks/secret-sealer.aesgcm.ts", "this.sealer.open(input, optional)"],
   ["features/plugin-runtime/source-tools.ts", "port.open({ id: pluginId }, {})"],
   ["features/vendor-credentials/vault-adapter.ts", "required.sealer.open(input, options)"],
@@ -228,7 +239,7 @@ test("reviewed non-exchange open calls do not hide new surface bindings in the s
   for (const [file, call] of NON_EXCHANGE_OPEN_CALLS) {
     const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, file), text: `${call};\nstore.open({ binding: { toolId: unknownId } });` }]);
     assert.deepEqual(fixture.toolIds.size, 0);
-    assert.deepEqual(fixture.unresolved, [`${file}:2: unknownId`]);
+    assert.deepEqual(fixture.unresolved, [`${file}:${call.split("\n").length + 1}: unknownId`]);
   }
 });
 

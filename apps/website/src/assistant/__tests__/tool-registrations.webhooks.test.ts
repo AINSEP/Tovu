@@ -1,5 +1,6 @@
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
+import { batchDescriptorFor } from "../batch-tool-inputs.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -152,7 +153,7 @@ test("subscription update is available while signing-secret rotation and reveal 
 // 2. Published contracts
 // ---------------------------------------------------------------------------
 
-test("every wired webhooks registration publishes its catalog entry's inputSchema and description verbatim", () => {
+test("every wired webhooks registration publishes its catalog contract, including the shared delete plan", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of webhooksRegistrations(deps)) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
@@ -161,8 +162,15 @@ test("every wired webhooks registration publishes its catalog entry's inputSchem
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.webhook_subscription") continue;
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    const catalog = catalogEntry(id);
+    const descriptor = { id, inputSchema: catalog.inputSchema, description: catalog.description };
+    // d1c1fbd9a added one-card delete plans; 13138e356 normalizes their items in Jini.
+    const plan = id === "webhooks_delete_subscription";
+    const expected = plan ? batchDescriptorFor({ descriptor, tool: { toolId: id } }) : descriptor;
+    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must derive from its catalog entry`);
+    assert.equal(registration.descriptor.description, plan
+      ? `${catalog.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.`
+      : catalog.description);
   }
 });
 

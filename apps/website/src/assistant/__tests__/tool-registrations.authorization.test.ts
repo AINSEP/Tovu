@@ -63,6 +63,7 @@ function fakeRouteDeps(options: { allow: boolean; existing?: ContentTypeRecord }
 
   const deps = {
     workspaceId: WORKSPACE_ID,
+    ownerPrincipalId: Promise.resolve(PRINCIPAL_ID),
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-07-29T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async (params: AuthorizeCall) => {
@@ -251,15 +252,20 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
   });
 }
 
-test("the ToolPolicy layer is a pass-through 'allow' for every registration — enforcement is the domain layer's, by design", () => {
+test("ToolPolicy passes through domain authorization; the owner-only audit tool denies other principals", async () => {
   for (const [toolId, registration] of registrationsById()) {
-    const decision = registration.policy.authorize({
+    const request = {
       principal: { id: PRINCIPAL_ID },
       run: { id: "run-1" },
       tool: registration.descriptor,
       input: TOOL_INPUTS[toolId],
-    });
+    };
+    const decision = await registration.policy.authorize(request);
     assert.equal(decision, "allow", `${toolId}'s ToolPolicy is documented as a pass-through`);
+    // 4a59ce34a deliberately gates this read before dispatch as well as inside its handler.
+    if (toolId === "tool_gaps_list") {
+      assert.equal(await registration.policy.authorize({ ...request, principal: { id: "other-admin" } }), "deny");
+    }
   }
 });
 

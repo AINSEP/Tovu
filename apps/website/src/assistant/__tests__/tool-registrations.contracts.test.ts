@@ -22,6 +22,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
+import { toolGapsAgentToolCatalog } from "../tool-gaps-tool.js";
 import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
@@ -191,6 +192,7 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * and actorClassRule), so structural casts adapt them to this map's common catalog type.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
+  "tool-gaps": toolGapsAgentToolCatalog,
   "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
   analytics: analyticsAgentToolCatalog as unknown as AgentToolDefinition[],
   "system-mail": mailStatusAgentToolCatalog as unknown as AgentToolDefinition[],

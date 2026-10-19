@@ -272,11 +272,32 @@ test("a version conflict reaches the model as an actionable BAD_REQUEST, NOT a r
   assert.equal((await storedPost(postRepo)).title, "Operator A's document");
 });
 
+test("a numeric-string expectedVersion is normalized without bypassing the concurrency guard", async () => {
+  const { postRepo, routeDeps, run } = await delegatedHarness();
+  const first = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Normalized save", expectedVersion: "1" }) },
+    deps: routeDeps as never,
+  });
+  assert.equal(first.ok, true, JSON.stringify(first));
+  assert.match(JSON.stringify(first), /expectedVersion: string→integer/);
+  assert.equal((await storedPost(postRepo)).version, 2);
+  const stale = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-2", toolId: "content_post_update", input: updateInput({ title: "Must not overwrite", expectedVersion: "1" }) },
+    deps: routeDeps as never,
+  });
+  assert.equal(stale.ok, false, JSON.stringify(stale));
+  if (stale.ok) return;
+  assert.equal(stale.error.code, "BAD_REQUEST");
+  assert.match(stale.error.message, /^VERSION_CONFLICT: post/);
+  assert.equal((await storedPost(postRepo)).title, "Normalized save");
+});
+
 test("a malformed expectedVersion reaches the model as a DIFFERENT, shape-flavoured BAD_REQUEST — the two are tellable apart", async () => {
   const { postRepo, routeDeps, run } = await delegatedHarness();
 
   const res = await delegatedToolExecuteRoute.handle({
-    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Should Not Land", expectedVersion: "1" }) },
+    // Numeric strings normalize at the execution gate (13138e356); use an invalid version.
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Should Not Land", expectedVersion: "not-a-version" }) },
     deps: routeDeps as never,
   });
 

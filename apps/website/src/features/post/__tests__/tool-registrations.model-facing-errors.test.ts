@@ -315,7 +315,8 @@ test("a shape rejection keeps its schema decoration and gains no second code pre
   await seedPost(postRepo);
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "content_post_update", updateInput({ expectedVersion: "1" }));
+  // Numeric strings normalize at the execution gate (13138e356); this is still malformed.
+  const result = await call(harness, "content_post_update", updateInput({ expectedVersion: "not-a-version" }));
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;

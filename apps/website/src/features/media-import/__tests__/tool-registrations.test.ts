@@ -21,6 +21,7 @@ import {
 } from "../../media/index.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -245,9 +246,10 @@ test("URL and local-file imports and in-place replacement are wired in the media
 test("URL batches keep the shared cap and report an invalid URL between successful imports", async () => {
   const f = fakeRouteDeps();
   const registration = wired("media_import_from_url", f.deps);
-  await assert.rejects(registration.handler(executionContext({ items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ url: SOURCE_URL })) })), /the most one call takes is 25/);
+  await assert.rejects(invokeRegisteredTool(registration, executionContext({ items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ url: SOURCE_URL })) })), /the most one call takes is 25/);
   assert.equal(f.mediaImportHttpClient.calls.length, 0);
-  const result = await registration.handler(executionContext({ items: [{ url: SOURCE_URL }, { url: "file:///private/image.png" }, { url: SOURCE_URL, alt: "Last image" }] })) as BatchResult;
+  // 13138e356 requires the real executor so every item re-enters normalization and policy.
+  const result = await invokeRegisteredTool(registration, executionContext({ items: [{ url: SOURCE_URL }, { url: "file:///private/image.png" }, { url: SOURCE_URL, alt: "Last image" }] })) as BatchResult;
   assert.deepEqual({ total: result.total, succeeded: result.succeeded, failed: result.failed }, { total: 3, succeeded: 2, failed: 1 });
   assert.deepEqual(result.results.map(item => item.ok), [true, false, true]);
   const failed = result.results[1]!;

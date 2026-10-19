@@ -198,7 +198,7 @@
     "content_post_search": "post posts blog article articles find search title lookup copy duplicate clone",
     "content_post_list": "post posts blog articles list all recent copy duplicate clone",
     "content_post_create": "post blog article page pages about us contact write new create draft copy duplicate clone schedule featured image",
-    "content_post_update": "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title",
+    "content_post_update": "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title template layout assign",
     "content_post_delete": "post blog article delete remove trash",
     "content_post_get": "post page article lookup find fetch read single one by id details specific copy duplicate clone",
     "content_duplicate": "copy duplicate clone replicate reuse make a copy of this page make a copy of this post copy this form duplicate a form copy a page copy a post copy this image copy a media asset duplicate an image reuse this picture same image different alt text same content new name new title starting point template based on existing existing page existing post existing form existing media",
@@ -224,7 +224,7 @@
     "settings_get_raw": "setting raw value layer global workspace user default unresolved debug",
     "settings_set_ui_preference": "preference language theme accent color notification sounds personal admin ui my settings",
     "settings_list_ui_locales": "supported available languages locale codes admin interface UI menus labels Spanish Portuguese pt-BR Italian Polish German English switch change language translation options",
-    "settings_set_value": "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable",
+    "settings_set_value": "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable agent plugins plugin mode auto ask first off change model switch to opus sonnet gpt effort thinking level chat agent runtime",
     "settings_clear_value": "reset setting back to default clear override undo setting",
     "settings_reset": "setting settings reset all defaults wipe clear everything bulk namespace",
     "settings_register_definitions": "setting settings definition definitions register schema rename change type deprecate add new remove",
@@ -300,7 +300,14 @@
     "plugin_source_delete": "plugin source draft delete file permanently remove",
     "plugin_source_seal": "plugin source seal validate integrity install version patch reload code",
     "plugin_source_rollback": "plugin source rollback previous version restore code",
-    "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite"
+    "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite",
+    "site_import_backup": "install import site share url link zip new separate restore",
+    "site_import_list": "list past site imports history open imported sites",
+    "site_share_create": "share export site zip portable link download drafts",
+    "site_share_list": "list site exports shares links archive downloads",
+    "site_share_revoke": "revoke remove delete site export share link",
+    "theme_import_local_file": "theme import local file folder drop tovuize font woff woff2 ttf otf image logo icon favicon binary asset copy",
+    "tool_gaps_list": "tool gaps fallback Bash shell direct file edit write missing tools audit"
   },
   "queries": {
     "media_replace_file": [
@@ -796,6 +803,7 @@
       "Write a post and schedule it to publish on Friday morning."
     ],
     "content_post_update": [
+      "Change which theme template this page uses.",
       "Unpublish this page for now, hide the page and take it offline.",
       "Can you change the title of this page?",
       "I need to fix a typo in the latest blog post title.",
@@ -1421,7 +1429,9 @@
       "Turn off comments on new posts.",
       "Set the date format to day-month-year.",
       "Change a site setting.",
-      "Update a configuration option."
+      "Update a configuration option.",
+      "Change my Agent plugins mode to Auto, Ask first, or Off.",
+      "Change model, switch to Opus, Sonnet or GPT, or change my thinking level: use core.execution localCli.agentId / localCli.model / localCli.reasoning at scope=user; each change needs confirmation and applies next turn. Set model and reasoning to empty strings before switching agents if their old choices are incompatible. Use the chat picker's current model ids."
     ],
     "settings_clear_value": [
       "Put that setting back to its default.",
@@ -1794,6 +1804,18 @@
     "credential_copy_from_project": [
       "Copy keys from another local project.",
       "Reuse another site's saved API keys in this project."
+    ],
+    "site_import_backup": [
+      "Install the site at this link",
+      "Import a Tovu ZIP"
+    ],
+    "site_share_create": [
+      "Share this site",
+      "Export this site as a Tovu ZIP"
+    ],
+    "theme_import_local_file": [
+      "Copy the dropped website's fonts into its theme.",
+      "Import a local favicon into this theme."
     ]
   },
   "approvals": {
@@ -3181,6 +3203,34 @@
       "class": "edit",
       "confirmation": "direct",
       "input": "human-form"
+    },
+    "site_import_backup": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "site_import_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_share_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "site_share_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_share_revoke": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_import_local_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "tool_gaps_list": {
+      "class": "read",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [

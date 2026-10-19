@@ -1,5 +1,6 @@
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
+import { batchDescriptorFor } from "../batch-tool-inputs.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -183,8 +184,15 @@ test("every wired registration publishes the inputSchema and description from it
     // identity_user_create is the one deliberate exception: Tovu drops `password` from the model's
     // schema (the human types it into the dialog) and says so in the description.
     if (id === "identity_user_create") continue;
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    const catalog = catalogEntry(id);
+    const descriptor = { id, inputSchema: catalog.inputSchema, description: catalog.description };
+    // d1c1fbd9a added one-card delete plans; 13138e356 normalizes their items in Jini.
+    const plan = ["identity_user_delete", "identity_role_delete", "identity_policy_delete"].includes(id);
+    const expected = plan ? batchDescriptorFor({ descriptor, tool: { toolId: id } }) : descriptor;
+    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema);
+    assert.equal(registration.descriptor.description, plan
+      ? `${catalog.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.`
+      : catalog.description);
   }
   const create = identityRegistrations(deps, false).get("identity_user_create")!.descriptor;
   const catalogSchema = catalogEntry("identity_user_create").inputSchema as { properties: Record<string, unknown> };

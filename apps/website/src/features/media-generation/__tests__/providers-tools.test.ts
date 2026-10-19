@@ -107,7 +107,7 @@ test('t10 media registration risk, permissions and exact model input fields', ()
   const f = fixture();
   for (const [id, permission, risk, keys, readOnly] of [
     ['media_list_providers', 'media.read', 'none', [], true],
-    ['credential_save', 'resolved-per-kind', 'mutates-durable-state', ['baseUrl', 'category', 'kind', 'label', 'prefill', 'reason', 'target'], false],
+    ['credential_save', 'resolved-per-kind', 'mutates-durable-state', ['baseUrl', 'category', 'kind', 'label', 'prefill', 'reason', 'target', 'worksFor'], false],
   ] as const) {
     const entry = [...mediaProvidersAgentToolCatalog, ...credentialSaveCatalog].find(t => t.name === id); assert.ok(entry);
     assert.equal(entry.authorization.permission, permission); assert.equal(entry.sideEffects, risk);
