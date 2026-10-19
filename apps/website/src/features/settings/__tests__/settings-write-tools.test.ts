@@ -297,10 +297,45 @@ test('delegated normalization: dotted settings persist once and an ambiguous reg
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), before);
 });
 
-for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} cannot change or clear the person's Agent plugins preference`, async () => {
-  const f = fixture('core.interface', 'chatAgentPlugins');
-  await assert.rejects(f.call(toolId, { namespace: 'core.interface', key: 'chatAgentPlugins', ...(toolId === 'settings_set_value' ? { value: 'auto' } : {}) }), /Agent plugins preference belongs to the person/);
-  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
-  const listed = await f.call('settings_list_definitions', {}) as { data: { agentWritable: boolean }[] };
-  assert.equal(listed.data[0]!.agentWritable, false);
-});
+for (const scope of ['user', 'workspace'] as const) {
+  test(`Agent plugins ${scope} writes and clears always ask, even with a saved plugin grant`, async () => {
+    const f = fixture('core.interface', 'chatAgentPlugins', { type: 'enum', values: ['auto', 'ask', 'off'] });
+    f.deps.approvalIdentityForRun = async () => ({ key: 'already-approved-plugin', label: 'Example' });
+    f.deps.nativeApprovalMemory = {
+      has: async () => assert.fail('Agent plugins must not consult saved grants'),
+      grant: async () => assert.fail('Agent plugins must not save approval grants'),
+    };
+    const input = { namespace: 'core.interface', key: 'chatAgentPlugins', scope };
+    let cards = 0;
+    const answer = (toolId: string, decision: 'confirm' | 'cancel') => ({ emitSurface: async () => {
+      cards++;
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'other', params: { decision: 'confirm' } }, { toolId }), { ok: false, reason: 'binding-mismatch' });
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: 'exchange-1', principalId: 'caller', params: { decision } }, { toolId }), { ok: true });
+    } });
+    const read = () => scope === 'user'
+      ? f.settingsRepo.getUserValue({ workspaceId: 'ws-1', settingId: 'setting-1', principalId: 'caller' })
+      : f.settingsRepo.getWorkspaceValue({ workspaceId: 'ws-1', settingId: 'setting-1' });
+    for (const value of ['auto', 'ask', 'off']) {
+      await f.call('settings_set_value', { ...input, value }, answer('settings_set_value', 'confirm'));
+      assert.equal((await read())?.valueJson, value);
+    }
+    assert.equal(cards, 3);
+    await assert.rejects(f.call('settings_set_value', { ...input, value: 'auto' }, answer('settings_set_value', 'cancel')), /human did not confirm/);
+    await assert.rejects(f.call('settings_clear_value', input, answer('settings_clear_value', 'cancel')), /human did not confirm/);
+    assert.equal((await read())?.valueJson, 'off');
+    assert.equal((await f.settingsRepo.listRevisions({ settingId: 'setting-1' })).length, 3);
+    await assert.rejects(f.call('settings_set_value', { ...input, value: 'auto' }), /NO_CONFIRMATION_CHANNEL/);
+    await assert.rejects(f.call('settings_set_value', { ...input, value: 'invalid' }), /does not match/);
+    for (const toolId of ['settings_set_value', 'settings_clear_value']) {
+      await assert.rejects(f.call(toolId, { ...input, ...(toolId === 'settings_set_value' ? { value: 'auto' } : {}), principalId: 'other' }), /unexpected input 'principalId'/);
+    }
+    assert.equal(await f.settingsRepo.getUserValue({ workspaceId: 'ws-1', settingId: 'setting-1', principalId: 'other' }), null);
+    await f.call('settings_clear_value', input, answer('settings_clear_value', 'confirm'));
+    assert.equal((await read())?.state, 'cleared');
+    assert.equal(cards, 6);
+    assert.equal(f.surfaceExchanges.size(), 0);
+    const listed = await f.call('settings_list_definitions', {}) as { data: { agentWritable: boolean; confirmationRequired: boolean }[] };
+    assert.equal(listed.data[0]!.agentWritable, true);
+    assert.equal(listed.data[0]!.confirmationRequired, true);
+  });
+}

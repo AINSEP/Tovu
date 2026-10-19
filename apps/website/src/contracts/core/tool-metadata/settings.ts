@@ -86,13 +86,14 @@ export const toolMetadata = {
   // Added for t07, after the original blind catalog: owner settings writes and single-layer undo.
   "settings_set_value": {
     search: {
-      keywords: "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable",
+      keywords: "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable agent plugins plugin mode auto ask first off",
       queries: [
         "Change the site's timezone to Pacific.",
         "Turn off comments on new posts.",
         "Set the date format to day-month-year.",
         "Change a site setting.",
         "Update a configuration option.",
+        "Change my Agent plugins mode to Auto, Ask first, or Off.",
       ],
     },
     approval: { class: 'escalation', confirmation: 'plan', rule: 'execution-setting' },

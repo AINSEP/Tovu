@@ -52,7 +52,10 @@ export type SettingsToolDeps = CoreSettingsToolDeps & {
 /** Host-owned assistant configuration: changes are possible only after a human card.
  * Credentials are not settings: core.execution intentionally omits byok.apiKey; provider
  * credentials, OAuth state and external-MCP grants use their own repositories. */
-export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = ASSISTANT_EXECUTION_APPROVAL_SETTINGS;
+export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
+  ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS,
+  { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Changes your Agent plugins mode (Auto / Ask first / Off)" },
+];
 
 /** Wires the generic cms tools to the host's authenticated card transport and title validator.
  * Card parameters carry only a decision, never replacement setting coordinates or values.
@@ -60,13 +63,15 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = ASSI
 export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
-    // This opt-in belongs to the owner UI, never the assistant changing its own tool grant.
-    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Agent plugins preference belongs to the person; use the settings UI or the principal-bound plugin choice." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
+    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
     setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
     // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
     confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options?: ToolExecutionOptions) => {
+      // Agent plugins opt-in belongs to the person. Always ask: a saved plugin grant must
+      // never let prompt injection silently flip Ask first to Auto (or clear its override).
+      const isAgentPlugins = namespace === ADMIN_INTERFACE_NAMESPACE && key === CHAT_AGENT_PLUGINS_KEY;
       // Reuse the invoking plugin's canonical enable grant. Escalation consent applies once to
       // that admitted identity/version/digest; it never replaces fresh per-write scope permissions.
       const handler = approvalToolHandler({ surfaces,
@@ -76,7 +81,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
         },
         describe: ({ prepared }) => ({ toolId, errorCode: "SETTINGS",
           title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
-          description: reason + (prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : ""),
+          description: reason + (isAgentPlugins ? ". This change requires your confirmation every time." : prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : ""),
           details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
             ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
             { label: "Previous override", value: JSON.stringify(previous) },
@@ -88,7 +93,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
           const currentKey = (await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }))?.key;
           return { confirmed: !snapshot.signal.aborted && currentKey === prepared.rememberKey };
         },
-      }, { remembered: routeDeps.nativeApprovalMemory, rememberKey: ({ prepared }) => prepared.rememberKey,
+      }, { remembered: isAgentPlugins ? undefined : routeDeps.nativeApprovalMemory, rememberKey: ({ prepared }) => prepared.rememberKey,
         declined: () => ({ confirmed: false }),
       });
       // No credentials enter this description; they use the secret-card engine and separate stores.
