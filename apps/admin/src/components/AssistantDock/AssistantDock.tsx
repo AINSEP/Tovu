@@ -81,6 +81,7 @@ import {
   useFolderDropBridge,
 } from "./hooks/AssistantDock.hooks";
 import type { DragEvent } from "react";
+import { useAssistantPromptRequests } from "../../lib/assistant-prompt-bus";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
 // `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper). Per
@@ -405,6 +406,8 @@ export function AssistantDock({
    * `use-composer-voice-input.hooks.ts`.
    */
   const voiceInput = useComposerVoiceInput();
+  // A screen's drafted request (e.g. Sites' "From a live website") lands in the composer here.
+  useAssistantPromptRequests(voiceInput.composerHandle);
   const skillOnlySend = useSkillOnlySend({ prompt: selectedSkills.skillOnlyPrompt, composerHandle: voiceInput.composerHandle, discovery: discoveryDraft });
   // SPEC-053: folder-drop-to-path + fs-files `custom` root wiring — reuses `voiceInput`'s own
   // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
