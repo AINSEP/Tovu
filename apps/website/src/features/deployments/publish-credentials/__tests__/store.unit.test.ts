@@ -821,12 +821,22 @@ test("a deleted credential stays deleted when adapters are reconstructed over th
   assert.deepEqual(await listPublishCredentials(reboot, { workspaceId: WORKSPACE }), []);
 });
 
-test("vault publish default lookup never lists the vendor group", async () => {
+test("vault publish selection reads each credential kind once and opens only the selected row", async () => {
   const deps = makeDeps();
   const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Default", connection: { providerId: "vercel", token: "default-token" } });
-  deps.repo.vault!.list = async () => { throw new Error("indexed default lookup required"); };
+  // 1d96267e3 made worksFor authoritative across vendor groups and legacy custom rows.
+  const vault = deps.repo.vault!;
+  const list = vault.list.bind(vault), find = vault.find.bind(vault);
+  const listed: string[] = [], opened: string[] = [];
+  vault.list = async input => { listed.push(input.kind); return list(input); };
+  vault.find = async input => { opened.push(input.id); return find(input); };
   assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), true);
+  assert.deepEqual(listed, ["vendor", "custom"]);
+  assert.deepEqual(opened, [], "readiness is metadata-only");
+  listed.length = 0;
   assert.equal((await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }))?.id, created.id);
+  assert.deepEqual(listed, ["vendor", "custom"], "selection must not reload the inventory");
+  assert.deepEqual(opened, [created.id]);
 });
 
 test("publish hints use stored lengths without opening or hydrating each row", async () => {
@@ -865,6 +875,7 @@ for (const selectDefault of [false, true]) {
     assert.equal(moved.id, original.id);
     assert.equal(moved.createdAt, original.createdAt);
     assert.equal(moved.providerId, "vercel");
+    assert.deepEqual(moved.worksFor, ["vercel"]);
     assert.equal(moved.accountLabel, null);
     assert.equal(moved.isDefault, selectDefault);
     assert.deepEqual(after?.sealed, before?.sealed);
@@ -888,4 +899,18 @@ test("publish provider moves reject label collisions and incompatible secret sch
   await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "vercel" }, isDefault: true }), PublishCredentialDuplicateLabelError);
   await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "s3-compatible" } }), PublishCredentialValidationError);
   assert.deepEqual(await deps.repo.vault!.list(scope), before);
+});
+
+test("provider moves retarget only the old compatibility and honor explicit compatibility edits", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Multi-host",
+    worksFor: ["github", "github-pages", "netlify"], connection: { providerId: "github-pages", token: "original-secret" } });
+  const moved = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: created.id,
+    connection: { providerId: "vercel" } });
+  assert.deepEqual(moved.worksFor, ["vercel", "netlify"]);
+  const cleared = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: created.id,
+    connection: { providerId: "github-pages", token: "replacement-secret" }, worksFor: [] });
+  assert.deepEqual(cleared.worksFor, []);
+  assert.deepEqual(cleared.publishHosts, []);
+  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "github-pages" }), null);
 });

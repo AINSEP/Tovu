@@ -3,6 +3,7 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../../platform/db/kernel/dialect.js";
 import type { StorageKernel } from "@jini-ai/db/kernel";
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/vault-adapter.js";
@@ -135,6 +136,18 @@ export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, inpu
 function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
   try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) assertPlainField({ value: id, field: "worksFor" }); return ids; }
   catch (error) { if (error instanceof VaultError) throw new PublishCredentialValidationError("worksFor must be an array of provider IDs"); throw error; }
+}
+
+/** A provider move retargets the old host/vendor compatibility, preserving unrelated IDs.
+ * Explicit compatibility edits win, including an empty list. No I/O; O(compatibility IDs).
+ */
+function updatedWorksFor({ value, row, provider, host }: {
+  value: unknown; row: Pick<VaultSummary, "provider" | "meta">; provider: string; host: string;
+}, _options = {}): string[] {
+  if (value !== undefined) return validatedWorksFor({ value });
+  const previous = parseTovuStoreMeta({ kind: "vendor", meta: row.meta, provider: row.provider }).worksFor as string[];
+  if (provider === row.provider) return previous;
+  return validatedWorksFor({ value: previous.map(id => id === row.provider?.toLowerCase() || id === host.toLowerCase() ? provider : id) });
 }
 
 export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
@@ -345,7 +358,9 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
   return validateConnection(raw, registry);
 }
 
-/** Omitted connections retain their sealed envelope/hints and never require a site key. */
+/** Omitted connections retain their sealed envelope/hints and never require a site key.
+ * Provider moves retarget the old compatibility IDs unless the caller supplies worksFor.
+ */
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const existing = await deps.repo.findById(input);
   const registry = await deps.loadDeployTargets(input.workspaceId);
@@ -360,7 +375,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     const validated = await updatedConnection({ deps, input, existing, registry, host });
     const { providerId, ...fields } = validated.connection;
     const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
-      expectedRevision: row.revision, provider: validated.spec.vendorId, label, meta: { ...row.meta, worksFor: input.worksFor === undefined ? row.meta.worksFor : validatedWorksFor({ value: input.worksFor }), accountLabel: null },
+      expectedRevision: row.revision, provider: validated.spec.vendorId, label, meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: validated.spec.vendorId, host }), accountLabel: null },
       payload: { vendorId: validated.spec.vendorId, ...fields }, hintToken: fields[validated.spec.tokenField],
       ...(requestedDefault === true ? { isDefault: true } : {}) } });
     return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
@@ -370,7 +385,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const provider = move?.spec.vendorId ?? existing.vendorId;
   const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
     expectedRevision: row.revision, provider, label,
-    meta: { ...row.meta, worksFor: input.worksFor === undefined ? row.meta.worksFor : validatedWorksFor({ value: input.worksFor }), accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null },
+    meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider, host }), accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
   return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
 }
@@ -408,6 +423,18 @@ export async function resolveForPublish(deps: PublishCredentialResolveDeps,
 ): Promise<{ providerId: PublishProviderId; vendorId: string; label: string; isDefault: boolean; connection: PublishConnectionInput } | null> {
   const registry = await deps.loadDeployTargets(input.workspaceId);
   const rows = await inventory({ deps, workspaceId: input.workspaceId });
+  return resolveFromInventory({ deps, input, registry, rows });
+}
+
+/** Open the selected credential through Jini using one already-authorized inventory.
+ * Both resolution entrypoints share compatibility rechecks and connection projection.
+ * @throws PublishCredentialSecretStoreUnconfiguredError on crypto or payload failure.
+ * @complexity O(rows × compatibility IDs + payload); one selected row read/open, no list reads.
+ */
+async function resolveFromInventory({ deps, input, registry, rows }: {
+  deps: PublishCredentialResolveDeps; input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId };
+  registry: DeployTargetRegistry; rows: VaultSummary[];
+}, _options = {}): ReturnType<typeof resolveForPublish> {
   const candidate = rows.find(row => row.id === input.id);
   const providerId = input.providerId ?? (candidate && publishHostsForCredential({ credential: candidate, registry })[0]);
   if (!candidate || !providerId) return null;
@@ -427,16 +454,19 @@ export async function resolveForPublish(deps: PublishCredentialResolveDeps,
   } catch { throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }
 
-/** The same selection policy serves implicit publishing, readiness and explicit-ID resolution. */
+/** The same selection policy serves implicit publishing, readiness and explicit-ID resolution.
+ * @complexity O(rows × compatibility IDs + payload); one two-kind inventory and one selected open.
+ */
 export async function resolveDefaultForPublish(deps: PublishCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: PublishProviderId },
 ): Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null> {
   const registry = await deps.loadDeployTargets(input.workspaceId);
   const provider = providerContract({ registry, providerId: input.providerId });
   if (!provider) return null;
-  const selected = selectCredentialForProvider({ credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider });
+  const rows = await inventory({ deps, workspaceId: input.workspaceId });
+  const selected = selectCredentialForProvider({ credentials: rows, provider });
   if (!selected) return null;
-  const resolved = await resolveForPublish(deps, { ...input, id: selected.id });
+  const resolved = await resolveFromInventory({ deps, input: { ...input, id: selected.id }, registry, rows });
   return resolved ? { id: selected.id, label: resolved.label, connection: resolved.connection } : null;
 }
 

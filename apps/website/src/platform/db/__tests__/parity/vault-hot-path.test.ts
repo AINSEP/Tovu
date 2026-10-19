@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { CURRENT_SRC, PARITY_DIALECTS, countingKernel, explainPlan, loadParityModules, migratedParityFixture, parityDeps,
+import { CURRENT_SRC, PARITY_DIALECTS, assertPostgresVaultPlanIndexed, countingKernel, explainPlan, loadParityModules, migratedParityFixture, parityDeps,
   type ParityModules, type RecordedStatement } from "./parity-harness.js";
 
 /** Query parity, hot paths (DBMERGE-PLAN §2d `vault-hot-path`): statement counts and plans for the
@@ -22,7 +22,7 @@ async function assertIndexed(kernel: Fixture["kernel"], statements: RecordedStat
       assert.doesNotMatch(plan, /SCAN secrets_vault(?! USING)/, `${statement.sql}\n${plan}`);
       assert.match(plan, /secrets_vault USING (COVERING )?INDEX|USING INTEGER PRIMARY KEY|USING PRIMARY KEY/, `${statement.sql}\n${plan}`);
     } else {
-      assert.doesNotMatch(plan, /"Node Type":"Seq Scan"[^}]*"Relation Name":"secrets_vault"/, `${statement.sql}\n${plan}`);
+      assertPostgresVaultPlanIndexed(plan, `${statement.sql}\n${plan}`);
     }
     if (index) assert.match(plan, new RegExp(index), `${statement.sql} uses ${index}\n${plan}`);
   }
@@ -58,8 +58,8 @@ for (const dialect of PARITY_DIALECTS) {
     // so the lookup restates the group in those expressions with a literal is_default (Jini
     // repo.sql.ts findDefault, 2026-10-12). Before, SQLite searched secrets_vault_scope and Postgres
     // secrets_vault_group_label without the provider, filtering every vendor row in the workspace.
-    test("vendor default lookup: one LIMIT 1 index read keyed on the exact group, no group scan", async () => {
-      const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
+    test("vendor group default repository lookup: one LIMIT 1 index read keyed on the exact group, no group scan", async () => {
+      const statements = await measure(() => d.vendor.repo.findDefaultByVendor({ workspaceId: "ws", vendorId: "vendor-tie" }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       assert.match(statements[0].sql, /limit/i);
       assert.equal(statements[0].parameters.at(-1), 1, "the lookup limits the result to one row");
@@ -87,6 +87,16 @@ for (const dialect of PARITY_DIALECTS) {
       }
     });
 
+    // 1d96267e3 selects across compatibility lists, including old custom-kind rows. Keep the
+    // repository's one-read guarantee above, and pin the runtime's bounded cross-kind inventory.
+    test("publish compatibility selection: one inventory per kind and one selected row read", async () => {
+      const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
+      assert.equal(statements.length, 3, statements.map(s => s.sql).join("\n"));
+      assert.deepEqual(statements.map(s => s.parameters), [["ws", "vendor", "tovu"], ["ws", "custom", "tovu"], ["ws", "tie-b"]]);
+      assert.ok(statements.every(s => s.kind === "SelectQueryNode"));
+      await assertIndexed(fixture.kernel, statements);
+    });
+
     test("MCP server list: statement count does not grow with the number of servers", async () => {
       const before = await measure(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
       for (const serverId of ["extra-one", "extra-two"]) {
@@ -100,10 +110,13 @@ for (const dialect of PARITY_DIALECTS) {
       assert.deepEqual(grown.map(statement => statement.kind), ["Raw"]);
     });
 
-    test("custom-credential list: one indexed read", async () => {
+    test("custom-credential list: one indexed read per stored kind", async () => {
       const statements = await measure(() => mods.custom.listCustomCredentials(d.custom, { workspaceId: "ws" }));
-      assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
-      await assertIndexed(fixture.kernel, statements, "secrets_vault_scope|secrets_vault_label");
+      assert.equal(statements.length, 2, statements.map(s => s.sql).join("\n"));
+      assert.deepEqual(statements.map(s => s.parameters), [["ws", "vendor", "tovu"], ["ws", "custom", "tovu"]]);
+      // 1d96267e3 adds the vendor inventory; 0012 (9b20083b6) gives group_label the same
+      // workspace/kind/owner prefix as scope, with a partial predicate that includes vendor.
+      await assertIndexed(fixture.kernel, statements, "secrets_vault_scope|secrets_vault_group_label|secrets_vault_label");
     });
   });
 }

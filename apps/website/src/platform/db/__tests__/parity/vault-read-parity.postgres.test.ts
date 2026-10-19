@@ -4,7 +4,7 @@ import { after, before, describe, test } from "node:test";
 import { sql } from "kysely";
 import { dropDatabase, freshPostgresDatabase } from "../postgres-database.js";
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
-import { CURRENT_SRC, GOLDEN_PATH, READ_GROUPS, countingKernel, expectedTranscript, explainPlan, knownIssue, loadParityModules,
+import { CURRENT_SRC, GOLDEN_PATH, READ_GROUPS, assertPostgresVaultPlanIndexed, countingKernel, expectedTranscript, explainPlan, knownIssue, loadParityModules,
   migratedParityFixture, parityDeps, readTranscript, unordered, type ParityModules, type Transcript } from "./parity-harness.js";
 
 /** Query parity on REAL Postgres (DBMERGE-PLAN §2d `vault-read-parity.postgres`): the read loop of
@@ -68,8 +68,8 @@ describe("vault hot paths [postgres]", () => {
   // Same lookup as vault-hot-path.test.ts: the query restates the group in the
   // secrets_vault_default index expressions with a literal is_default (2026-10-12), so a pooled
   // server plans it on that index; before, it used secrets_vault_group_label without the provider.
-  test("vendor default lookup: one LIMIT 1 read on the default index, no group scan", async () => {
-    const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
+  test("vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan", async () => {
+    const statements = await measure(() => d.vendor.repo.findDefaultByVendor({ workspaceId: "ws", vendorId: "vendor-tie" }));
     assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
     assert.match(statements[0].sql, /limit/i);
     // Unanalyzed, this index and secrets_vault_group_label cost the same (vault-hot-path.test.ts).
@@ -77,8 +77,20 @@ describe("vault hot paths [postgres]", () => {
     // A pool hands each statement any connection: the plan runs in one transaction so the
     // `SET enable_seqscan = off` in explainPlan applies to the EXPLAIN that follows it.
     const plan = await fixture.kernel.transaction(() => explainPlan(fixture.kernel, statements[0]));
-    assert.doesNotMatch(plan, /"Node Type":"Seq Scan"[^}]*"Relation Name":"secrets_vault"/, plan);
+    assertPostgresVaultPlanIndexed(plan, plan);
     assert.match(plan, /secrets_vault_default/, plan);
+  });
+
+  // 1d96267e3 requires compatibility selection across both stored credential kinds.
+  test("publish compatibility selection: one inventory per kind and one selected row read", async () => {
+    const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
+    assert.equal(statements.length, 3, statements.map(s => s.sql).join("\n"));
+    assert.deepEqual(statements.map(s => s.parameters), [["ws", "vendor", "tovu"], ["ws", "custom", "tovu"], ["ws", "tie-b"]]);
+    assert.ok(statements.every(s => s.kind === "SelectQueryNode"));
+    for (const statement of statements) {
+      const plan = await fixture.kernel.transaction(() => explainPlan(fixture.kernel, statement));
+      assertPostgresVaultPlanIndexed(plan, `${statement.sql}\n${plan}`);
+    }
   });
 
   test("MCP server list: statement count does not grow with the number of servers", async () => {

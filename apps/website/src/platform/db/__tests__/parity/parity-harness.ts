@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
@@ -212,6 +213,24 @@ export async function explainPlan(kernel: StorageKernel<unknown>, statement: Rec
     const rows = await kernel.run(db => db.executeQuery(CompiledQuery.raw(`EXPLAIN (FORMAT JSON) ${statement.sql}`, [...statement.parameters])));
     return JSON.stringify(rows.rows);
   } finally { await kernel.execute(sql`RESET enable_seqscan`); }
+}
+
+/** Asserts a Postgres `explainPlan` result reads `secrets_vault` through an index, never a Seq Scan.
+ * Walks the parsed plan tree: the payload is JSON-stringified (driver may already stringify QUERY
+ * PLAN too), so regexes over the raw text see escaped quotes and silently never match. A Bitmap
+ * Index Scan (under a Bitmap Heap Scan) is still an index search. */
+export function assertPostgresVaultPlanIndexed(plan: string, message: string): void {
+  const queryPlan = (JSON.parse(plan) as Array<Record<string, unknown>>)[0]?.["QUERY PLAN"];
+  const nodes: Array<Record<string, unknown>> = [];
+  const walk = (node: Record<string, unknown>): void => {
+    nodes.push(node);
+    for (const child of (node.Plans as Array<Record<string, unknown>> | undefined) ?? []) walk(child);
+  };
+  walk(((typeof queryPlan === "string" ? JSON.parse(queryPlan) : queryPlan) as Array<{ Plan: Record<string, unknown> }>)[0].Plan);
+  const vaultNodes = nodes.filter(node => node["Relation Name"] === "secrets_vault" || String(node["Index Name"] ?? "").startsWith("secrets_vault"));
+  assert.ok(vaultNodes.length > 0, `no secrets_vault node in plan\n${message}`);
+  assert.ok(!vaultNodes.some(node => node["Node Type"] === "Seq Scan"), `Seq Scan on secrets_vault\n${message}`);
+  assert.ok(vaultNodes.some(node => /^(Index (Only )?Scan|Bitmap Index Scan)$/.test(String(node["Node Type"]))), `no index search on secrets_vault\n${message}`);
 }
 
 /** The route-test fakes: every vault-backed repo over ONE `InMemoryVaultRepo` holding a copy of the
@@ -501,6 +520,19 @@ type Row = Record<string, unknown>;
 const mapOk = (map: (value: Loose) => unknown) => (golden: Outcome): Outcome => "ok" in golden ? { ok: map(structuredClone(golden.ok)) } : golden;
 const dropTokenHint = mapOk((value: Row | null) => { if (value) delete value.tokenHint; return value; });
 
+/** 1d96267e3 adds explicit compatibility to summaries, not decrypted connection results.
+ * Expected fields come only from the pre-vault transcript, independently of today's stores.
+ */
+const customCompatibility = mapOk((value: Row | Row[]) => {
+  const add = (row: Row) => ({ ...row, credentialType: "custom", worksFor: [] });
+  return Array.isArray(value) ? value.map(add) : add(value);
+});
+const publishCompatibility = mapOk((value: Row | Row[]) => {
+  const add = (row: Row) => ({ ...row, credentialType: "vendor", worksFor: [row.vendorId],
+    publishHosts: [row.providerId], defaultFor: row.isDefault ? [row.providerId] : [] });
+  return Array.isArray(value) ? value.map(add) : add(value);
+});
+
 export const PARITY_DELTAS: readonly ParityDelta[] = [
   { transcript: "read", keys: /^custom\.list@ws$/, before: "legacy row with NULL column hides the sealed login", after: "username 'login'",
     reason: "P0 audit H1 fix: a NULL column never meant a clear; boot moves the sealed login to metadata (vault-boot.integration.test.ts)",
@@ -521,6 +553,14 @@ export const PARITY_DELTAS: readonly ParityDelta[] = [
   { transcript: "cascade", keys: /^workspace\.2\.site$/, before: "deleted workspace's site key orphaned and still readable", after: "unset",
     reason: "intended (2026-10-12): secrets_vault.workspace_id is ON DELETE CASCADE (9b20083b6), like every other workspace key; site_assistant_credentials had no FK",
     apply: () => ({ ok: { isSet: false, masked: null, tokenHint: null, provider: "google", baseUrl: null, model: null, updatedAt: null } }) },
+  { transcript: "read", keys: /^custom\.list@/, before: "custom summary", after: "explicit custom subtype and empty compatibility",
+    reason: "1d96267e3: unmigrated custom credentials default to worksFor []", apply: customCompatibility },
+  { transcript: "write", keys: /^custom\.(1\.create|3\.rename|6\.clear-username|9\.list)$/, before: "custom summary", after: "explicit subtype and compatibility",
+    reason: "1d96267e3: the same summary contract applies to writes", apply: customCompatibility },
+  { transcript: "read", keys: /^vendor\.list@/, before: "publish summary", after: "subtype, vendor compatibility and per-host defaults",
+    reason: "1d96267e3: legacy vendor rows retain their provider compatibility", apply: publishCompatibility },
+  { transcript: "write", keys: /^vendor\.(1\.create-default|2\.list|3\.rotate|5\.set-default-other|6\.list|11\.list)$/, before: "publish summary", after: "explicit compatibility and per-host defaults",
+    reason: "1d96267e3: the same summary contract applies to writes", apply: publishCompatibility },
 ];
 
 /** Real behaviour differences these transcripts found (2026-10-11). Each is pinned by a `todo`
