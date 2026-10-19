@@ -349,7 +349,8 @@ export function Sites(props: SitesProps = {}) {
   const tab = resolveSitesTabId(props.tabId);
 
   return (
-    <div className="page">
+    // `sites-page` scopes the greyed "Soon" tab labels (`styles.css`) to this screen's tab strip.
+    <div className="page sites-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Overview")}</p>

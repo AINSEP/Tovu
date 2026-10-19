@@ -173,6 +173,13 @@ export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId 
 }
 
 /**
+ * Export Site / Import Site carry the sidebar's "Soon" tag (owner, 2026-10-18: "greyed out for both
+ * but you can still go to them and try it"). Tagged tabs stay enabled and fully usable; the grey
+ * label comes from `.sites-page` in `styles.css`. Set to `false` to drop both tags.
+ */
+export const SITE_TRANSFER_TABS_SOON = true;
+
+/**
  * The two tabs themselves, in the shape `TabBar` takes.
  *
  * The count is `listedCount` and nothing else — never nudged up to include a live binding that is
@@ -183,8 +190,10 @@ export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId 
  */
 export function resolveSitesTabs(
   { t, listedCount }: { t: Translate; listedCount: number },
-  { localManagementEnabled = false, trashCount = 0 }: { localManagementEnabled?: boolean; trashCount?: number } = {},
+  { localManagementEnabled = false, trashCount = 0, transferTabsSoon = SITE_TRANSFER_TABS_SOON }: { localManagementEnabled?: boolean; trashCount?: number; transferTabsSoon?: boolean } = {},
 ): TabBarTab[] {
+  const soonTag = transferTabsSoon ? t("Soon") : undefined;
+  const soonSuffix = transferTabsSoon ? " (coming soon)" : "";
   return [
     {
       id: "all",
@@ -207,15 +216,17 @@ export function resolveSitesTabs(
       id: "export",
       label: t("Export Site"),
       icon: <ExportSiteIcon />,
+      tag: soonTag,
       handle: "sites-tab-export",
-      handleLabel: "Switch to the Export Site tab — make a .tovu.zip of this site and manage its share links",
+      handleLabel: "Switch to the Export Site tab — make a .tovu.zip of this site and manage its share links" + soonSuffix,
     },
     {
       id: "import",
       label: t("Import Site"),
       icon: <ImportSiteIcon />,
+      tag: soonTag,
       handle: "sites-tab-import",
-      handleLabel: "Switch to the Import Site tab — import a share link, a .tovu.zip or a live website",
+      handleLabel: "Switch to the Import Site tab — import a share link, a .tovu.zip or a live website" + soonSuffix,
     },
     ...(localManagementEnabled ? [{ id: "trash", label: t("Trash"), count: trashCount, handle: "sites-tab-trash", handleLabel: "Switch to the site Trash tab" }] : []),
   ];

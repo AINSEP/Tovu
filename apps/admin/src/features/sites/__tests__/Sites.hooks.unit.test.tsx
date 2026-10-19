@@ -62,6 +62,14 @@ describe("resolveSitesTabs", () => {
     expect(tabs.map((tab) => tab.handle)).toEqual(["sites-tab-all", "sites-tab-new", "sites-tab-export", "sites-tab-import"]);
   });
 
+  it("tags only Export Site and Import Site SOON, keeping them enabled, and names them coming soon for agents", () => {
+    const tabs = resolveSitesTabs({ t: fakeT, listedCount: 0 });
+    expect(tabs.map((tab) => tab.tag)).toEqual([undefined, undefined, "Soon", "Soon"]);
+    expect(tabs.map((tab) => tab.disabled)).toEqual([undefined, undefined, undefined, undefined]);
+    expect(tabs.slice(2).every((tab) => tab.handleLabel?.endsWith("(coming soon)"))).toBe(true);
+    expect(resolveSitesTabs({ t: fakeT, listedCount: 0 }, { transferTabsSoon: false }).map((tab) => tab.tag)).toEqual([undefined, undefined, undefined, undefined]);
+  });
+
   it("counts the listed sites on All sites, and puts no count on an action tab", () => {
     const tabs = resolveSitesTabs({ t: fakeT, listedCount: 3 });
     expect(tabs[0].count).toBe(3);

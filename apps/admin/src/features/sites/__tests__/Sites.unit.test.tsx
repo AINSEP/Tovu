@@ -587,6 +587,19 @@ describe("Sites — Export Site and Import Site tabs (owner, 2026-10-18)", () =>
     } finally { vi.unstubAllGlobals(); }
   });
 
+  it("tags both tabs SOON, greyed by the page scope, and they still navigate (owner, 2026-10-18)", () => {
+    renderSites();
+    expect(document.querySelector(".page.sites-page")).toBeTruthy();
+    for (const [name, search] of [[/Export Site/, "?tab=export"], [/Import Site/, "?tab=import"]] as const) {
+      const tab = screen.getByRole("tab", { name: name });
+      expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+      expect(tab.hasAttribute("disabled")).toBe(false);
+      fireEvent.click(tab);
+      expect(window.location.search).toBe(search);
+    }
+    expect(screen.getByRole("tab", { name: /All sites/ }).querySelector(".tab-bar-tag")).toBeNull();
+  });
+
   it("shows the Publish button on the Export tab only (owner, 2026-10-18)", async () => {
     vi.stubGlobal("fetch", async () => Response.json({ shares: [], imports: [] }));
     try {
