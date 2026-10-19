@@ -34,13 +34,16 @@ export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/features/custom-credentials/",
   "apps/website/src/features/publish-trust/",
   "apps/website/src/cli/commands/deploy-config.ts",
+  // Tool search metadata stays generic (deploy, hosting, custom domain, dns); an active hosting
+  // plugin's manifest keywords/provides carry its vendor words into plugin discovery instead.
+  "apps/website/src/contracts/core/tool-metadata/",
 ];
 
 /** One rule per vendor, matched case-insensitively on code and string text only. */
 const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
   { id: "netlify", pattern: /netlify/gi },
   { id: "vercel", pattern: /vercel/gi },
-  { id: "cloudflare", pattern: /cloudflare|pages\.dev/gi },
+  { id: "cloudflare", pattern: /cloudflare|pages\.dev|workers\.dev/gi },
   { id: "github-pages", pattern: /github[-_ ]?pages|github\.io/gi },
   { id: "s3-compatible", pattern: /s3[-_ ]?compatible|amazonaws|backblaze|wasabi|digitaloceanspaces/gi },
   { id: "fly", pattern: /fly\.io|flyctl|fly\.toml|machines\.dev|flyv1|\bfly\b/gi },

@@ -42,6 +42,7 @@ const KNOWN_GAPS: ReadonlyMap<string, string> = new Map([
   ["nl-03", "typo 'newsleter': same"],
   ["md-02", "alt text for images ranks the media read card first; the update tool is 4th"],
   ["mn-05", "menus have no delete tool of their own; trash_item reaches them but ranks 10th"],
+  ["dp-05", "'netlify' is a vendor word; core tool metadata names no hosting vendor (owner rule), so the active hosting plugin's discovery keywords answer it, outside this core-only catalog"],
 ]);
 
 const SEARCH_LIMIT = 20;

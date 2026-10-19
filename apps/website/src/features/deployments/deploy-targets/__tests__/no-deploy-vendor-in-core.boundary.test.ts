@@ -73,3 +73,12 @@ test("every allowlist entry still matches its file exactly and gives a reason", 
   );
   assert.deepEqual(stale, [], "An allowlist entry outlived its hits. Lower or remove it in deploy-vendor-scan.ts.");
 });
+
+test("tool search metadata scan covers the deployments tools, which carry no hosting product names at all", async () => {
+  assert.ok(SCAN_ROOTS.includes("apps/website/src/contracts/core/tool-metadata/"));
+  const { toolMetadata } = await import("#src/contracts/core/tool-metadata/deployments");
+  const text = JSON.stringify(Object.values(toolMetadata).map((entry) => entry.search ?? {}));
+  assert.deepEqual(countDeployVendors(text), {}, "Vendor words belong in the hosting plugin's manifest keywords, which plugin discovery indexes.");
+  // "Workers" is a hosting product here, unlike "pages", which CMS pages legitimately use.
+  assert.doesNotMatch(text, /\bworkers\b/i);
+});

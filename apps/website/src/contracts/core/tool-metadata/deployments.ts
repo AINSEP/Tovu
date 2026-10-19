@@ -5,8 +5,8 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 export const toolMetadata = {
   "deployment_execute_static_publish": {
     search: {
-      keywords: "deploy push ship go live make it live publish the site hosting netlify vercel cloudflare",
-      queries: ["Publish the site.", "Publish the site to production hosting.", "Deploy this website and make it live."],
+      keywords: "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
+      queries: ["Publish the site.", "Publish the site to production hosting.", "Deploy this website and make it live.", "Push my site live on my static host."],
     },
     approval: { class: 'publish', confirmation: 'policy' },
   },
@@ -39,9 +39,9 @@ export const toolMetadata = {
   // Readiness wording and actual hosting targets keep publication distinct from observation tools.
   "deployment_get_static_publish_capabilities": {
     search: {
-      keywords: "can I publish yet ready deploy hosting connected status providers where github pages vercel netlify cloudflare",
+      keywords: "can I publish yet ready deploy hosting connected status providers hosts where static host",
       queries: [
-        "Which static publishing hosts are available?", "Can this site publish to Netlify?", "Where can I publish a static site?", "Which hosting credentials are connected?",
+        "Which static publishing hosts are available?", "Can this site publish to my hosting provider?", "Where can I publish a static site?", "Which hosting credentials are connected?",
         // Questions express publication readiness rather than backstop-gap inspection.
         "Is my site ready to publish yet?", "Can I publish my site yet, or is hosting not set up?",
       ],
@@ -50,7 +50,7 @@ export const toolMetadata = {
   },
   "deployment_preview_static_publish": {
     search: {
-      keywords: "dry run check before deploy what would happen test",
+      keywords: "dry run check before deploy what would happen test authenticated hosting preview domain dns records bindings routes conflicts",
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
