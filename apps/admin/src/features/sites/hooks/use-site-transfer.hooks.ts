@@ -67,7 +67,11 @@ export function useSiteExport(
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
+  useEffect(() => {
+    // StrictMode replays setup after cleanup; each setup must mark this mount alive again.
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
 
   async function exportSite() {
     if (exporting) return;

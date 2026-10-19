@@ -92,6 +92,25 @@ describe("site transfer port", () => {
 });
 
 describe("useSiteExport", () => {
+  it("StrictMode exposes a 400 refusal and clears the exporting spinner", async () => {
+    let rejectExport!: (error: Error) => void;
+    const port = createFakeSiteTransferPort({ createShare: () => new Promise((_, reject) => { rejectExport = reject; }) });
+    // Root-level strict mode replays effects; a nested <StrictMode> wrapper does not in tests.
+    const { result } = renderHook(() => useSiteExport({ port, t }), {
+      wrapper: ({ children }) => <FetchQueryProvider>{children}</FetchQueryProvider>,
+      reactStrictMode: true,
+    });
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.exportSite(); });
+    expect(result.current.exporting).toBe(true);
+    await act(async () => {
+      rejectExport(new ApiError("Cannot share unsupported nonempty table 'p_unknown__data'.", 400, "UNSUPPORTED_DATA"));
+      await pending;
+    });
+    expect(result.current.exportError).toContain("p_unknown__data");
+    expect(result.current.exporting).toBe(false);
+  });
+
   it("polls with the job id until a finished share returns, then refreshes the list", async () => {
     const calls: Array<{ jobId?: string }> = [];
     let listed: SiteShare[] = [];
