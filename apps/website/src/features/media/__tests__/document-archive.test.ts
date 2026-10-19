@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
-import { validateDocumentIngress, type DocumentArchiveReaderPort } from '@jini-ai/cms/media';
+import { MediaValidationError, validateDocumentIngress, type DocumentArchiveReaderPort } from '@jini-ai/cms/media';
 import { createDocumentArchiveReader } from '../document-archive.js';
 
 function archive(files: Record<string, string>) {
@@ -62,8 +62,13 @@ test('Library DOCX F2.6: real yauzl rejects encrypted, symlink, oversized and un
   ]);
   for (const [name, bytes] of Object.entries({ encrypted, symlink, oversized, understated })) {
     assert.ok(bytes.length <= 10 * 1024 * 1024, `${name} must reach ZIP validation, not the ingress size guard`);
+    // Jini da7d68ca translates reader failures into an application-named validation error.
     await assert.rejects(validateDocumentIngress({ filename: `${name}.docx`, bytes }, { archiveReader }),
-      /unencrypted ZIP package|link or special entry|expanded size|entry size/);
+      (error: unknown) => {
+        assert.ok(error instanceof MediaValidationError, name);
+        assert.match(error.message, /^(?:This file isn't a valid Word file \(or it's password-protected\)\.|DOCX contains a link or special entry|DOCX expanded size exceeds its limit|DOCX archive entry size is incorrect)$/, name);
+        return true;
+      });
   }
 });
 test('Library DOCX: aggregate expansion, duplicate/traversal paths and links fail with bounded stream reads', async () => {

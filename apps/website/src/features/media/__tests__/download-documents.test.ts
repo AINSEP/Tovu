@@ -24,20 +24,23 @@ test('download-only: all seven formats accept valid bytes and reject wrong/renam
 
 test('download-only archives: macro names/types, symlinks, encryption and aggregate expansion are refused', async () => {
   const documents = await downloadDocuments({});
-  for (const ext of ['xlsx', 'pptx', 'pages', 'key']) {
+  for (const ext of ['xlsx', 'pptx', 'pages', 'key'] as const) {
     await validateDocumentIngress({ filename: `baseline.${ext}`, bytes: documents[ext]! }, { archiveReader });
     const base = await archiveMembers({ bytes: documents[ext]! });
+    // Jini da7d68ca names the application rather than exposing archive-reader jargon.
+    const application = { xlsx: 'Excel', pptx: 'PowerPoint', pages: 'Pages', key: 'Keynote' }[ext]!;
+    const invalidArchive = { message: `This file isn't a valid ${application} file (or it's password-protected).` };
     // All archive classes share these bounds, including a combined total over otherwise valid entries.
     for (const [extra, reason] of [
       [[{ path: 'vbaProject.bin', content: 'macro' }], /macro/],
-      [[{ path: 'link', content: '../outside', mode: 0o120777 }], /link or special|unencrypted ZIP/],
+      [[{ path: 'link', content: '../outside', mode: 0o120777 }], invalidArchive],
       [[{ path: 'large-a', content: Buffer.alloc(21 * 1024 * 1024, 65) }, { path: 'large-b', content: Buffer.alloc(21 * 1024 * 1024, 65) }], /expanded size|compression ratio/],
       [Array.from({ length: 2049 }, (_, i) => ({ path: `entry-${i}`, content: 'x' })), /too many archive entries/],
     ] as const) await assert.rejects(validateDocumentIngress({ filename: `bad.${ext}`, bytes: await buildZipFixture([...base, ...extra]) }, { archiveReader }), reason);
     const encrypted = Buffer.from(documents[ext]!);
     const central = encrypted.readUInt32LE(encrypted.length - 22 + 16);
     encrypted.writeUInt16LE(encrypted.readUInt16LE(central + 8) | 1, central + 8);
-    await assert.rejects(validateDocumentIngress({ filename: `encrypted.${ext}`, bytes: encrypted }, { archiveReader }));
+    await assert.rejects(validateDocumentIngress({ filename: `encrypted.${ext}`, bytes: encrypted }, { archiveReader }), invalidArchive);
   }
   for (const ext of ['xlsx', 'pptx']) {
     // Establish acceptance first so a broken package cannot masquerade as macro protection.

@@ -309,6 +309,13 @@ test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check f
   await site.deps.siteTitleReady;
   await unpublishHomePage(site.deps);
 
+  // 2d878729e keeps a static page's authored title when preservation supplies no explicit one.
+  const theme = site.deps.themes.find(theme => theme.manifest.id === "tovu-theme");
+  assert.ok(theme);
+  const authoredHomeTitles = realTitles(fs.readFileSync(path.join(theme.dir, "render/pages/index.html"), "utf8"));
+  assert.equal(authoredHomeTitles.length, 1, "the negative control needs an authored home title");
+  assert.notDeepEqual(authoredHomeTitles, [LEGACY_TITLE], "the authored title must expose a missing legacy pin");
+
   // Pinned to the EXACT assertion expected to fail, not merely to "something threw an
   // AssertionError": the point of T-W4 is that AC-10 passes for the right reason, and a predicate
   // that accepts any assertion failure cannot tell "the title flipped" from "S1 asserted on a
@@ -320,15 +327,13 @@ test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check f
       );
     }
     // `startsWith`, not `equal`: `assertSingleTitle` uses `assert.deepEqual`, which appends its own
-    // value diff to a caller-supplied message. That appended diff is what the second check reads.
+    // value diff to a caller-supplied message. Check the structured values independently below.
     assert.ok(
       err.message.startsWith(`S1 GET / (no Page claims /): expected exactly one <title>${LEGACY_TITLE}</title>`),
       `AC-10 must fail on its FIRST surface, checking the site title: ${err.message}`
     );
-    assert.ok(
-      err.message.includes(`'${SITE_NAME}'`),
-      `and it must fail because that title flipped to the unpreserved display name: ${err.message}`
-    );
+    assert.deepEqual(err.actual, authoredHomeTitles, "the title must flip to the unpreserved authored theme title");
+    assert.deepEqual(err.expected, [LEGACY_TITLE], "the negative control must still assert legacy preservation");
     return true;
   });
   assertSingleTitle(await getHtml(site.baseUrl, "/products"), SITE_NAME, "the unpreserved pre-existing site flips to its display name");

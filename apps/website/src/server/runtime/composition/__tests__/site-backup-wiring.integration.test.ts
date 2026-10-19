@@ -224,8 +224,8 @@ test("the composed plan and push back up THIS site: a credential sealed by the c
   fs.writeFileSync(copy, dbBytes);
   const snapshot = new Database(copy, { readonly: true });
   try {
-    // Custom credentials live in secrets_vault (kind 'custom') since the vault (9b20083b6).
-    const labels = (snapshot.prepare("SELECT label FROM secrets_vault WHERE kind = 'custom'").all() as { label: string }[]).map((r) => r.label);
+    // 1d96267e3 stores both credential types under kind 'vendor'; metadata keeps the distinction.
+    const labels = (snapshot.prepare("SELECT label FROM secrets_vault WHERE kind = 'vendor' AND json_extract(meta, '$.credentialType') = 'custom'").all() as { label: string }[]).map((r) => r.label);
     assert.deepEqual(labels, ["github"]);
   } finally {
     snapshot.close();

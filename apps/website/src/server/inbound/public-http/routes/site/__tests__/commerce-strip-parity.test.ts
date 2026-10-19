@@ -30,7 +30,8 @@ import { createCommerceSiteTestApp, type CommerceSiteTestDeps } from "./commerce
  * core catalog (`createRouteDeps()` at 4570fce9d sets no `commerceProductRepo`/`commercePriceRepo`),
  * so the store plugin was always what rendered; and the blocker counted rows in a table no site ever
  * filled. These tests pin that every outcome stayed the same, and that the transfer catalog and the
- * manifest's classification lost exactly the six tables. The pre-strip catalog and classification
+ * manifest's classification lost exactly the six tables, allowing the explicitly pinned later
+ * schema additions below. The pre-strip catalog and classification
  * are `__fixtures__/commerce-strip-parity.golden.json` (`capture-commerce-strip-golden.ts`).
  */
 const COMMERCE = ["commerce_order_items", "commerce_orders", "commerce_prices", "commerce_product_images", "commerce_products", "commerce_webhook_events"];
@@ -42,6 +43,14 @@ const VAULT_RETIRED = ["site_assistant_credentials", "admin_execution_credential
 const MCP_SEALED = ["sealed_key_id", "sealed_ciphertext", "sealed_nonce", "sealed_alg", "aad_version",
   "oauth_sealed_key_id", "oauth_sealed_ciphertext", "oauth_sealed_nonce", "oauth_sealed_alg", "oauth_aad_version"];
 const MCP_POINTERS = ["env_secret_id", "oauth_secret_id"];
+
+// Preserve the historical golden: these later migrations add columns, never exemptions from parity.
+// f6de81431 (0014), 14f5085fd (0015), c29687fd7 (0016/0017).
+const LATER_COLUMNS: Record<string, { before: string; classes: Record<string, string> }> = {
+  asset_blobs: { before: "content_type", classes: { document_owned: "boolean-flag" } },
+  media: { before: "title", classes: { kind: "plain-text", original_filename: "plain-text" } },
+  publish_history: { before: "published_at", classes: { credential_id: "plain-text", config_fields_json: "json-text", kind: "plain-text" } },
+};
 
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
   transfer: Record<string, string[]>; classes: Record<string, Record<string, string>>;
@@ -160,11 +169,19 @@ describeEachDialect("trash and purge on a database migrated past 0011", { tables
 describe("catalogs against the pre-strip tree (4570fce9d)", () => {
   const without = <T>(record: Record<string, T>, names: string[]) => Object.fromEntries(Object.entries(record).filter(([name]) => !names.includes(name)));
 
-  test("the transfer catalog differs by exactly the six commerce tables", () => {
+  test("the transfer catalog loses exactly the six commerce tables and gains the named later columns", () => {
     for (const name of COMMERCE) assert.ok(name in golden.transfer, `pre-strip copied ${name}`);
     const actual = Object.fromEntries(collectTransferTables().map(table => [table.name, table.columns.map(column => column.name)]));
+    const expected = without(golden.transfer, COMMERCE);
+    for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
+      const columns = [...expected[table]];
+      const at = columns.indexOf(addition.before);
+      assert.notEqual(at, -1, `${table}: the pre-strip insertion anchor must exist`);
+      columns.splice(at, 0, ...Object.keys(addition.classes));
+      expected[table] = columns;
+    }
     // Entries compare in copy order: dropping six leaf tables must not reorder the rest.
-    assert.deepEqual(Object.entries(actual), Object.entries(without(golden.transfer, COMMERCE)));
+    assert.deepEqual(Object.entries(actual), Object.entries(expected));
   });
 
   test("the manifest classifies every other table's columns as before", () => {
@@ -175,6 +192,9 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
     }
     for (const name of COMMERCE) assert.equal(name in actual, false, name);
     const expected = without(golden.classes, [...COMMERCE, ...VAULT_RETIRED]);
+    for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
+      expected[table] = { ...expected[table], ...addition.classes };
+    }
     expected.external_mcp_servers = without(expected.external_mcp_servers, MCP_SEALED);
     const current = without(actual, ["secrets_vault"]);
     current.external_mcp_servers = without(current.external_mcp_servers, MCP_POINTERS);

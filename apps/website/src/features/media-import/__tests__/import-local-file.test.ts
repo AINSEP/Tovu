@@ -17,6 +17,7 @@ import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { applyBatchInputs, DEFAULT_MAX_BATCH_ITEMS, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
+import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */
 const TOOL = "media_import_local_file";
@@ -95,11 +96,12 @@ test("local import batches eleven images, preserves per-item errors and keeps th
   assert.equal(schema.properties.items.maxItems, DEFAULT_MAX_BATCH_ITEMS);
   assert.match(registration.descriptor.description ?? "", /Batch:.*items:/);
   const ctx: ToolExecutionContext = { input: {}, executionId: "exec-batch", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal };
-  await assert.rejects(registration.handler({ ...ctx, input: { items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ root: "repo", path: "photo.png" })) } }), /the most one call takes is 25/);
+  // Jini 9ba8a52e requires merged items to re-enter the executor's policy/approval gate.
+  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ root: "repo", path: "photo.png" })) } }), /the most one call takes is 25/);
   await f.noWrites();
   assert.equal(f.resolutions(), 0);
   const items = Array.from({ length: 11 }, (_, index) => ({ path: "photo.png", title: `Photo ${index}`, alt: `Alt ${index}` }));
-  const result = await registration.handler({ ...ctx, input: { root: "repo", items: [...items.slice(0, 5), { path: "../outside.png" }, ...items.slice(5)] } }) as BatchResult;
+  const result = await invokeRegisteredTool(registration, { ...ctx, input: { root: "repo", items: [...items.slice(0, 5), { path: "../outside.png" }, ...items.slice(5)] } }) as BatchResult;
   assert.deepEqual({ batch: result.batch, total: result.total, succeeded: result.succeeded, failed: result.failed }, { batch: true, total: 12, succeeded: 11, failed: 1 });
   assert.deepEqual(result.results.map(item => item.index), Array.from({ length: 12 }, (_, index) => index));
   const failed = result.results[5]!;
@@ -118,7 +120,7 @@ test("local import batches eleven images, preserves per-item errors and keeps th
 test("batching local imports cannot bypass each item's upload permission", async (t) => {
   const f = await setup(t, { allow: false });
   const registration = applyBatchInputs({ registrations: [f.registration()] })[0]!;
-  const result = await registration.handler({ input: { root: "repo", items: [{ path: "a.png" }, { path: "b.png" }] }, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal }) as BatchResult;
+  const result = await invokeRegisteredTool(registration, { input: { root: "repo", items: [{ path: "a.png" }, { path: "b.png" }] }, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal }) as BatchResult;
   assert.deepEqual(result.results.map(item => item.ok), [false, false]);
   assert.equal(f.authorizeCalls.length, 2);
   assert.equal(f.resolutions(), 0);

@@ -65,6 +65,9 @@ test("admin and content serializers stay aligned with shared headless contracts"
       bodyHtml: null,
       status: "published",
       updatedAt: "2026-04-06T00:00:00.000Z",
+      // 21e385e7e exposes credit and its visibility on both headless contracts.
+      author: null,
+      showAuthor: false,
       version: 3,
       // Post-template-picker / slug-collision-override features — `toAdminPostResponse` populates
       // both on every live response even when the record itself carries neither (see
@@ -103,6 +106,8 @@ test("admin and content serializers stay aligned with shared headless contracts"
       slug: "hello-world",
       bodyJson: { type: "doc", content: [] },
       updatedAt: "2026-04-06T00:00:00.000Z",
+      author: null,
+      showAuthor: false,
     } satisfies ContentPost,
     presentation: {
       activeThemeId: "atlas",

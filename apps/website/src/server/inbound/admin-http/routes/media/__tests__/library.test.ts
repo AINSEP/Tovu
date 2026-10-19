@@ -98,7 +98,8 @@ test('Library HTTP: fake PDF/DOCX rejected without durable rows; media uploads r
   for (const filename of ['fake.pdf', 'fake.docx', 'bad.exe']) {
     const response = await post(base, root, { kind: 'document', filename, contentType: 'application/pdf', dataBase64: Buffer.from('not a document').toString('base64') });
     assert.equal(response.status, 400);
-    assert.match((await response.json()).error, filename === 'fake.pdf' ? /PDF signature/ : filename === 'fake.docx' ? /DOCX.*ZIP/ : /document type/);
+    // Jini da7d68ca deliberately replaced ZIP jargon with the application's name.
+    assert.match((await response.json()).error, filename === 'fake.pdf' ? /PDF signature/ : filename === 'fake.docx' ? /^This file isn't a valid Word file \(or it's password-protected\)\.$/ : /document type/);
   }
   assert.equal((await post(base, root, { filename: 'notes.txt', contentType: 'text/plain', dataBase64: Buffer.from('ordinary text').toString('base64') })).status, 400);
   assert.deepEqual(await deps.mediaRepo.list({ workspaceId: deps.workspaceId }), []);

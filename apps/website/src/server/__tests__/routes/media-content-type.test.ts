@@ -248,9 +248,8 @@ test("admin media list: backfills and persists the content type of a row that pr
  *
  * This replaces a stale prior version of this test (`bf530b1f`, same day but ~6 hours earlier)
  * that pinned `video/*` as REJECTED — accurate when written, but the allowlist was deliberately
- * widened later that day and this test was never updated to match. SVG stays excluded regardless
- * (never re-widened — it needs a sanitizer that doesn't exist yet, per `media-service.ts`'s own
- * comment), so that's the negative case kept below instead.
+ * widened later that day and this test was never updated to match. Jini 26c81cff later added
+ * sanitized SVG; the negative case below now pins malformed SVG rejection at that boundary.
  */
 test("admin media upload: video/mp4 and video/webm are accepted by the widened upload allowlist", async (t) => {
   const { app } = buildTestApp();
@@ -280,18 +279,12 @@ test("admin media upload: video/mp4 and video/webm are accepted by the widened u
 });
 
 /**
- * The allowlist is a `Set` compared by exact string (`media-service.ts`'s
- * `allowedMimeTypes.has(input.contentType)`) against the client-supplied `contentType` field in
- * the JSON body — not the HTTP `Content-Type` header, and not the uploaded bytes. That match is
- * strict: no case-folding and no parameter stripping, so `VIDEO/MP4` or `video/mp4; codecs=avc1`
- * would themselves be rejected as unrecognized strings (fails closed, not a bypass). What DOES
- * still reject on purpose is any type never added to the Set — `image/svg+xml` is the durable
- * example, since SVG needs a sanitizer this pass doesn't have (`media-service.ts`'s file header).
- * This is the allowlist's one remaining negative case now that `video/*` moved to the accepted
- * side above.
+ * SVG now reaches the shared sanitizer (Jini 26c81cff, adopted by Tovu d1c1fbd9a). A malformed
+ * SVG is still refused before persistence; valid SVG is admitted only after active content is
+ * removed. Pin both outcomes so rejecting every SVG cannot masquerade as successful sanitization.
  */
-test("admin media upload: image/svg+xml is still rejected by the upload allowlist", async (t) => {
-  const { app } = buildTestApp();
+test("admin media upload: malformed SVG is rejected and valid SVG is sanitized before storage", async (t) => {
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media`, {
@@ -305,7 +298,23 @@ test("admin media upload: image/svg+xml is still rejected by the upload allowlis
   });
   assert.equal(res.status, 400);
   const payload = (await res.json()) as { error: string };
-  assert.equal(payload.error, "content type 'image/svg+xml' is not allowed for upload");
+  assert.equal(payload.error, "invalid SVG document");
+  assert.deepEqual(await deps.mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual(await deps.assetBlobRepo.list({ workspaceId: WORKSPACE_ID }), []);
+
+  const id = await uploadRawBytes(baseUrl, cookie, {
+    filename: "icon.svg", declaredContentType: "image/svg+xml",
+    bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" onload="alert(1)"><script>alert(1)</script><path d="M0 0h12v12z"/></svg>'),
+  });
+  const media = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.ok(media);
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: media.source.sha256 });
+  assert.ok(blob);
+  const stored = Buffer.from(await deps.blobStore.get({ storageKey: blob.storageKey })).toString("utf8");
+  assert.doesNotMatch(stored, /script|onload|alert/);
+  assert.match(stored, /viewBox="0 0 12 12"/);
+  assert.match(stored, /<path\b/);
+  assert.equal((await listMediaContentTypes(baseUrl, cookie)).get(id), "image/svg+xml");
 });
 
 /**
