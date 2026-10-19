@@ -1501,18 +1501,26 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps serving the cached list long after the app-wide 10s staleTime and 5-minute idle eviction", async () => {
+  it("keeps serving the cached list beyond app-wide defaults, then refreshes at the 15-minute inventory deadline", async () => {
     vi.useFakeTimers();
     try {
-      const fetchSpy = vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }]));
+      const fetchSpy = vi.fn()
+        .mockImplementationOnce(() => okAgents([{ id: "claude", name: "Claude Code" }]))
+        .mockImplementation(() => okAgents([{ id: "codex", name: "Codex" }]));
       vi.stubGlobal("fetch", fetchSpy);
       const { result } = renderAgents();
       await result.current.access.listAgents();
 
-      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      // 6ec41fbcd intentionally bounded the old infinite inventory cache to refresh model catalogs.
+      await vi.advanceTimersByTimeAsync(15 * 60_000 - 1);
 
       await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "claude", name: "Claude Code" }]);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "codex", name: "Codex" }]);
+      await expect(result.current.access.listAgents()).resolves.toEqual([{ id: "codex", name: "Codex" }]);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
