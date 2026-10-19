@@ -107,6 +107,19 @@ test("every scope switched on: exactly the scope subtrees, never the live databa
   }
 });
 
+// RED (live 2026-10-18): Finder's themes/.DS_Store refused the whole share as a suspicious path.
+test("share profile drops Finder's .DS_Store instead of refusing the share", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "site-share-dsstore-"));
+  try {
+    write(path.join(root, "themes", ".DS_Store"), "junk");
+    write(path.join(root, "themes", "static", "demo", ".DS_Store"), "junk");
+    write(path.join(root, "themes", "static", "demo", "index.html"), "<html>");
+    const sources = { siteDir: root, mediaUploadsDir: null, themesDir: path.join(root, "themes"), agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), skillsDir: path.join(root, "skills"), tovuVersion: "0.1.0" };
+    const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
+    assert.deepEqual(paths(collected.files), ["themes/static/demo/index.html"]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("plugins scope: each installed plugin's package and memory, found where the installer's own layout puts them; never its data/", async () => {
   const site = makeSite();
   try {

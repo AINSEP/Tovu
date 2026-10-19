@@ -198,6 +198,8 @@ async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string;
   }
   const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
   for (const entry of entries) {
+    // Finder writes .DS_Store into any folder it opens; it is junk, never content, so drop it before the share refusal list sees it.
+    if (entry.name === ".DS_Store") continue;
     if (sink.profile === "share" && excludedSharePath({ path: `${input.relDir}/${entry.name}` })) continue;
     if (IGNORED_NAMES.has(entry.name) || input.excludeTopLevel?.has(entry.name)) continue;
     const absPath = path.join(input.absDir, entry.name);
