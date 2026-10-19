@@ -31,7 +31,7 @@ import {
  *
  * Previews never run document content: Markdown renders with raw HTML off inside a scriptless,
  * network-blocked frame; text is React-escaped; PDF opens in the browser's PDF viewer from a blob
- * typed `application/pdf`; DOCX downloads.
+ * typed `application/pdf`; Office/iWork/RTF documents download.
  */
 export interface LibraryProps {
   /** The `?tab=` query value; guarded by `resolveLibraryTabId`. */
@@ -112,11 +112,21 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
         <UploadIcon />
         {t("Upload documents")}
       </button>
-      <div ref={zoneRef}>
+      <div ref={zoneRef} onDropCapture={(event) => {
+        const items = Array.from(event.dataTransfer.items ?? []);
+        const packages = items.map(item => item.webkitGetAsEntry?.()).filter(entry =>
+          entry?.isDirectory && /\.(pages|key)$/i.test(entry.name));
+        if (!packages.length) return;
+        // A macOS package is a directory. Stop expansion so its internals cannot become uploads.
+        event.preventDefault();
+        event.stopPropagation();
+        addFiles([...packages.map(entry => new File([], entry!.name)),
+          ...items.map(item => item.getAsFile()).filter((file): file is File => !!file && !packages.some(entry => entry!.name === file.name))]);
+      }}>
         <FileDropzone
           accept={LIBRARY_ACCEPT}
           prompt={t("Drop documents here, or click to browse")}
-          helper={t("Markdown, text, PDF, Word, CSV or JSON · up to 10 MiB each")}
+          helper={t("Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each")}
           onFiles={addFiles}
         />
       </div>
@@ -168,7 +178,7 @@ function downloadDocument(url: string) {
 
 export function documentMenuItems(item: AdminMedia, controller: LibraryController): RowMenuItem[] {
   const { t, permissions } = controller;
-  // DOCX has no preview in v1, so its menu leads with Download (the name still opens the details).
+  // Download-only documents have no preview in v1, so their menu leads with Download (the name still opens the details).
   const items: RowMenuItem[] = documentPreviewKind(item) === "download"
     ? []
     : [{ key: "preview", label: t("Preview"), onSelect: () => controller.openPreview(item) }];

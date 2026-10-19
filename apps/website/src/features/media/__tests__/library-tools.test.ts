@@ -101,3 +101,20 @@ test('Library save retains the existing resolver\'s run and integrity rejection 
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref.path }, 'run-a')));
   assert.equal(reads, 0); assert.deepEqual(await deps.mediaRepo.list({ workspaceId: deps.workspaceId }), []);
 });
+
+// RED before this change: upload refused all seven extensions before the read tool could run.
+test('library_read explains download-only formats without loading their blob bytes', async () => {
+  const { downloadDocuments } = await import('./download-documents.fixture.js');
+  const { deps } = libraryFixture();
+  const ids: string[] = [];
+  for (const [extension, bytes] of Object.entries(await downloadDocuments({}))) {
+    const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, documentArchiveReader: createDocumentArchiveReader({}) },
+      input: { workspaceId: deps.workspaceId, kind: 'document', filename: `download.${extension}`, contentType: 'text/plain', bytes, createdByPrincipal: 'owner' } });
+    ids.push(media.id);
+  }
+  let reads = 0;
+  deps.blobStore.get = async () => { reads++; throw new Error('download-only bytes must not be loaded'); };
+  const read = buildMediaRegistrations(deps).find(row => row.descriptor.id === 'library_read')!;
+  for (const id of ids) await assert.rejects(read.handler(libraryContext({ documentId: id })), /download only; text extraction is unavailable/);
+  assert.equal(reads, 0);
+});

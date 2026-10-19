@@ -109,6 +109,8 @@ function fileProblemMessage(problem: ReturnType<typeof libraryFileProblem>, t: (
       return t("This file type isn't supported.");
     case "size":
       return t("Larger than 10 MiB.");
+    case "package":
+      return t("Folder package: in Pages/Keynote, save as a single file, then upload again.");
     case "empty":
       return t("This file is empty.");
     default:

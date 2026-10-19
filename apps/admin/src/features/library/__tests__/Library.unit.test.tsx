@@ -327,7 +327,7 @@ describe("Library previews never run document content", () => {
 describe("Library translations", () => {
   const KEYS = [
     "Library", "Content", "Upload", "Documents", "Private documents the assistant can read. Visitors never see them.",
-    "Drop documents here, or click to browse", "Markdown, text, PDF, Word, CSV or JSON · up to 10 MiB each", "Uploads",
+    "Drop documents here, or click to browse", "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each", "Uploads",
     "Waiting…", "Uploading…", "Uploaded", "Upload failed.", "This file type isn't supported.", "Larger than 10 MiB.",
     "This file is empty.", "View in Documents", "Clear list", "You don't have permission to upload documents.",
     "Loading documents…", "Couldn't load documents.", "No documents yet.",

@@ -72,10 +72,27 @@ test('Library DOCX: aggregate expansion, duplicate/traversal paths and links fai
     const reader: DocumentArchiveReaderPort = { async *entries() {
       if (variant === 'link') { yield { kind: 'symlink', entryPath: 'word/document.xml' }; return; }
       for (let i = 0; i < 3; i++) yield { kind: 'file', entryPath: variant === 'duplicate' ? 'same.xml' : variant === 'traversal' ? '../outside.xml' : `part-${i}.xml`,
-        declaredSize: variant === 'overflow' ? 21 * 1024 * 1024 : 1,
+        compressedSize: 1024 * 1024, declaredSize: variant === 'overflow' ? 21 * 1024 * 1024 : 1,
         openReadStream: async function* () { streams++; yield variant === 'overflow' ? Buffer.alloc(21 * 1024 * 1024, 65) : Buffer.from('a'); } };
     } };
-    await assert.rejects(validateDocumentIngress({ filename: 'hostile.docx', bytes: Buffer.from('PK') }, { archiveReader: reader }));
+    await assert.rejects(validateDocumentIngress({ filename: 'hostile.docx', bytes: Buffer.alloc(1024 * 1024) }, { archiveReader: reader }));
   }
   assert.equal(streams, 2, 'only first entries of overflow and duplicate variants may open streams');
+});
+
+
+test('Library ZIP ratio: observed bytes stop streaming before the expanded cap', async () => {
+  let chunksRead = 0;
+  let closed = false;
+  const reader: DocumentArchiveReaderPort = { async *entries() {
+    yield { kind: 'file', entryPath: 'xl/data.xml', declaredSize: 1024 * 1024, compressedSize: 10,
+      openReadStream: async function* () {
+        try {
+          for (let i = 0; i < 1024; i++) { chunksRead++; yield Buffer.alloc(1024); }
+        } finally { closed = true; }
+      } };
+  } };
+  await assert.rejects(validateDocumentIngress({ filename: 'bomb.xlsx', bytes: Buffer.alloc(1024) }, { archiveReader: reader }), /compression ratio/);
+  assert.equal(chunksRead, 1, 'stop at the first chunk crossing 100:1 rather than draining the entry');
+  assert.equal(closed, true, 'early refusal closes the active stream');
 });

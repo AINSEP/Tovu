@@ -34,6 +34,7 @@ import { buildZipFixture } from "../../agent-plugins/__tests__/fixtures/build-zi
 import { MAX_DOCUMENT_BYTES, validateDocumentIngress, registerTransform } from "../../media/index.js";
 import { InMemoryPostRepo } from "../../post/index.js";
 import { createDocumentArchiveReader } from "../../media/document-archive.js";
+import { downloadDocuments } from "../../media/__tests__/download-documents.fixture.js";
 import { importFixture, OWNER_PASSWORD, MEDIA, HASH, stamp } from "./import.fixture.js";
 
 function addDocument(h: Awaited<ReturnType<typeof importFixture>>, id: string, bytes: Buffer, status = "active") {
@@ -71,6 +72,11 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   const bytes = Buffer.from("# Library original bytes\n");
   const doc = addDocument(h, "document", bytes);
   addDocument(h, "second-document", bytes);
+  const downloads = await downloadDocuments({});
+  for (const [ext, content] of Object.entries(downloads)) {
+    addDocument(h, 'download-' + ext, content);
+    h.db.$client.prepare("UPDATE media SET original_filename=? WHERE id=?").run('download.' + ext, 'download-' + ext);
+  }
   const trashed = addDocument(h, "trashed-document", Buffer.from("Trash must never travel"), "trashed");
   // Same blob, different editorial kinds: retain both and the sticky privacy marker.
   addDocument(h, "shared-document", MEDIA);
@@ -114,7 +120,15 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   assert.equal((await assetBlobRepo.findByHash({ workspaceId, sha256: doc.sha256 }))?.storageKey, importedKey);
   assert.deepEqual(fs.readFileSync(path.join(site.path, "uploads", importedKey)), bytes);
   assert.deepEqual(fs.readFileSync(path.join(site.path, "uploads", computeBlobStorageKey({ workspaceId, sha256: HASH }))), MEDIA);
-  assert.equal((await sanitizeShareDatabase({ snapshot: imported.$client.serialize() })).documents?.length, 3, "imported documents can be shared again");
+  assert.equal((await sanitizeShareDatabase({ snapshot: imported.$client.serialize() })).documents?.length, 10, "imported documents can be shared again");
+  for (const [ext, content] of Object.entries(downloads)) {
+    const download = await mediaRepo.findById({ workspaceId, id: 'download-' + ext });
+    assert.equal(download?.kind, 'document');
+    assert.equal(download?.originalFilename, 'download.' + ext);
+    assert.equal(download?.createdBy, undefined);
+    const key = computeBlobStorageKey({ workspaceId, sha256: createHash('sha256').update(content).digest('hex') });
+    assert.deepEqual(fs.readFileSync(path.join(site.path, 'uploads', key)), content);
+  }
   assert.equal(fs.existsSync(path.join(site.path, "uploads", trashed.storageKey)), false);
   const { deps: defaults } = libraryFixture();
   const deps = { ...defaults, workspaceId, mediaRepo, assetBlobRepo, assetRenditionRepo: new SqliteAssetRenditionRepo(imported), blobStore: new LocalFsBlobStore({ rootDir: path.join(site.path, "uploads") }) };
@@ -125,7 +139,7 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   const listed = await (await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}/media`)).json();
   assert.equal(listed.media.some((item: { kind: string }) => item.kind === "document"), false);
   const library = await (await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}/media?kind=document`)).json();
-  assert.equal(library.media.length, 3);
+  assert.equal(library.media.length, 10);
   assert.ok(library.media.every((item: { publicUrl: string | null }) => item.publicUrl === null));
   assert.equal(library.media.find((item: { id: string }) => item.id === "document").byteSize, bytes.length);
   for (const suffix of ["original", "public.v1/document.png"]) {
@@ -282,7 +296,7 @@ test("L3 valid DOCX package expansion is bounded within entry limits", async t =
   addDocument(h, "expanding", bytes);
   h.db.$client.prepare("UPDATE media SET original_filename='expanding.docx' WHERE id='expanding'").run();
   const upload = await h.backend.upload({ principalId: "recipient", archive: await h.archiveWithDatabase(h.db.$client.serialize()) });
-  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /DOCX expanded size/);
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /DOCX expanded size|DOCX compression ratio/);
   assert.deepEqual(h.workspace.registry({}).list({}), []); assert.deepEqual(h.started, []);
 });
 

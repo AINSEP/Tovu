@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import express from 'express';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { downloadDocuments } from '#src/features/media/__tests__/download-documents.fixture';
 import { libraryFixture } from '#src/features/media/__tests__/library.fixture';
 import { registerMediaRenditionRoute, registerMediaOriginalVideoRoute } from '#src/server/inbound/public-http/routes/site/media-rendition';
 import type { MediaRenditionRouteDeps } from '../deps.js';
@@ -42,7 +43,7 @@ test('Library HTTP: allowed formats ignore MIME labels, list/download/rename/tex
   const { app, deps } = appFixture(); const base = await startTestServer(app, t);
   for (const [filename, bytes] of [['guide.md', Buffer.from('# Guide')], ['notes.txt', Buffer.from('notes')],
     ['table.csv', Buffer.from('a,b\n1,2')], ['data.json', Buffer.from('{"ok":true}')],
-    ['manual.pdf', Buffer.from('%PDF-1.7\n%%EOF')], ['word.docx', await docx()]] as const) {
+    ['manual.pdf', Buffer.from('%PDF-1.7\n%%EOF')], ['word.docx', await docx()], ...Object.entries(await downloadDocuments({})).map(([ext, bytes]) => [`download.${ext}`, bytes] as const)] as const) {
     const response = await post(base, root, { kind: 'document', filename, contentType: 'image/png', dataBase64: bytes.toString('base64') });
     assert.equal(response.status, 201, await response.clone().text());
     const { media } = await response.json();
@@ -56,11 +57,12 @@ test('Library HTTP: allowed formats ignore MIME labels, list/download/rename/tex
     assert.equal(download.headers.get('x-content-type-options'), 'nosniff');
     assert.match(download.headers.get('content-disposition')!, /attachment;.*filename\*=UTF-8''New%20name\./);
     const text = await fetch(`${base}${root}/${media.id}/text`);
-    assert.equal(text.status, /\.(pdf|docx)$/.test(filename) ? 400 : 200);
+    if (/\.(doc|xls|rtf|xlsx|pptx|pages|key)$/.test(filename)) assert.match((await text.clone().json()).error, /download only; text extraction is unavailable/);
+    assert.equal(text.status, /\.(pdf|docx|doc|xls|rtf|xlsx|pptx|pages|key)$/.test(filename) ? 400 : 200);
   }
   assert.equal((await (await fetch(base + root)).json()).media.length, 0, 'both media pickers use this default list');
   const listed = (await (await fetch(base + root + '?kind=document')).json()).media;
-  assert.equal(listed.length, 6);
+  assert.equal(listed.length, 13);
   const rows = await deps.mediaRepo.list({ workspaceId: deps.workspaceId });
   assert.ok([...(await resolveMediaPublicUrls(deps, rows)).values()].every(url => url === null));
   for (const row of rows) for (const key of [row.id, row.slug]) for (const suffix of ['/original', '/public.v1/private.png']) {

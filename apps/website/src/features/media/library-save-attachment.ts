@@ -17,7 +17,7 @@ export function buildLibrarySaveAttachmentTool(required: {
   return {
     descriptor: {
       id: 'library_save_attachment', metadata: toolMetadata.library_save_attachment,
-      description: 'Explicitly saves a document attached to this exact message into this site\'s private Library so it survives chat cleanup. Use chat_list_pending_attachments to obtain attachmentRef. Accepts .md, .txt, .pdf, .docx, .csv, .json up to 10 MiB. Other attachments remain temporary.',
+      description: 'Explicitly saves a document attached to this exact message into this site\'s private Library so it survives chat cleanup. Use chat_list_pending_attachments to obtain attachmentRef. Accepts .md, .txt, .pdf, .docx, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key up to 10 MiB. Office/iWork/RTF documents support download only. Other attachments remain temporary.',
       inputSchema: { type: 'object', additionalProperties: false, required: ['attachmentRef'], properties: {
         attachmentRef: { type: 'string', minLength: 1, description: 'The attachment:<id> ref from this current message; paths and old-message refs are refused.' },
       } },

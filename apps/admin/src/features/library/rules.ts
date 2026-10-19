@@ -16,7 +16,7 @@ export const LIBRARY_KEYS = {
 };
 
 /** Mirrors `@jini-ai/cms/media`'s `DOCUMENT_CONTENT_TYPES` keys; the server stays the authority. */
-export const LIBRARY_EXTENSIONS = ["md", "txt", "pdf", "docx", "csv", "json"] as const;
+export const LIBRARY_EXTENSIONS = ["md", "txt", "pdf", "docx", "csv", "json", "doc", "xls", "rtf", "xlsx", "pptx", "pages", "key"] as const;
 export type LibraryExtension = (typeof LIBRARY_EXTENSIONS)[number];
 
 /** Mirrors `@jini-ai/cms/media`'s `MAX_DOCUMENT_BYTES` (10 MiB). */
@@ -31,12 +31,12 @@ export function libraryExtension(filename: string): string {
   return dot > 0 ? filename.slice(dot + 1).toLowerCase() : "";
 }
 
-export type LibraryFileProblem = "type" | "size" | "empty";
+export type LibraryFileProblem = "type" | "size" | "empty" | "package";
 
 /** Why a picked file cannot be uploaded, or `null` when it may be sent. */
 export function libraryFileProblem(file: { name: string; size: number }): LibraryFileProblem | null {
   if (!(LIBRARY_EXTENSIONS as readonly string[]).includes(libraryExtension(file.name))) return "type";
-  if (file.size === 0) return "empty";
+  if (file.size === 0) return ["pages", "key"].includes(libraryExtension(file.name)) ? "package" : "empty";
   if (file.size > LIBRARY_MAX_BYTES) return "size";
   return null;
 }
@@ -76,7 +76,7 @@ export function documentExtensionSuffix(item: Pick<AdminMedia, "originalFilename
 export type LibraryPreviewKind = "markdown" | "text" | "pdf" | "download";
 
 /** Markdown renders (raw HTML off); text/CSV/JSON show escaped; PDF uses the browser's PDF viewer;
- *  DOCX downloads only (no extraction in v1). */
+ *  Office, iWork and RTF documents download only (no extraction in v1). */
 export function documentPreviewKind(item: Pick<AdminMedia, "originalFilename" | "displayFilename">): LibraryPreviewKind {
   switch (libraryExtension(item.originalFilename ?? item.displayFilename ?? "")) {
     case "md":
