@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +13,7 @@ import { resolveLibraryTabId } from "../Library.hooks";
 import { createFakeLibraryPort, fakeDocument } from "../hooks/library-dependencies.hooks";
 import { useLibrary, type LibraryController } from "../hooks/use-library.hooks";
 import { t as libraryT } from "../library-i18n";
-import { libraryFileProblem, LIBRARY_MAX_BYTES } from "../rules";
+import { libraryFileProblem, LIBRARY_ACCEPT, LIBRARY_MAX_BYTES } from "../rules";
 
 /**
  * @file The Library admin page: sidebar registration beside Media, the Upload/Documents `?tab=`
@@ -92,10 +92,41 @@ describe("Library tabs", () => {
     expect(within(table).getByText("Unknown")).toBeInTheDocument();
   });
 
-  it("shows an empty state with an Upload documents action", async () => {
+  it("shows an empty state below the drop zone, with no card", async () => {
     renderLibrary(createFakeLibraryPort(), "documents");
-    expect(await screen.findByText("No documents yet.")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Upload documents" })).toBeInTheDocument();
+    const empty = await screen.findByText("No documents yet.");
+    expect(empty.closest(".card")).toBeNull();
+    const zone = await screen.findByTestId("file-dropzone-zone");
+    expect(zone.compareDocumentPosition(empty) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("puts an Upload documents button above the drop zone on the Documents tab, with documents listed", async () => {
+    renderLibrary(createFakeLibraryPort({ documents: [fakeDocument("notes.md")] }), "documents");
+    const button = await screen.findByRole("button", { name: "Upload documents" });
+    const zone = await screen.findByTestId("file-dropzone-zone");
+    expect(button.compareDocumentPosition(zone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(zone.compareDocumentPosition(await screen.findByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole("tab")[1]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Upload documents opens the drop zone's own file picker, not the Upload tab", async () => {
+    renderLibrary(createFakeLibraryPort(), "documents");
+    const input = (await screen.findByTestId("file-dropzone-zone")).querySelector("input[type=file]") as HTMLInputElement;
+    const click = vi.spyOn(input, "click").mockImplementation(() => {});
+    await userEvent.click(await screen.findByRole("button", { name: "Upload documents" }));
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(input).toHaveAttribute("multiple");
+    expect(input.getAttribute("accept")).toBe(LIBRARY_ACCEPT);
+  });
+
+  it("uploads files dropped on the Documents tab's zone and lists them", async () => {
+    const port = createFakeLibraryPort();
+    renderLibrary(port, "documents");
+    const zone = await screen.findByTestId("file-dropzone-zone");
+    const dropped = new File(["# hi"], "dropped.md", { type: "text/markdown" });
+    fireEvent.drop(zone, { dataTransfer: { items: [], files: [dropped] } });
+    expect(await screen.findByRole("button", { name: "dropped.md" })).toBeInTheDocument();
+    expect(port.calls).toEqual(["upload:dropped.md"]);
   });
 });
 
@@ -210,10 +241,11 @@ describe("Library permissions", () => {
     expect(documentMenuItems(fakeDocument("report.docx"), full.current).map((item) => item.key)).toEqual(["download", "rename", "trash"]);
   });
 
-  it("hides the empty state's upload action without media.upload", async () => {
+  it("hides the Documents tab's upload button and drop zone without media.upload", async () => {
     renderLibrary(createFakeLibraryPort({ permissions: ["media.read"] }), "documents");
     expect(await screen.findByText("No documents yet.")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("button", { name: "Upload documents" })).not.toBeInTheDocument());
+    expect(screen.queryByTestId("file-dropzone-zone")).not.toBeInTheDocument();
   });
 });
 
