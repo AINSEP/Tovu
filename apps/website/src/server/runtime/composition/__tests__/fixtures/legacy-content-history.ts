@@ -59,8 +59,10 @@ export function assertVaultPreserved(
   const sourcesByKind: readonly (readonly [string, string])[] = [
     ...Object.entries(VAULT_SOURCE_KINDS), ["external_mcp_servers", "mcp-env"], ["external_mcp_servers", "mcp-auth"],
   ];
-  for (const [table, kind] of sourcesByKind) {
+  for (const [table, sourceKind] of sourcesByKind) {
     if (!sourceTables.has(table)) continue;
+    // 0013 changes the storage kind, retaining the custom subtype and original migration lineage.
+    const kind = sourceKind === "custom" ? "vendor" : sourceKind;
     const prefix = kind === "mcp-auth" ? "oauth_" : "";
     const sources = (original.prepare(`SELECT * FROM "${table}"`).all() as Row[])
       .filter(row => table !== "external_mcp_servers" || row[`${prefix}sealed_ciphertext`] !== null);
@@ -73,6 +75,10 @@ export function assertVaultPreserved(
         row.meta.migration.serverId === (source.server_id ?? null));
       assert.equal(matches.length, 1, `${table}/${source.id ?? source.workspace_id}/${kind}: one preserved vault row`);
       const row = matches[0]!;
+      if (sourceKind === "custom") {
+        assert.equal(row.meta.credentialType, "custom");
+        assert.deepEqual(row.meta.worksFor, [], "fixture labels imply no supported deployment host");
+      }
       assert.equal(row.owner_key, source.server_id ?? "tovu");
       assert.equal(row.principal_id, source.principal_id ?? null);
       assert.equal(row.provider, provider);

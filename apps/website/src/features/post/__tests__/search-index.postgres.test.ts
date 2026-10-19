@@ -37,6 +37,7 @@ for (const [query, bug] of [
     assert.deepEqual(await repo.findById({ workspaceId: "search-ws", id: "cafe-guide" }), {
       ...post, seoExtJson: null, deletedAt: null, templateChoice: null, overridesThemePage: null,
       memberAccessJson: null, createdByPrincipalId: null, createdAt: null,
+      author: null, showAuthor: false,
     });
     const find = async (text: string) => (await searchAdminPosts({
       deps: { search: { search: (request) => pgPostSearch.search(kernel, request) } },

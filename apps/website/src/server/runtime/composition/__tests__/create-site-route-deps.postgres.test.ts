@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
@@ -193,7 +194,7 @@ await t.test("first boot (secretRef env): the composition migrates the database 
   const saved = await destinations.get(deps.workspaceId);
   assert.deepEqual(saved?.description, description);
   assert.equal(saved?.connectionString, "postgresql://copier:pw@db.example.test:5432/copy");
-  assert.equal(query("SELECT count(*) FROM public.database_transfer_destinations"), "1");
+  assert.equal(query("SELECT count(*) FROM public.secrets_vault WHERE kind = 'database-destination'"), "1");
 
   // Tool-attempt audit sink: appends into agent_tool_attempts.
   await deps.toolAttemptAuditSink.append({

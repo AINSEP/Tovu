@@ -368,6 +368,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     agentExecutor: { run: async (required: Record<string, unknown>, optional: Record<string, unknown> = {}) => ({ required, optional }) },
     run: { id: "run-dev" }, sessionBinding: { agentId: "claude", sessionFields: {} },
     prompt: "Review a page", process: { env, cwd: () => "/tmp/dev-run" },
+    routeDeps: { siteBinding: { dir: "/tmp/dev-site" } },
     resolvePermissionMode: () => mode,
     resolveAssistantDisallowedTools: () => ["Bash"], subagentsEnabled: false, ASSISTANT_SETTING_SOURCES: [],
     // This expression runs outside onStarted; supply the locked launch snapshot it closes over.
@@ -379,7 +380,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   assert.equal(Object.hasOwn(required, "permissionMode"), false);
   assert.equal(optional.permissionMode, "bypass");
   assert.deepEqual(optional.disallowedTools, ["Bash"]);
-  assert.deepEqual(required, { runId: "run-dev", agentId: "claude", prompt: "Review a page", cwd: "/tmp/dev-run" });
+  assert.deepEqual(required, { runId: "run-dev", agentId: "claude", prompt: "Review a page", cwd: "/tmp/dev-site" });
 });
 
 

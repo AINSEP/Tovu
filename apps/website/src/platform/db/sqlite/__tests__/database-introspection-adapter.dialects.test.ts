@@ -14,8 +14,8 @@ import { SqliteDatabaseIntrospectionAdapter } from "../database-introspection-ad
  * @file The database introspection adapter on every dialect. The journal is a fixture with one entry
  * never applied.
  *
- * - SQLite: the ledger it reads is `__drizzle_migrations`. A fresh `content.db` has a real one, so
- *   each test drops it and builds its own.
+ * - Pre-adoption SQLite: the ledger it reads is `__drizzle_migrations`. A fresh `content.db` has
+ *   both ledgers, so each legacy fixture drops `tovu_migrations` and builds its own Drizzle history.
  * - Postgres/PGlite: there is no `__drizzle_migrations`; the ledger is `tovu_migrations` (ADR-066),
  *   which the dialect matrix's migrated PGlite instance already holds. That instance is shared by the
  *   file, so every test restores the ledger it changed.
@@ -40,6 +40,9 @@ fs.writeFileSync(path.join(pgDir, ".site-meta.json"), JSON.stringify({ schemaVer
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 async function dropMigrationsTable(kernel: ContentKernel): Promise<void> {
+  // Since ba5a8508a an adopted SQLite database uses the content ledger for pending detection.
+  // These cases deliberately model pre-adoption files, including the no-history case.
+  await kernel.execute(sql`DROP TABLE IF EXISTS tovu_migrations`);
   await kernel.execute(sql`DROP TABLE IF EXISTS __drizzle_migrations`);
 }
 

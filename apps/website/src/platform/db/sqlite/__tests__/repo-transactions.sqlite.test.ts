@@ -47,7 +47,9 @@ test("publish credentials: insert survives another caller's rollback", async () 
     updatedAt: NOW,
   };
   await writeDuringOthersRollback(db, () => repo.insert(record));
-  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }), record);
+  assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }), {
+    ...record, credentialType: "vendor", worksFor: ["github"],
+  });
 });
 
 test("media provider credentials: replaceWorkspace survives another caller's rollback", async () => {

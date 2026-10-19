@@ -207,6 +207,7 @@ test("boolean-flag classification matches exactly the SQLiteBoolean columns in s
   assert.deepEqual(
     new Set(booleans),
     new Set([
+      "asset_blobs.document_owned",
       "posts.overrides_theme_page",
       "posts.show_author",
       "plugin_activations.enabled",
