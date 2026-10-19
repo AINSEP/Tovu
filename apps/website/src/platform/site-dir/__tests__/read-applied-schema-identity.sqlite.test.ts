@@ -7,18 +7,14 @@ import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { readAppliedSchemaIdentity } from "../read-applied-schema-identity.js";
 
-/** DBMERGE-PLAN bug B1 (P1): schema identity must name the same head on both dialects. Postgres
- * reads `tovu_migrations`; SQLite still reads `__drizzle_migrations.created_at`, so schema-state,
- * repair and adopt report the frozen Drizzle head forever and never see steps 0001–0012. The first
- * test is `todo` until the reader falls back to the Drizzle journal ONLY when `tovu_migrations`
- * is absent (a pre-adoption file).
+/** DBMERGE-PLAN bug B1 (P1): current schema identity names the same head on both dialects.
+ * The reader falls back to the Drizzle journal only for pre-adoption files; the file wrapper's
+ * explicit legacy-stamp view continues serving boot/repair's frozen site-meta comparison.
  */
 const head = CONTENT_MIGRATIONS.at(-1)!;
 const expectedHead = { idx: CONTENT_MIGRATIONS.length - 1, tag: head.id };
 
-test("SQLite at head reports the last tovu_migrations step, like Postgres", {
-  todo: "B1: readAppliedSchemaIdentity reads __drizzle_migrations on SQLite (read-applied-schema-identity.ts:88-95)",
-}, async () => {
+test("SQLite at head reports the last tovu_migrations step, like Postgres", async () => {
   const kernel = freshSqliteContentKernel();
   try { assert.deepEqual(await readAppliedSchemaIdentity(kernel), expectedHead); } finally { await kernel.close(); }
 });
@@ -28,6 +24,17 @@ test("PGlite at head reports the last tovu_migrations step (the reference B1 mus
   try {
     await migrateContentDatabase(kernel as StorageKernel<unknown>);
     assert.deepEqual(await readAppliedSchemaIdentity(kernel), expectedHead);
+  } finally { await kernel.close(); }
+});
+
+test("an adopted SQLite ledger never falls back to stale Drizzle history when empty or diverged", async () => {
+  const kernel = freshSqliteContentKernel();
+  try {
+    await kernel.execute(sql`UPDATE tovu_migrations SET id = '9999_newer_content_step' WHERE id = ${head.id}`);
+    assert.equal(await readAppliedSchemaIdentity(kernel), "diverged");
+    await kernel.execute(sql`DELETE FROM tovu_migrations`);
+    assert.equal(await readAppliedSchemaIdentity(kernel), "none");
+    assert.equal(typeof await readAppliedSchemaIdentity(kernel, { identity: "legacy-stamp" }), "object");
   } finally { await kernel.close(); }
 });
 

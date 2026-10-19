@@ -34,10 +34,31 @@ export interface SqliteForeignKeyViolation {
   readonly parent: string;
 }
 
+/** Exact native schema entry, including SQLite's internal indexes and original DDL bytes. */
+export interface SqliteSchemaObject {
+  type: string;
+  name: string;
+  tbl_name: string;
+  sql: string | null;
+}
+
 function requireSqlite<DB>(kernel: StorageKernel<DB>, operation: string): void {
   if (kernel.dialect !== "sqlite") {
     throw new Error(`${operation} is SQLite-only; this kernel is ${kernel.dialect}`);
   }
+}
+
+/**
+ * Read every native schema object without normalizing its SQL. Unlike readSchemaShape, this
+ * preserves internal objects and exact DDL for callers that must reject untrusted substitutions.
+ * @throws {Error} On a non-SQLite kernel or a failed catalog read. No writes.
+ * @complexity O(s log s) database ordering and O(s + DDL bytes) memory for s schema objects.
+ */
+export async function sqliteSchemaObjects<DB>(
+  { kernel }: { kernel: StorageKernel<DB> }, _options: Record<string, never> = {},
+): Promise<SqliteSchemaObject[]> {
+  requireSqlite(kernel, "sqliteSchemaObjects");
+  return kernel.query<SqliteSchemaObject>(sql`SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name`);
 }
 
 /**

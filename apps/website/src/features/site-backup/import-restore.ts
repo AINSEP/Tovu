@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
-import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
+import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { validateSharePath } from "./share-file-policy.js";
 import type { VerifiedSiteImport } from "./import-verifier.js";
@@ -67,12 +67,14 @@ export async function restoreStagedImport(required: { root: string; dir: string;
       ? file : ".import-quarantine/" + file;
     writeExclusive({ root: required.dir, relative: destination, bytes: fs.readFileSync(path.join(required.root, file)) });
   }
-  const db = openSqliteContentConnection(required.dbPath);
+  const db = openSqliteFileKernel<ContentDatabase>(required.dbPath);
   try {
-    const active = db.$client.prepare("SELECT active_theme_id FROM presentation_settings").all() as { active_theme_id: string }[];
+    const active = await db.run(query => query.selectFrom("presentation_settings").select("active_theme_id").execute());
     const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
-    for (const row of active) if (!allowedThemes.has(row.active_theme_id)) db.$client.prepare("UPDATE presentation_settings SET active_theme_id = ? WHERE active_theme_id = ?").run(fallback, row.active_theme_id);
-  } finally { closeSqliteConnection(db); }
+    for (const row of active) if (!allowedThemes.has(row.active_theme_id)) {
+      await db.run(query => query.updateTable("presentation_settings").set({ active_theme_id: fallback }).where("active_theme_id", "=", row.active_theme_id).execute());
+    }
+  } finally { await db.close(); }
 }
 
 /** Private roots plus exclusive files prevent extraction through pre-existing links or aliases. */

@@ -346,11 +346,11 @@ export interface IdentityUsersTable {
 }
 
 export interface MediaTable {
-  kind: Generated<string>;
-  original_filename: string | null;
   id: string;
   workspace_id: string;
   created_by: string | null;
+  kind: Generated<string>;
+  original_filename: string | null;
   title: string;
   slug: string | null;
   alt: string;
@@ -728,7 +728,7 @@ export interface PublishHistoryTable {
   project_name: string;
   credential_id: string | null;
   config_fields_json: string | null;
-  kind: Generated<string | null>;
+  kind: string | null;
   published_at: string;
   owner: string | null;
   repo: string | null;

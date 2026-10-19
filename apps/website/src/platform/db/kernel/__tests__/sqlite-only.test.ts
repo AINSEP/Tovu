@@ -6,7 +6,7 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "../sqlite-only.js";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo } from "../sqlite-only.js";
 
 /**
  * @file The SQLite-only kernel primitives publish's "send by hand" ships across peers: the exact
@@ -19,6 +19,21 @@ function kernelWith(ddl: string) {
   client.exec(ddl);
   return { client, kernel: sqliteKernel<unknown>(client) };
 }
+
+test("sqliteSchemaObjects keeps exact DDL, internal indexes, views and triggers in catalog order", async () => {
+  const ddl = "CREATE TABLE t (id TEXT PRIMARY KEY, note TEXT CHECK (note <> '  '))";
+  const view = "CREATE VIEW v AS SELECT id FROM t";
+  const trigger = "CREATE TRIGGER tr AFTER INSERT ON t BEGIN UPDATE t SET note = 'kept  spaces' WHERE id = new.id; END";
+  const { client, kernel } = kernelWith(`${ddl}; ${view}; ${trigger};`);
+  try {
+    assert.deepEqual(await sqliteSchemaObjects({ kernel }), [
+      { type: "index", name: "sqlite_autoindex_t_1", tbl_name: "t", sql: null },
+      { type: "table", name: "t", tbl_name: "t", sql: ddl },
+      { type: "trigger", name: "tr", tbl_name: "t", sql: trigger },
+      { type: "view", name: "v", tbl_name: "v", sql: view },
+    ]);
+  } finally { client.close(); }
+});
 
 test("sqliteTableInfo: declaration order, declared type case and the pk ORDINAL, exactly as table_info reports them", async () => {
   const { kernel } = kernelWith(`CREATE TABLE pairs (b TEXT NOT NULL, a INTEGER, note TEXT, PRIMARY KEY (a, b))`);
@@ -77,10 +92,11 @@ test("sqliteForeignKeyCheckedTransaction: deferral lets work insert a child befo
   assert.deepEqual(client.prepare("SELECT parent_id FROM child").all(), [{ parent_id: "p1" }]);
 });
 
-test("both primitives refuse a non-SQLite kernel before touching it", async () => {
+test("SQLite primitives refuse a non-SQLite kernel before touching it", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
     await assert.rejects(sqliteTableInfo({ kernel, table: "t" }), { message: "sqliteTableInfo is SQLite-only; this kernel is postgres" });
+    await assert.rejects(sqliteSchemaObjects({ kernel }), { message: "sqliteSchemaObjects is SQLite-only; this kernel is postgres" });
     await assert.rejects(
       sqliteForeignKeyCheckedTransaction({ kernel, work: async () => "never", onViolation: () => new Error("never") }),
       { message: "sqliteForeignKeyCheckedTransaction is SQLite-only; this kernel is postgres" },

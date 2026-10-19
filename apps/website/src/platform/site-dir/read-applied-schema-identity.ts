@@ -10,8 +10,9 @@ import { LEDGER_TABLE } from "../db/migrations/runner.js";
 
 /**
  * @file Shared "what has this content.db actually had applied to it" reader — the ONE
- * implementation of matching a db's latest `__drizzle_migrations` row back to this runtime's
- * bundled `db/drizzle/meta/_journal.json`, extracted 2026-09-06 so a THIRD copy is never needed.
+ * implementation of reading the content ledger, falling back to matching a legacy db's latest
+ * `__drizzle_migrations` row to the bundled journal. Extracted 2026-09-06 so a THIRD copy is never
+ * needed. The file wrapper explicitly retains the legacy identity used by site-meta stamps.
  *
  * Two call sites already needed this exact match before this file existed:
  * `server/runtime/boot/content-db-schema-guard.ts` (the non-CLI boot path's schema guard, which
@@ -54,7 +55,7 @@ function readJournal(): DrizzleJournal {
  * matches no entry in this runtime's bundled journal at all: a divergent lineage no caller of this
  * function should guess at. Otherwise the matched `{idx, tag}` pair, the db's real applied identity.
  *
- * On a Postgres/PGlite kernel the ledger is `tovu_migrations` (ADR-066), not `__drizzle_migrations`:
+ * On an adopted SQLite or Postgres/PGlite kernel the ledger is `tovu_migrations` (ADR-066):
  * `{idx, tag}` is then the ledger head's position and id in `CONTENT_MIGRATIONS`, and `"diverged"`
  * means the head is an id this runtime does not have.
  */
@@ -70,15 +71,20 @@ interface SchemaLedgers {
  * never from a `.site-meta.json` stamp (which may be missing, stale, or simply never written; see
  * `repair-site.ts`) and never a guess. Reads only.
  *
+ * @param options.identity `current` prefers the content ledger; `legacy-stamp` requests SQLite's
+ *   frozen journal identity for existing stamp consumers. Postgres always uses its content ledger.
  * @returns see {@link AppliedSchemaIdentity}.
- * @complexity O(m) in the bundled journal's entry count (currently under 60) — one bounded table
- *   lookup, one bounded ledger query, one small JSON read; not a function of any caller-controlled
+ * @complexity O(m) in bundled migration entries — bounded catalog lookups,
+ *   one bounded ledger query, at most one small JSON read; not a function of any caller-controlled
  *   collection.
  */
-export async function readAppliedSchemaIdentity<DB>(kernel: StorageKernel<DB>): Promise<AppliedSchemaIdentity> {
+export async function readAppliedSchemaIdentity<DB>(
+  kernel: StorageKernel<DB>, { identity = "current" }: { identity?: "current" | "legacy-stamp" } = {},
+): Promise<AppliedSchemaIdentity> {
   const ledgers = kernel as unknown as StorageKernel<SchemaLedgers>;
-  if (kernel.dialect === "postgres") {
-    if (!(await tableExists(kernel, LEDGER_TABLE))) return "none";
+  const hasContentLedger = await tableExists(kernel, LEDGER_TABLE);
+  if (kernel.dialect === "postgres" || (identity === "current" && hasContentLedger)) {
+    if (!hasContentLedger) return "none";
     const head = await ledgers.run((db) => db.selectFrom("tovu_migrations").select("id").orderBy("id", "desc").limit(1).executeTakeFirst());
     if (head === undefined) return "none";
     const idx = CONTENT_MIGRATIONS.findIndex((step) => step.id === head.id);
@@ -96,8 +102,10 @@ export async function readAppliedSchemaIdentity<DB>(kernel: StorageKernel<DB>): 
 }
 
 /**
- * {@link readAppliedSchemaIdentity} for the SQLite file at `dbPath`, on a read-only connection of
- * its own that is closed before returning.
+ * The SQLite file's legacy stamp identity, on a read-only connection closed before returning.
+ * Boot/repair/key-only-meta consumers compare this with runtimeSchemaVersion's frozen Drizzle
+ * journal. Keep that compatibility view explicit instead of comparing content-step indexes to
+ * journal indexes; callers needing the current content identity use readAppliedSchemaIdentity.
  *
  * @throws whatever `better-sqlite3` throws opening a malformed/locked file read-only, or if
  *   `dbPath` does not exist at all — a caller that needs a distinct "no file" outcome checks
@@ -106,7 +114,7 @@ export async function readAppliedSchemaIdentity<DB>(kernel: StorageKernel<DB>): 
 export async function readAppliedSchemaIdentityOfFile(dbPath: string): Promise<AppliedSchemaIdentity> {
   const kernel = openSqliteFileKernel(dbPath, { readOnly: true });
   try {
-    return await readAppliedSchemaIdentity(kernel);
+    return await readAppliedSchemaIdentity(kernel, { identity: "legacy-stamp" });
   } finally {
     await kernel.close();
   }

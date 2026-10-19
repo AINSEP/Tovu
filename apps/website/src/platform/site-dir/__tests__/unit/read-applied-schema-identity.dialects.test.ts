@@ -15,9 +15,8 @@ import { runtimeSchemaVersion } from "../../schema-guard.js";
 import { readAppliedSchemaIdentity, readAppliedSchemaIdentityOfFile } from "../../read-applied-schema-identity.js";
 
 /**
- * @file `readAppliedSchemaIdentity(kernel)` on both ledgers: SQLite reads `__drizzle_migrations`
- * (matched to the bundled journal), Postgres/PGlite reads the `tovu_migrations` head (matched to
- * `CONTENT_MIGRATIONS`). Temp files and in-memory instances only.
+ * @file Current identity reads `tovu_migrations` on both dialects. Pre-adoption SQLite and the
+ * file wrapper's compatibility stamp read the frozen Drizzle journal. Temp fixtures only.
  */
 
 const pg = openPgliteKernel<unknown>();
@@ -25,13 +24,14 @@ after(async () => {
   await pg.close();
 });
 
-test("sqlite: a freshly migrated content db reports this runtime's head, by kernel and by file", async () => {
+test("sqlite: current identity reports the content head; the file wrapper retains the legacy stamp", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-applied-identity-"));
   const dbPath = path.join(dir, "content.db");
   const db = openContentDb(dbPath);
   const runtime = runtimeSchemaVersion();
   try {
-    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel(db)), { idx: runtime.index, tag: runtime.tag });
+    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel(db)), { idx: CONTENT_MIGRATIONS.length - 1, tag: CONTENT_MIGRATIONS.at(-1)!.id });
+    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel(db), { identity: "legacy-stamp" }), { idx: runtime.index, tag: runtime.tag });
   } finally {
     closeSqliteConnection(db);
   }
@@ -42,6 +42,8 @@ test("sqlite: no ledger is 'none'; a latest created_at the journal lacks is 'div
   const db = openContentDb(":memory:");
   try {
     const kernel = sqliteKernel(db);
+    // Model a pre-adoption file; adopted databases deliberately ignore the frozen ledger.
+    await kernel.execute(sql`DROP TABLE tovu_migrations`);
     await kernel.execute(sql`INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('x', 9999999999999)`);
     assert.equal(await readAppliedSchemaIdentity(kernel), "diverged");
     await kernel.execute(sql`DROP TABLE __drizzle_migrations`);
@@ -56,6 +58,7 @@ test("sqlite: an existing empty ledger is none through both kernel and file read
   const dbPath = path.join(dir, "content.db");
   const db = openContentDb(dbPath);
   try {
+    db.$client.exec("DROP TABLE tovu_migrations");
     db.$client.exec("DELETE FROM __drizzle_migrations");
     assert.equal(await readAppliedSchemaIdentity(sqliteKernel(db)), "none");
     assert.equal(await readAppliedSchemaIdentityOfFile(dbPath), "none");

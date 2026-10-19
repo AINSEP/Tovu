@@ -73,8 +73,14 @@ export function createLocalCredentialCopy(required: {
     try {
       if (!(await tableExists(kernel, "secrets_vault"))) throw needsUpgrade({ source });
       // Refuse the whole source: mixing normalized and legacy rows must never become a partial upgrade.
-      const legacy = await kernel.query(sql`SELECT 1 FROM secrets_vault WHERE json_type(meta,'$.legacyAad') IS NOT NULL OR kind='custom' OR (kind='vendor' AND (json_extract(meta,'$.credentialType') IS NULL OR json_type(meta,'$.worksFor') IS NOT 'array')) LIMIT 1`);
-      if (legacy.length) throw needsUpgrade({ source });
+      // Stream metadata only: O(rows) inspection without buffering another site's whole vault.
+      await kernel.run(async db => {
+        for await (const row of db.selectFrom("secrets_vault").select(["kind", "meta"]).stream()) {
+          const meta = typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta;
+          if (Object.hasOwn(meta, "legacyAad") || row.kind === "custom" ||
+            (row.kind === "vendor" && (meta.credentialType == null || !Array.isArray(meta.worksFor)))) throw needsUpgrade({ source });
+        }
+      });
       const workspaceId = (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;
       // EMPTY source env on both inspection and derivation: the target's TOVU_SITE_KEY is irrelevant.
       const keySources = siteKeySourcesForSiteDir({ siteDir: source.dir, mode: "local", env: {}, home, cwd: source.dir });

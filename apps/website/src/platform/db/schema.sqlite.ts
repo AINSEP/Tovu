@@ -1444,7 +1444,11 @@ export const media = sqliteTable(
      */
     htmlAttributes: text("html_attributes"),
   },
-  (table) => [uniqueIndex("idx_media_workspace_slug").on(table.workspaceId, table.slug)]
+  (table) => [
+    // Mirrors the inline CHECK that 0014_media_library adds to the kind column.
+    check("media_kind_check", sql`kind IN ('media', 'document')`),
+    uniqueIndex("idx_media_workspace_slug").on(table.workspaceId, table.slug),
+  ]
 );
 
 /**
