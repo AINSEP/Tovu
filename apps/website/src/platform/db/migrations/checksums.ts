@@ -30,4 +30,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0011_drop_empty_core_commerce_tables": "047fc0b89a63c6a42a82e63d3e6d5f5065be0359a99e8740779ef794a4b0b9ad",
   "0012_secrets_vault": "8d01ea77b29f63e6dc3a0a41ee22d71f364dbeaad70083572a190382d9c20d16",
   "0013_unify_vault_credentials": "c5f2e8abb16c9cd25b505c7968e882a5ce0c2ff5165a5f16777b1b920bd18ab9",
+  "0014_media_library": "579fe4c08722557d03a91faf7126d4215f43dd0c4fb892e4d4817dc5a3e5af11",
 };

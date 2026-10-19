@@ -8,7 +8,7 @@ import { contentHash } from "../content-hash.js";
 import { createRawFileSitePort } from "#src/platform/site-dir/publish-backstop-file";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import { createFileBlobIndex } from "../file-blob-index.js";
-import { InMemoryBlobStore } from "#src/features/media/index";
+import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
@@ -22,7 +22,9 @@ async function fixture(t: test.TestContext) {
   let id = 0;
   const deps: PublishContentDeps = { workspaceId: "ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
     idGen: { newId: () => `id-${++id}` }, changeSets: new InMemoryChangeSetRepo([], [], outbox), outbox,
-    authorize: async () => ({ allowed: true, reason: "test" }), ports: {},
+    authorize: async () => ({ allowed: true, reason: "test" }), ports: { media: {
+      repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
+    } },
     backstop: { files, blobs, fileBlobIndex: createFileBlobIndex(), fileRollbacks: [], coveredTables: [], coveredRoots: ["themes"], selection: { files: ["snippets/footer.html"] } } };
   const handler = contributeRawFilePublish().build(deps);
   const pack = async () => { const entities: PackedEntity[] = []; for await (const entity of handler.pack()) entities.push(entity); return entities; };

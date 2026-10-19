@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { executeCommand } from "@jini-ai/cms/core";
-import { computeBlobStorageKey } from "#src/features/media/index";
+import { computeBlobStorageKey, isDocumentOnlyBlob } from "#src/features/media/index";
 import { checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import { normalizeMode } from "./file-tree-policy.js";
 import type { RawFileInverse, RawFileSnapshot } from "./backstop-ports.js";
@@ -28,6 +28,13 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     }
     async function blob(entity: PackedEntity): Promise<Uint8Array | null> {
       if (!deps.backstop?.blobs) return null;
+      const media = deps.ports.media;
+      // A forged file entity must not turn private or purged Library bytes into a public file.
+      // Missing policy dependencies fail closed rather than allowing an unguarded store read.
+      if (!media || await isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
+        input: { workspaceId: deps.workspaceId, sha256: entity.state.sha256 as string } })) {
+        throw new PublishContentApplyRowError("blocked", "Library documents cannot be published");
+      }
       const storageKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256: entity.state.sha256 as string });
       return await deps.backstop.blobs.exists({ storageKey }) ? deps.backstop.blobs.get({ storageKey }) : null;
     }
@@ -81,13 +88,17 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
         try { file = await files.read({ relPath }); } catch { return null; }
         return file ? { hash: hash(relPath, file), hashVersion: CONTENT_HASH_VERSION, version: version(relPath, file) } : null;
       },
-      precheck: (entity) => check(entity),
+      precheck: async (entity) => {
+        try { return await check(entity); }
+        catch (error) {
+          if (error instanceof PublishContentApplyRowError) return error.message;
+          throw error;
+        }
+      },
       apply: async (input) => {
         const reason = await check(input.entity);
         if (reason) throw new PublishContentApplyRowError("blocked", reason);
         if (!files || !deps.changeSets || !deps.outbox || !deps.authorize) throw new Error("The raw file command gateway is not wired.");
-        const bytes = await blob(input.entity);
-        if (!bytes || sha(bytes) !== input.entity.state.sha256) throw new Error("The raw file bytes changed before apply.");
         let prior: RawFileInverse | undefined;
         let priorVersion: number | undefined;
         let written = false;
@@ -108,6 +119,9 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
               const current = await files.read({ relPath: input.entity.id });
               const currentVersion = current ? version(input.entity.id, current) : undefined;
               if (priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion) throw new PublishContentApplyRowError("conflict", "This file changed on live after it was checked.");
+              // Re-read through the shared isolation guard after authorization, immediately before writing.
+              const bytes = await blob(input.entity);
+              if (!bytes || sha(bytes) !== input.entity.state.sha256) throw new Error("The raw file bytes changed before apply.");
               await files.replace({ relPath: input.entity.id, bytes, mode: input.entity.state.mode as number });
               written = true;
               return { version: Number.parseInt(input.entity.contentHash.slice(0, 12), 16) };

@@ -89,6 +89,7 @@ function media(id: string, sha256: string) {
 
 test("media projection preserves metadata and uses the supplied content type and public URL", () => {
   assert.deepEqual(toAdminMediaResponse({ media: media("asset-9", "blob-sha-3"), contentType: "video/mp4", publicUrl: "/m/launch-clip", byteSize: 13 }), {
+    kind: "media", originalFilename: null, displayFilename: "Launch clip",
     id: "asset-9", workspaceId: "ws-7", title: "Launch clip", slug: "launch-clip", alt: "Launch", caption: "Day one", credit: "Studio",
     createdBy: null, byteSize: 13, sha256: "blob-sha-3", status: "active", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z",
     version: 8, width: 854, height: 480, cssClass: "hero-video", htmlAttributes: 'loading="lazy"', contentType: "video/mp4", publicUrl: "/m/launch-clip",

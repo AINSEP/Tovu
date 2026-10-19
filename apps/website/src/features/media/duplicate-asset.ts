@@ -184,6 +184,7 @@ export async function duplicateMediaAsset(
     input: { workspaceId: routeDeps.workspaceId, idOrSlug: input.id },
   });
   if (!source) throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' was not found` });
+  if (source.kind === "document") throw new ToolInputError({ message: "Library document duplication is unavailable" });
   if (source.status === "trashed") {
     throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' is in the trash and was not copied — a copy would be ` +
         "a live entry for content you already deleted. Restore it first if you meant to copy it." });

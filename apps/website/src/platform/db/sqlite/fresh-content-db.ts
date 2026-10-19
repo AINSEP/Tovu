@@ -1,3 +1,4 @@
+import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
 import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.js";
 import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
@@ -128,6 +129,10 @@ export function bootstrapFreshContentDb(
     },
     "0013_unify_vault_credentials": () => {
       // Data-only conversion: the fresh chain seeds no credential rows and needs no new DDL.
+    },
+    "0014_media_library": () => {
+      // Share fixed DDL with the new TS step; this fresh constructor never upgrades a live site.
+      for (const statement of MEDIA_LIBRARY_STATEMENTS) client.exec(statement);
     },
   };
   if (migrations.length !== Object.keys(operations).length ||

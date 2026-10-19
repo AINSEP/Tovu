@@ -3,6 +3,18 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** media registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "library_list": {
+    search: { keywords: "library documents document files markdown txt pdf docx csv json saved uploads earlier chat" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "library_read": {
+    search: { keywords: "library document read open source text markdown txt csv json saved file next page" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "library_save_attachment": {
+    search: { keywords: "library document save attachment attached file persist keep permanent markdown pdf docx" },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "chat_list_pending_attachments": {
     approval: { class: 'read', confirmation: 'direct' },
   },

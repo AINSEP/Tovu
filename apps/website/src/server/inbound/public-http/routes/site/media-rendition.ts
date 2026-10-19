@@ -428,6 +428,8 @@ async function resolveMediaAccessDecision(
   assetId: string
 ): Promise<{ gated: boolean; allowed: boolean; record: MediaRecord | null }> {
   const { aliases, media } = await resolveAssetAliases(deps, assetId);
+  // Documents are private even when their id/slug is guessed or embedded in published content.
+  if (media?.kind === "document") return { gated: true, allowed: false, record: media };
   const { referencing, opaqueGated } = await scanEntriesForAsset(deps, aliases);
   if (referencing.some((entry) => !isGatedEntry(entry))) {
     return { gated: false, allowed: true, record: media };

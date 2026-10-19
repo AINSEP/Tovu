@@ -61,6 +61,6 @@ test("0012 activation appends the final checksum after 0011 without replacing hi
 });
 
 test("0013 activation pins the data-only conversion after the historical vault step", () => {
-  assert.deepEqual(CONTENT_MIGRATIONS.slice(-2).map(step => step.id), ["0012_secrets_vault", "0013_unify_vault_credentials"]);
+  assert.deepEqual(CONTENT_MIGRATIONS.filter(step => step.id <= "0013_unify_vault_credentials").slice(-2).map(step => step.id), ["0012_secrets_vault", "0013_unify_vault_credentials"]);
   assert.equal(MIGRATION_CHECKSUMS["0013_unify_vault_credentials"], sourceChecksum("0013_unify_vault_credentials"));
 });

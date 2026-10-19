@@ -1,3 +1,4 @@
+import { isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
@@ -91,6 +92,12 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
       )
         return;
 
+      // A peer's publish grant is not a Library read grant. A known document-only hash must
+      // not bypass typed export's exclusion, even after purge; live media owners still travel.
+      if (await isDocumentOnlyBlob({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo }, input: { workspaceId: deps.workspaceId, sha256 } })) {
+        res.status(404).set("Cache-Control", "private, no-store").json({ error: "blob was not found", code: "BLOB_NOT_FOUND" });
+        return;
+      }
       const storageKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 });
       // S18 (S-F3) — checks the blob store first, falling back to `RouteDeps.fileBlobIndex` (a
       // file-tree type's `pack()` fill) for a blob that was never copied into the blob store. See

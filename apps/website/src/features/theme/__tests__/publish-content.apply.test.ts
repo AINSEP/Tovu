@@ -17,7 +17,7 @@ import test, { afterEach } from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryBlobStore } from "#src/features/media/index";
+import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
@@ -122,7 +122,7 @@ async function makeFixture(options: { sourceFiles?: Record<string, string>; dest
     ports: {
       // `blobStore` lives on `ports.media` — theme's own port has no store of its own; see
       // `theme/publish-content.ts`'s comment above `buildHandler`.
-      media: { repo: undefined as never, assetBlobRepo: undefined as never, blobStore, contentTypeStore: undefined as never },
+      media: { repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
       "theme-files": { themesDir: destThemes },
     },
   };

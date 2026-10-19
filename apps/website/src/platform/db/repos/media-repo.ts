@@ -49,6 +49,8 @@ function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | nul
     // selectAll works on both schemas; absence/NULL is honest legacy unknown attribution.
     ...(row.created_by != null ? { createdBy: row.created_by } : {}),
     workspaceId: row.workspace_id,
+    kind: row.kind === "document" ? "document" : "media",
+    originalFilename: row.original_filename ?? null,
     title: row.title,
     // `row.slug` is nullable in the DB (see `schema.sqlite.ts`'s doc: backfilled out of band, not on
     // write) but `MediaRecord.slug` is non-nullable in the domain model — every row this repo
@@ -79,7 +81,7 @@ function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | nul
  *
  * @complexity O(1) — a fixed field-by-field copy, no iteration.
  */
-function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by"> {
+function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by" | "kind" | "original_filename"> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -163,14 +165,16 @@ function slugLockKey(workspaceId: UUID): string {
 export class SqlMediaRepo implements VersionedMediaRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
 
-  /** Only creation writes can stamp provenance. Use the existing dialect port to inspect the
+  /** Only creation writes stamp provenance, privacy kind and original filename. Metadata/Trash
+   * updates omit those columns so stale drafts cannot publicize a document or rename its source.
+   * Use the existing dialect port to inspect the
    * optional column before INSERT, avoiding a failed statement that would abort a PG transaction.
    * Do not cache absence: the owner can install the staged migration while this repo is alive. */
   private async creationValues(required: { record: MediaRecord }, _optional: Record<string, never> = {}):
-    Promise<Omit<MediaTable, "created_by"> & { created_by?: string | null }> {
+    Promise<Omit<MediaTable, "created_by" | "kind" | "original_filename"> & { created_by?: string | null; kind: string; original_filename: string | null }> {
     const { record } = required;
     const columns = await listColumns(this.kernel, "media");
-    return { ...toMediaRow(record), ...(columns.some(column => column.name === "created_by")
+    return { ...toMediaRow(record), kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
       ? { created_by: record.createdBy ?? null } : {}) };
   }
 

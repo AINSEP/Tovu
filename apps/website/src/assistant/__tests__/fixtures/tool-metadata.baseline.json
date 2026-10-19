@@ -7,6 +7,10 @@
     }
   },
   "keywords": {
+    "library_list": "library documents document files markdown txt pdf docx csv json saved uploads earlier chat",
+    "library_read": "library document read open source text markdown txt csv json saved file next page",
+    "library_save_attachment": "library document save attachment attached file persist keep permanent markdown pdf docx",
+
     "media_replace_file": "replace swap change image photo picture file bytes existing media in place same id slug version url local",
     "assistant_chats_list": "previous earlier interrupted chat conversation history search resume continue what we were doing",
     "assistant_chat_read": "read previous chat transcript history tail messages resume interrupted continue conversation",
@@ -1790,6 +1794,23 @@
     ]
   },
   "approvals": {
+    "load_agent_plugin": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "library_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "library_read": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "library_save_attachment": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+
     "media_replace_file": {
       "class": "edit",
       "confirmation": "direct"

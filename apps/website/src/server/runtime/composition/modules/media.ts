@@ -1,6 +1,7 @@
 import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";
 import { registerAdminMediaDeleteRoute } from "#src/server/inbound/admin-http/routes/media/delete";
 import { registerAdminMediaGetProvidersRoute } from "#src/server/inbound/admin-http/routes/media/get-providers";
+import { registerAdminMediaTextRoute } from "#src/server/inbound/admin-http/routes/media/text";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
 import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
 import { registerAdminMediaPutProvidersRoute } from "#src/server/inbound/admin-http/routes/media/put-providers";
@@ -68,6 +69,7 @@ export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps 
       registerAdminMediaTrashRoute(app, deps);
       registerAdminMediaDeleteRoute(app, deps);
       registerAdminMediaOriginalRoute(app, deps);
+      registerAdminMediaTextRoute({ app, deps });
       registerMediaRenditionRoute(app, deps);
       registerMediaOriginalVideoRoute(app, deps);
       registerAdminMediaGetProvidersRoute(app, deps);

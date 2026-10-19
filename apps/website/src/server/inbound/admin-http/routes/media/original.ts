@@ -1,3 +1,4 @@
+import { documentContentType, documentDisplayFilename, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import type { Response } from "express";
 
 import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
@@ -217,7 +218,22 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
       }
       const { blob } = resolved;
 
+      if (resolved.media.kind === "document") {
+        const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });
+        if (size != null && size > MAX_DOCUMENT_BYTES) throw new Error("document exceeds size limit");
+      }
       const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+      if (resolved.media.kind === "document") {
+        if (sourceBytes.byteLength > MAX_DOCUMENT_BYTES) throw new Error("document exceeds size limit");
+        const filename = documentDisplayFilename(resolved.media);
+        // RFC 5987 encoding keeps titles out of header syntax; storage keys never use names.
+        const encoded = encodeURIComponent(Buffer.from(filename).toString("utf8")).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+        res.set("Content-Disposition", `attachment; filename="document"; filename*=UTF-8''${encoded}`);
+        sendMediaOriginalResponse(res, sourceBytes, parseRangeHeader({ header: req.get("range"), totalLength: sourceBytes.byteLength }), {
+          safe: documentContentType({ filename: resolved.media.originalFilename ?? "" }), forceDownload: false,
+        });
+        return;
+      }
       const sniffed = sniffContentType({ bytes: sourceBytes });
       // Old blobs may predate ingest sanitization; never authorize raw markup from its label.
       const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;

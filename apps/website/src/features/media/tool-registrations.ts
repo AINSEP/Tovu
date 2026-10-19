@@ -79,7 +79,7 @@ export async function resolveMediaPublicUrls(
 
   const active: MediaRecord[] = [];
   for (const asset of assets) {
-    if (asset.status === "trashed") result.set(asset.id, null);
+    if (asset.kind === "document" || asset.status === "trashed") result.set(asset.id, null);
     else active.push(asset);
   }
   if (active.length === 0) return result;

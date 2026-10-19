@@ -5,7 +5,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
 import { importMediaEntity } from "./import-media-entity.js";
-import { computeBlobStorageKey, sniffContentType } from "./index.js";
+import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "./verify-published-media.js";
 
@@ -90,6 +90,8 @@ export class MediaApplyConflictError extends PublishContentApplyRowError {
  *  The dispositions document intent only: the hash is `legacyHashState`'s. */
 const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
   id: "provenance",
+  kind: "local",
+  originalFilename: "local",
   createdBy: "provenance",
   workspaceId: "provenance",
   title: "transferred",
@@ -112,17 +114,21 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
 export const contributeMediaPublish = (): PublishContentContributor =>
   createRepoPublishHandler<MediaRecord, PublishContentPorts["media"]>({
     entityType: "media",
-    coversTables: ["media", "asset_blobs"],
+    // Operational sidecars are also media-owned; raw-row fallback must not export a private
+    // document's slug history or original-rendition storage key after typed pack excluded it.
+    coversTables: ["media", "asset_blobs", "asset_renditions", "media_slug_history"],
     // The same permission `post`/`page` declare; media has no write permission of its own.
     permission: "content.write",
     ports: (deps) => deps.ports.media,
+    // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
+    include: row => row.kind !== "document",
     list: (p, workspaceId) => p.repo.list({ workspaceId }),
     find: (p, workspaceId, id) => p.repo.findById({ workspaceId, id }),
     fields: MEDIA_FIELDS,
     // Packed exactly as the row holds it: an absent field stays absent rather than becoming `null`.
     omitWhenAbsent: Object.keys(MEDIA_FIELDS),
     legacyHashState: (row) => {
-      const { createdBy: _creator, ...legacyState } = row;
+      const { createdBy: _creator, kind: _kind, originalFilename: _filename, ...legacyState } = row;
       return legacyState;
     },
     requiredBlobs: (row) => [row.source.sha256],
@@ -136,7 +142,10 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
     // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
     // media is the one type whose entity IS its blob.
-    validate: async ({ ports, workspaceId, entity }) => {
+    validate: async ({ ports, workspaceId, entity, existing }) => {
+      if ((entity.state.kind !== undefined && entity.state.kind !== "media") || existing?.kind === "document") return "Library documents cannot be published";
+      const source = entity.state.source as { sha256?: string } | undefined;
+      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return "Library documents cannot be published";
       for (const sha256 of entity.requiredBlobs) {
         if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
           return `required blob '${sha256}' is not available on this destination`;
@@ -144,9 +153,17 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       }
       return null;
     },
-    write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
+    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId }) => {
+      // Apply is a second trust boundary: a forged bundle or a destination changed after precheck
+      // must not bypass Library isolation. Refuse before fetching any source bytes.
+      if ((state.kind !== undefined && state.kind !== "media") || existing?.kind === "document") {
+        throw new MediaApplyBlockedError("blocked:precondition", "Library documents cannot be published");
+      }
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
+      if (await isDocumentOnlyBlob({ deps: { mediaRepo, blobRepo: assetBlobRepo }, input: { workspaceId, sha256: record.source?.sha256 ?? "" } })) {
+        throw new MediaApplyBlockedError("blocked:precondition", "Library documents cannot be published");
+      }
       const storageKey = computeBlobStorageKey({ workspaceId, sha256: record.source?.sha256 ?? "" });
       // `null` carries a missing staged object into `importMediaEntity`, which owns that refusal.
       const bytes = (await blobStore.exists({ storageKey })) ? await blobStore.get({ storageKey }) : null;

@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { executeCommand } from "@jini-ai/cms/core";
 
-import { computeBlobStorageKey, type BlobStorePort } from "#src/features/media/index";
+import { computeBlobStorageKey, isDocumentOnlyBlob } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import {
@@ -453,8 +453,18 @@ function readIncomingFiles(entity: PackedEntity): { files: readonly IncomingThem
 }
 
 /** Reads one staged blob, or `null` when this destination never received it.
- *  @complexity O(blob size). */
-async function readBlob(blobStore: BlobStorePort, workspaceId: string, sha256: string): Promise<Uint8Array | null> {
+ * Ownership is rechecked on each read because it can change after precheck.
+ * @complexity O(workspace media rows + blob bytes), plus one indexed asset lookup. */
+async function readBlob({ deps, sha256 }: { deps: PublishContentDeps; sha256: string },
+  _optional: Record<string, never> = {}): Promise<Uint8Array | null> {
+  const media = deps.ports.media;
+  // All readers share media's policy, including the authoritative read just before staging.
+  if (!media || await isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
+    input: { workspaceId: deps.workspaceId, sha256 } })) {
+    throw new PublishContentApplyRowError("blocked", "Library documents cannot be published");
+  }
+  const { blobStore } = media;
+  const workspaceId = deps.workspaceId;
   const storageKey = computeBlobStorageKey({ workspaceId, sha256 });
   if (!(await blobStore.exists({ storageKey }))) return null;
   return blobStore.get({ storageKey });
@@ -567,13 +577,17 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
     // Reuses `ports.media`'s blob store — the SAME ADR-027 instance a composition root threads to
     // both (see this function's own header comment above `buildHandler`). `theme-files` has no blob
-    // store of its own; a caller with `themesDir` wired but no `media` port simply skips this scan.
+    // store of its own; media's ownership policy must be wired before any bytes can be read.
     const blobStore = deps.ports.media?.blobStore;
     const policyInputs: FileTreeFileInput[] = [];
     for (const file of incoming.files) {
+      const media = deps.ports.media;
+      // Check even files too large for the secret scan, before staging creates any files.
+      if (!media || await isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
+        input: { workspaceId: deps.workspaceId, sha256: file.sha256 } })) return "Library documents cannot be published";
       let textSample: string | undefined;
       if (blobStore && file.size <= MAX_SECRET_SCAN_BYTES && checkTreePath(file.path) === null) {
-        const bytes = await readBlob(blobStore, deps.workspaceId, file.sha256);
+        const bytes = await readBlob({ deps, sha256: file.sha256 });
         if (bytes && bytes.length <= MAX_SECRET_SCAN_BYTES) textSample = Buffer.from(bytes).toString("utf8");
       }
       policyInputs.push({ path: file.path, size: file.size, mode: file.mode, textSample });
@@ -629,7 +643,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       await rm(stagingDir, { recursive: true, force: true }); // a crashed earlier attempt under this same key.
       await mkdir(stagingDir);
       for (const file of files) {
-        const bytes = await readBlob(blobStore!, deps.workspaceId, file.sha256);
+        const bytes = await readBlob({ deps, sha256: file.sha256 });
         if (!bytes) blocked(`${title} was not published: the bytes for "${file.path}" never reached this site`);
         if (sha256Of(bytes!) !== file.sha256) blocked(`${title} was not published: the bytes for "${file.path}" do not match their checksum`);
         const abs = path.join(stagingDir, ...file.path.split("/"));

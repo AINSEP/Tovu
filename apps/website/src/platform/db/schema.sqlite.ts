@@ -1394,6 +1394,9 @@ export const media = sqliteTable(
     workspaceId: text("workspace_id").notNull(),
     /** Creation principal, write-once; legacy NULL stays unknown. Never inferred from credit/blob. */
     createdBy: text("created_by"),
+    /** Private Library documents share the media lifecycle, never public serving. */
+    kind: text("kind").notNull().default("media"),
+    originalFilename: text("original_filename"),
     title: text("title").notNull(),
     /**
      * Human-memorable lookup key (owner-directed, 2026-09-07) — ADDITIONAL to `id`, never a

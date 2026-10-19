@@ -1,3 +1,4 @@
+import { documentDisplayFilename, documentContentType } from "@jini-ai/cms/media";
 import type { MediaRecord } from "#src/features/media/index";
 
 /**
@@ -13,6 +14,9 @@ import type { MediaRecord } from "#src/features/media/index";
 
 export interface AdminMediaResponse {
   id: string;
+  kind: "media" | "document";
+  originalFilename: string | null;
+  displayFilename: string;
   /** Stable creation principal ID; NULL means unknown legacy/pre-migration attribution. */
   createdBy: string | null;
   workspaceId: string;
@@ -89,6 +93,9 @@ export function toAdminMediaResponse(
 ): AdminMediaResponse {
   return {
     id: media.id,
+    kind: media.kind ?? "media",
+    originalFilename: media.originalFilename ?? null,
+    displayFilename: media.kind === "document" ? documentDisplayFilename(media) : media.title,
     createdBy: media.createdBy ?? null,
     workspaceId: media.workspaceId,
     title: media.title,
@@ -106,8 +113,8 @@ export function toAdminMediaResponse(
     height: media.height,
     cssClass: media.cssClass,
     htmlAttributes: media.htmlAttributes,
-    contentType,
-    publicUrl,
+    contentType: media.kind === "document" ? documentContentType({ filename: media.originalFilename ?? "" }) : contentType,
+    publicUrl: media.kind === "document" ? null : publicUrl,
   };
 }
 

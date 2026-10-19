@@ -17,6 +17,9 @@ export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
       return;
     }
 
+    const kind = req.query.kind ?? "media";
+    if (kind !== "media" && kind !== "document") { res.status(400).json({ error: "invalid media kind" }); return; }
+    if (kind === "document") res.set("Cache-Control", "private, no-store");
     try {
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
@@ -36,14 +39,15 @@ export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
 
       const { media } = await listMedia({
         deps: { mediaRepo: deps.mediaRepo },
-        input: { workspaceId: deps.workspaceId },
+        input: { workspaceId: deps.workspaceId, kind },
       });
+      const visible = kind === "document" ? media.filter(row => row.status === "active") : media;
       const [contentTypes, publicUrls, byteSizes] = await Promise.all([
-        resolveContentTypes(deps, media),
-        resolveMediaPublicUrls(deps, media),
-        resolveMediaByteSizes({ deps, media }),
+        resolveContentTypes(deps, visible),
+        resolveMediaPublicUrls(deps, visible),
+        resolveMediaByteSizes({ deps, media: visible }),
       ]);
-      res.json(toAdminMediaListResponse({ media, contentTypesBySha256: contentTypes, publicUrlsById: publicUrls, byteSizesBySha256: byteSizes }));
+      res.json(toAdminMediaListResponse({ media: visible, contentTypesBySha256: contentTypes, publicUrlsById: publicUrls, byteSizesBySha256: byteSizes }));
     } catch {
       res.status(500).json({ error: "internal error" });
     }

@@ -49,6 +49,8 @@ const WORKSPACE_ID = "workspace-1";
 
 function makeMedia(overrides: Partial<MediaRecord> = {}): MediaRecord {
   return {
+    kind: "media",
+    originalFilename: null,
     id: "media-1",
     workspaceId: WORKSPACE_ID,
     title: "A photo",

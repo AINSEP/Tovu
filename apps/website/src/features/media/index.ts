@@ -143,3 +143,6 @@ export { resolveUploadContentType, assertAllowedSniffedContentType } from "./upl
 export { mediaUrlKey, mediaPublicPath, type MediaUrlKeySource, type MediaPublicPathVariant } from "./public-path.js";
 
 export { purgeMedia } from "./purge-media.js";
+
+export { MAX_DOCUMENT_BYTES, DOCUMENT_CONTENT_TYPES, documentContentType, validateDocumentIngress, decodeDocumentUtf8, documentDisplayFilename, DOCUMENT_TEXT_PAGE_BYTES, readDocumentText, isDocumentOnlyBlob } from "@jini-ai/cms/media";
+export type { MediaKind, DocumentArchiveReaderPort } from "@jini-ai/cms/media";

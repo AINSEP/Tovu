@@ -1,3 +1,5 @@
+import { MAX_DOCUMENT_BYTES, documentContentType, type MediaKind } from "@jini-ai/cms/media";
+import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { Request, Response } from "express";
 
 import { MediaConflictError, MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
@@ -21,6 +23,7 @@ import { resolveMediaByteSizes } from "./byte-size.js";
  *  a possibly-non-empty existing value.
  *  @complexity O(1). */
 function parseUploadRequestFields(rawBody: unknown): {
+  kind: MediaKind;
   filename: string;
   contentType: string;
   dataBase64: string;
@@ -29,13 +32,16 @@ function parseUploadRequestFields(rawBody: unknown): {
   credit: string | undefined;
 } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  const filename = String(body.filename ?? "");
+  const kind = body.kind ?? "media";
+  if (kind !== "media" && kind !== "document") throw new MediaValidationError({ message: "invalid media kind" });
+  const filename = typeof body.filename === "string" ? body.filename : "";
   const contentType = String(body.contentType ?? "");
   const dataBase64 = body.dataBase64;
-  if (!filename || !contentType || typeof dataBase64 !== "string" || !dataBase64) {
+  if (!filename || (kind === "media" && !contentType) || typeof dataBase64 !== "string" || !dataBase64) {
     return null;
   }
   return {
+    kind,
     filename,
     contentType,
     dataBase64,
@@ -106,13 +112,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
 
     const fields = parseUploadRequestFieldsOrRespond(req, res);
     if (!fields) return;
-    const { filename, contentType, dataBase64, alt, caption, credit } = fields;
-
-    const bytes = decodeUploadBytes(dataBase64);
-    if (!bytes) {
-      res.status(400).json({ error: "dataBase64 is not valid base64" });
-      return;
-    }
+    const { kind, filename, contentType, dataBase64, alt, caption, credit } = fields;
 
     try {
       // Inside the try: requireAdminSession always sets res.locals.principal before this
@@ -134,9 +134,16 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         return;
       }
 
+      // Refuse document base64 inflation before allocation, then let the shared ingress owner
+      // check actual bytes. Authorization precedes decoding, archive work, and storage I/O.
+      if (kind === "document" && dataBase64.length > 4 * Math.ceil(MAX_DOCUMENT_BYTES / 3)) {
+        throw new MediaValidationError({ message: "document exceeds the 10 MiB limit" });
+      }
+      const bytes = decodeUploadBytes(dataBase64);
+      if (!bytes) { res.status(400).json({ error: "dataBase64 is not valid base64" }); return; }
       // Trust sniffed bytes rather than the client label. HTML/unknown bytes are rejected;
       // uploadMedia sanitizes accepted SVG before hashing/storage.
-      const verifiedContentType = resolveUploadContentType({ bytes, declaredContentType: contentType });
+      const verifiedContentType = kind === "document" ? documentContentType({ filename }) : resolveUploadContentType({ bytes, declaredContentType: contentType });
 
       const { media } = await uploadMedia({
         deps: {
@@ -146,9 +153,11 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
           blobRepo: deps.assetBlobRepo,
           renditionRepo: deps.assetRenditionRepo,
           blobStore: deps.blobStore,
+          documentArchiveReader: createDocumentArchiveReader({}),
         },
         input: {
           workspaceId: deps.workspaceId,
+          kind,
           bytes,
           filename,
           contentType: verifiedContentType,
@@ -159,10 +168,11 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         },
       }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
+      // Only media uses the per-blob sniff cache; document type is its validated filename policy.
       // Record the sniffed type so the admin's type filter agrees with what `original.ts` serves
       // (it never trusts the upload-time string either). Written AFTER `uploadMedia` because the
       // blob row it updates is created there.
-      await deps.mediaContentTypeStore.set({
+      if (kind === "media") await deps.mediaContentTypeStore.set({
         workspaceId: deps.workspaceId,
         sha256: media.source.sha256,
         contentType: verifiedContentType,

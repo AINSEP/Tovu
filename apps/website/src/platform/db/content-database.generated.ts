@@ -345,6 +345,8 @@ export interface IdentityUsersTable {
 }
 
 export interface MediaTable {
+  kind: Generated<string>;
+  original_filename: string | null;
   id: string;
   workspace_id: string;
   created_by: string | null;

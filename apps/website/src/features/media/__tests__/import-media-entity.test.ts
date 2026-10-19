@@ -330,7 +330,8 @@ test("importMediaEntity translates a slug acquired during the write window into 
   const result = await importMediaEntity({ deps, input: { workspaceId: WORKSPACE_ID, record: incoming, bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer", baseVersion: null } });
   assert.deepEqual(result, { status: "blocked", code: "slug-taken", reason: "slug 'racing-slug' is already held by a different media ('racing-holder')" });
   assert.equal(await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: incoming.id }), null);
-  assert.deepEqual(await mediaRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: incoming.slug }), holder);
+  // The SQLite adapter materializes the Library columns' legacy defaults on read.
+  assert.deepEqual(await mediaRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: incoming.slug }), { ...holder, kind: "media", originalFilename: null });
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 });
   assert.ok(blob, "append-only blobs written before the slug race remain reclaimable");
   assert.deepEqual(await deps.blobStore.get({ storageKey: blob.storageKey }), HELLO_BYTES);

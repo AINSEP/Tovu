@@ -335,6 +335,9 @@ export const media = pgTable("media", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
   createdBy: text("created_by"),
+    /** Private Library documents share the media lifecycle, never public serving. */
+    kind: text("kind").notNull().default("media"),
+    originalFilename: text("original_filename"),
   title: text("title").notNull(),
   slug: text("slug"),
   alt: text("alt").notNull(),
@@ -351,6 +354,8 @@ export const media = pgTable("media", {
   htmlAttributes: text("html_attributes"),
 }, (t) => [
     uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),
+    // Mirrors the inline CHECK that 0014_media_library adds to the kind column.
+    check("media_kind_check", sql`kind IN ('media', 'document')`),
   ]);
 
 export const mediaSlugHistory = pgTable("media_slug_history", {

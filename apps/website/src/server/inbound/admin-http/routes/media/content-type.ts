@@ -45,7 +45,9 @@ export async function resolveContentTypes(
   deps: ContentTypeDeps,
   media: readonly MediaRecord[]
 ): Promise<Map<string, string>> {
-  const sha256s = [...new Set(media.map((item) => item.source.sha256))];
+  // Document type is a validated filename policy, not a per-blob sniff cache: identical text
+  // bytes can legitimately be saved as .md and .txt. Listing must never download those bytes.
+  const sha256s = [...new Set(media.filter(item => item.kind !== "document").map((item) => item.source.sha256))];
   const recorded = await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s });
 
   for (const sha256 of sha256s) {
