@@ -1,0 +1,60 @@
+/**
+ * `/admin/sites?tab=export` — the "Publish" button under Sites settings and its panel of past
+ * destinations (`features/sites/SitePublishButton.tsx`). Tokens only; text sizes and colours match
+ * the Export tab's own copy (`.onboarding-section-lead`, `.site-transfer-*`).
+ */
+
+/* Right-aligned and pulled up to sit directly under the Sites settings button (`.page`'s column
+   gap would otherwise leave a full section gap between the two). */
+.site-publish {
+  position: relative; display: flex; flex-direction: column; align-items: flex-end;
+  margin-top: calc(var(--space-2) - var(--space-6));
+}
+.site-publish-button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 37px; padding: 0 0.8rem; }
+.site-publish-button svg { color: var(--muted); }
+
+.site-publish-panel {
+  position: absolute; top: calc(100% + var(--space-2)); right: 0; z-index: 20;
+  width: min(30rem, calc(100vw - 2rem)); max-height: min(28rem, 70vh); overflow-y: auto; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4);
+  border: 1px solid var(--border-strong); border-radius: var(--r-lg);
+  background: var(--tovu-admin-elevated-bg); color: var(--fg); box-shadow: var(--tovu-admin-elevated-shadow);
+}
+.site-publish-title { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--fg); }
+.site-publish-note { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.site-publish-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.site-publish-empty > a.btn-secondary { display: inline-flex; align-items: center; min-height: 37px; text-decoration: none; }
+
+.site-publish-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.site-publish-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0; border-top: 1px solid var(--border);
+}
+.site-publish-row:first-child { border-top: none; padding-top: 0; }
+.site-publish-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.site-publish-row-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.site-publish-label { font-size: var(--text-sm); font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+.site-publish-url {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 0.78rem; color: var(--fg-2);
+}
+.site-publish-when { font-size: var(--text-xs); color: var(--muted); }
+.site-publish-pending { align-self: flex-start; margin-top: 2px; }
+.site-publish-action { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+
+/* Progress and result run the full row width under the destination. */
+.site-publish-result { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
+.site-publish-result p { margin: 0; }
+.site-publish-skipped { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--muted); }
+.site-publish-review { padding: 0 var(--space-2); min-height: 28px; font-size: var(--text-xs); }
+
+/* Narrow panes: the panel opens in the page flow at full width instead of floating over it. */
+@container admin-content (max-width: 36rem) {
+  .site-publish { align-items: stretch; }
+  .site-publish-button { align-self: flex-end; }
+  .site-publish-panel { position: static; width: 100%; max-height: none; margin-top: var(--space-2); }
+}
+
+@media (pointer: coarse) {
+  .site-publish button, .site-publish a.btn-secondary { min-height: 44px; }
+}

@@ -1,6 +1,7 @@
 import { SiteTrashTab } from "./SiteTrashTab";
 import { SiteExportTab } from "./SiteExportTab";
 import { SiteImportTab } from "./SiteImportTab";
+import { SitePublishButton } from "./SitePublishButton";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -317,6 +318,13 @@ function sitesTabsRow(tabBar: ReactNode, snapshot: AdminSitesSnapshot, t: Transl
   return <SitesHomeSetting home={snapshot.sitesHome} tabs={tabBar} t={t} />;
 }
 
+/** Owner 2026-10-18: the Publish button shows on the Export tab only, right under Sites settings.
+ *  A function rather than a ternary in `Sites`'s JSX, for the same complexity-gate reason
+ *  {@link sitesTabPanel} documents. */
+function exportPublishButton(tab: SitesTabId, t: Translate) {
+  return tab === "export" ? <SitePublishButton t={t} /> : null;
+}
+
 /** `replace: true` so moving between the two tabs does not grow the back stack one entry per click
  *  — the same call `Themes.tsx`/`Deployment.tsx` make for their own `?tab=`. A module-level
  *  function, not an inline arrow: `TabBar`'s `onChange` takes it directly, and
@@ -375,6 +383,7 @@ export function Sites(props: SitesProps = {}) {
         snapshot,
         t,
       )}
+      {exportPublishButton(tab, t)}
 
       {sitesTabPanel(tab, controller, snapshot)}
       <LocalSiteConfirmDialog dialog={controller.siteConfirm} />

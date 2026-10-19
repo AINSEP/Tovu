@@ -729,6 +729,36 @@ export interface AdminPublishRunSnapshot {
   error?: string;
 }
 
+/** One place this site was published or deployed to before, as `GET .../system/publish/destinations`
+ *  lists it (`static-publish/publish-history.ts`'s `PublishDestination`), newest first. Labels and
+ *  target ids are the server's; no secret is ever in a row (`credentialId` names a saved connection). */
+export type AdminPublishDestination =
+  | {
+      id: string;
+      kind: "static";
+      lastPublishedAt: string;
+      label: string;
+      url: string;
+      target: AdminStaticPublishTargetId;
+      projectName: string;
+      credentialId?: string;
+      configFields: Readonly<Record<string, string>>;
+    }
+  | { id: string; kind: "tovu-peer"; peerId: string; label: string; url: string; lastPublishedAt: string }
+  | {
+      id: string;
+      kind: "deploy";
+      /** `started` = the host accepted the deploy but nothing confirmed it landed. */
+      status: "started" | "confirmed";
+      statusMessage?: string;
+      target: string;
+      label: string;
+      url: string;
+      lastPublishedAt: string;
+      /** The saved Tovu peer at this deploy's address, when there is one: content publishes there. */
+      linkedPeerId?: string;
+    };
+
 /** Mirrors the JSON shape `GET .../system/publish/preview` returns — see that route's own doc
  *  comment in `publish-site.ts`. A pure read: never starts a run, never echoes a credential's value,
  *  only whether one is configured. */
@@ -4115,6 +4145,10 @@ export const api = {
   /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
    *  is no longer `"running"`. */
   getPublishStatus: () => request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`),
+  /** Past static publishes, Tovu peers pushed to, and deploys of this site, newest first. Read-only:
+   *  publishing again still goes through `triggerPublish` or the publish-content push. */
+  listPublishDestinations: () =>
+    request<AdminPublishDestination[]>(`/workspaces/${WORKSPACE_ID}/system/publish/destinations`),
 
   // Static Site tab "Getting it online" card → credential management (`src/server/routes/admin/
   // system/publish-credentials.ts`) — named provider connections for `triggerPublish`, stored

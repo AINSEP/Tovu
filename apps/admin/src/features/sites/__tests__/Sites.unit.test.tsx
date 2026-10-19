@@ -586,4 +586,17 @@ describe("Sites — Export Site and Import Site tabs (owner, 2026-10-18)", () =>
       await waitFor(() => expect(screen.queryByText(/Loading (exports|imports)…/)).toBeNull());
     } finally { vi.unstubAllGlobals(); }
   });
+
+  it("shows the Publish button on the Export tab only (owner, 2026-10-18)", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ shares: [], imports: [] }));
+    try {
+      const controller = controllerFixture();
+      const { unmount } = render(<FetchQueryProvider><Sites useSitesHook={() => controller} tabId="export" /></FetchQueryProvider>);
+      expect(screen.getByRole("button", { name: "Publish" }).getAttribute("aria-expanded")).toBe("false");
+      await waitFor(() => expect(screen.queryByText("Loading exports…")).toBeNull());
+      unmount();
+      render(<FetchQueryProvider><Sites useSitesHook={() => controller} tabId="import" /></FetchQueryProvider>);
+      expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
+    } finally { vi.unstubAllGlobals(); }
+  });
 });

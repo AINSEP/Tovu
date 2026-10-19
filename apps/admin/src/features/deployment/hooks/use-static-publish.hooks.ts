@@ -4,6 +4,7 @@ import {
   describeApiError,
   type AdminPublishRunSnapshot,
   type AdminPublishTargetDescriptor,
+  type AdminStaticPublishConfig,
   type AdminStaticPublishPreview,
   type AdminStaticPublishTargetId,
 } from "@/lib/api";
@@ -119,10 +120,19 @@ export interface StaticPublishController {
    *  `options.credentialId` names the saved connection the publish must use (terra review
    *  2026-09-20, finding 1). This hook never picks one itself: it has no credentials controller, and
    *  the caller (`StaticSiteTab`) is the one screen that knows which connection the operator is
-   *  actually looking at. Omitted when this provider has no saved connection. */
-  publish: (options?: { credentialId?: string }) => Promise<void>;
+   *  actually looking at. Omitted when this provider has no saved connection.
+   *
+   *  `options.destination` replays a saved destination (the Sites Export tab's Publish list) instead
+   *  of this form's fields: the server already validated that target, project and config once. */
+  publish: (options?: StaticPublishOptions) => Promise<void>;
 
   t: Translate;
+}
+
+/** What one {@link StaticPublishController.publish} call may name. */
+export interface StaticPublishOptions {
+  credentialId?: string;
+  destination?: { config: AdminStaticPublishConfig; projectName: string };
 }
 
 /** Same interval `use-static-export.hooks.ts` polls its own run at — see that constant's doc for
@@ -292,14 +302,15 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     };
   }, [isPublishing]);
 
-  async function publish(options: { credentialId?: string } = {}) {
+  async function publish(options: StaticPublishOptions = {}) {
     // A second call while the first is still in flight is a duplicate submit (e.g. a double-click
     // landing before React re-renders with the button disabled) — ignore it here too, not just via
     // the UI's `publishing`-gated disabled state, so the race can't still send two POSTs (C4 fix).
     // This check-then-set is safe against a same-tick double call specifically BECAUSE it is
     // synchronous: nothing yields between the read and the write below, so a second synchronous call
     // always observes this call's write.
-    if (publishingRef.current || selectedTarget === undefined) return;
+    const request = publishRequestFor({ options, selectedTarget, configValues, projectName });
+    if (publishingRef.current || request === undefined) return;
     publishingRef.current = true;
     // Local action supersedes any still-pending bootstrap read — same C1 fix and same reasoning
     // `use-static-export.hooks.ts`'s own `trigger()` documents: this write is synchronous and
@@ -314,8 +325,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPublishing(true);
     try {
       const started = await port.triggerPublish({
-        config: buildStaticPublishConfig(selectedTarget, configValues),
-        projectName: staticPublishProjectNameToSend(selectedTarget, projectName),
+        ...request,
         // Conditional spread, never `credentialId: options.credentialId` — an absent choice must not
         // reach the wire as an explicit `undefined` key.
         ...(options.credentialId !== undefined ? { credentialId: options.credentialId } : {}),
@@ -354,6 +364,22 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     publishing,
     publish,
     t,
+  };
+}
+
+/** The target config and project name a publish sends: a replayed destination as saved, else the
+ *  form's current fields. `undefined` while the form has no target loaded yet. @complexity O(f). */
+function publishRequestFor(input: {
+  options: StaticPublishOptions;
+  selectedTarget: AdminPublishTargetDescriptor | undefined;
+  configValues: Readonly<Record<string, string>>;
+  projectName: string;
+}): { config: AdminStaticPublishConfig; projectName: string } | undefined {
+  if (input.options.destination) return input.options.destination;
+  if (input.selectedTarget === undefined) return undefined;
+  return {
+    config: buildStaticPublishConfig(input.selectedTarget, input.configValues),
+    projectName: staticPublishProjectNameToSend(input.selectedTarget, input.projectName),
   };
 }
 

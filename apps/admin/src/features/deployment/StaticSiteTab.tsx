@@ -10,7 +10,6 @@ import { interpolate, splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import type {
   AdminExportRunSnapshot,
   AdminPublishExecutionMode,
-  AdminPublishRunSnapshot,
   AdminPublishTargetField,
   AdminStaticPublishPreview,
   AdminStaticPublishTargetId,
@@ -31,6 +30,7 @@ import {
   credentialVerifyStatusClass,
 } from "./rules";
 import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
+import { PublishRunResult } from "./PublishRunResult";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "./hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
@@ -1422,47 +1422,4 @@ function PublishPreviewFacts({ preview, t: translate }: { preview: AdminStaticPu
       ) : null}
     </div>
   );
-}
-
-/** A publish run's completed/errored detail — the live URL on success, or the failure message. */
-function PublishRunResult({ run, t: translate }: { run: AdminPublishRunSnapshot; t: Translate }) {
-  if (run.status !== "completed" && run.status !== "errored") return null;
-  // `result` can be present at EITHER terminal status — `publish-site.ts`'s own trigger route maps
-  // ANY `publishStaticSite` outcome with `ok: false` (bad config, no credential, a rejected provider
-  // call) to `status: "errored"`, not `"completed"`; only a route-level exception the route itself
-  // never expected (no `result` at all) falls back to the bare `run.error` string. Checking `result`
-  // FIRST regardless of `status` is what a naive `status === "errored" -> run.error` branch gets
-  // wrong — verified live against a real triggered publish with no credential configured, which
-  // settles to `status: "errored"` with a full `result.message`, not an empty `run.error`.
-  if (run.result) {
-    if (!run.result.ok) {
-      return (
-        <p className="save-error" role="alert">
-          {run.result.message}
-        </p>
-      );
-    }
-    return (
-      <p className="save-ok">
-        {translate("Published:")}{" "}
-        <a
-          href={run.result.url}
-          target="_blank"
-          rel="noreferrer"
-          translate="no"
-          {...agentHandle({ handle: "deployment-static-site-publish-result-url" }, { role: "link", label: "Open the just-published site" })}
-        >
-          {run.result.url}
-        </a>
-      </p>
-    );
-  }
-  if (run.error) {
-    return (
-      <p className="save-error" role="alert">
-        {run.error}
-      </p>
-    );
-  }
-  return null;
 }

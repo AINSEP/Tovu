@@ -1,5 +1,6 @@
 import { t as settingsTranslator } from "./sites-settings-i18n";
 import { SITE_TRANSFER_DICT } from "./site-transfer-i18n";
+import { SITE_PUBLISH_DICT } from "./site-publish-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
@@ -294,6 +295,10 @@ for (const [locale, detail] of Object.entries(SITE_CARD_DICT)) {
 }
 
 for (const [locale, detail] of Object.entries(SITE_TRANSFER_DICT)) {
+  Object.assign(Reflect.get(SITES_DICT, locale), detail);
+}
+
+for (const [locale, detail] of Object.entries(SITE_PUBLISH_DICT)) {
   Object.assign(Reflect.get(SITES_DICT, locale), detail);
 }
 
