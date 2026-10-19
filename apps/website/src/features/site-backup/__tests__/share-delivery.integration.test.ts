@@ -131,3 +131,20 @@ test("no delivery returns a private ZIP download and a clear link-setup message"
   assert.match(result.downloadUrl, /\/site-shares\/[0-9a-f-]+\/download$/);
   assert.match(result.message, /Download zip only.*deployed Tovu.*S3-compatible/);
 });
+
+test("peer deletion treats only 404 as already absent and never sends an invalid artifact path", async () => {
+  let status = 404;
+  const requests: unknown[] = [];
+  const peer: PeerCallDeps = { credential: { id: "live", label: "Live", baseUrl: "https://live.example.test", remoteWorkspaceId: "space /remote", apiKey: "private" }, httpClient: { send: async request => { requests.push(request); return { status, headers: {}, bodyText: "unavailable" }; } } };
+  const delivery = createPeerShareDelivery({ peer, http: { send: async () => assert.fail("DELETE must not use anonymous HEAD") } });
+  const key = `_share/${"a".repeat(64)}/site.tovu.zip`;
+  await assert.rejects(delivery.store.delete({ key: "../private" }), { code: "INVALID_INPUT" });
+  assert.deepEqual(requests, []);
+  await delivery.store.delete({ key });
+  const request = requests[0] as { method: string; url: string; headers: Record<string, string> };
+  assert.equal(request.method, "DELETE");
+  assert.equal(request.url, `https://live.example.test/api/admin/v1/workspaces/space%20%2Fremote/site-shares/artifacts/${"a".repeat(64)}/site.tovu.zip`);
+  assert.equal(request.headers.authorization, "Bearer private");
+  status = 500;
+  await assert.rejects(delivery.store.delete({ key }), error => (error as { peerStatus?: number }).peerStatus === 500);
+});

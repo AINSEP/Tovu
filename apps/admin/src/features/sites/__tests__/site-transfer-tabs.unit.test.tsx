@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import type { SiteExportController, SiteImportController } from "../hooks/use-site-transfer.hooks";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -251,4 +253,269 @@ describe("SiteImportTab", () => {
     expect(insertText).toHaveBeenCalledWith("Import the live website at https://example.com into this site with the site-import agent plugin.");
     expect(screen.getByRole("link", { name: "New site" }).getAttribute("href")).toBe("/admin/sites?tab=new");
   });
+});
+
+// Exercise markup through the components' supported controller seam. Effects and persistence
+// remain covered above through the real hooks; these cases pin every transient display state.
+function exportController(overrides: Partial<SiteExportController> = {}): SiteExportController {
+  return { shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
+    exportSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
+    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`, ...overrides };
+}
+function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {
+  return { imports: [], listError: null, link: "", setLink: vi.fn(), file: null, chooseFiles: vi.fn(), clearFile: vi.fn(),
+    canImport: false, importing: false, importError: null, startImport: vi.fn(async () => {}), current: null, resume: vi.fn(),
+    password: "", setPassword: vi.fn(), confirm: "", setConfirm: vi.fn(), passwordProblem: null, settingOwner: false,
+    ownerError: null, completeOwner: vi.fn(async () => {}), liveAddress: "", setLiveAddress: vi.fn(),
+    liveAddressValid: false, startLiveImport: vi.fn(), ...overrides };
+}
+function handle(element: HTMLElement, id: string, role: string, label: string) {
+  expect(element.getAttribute("data-agent-element")).toBe(id);
+  expect(element.getAttribute("data-agent-role")).toBe(role);
+  expect(element.getAttribute("data-agent-label")).toBe(label);
+}
+
+describe("transfer tab presentation contracts", () => {
+  it("publishes the export action and announces an in-flight export", async () => {
+    const controller = exportController();
+    const ui = render(<SiteExportTab t={t} useExport={() => controller} publish={<button>Publish fixture</button>} />);
+    expect(screen.getByRole("region", { name: "Export Site" })).toBeTruthy();
+    expect(screen.getByText("Makes a .tovu.zip copy of this site that another Tovu can import.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Publish fixture" })).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Export this site" });
+    handle(button, "sites-export-create", "button", "Export this site as a .tovu.zip");
+    await userEvent.click(button);
+    expect(controller.exportSite).toHaveBeenCalledExactlyOnceWith();
+    ui.rerender(<SiteExportTab t={t} useExport={() => ({ ...controller, exporting: true })} />);
+    const busy = screen.getByRole("button", { name: "Exporting…" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(busy.querySelector('[aria-hidden="true"]')?.className).toBe("site-transfer-spinner");
+    await userEvent.click(busy);
+    expect(controller.exportSite).toHaveBeenCalledTimes(1);
+  });
+
+  it("labels export columns, preserves the full link and scopes pending revoke to the right row", async () => {
+    const first = share(), second = share({ shareId: "second", url: null, bytes: 1024 });
+    const controller = exportController({ shares: [first, second], revokingId: first.shareId, copiedId: first.shareId });
+    const ui = render(<SiteExportTab t={t} useExport={() => controller} />);
+    const table = screen.getByRole("table", { name: "Exports" });
+    for (const name of ["Date", "Size", "Link", "Status", "Actions"]) expect(within(table).getByRole("columnheader", { name })).toBeTruthy();
+    const row = within(table).getByText("example.com/_share/abc/mingjie.tovu.zip").closest("tr")!;
+    expect(within(row).getByText("Active").className).toBe("status status-ok");
+    expect(within(row).getByText("3.0 MB").closest("td")?.className).toBe("site-transfer-num");
+    expect(within(row).getByTitle(first.url!).className).toBe("site-transfer-link");
+    // The browser's local date is part of the table's contract; use its native formatter independently.
+    expect(row.querySelector("td")?.textContent).not.toBe("—");
+    const copy = within(row).getByRole("button", { name: "Copied" });
+    handle(copy, "sites-export-1-copy", "button", "Copy this export's share link");
+    expect(copy.querySelector('[aria-live="polite"]')?.textContent).toBe("Copied");
+    const download = within(row).getByRole("link", { name: "Download zip" });
+    handle(download, "sites-export-1-download", "link", "Download this export's .tovu.zip");
+    expect(download.getAttribute("href")).toBe("/download/share-1");
+    expect(download.getAttribute("download")).toBe(first.file);
+    const revoking = within(row).getByRole("button", { name: "Revoking…" }) as HTMLButtonElement;
+    handle(revoking, "sites-export-1-revoke", "button", "Revoke this export so its link stops working");
+    expect(revoking.disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Revoke" }) as HTMLButtonElement).disabled).toBe(true);
+    const zipRow = screen.getByText("Zip only").closest("tr")!;
+    expect(within(zipRow).queryByRole("button", { name: "Copy link" })).toBeNull();
+    ui.rerender(<SiteExportTab t={t} useExport={() => ({ ...controller, revokingId: null })} />);
+    await userEvent.click(screen.getByRole("button", { name: "Copied" }));
+    expect(controller.copyLink).toHaveBeenCalledExactlyOnceWith(first);
+    await userEvent.click(within(screen.getByText("Zip only").closest("tr")!).getByRole("button", { name: "Revoke" }));
+    expect(controller.revoke).toHaveBeenCalledExactlyOnceWith(second);
+  });
+
+  it("publishes source forms, accessible fields, assistant guidance, and prevents browser submission", async () => {
+    const controller = importController({ canImport: true, liveAddressValid: true, liveAddress: "https://live.example", link: "https://share.example" });
+    const { container } = render(<SiteImportTab t={t} useImport={() => controller} />);
+    expect(screen.getByRole("region", { name: "Import Site" })).toBeTruthy();
+    for (const text of ["Bring in a site from a Tovu export or a live website.", "From a Tovu share link or zip", "Makes a new site. This site stays as it is.", "From a live website", "Imports into this site. To keep this site as it is, make a new site first.", "The assistant opens with the request written. Press Send to start.", "or", "Up to 300 MB", "Drop a .tovu.zip here, or click to browse"]) expect(screen.getByText(text)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "About importing" })).toBeTruthy();
+    const link = screen.getByLabelText("Share link");
+    handle(link, "sites-import-link", "field", "Tovu share link to import");
+    expect(link.getAttribute("type")).toBe("url");
+    expect(link.getAttribute("inputmode")).toBe("url");
+    expect(link.getAttribute("placeholder")).toBe("https://");
+    const live = screen.getByLabelText("Website address");
+    handle(live, "sites-import-live-address", "field", "Address of the live website to import");
+    expect(live.getAttribute("type")).toBe("url");
+    expect(live.getAttribute("inputmode")).toBe("url");
+    expect(live.getAttribute("placeholder")).toBe("https://");
+    expect(live.getAttribute("aria-describedby")).toBe("sites-import-live-hint");
+    expect(screen.getByRole("link", { name: "New site" }).className).toBe("link-button");
+    expect(screen.getByRole("link", { name: "New site" }).closest("p")?.textContent).toBe("Imports into this site. To keep this site as it is, make a new site first. New site");
+    handle(screen.getByRole("link", { name: "New site" }), "sites-import-live-new-site", "link", "Go to the New site tab");
+    const submit = screen.getByRole("button", { name: "Import as a new site" });
+    handle(submit, "sites-import-start", "button", "Import the link or zip as a new site");
+    handle(screen.getByRole("button", { name: "Import with the assistant" }), "sites-import-live-start", "button", "Open the assistant with the import request");
+    const forms = container.querySelectorAll("form");
+    handle(forms[0]!, "sites-import-archive-form", "form", "Import a Tovu share link or .tovu.zip as a new site");
+    handle(forms[1]!, "sites-import-live-form", "form", "Import a live website with the assistant");
+    const prevented: boolean[] = [];
+    container.addEventListener("submit", event => prevented.push(event.defaultPrevented));
+    await userEvent.click(submit);
+    await userEvent.click(screen.getByRole("button", { name: "Import with the assistant" }));
+    expect(prevented).toEqual([true, true]);
+    expect(controller.startImport).toHaveBeenCalledExactlyOnceWith();
+    expect(controller.startLiveImport).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("shows a chosen file, can remove it, and locks archive inputs during import", async () => {
+    const file = new File(["x".repeat(2048)], "copy.tovu.zip", { type: "application/zip" });
+    const controller = importController({ file, canImport: true });
+    const ui = render(<SiteImportTab t={t} useImport={() => controller} />);
+    expect(screen.getByText(file.name).className).toBe("site-transfer-file-name");
+    expect(screen.getByText("2 KB").className).toBe("site-transfer-num");
+    const remove = screen.getByRole("button", { name: "Remove" });
+    handle(remove, "sites-import-file-remove", "button", "Remove the chosen .tovu.zip");
+    await userEvent.click(remove);
+    expect(controller.clearFile).toHaveBeenCalledTimes(1);
+    ui.rerender(<SiteImportTab t={t} useImport={() => ({ ...controller, importing: true, importError: "Upload refused" })} />);
+    expect((screen.getByLabelText("Share link") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Remove" }) as HTMLButtonElement).disabled).toBe(true);
+    const busy = screen.getByRole("button", { name: "Importing…" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(busy.querySelector('[aria-hidden="true"]')?.className).toBe("site-transfer-spinner");
+    expect(screen.getByRole("alert").textContent).toBe("Upload refused");
+  });
+
+  it.each(["verifying", "creating"] as const)("announces %s progress", state => {
+    render(<SiteImportTab t={t} useImport={() => importController({ current: siteImport({ state }) })} />);
+    expect(screen.getByRole("status").textContent).toBe("Checking the archive…");
+  });
+  it("uses fallback site name and failure text and only shows Open when ready with an address", () => {
+    const ui = render(<SiteImportTab t={t} useImport={() => importController({ current: siteImport({ state: "failed", error: undefined }) })} />);
+    expect(screen.getByRole("alert").textContent).toBe("Import failed. No site was changed.");
+    ui.rerender(<SiteImportTab t={t} useImport={() => importController({ current: siteImport({ state: "ready", newSiteName: null, adminUrl: "https://copy.example/admin" }) })} />);
+    expect(screen.getByRole("status").textContent).toBe("the new site is ready.Open");
+    const open = screen.getByRole("link", { name: "Open" });
+    expect(open.getAttribute("href")).toBe("https://copy.example/admin");
+    expect(open.getAttribute("target")).toBe("_blank");
+    expect(open.getAttribute("rel")).toBe("noreferrer");
+    handle(open, "sites-import-open", "link", "Open the imported site's admin");
+  });
+
+  it("focuses and labels owner fields, reports password errors, submits privately and prevents navigation", async () => {
+    const controller = importController({ current: siteImport(), password: "secret", confirm: "secret" });
+    const ui = render(<SiteImportTab t={t} useImport={() => controller} />);
+    const password = screen.getByLabelText("Password") as HTMLInputElement;
+    const confirm = screen.getByLabelText("Confirm password") as HTMLInputElement;
+    expect(document.activeElement).toBe(password);
+    for (const field of [password, confirm]) {
+      expect(field.type).toBe("password");
+      expect(field.autocomplete).toBe("new-password");
+      expect(field.maxLength).toBe(512);
+    }
+    expect(confirm.hasAttribute("aria-invalid")).toBe(false);
+    expect(confirm.hasAttribute("aria-describedby")).toBe(false);
+    expect(screen.getByText("The site opens once it has an owner password. Username: admin")).toBeTruthy();
+    const form = password.closest("form")!;
+    handle(form, "sites-import-owner-form", "form", "Choose the imported site's owner password");
+    let prevented = false;
+    ui.container.addEventListener("submit", event => { prevented = event.defaultPrevented; });
+    const submit = screen.getByRole("button", { name: "Create site" });
+    handle(submit, "sites-import-owner-submit", "button", "Create the imported site with this password");
+    await userEvent.click(submit);
+    expect(prevented).toBe(true);
+    expect(controller.completeOwner).toHaveBeenCalledExactlyOnceWith();
+    ui.rerender(<SiteImportTab t={t} useImport={() => ({ ...controller, settingOwner: true, ownerError: "Owner refused", passwordProblem: "Mismatch" })} />);
+    expect((screen.getByLabelText("Password") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Confirm password") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByLabelText("Confirm password").getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByLabelText("Confirm password").getAttribute("aria-describedby")).toBe("sites-import-owner-problem");
+    expect(screen.getByText("Mismatch").id).toBe("sites-import-owner-problem");
+    expect(screen.getByRole("alert").textContent).toBe("Owner refused");
+    expect((screen.getByRole("button", { name: "Creating…" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Creating…" }).getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("labels past-import columns and targets the second row's Finish setup action", async () => {
+    const pending = siteImport({ importId: "pending", newSiteName: "Second copy" });
+    const controller = importController({ imports: [siteImport({ state: "ready", adminUrl: "https://first.example/admin" }), pending] });
+    render(<SiteImportTab t={t} useImport={() => controller} />);
+    const table = screen.getByRole("table", { name: "Past imports" });
+    for (const name of ["Date", "Source", "New site", "Status", "Actions"]) expect(within(table).getByRole("columnheader", { name })).toBeTruthy();
+    const finish = within(table).getByRole("button", { name: "Finish setup" });
+    handle(finish, "sites-import-2-finish", "button", "Finish this import's owner password step");
+    await userEvent.click(finish);
+    expect(controller.resume).toHaveBeenCalledExactlyOnceWith(pending);
+    const open = within(table).getByRole("link", { name: "Open" });
+    handle(open, "sites-import-1-open", "link", "Open this imported site's admin");
+    expect(open.getAttribute("target")).toBe("_blank");
+    expect(open.getAttribute("rel")).toBe("noreferrer");
+    expect(open.getAttribute("href")).toBe("https://first.example/admin");
+    expect(within(table).getByText("Ready").className).toBe("status status-ok");
+    expect(within(table).getByText("Needs a password").className).toBe("status status-warning");
+    expect(within(table).getAllByTitle("https://example.com/s/abc")).toHaveLength(2);
+    expect(within(table).getAllByText("example.com/s/abc")[0]?.className).toBe("site-transfer-link");
+    expect(within(table).getAllByRole("cell")[0]?.className).toBe("site-transfer-num");
+    expect(within(table).getAllByRole("cell")[0]?.textContent).not.toBe("—");
+  });
+});
+
+describe("transfer tab browser contracts", () => {
+  it("formats both history dates in the viewer's local time", () => {
+    const getters = [
+      vi.spyOn(Date.prototype, "getFullYear").mockReturnValue(2042),
+      vi.spyOn(Date.prototype, "getMonth").mockReturnValue(3),
+      vi.spyOn(Date.prototype, "getDate").mockReturnValue(5),
+      vi.spyOn(Date.prototype, "getHours").mockReturnValue(6),
+      vi.spyOn(Date.prototype, "getMinutes").mockReturnValue(7),
+    ];
+    try {
+      render(<><SiteExportTab t={t} useExport={() => exportController({ shares: [share()] })} /><SiteImportTab t={t} useImport={() => importController({ imports: [siteImport()] })} /></>);
+      expect(screen.getAllByText("2042-04-05 06:07")).toHaveLength(2);
+      for (const date of screen.getAllByText("2042-04-05 06:07")) expect(date.className).toBe("site-transfer-num");
+    } finally { for (const getter of getters) getter.mockRestore(); }
+  });
+
+  it("uploads and removes a zip through the real dropzone and sends the uploaded ID as the source", async () => {
+    const file = new File(["zip bytes"], "portable.tovu.zip", { type: "application/zip" });
+    const uploadImportZip = vi.fn(async () => ({ uploadId: "uploaded-zip" }));
+    const startImport = vi.fn(async () => siteImport({ state: "verifying" }));
+    renderImport(createFakeSiteTransferPort({ uploadImportZip, startImport }));
+    const zone = screen.getByRole("button", { name: /Add files/ });
+    const picker = zone.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(picker.accept).toBe(".zip,application/zip");
+    await userEvent.upload(picker, file);
+    expect(await screen.findByText(file.name)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(screen.queryByText(file.name)).toBeNull();
+    expect((screen.getByRole("button", { name: "Import as a new site" }) as HTMLButtonElement).disabled).toBe(true);
+    const newPicker = screen.getByRole("button", { name: /Add files/ }).querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(newPicker, file);
+    await userEvent.click(screen.getByRole("button", { name: "Import as a new site" }));
+    await waitFor(() => expect(uploadImportZip).toHaveBeenCalledExactlyOnceWith({ file }));
+    expect(startImport).toHaveBeenCalledExactlyOnceWith({ uploadId: "uploaded-zip" });
+    expect(await screen.findByRole("status")).toHaveProperty("textContent", "Checking the archive…");
+    expect(screen.queryByText(file.name)).toBeNull();
+  });
+
+  it("forwards field edits to their controllers and exposes loading import history", async () => {
+    const controller = importController({ imports: undefined, link: "https://share.example", liveAddress: "https://live.example", current: siteImport(), password: "password", confirm: "password" });
+    render(<SiteImportTab t={t} useImport={() => controller} />);
+    expect(screen.getByText("Loading imports…").className).toBe("notice");
+    await userEvent.clear(screen.getByLabelText("Share link"));
+    expect(controller.setLink).toHaveBeenCalledWith("");
+    await userEvent.clear(screen.getByLabelText("Website address"));
+    expect(controller.setLiveAddress).toHaveBeenCalledWith("");
+    await userEvent.clear(screen.getByLabelText("Password"));
+    expect(controller.setPassword).toHaveBeenCalledWith("");
+    await userEvent.clear(screen.getByLabelText("Confirm password"));
+    expect(controller.setConfirm).toHaveBeenCalledWith("");
+  });
+});
+
+it("withholds Open for failed, unfinished and ready imports without an admin address", () => {
+  const rows = [siteImport({ importId: "failed", state: "failed", newSiteName: "Failed copy" }), siteImport({ importId: "verifying", state: "verifying", newSiteName: "Checking copy" }), siteImport({ importId: "ready-no-url", state: "ready", newSiteName: "Stopped copy", adminUrl: null })];
+  render(<SiteImportTab t={t} useImport={() => importController({ imports: rows })} />);
+  const table = screen.getByRole("table", { name: "Past imports" });
+  for (const name of ["Failed copy", "Checking copy", "Stopped copy"]) {
+    const row = within(table).getByText(name).closest("tr")!;
+    expect(within(row).queryByText("Open")).toBeNull();
+    expect(within(row).getByText("—").className).toBe("muted-cell");
+  }
 });

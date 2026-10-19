@@ -624,3 +624,44 @@ test("a manifest with no database scope records null and preserves an explicitly
   assert.deepEqual(manifest.scopes.settings, { included: false, note: "" });
   assert.deepEqual(manifest.files, []);
 });
+
+test("share collection rejects hardlinks and linked scope roots instead of following outside content", async t => {
+  const { linkSync } = await import("node:fs");
+  const site = makeSite(); t.after(site.cleanup);
+  rmSync(path.join(site.sources.themesDir, "static/demo/.git"), { recursive: true, force: true });
+  linkSync(path.join(site.sources.themesDir, "static/demo/index.html"), path.join(site.sources.themesDir, "static/demo/alias.html"));
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share" }), { code: "UNSAFE_FILE", message: /hardlinked/ });
+  rmSync(site.sources.themesDir, { recursive: true }); symlinkSync(site.sources.skillsDir, site.sources.themesDir);
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share" }), { code: "UNSAFE_FILE", message: /linked or special directory/ });
+});
+for (const root of ["root", "workspacesDir"] as const) test(`share collection rejects linked plugin ${root} before traversal`, async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const target = site.sources.agentPlugins[root]; rmSync(target, { recursive: true }); symlinkSync(site.sources.skillsDir, target);
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, { profile: "share" }), { code: "UNSAFE_FILE", message: /linked plugin root/ });
+});
+test("share directory lstat failures propagate while a directory removed during discovery is empty", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const failure = Object.assign(new Error("cannot inspect directory"), { code: "EIO" });
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share", fileSystem: { ...walkFileSystem, lstat: async () => { throw failure; } } }), error => error === failure);
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share", fileSystem: { ...walkFileSystem, lstat: async () => { throw Object.assign(new Error("gone"), { code: "ENOENT" }); } } });
+  assert.deepEqual(result, { files: [], skipped: [], scopeNotes: {} });
+});
+test("share plugin root lstat failures are never hidden as missing installations", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const failure = Object.assign(new Error("cannot inspect plugins"), { code: "EIO" });
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, { profile: "share", fileSystem: { ...walkFileSystem, lstat: async () => { throw failure; } } }), error => error === failure);
+});
+test("share collection omits only private runtime files and includes overrides and plugin source", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  rmSync(path.join(site.sources.themesDir, "static/demo/.git"), { recursive: true, force: true });
+  write(path.join(site.root, "plugins/custom/1/src/data/default.json"), "{}");
+  write(path.join(site.root, "plugins/custom/1/data/private.json"), "private");
+  write(path.join(site.root, "overrides/header.html"), "override");
+  write(path.join(site.root, "themes/static/demo/.env.local"), "private");
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true, plugins: true } }, { profile: "share" });
+  assert.ok(paths(result.files).includes("overrides/header.html"));
+  assert.ok(paths(result.files).includes("plugins/custom/1/src/data/default.json"));
+  assert.equal(paths(result.files).includes("plugins/custom/1/data/private.json"), false);
+  assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), false);
+  assert.equal(result.files.some(file => /\/memory\//.test(file.path)), false);
+});

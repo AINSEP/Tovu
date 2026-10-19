@@ -93,3 +93,44 @@ test("export: dropped references are printed as warnings without failing a compl
     "tovu export: warning: dropped action on /contact: /api/contact (needs-server)\n",
   ]);
 });
+
+test("export reports all failures and warnings honestly, honors flags, and closes after an incomplete export", async t => {
+  const stdout: string[] = [], stderr: string[] = [];
+  t.mock.method(process.stdout, "write", (text: unknown) => { stdout.push(String(text)); return true; });
+  t.mock.method(process.stderr, "write", (text: unknown) => { stderr.push(String(text)); return true; });
+  const routeDeps = { workspaceId: "ws", exportOutputRootDir: "/tmp/ignored" };
+  const calls: unknown[] = [];
+  await assert.rejects(runExportCommand({ dir: "/tmp/site", out: "/tmp/chosen", workspaceId: "requested-ws", clean: true, basePath: "/docs" }, {
+    registerPluginSdkResolver: () => { calls.push("resolver"); },
+    bootSiteDir: async (input, options) => { calls.push({ input, options }); return { workspaceId: "ws" } as BootSiteDirResult; },
+    createSiteRouteDeps: async () => routeDeps as ExportRouteDeps,
+    reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
+    closeSiteDirBoot: async () => { calls.push("closed"); },
+    exportSite: async input => {
+      assert.equal(input.routeDeps, routeDeps);
+      assert.equal(input.outputDir, "/tmp/chosen");
+      assert.equal(input.clean, true);
+      assert.equal(input.basePath, "/docs");
+      return { outputDir: input.outputDir, routes: { succeeded: ["/"], failed: [{ path: "/broken", kind: "render", reason: "template missing" }] },
+        assets: { succeeded: [], failed: [{ url: "/lost.png", reason: "not found" }] },
+        skippedManifestEntries: [{ reason: "private", detail: "draft route" }], unreferencedThemeFiles: ["unused.css", "unused.js"],
+        basePath: "/docs", basePathRewriteWarning: "dynamic URLs require review" } as Awaited<ReturnType<NonNullable<RunExportCommandOptional["exportSite"]>>>;
+    },
+  }), { name: "ExportIncompleteError", message: /1 failed route/ });
+  assert.deepEqual(stdout, ["tovu export: wrote 1/2 routes and 0/1 assets to /tmp/chosen\n", "tovu export: rewrote root-relative links/assets for base path '/docs'\n"]);
+  assert.deepEqual(stderr.slice(0, 3), ["tovu export: skipped (private): draft route\n", "tovu export: FAILED route /broken (render): template missing\n", "tovu export: FAILED asset /lost.png: not found\n"]);
+  assert.match(stderr[3]!, /2 theme file\(s\) were never referenced/);
+  assert.deepEqual(stderr.slice(4), ["  - unused.css\n", "  - unused.js\n", "tovu export: warning: dynamic URLs require review\n"]);
+  assert.deepEqual(calls, ["resolver", { input: { dir: "/tmp/site" }, options: { workspaceId: "requested-ws" } }, "closed"]);
+});
+
+test("export refuses pending migration recovery before crawling and closes even without composed boot work", async () => {
+  let closed = 0;
+  await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
+    registerPluginSdkResolver: () => {}, bootSiteDir: async () => ({ workspaceId: "ws" }) as BootSiteDirResult,
+    createSiteRouteDeps: async () => ({ workspaceId: "ws", exportOutputRootDir: "/tmp/export" }) as ExportRouteDeps,
+    reconcileInterruptedMigrationOnBoot: async () => ({ blocked: true }),
+    exportSite: async () => assert.fail("blocked sites must not crawl"), closeSiteDirBoot: async () => { closed++; },
+  }), { name: "ExportBlockedPendingRecoveryError", message: /BLOCKED_PENDING_RECOVERY/ });
+  assert.equal(closed, 1);
+});

@@ -1481,3 +1481,38 @@ test("inline text stops at the aggregate budget and sends subsequent content as 
   assert.equal(progress.bytesDone, plan.totalBytes);
   assert.equal(progress.filesDone, 3);
 });
+
+for (const id of ["site_share_create", "site_share_list", "site_share_revoke", "site_import_backup", "site_import_list"]) {
+  test(`${id} reports an unavailable backend after its permission check`, async t => {
+    const h = harness(t);
+    const result = await call(h.tools.get(id)!, {});
+    assert.equal((result as Result).code, "UNAVAILABLE");
+    assert.deepEqual(h.github.calls, []); assert.deepEqual(h.dbOps.captureCalls, []);
+  });
+}
+test("share tool adapters enforce exact input contracts, pass job/principal/signal and preserve coded refusals", async t => {
+  const { SiteShareRefusal } = await import("../share-policy.js");
+  const h = harness(t), signal = new AbortController().signal, calls: unknown[] = [];
+  let error: unknown;
+  const backend = { registry: {} as never,
+    create: async (input: unknown) => { calls.push(["create", input]); if (error) throw error; return { jobId: "pending" }; },
+    list: async (input: unknown) => { calls.push(["list", input]); if (error) throw error; return []; },
+    revoke: async (input: unknown) => { calls.push(["revoke", input]); if (error) throw error; return { status: "revoked" }; },
+  } as unknown as NonNullable<SiteBackupToolDeps["siteShareBackend"]>;
+  const tool = (id: string) => overriddenTool(h, id, { siteShareBackend: backend });
+  const jobId = "00000000-0000-4000-8000-000000000001";
+  assert.deepEqual(await call(tool("site_share_create"), {}, { signal }), { jobId: "pending" });
+  assert.deepEqual(await call(tool("site_share_create"), { jobId }, { signal }), { jobId: "pending" });
+  assert.deepEqual(await call(tool("site_share_list"), {}), { shares: [] });
+  assert.deepEqual(await call(tool("site_share_revoke"), { shareId: "share" }), { status: "revoked" });
+  assert.deepEqual(calls, [["create", { principalId: OWNER_PRINCIPAL, signal }], ["create", { principalId: OWNER_PRINCIPAL, signal, jobId }], ["list", {}], ["revoke", { shareId: "share" }]]);
+  calls.length = 0;
+  for (const [id, input] of [["site_share_list", { extra: true }], ["site_share_revoke", { shareId: "share", extra: true }], ["site_share_create", { extra: true }], ["site_share_create", { jobId: 1 }], ["site_share_create", { jobId: "invalid" }]] as const) {
+    assert.equal((await call(tool(id), input) as Result).code, "INVALID_INPUT");
+  }
+  assert.deepEqual(calls, []);
+  error = new SiteShareRefusal({ code: "BUSY", message: "Export still running" });
+  for (const [id, input] of [["site_share_create", {}], ["site_share_list", {}], ["site_share_revoke", { shareId: "share" }]] as const) assert.deepEqual(await call(tool(id), input), { ok: false, code: "BUSY", message: "Export still running" });
+  error = new Error("unexpected backend failure");
+  await assert.rejects(call(tool("site_share_create"), {}), thrown => thrown === error);
+});

@@ -248,3 +248,46 @@ test("B untrusted schema objects and partial restore errors leave no site, inclu
   const databases = path.join(h.workspace.config({}).appData, "databases");
   assert.deepEqual(fs.existsSync(databases) ? fs.readdirSync(databases) : [], []);
 });
+
+test("verifier refuses malformed manifest contracts before invoking the database owner", async t => {
+  const { verifySiteImport } = await import("../import-verifier.js");
+  const { reader } = await import("./import.fixture.js");
+  const h = await importFixture(t), items = await archiveItems(h.archive);
+  const mutations: [string, (m: any) => void][] = [
+    ["missing schema", m => { delete m.schema; }], ["wrong schema index", m => { m.schema.index++; }],
+    ["missing database", m => { delete m.database; }], ["wrong database path", m => { m.database.path = "other.db"; }],
+    ["non-array files", m => { m.files = {}; }], ["empty name", m => { m.site.name = " "; }],
+    ["non-string name", m => { m.site.name = 42; }], ["long name", m => { m.site.name = "x".repeat(201); }],
+    ["null file", m => { m.files[0] = null; }], ["non-string path", m => { m.files[0].path = 4; }],
+    ["fractional size", m => { m.files[0].bytes = 0.5; }], ["negative size", m => { m.files[0].bytes = -1; }],
+    ["bad hash", m => { m.files[0].sha256 = "not sha256"; }],
+    ["duplicate manifest path", m => { m.files.push(m.files[0]); }],
+    ["manifest lists itself", m => { m.files[0].path = "tovu-backup.json"; }],
+    ["unrecognized scope", m => { m.files[0].path = "unknown/content.txt"; }],
+    ["missing DB inventory", m => { m.files = m.files.filter((f: any) => f.path !== "database/content.db"); }],
+    ["oversized manifest inventory", m => { m.files = Array(2000).fill(m.files[0]); }],
+  ];
+  for (const [label, change] of mutations) await t.test(label, async () => {
+    await assert.rejects(verifySiteImport({ archive: await pack(mutateManifest(items, change)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid manifest must not invoke database owner") }), { code: "INVALID_ARCHIVE" });
+  });
+  for (const bytes of [Buffer.from("{"), Buffer.from("null")]) await assert.rejects(verifySiteImport({ archive: await pack(items.map(item => item.name === "tovu-backup.json" ? { ...item, bytes } : item)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid JSON must not sanitize") }), { code: "INVALID_ARCHIVE" });
+  await assert.rejects(verifySiteImport({ archive: await pack(items.filter(item => item.name !== "tovu-backup.json")), reader, schema: h.plan.schema, sanitize: async () => assert.fail() }), { code: "INVALID_ARCHIVE", message: /manifest is required/ });
+});
+
+test("share preflight independently rejects disagreeing local headers and ambiguous directory metadata", async t => {
+  const { reader } = await import("./import.fixture.js");
+  const consume = async (archive: Buffer) => { for await (const _entry of reader.entries({ archive })) { /* metadata-only preflight */ } };
+  for (const [label, change] of [
+    ["local signature", (b: Buffer, o: number) => b.writeUInt32LE(0, o)],
+    ["local flags", (b: Buffer, o: number) => b.writeUInt16LE(b.readUInt16LE(o + 6) ^ 1, o + 6)],
+    ["local compression", (b: Buffer, o: number) => b.writeUInt16LE(b.readUInt16LE(o + 8) ^ 1, o + 8)],
+    ["local filename", (b: Buffer, o: number) => b.writeUInt8(120, o + 30)],
+    ["truncated extra fields", (b: Buffer, o: number) => b.writeUInt16LE(65535, o + 28)],
+  ] as const) await t.test(label, async () => {
+    const bytes = await pack([{ name: "themes/a.txt", bytes: Buffer.from("x") }]); change(bytes, centralEntries(bytes)[0]!.local);
+    await assert.rejects(consume(bytes), { code: "UNSAFE_ARCHIVE" });
+  });
+  for (const [label, name, content, mode] of [["nonempty directory", "themes/dir/", "x", 0o040755], ["regular file named directory", "themes/dir/", "", 0o100644], ["directory named file", "themes/dir", "", 0o040755]] as const) await t.test(label, async () => {
+    await assert.rejects(consume(await pack([{ name, bytes: Buffer.from(content), mode }])), { code: "UNSAFE_ARCHIVE" });
+  });
+});

@@ -57,3 +57,18 @@ test("B download admits only ZIP/binary MIME and still verifies ZIP bytes", asyn
   await assert.rejects(backend.importBackup({ principalId: "recipient", source: { url: "https://public.example/fake.tovu.zip" } }));
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 });
+
+test("failed HTTP status or missing binary body records a failed import without staging a site", async t => {
+  const h = await importFixture(t);
+  for (const response of [
+    { status: 404, headers: { "content-type": "application/zip" }, bodyText: "not found", bodyBytes: h.archive, bodyBytesTruncated: false },
+    { status: 200, headers: { "content-type": "application/zip" }, bodyText: "", bodyBytesTruncated: false },
+  ]) {
+    const backend = createSiteImportBackend({ ...h.backendPorts, http: { send: async () => response } });
+    await assert.rejects(backend.importBackup({ principalId: "recipient", source: { url: "https://public.example/missing.zip" } }), { code: "DOWNLOAD_FAILED" });
+  }
+  const rows = await h.backend.list({ principalId: "recipient" });
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every(row => row.state === "failed" && row.error === "Share download failed or exceeded the v1 300 MiB archive cap."));
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
+});
