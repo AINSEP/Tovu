@@ -54,7 +54,7 @@ export interface LibraryPreviewState {
   readonly text: string | null;
   /** Safe HTML (raw HTML off) for Markdown — rendered only inside a scriptless sandboxed frame. */
   readonly html: string | null;
-  /** A `blob:` URL of the PDF bytes for the sandboxed viewer. */
+  /** A `blob:` URL of the PDF bytes, typed `application/pdf`, for the browser's PDF viewer. */
   readonly pdfUrl: string | null;
   readonly truncated: boolean;
 }

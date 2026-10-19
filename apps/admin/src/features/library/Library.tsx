@@ -29,7 +29,8 @@ import {
  * version would need the parked module's ports wired first.
  *
  * Previews never run document content: Markdown renders with raw HTML off inside a scriptless,
- * network-blocked frame; text is React-escaped; PDF opens in a sandboxed frame; DOCX downloads.
+ * network-blocked frame; text is React-escaped; PDF opens in the browser's PDF viewer from a blob
+ * typed `application/pdf`; DOCX downloads.
  */
 export interface LibraryProps {
   /** The `?tab=` query value; guarded by `resolveLibraryTabId`. */
@@ -181,7 +182,7 @@ function RenameField({ item, controller }: { item: AdminMedia; controller: Libra
         />
         <span className="library-rename-ext">{documentExtensionSuffix(item)}</span>
       </span>
-      <button type="button" onClick={() => void rename.save()} disabled={rename.saving || rename.invalid}>
+      <button type="button" className="btn-primary" onClick={() => void rename.save()} disabled={rename.saving || rename.invalid}>
         {rename.saving ? t("Saving…") : t("Save")}
       </button>
       <button type="button" className="btn-secondary" onClick={rename.cancel} disabled={rename.saving}>
@@ -223,7 +224,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
               ) : (
                 <button
                   type="button"
-                  className="library-name-button"
+                  className="link-button library-name-button"
                   onClick={() => controller.openPreview(item)}
                   {...agentHandle({ handle: `library-doc-${index + 1}-preview` }, { role: "button", label: "Preview this document" })}
                 >
@@ -233,7 +234,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
           },
           { key: "type", header: t("Type"), cell: (item) => <span className="library-type">{documentTypeLabel(item)}</span> },
           { key: "size", header: t("Size"), cellClassName: "library-num", cell: (item) => formatLibraryBytes(item.byteSize) },
-          { key: "uploaded", header: t("Upload date"), cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
+          { key: "uploaded", header: t("Upload date"), cellClassName: "library-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
           {
             key: "by",
             header: t("Uploaded by"),
@@ -296,7 +297,15 @@ function PreviewBody({ preview, controller }: { preview: LibraryPreviewState; co
   if (preview.kind === "markdown" && preview.html !== null) return <MarkdownFrame html={preview.html} title={name} />;
   if (preview.kind === "text" && preview.text !== null) return <pre className="library-preview-text">{preview.text}</pre>;
   if (preview.kind === "pdf" && preview.pdfUrl) {
-    return <iframe className="library-preview-frame library-preview-pdf" title={name} sandbox="" referrerPolicy="no-referrer" src={preview.pdfUrl} />;
+    // Not a sandboxed iframe: Chrome shows "This page has been blocked" for a PDF inside
+    // `sandbox=""` (seen 2026-10-18). `<object>` hands the bytes to the browser's own PDF viewer;
+    // the hook re-types the blob as `application/pdf`, so it can never load as an HTML page. The
+    // fallback shows when the browser has no inline PDF viewer.
+    return (
+      <object className="library-preview-frame library-preview-pdf" title={name} type="application/pdf" data={preview.pdfUrl}>
+        <p className="library-preview-none">{t("No preview for this file type. Download it to open it.")}</p>
+      </object>
+    );
   }
   return <p className="library-preview-none">{t("No preview for this file type. Download it to open it.")}</p>;
 }

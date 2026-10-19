@@ -49,11 +49,9 @@
 .library-upload-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* --- Documents tab --- */
-.library-name-button {
-  background: none; border: 0; padding: 0; color: var(--link); font: inherit; font-weight: 500;
-  text-align: start; cursor: pointer; overflow-wrap: anywhere; letter-spacing: normal;
-}
-.library-name-button:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
+/* The name also carries `.link-button`: `.list-table td button:not(...):not(.link-button)` in
+   styles.css otherwise boxes every unclassed row button. This adds weight and wrapping only. */
+.link-button.library-name-button { font-weight: 500; text-align: start; overflow-wrap: anywhere; }
 .library-name-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
 .library-type {
   display: inline-block; padding: 0.05rem 0.4rem; border-radius: var(--r-sm); background: var(--surface-2);
@@ -61,7 +59,8 @@
 }
 .library-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.library-rename { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* One line, so editing a name does not reflow the row or wrap the other columns. */
+.library-rename { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); }
 .library-rename-field {
   display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: var(--r-sm);
   background: var(--surface); padding-inline-end: 0.5rem;
@@ -69,10 +68,10 @@
 .library-rename-field:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .library-rename-field input {
   border: 0; background: transparent; box-shadow: none; outline: none; padding: 0.35rem 0.5rem;
-  width: 14rem; max-width: 52vw; font: inherit; color: var(--fg);
+  width: 11rem; max-width: 40vw; font: inherit; color: var(--fg);
 }
 .library-rename-ext { color: var(--muted); font-size: var(--text-sm); }
-.library-rename button { padding: 0.35rem 0.7rem; }
+.library-rename button { padding: 0.35rem 0.7rem; white-space: nowrap; }
 
 .library-notice a { font-weight: 600; }
 

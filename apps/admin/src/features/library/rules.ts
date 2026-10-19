@@ -75,7 +75,7 @@ export function documentExtensionSuffix(item: Pick<AdminMedia, "originalFilename
 
 export type LibraryPreviewKind = "markdown" | "text" | "pdf" | "download";
 
-/** Markdown renders (raw HTML off); text/CSV/JSON show escaped; PDF uses the sandboxed viewer;
+/** Markdown renders (raw HTML off); text/CSV/JSON show escaped; PDF uses the browser's PDF viewer;
  *  DOCX downloads only (no extraction in v1). */
 export function documentPreviewKind(item: Pick<AdminMedia, "originalFilename" | "displayFilename">): LibraryPreviewKind {
   switch (libraryExtension(item.originalFilename ?? item.displayFilename ?? "")) {

@@ -238,6 +238,18 @@ describe("Library previews never run document content", () => {
     expect(await screen.findByText("<b>bold?</b>")).toBeInTheDocument();
   });
 
+  it("shows a PDF through an application/pdf <object>, not a sandboxed iframe Chrome blocks", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:fake-pdf");
+    URL.revokeObjectURL = vi.fn();
+    renderLibrary(createFakeLibraryPort({ documents: [fakeDocument("guide.pdf")] }), "documents");
+    await userEvent.click(await screen.findByRole("button", { name: "guide.pdf" }));
+    const viewer = await screen.findByTitle("guide.pdf");
+    expect(viewer.tagName).toBe("OBJECT");
+    expect(viewer.getAttribute("type")).toBe("application/pdf");
+    expect(viewer.getAttribute("data")).toBe("blob:fake-pdf");
+    expect(vi.mocked(URL.createObjectURL).mock.calls[0]?.[0]).toMatchObject({ type: "application/pdf" });
+  });
+
   it("frame document carries a CSP that blocks scripts and network", () => {
     const doc = markdownFrameDocument("<p>x</p>", { text: "black", link: "blue", border: "gray" });
     expect(doc).toContain(`content="default-src 'none'; style-src 'unsafe-inline'"`);

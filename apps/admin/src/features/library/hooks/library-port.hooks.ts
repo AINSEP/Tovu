@@ -14,7 +14,7 @@ export interface LibraryPort {
   readDocumentText(target: { id: string }): Promise<{ text: string; truncated: boolean }>;
   /** The authenticated download URL (served as an attachment). */
   documentDownloadUrl(id: string): string;
-  /** The original bytes, for the sandboxed PDF viewer. */
+  /** The original bytes, for the browser's PDF viewer. */
   fetchDocumentBlob(id: string): Promise<Blob>;
   me(): Promise<{ effectivePermissions?: string[] }>;
   /** Names uploaders. Optional: without it (or when it fails) rows show the raw principal id. */
