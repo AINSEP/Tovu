@@ -16,6 +16,7 @@ import { closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlit
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { importFixture, seedPluginShareData, OWNER_PASSWORD, HASH, STORAGE_KEY, reader } from "./import.fixture.js";
 import { loadTheme } from "../../theme/theme.js";
+import { requireShareSecretFree } from "../share-file-policy.js";
 
 // Real installed packages include both MCP transport declarations and credential schema metadata.
 const packageRoot = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
@@ -26,10 +27,28 @@ const packageFiles = new Map([
   ["tovu-credential-schemes.json", Buffer.from('{"schemes":[]}')],
   ["tovu-deploy-targets.json", Buffer.from('{"targets":[]}')],
   ["tovu-deploy-configs.json", Buffer.from('{"configs":[]}')],
+  // These references must survive the same package scan as literal credential-bearing files.
+  ["targets/cloudflare-pages.mjs", Buffer.from([
+    'export const headers = config => ({ Authorization: `Bearer ${config.token}` });',
+    'export const auth = credential => ({ Authorization: `Bearer ${credential.token}` });',
+    'export const env = () => ({ Authorization: `Bearer ${process.env.CLOUDFLARE_TOKEN}` });',
+    'export const bind = credential => ({ token: credential.token });',
+  ].join("\n"))],
   ["targets/vercel.mjs", Buffer.from("export const target = 'vercel';")],
   ["source-control/write-files.mjs", Buffer.from("export const writeFiles = () => {};")],
   ["skills/web-compliance/SKILL.md", Buffer.from("Portable plugin documentation")],
 ]);
+
+test("share code awareness is restricted to code extensions", () => {
+  const bytes = Buffer.from("{ token: credential.token }");
+  for (const ext of ["js", "mjs", "cjs", "ts", "tsx", "jsx"]) {
+    assert.doesNotThrow(() => requireShareSecretFree({ path: `plugins/example/source.${ext}`, bytes }));
+  }
+  for (const ext of ["json", "yaml", "yml", "md", "html", "mjs.txt"]) {
+    assert.throws(() => requireShareSecretFree({ path: `content/example.${ext}`, bytes }),
+      (error: unknown) => (error as { code: string }).code === "SECRET_IN_CONTENT");
+  }
+});
 
 for (const placement of ["inSite", "appData"] as const) test("A production preparation → public download → B import preserves content: " + placement, async t => {
   const h = await importFixture(t, placement);
@@ -116,4 +135,27 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
   assert.deepEqual(fs.readFileSync(path.join(entry.path, "themes/static/site/index.html")), h.files.get("themes/static/site/index.html"));
   for (const [name, bytes] of packageFiles) assert.deepEqual(fs.readFileSync(path.join(entry.path, ".import-quarantine", packageRoot, name)), bytes, "B preserves quarantined " + name);
   assert.equal(loadTheme({ themeDir: path.join(entry.path, "themes/static/site"), id: "site", source: "site" }).status, "valid");
+});
+
+test("production export still refuses literal credentials inside a hashed plugin package", async t => {
+  const h = await importFixture(t);
+  const file = `${packageRoot}/targets/cloudflare-pages.mjs`;
+  const key = ["sk", "proj", ""].join("-") + "a1".repeat(15);
+  h.files.set(file, Buffer.from(`export const config = { token: "${key}" };`));
+  await assert.rejects(h.prepareProductionShare(), (error: unknown) => {
+    assert.equal((error as { code: string }).code, "SECRET_IN_CONTENT");
+    assert.ok((error as Error).message.includes(file));
+    assert.equal((error as Error).message.includes(key), false);
+    return true;
+  });
+});
+
+for (const kind of ["post", "page"]) test(`production export refuses dotted OAuth tokens in a ${kind}`, async t => {
+  const h = await importFixture(t);
+  const token = "ya29." + "a0AfH6SMBxyzQWERTYuiop1234";
+  h.db.$client.prepare("UPDATE posts SET body_json = ? WHERE kind = ?").run(JSON.stringify({ token }), kind);
+  await assert.rejects(h.prepareProductionShare(), (error: unknown) => {
+    assert.equal((error as { code: string }).code, "SECRET_IN_CONTENT");
+    return true;
+  });
 });

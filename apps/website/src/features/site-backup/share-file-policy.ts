@@ -39,7 +39,9 @@ export function validateSharePath(required: { path: string }, _optional: Record<
 /** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes). */
 export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, _optional: Record<string, never> = {}): void {
   const text = Buffer.from(required.bytes).toString("latin1");
-  if (redactSecretShapes({ text }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
+  // Only code can contain credential references; content/settings retain strict secret detection.
+  const codeAware = /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path);
+  if (redactSecretShapes({ text }, { codeAware }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${required.path}' contains credential-shaped content. Remove the secret before sharing.` });
 }
 
 function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }

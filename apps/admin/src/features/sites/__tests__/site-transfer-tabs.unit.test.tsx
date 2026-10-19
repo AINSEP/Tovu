@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
 import { SiteExportTab } from "../SiteExportTab";
 import { SiteImportTab } from "../SiteImportTab";
-import { createFakeSiteTransferPort, type SiteImport, type SiteShare, type SiteTransferPort } from "../hooks/site-transfer-dependencies.hooks";
+import { createFakeSiteTransferPort, defaultSiteTransferPort, type SiteImport, type SiteShare, type SiteTransferPort } from "../hooks/site-transfer-dependencies.hooks";
 import { useSiteExport, useSiteImport } from "../hooks/use-site-transfer.hooks";
 import {
   formatTransferBytes,
@@ -94,6 +94,17 @@ describe("site transfer display rules", () => {
 });
 
 describe("SiteExportTab", () => {
+  it("renders the server's flat refusal as plain text through the real client", async () => {
+    const message = "Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <strong>remove it</strong>";
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: "SECRET_IN_CONTENT", message }, { status: 400 }));
+    try {
+      renderExport(createFakeSiteTransferPort({ createShare: defaultSiteTransferPort.createShare }));
+      fireEvent.click(screen.getByRole("button", { name: "Export this site" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toBe(message);
+      expect(alert.querySelector("strong")).toBeNull();
+    } finally { fetch.mockRestore(); }
+  });
   it("shows an empty state, then exports with one press and no confirmation", async () => {
     let listed: SiteShare[] = [];
     const createShare = vi.fn(async () => { listed = [share()]; return share(); });

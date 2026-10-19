@@ -11,6 +11,7 @@ import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases"
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { copyRowsIntoOlderSchema } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
 import { workspaces, members, media } from "#src/platform/db/schema.sqlite";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { CONTENT_MIGRATIONS, runMigrations } from "#src/platform/db/migrations/index";
@@ -98,7 +99,12 @@ for (const populated of [false, true]) {
         db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
         if (populated) {
           db.insert(members).values({ id: "retained-member", workspaceId: "retained-ws", email: "retained@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 9 }).run();
-          db.insert(media).values({ id: "retained-media", workspaceId: "retained-ws", title: "Retained", alt: "Retained", caption: "", credit: "", sourceSha256: "retained-hash", status: "active", createdAt: NOW, updatedAt: NOW, version: 3 }).run();
+          // Keep this pre-0011 upgrade fixture historical: current Drizzle also names 0014's
+          // kind/original_filename columns. The shared copier inserts only columns present here.
+          await copyRowsIntoOlderSchema({ target: db, tables: ["media"], populate: current => {
+            current.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
+            current.insert(media).values({ id: "retained-media", workspaceId: "retained-ws", title: "Retained", alt: "Retained", caption: "", credit: "", sourceSha256: "retained-hash", status: "active", createdAt: NOW, updatedAt: NOW, version: 3 }).run();
+          } });
           // Historical SQL fixtures use the frozen schema, whose Drizzle exports were retired.
           db.$client.prepare("INSERT INTO commerce_products (id, workspace_id, name, slug, kind, status, specs_json, created_at, updated_at, version) VALUES ('retained-product', 'retained-ws', 'Retained', 'retained', 'one_time', 'archived', ?, ?, ?, 7)").run(PAYLOAD, NOW, NOW);
           db.$client.prepare("INSERT INTO commerce_prices (id, workspace_id, product_id, unit_amount_cents, compare_at_amount_cents, currency, status, created_at, version) VALUES ('retained-price', 'retained-ws', 'retained-product', 123, 456, 'usd', 'archived', ?, 4)").run(NOW);

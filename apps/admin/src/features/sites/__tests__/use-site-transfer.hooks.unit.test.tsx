@@ -92,6 +92,20 @@ describe("site transfer port", () => {
 });
 
 describe("useSiteExport", () => {
+  it("shows a flat server refusal through the live export port", async () => {
+    const message = "Share refused: 'targets/cloudflare-pages.mjs' contains credential-shaped content. <plain text>";
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? Response.json({ code: "SECRET_IN_CONTENT", message }, { status: 400 })
+        : Response.json({ shares: [] }));
+    const { result } = renderHook(() => useSiteExport({ port: defaultSiteTransferPort, t }), { wrapper });
+    await act(() => result.current.exportSite());
+    expect(result.current.exportError).toBe(message);
+    expect(result.current.exporting).toBe(false);
+    await expect(defaultSiteTransferPort.createShare({})).rejects.toMatchObject({
+      status: 400, code: "SECRET_IN_CONTENT", message,
+    });
+  });
   it("StrictMode exposes a 400 refusal and clears the exporting spinner", async () => {
     let rejectExport!: (error: Error) => void;
     const port = createFakeSiteTransferPort({ createShare: () => new Promise((_, reject) => { rejectExport = reject; }) });
