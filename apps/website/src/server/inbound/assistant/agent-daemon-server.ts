@@ -1268,7 +1268,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         runId: run.id,
         agentId: sessionBinding.agentId,
         prompt,
-        cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
+        // In dev the server starts from the repo root, where CLIs auto-load Codex AGENTS.md
+        // and Claude CLAUDE.md; use the site so the in-app assistant avoids developer bootstrap.
+        cwd: process.env.TOVU_AGENT_CWD ?? routeDeps.siteBinding.dir,
       }, {
         permissionMode: resolvePermissionMode(),
         nativeToolAccess,

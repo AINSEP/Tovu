@@ -85,7 +85,6 @@ export async function captureDaemonRun(
     resolveCapabilityManifestArm: () => "off",
     toolExtensions: undefined,
     conversationStartLock: createConversationStartLock({}, {}),
-    routeDeps: { workspaceId: "ws-daemon-test" },
     randomUUID: () => "unused-session-id",
     process: { env: {}, cwd: () => "/tmp/daemon-test" },
     resolvePermissionMode: () => "bypass",
@@ -101,6 +100,8 @@ export async function captureDaemonRun(
     // AgentExecutorRunInput from them, so the capture does the same.
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
     ...options.bindings,
+    // Partial fixture ports still need the site directory used by every CLI launch.
+    routeDeps: { workspaceId: "ws-daemon-test", siteBinding: { dir: "/tmp/daemon-test" }, ...fixtureDeps },
   };
   try {
     if (!options.bindings?.routeDeps) assert.equal(context.conversationId, undefined, "session I/O requires explicit fixture ports");

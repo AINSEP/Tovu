@@ -27,7 +27,7 @@ import { assistantCliPermissions } from "#src/contracts/headless/assistant-subag
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
 
 /** Execute the real handler's AST with isolated ports; importing the entrypoint would boot a daemon. */
-function sessionHarness(coldStartContext?: string) {
+function sessionHarness(coldStartContext?: string, options: { env?: Record<string, string> } = {}) {
   const source = ts.createSourceFile("daemon.ts", DAEMON_ENTRY_SOURCE, ts.ScriptTarget.Latest, true);
   let initializer: ts.Expression | undefined;
   for (const statement of source.statements) {
@@ -46,7 +46,7 @@ function sessionHarness(coldStartContext?: string) {
   let writes = 0;
   let releaseWrite!: () => void;
   const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
-  const launches: { runId: string; newSessionId?: string; resumeSessionId?: string; stored: string | null }[] = [];
+  const launches: { runId: string; cwd: string; newSessionId?: string; resumeSessionId?: string; stored: string | null }[] = [];
   const failures: unknown[][] = [];
   const prompts: string[] = [];
   const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: () => {}, onCancelRequested: () => () => {} };
@@ -60,7 +60,7 @@ function sessionHarness(coldStartContext?: string) {
     frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },
     resolveAttachmentRunFields: async () => ({}), resolveAgentPluginPromptPrefix: async () => "",
     buildCapabilityManifestPrefix: () => "", resolveCapabilityManifestArm: () => "off", toolExtensions: undefined,
-    routeDeps: { workspaceId: "ws-1", agentSessions: {
+    routeDeps: { workspaceId: "ws-1", siteBinding: { dir: "/external/site" }, agentSessions: {
       getSessionId: async ({ conversationId, agentId }: { conversationId: string; agentId: string }) => {
         return bindings.get(`${conversationId}:${agentId}`) ?? null;
       },
@@ -75,11 +75,11 @@ function sessionHarness(coldStartContext?: string) {
     randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
     waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     agentCarriesOwnMemory: () => true, wouldForcedColdStartLoseConversationContext: () => false,
-    agentExecutor: { run: async (input: { runId: string; prompt: string }, options: { newSessionId?: string; resumeSessionId?: string } = {}) => {
+    agentExecutor: { run: async (input: { runId: string; prompt: string; cwd: string }, options: { newSessionId?: string; resumeSessionId?: string } = {}) => {
       prompts.push(input.prompt);
-      launches.push({ runId: input.runId, newSessionId: options.newSessionId, resumeSessionId: options.resumeSessionId, stored: bindings.get("conv-1:claude") ?? null });
+      launches.push({ runId: input.runId, cwd: input.cwd, newSessionId: options.newSessionId, resumeSessionId: options.resumeSessionId, stored: bindings.get("conv-1:claude") ?? null });
     } },
-    process: { env: {}, cwd: () => "/isolated" }, resolvePermissionMode: () => "default",
+    process: { env: options.env ?? {}, cwd: () => "/repo" }, resolvePermissionMode: () => "default",
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
     resolveAssistantDisallowedTools: () => [], readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
     resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions,
@@ -102,6 +102,29 @@ function sessionHarness(coldStartContext?: string) {
     releaseWrite, launches, failures, prompts,
     get stored() { return bindings.get("conv-1:claude") ?? null; }, get minted() { return minted; }, get writes() { return writes; },
   };
+}
+
+// Capture the real executor boundary: cwd must stay site-bound even when a session resumes.
+for (const override of [undefined, "/explicit/agent-workdir"]) {
+  test(`runtime: cold and resumed CLI cwd ${override === undefined ? "defaults to the site directory" : "honors TOVU_AGENT_CWD"}`, async () => {
+    const harness = sessionHarness(undefined, { env: override === undefined ? {} : { TOVU_AGENT_CWD: override } });
+    harness.start("cold");
+    harness.releaseWrite();
+    await harness.flush();
+    assert.deepEqual(harness.failures, []);
+    assert.equal(harness.launches.length, 1);
+    assert.equal(harness.launches[0]!.newSessionId, "minted-1");
+    assert.equal(harness.launches[0]!.resumeSessionId, undefined);
+    assert.equal(harness.launches[0]!.cwd, override ?? "/external/site");
+
+    harness.start("resumed");
+    await harness.flush();
+    assert.deepEqual(harness.failures, []);
+    assert.equal(harness.launches.length, 2);
+    assert.equal(harness.launches[1]!.newSessionId, undefined);
+    assert.equal(harness.launches[1]!.resumeSessionId, "minted-1");
+    assert.equal(harness.launches[1]!.cwd, override ?? "/external/site");
+  });
 }
 
 test("runtime: a new CLI session receives prior conversation context, while a resumed session keeps its compact prompt", async () => {
@@ -164,10 +187,10 @@ test("runtime: a cold dispatch waits for durable persistence and resumes that ex
   assert.deepEqual(harness.launches, [], "the executor must wait for the unfinished store write");
   harness.releaseWrite();
   await harness.flush();
-  assert.deepEqual(harness.launches, [{ runId: "first", newSessionId: "minted-1", resumeSessionId: undefined, stored: "minted-1" }]);
+  assert.deepEqual(harness.launches, [{ runId: "first", cwd: "/external/site", newSessionId: "minted-1", resumeSessionId: undefined, stored: "minted-1" }]);
   harness.start("next");
   await harness.flush();
-  assert.deepEqual(harness.launches[1], { runId: "next", newSessionId: undefined, resumeSessionId: "minted-1", stored: "minted-1" });
+  assert.deepEqual(harness.launches[1], { runId: "next", cwd: "/external/site", newSessionId: undefined, resumeSessionId: "minted-1", stored: "minted-1" });
   assert.equal(harness.minted, 1);
   assert.deepEqual(harness.failures, []);
 });
@@ -186,8 +209,8 @@ test("runtime: concurrent dispatches serialize the lookup and pending write, min
   assert.equal(harness.writes, 1);
   assert.equal(harness.stored, "minted-1");
   assert.deepEqual(harness.launches, [
-    { runId: "first", newSessionId: "minted-1", resumeSessionId: undefined, stored: "minted-1" },
-    { runId: "second", newSessionId: undefined, resumeSessionId: "minted-1", stored: "minted-1" },
+    { runId: "first", cwd: "/external/site", newSessionId: "minted-1", resumeSessionId: undefined, stored: "minted-1" },
+    { runId: "second", cwd: "/external/site", newSessionId: undefined, resumeSessionId: "minted-1", stored: "minted-1" },
   ]);
   assert.deepEqual(harness.failures, []);
 });
