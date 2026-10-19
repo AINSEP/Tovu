@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createApi, refusal, segment } from './api.mjs';
+import { createApi, refusal, segment, PAGES_PROJECTS_PAGING } from './api.mjs';
 import { prepareAssets } from './assets.mjs';
 import { previewDomains, assertDomainApproval, applyDomains } from './domains.mjs';
 import { normalizeDomain } from './zones.mjs';
@@ -37,7 +37,7 @@ export async function previewTarget({ credential, config, kit, projectName, targ
 
 async function inspectTarget({ api, config, kit, targetId, name, domain }, _options = {}) {
   const path = targetId === 'cloudflare-workers' ? `${api.accountPath}/workers/scripts` : `${api.accountPath}/pages/projects`;
-  const resources = await api.list({ path });
+  const resources = await api.list({ path }, targetId === 'cloudflare-workers' ? {} : PAGES_PROJECTS_PAGING);
   // Workers scripts are identified by `id`, Pages projects by `name`.
   const existing = resources.find(resource => resource.id === name || resource.name === name);
   const hostingChanges = [{ action: existing ? 'update' : 'create', targetId, resourceName: name }];

@@ -1,6 +1,10 @@
 /** Cloudflare-only HTTP owner. All network effects use the injected, traced host transport. */
 export const API_ROOT = 'https://api.cloudflare.com/client/v4';
 export const segment = ({ value }, _options = {}) => encodeURIComponent(value);
+/** Cloudflare rejects `per_page` above 10 on the Pages projects list (error 8000024, HTTP 400). */
+export const PAGES_PROJECTS_PAGING = { perPage: 10, maxPages: 11 };
+/** Cloudflare caps `per_page` at 50 on the zones list (the default 100 is refused). */
+export const ZONES_PAGING = { perPage: 50, maxPages: 20 };
 
 /** Safe, stable refusal; upstream bodies can contain credentials and never cross this boundary. */
 export function refusal({ kit, code, message, status = 400 }, _options = {}) {

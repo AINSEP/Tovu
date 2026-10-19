@@ -1,4 +1,4 @@
-import { segment, refusal } from './api.mjs';
+import { segment, refusal, PAGES_PROJECTS_PAGING } from './api.mjs';
 import { matchesHostname } from './dns.mjs';
 
 /** Full account inventory, including disabled/no-script bindings. Never filter by destination first.
@@ -7,7 +7,7 @@ export async function readDomainInventory({ api, zone }, _options = {}) {
   const records = await api.list({ path: `/zones/${segment({ value: zone.id })}/dns_records` });
   const workers = await api.list({ path: `${api.accountPath}/workers/domains` });
   const routes = await api.list({ path: `/zones/${segment({ value: zone.id })}/workers/routes` });
-  const projects = await api.list({ path: `${api.accountPath}/pages/projects` });
+  const projects = await api.list({ path: `${api.accountPath}/pages/projects` }, PAGES_PROJECTS_PAGING);
   requireFields({ api, rows: records, fields: ['id', 'name', 'type', 'content'], label: 'DNS records' });
   requireFields({ api, rows: workers, fields: ['id', 'hostname', 'service', 'environment'], label: 'Worker domains' });
   requireFields({ api, rows: routes, fields: ['id', 'pattern'], label: 'Worker routes' });
@@ -15,7 +15,7 @@ export async function readDomainInventory({ api, zone }, _options = {}) {
   if (projects.length > 100) throw refusal({ kit: api.kit, code: 'CLOUDFLARE_INVENTORY_UNKNOWN', message: 'More than 100 Pages projects need conflict inspection. Narrow the account or contact support before changing domains.' });
   const pages = [];
   for (const project of projects) {
-    const domains = await api.list({ path: `${api.accountPath}/pages/projects/${segment({ value: project.name })}/domains` });
+    const domains = await api.list({ path: `${api.accountPath}/pages/projects/${segment({ value: project.name })}/domains` }, PAGES_PROJECTS_PAGING);
     requireFields({ api, rows: domains, fields: ['name', 'status'], label: `Pages project ${project.name} domains` });
     pages.push(...domains.map(domain => ({ ...domain, projectName: project.name })));
   }
