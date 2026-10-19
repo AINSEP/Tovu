@@ -38,11 +38,14 @@ import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { set } from "./site-title-write.js";
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "./admin-interface.js";
+import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";
+import type { AssistantAgentInventory } from "#src/assistant/agents";
 
 export { settingsDerivedRisk } from "@jini-ai/core/settings";
 
 /** Native grants are bound to the invoking plugin's admitted identity/version/digest, never model input. */
 export type SettingsToolDeps = CoreSettingsToolDeps & {
+  assistantAgentInventory?: AssistantAgentInventory;
   /** The composed host writer applies title bounds and visitor-credential policy alike. */
   set?: typeof set;
   nativeApprovalMemory?: RememberedApprovalPort;
@@ -53,7 +56,8 @@ export type SettingsToolDeps = CoreSettingsToolDeps & {
  * Credentials are not settings: core.execution intentionally omits byok.apiKey; provider
  * credentials, OAuth state and external-MCP grants use their own repositories. */
 export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
-  ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS,
+  ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS.filter(rule => rule.key !== "localCli.agentId"),
+  ...CHAT_EXECUTION_KEYS.map(key => ({ namespace: "core.execution", key, reason: "Changes your chat agent, model or thinking effort for the next turn" })),
   { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Changes your Agent plugins mode (Auto / Ask first / Off)" },
 ];
 
@@ -61,6 +65,7 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
  * Card parameters carry only a decision, never replacement setting coordinates or values.
  * @complexity O(t) registration construction; one bounded card exchange per protected write. */
 export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  // The chat-selection how-to lives in this tool's search metadata: descriptions stay the catalog's verbatim.
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
     extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
@@ -69,9 +74,12 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
     // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
     confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options?: ToolExecutionOptions) => {
+      const request = { ctx, toolId, namespace, key, scope, value };
+      const selectionSnapshot = await prepareChatExecutionWrite({ deps: routeDeps, request });
       // Agent plugins opt-in belongs to the person. Always ask: a saved plugin grant must
       // never let prompt injection silently flip Ask first to Auto (or clear its override).
       const isAgentPlugins = namespace === ADMIN_INTERFACE_NAMESPACE && key === CHAT_AGENT_PLUGINS_KEY;
+      const alwaysAsk = isAgentPlugins || selectionSnapshot !== null;
       // Reuse the invoking plugin's canonical enable grant. Escalation consent applies once to
       // that admitted identity/version/digest; it never replaces fresh per-write scope permissions.
       const handler = approvalToolHandler({ surfaces,
@@ -81,19 +89,23 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
         },
         describe: ({ prepared }) => ({ toolId, errorCode: "SETTINGS",
           title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
-          description: reason + (isAgentPlugins ? ". This change requires your confirmation every time." : prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : ""),
+          description: reason + (alwaysAsk ? ". This change requires your confirmation every time." : prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : ""),
           details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
             ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
             { label: "Previous override", value: JSON.stringify(previous) },
+            ...(selectionSnapshot !== null ? [{ label: "Resulting chat selection", value: JSON.stringify(JSON.parse(selectionSnapshot)) }] : []),
             { label: "New value", value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : JSON.stringify(value ?? null) }],
           confirmLabel: "Confirm change",
         }),
         // The settings owner retains fresh authorization, layer-sequence and definition-version checks.
         run: async ({ ctx: snapshot, prepared }) => {
+          // The model/effort depends on the selected runtime too. Consent must not drift to a
+          // different selection if another picker changes it while this card is held open.
+          const currentSelection = await prepareChatExecutionWrite({ deps: routeDeps, request: { ...request, ctx: snapshot } });
           const currentKey = (await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }))?.key;
-          return { confirmed: !snapshot.signal.aborted && currentKey === prepared.rememberKey };
+          return { confirmed: !snapshot.signal.aborted && currentKey === prepared.rememberKey && currentSelection === selectionSnapshot };
         },
-      }, { remembered: isAgentPlugins ? undefined : routeDeps.nativeApprovalMemory, rememberKey: ({ prepared }) => prepared.rememberKey,
+      }, { remembered: alwaysAsk ? undefined : routeDeps.nativeApprovalMemory, rememberKey: ({ prepared }) => prepared.rememberKey,
         declined: () => ({ confirmed: false }),
       });
       // No credentials enter this description; they use the secret-card engine and separate stores.

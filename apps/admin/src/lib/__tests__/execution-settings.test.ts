@@ -72,6 +72,8 @@ vi.mock("../api", () => ({
     setAdminExecutionCredential,
   },
   ApiError: FakeApiError,
+  // The next-send test loads the real dock hooks, whose skills source reads the workspace id.
+  WORKSPACE_ID: "workspace-local",
 }));
 
 import {
@@ -367,6 +369,86 @@ describe("selectedLocalCliReasoning", () => {
 });
 
 describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only credential boundary", () => {
+  it("saves the composer's agent/model/effort to the caller's own layer", async () => {
+    const next: ExecutionConfig = { ...DEFAULT_EXECUTION_CONFIG, localCli: {
+      agentId: "catalog-agent", modelByAgentId: { "catalog-agent": "catalog-model" }, reasoningByAgentId: { "catalog-agent": "catalog-effort" },
+    } };
+    await saveExecutionConfig(next, DEFAULT_EXECUTION_CONFIG);
+    expect(setSetting.mock.calls.map(([input]) => input)).toEqual([
+      { namespace: "core.execution", key: "localCli.agentId", scope: "user", valueJson: "catalog-agent" },
+      { namespace: "core.execution", key: "localCli.model", scope: "user", valueJson: "catalog-model" },
+      { namespace: "core.execution", key: "localCli.reasoning", scope: "user", valueJson: "catalog-effort" },
+    ]);
+  });
+
+  it("confirms a real settings write, reloads the composer, and uses it only on the next send", async () => {
+    const { InMemorySettingsRepo } = await import("@jini-ai/core/settings");
+    const { buildSettingsRegistrations } = await import("../../../../website/src/features/settings/tool-registrations");
+    const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
+    const { createSystemClock } = await import("@jini-ai/core/primitives");
+    const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
+    const { act, renderHook } = await import("@/__tests__/fetch-query-render");
+    const { useExecutionConfig, useLocalCliSelection, useAssistantTransport } = await import("../../components/AssistantDock/hooks/AssistantDock.hooks");
+    const repo = new InMemorySettingsRepo({ definitions: [
+      ["localCli.agentId", "old-agent"], ["localCli.model", "old-model"], ["localCli.reasoning", "high"],
+    ].map(([key, defaultValue]) => ({ settingId: key!, version: 1, workspaceId: null,
+      namespace: "core.execution", key: key!, ownerKind: "core" as const, ownerId: null,
+      schema: { type: "string" as const }, defaultValue: defaultValue!, scopes: 6, secret: false,
+      status: "active" as const, aliasOfNamespace: null, aliasOfKey: null, coercionTag: null,
+      createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z",
+    })) });
+    const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "selection-card" }, defaultChannel: "mcp-ui" }) };
+    const levels = [{ id: "high", label: "High" }, { id: "medium", label: "Medium" }];
+    const deps = { workspaceId: "ws-1", settingsRepo: repo, settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
+      clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z") }, idGen: { newId: () => "unused" },
+      principalRepo: { findById: async () => null }, authorize: async () => ({ allowed: true, reason: "test" }),
+      assistantAgentInventory: { listAssistantAgents: async () => [], listDetectedAssistantAgents: async () => ["old-agent", "new-agent"].map(id => ({ id, available: true, authStatus: "ok", modelsSource: "live",
+        models: ["old-model", "new-model"].map(id => ({ id, label: id, reasoning: levels })), reasoningOptions: levels })) },
+    } as unknown as Parameters<typeof buildSettingsRegistrations>[0];
+    const registrations = buildSettingsRegistrations(deps, surfaces);
+    const ctx = { executionId: "exec", principal: { id: "caller" }, run: { id: "active-run" }, signal: new AbortController().signal };
+    const effective = registrations.find(row => row.descriptor.id === "settings_get_effective")!;
+    // Replace only the HTTP hop: hydration reads the real ledger written by the real tool/card.
+    getSettingsEffective.mockImplementation(() => effective.handler({ ...ctx, input: { namespace: "core.execution" } }));
+    const startRun = vi.fn<import("@jini-ai/chat/core").ChatTransport["startRun"]>().mockResolvedValue({ runId: "active-run" });
+    const port = { loadConfig: loadExecutionConfig, loadCredential: async () => ({ isSet: false }), now: () => 0 };
+    function useDock() {
+      const execution = useExecutionConfig({}, { port });
+      const selection = useLocalCliSelection(execution);
+      const transport = useAssistantTransport({ ...execution, ...selection }, { createTransport: () => ({ startRun, stopRun: async () => {}, reattachRun: async () => {}, fetchRunStatus: async () => null }) });
+      return { ...execution, ...selection, transport };
+    }
+    const handlers = { onEvent: () => {}, onDone: () => {}, onError: () => {} };
+    const runInput = { agentId: "old-agent", history: [], context: { model: "old-model", reasoning: "high" }, signal: new AbortController().signal };
+    const dock = renderHook(useDock);
+    await act(async () => { for (let i = 0; i < 25; i++) await Promise.resolve(); });
+    await act(async () => { await dock.result.current.transport.startRun(runInput, handlers); });
+    const activeInput = structuredClone({ agentId: startRun.mock.calls[0]![0].agentId, context: startRun.mock.calls[0]![0].context });
+    let cards = 0;
+    for (const [key, value] of [["localCli.agentId", "new-agent"], ["localCli.model", "new-model"], ["localCli.reasoning", "medium"]]) {
+      await registrations.find(row => row.descriptor.id === "settings_set_value")!.handler({ ...ctx, input: { namespace: "core.execution", key, scope: "user", value } }, {
+        emitSurface: async () => {
+          cards++;
+          expect(await repo.getUserValue({ workspaceId: "ws-1", settingId: key!, principalId: "caller" })).toBeNull();
+          surfaces.surfaceExchanges.deliver({ exchangeId: "selection-card", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" });
+        },
+      });
+    }
+    expect(cards).toBe(3);
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect({ agentId: startRun.mock.calls[0]![0].agentId, context: startRun.mock.calls[0]![0].context }).toEqual(activeInput);
+    expect(activeInput).toEqual({ agentId: "old-agent", context: { model: "old-model", reasoning: "high" } });
+    dock.unmount();
+    const reloaded = renderHook(useDock);
+    await act(async () => { for (let i = 0; i < 25; i++) await Promise.resolve(); });
+    expect(reloaded.result.current.localCliSelection).toEqual({ agentId: "new-agent", model: "new-model", reasoning: "medium" });
+    await act(async () => { await reloaded.result.current.transport.startRun(runInput, handlers); });
+    expect(startRun.mock.calls[1]![0]).toMatchObject({ agentId: "new-agent", context: { model: "new-model", reasoning: "medium" } });
+    expect({ agentId: startRun.mock.calls[0]![0].agentId, context: startRun.mock.calls[0]![0].context }).toEqual(activeInput);
+    reloaded.unmount();
+  // Cold dynamic imports of the website settings tools and dock hooks alone take about 5s.
+  }, 30_000);
+
   it("NEVER sends apiKey to api.setSetting, on any field change", async () => {
     const previous = DEFAULT_EXECUTION_CONFIG;
     const next: ExecutionConfig = {
@@ -543,6 +625,7 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
       ["localCli.model", "gpt-x"],
       ["localCli.agentId", "claude"],
     ]);
+    expect(setSetting.mock.calls.map(([input]) => (input as { scope?: string }).scope)).toEqual(["user", "user", "user"]);
   });
 
   it("a rollback write that also fails still rethrows the ORIGINAL error, not the rollback's", async () => {

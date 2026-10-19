@@ -22,13 +22,13 @@ import {
 
 function captureDefinitions(): {
   deps: EnsureExecutionSettingDefinitionsDeps;
-  submitted: () => ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown }>;
+  submitted: () => ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown; scopes?: number }>;
 } {
-  let captured: ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown }> = [];
+  let captured: ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown; scopes?: number }> = [];
   const deps = {
     ensureSettingDefinitions: async (
       _deps: unknown,
-      input: { namespace: string; definitions: ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown }> },
+      input: { namespace: string; definitions: ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown; scopes?: number }> },
     ) => {
       if (input.namespace === "core.execution") captured = input.definitions;
     },
@@ -67,6 +67,14 @@ test("ensureExecutionSettingDefinitions registers every localCli key the admin l
   const keys = new Set(submitted().map((definition) => definition.key));
   for (const key of ["localCli.agentId", "localCli.model", "localCli.reasoning"]) {
     assert.ok(keys.has(key), `missing registered definition for ${key}`);
+  }
+});
+
+test("the native composer axes permit personal overrides while retaining workspace inheritance", async () => {
+  const { deps, submitted } = captureDefinitions();
+  await ensureExecutionSettingDefinitions(deps, { systemPrincipalId: "system-principal" as never });
+  for (const key of ["localCli.agentId", "localCli.model", "localCli.reasoning"]) {
+    assert.equal(submitted().find(definition => definition.key === key)?.scopes, 6);
   }
 });
 

@@ -16,13 +16,16 @@ import { createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../../contracts/headless/assistant-subagents-policy.js";
 import { set } from "../site-title-write.js";
+import type { DetectedAgent } from "@jini-ai/agent-runtime";
+
+const pickerAgents = [{ id: "new", available: true, authStatus: "ok", defaultModelResolution: { status: "resolved", id: "model-a" }, modelsSource: "live", models: [{ id: "model-a", label: "Model A", reasoning: [{ id: "medium", label: "Medium" }] }], reasoningOptions: [{ id: "medium", label: "Medium" }] }] as DetectedAgent[];
 
 
 function fixture(namespace: string, key: string, schema: SettingDefinitionRecord["schema"] = { type: "string" }) {
   const definition: SettingDefinitionRecord = {
     settingId: "setting-1", version: 1, workspaceId: namespace.startsWith("site.") ? "ws-1" : null,
     namespace, key, ownerKind: namespace.startsWith("site.") ? "site" : "core", ownerId: null,
-    schema, defaultValue: schema.type === "boolean" ? false : schema.type === "number" ? 0 : "default", scopes: 6, secret: false,
+    schema, defaultValue: schema.type === "boolean" ? false : schema.type === "number" ? 0 : key === "localCli.agentId" ? "new" : "default", scopes: 6, secret: false,
     status: "active", aliasOfNamespace: null, aliasOfKey: null, coercionTag: null,
     createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z",
   };
@@ -34,6 +37,7 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
     clock: { nowMs: () => Date.parse(definition.createdAt) }, idGen: { newId: () => "unused" },
     principalRepo: { findById: async () => null }, authorize: async () => ({ allowed, reason: allowed ? "matched" : "insufficient_permission" }),
     set: (required: Parameters<typeof set>[0]) => set(required, { canEnablePublicAssistant: async () => visitorReady }),
+    assistantAgentInventory: { listAssistantAgents: async () => [], listDetectedAssistantAgents: async () => pickerAgents },
   } as unknown as SettingsToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "exchange-1" }, defaultChannel: "mcp-ui" });
   const registrations = contributeSettingsTools().build(deps as never, { surfaceExchanges });
@@ -65,11 +69,193 @@ test("normal setting runs directly and both writes are durable, not readOnly", a
   for (const toolId of ["settings_set_value", "settings_clear_value"]) assert.equal(f.registrations.find((r) => r.descriptor.id === toolId)!.descriptor.readOnly, false);
 });
 
+/** All three real ledger definitions and the same injected inventory as the UI route. */
+async function chatFixture() {
+  const f = fixture("core.execution", "localCli.agentId");
+  const original = await f.settingsRepo.findActiveDefinition({ namespace: "core.execution", key: "localCli.agentId", workspaceId: null });
+  assert.ok(original);
+  for (const [key, settingId, defaultValue] of [["localCli.agentId", "setting-1", "new"], ["localCli.model", "model-setting", ""], ["localCli.reasoning", "effort-setting", ""]]) {
+    await f.settingsRepo.saveDefinition({ ...original, key: key!, settingId: settingId!, defaultValue: defaultValue! });
+  }
+  f.deps.approvalIdentityForRun = async () => ({ key: "saved-plugin", label: "Example" });
+  f.deps.nativeApprovalMemory = { has: async () => assert.fail("picker changes always ask"), grant: async () => assert.fail("picker approval must not be remembered") };
+  let cards = 0;
+  const answer = (decision: "confirm" | "cancel" | "typed" = "confirm", toolId = "settings_set_value") => ({ emitSurface: async () => {
+    cards++;
+    f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: decision === "typed" ? { __typedAnswer: "yes" } : { decision } }, { toolId });
+  } });
+  return { ...f, answer, cards: () => cards };
+}
+
+/** Seed through the same ledger writer; no mocked effective-value payloads. */
+async function seedChat(f: Awaited<ReturnType<typeof chatFixture>>, key: string, value: string, scope: "user" | "workspace" = "user") {
+  await set({ deps: { repo: f.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen, principals: f.deps.principalRepo, authorize: f.deps.authorize },
+    input: { namespace: "core.execution", key, scope, value, workspaceId: "ws-1", authWorkspaceId: "ws-1", callerPrincipalId: "caller" } });
+}
+
+for (const status of ["missing", "unknown", undefined] as const) {
+  for (const toolId of ["settings_set_value", "settings_clear_value"]) for (const afterCard of [false, true]) test(`${toolId} refuses credential status ${status} ${afterCard ? "after" : "before"} confirmation`, async () => {
+    const f = await chatFixture();
+    const revoke = () => { f.deps.assistantAgentInventory = { ...f.deps.assistantAgentInventory!, listDetectedAssistantAgents: async () => [{ ...pickerAgents[0]!, authStatus: status }] }; };
+    if (!afterCard) revoke();
+    await assert.rejects(f.call(toolId, { namespace: "core.execution", key: "localCli.model", scope: "user", ...(toolId === "settings_set_value" ? { value: "model-a" } : {}) }, {
+      emitSurface: async () => { revoke(); await f.answer("confirm", toolId).emitSurface(); },
+    }), /Credentials.*not ready/);
+    assert.equal(f.cards(), afterCard ? 1 : 0);
+    assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+  });
+}
+for (const toolId of ["settings_set_value", "settings_clear_value"]) for (const afterCard of [false, true]) test(`${toolId} runtime entitlement is checked ${afterCard ? "after" : "before"} confirmation`, async () => {
+  const f = await chatFixture();
+  let entitled = afterCard;
+  f.deps.authorize = async ({ principalId, permission }) => {
+    assert.equal(principalId, "caller");
+    return { allowed: permission !== "admin.assistant.use" || entitled, reason: "test" };
+  };
+  await assert.rejects(f.call(toolId, { namespace: "core.execution", key: "localCli.model", scope: "user", ...(toolId === "settings_set_value" ? { value: "model-a" } : {}) }, {
+    emitSurface: async () => { entitled = false; await f.answer("confirm", toolId).emitSurface(); },
+  }), /admin.assistant.use/);
+  assert.equal(f.cards(), afterCard ? 1 : 0);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+});
+
+test("chat clear validates the inherited model before opening a card", async () => {
+  const f = await chatFixture();
+  await seedChat(f, "localCli.model", "stale-workspace-model", "workspace");
+  await seedChat(f, "localCli.model", "model-a");
+  await assert.rejects(f.call("settings_clear_value", { namespace: "core.execution", key: "localCli.model", scope: "user" }, f.answer("confirm", "settings_clear_value")), /Unknown model.*stale-workspace-model/);
+  assert.equal(f.cards(), 0);
+  assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: "model-setting", principalId: "caller" }))?.valueJson, "model-a");
+});
+
+test("chat clear binds the inherited result even if both inherited choices are valid", async () => {
+  const f = await chatFixture();
+  f.deps.assistantAgentInventory = { ...f.deps.assistantAgentInventory!, listDetectedAssistantAgents: async () => [{ ...pickerAgents[0]!, models: [...pickerAgents[0]!.models, { id: "model-b", label: "Model B" }] }] };
+  await seedChat(f, "localCli.model", "model-a", "workspace");
+  await seedChat(f, "localCli.model", "model-a");
+  await assert.rejects(f.call("settings_clear_value", { namespace: "core.execution", key: "localCli.model", scope: "user" }, {
+    emitSurface: async () => { await seedChat(f, "localCli.model", "model-b", "workspace"); await f.answer("confirm", "settings_clear_value").emitSurface(); },
+  }), /human did not confirm/);
+  assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: "model-setting", principalId: "caller" }))?.state, "set");
+});
+
+test("chat Default consent is invalidated when its concrete model changes", async () => {
+  const f = await chatFixture();
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "localCli.agentId", scope: "user", value: "new" }, {
+    emitSurface: async () => {
+      f.deps.assistantAgentInventory = { ...f.deps.assistantAgentInventory!, listDetectedAssistantAgents: async () => [{ ...pickerAgents[0]!, defaultModelResolution: { status: "resolved", id: "model-b", source: "cli", resolvedAt: "now", launchFingerprint: "changed" } }] };
+      await f.answer().emitSurface();
+    },
+  }), /human did not confirm/);
+});
+
+for (const key of ["localCli.model", "localCli.reasoning"]) test(`chat confirmed empty ${key} resets independently of stale sibling axes`, async () => {
+  const f = await chatFixture();
+  await seedChat(f, "localCli.agentId", "removed-agent");
+  await seedChat(f, "localCli.model", "stale-model", "workspace");
+  await seedChat(f, "localCli.reasoning", "stale-effort", "workspace");
+  const input = { namespace: "core.execution", key, scope: "user", value: "" };
+  await assert.rejects(f.call("settings_set_value", input, f.answer("cancel")), /human did not confirm/);
+  await f.call("settings_set_value", input, f.answer());
+  const effective = await f.call("settings_get_effective", { namespace: "core.execution" }) as { data: { key: string; value: unknown; sourceLayer: string }[] };
+  assert.equal(effective.data.find(row => row.key === key)?.value, "");
+  assert.equal(effective.data.find(row => row.key === key)?.sourceLayer, "user");
+  assert.equal(f.cards(), 2);
+});
+
+test("chat agent/model/effort writes wait for cards, persist only for the caller and are readable after reload", async () => {
+  const f = await chatFixture();
+  const input = { namespace: "core.execution", scope: "user" };
+  for (const [key, value, settingId] of [["localCli.agentId", "new", "setting-1"], ["localCli.model", "model-a", "model-setting"], ["localCli.reasoning", "medium", "effort-setting"]]) {
+    await set({ deps: { repo: f.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen, principals: f.deps.principalRepo, authorize: f.deps.authorize },
+      input: { namespace: "core.execution", key: key!, scope: "user", value: `other-${value}`, workspaceId: "ws-1", authWorkspaceId: "ws-1", callerPrincipalId: "other" } });
+    await f.call("settings_set_value", { ...input, key, value }, { emitSurface: async () => {
+      assert.equal(await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: settingId!, principalId: "caller" }), null, "nothing written before consent");
+      await f.answer().emitSurface();
+    } });
+    assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: settingId!, principalId: "caller" }))?.valueJson, value);
+    assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: settingId!, principalId: "other" }))?.valueJson, `other-${value}`);
+    assert.equal(await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: settingId! }), null);
+  }
+  const effective = await f.call("settings_get_effective", { namespace: "core.execution" }) as { data: { key: string; value: unknown; sourceLayer: string }[] };
+  assert.deepEqual(effective.data.map(row => [row.key, row.value, row.sourceLayer]).sort(), [["localCli.agentId", "new", "user"], ["localCli.model", "model-a", "user"], ["localCli.reasoning", "medium", "user"]]);
+  assert.equal(f.cards(), 3);
+});
+
+test("chat refuses unknown ids with the dynamic list and never opens a card or writes", async () => {
+  const f = await chatFixture();
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "localCli.model", scope: "user", value: "missing" }, f.answer()), /Unknown model.*Available models: model-a/);
+  assert.equal(f.cards(), 0);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+});
+
+for (const decision of ["cancel", "typed"] as const) test(`chat ${decision} cannot approve a model change`, async () => {
+  const f = await chatFixture();
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "localCli.model", scope: "user", value: "model-a" }, f.answer(decision)), /human did not confirm/);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+});
+
+test("chat refuses workspace selection edits and headless user edits", async () => {
+  const f = await chatFixture();
+  const input = { namespace: "core.execution", key: "localCli.model", value: "model-a" };
+  await assert.rejects(f.call("settings_set_value", input, f.answer()), /scope='user'/);
+  await assert.rejects(f.call("settings_set_value", { ...input, scope: "user" }), /NO_CONFIRMATION_CHANNEL/);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+});
+
+test("chat rejects a dependent runtime change while its model card is open", async () => {
+  const f = await chatFixture();
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "localCli.model", scope: "user", value: "model-a" }, {
+    emitSurface: async () => {
+      await set({ deps: { repo: f.settingsRepo, clock: f.deps.clock, ids: f.deps.idGen, principals: f.deps.principalRepo, authorize: f.deps.authorize },
+        input: { namespace: "core.execution", key: "localCli.agentId", scope: "user", value: "unavailable", workspaceId: "ws-1", authWorkspaceId: "ws-1", callerPrincipalId: "caller" } });
+      await f.answer().emitSurface();
+    },
+  }), /Unknown or unavailable agent/);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 1, "only the independent runtime change was written");
+});
+
+test("chat model clear asks every time and only clears the caller's layer", async () => {
+  const f = await chatFixture();
+  const input = { namespace: "core.execution", key: "localCli.model", scope: "user" };
+  await f.call("settings_set_value", { ...input, value: "model-a" }, f.answer());
+  await assert.rejects(f.call("settings_clear_value", input, f.answer("cancel", "settings_clear_value")), /human did not confirm/);
+  assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: "model-setting", principalId: "caller" }))?.valueJson, "model-a");
+  await f.call("settings_clear_value", input, f.answer("confirm", "settings_clear_value"));
+  assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: "model-setting", principalId: "caller" }))?.state, "cleared");
+  assert.equal(f.cards(), 3);
+});
+
+test("chat revalidates the live catalog after confirmation", async () => {
+  const f = await chatFixture();
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "localCli.model", scope: "user", value: "model-a" }, {
+    emitSurface: async () => {
+      // Default moves too: a resolved default stays a picker choice even outside the listed models.
+      f.deps.assistantAgentInventory = { ...f.deps.assistantAgentInventory!, listDetectedAssistantAgents: async () => [{ ...pickerAgents[0]!, defaultModelResolution: { status: "resolved", id: "model-b" }, models: [{ id: "model-b", label: "Model B" }] }] };
+      await f.answer().emitSurface();
+    },
+  }), /Unknown model.*Available models: model-b/);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+});
+
+test("a protected alias cannot bypass chat catalog checks or use a remembered grant", async () => {
+  const f = await chatFixture();
+  const model = await f.settingsRepo.findActiveDefinition({ namespace: "core.execution", key: "localCli.model", workspaceId: null });
+  assert.ok(model);
+  await f.settingsRepo.saveDefinition({ ...model, settingId: "alias-setting", key: "mode", status: "alias", aliasOfNamespace: "core.execution", aliasOfKey: "localCli.model" });
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "mode", scope: "user", value: "missing" }, f.answer()), /Unknown model.*Available models: model-a/);
+  assert.equal(f.cards(), 0);
+  assert.equal(await f.settingsRepo.maxRevisionSeq(), 0);
+  await f.call("settings_set_value", { namespace: "core.execution", key: "mode", scope: "user", value: "model-a" }, f.answer());
+  assert.equal(f.cards(), 1);
+  assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: "model-setting", principalId: "caller" }))?.valueJson, "model-a");
+});
+
 for (const [namespace, key] of [["core.execution", "localCli.permissionLevel"], ["core.execution", "mode"], ["core.execution", "byok.protocol"], ["core.execution", "byok.providerId"], ["core.execution", "byok.baseUrl"], ["core.execution", "localCli.agentId"]]) {
   for (const toolId of ["settings_set_value", "settings_clear_value"]) {
     test(`${toolId} ${namespace}.${key} refuses headless writes and model consent`, async () => {
       const f = fixture(namespace!, key!);
-      const input = { namespace, key, ...(toolId === "settings_set_value" ? { value: "new" } : {}) };
+      const input = { namespace, key, ...(key === "localCli.agentId" ? { scope: "user" } : {}), ...(toolId === "settings_set_value" ? { value: "new" } : {}) };
       await assert.rejects(() => f.call(toolId, input), { name: "ToolInputError", message: `SETTINGS_NO_CONFIRMATION_CHANNEL: ${toolId}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
       await assert.rejects(() => f.call(toolId, { ...input, confirmed: true }), /unexpected input 'confirmed'/);
       assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
@@ -190,7 +376,7 @@ for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
 }
 
 
-for (const [key, value] of [["byok.model", "model-a"], ["byok.maxTokens", 512], ["localCli.model", "model-a"], ["localCli.reasoning", "medium"]] as const) {
+for (const [key, value] of [["byok.model", "model-a"], ["byok.maxTokens", 512]] as const) {
   test(`ordinary execution preference ${key} sets and clears without a confirmation channel`, async () => {
     const f = fixture("core.execution", key, typeof value === "number" ? { type: "number" } : { type: "string" });
     const input = { namespace: "core.execution", key };

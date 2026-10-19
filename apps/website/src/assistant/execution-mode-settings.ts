@@ -36,7 +36,9 @@ import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from ".
  * global) because the pre-existing canary already scoped its writes to
  * `"workspace"` ("one operator's endpoint choice doesn't silently become
  * every workspace's" — `execution-settings.ts`'s own prior comment) and nothing
- * in this pass had reason to widen that.
+ * in the original implementation had reason to widen that. The native composer's
+ * agent/model/effort now additionally allow user overrides, so one person's selection
+ * can change without changing the workspace default or another person's picker.
  *
  * WHAT IS DELIBERATELY NOT REGISTERED HERE: `byok.apiKey`. ADR-028 §6 is
  * normative — "until the secret-store ADR lands, `registerDefinitions`
@@ -91,7 +93,8 @@ type ExecutionSettingKey =
  *  registered under a key nothing reads.
  * The 9 registered `core.execution.*` definitions. No `byok.apiKey` — see
  *  this file's header. Scope is the shared default (workspace): one operator's
- *  endpoint choice doesn't silently become every workspace's. */
+ *  endpoint choice doesn't silently become every workspace's. The three composer axes also
+ *  admit a user override: each person's picker inherits the existing workspace default. */
 const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>[] = [
   { key: "mode", schema: { type: "enum", values: ["local-cli", "byok"] }, defaultValue: "local-cli" },
   {
@@ -113,7 +116,7 @@ const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>
   // "none picked yet" — `@jini-ai/ui` models that as `agentId: null`, but a
   // non-null default is required (ADR-028 totality), and `""` is not a legal
   // agent id, so it cannot collide with a real selection.
-  { key: "localCli.agentId", schema: { type: "string" }, defaultValue: "" },
+  { key: "localCli.agentId", schema: { type: "string" }, defaultValue: "", scopes: SCOPE_BIT.workspace | SCOPE_BIT.user },
   // The model for the SELECTED agent only.
   //
   // `@jini-ai/ui`'s `LocalCliConfig.modelByAgentId` is a per-agent MAP, so
@@ -136,7 +139,7 @@ const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>
   // reported model rather than a previously-saved pick for it. Persisting the
   // full map needs either a scalar-per-agent scheme (unbounded keys) or an
   // ADR-PIPE-008 amendment; neither belongs in this pass.
-  { key: "localCli.model", schema: { type: "string" }, defaultValue: "" },
+  { key: "localCli.model", schema: { type: "string" }, defaultValue: "", scopes: SCOPE_BIT.workspace | SCOPE_BIT.user },
   // The reasoning-effort level for the SELECTED agent only, mirroring
   // `localCli.model` above field for field — same scalar shape, same `""`
   // default, and the same "the per-agent map is not persisted as a map"
@@ -148,7 +151,7 @@ const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>
   // model id (`RuntimeAgentDef.reasoningInModelId`; antigravity) never does:
   // its effort is already part of `localCli.model`, and a second copy here
   // would be a second place for the same choice to disagree with itself.
-  { key: "localCli.reasoning", schema: { type: "string" }, defaultValue: "" },
+  { key: "localCli.reasoning", schema: { type: "string" }, defaultValue: "", scopes: SCOPE_BIT.workspace | SCOPE_BIT.user },
 ];
 
 /**

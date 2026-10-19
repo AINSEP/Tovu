@@ -103,6 +103,11 @@ const MAX_TOKENS_UNSET_SENTINEL = 0;
  *  choice doesn't silently become every workspace's. */
 const SCOPE: SettingScope = "workspace";
 
+/** Composer selections belong to the person; the workspace value remains their inherited default. */
+function executionSettingScope(key: string): SettingScope {
+  return key.startsWith("localCli.") ? "user" : SCOPE;
+}
+
 /** The PRE-server-store `localStorage` key this admin's browser may still hold — read-only from
  *  here on. Same literal key `readStoredCredentials`/`writeStoredCredentials` used before the
  *  server-side store shipped, kept unchanged so an admin's existing browser data is still found.
@@ -466,7 +471,7 @@ export async function saveExecutionConfig(
   const written: string[] = [];
   try {
     for (const { key, valueJson } of changed) {
-      await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: SCOPE, valueJson });
+      await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope(key), valueJson });
       written.push(key);
     }
   } catch (error) {
@@ -483,7 +488,7 @@ export async function saveExecutionConfig(
 async function restoreLedgerKeys(keys: readonly string[], previousValues: ReadonlyMap<string, unknown>): Promise<void> {
   for (const key of [...keys].reverse()) {
     await api
-      .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: SCOPE, valueJson: previousValues.get(key) })
+      .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope(key), valueJson: previousValues.get(key) })
       .catch(() => undefined);
   }
 }

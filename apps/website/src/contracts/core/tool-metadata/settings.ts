@@ -86,7 +86,7 @@ export const toolMetadata = {
   // Added for t07, after the original blind catalog: owner settings writes and single-layer undo.
   "settings_set_value": {
     search: {
-      keywords: "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable agent plugins plugin mode auto ask first off",
+      keywords: "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable agent plugins plugin mode auto ask first off change model switch to opus sonnet gpt effort thinking level chat agent runtime",
       queries: [
         "Change the site's timezone to Pacific.",
         "Turn off comments on new posts.",
@@ -94,6 +94,7 @@ export const toolMetadata = {
         "Change a site setting.",
         "Update a configuration option.",
         "Change my Agent plugins mode to Auto, Ask first, or Off.",
+        "Change model, switch to Opus, Sonnet or GPT, or change my thinking level: use core.execution localCli.agentId / localCli.model / localCli.reasoning at scope=user; each change needs confirmation and applies next turn. Set model and reasoning to empty strings before switching agents if their old choices are incompatible. Use the chat picker's current model ids.",
       ],
     },
     approval: { class: 'escalation', confirmation: 'plan', rule: 'execution-setting' },
