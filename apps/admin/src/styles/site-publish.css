@@ -1,20 +1,17 @@
 /**
- * `/admin/sites?tab=export` — the "Publish" button under Sites settings and its panel of past
+ * `/admin/sites?tab=export` — the "Publish" button beside "Export this site" and its panel of past
  * destinations (`features/sites/SitePublishButton.tsx`). Tokens only; text sizes and colours match
  * the Export tab's own copy (`.onboarding-section-lead`, `.site-transfer-*`).
  */
 
-/* Right-aligned and pulled up to sit directly under the Sites settings button (`.page`'s column
-   gap would otherwise leave a full section gap between the two). */
-.site-publish {
-  position: relative; display: flex; flex-direction: column; align-items: flex-end;
-  margin-top: calc(var(--space-2) - var(--space-6));
-}
+/* Inline in the Export tab's `.site-export-actions` row, after "Export this site" (owner, 2026-10-18).
+   Earlier it sat right-aligned under Sites settings, pulled up past `.page`'s column gap. */
+.site-publish { position: relative; display: inline-flex; }
 .site-publish-button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 37px; padding: 0 0.8rem; }
 .site-publish-button svg { color: var(--muted); }
 
 .site-publish-panel {
-  position: absolute; top: calc(100% + var(--space-2)); right: 0; z-index: 20;
+  position: absolute; top: calc(100% + var(--space-2)); left: 0; z-index: 20;
   width: min(30rem, calc(100vw - 2rem)); max-height: min(28rem, 70vh); overflow-y: auto; box-sizing: border-box;
   display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4);
   border: 1px solid var(--border-strong); border-radius: var(--r-lg);
@@ -48,11 +45,12 @@
 .site-publish-skipped { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--muted); }
 .site-publish-review { padding: 0 var(--space-2); min-height: 28px; font-size: var(--text-xs); }
 
-/* Narrow panes: the panel opens in the page flow at full width instead of floating over it. */
-@container admin-content (max-width: 36rem) {
-  .site-publish { align-items: stretch; }
-  .site-publish-button { align-self: flex-end; }
-  .site-publish-panel { position: static; width: 100%; max-height: none; margin-top: var(--space-2); }
+/* Narrow panes: the panel opens in the page flow at full width instead of floating over it.
+   `contents` lets it wrap onto its own line under the Export row while the button stays in it.
+   42rem: below it a 30rem panel starting after "Export this site" would run past the pane. */
+@container admin-content (max-width: 42rem) {
+  .site-publish { display: contents; }
+  .site-publish-panel { position: static; flex: 1 0 100%; width: 100%; max-height: none; }
 }
 
 @media (pointer: coarse) {

@@ -292,7 +292,8 @@ function resolveSitesHook(override: typeof useWiredSites | undefined): typeof us
 function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
   if (tab === "trash") return <SiteTrashTab snapshot={snapshot} controller={controller.localSites} t={controller.t} />;
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
-  if (tab === "export") return <SiteExportTab t={controller.t} />;
+  // Owner 2026-10-18: Publish shows on the Export tab only, beside "Export this site".
+  if (tab === "export") return <SiteExportTab t={controller.t} publish={<SitePublishButton t={controller.t} />} />;
   if (tab === "import") return <SiteImportTab t={controller.t} />;
   return (
     <AllSitesTab
@@ -316,13 +317,6 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
 function sitesTabsRow(tabBar: ReactNode, snapshot: AdminSitesSnapshot, t: Translate) {
   if (!snapshot.sitesHome) return tabBar;
   return <SitesHomeSetting home={snapshot.sitesHome} tabs={tabBar} t={t} />;
-}
-
-/** Owner 2026-10-18: the Publish button shows on the Export tab only, right under Sites settings.
- *  A function rather than a ternary in `Sites`'s JSX, for the same complexity-gate reason
- *  {@link sitesTabPanel} documents. */
-function exportPublishButton(tab: SitesTabId, t: Translate) {
-  return tab === "export" ? <SitePublishButton t={t} /> : null;
 }
 
 /** `replace: true` so moving between the two tabs does not grow the back stack one entry per click
@@ -383,7 +377,6 @@ export function Sites(props: SitesProps = {}) {
         snapshot,
         t,
       )}
-      {exportPublishButton(tab, t)}
 
       {sitesTabPanel(tab, controller, snapshot)}
       <LocalSiteConfirmDialog dialog={controller.siteConfirm} />

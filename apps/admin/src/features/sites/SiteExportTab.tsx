@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
@@ -15,14 +16,16 @@ export interface SiteExportTabProps {
   t: Translate;
   /** Test seam, same convention as `SitesProps.useSitesHook`. */
   useExport?: typeof useWiredSiteExport;
+  /** Sits beside "Export this site" (owner, 2026-10-18); the Sites screen passes its Publish button. */
+  publish?: ReactNode;
 }
 
-export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportTabProps) {
+export function SiteExportTab({ t, useExport = useWiredSiteExport, publish }: SiteExportTabProps) {
   const controller = useExport({ t });
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
-      <div className="site-transfer-head">
-        <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
+      <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
+      <div className="site-export-actions">
         <button
           type="button"
           className="btn-primary"
@@ -34,6 +37,7 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
           {controller.exporting ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
           {controller.exporting ? t("Exporting…") : t("Export this site")}
         </button>
+        {publish}
       </div>
       {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}
       {controller.zipOnly ? (
