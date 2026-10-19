@@ -194,3 +194,5 @@ source. Roughly every other verification found something.
 The `<<PEER_DISPATCH>>` transport also matters: agy fails in headless mode when a tool needs a
 permission prompt it cannot show, and its `--print-timeout` defaults to 5 minutes — both produce a
 **silent zero-byte result**, not an error.
+
+Cloudflare static publishing is supplied by the self-contained `cloudflare` agent plugin. Prefer Workers for a new destination; retain Pages for existing Pages destinations or an explicit Pages choice. Both targets host static exports only. Custom domains require a read-only inventory preview and the existing human confirmation card; hosting with unfinished domains is partial, never live. See `content/agent-plugins/cloudflare/skills/cloudflare/SKILL.md` for per-capability permissions.

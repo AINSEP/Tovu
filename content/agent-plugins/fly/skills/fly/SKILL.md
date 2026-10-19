@@ -9,7 +9,7 @@ description: Deploy the Tovu server itself to fly.io with no CLI installed (flyc
 
 This plugin owns **deploying the Tovu server itself** (app, admin, database), not publishing the site's
 static export. Static hosts are their own plugins: **Vercel** (`vercel`), **Netlify** (`netlify`),
-**Cloudflare Pages** (`cloudflare-pages`), **GitHub Pages** (`github-pages`) and **S3-compatible storage**
+**Cloudflare Workers or Pages** (`cloudflare`), **GitHub Pages** (`github-pages`) and **S3-compatible storage**
 (`s3-compatible`). The publish procedure every host shares is the site guide's `how-tovu-works-deploy`
 topic.
 
