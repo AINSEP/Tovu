@@ -36,7 +36,8 @@ const TARGETS: readonly { readonly id: string; readonly pluginId: string; readon
   { id: "github-pages", pluginId: "github-pages", label: "GitHub Pages" },
   { id: "vercel", pluginId: "vercel", label: "Vercel" },
   { id: "netlify", pluginId: "netlify", label: "Netlify" },
-  { id: "cloudflare-pages", pluginId: "cloudflare-pages", label: "Cloudflare Pages" },
+  { id: "cloudflare-workers", pluginId: "cloudflare", label: "Cloudflare Workers" },
+  { id: "cloudflare-pages", pluginId: "cloudflare", label: "Cloudflare Pages" },
   { id: "s3-compatible", pluginId: "s3-compatible", label: "S3-compatible storage" },
 ];
 const HOST_PLUGINS = TARGETS.filter((target) => target.pluginId !== "deploy");
@@ -94,7 +95,7 @@ for (const host of HOST_PLUGINS) {
     assert.equal(parsed.ok && parsed.manifest.name, host.pluginId);
     assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
     const tovu = (manifest as { extensions: { tovu: { id: string; displayName: string; provides: string[] } } }).extensions.tovu;
-    assert.deepEqual([tovu.id, tovu.provides], [`tovu/${host.pluginId}`, [`deploy-target:${host.id}`]]);
+    assert.deepEqual([tovu.id, tovu.provides], [`tovu/${host.pluginId}`, TARGETS.filter(target => target.pluginId === host.pluginId).map(target => `deploy-target:${target.id}`)]);
     const mcp = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json", packageRoot) });
     assert.deepEqual(mcp.ok ? mcp.config.serverIds : ["unreachable"], []);
     assert.match(await readFile(path.join(packageRoot, "skills", host.pluginId, "SKILL.md"), "utf8"), new RegExp(`^---\nname: ${host.pluginId}\n`));

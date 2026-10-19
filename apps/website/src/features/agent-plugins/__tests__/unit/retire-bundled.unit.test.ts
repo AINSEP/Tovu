@@ -114,7 +114,7 @@ async function installedIds(workspaceRoot: string): Promise<string[]> {
   return (await listInstalledPlugins(workspaceRoot)).map((plugin) => plugin.pluginId).sort();
 }
 
-const DEPLOY_SUCCESSORS = ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible"];
+const DEPLOY_SUCCESSORS = ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible"];
 
 test("the retirement map sends tovu-deploy-fly to fly, and deploy to every plugin split out of it, Fly first", () => {
   assert.equal(RETIRED_BUNDLED_AGENT_PLUGINS.get("tovu-deploy-fly"), "fly");
@@ -559,4 +559,11 @@ test("R6: once every successor seeds, deploy is retired and its successors are o
     assert.equal(nextBoot.retirements.find(outcome => outcome.pluginId === "deploy")?.status, "absent");
     assert.deepEqual(await installedIds(workspaceLayout.root), [...DEPLOY_SUCCESSORS].sort());
   } finally { await forceRemove(cwd); }
+});
+
+test('Cloudflare retirement and pinned references translate plugin IDs while preserving the Pages target ID', async () => {
+  const { RETIRED_PLUGIN_REPLACEMENTS, translateRetiredPluginRefs } = await import('../../bundled-catalog.js');
+  assert.equal(RETIRED_BUNDLED_AGENT_PLUGINS.get('cloudflare-pages'), 'cloudflare');
+  assert.equal(RETIRED_PLUGIN_REPLACEMENTS.get('cloudflare-pages'), 'cloudflare');
+  assert.deepEqual(translateRetiredPluginRefs(['cloudflare-pages', 'cloudflare', 'deploy']), ['cloudflare', 'fly']);
 });

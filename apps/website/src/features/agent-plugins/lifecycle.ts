@@ -15,12 +15,14 @@ import {
   type TrustedPluginPackagesQuery as JiniTrustedQuery,
   type TrustedPluginPackage,
   type AgentPluginDeliveryMode,
+  type PluginContributionDefinition,
+  type LoadPluginContributionsOptional,
   type FilesystemPort,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/node";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
-import { carryDeployDisabled } from "./deploy-split-activation.js";
+import { carryDeployDisabled, carryCloudflareActivation } from "./deploy-split-activation.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 
 export {
@@ -94,7 +96,11 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     // this runs only at seed time, after it exists.
     migrateBeforeSeed: async ({ layout, workspaceId }) => {
       const migration = await migrateSiteAgentPluginLayouts({ layout: hostLayout(layout), workspaceId });
-      if (migration.complete) await carryDeployDisabled({ workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: owner });
+      if (migration.complete) {
+        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: owner };
+        await carryCloudflareActivation(required);
+        await carryDeployDisabled(required);
+      }
       return migration;
     },
     formatBundledUninstallRecovery: ({ pluginId }) => `used, disable it instead: call plugins_set_enabled with family 'agent-plugin', pluginId '${pluginId}', ` +
@@ -113,6 +119,26 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   }, policy);
   return {
     ...owner,
+    // Select the trusted replacement at the contribution owner BEFORE duplicate-id validation.
+    // A failed retirement may leave both packages on disk; a disabled successor must stay disabled.
+    loadPluginContributions: async <D, T>(input: { readonly workspaceId: string; readonly definition: PluginContributionDefinition<D, T> }, options: LoadPluginContributionsOptional = {}) => {
+      const verdicts = await owner.findTrustedPluginPackages({ workspaceId: input.workspaceId, filename: input.definition.filename,
+        contribution: input.definition.contribution, requireActive: false });
+      const successor = verdicts.find(verdict => "trusted" in verdict && verdict.trusted.pluginId === "cloudflare");
+      const replaced = successor !== undefined;
+      const definition = { ...input.definition, load: async (context: Parameters<typeof input.definition.load>[0]) => {
+        const descriptor = context.descriptor;
+        const oldPackage = context.plugin.pluginId === "deploy" || context.plugin.pluginId === "cloudflare-pages";
+        if (replaced && oldPackage && typeof descriptor === "object" && descriptor !== null && "id" in descriptor && descriptor.id === "cloudflare-pages") {
+          return "deploy target 'cloudflare-pages' is provided by the trusted 'cloudflare' replacement";
+        }
+        return input.definition.load(context);
+      } };
+      return owner.loadPluginContributions({ ...input, definition }, { ...options, packageRefusal: ({ plugin }) => {
+        if (replaced && plugin.pluginId === "cloudflare-pages") return `contributions from 'cloudflare-pages' were superseded by trusted 'cloudflare'`;
+        return options.packageRefusal?.({ plugin });
+      } });
+    },
     installAgentPlugin: (input: InstallAgentPluginRequired, options: Parameters<typeof owner.installAgentPlugin>[1] = {}) => owner.installAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }, options),
     uninstallAgentPlugin: (input: UninstallAgentPluginRequired, options: Parameters<typeof owner.uninstallAgentPlugin>[1] = {}) => owner.uninstallAgentPlugin({ ...input, layout: ownerLayout(input.layout) }, options),
     previewAgentPluginUninstall: (input: UninstallAgentPluginRequired) => owner.previewAgentPluginUninstall({ ...input, layout: ownerLayout(input.layout) }),

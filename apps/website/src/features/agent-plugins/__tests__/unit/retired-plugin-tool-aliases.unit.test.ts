@@ -55,3 +55,26 @@ test("no Fly tool (Fly off or not installed): no alias", () => {
   aliases.registerAliases();
   assert.deepEqual([...registry.byId.keys()], ["agent_plugin_github"]);
 });
+
+test('Cloudflare Pages legacy tool aliases the successor handler and activation/digest gate', () => {
+  const registry = recordingRegistry();
+  const aliases = createRetiredPluginToolAliases({ registry });
+  const successor = registration('agent_plugin_cloudflare');
+  aliases.registry.register(successor);
+  aliases.registerAliases();
+  const alias = registry.byId.get('agent_plugin_cloudflare_pages');
+  assert.equal(alias?.handler, successor.handler);
+  assert.equal(alias?.policy, successor.policy);
+});
+
+test('Cloudflare alias never overrides a retained old package; disabled successor has no alias', () => {
+  for (const successorPresent of [true, false]) {
+    const registry = recordingRegistry();
+    const aliases = createRetiredPluginToolAliases({ registry });
+    const retained = registration('agent_plugin_cloudflare_pages');
+    aliases.registry.register(retained);
+    if (successorPresent) aliases.registry.register(registration('agent_plugin_cloudflare'));
+    aliases.registerAliases();
+    assert.equal(registry.byId.get('agent_plugin_cloudflare_pages'), retained);
+  }
+});

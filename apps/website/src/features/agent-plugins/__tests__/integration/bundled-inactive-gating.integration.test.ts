@@ -101,7 +101,7 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
 
 /** Seeded enabled, sorted; each hosting plugin split out of `deploy` (2026-10-12) joins this list,
  *  and `deploy` itself left it when it was retired (Phase B7). `ui-ux-design` joined 2026-10-14. */
-const SEEDED_ENABLED = ["cloudflare-pages", "fly", "github", "github-pages", "how-tovu-works", "netlify", "railway", "render", "resend", "s3-compatible", "site-import", "tovu-theme", "ui-ux-design", "vercel"];
+const SEEDED_ENABLED = ["cloudflare", "fly", "github", "github-pages", "how-tovu-works", "netlify", "railway", "render", "resend", "s3-compatible", "site-import", "tovu-theme", "ui-ux-design", "vercel"];
 
 // Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.

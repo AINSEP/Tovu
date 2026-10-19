@@ -14,7 +14,7 @@ import type { AgentPluginActivations, AgentPluginActivationVerdict, SetAgentPlug
  */
 
 /** The plugins that took over `deploy`'s static hosts and server platforms, by plugin id. */
-export const DEPLOY_SPLIT_HOST_PLUGIN_IDS: readonly string[] = ["vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "fly", "render", "railway"];
+export const DEPLOY_SPLIT_HOST_PLUGIN_IDS: readonly string[] = ["vercel", "netlify", "cloudflare", "github-pages", "s3-compatible", "fly", "render", "railway"];
 
 /** `updatedBy` of every record this step writes; never the seeder's own `system:seed`. */
 export const DEPLOY_SPLIT_ACTOR = "migration:deploy-split";
@@ -58,4 +58,22 @@ export async function carryDeployDisabled(required: { readonly workspaceRoot: st
     await activations.setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: DEPLOY_SPLIT_ACTOR }, { origin: "bundled" });
   }
   return carried;
+}
+
+/** Rename precedes split seeding: an existing Pages decision wins over old deploy inheritance.
+ * Explicit successor decisions win, even when they disagree. Corrupt records fail closed.
+ * @complexity O(1), two strict verdicts and at most one activation write. */
+export async function carryCloudflareActivation(required: { readonly workspaceRoot: string; readonly activations: DeploySplitActivationPort }, _optional: Record<string, never> = {}): Promise<void> {
+  const { workspaceRoot, activations } = required;
+  await activations.assertAgentPluginActivationsWritable({ workspaceRoot });
+  for (const pluginId of ["cloudflare-pages", "cloudflare"]) {
+    const verdict = await activations.resolveAgentPluginActivation({ workspaceRoot, pluginId });
+    if (verdict.verdict === "undetermined") throw new Error(`Cannot carry ${pluginId} activation: ${verdict.reason}`);
+  }
+  const { plugins } = await activations.readAgentPluginActivations({ workspaceRoot });
+  const previous = plugins["cloudflare-pages"];
+  const successor = plugins.cloudflare;
+  if (successor !== undefined && successor.updatedBy !== "system:seed") return;
+  if (previous === undefined || previous.updatedBy === "system:seed") return;
+  await activations.setAgentPluginActivation({ workspaceRoot, pluginId: "cloudflare", enabled: previous.enabled, actor: "migration:cloudflare-plugin" }, { origin: "bundled" });
 }

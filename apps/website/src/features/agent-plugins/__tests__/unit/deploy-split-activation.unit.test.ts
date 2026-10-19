@@ -75,7 +75,7 @@ test("a host that already has a record keeps it, and a second run writes nothing
 test("Phase B carries a post-Phase-A deploy off only to missing server successors", async () => {
   await withWorkspaceRoot(async workspaceRoot => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "operator" }, { origin: "bundled" });
-    for (const pluginId of ["vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible"]) {
+    for (const pluginId of ["vercel", "netlify", "cloudflare", "github-pages", "s3-compatible"]) {
       await setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: DEPLOY_SPLIT_ACTOR }, { origin: "bundled" });
     }
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fly", enabled: true, actor: "operator" }, { origin: "bundled" });
@@ -141,5 +141,46 @@ test("carry retry preserves decisions already written before an activation write
     const after = await readAgentPluginActivations({ workspaceRoot });
     for (const [pluginId, record] of Object.entries(beforeRetry.plugins)) assert.deepEqual(after.plugins[pluginId], record);
     assert.deepEqual(await carry(workspaceRoot), []);
+  });
+});
+
+for (const enabled of [true, false]) test(`Cloudflare rename carries the previous ${enabled ? 'enabled' : 'disabled'} decision before seeding`, async () => {
+  const { carryCloudflareActivation } = await import('../../deploy-split-activation.js');
+  await withWorkspaceRoot(async workspaceRoot => {
+    await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled, actor: 'operator' }, { origin: 'bundled' });
+    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare' }, { enabled: true });
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare?.enabled, enabled);
+    const before = await readAgentPluginActivations({ workspaceRoot });
+    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
+    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), before);
+  });
+});
+
+test('Cloudflare explicit successor decision wins; absent predecessor stays absent', async () => {
+  const { carryCloudflareActivation } = await import('../../deploy-split-activation.js');
+  await withWorkspaceRoot(async workspaceRoot => {
+    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare, undefined);
+    await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled: true, actor: 'operator' }, { origin: 'bundled' });
+    await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare', enabled: false, actor: 'operator' }, { origin: 'bundled' });
+    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare?.enabled, false);
+  });
+});
+
+test('Cloudflare untouched seed records yield to explicit predecessor decisions; corrupt verdict refuses', async () => {
+  const { carryCloudflareActivation } = await import('../../deploy-split-activation.js');
+  await withWorkspaceRoot(async workspaceRoot => {
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare-pages' });
+    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare, undefined);
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: 'cloudflare' }, { enabled: true });
+    await setAgentPluginActivation({ workspaceRoot, pluginId: 'cloudflare-pages', enabled: false, actor: 'operator' }, { origin: 'bundled' });
+    await carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations });
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.cloudflare?.enabled, false);
+    await assert.rejects(carryCloudflareActivation({ workspaceRoot, activations: {
+      ...agentPluginActivations, resolveAgentPluginActivation: async () => ({ verdict: 'undetermined', reason: 'corrupt predecessor' }),
+    } }), /Cannot carry cloudflare-pages activation: corrupt predecessor/);
   });
 });

@@ -25,7 +25,7 @@
  * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
  * untouched disabled seed. An operator's explicit off decision still survives later boots.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
@@ -47,7 +47,8 @@ export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set
  */
 export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonly string[]> = new Map<string, string | readonly string[]>([
   ["tovu-deploy-fly", "fly"],
-  ["deploy", ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible"]],
+  ["deploy", ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible"]],
+  ["cloudflare-pages", "cloudflare"],
   ["create-tovu-theme", "tovu-theme"],
   ["tovuize-site", "tovu-theme"],
 ]);
@@ -59,7 +60,7 @@ export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonl
  * what `deploy`'s own skill used to teach; without this, a saved run pinning `deploy` would fail to
  * start once `deploy` is retired.
  */
-export const RETIRED_PLUGIN_REPLACEMENTS: ReadonlyMap<string, string> = new Map([["deploy", "fly"]]);
+export const RETIRED_PLUGIN_REPLACEMENTS: ReadonlyMap<string, string> = new Map([["deploy", "fly"], ["cloudflare-pages", "cloudflare"]]);
 
 /** Maps each pinned ref through {@link RETIRED_PLUGIN_REPLACEMENTS}, keeping order and dropping a
  *  duplicate the translation creates (`deploy` and `fly` both pinned).
