@@ -2,6 +2,9 @@ import { listSites } from "#src/platform/site-dir/site-registry";
 import { runningSiteUrl } from "#src/platform/site-dir/site-running";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { Writable } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
+import { format } from "node:util";
 /** Host adapter: Jini owns native process lifecycle; Tovu owns site boot and credential isolation. */
 import path from "node:path";
 import { mkdtempSync } from "node:fs";
@@ -19,6 +22,43 @@ import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
+import { createLogBuffer, createRotatingLogFileSink } from "#src/platform/server-logs/index";
+import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+
+/** Bind site-child diagnostics to a separate parent-owned file; the child owns server.log.
+ * Reuses the existing redactor, bounded buffer and synchronous rotating sink. Native fatal errors
+ * bypass console capture, so retain stderr until exit/pipe close, including split writes.
+ * @returns A stderr sink, lifecycle observer and breadcrumb writer; no process policy changes.
+ * @complexity O(chunk bytes) per stderr write, bounded to a 4096-character tail; O(1) per lifecycle event.
+ */
+export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: string }, _options = {}) {
+  const buffer = createLogBuffer({ redact: text => redactSecretShapes({ text }).text });
+  const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
+  let stderrTail = "";
+  const decoder = new StringDecoder("utf8");
+  const record = ({ message, level = "info" }: { message: string; level?: "info" | "error" }, _optional = {}) => {
+    const entry = buffer.append({ level, source: "server", message: `[local-site ${name}] ${message}` });
+    sink.write(entry);
+    // A full/unwritable site disk must still leave evidence in the serving host's log.
+    if (!sink.isHealthy()) console.error(entry.message);
+  };
+  const stderr = new Writable({
+    write(chunk, _encoding, done) { stderrTail = (stderrTail + decoder.write(chunk)).slice(-4096); done(); },
+    final(done) {
+      stderrTail = (stderrTail + decoder.end()).slice(-4096);
+      record({ message: `stderr closed; tail=${stderrTail}` }); done();
+    },
+  });
+  return { stderr, record, observe({ child }: { child: SpawnedDaemonProcess }, _optional = {}) {
+    record({ message: `spawned pid=${child.pid ?? "none"}` });
+    child.on({ event: "exit", listener: ({ code, signal }) => {
+      record({ level: code === 0 ? "info" : "error", message: `pid=${child.pid ?? "none"} exited code=${code ?? "none"} signal=${signal ?? "none"}; stderr tail=${stderrTail}` });
+    } });
+    child.on({ event: "error", listener: ({ error }) => {
+      record({ level: "error", message: `pid=${child.pid ?? "none"} process error=${format(error)}; stderr tail=${stderrTail}` });
+    } });
+  } };
+}
 
 /** Allowlist OS necessities, then supply site-scoped values. Never inherit deploy/provider secrets.
  * HOME permits the site's own key resolver and local CLI authentication; no shell env file is loaded.
@@ -110,9 +150,11 @@ export function createLocalSiteProcessPort(
       const compiled = import.meta.filename.endsWith(".js");
       const entry = path.join(repoRoot, "apps/website/src/platform/site-dir/local-site-child.ts");
       const compiledEntry = fileURLToPath(new URL("../../../platform/site-dir/local-site-child.js", import.meta.url));
+      const diagnostics = localSiteProcessLog({ name, siteDir });
       const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
-        args: compiled ? [compiledEntry] : ["--import", "tsx", entry], cwd: repoRoot, env: childEnv, registry }, {});
+        args: compiled ? [compiledEntry] : ["--import", "tsx", entry], cwd: repoRoot, env: childEnv, registry }, { stderr: diagnostics.stderr });
       const child = adapter.spawnDaemonProcess();
+      diagnostics.observe({ child });
       if (child.pid === undefined) throw new LocalSiteError("SITE_START_FAILED");
       let exited = false;
       const listeners = new Set<() => void>();
@@ -134,12 +176,19 @@ export function createLocalSiteProcessPort(
         pid: child.pid,
         onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
         async ready() {
-          await discoverDaemon();
+          try { await discoverDaemon(); }
+          catch (error) {
+            diagnostics.record({ level: "error", message: `pid=${child.pid} readiness discovery failed: ${format(error)}` });
+            throw error;
+          }
           if (exited) return false;
-          return (await localResponseOk(`${scheme}://127.0.0.1:${port}/readyz`, tls.credentials?.cert)) &&
-            (await localResponseOk(`${scheme}://127.0.0.1:${port}/admin/`, tls.credentials?.cert));
+          const apiReady = await localResponseOk(`${scheme}://127.0.0.1:${port}/readyz`, tls.credentials?.cert);
+          const adminReady = apiReady && await localResponseOk(`${scheme}://127.0.0.1:${port}/admin/`, tls.credentials?.cert);
+          if (!adminReady) diagnostics.record({ message: `pid=${child.pid} readiness failed: readyz=${apiReady}, admin=${apiReady ? adminReady : "not probed"}` });
+          return adminReady;
         },
         async terminate() {
+          diagnostics.record({ message: `pid=${child.pid} supervisor requested tree termination` });
           try { await discoverDaemon(); } catch { /* Tree teardown must still run when discovery fails. */ }
           // A daemon detaches into its own group. Keep its identity even after API crash/reparenting.
           await adapter.terminateProcess({ child });
@@ -147,6 +196,7 @@ export function createLocalSiteProcessPort(
           if (daemon) await adapter.terminateProcess({ child: daemon });
         },
         killNow() {
+          diagnostics.record({ message: `pid=${child.pid} host shutdown requested tree termination` });
           void adapter.terminateProcess({ child }).catch(() => {});
           if (daemon) void adapter.terminateProcess({ child: daemon }).catch(() => {});
         },

@@ -1,6 +1,58 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { localSiteChildEnv } from "../local-site-process.js";
+import { EventEmitter } from "node:events";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
+import { localSiteChildEnv, localSiteProcessLog } from "../local-site-process.js";
+
+// A parent must persist the native reason even when the site's own console never reports a crash.
+for (const outcome of [{ code: 7, signal: null }, { code: null, signal: "SIGKILL" }, { code: 0, signal: null }] as const) {
+  test(`local child exit is durable: code=${outcome.code}, signal=${outcome.signal}`, (t) => {
+    const siteDir = mkdtempSync(path.join(os.tmpdir(), "tovu-child-exit-"));
+    t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+    const events = new EventEmitter();
+    const child: SpawnedDaemonProcess = { pid: 42, on(input) { events.on(input.event, input.listener); }, kill() { return true; } };
+    const diagnostics = localSiteProcessLog({ name: "alpha", siteDir });
+    diagnostics.observe({ child });
+    diagnostics.stderr.write("FATAL ERROR: native allocation failed password=hunter2");
+    diagnostics.stderr.write("hunter2\n    at native-frame");
+    events.emit("exit", outcome);
+    // The exit callback must synchronously persist before any later pipe-close event.
+    const saved = readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8");
+    assert.match(saved, /\[local-site alpha\] spawned pid=42/);
+    assert.ok(saved.includes(`pid=42 exited code=${outcome.code ?? "none"} signal=${outcome.signal ?? "none"}`));
+    assert.match(saved, /FATAL ERROR: native allocation failed/);
+    assert.match(saved, /at native-frame/);
+    assert.ok(!saved.includes("hunter2"), "split stderr credentials must be redacted before persistence");
+    // Native stderr can finish draining after exit; that final evidence must survive too.
+    diagnostics.stderr.end("\nlast fatal frame");
+    assert.match(readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8"), /last fatal frame/);
+  });
+}
+
+test("local child spawn errors and bounded UTF-8 stderr survive without an exit event", (t) => {
+  const siteDir = mkdtempSync(path.join(os.tmpdir(), "tovu-child-error-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  const events = new EventEmitter();
+  const child: SpawnedDaemonProcess = { on(input) { events.on(input.event, input.listener); }, kill() { return false; } };
+  const diagnostics = localSiteProcessLog({ name: "beta", siteDir });
+  diagnostics.observe({ child });
+  diagnostics.stderr.write("discard this prefix" + "x".repeat(5000));
+  const unicode = Buffer.from("💥 native failure");
+  diagnostics.stderr.write(unicode.subarray(0, 2));
+  diagnostics.stderr.write(unicode.subarray(2));
+  const error = new Error("spawn ENOENT");
+  events.emit("error", { error });
+  diagnostics.stderr.end();
+  const saved = readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8");
+  assert.ok(saved.includes("pid=none process error=Error: spawn ENOENT"));
+  const entries = saved.trim().split("\n").map(line => JSON.parse(line) as { message: string });
+  assert.ok(entries.some(entry => entry.message.includes(error.stack!)));
+  assert.match(saved, /💥 native failure/);
+  assert.ok(!saved.includes("discard this prefix"), "stderr capture must retain only its bounded tail");
+});
 
 test("local child uses an allowlist: deploy/admin/provider secrets and owner paths never inherit", () => {
   const env = localSiteChildEnv({ parent: { PATH: "/bin", HOME: "/home/operator", TOVU_ADMIN_PASSWORD: "secret",
