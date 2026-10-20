@@ -162,3 +162,66 @@ test("child output fails closed when its redactor throws", async () => {
   await once(stream, "finish");
   assert.deepEqual(output, ["[output redaction failed]\n"]);
 });
+
+test("child framing accepts the exact line limit across chunks and preserves empty lines", async () => {
+  const output: string[] = [];
+  const redacted: string[] = [];
+  const stream = createRedactedOutputSink({
+    sink: { write: text => { output.push(String(text)); return true; } },
+    redact: text => { redacted.push(text); return `<${text}>`; },
+  }, { maxLineLength: 4 });
+  stream.write(Buffer.alloc(0));
+  stream.write("ab");
+  stream.write("cd\n\nx\ny");
+  stream.end();
+  await once(stream, "finish");
+  assert.deepEqual(redacted, ["abcd", "", "x", "y"]);
+  assert.deepEqual(output, ["<abcd>\n", "<>\n", "<x>\n", "<y>\n"]);
+});
+
+test("child framing discards oversized continuations until newline and at final flush", async () => {
+  const output: string[] = [];
+  const redacted: string[] = [];
+  const stream = createRedactedOutputSink({
+    sink: { write: text => { output.push(String(text)); return true; } },
+    redact: text => { redacted.push(text); return text; },
+  }, { maxLineLength: 4 });
+  stream.write("abcd");
+  stream.write("e");
+  stream.write("ignored");
+  stream.write(" remainder\nok\nabcde\nend");
+  stream.write("ing");
+  stream.end();
+  await once(stream, "finish");
+  assert.deepEqual(redacted, ["ok"]);
+  assert.deepEqual(output, [
+    "[oversized output line omitted]\n", "ok\n",
+    "[oversized output line omitted]\n", "[oversized output line omitted]\n",
+  ]);
+});
+
+test("child framing resets a suppressed line and does not emit an extra final empty line", async () => {
+  const output: string[] = [];
+  const redacted: string[] = [];
+  const stream = createRedactedOutputSink({
+    sink: { write: text => { output.push(String(text)); return true; } },
+    redact: text => { redacted.push(text); return text.replace("drop", ""); },
+  });
+  stream.end("drop\nkeep\n");
+  await once(stream, "finish");
+  assert.deepEqual(redacted, ["drop", "keep"]);
+  assert.deepEqual(output, ["keep\n"]);
+});
+
+test("child framing leaves an empty stream silent without invoking redaction", async () => {
+  const output: string[] = [];
+  const redacted: string[] = [];
+  const stream = createRedactedOutputSink({
+    sink: { write: text => { output.push(String(text)); return true; } },
+    redact: text => { redacted.push(text); return text; },
+  });
+  stream.end();
+  await once(stream, "finish");
+  assert.deepEqual(redacted, []);
+  assert.deepEqual(output, []);
+});

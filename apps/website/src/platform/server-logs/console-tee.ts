@@ -44,10 +44,8 @@ export function createRedactedOutputSink(
     while (start < text.length) {
       const newline = text.indexOf("\n", start);
       const end = newline === -1 ? text.length : newline;
-      if (!oversized) {
-        if (pending.length + end - start > maxLineLength) { pending = ""; oversized = true; }
-        else pending += text.slice(start, end);
-      }
+      if (!oversized && pending.length + end - start > maxLineLength) { pending = ""; oversized = true; }
+      else if (!oversized) pending += text.slice(start, end);
       if (newline === -1) return;
       emit();
       start = newline + 1;
