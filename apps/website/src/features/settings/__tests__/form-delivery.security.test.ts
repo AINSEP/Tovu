@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
 
-import { createSettingsPrincipalLookup } from "../index.js";
+import { createSettingsPrincipalLookup, set } from "../index.js";
 import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, writeFormDeliveryBindings } from "../form-delivery.js";
 
 /**
@@ -69,24 +69,39 @@ test("at most 1000 formIds per binding are accepted", () => {
   assert.match(refusal([binding({ formIds: formIds(1001) })]).message, /binding 1: formIds has 1001 entries; at most 1000 are allowed/);
 });
 
-test("the validating write refuses a secret-carrying list before the ledger is touched", async () => {
-  const workspaceId = "ws-form-delivery";
+async function ledger() {
   const clock = { nowIso: () => "2026-10-20T00:00:00.000Z", nowMs: () => Date.parse("2026-10-20T00:00:00.000Z") };
   let next = 0;
   const ids = { newId: () => `form-delivery-id-${(next += 1)}` };
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids, principals }, systemPrincipalId: "system" });
-  let authorizeCalls = 0;
-  const authorize: AuthorizeFn = async () => { authorizeCalls += 1; return { allowed: true, reason: "test" }; };
-  const deps = { repo: settingsRepo, clock, ids, authorize, principals };
+  const counter = { authorizeCalls: 0 };
+  const authorize: AuthorizeFn = async () => { counter.authorizeCalls += 1; return { allowed: true, reason: "test" }; };
+  return { settingsRepo, counter, deps: { repo: settingsRepo, clock, ids, authorize, principals } };
+}
 
+const WS = "ws-form-delivery";
+
+test("the validating write refuses a secret-carrying list before the ledger is touched", async () => {
+  const { settingsRepo, counter, deps } = await ledger();
   await assert.rejects(
-    writeFormDeliveryBindings({ deps, workspaceId, callerPrincipalId: "owner", value: [binding({ config: { apiKey: "a" } })] }),
+    writeFormDeliveryBindings({ deps, workspaceId: WS, callerPrincipalId: "owner", value: [binding({ config: { apiKey: "a" } })] }),
     (error: unknown) => error instanceof ValueValidationFailedError && /"config\.apiKey" is named like a secret/.test(error.message),
   );
-  assert.equal(authorizeCalls, 0, "refused before the settings chokepoint ran");
-  const stored = await getEffective({ repo: settingsRepo }, { namespace: "core.forms", key: "deliveryBindings", scopeContext: { workspaceId } });
+  assert.equal(counter.authorizeCalls, 0, "refused before the settings write ran");
+  const stored = await getEffective({ repo: settingsRepo }, { namespace: "core.forms", key: "deliveryBindings", scopeContext: { workspaceId: WS } });
   assert.deepEqual(stored?.value, [], "the ledger still holds the default");
-  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId }), []);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
+});
+
+test("the host settings chokepoint (generic settings route and tools) refuses the same list", async () => {
+  const { settingsRepo, counter, deps } = await ledger();
+  await assert.rejects(
+    set({ deps, input: { namespace: "core.forms", key: "deliveryBindings", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner",
+      value: [{ bindingId: "b", adapterId: "a", connectionRef: "c", enabled: true, config: { header: BEARER_LIKE } }] } }),
+    (error: unknown) => error instanceof ValueValidationFailedError && /"config\.header" holds a value that looks like a credential/.test(error.message),
+  );
+  assert.equal(counter.authorizeCalls, 0);
+  assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
 });
