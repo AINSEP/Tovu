@@ -177,21 +177,7 @@ function mapSiteDirError(err: unknown): CliOutcome | undefined {
  */
 export function mapErrorToCliOutcome(err: unknown): CliOutcome {
   if (err instanceof PluginInstallError) return { exitCode: 2, stderrLine: stderrLine(err.code, err.message) };
-  if (err instanceof CommanderError) {
-    if (COMMANDER_SUCCESS_CODES.has(err.code)) {
-      return { exitCode: 0 };
-    }
-    if (COMMANDER_VALIDATION_CODES.has(err.code)) {
-      return {
-        exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION,
-        stderrLine: stderrLine("VALIDATION", err.message.replace(/^error:\s*/, "")),
-        printUsage: err.code === "commander.unknownCommand",
-      };
-    }
-    // Any other commander-internal error is still an argv-shape/usage problem — commander only
-    // ever throws (once `.exitOverride()` is set) for parsing/dispatch issues.
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message.replace(/^error:\s*/, "")) };
-  }
+  if (err instanceof CommanderError) return mapCommanderError({ err });
 
   const siteDirOutcome = mapSiteDirError(err);
   if (siteDirOutcome) return siteDirOutcome;
@@ -218,4 +204,18 @@ export function mapErrorToCliOutcome(err: unknown): CliOutcome {
   // errors.spec.md §4: "INTERNAL | any uncaught error".
   const message = err instanceof Error ? err.message : String(err);
   return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine("INTERNAL", message) };
+}
+
+function mapCommanderError({ err }: { err: CommanderError }, _options: Record<string, never> = {}): CliOutcome {
+  if (COMMANDER_SUCCESS_CODES.has(err.code)) {
+    return { exitCode: 0 };
+  }
+  const knownValidationCode = COMMANDER_VALIDATION_CODES.has(err.code);
+  const outcome = { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message.replace(/^error:\s*/, "")) };
+  if (knownValidationCode) {
+    return { ...outcome, printUsage: err.code === "commander.unknownCommand" };
+  }
+  // Any other commander-internal error is still an argv-shape/usage problem — commander only
+  // ever throws (once `.exitOverride()` is set) for parsing/dispatch issues.
+  return outcome;
 }
