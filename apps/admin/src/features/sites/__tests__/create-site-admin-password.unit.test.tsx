@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -79,5 +79,22 @@ describe("new-site admin credentials", () => {
     expect(password).toHaveAttribute("type", "password");
     await user.type(password, "a"); // Current policy accepts a single character.
     expect(screen.queryByText(CUSTOM_LOGIN)).toBeNull();
+  });
+
+  it("shows the default-login note as a tooltip when the info icon is hovered or focused", async () => {
+    const { user } = setup();
+    await waitFor(() => expect(screen.getByLabelText("Folder name")).toBeEnabled());
+    const icon = screen.getByRole("button", { name: "About the default admin login" });
+    const bubble = () => document.querySelector(".info-tip-bubble");
+    const note = "This is a starter password for this site only.";
+    expect(bubble()).toBeNull();
+    await user.hover(icon);
+    expect(bubble()?.textContent).toContain(note);
+    await user.unhover(icon);
+    expect(bubble()).toBeNull();
+    act(() => icon.focus());
+    expect(bubble()?.textContent).toContain(note);
+    act(() => icon.blur());
+    expect(bubble()).toBeNull();
   });
 });

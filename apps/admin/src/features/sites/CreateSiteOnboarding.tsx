@@ -316,7 +316,6 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
             <InfoTip
               label={controller.t("This is a starter password for this site only. Change it after your first sign-in under Users → admin, or set a different one below.")}
               triggerLabel={controller.t("About the default admin login")}
-              placement="inline"
               agentHandle="sites-create-admin-login-info"
             />
           </p>
