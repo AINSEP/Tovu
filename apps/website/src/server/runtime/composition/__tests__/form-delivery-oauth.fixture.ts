@@ -13,6 +13,8 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer as CustomCredentialSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { loadFormDestinationRegistry, type FormDestinationKit } from "#src/features/form-destinations/index";
 import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
@@ -83,8 +85,9 @@ export class ObservedOutbox implements OutboxPort {
 /** One delivery child job and its ledger state. */
 export interface DeliveryJobView extends OutboxRowView { readonly job: FormDeliveryJob }
 
-/** Plan-once storage that enqueues the plan's child jobs, keyed by (workspace, submission). */
-function enqueueingPlans(outbox: ObservedOutbox): FormDeliveryPlanPort {
+/** Plan-once storage that enqueues the plan's child jobs, keyed by (workspace, submission); each
+ * enqueued job is also kept typed by its outbox id in `jobs`. */
+function enqueueingPlans(outbox: ObservedOutbox, jobs: Map<string, FormDeliveryJob>): FormDeliveryPlanPort {
   const stored = new Map<string, FormDeliveryPlan>();
   return {
     async once({ workspaceId, submissionId, build }) {
@@ -93,7 +96,10 @@ function enqueueingPlans(outbox: ObservedOutbox): FormDeliveryPlanPort {
       if (found) return found;
       const plan = await build();
       stored.set(key, plan);
-      for (const job of plan.jobs) await outbox.enqueue(job);
+      for (const job of plan.jobs) {
+        jobs.set(job.id, job.payload);
+        await outbox.enqueue({ ...job, payload: { ...job.payload } });
+      }
       return plan;
     },
   };
@@ -116,7 +122,7 @@ export interface OAuthDeliverySite {
   /** A saved custom credential (the static connection kind); returns its id. */
   saveCustomCredential(required: { label: string; baseUrl: string; worksFor: readonly string[]; token: string }): Promise<string>;
   /** Stores a submission of the contact form and enqueues its `form.submission.received` event. */
-  submit(required: { submissionId: string; answers: Record<string, unknown> }): Promise<void>;
+  submit(required: { submissionId: string; answers: Record<string, string> }): Promise<void>;
   /** Enqueues `form.submission.received` again for a stored submission (a replayed event). */
   replayReceived(required: { submissionId: string }): Promise<void>;
   /** Enqueues an already-planned child job again under a new outbox id (an at-least-once redelivery). */
@@ -160,11 +166,15 @@ export async function createOAuthDeliverySite(required: {
     fields: [{ id: "email", label: "Email", type: "email", required: true }, { id: "message", label: "Message", type: "textarea", required: false }] });
   const bus = new InMemoryEventBus();
   const outbox = new ObservedOutbox();
+  const jobs = new Map<string, FormDeliveryJob>();
+  // Saved custom credentials use the site-assistant sealer types, as in the site composition.
+  const customKeyring = new CustomCredentialKeyring();
+  const customSealer = new CustomCredentialSealer(customKeyring);
   const deliver = composeFormDeliveryDeliverer({
-    apiConnections: connections.apiConnections, kit: required.kit, credentials: { repo: customCredentialRepo, sealer },
+    apiConnections: connections.apiConnections, kit: required.kit, credentials: { repo: customCredentialRepo, sealer: customSealer },
     loadRegistry: ({ workspaceId }) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: required.loadContributions }),
   });
-  await composeFormDelivery({ bus, plans: enqueueingPlans(outbox), settingsRepo, formDefinitionRepo, formSubmissionRepo, deliver, idGen, clock }).start();
+  await composeFormDelivery({ bus, plans: enqueueingPlans(outbox, jobs), settingsRepo, formDefinitionRepo, formSubmissionRepo, deliver, idGen, clock }).start();
 
   const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test owner" });
   const received = (submissionId: string): DomainEvent => ({ id: idGen.newId(), name: "form.submission.received", workspaceId: WORKSPACE, occurredAt: clock.nowIso(),
@@ -192,7 +202,7 @@ export async function createOAuthDeliverySite(required: {
       await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids: idGen, authorize, principals }, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
     },
     async saveCustomCredential({ label, baseUrl, worksFor, token }) {
-      const saved = await createCustomCredential({ repo: customCredentialRepo, sealer, keyring, clock, idGen },
+      const saved = await createCustomCredential({ repo: customCredentialRepo, sealer: customSealer, keyring: customKeyring, clock, idGen },
         { workspaceId: WORKSPACE, label, category: "general", baseUrl, worksFor: [...worksFor], connection: { token } });
       return saved.id;
     },
@@ -201,11 +211,15 @@ export async function createOAuthDeliverySite(required: {
       await outbox.enqueue(received(submissionId));
     },
     async replayReceived({ submissionId }) { await outbox.enqueue(received(submissionId)); },
-    async redeliver({ job }) { await outbox.enqueue({ ...job.event, id: idGen.newId(), occurredAt: clock.nowIso() }); },
+    async redeliver({ job }) {
+      const id = idGen.newId();
+      jobs.set(id, job.job);
+      await outbox.enqueue({ ...job.event, id, occurredAt: clock.nowIso() });
+    },
     async drain() { await processOutbox({ outbox, bus, clock }, { random: () => 0 }); },
     jobsFor({ submissionId }) {
       return [...outbox.rows.values()].filter((row) => row.event.name === FORM_DELIVERY_EVENT && row.event.aggregateId === submissionId)
-        .map((row) => ({ ...row, job: row.event.payload as FormDeliveryJob }));
+        .map((row) => ({ ...row, job: jobs.get(row.id)! }));
     },
   };
 }
