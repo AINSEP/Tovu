@@ -45,8 +45,8 @@ test("desktop: a connection with no installed-app client is refused as not set u
 });
 
 test("desktop: an installed-app client that names no secret setting signs in as a public client and never sends a secret", async (t) => {
-  const packageRoot = acmeFixtureCopy(t, (declaration) => { (declaration.clients as Record<string, unknown>).desktop = { clientIdEnv: "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }; });
-  const host = harness.makeHost({ runtime: "desktop", packageRoot, env: { ...harness.env, TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET: "never-sent-" + "x".repeat(12) } });
+  const packageRoot = acmeFixtureCopy(t, (declaration) => { (declaration.clients as Record<string, unknown>).desktop = { clientIdEnv: "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID" }; });
+  const host = harness.makeHost({ runtime: "desktop", packageRoot, env: { ...harness.env, TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET: "never-sent-" + "x".repeat(12) } });
   const [connection] = await host.listConnections({ pluginId: ACME_PLUGIN });
   const redirectUri = "http://127.0.0.1:1/callback";
   const service = host.serviceFor({ connection: connection!, redirectUri });
@@ -71,7 +71,7 @@ test("honest record: a connected record is left as it stands when this host has 
   const env: Record<string, string | undefined> = { ...harness.env };
   const host = harness.makeHost({ env });
   const { connection, connectionRef } = await connectHosted(harness, host);
-  delete env.TOVU_ACME_OAUTH_WEB_CLIENT_SECRET;
+  delete env.TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET;
   assert.equal((await host.statusOf({ connection })).status, "connected");
   await assert.rejects(host.accessTokensFor({ pluginId: ACME_PLUGIN }).getAccessToken({ connectionRef }), { code: "descriptor-invalid", message: /its sign-in client secret is not configured/ });
 });
@@ -110,7 +110,7 @@ test("honest record: losing the revision race while marking reconnect-required r
     const current = (await rawRecords.read({ key: connectionRef }))!;
     assert.ok(await rawRecords.compareAndSet({ key: connectionRef, expectedRevision: current.revision, record: { ...current, revision: current.revision + 1, updatedAt: winnerStamp } }));
   };
-  env.TOVU_ACME_OAUTH_WEB_CLIENT_ID = "acme-web-client-rotated";
+  env.TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID = "acme-web-client-rotated";
   const status = await host.statusOf({ connection });
   assert.equal(status.status, "connected", "the record that won the race is what this read returns");
   assert.equal((await rawRecords.read({ key: connectionRef }))?.updatedAt, winnerStamp, "the losing write never overwrote the winner");
@@ -152,7 +152,7 @@ test("token read: tokens sealed for another client are refused as reconnect-requ
   const clock = { nowMs: () => Date.now() };
   const host = harness.makeHost({ env, keyring, vaultRepo, clock });
   const { connectionRef } = await connectHosted(harness, host);
-  env.TOVU_ACME_OAUTH_WEB_CLIENT_ID = "acme-web-client-rotated";
+  env.TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID = "acme-web-client-rotated";
   await assert.rejects(host.accessTokensFor({ pluginId: ACME_PLUGIN }).getAccessToken({ connectionRef }), { code: "reconnect-required", message: /sign-in client changed/ });
   // Read the row as stored (no honest re-check on read), so only the token read can have marked it.
   const vault = createApiConnectionVault({ repo: vaultRepo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock, workspaceId: ACME_WORKSPACE });

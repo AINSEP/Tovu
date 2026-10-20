@@ -117,7 +117,7 @@ async function consent(h, { scopeSetIds = ['sheets'], intent = 'connect', ...cho
 
 async function signIn(h, options = {}) {
   const { started, callbackParams } = await consent(h, options);
-  const completed = await h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams });
+  const completed = await h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding });
   return { started, completed };
 }
 
@@ -130,7 +130,7 @@ test('vertical slice: hosted sign-in asks for drive.file only, proves PKCE, and 
   const authorize = new URL(started.authorizationUrl);
   assert.equal(`${authorize.origin}${authorize.pathname}`, 'https://accounts.google.com/o/oauth2/v2/auth');
   assert.deepEqual(Object.fromEntries(['scope', 'access_type', 'include_granted_scopes', 'code_challenge_method', 'prompt'].map((name) => [name, authorize.searchParams.get(name)])),
-    { scope: DRIVE_FILE, access_type: 'offline', include_granted_scopes: 'true', code_challenge_method: 'S256', prompt: null });
+    { scope: DRIVE_FILE, access_type: 'offline', include_granted_scopes: 'true', code_challenge_method: 'S256', prompt: 'consent' });
   const [exchange] = tokenRequests();
   assert.equal(exchange.get('grant_type'), 'authorization_code');
   assert.equal(exchange.get('client_secret'), CLIENTS.hosted.clientSecret);
@@ -148,29 +148,29 @@ test('PKCE: the verifier sent to the token endpoint matches the S256 challenge o
   const { started, callbackParams } = await consent(h);
   const other = await consent(h);
   // Swap codes: attempt A's state with attempt B's code. The verifier of A does not match B's challenge.
-  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams: { ...callbackParams, code: other.callbackParams.code } }), { code: 'authorization-failed' });
+  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams: { ...callbackParams, code: other.callbackParams.code }, browserBinding: started.browserBinding }), { code: 'authorization-failed' });
   assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef, workspaceId: WS })).status, 'disconnected');
 });
 
 test('state: a callback whose state was never issued is refused as invalid-attempt and no code is exchanged', async () => {
   const h = await harness();
-  const { callbackParams } = await consent(h);
-  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams: { ...callbackParams, state: 'forged-state' } }), { code: 'invalid-attempt' });
+  const { started, callbackParams } = await consent(h);
+  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams: { ...callbackParams, state: 'forged-state' }, browserBinding: started.browserBinding }), { code: 'invalid-attempt' });
   assert.equal(issuedTokens(), 0);
 });
 
 test('state: a replayed callback is refused as invalid-attempt (consume once)', async () => {
   const h = await harness();
-  const { callbackParams } = await consent(h);
-  await h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams });
-  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams }), { code: 'invalid-attempt' });
+  const { started, callbackParams } = await consent(h);
+  await h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding });
+  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding }), { code: 'invalid-attempt' });
   assert.equal(issuedTokens(), 1);
 });
 
 test('consent denial: access-denied, nothing exchanged or stored, still not connected', async () => {
   const h = await harness();
   const { started, callbackParams } = await consent(h, { deny: true });
-  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams }), { code: 'access-denied' });
+  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding }), { code: 'access-denied' });
   assert.equal(issuedTokens(), 0);
   assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef, workspaceId: WS })).status, 'disconnected');
 });
@@ -178,7 +178,7 @@ test('consent denial: access-denied, nothing exchanged or stored, still not conn
 test('partial scopes: a grant without drive.file is refused as scope-not-granted and no token is served', async () => {
   const h = await harness();
   const { started, callbackParams } = await consent(h, { grantScopes: ['openid'] });
-  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams }), { code: 'scope-not-granted' });
+  await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding }), { code: 'scope-not-granted' });
   await assert.rejects(h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS }), { code: 'connection-not-found' });
 });
 
@@ -337,4 +337,33 @@ test('redaction: a Google error that echoes request data becomes a fixed safe me
 
 test('transport: the test fetch refuses every host but Google\'s (no real third-party call is possible)', async () => {
   await assert.rejects(fake.fetch({ url: 'https://example.com/' }), /test transport refused https:\/\/example\.com/);
+});
+
+
+for (const runtime of ['hosted', 'desktop']) {
+  test(`browser binding (${runtime}): missing or another browser's proof burns the attempt before exchange`, async () => {
+    const h = await harness({ runtime });
+    for (const wrongBinding of ['', 'other-browser-' + 'b'.repeat(30)]) {
+      const { started, callbackParams } = await consent(h);
+      await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: wrongBinding }), { code: 'invalid-attempt' });
+      await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding }), { code: 'invalid-attempt' });
+    }
+    assert.equal(issuedTokens(), 0);
+  });
+
+  test(`offline access (${runtime}): a first grant without a refresh token is refused before credential install`, async () => {
+    const h = await harness({ runtime });
+    const { started, callbackParams } = await consent(h, { omitRefreshToken: true });
+    await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams, browserBinding: started.browserBinding }), { code: 'offline-access-required' });
+    assert.equal((await h.service.getStatus({ workspaceId: WS, connectionRef: started.connectionRef })).status, 'disconnected');
+    await assert.rejects(h.service.getAccessToken({ workspaceId: WS, connectionRef: started.connectionRef }), { code: 'connection-not-found' });
+  });
+}
+
+test('hosted consent: a renewable same-account reconnect keeps incremental grants without forcing consent again', async () => {
+  const h = await harness();
+  await signIn(h);
+  const { started } = await consent(h);
+  assert.equal(new URL(started.authorizationUrl).searchParams.get('prompt'), null);
+  assert.equal(new URL(started.authorizationUrl).searchParams.get('include_granted_scopes'), 'true');
 });

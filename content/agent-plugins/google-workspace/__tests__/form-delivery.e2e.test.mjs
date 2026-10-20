@@ -29,7 +29,7 @@ const TAB_ID = 7;
 /** Placeholder client identity; the secret is built at runtime and is not secret-shaped. */
 const CLIENT_ID = 'web-client.test';
 const CLIENT_SECRET = `web-secret-${'w'.repeat(20)}`;
-const env = { TOVU_GOOGLE_OAUTH_WEB_CLIENT_ID: CLIENT_ID, TOVU_GOOGLE_OAUTH_WEB_CLIENT_SECRET: CLIENT_SECRET };
+const env = { TOVU_GOOGLE_WORKSPACE_OAUTH_WEB_CLIENT_ID: CLIENT_ID, TOVU_GOOGLE_WORKSPACE_OAUTH_WEB_CLIENT_SECRET: CLIENT_SECRET };
 const loadContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: PLUGIN_ROOT }, definition: input.definition });
 
 let fake;

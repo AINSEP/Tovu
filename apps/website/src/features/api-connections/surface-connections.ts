@@ -127,7 +127,7 @@ export function createSurfaceConnections(
 
   return {
     async getAccessToken({ connectionId }) {
-      const { connectionRef } = await resolve(connectionId);
+      const { connectionRef } = await forActor(connectionId);
       return host.toolConnections.getAccessToken({ workspaceId, pluginId, connectionRef });
     },
     async status({ connectionId }) {

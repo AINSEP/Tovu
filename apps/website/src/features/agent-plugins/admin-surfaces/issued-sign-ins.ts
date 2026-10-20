@@ -33,7 +33,7 @@ export function createIssuedSignInCollector(_required: Record<string, never> = {
     record({ authorizationUrl, expiresAt }) {
       const url = URL.parse(authorizationUrl);
       // The host's own sign-in link follows the site's scheme; a provider URL must be https.
-      if (url && (url.protocol === "https:" || isHostedSignInLinkPath({ pathname: url.pathname }))) current.getStore()?.push({ authorizationUrl, expiresAt });
+      if (url && (url.protocol === "https:" || (url.protocol === "http:" && isHostedSignInLinkPath({ pathname: url.pathname })))) current.getStore()?.push({ authorizationUrl, expiresAt });
     },
     async collect({ run }) {
       const signIns: HostSignInLink[] = [];

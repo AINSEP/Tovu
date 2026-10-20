@@ -105,7 +105,7 @@ export async function surfaceDescriptors() {
 /**
  * Boots the handler host with the plugin's three handler modules.
  * @param {{ fake: { fetch: Function }, ports: ReturnType<typeof createHostPorts> }} required
- * @param {{ now?: () => number, randomId?: () => string, hostKind?: 'hosted' | 'desktop' }} [optional] The Picker flow's clock and id source; the host kind (default hosted).
+ * @param {{ now?: () => number, randomId?: () => string, hostKind?: 'hosted' | 'desktop', principalId?: string | null }} [optional] The Picker flow's clock and id source; the host kind (default hosted).
  */
 export async function bootSurfaces(required, optional = {}) {
   const { fake, ports } = required;
@@ -126,7 +126,7 @@ export async function bootSurfaces(required, optional = {}) {
   const { refusals } = host.sync({ loaded: descriptors.map((descriptor) => ({ pluginId: PLUGIN, descriptor, module: modules[descriptor.id] })), refusals: [] });
   if (refusals.length > 0) throw new Error(refusals.join('\n'));
   const errors = [];
-  const context = (surfaceId) => ({ workspaceId: WORKSPACE, principalId: ADMIN, pluginId: PLUGIN, surfaceId });
+  const context = (surfaceId) => ({ workspaceId: WORKSPACE, ...(optional.principalId === null ? {} : { principalId: optional.principalId ?? ADMIN }), pluginId: PLUGIN, surfaceId });
   return {
     errors,
     /** One action through the real dispatcher (payload schema, handler, result schema). */

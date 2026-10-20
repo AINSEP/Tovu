@@ -7,6 +7,7 @@
  * conflicts always propagate. In-memory vault repo; no network.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
@@ -95,7 +96,7 @@ test("attempts: an unknown state is null for take and peek", async () => {
 
 test("attempts: a row whose payload holds no attempt reads as none", async () => {
   const { vault, records, scope } = stores();
-  await vault.put({ ...scope, id: "attempt:s-1", expectedRevision: null, provider: null, label: "odd", meta: { credentialFormat: "api-connection-attempt", expiresAtMs: Date.parse("2030-01-01T00:00:00.000Z") }, payload: { attempt: "not an object" } });
+  await vault.put({ ...scope, id: `attempt:${createHash("sha256").update("s-1").digest("hex")}`, expectedRevision: null, provider: null, label: "odd", meta: { credentialFormat: "api-connection-attempt", expiresAtMs: Date.parse("2030-01-01T00:00:00.000Z") }, payload: { attempt: "not an object" } });
   assert.equal(await records.peekAttempt({ state: "s-1" }), null);
 });
 
@@ -172,4 +173,18 @@ test("vault: rows are stamped with the host clock, not the machine's", async () 
   await records.compareAndSet({ key: "key-a", expectedRevision: 0, record: record("key-a") });
   const [row] = await vault.list({ workspaceId: scope.workspaceId, kind: scope.kind, ownerKey: scope.ownerKey, principalId: null });
   assert.equal(row?.updatedAt, "2031-02-03T04:05:06.000Z");
+});
+
+
+test("security (T4): listed vault ids, labels and metadata contain a digest instead of the OAuth state", async () => {
+  const { vault, records, scope } = stores();
+  const state = "private-state-" + "z".repeat(32);
+  await records.putAttempt({ attempt: attempt(state, "2026-10-20T12:10:00.000Z") });
+  const rows = await vault.list(scope);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.id, `attempt:${createHash("sha256").update(state).digest("hex")}`);
+  assert.equal(JSON.stringify(rows).includes(state), false);
+  assert.equal((await records.peekAttempt({ state }))?.state, state);
+  const taken = await Promise.all([records.takeAttempt({ state }), records.takeAttempt({ state })]);
+  assert.equal(taken.filter(Boolean).length, 1, "digest addressing preserves consume-once CAS");
 });

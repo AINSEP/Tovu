@@ -14,7 +14,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | Path | What it is |
 |---|---|
 | `plugin.json`, `mcp.json` | Manifest (no MCP servers). |
-| `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). `byoClient: true` lets a workspace admin use their own OAuth client instead (saved as the custom credential `google-workspace/account OAuth client`; see `skills/google-workspace/references/connection.md`). |
+| `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_WORKSPACE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). `byoClient: true` lets a workspace admin use their own OAuth client instead (saved as the custom credential `google-workspace/account OAuth client`; see `skills/google-workspace/references/connection.md`). |
 | `products.json` | Product catalog: id, label, tool prefix (every tool named with it belongs to the product and is gated by it; a security pin enumerates them), required scopes. Sheets = `drive.file` only. |
 | `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`): `account_info`, and the Sheets tools in `tools/sheets/` (see its README). |
 | `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces: the connection panel, Choose spreadsheet (Picker) and Form destinations, each with a server-side `handlerModule`. See `ui/README.md`. |
@@ -118,3 +118,10 @@ developer metadata, raw batch updates, CSV export and opening a picked file; see
 These tools use the plugin-side codes `invalid-input` and `limit-exceeded` (shared with the values
 tools) and add `unsupported-request`; `sheets_open_existing` reuses the Picker's `not-a-spreadsheet`, plus an optional plugin-composed `detail`
 on `GoogleWorkspaceError` (a request index or kind name, never Google's text or a cell value).
+
+
+Hosted sign-in asks for consent when Jini has no renewable credential stored (`forceConsentParams`),
+so connecting another workspace can obtain offline access. Renewable same-account reconnects keep
+incremental grants without forcing consent. Client settings now use the full plugin namespace,
+`TOVU_GOOGLE_WORKSPACE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`; rename older
+`TOVU_GOOGLE_OAUTH_…` settings before enabling this build (no fallback).

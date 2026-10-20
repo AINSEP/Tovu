@@ -35,7 +35,7 @@ function makeHost(clock: { nowMs(): number } = { nowMs: () => Date.now() }) {
   return createApiConnectionHost({
     workspaceId: "ws-1", loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
     customCredentialRepo: new InMemoryCustomCredentialSetRepo(), clock, oauthHttp, pluginHttp: { fetch: noNetwork }, runtime: "hosted",
-    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_API_CONNECTION_CALLBACK_ORIGINS: "https://site.example" },
+    env: { TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_API_CONNECTION_CALLBACK_ORIGINS: "https://site.example" },
     publicOrigin: () => "https://site.example",
   });
 }
@@ -61,10 +61,10 @@ test("characterization: an invalid web or desktop client refuses the declaration
   };
   const web = withClients({ web: { clientIdEnv: "HOME" } });
   assert.equal(web.ok ? "loaded" : web.reason, "connections[0].clients.web.clientIdEnv must name a TOVU_…_CLIENT_ID setting");
-  const desktop = withClients({ desktop: { clientIdEnv: "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID", clientSecretEnv: "AWS_SECRET_ACCESS_KEY" } });
+  const desktop = withClients({ desktop: { clientIdEnv: "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID", clientSecretEnv: "AWS_SECRET_ACCESS_KEY" } });
   assert.equal(desktop.ok ? "loaded" : desktop.reason, "connections[0].clients.desktop.clientSecretEnv must name a TOVU_…_CLIENT_SECRET setting");
-  const both = withClients({ web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } });
-  assert.deepEqual(both.ok ? both.descriptors[0]?.clients : null, { web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } });
+  const both = withClients({ web: { clientIdEnv: "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID" } });
+  assert.deepEqual(both.ok ? both.descriptors[0]?.clients : null, { web: { clientIdEnv: "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID" } });
 });
 
 test("characterization: an owned ref that was never connected is refused as not found (connect first) on every read", async () => {

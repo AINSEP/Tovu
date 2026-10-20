@@ -12,7 +12,7 @@ names no provider.
 
 | File | What it does |
 |---|---|
-| `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts). |
+| `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts); attempt row ids also use the full SHA-256 state digest. |
 | `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
 | `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
@@ -36,10 +36,18 @@ names no provider.
   "budgets": [{ "scope": "connection", "perMinute": 45 }, { "scope": "instance", "perMinute": 240 }],
   "scopeSets": ["files"], "apiOrigins": ["https://api.example.com"], "byoClient": true,
   "clients": {
-    "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET", "redirectOrigins": ["https://…"] },
-    "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }
+    "web": { "clientIdEnv": "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET", "redirectOrigins": ["https://…"] },
+    "desktop": { "clientIdEnv": "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID" }
   } } ] }
 ```
+
+
+Client setting names are allowlisted for each plugin and runtime: `TOVU_<PLUGIN_ID>_OAUTH_WEB_CLIENT_ID`
+and `_SECRET`, or `…_OAUTH_DESKTOP_CLIENT_ID` and `_SECRET`. The full plugin id is uppercased,
+with `-` encoded as `_` and `.` as `__`; additional namespace segments and another runtime's
+names are refused before any environment lookup. For `acme-office` the names in the example above
+are the only admitted client settings. Operators must rename any earlier abbreviated client settings;
+there is no fallback to a foreign namespace.
 
 `scopeSets` (optional, at most 16 ids) lists the scope-set ids the plugin's `resolveScopes` accepts,
 so a surface's `status` can report which are granted. `apiOrigins` (optional, at most 8 bare

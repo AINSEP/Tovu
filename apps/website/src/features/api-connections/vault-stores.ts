@@ -27,7 +27,8 @@ const ATTEMPT_FORMAT = "api-connection-attempt";
 /** Plugin settings rows (`plugin-state.ts`): plain JSON a plugin's admin surface saves, sealed like the rest. */
 export const PLUGIN_STATE_FORMAT = "agent-plugin-state";
 const recordId = (key: string): string => `record:${key}`;
-const attemptId = (state: string): string => `attempt:${state}`;
+// State is sealed inside the attempt only: row ids and labels are visible to vault listings.
+const attemptId = (state: string): string => `attempt:${createHash("sha256").update(state).digest("hex")}`;
 /**
  * Vault labels are unique per scope, and one scope holds every connection's record plus every open
  * sign-in attempt, so each label is derived from what makes its row unique: the record's key, and

@@ -208,7 +208,7 @@ test("log: without an injected log the failure goes to console.error by name and
 
 // ---- Browser binding (G15 F1): the callback completes only in the browser that started the sign-in.
 
-const CLEARED = `${API_CONNECTION_BINDING_COOKIE}=; Path=/api/agent-plugins/connections/oauth/callback; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+const CLEARED = `${API_CONNECTION_BINDING_COOKIE}=; Max-Age=0; Path=/api/agent-plugins/connections/oauth/callback; HttpOnly; Secure; SameSite=Lax`;
 
 test("security (F1): a callback whose browser carries no binding cookie is refused as state_expired and installs nothing", async () => {
   const logs: string[] = [];

@@ -95,3 +95,14 @@ test("desktop: a failure whose hook threw an error with no code shows a safe cod
   assert.equal(warnings.length, 1);
   assert.ok(!warnings[0]!.includes("account text"), "no hook message text is logged");
 });
+
+
+test("security (F7): a surface without a principal cannot read an access token, including directly through the host port", async () => {
+  const host = harness.makeHost();
+  const port = portFor(host);
+  const start = await port.begin({ connectionId: "account", action: "connect" });
+  assert.equal(await harness.consent(start.authorizationUrl), 200);
+  const anonymous = createSurfaceConnections({ host, pluginId: ACME_PLUGIN, workspaceId: ACME_WORKSPACE });
+  await assert.rejects(anonymous.getAccessToken({ connectionId: "account" }), { code: "connection-not-found" });
+  assert.equal(await port.getAccessToken({ connectionId: "account" }), harness.accessToken);
+});

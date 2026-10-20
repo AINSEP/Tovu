@@ -32,7 +32,8 @@ import type { ServerModuleHandle } from "./types.js";
  * session), which therefore must not sit under `/api/admin`.
  * Plugin-declared API connections (2026-10-20): the PUBLIC OAuth callback their hosted sign-in
  * returns to, registered only when the composition provides them (`deps.apiConnections`). It is
- * cookie-less for the reason its own header gives, so it also sits outside `/api/admin`, with its own
+ * session-less for the reason its own header gives (it reads a separate browser-binding cookie),
+ * so it also sits outside `/api/admin`, with its own
  * per-IP limiter instance sized like the external-MCP callback's (same anonymous, exchange-costly shape).
  * Its hosted sign-in links open through the session-gated `connection-sign-in.ts` route, which
  * binds the starting browser before redirecting to the provider.

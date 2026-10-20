@@ -135,3 +135,171 @@ Planned lots: B3 (Tovu generic: H1, M1, M3, M4, L5, L7 generic parts), B3p (plug
 - The **HIGH G15 F1** finding (hosted OAuth callback has no browser binding, so a cross-account sign-in hijack is possible) is fixed in Jini only. The Tovu cookie side is unmerged WIP on G16t1, so hosted sign-in is still vulnerable on the Tovu branch.
 - Not run: the Tovu whole suite (build + base), admin whole suite, repo checks at the final head, desktop gates (owed for 910e7f8ed).
 - Jini end-of-build was run (see the section above).
+
+
+## G16 finish (Codex, local)
+
+Branch: `codex/gw-finish`, scratch clone only. Programmer and Security personas loaded. This is a
+static-only handoff: the owner explicitly prohibited tests, typechecks, builds, installs and Git
+mutations. No such commands were run; no processes were started. Jini reference clone was read only.
+The earlier CANCELLED section records the previous run; this section records the newly authorized local finish.
+
+### Per-step status
+
+1. **Done in source; execution unverified.** Read Jini's exported service/authorization/attempt,
+   surface handler/capability/binding and CMS delivery types and the requested READMEs. Every real
+   API-connection `complete` call in Tovu and the plugin tests supplies `browserBinding`.
+   Kept the merged G16t1 `connect.ts`, callback and `delivery-bindings.ts` adaptations: desktop
+   retains the host-only binding in memory; surface bindings explicitly state `formIds` or
+   `allForms: true`, including the stored absent-formIds -> allForms conversion. Added the missing
+   `browser-binding.ts`, `connection-sign-in.ts` and `support/starting-browser.ts` which the WIP
+   imported but never committed. Surface access-token reads now require a principal in Tovu's
+   `surface-connections.ts` as well as Jini's session gate.
+2. **Done in source; execution unverified.** Hosted starts return an actor-bound one-use host link.
+   The existing admin-session middleware authenticates the opener; API-key and different-actor
+   requests cannot get the binding. Jini's existing pending-authorization cache owns expiry,
+   capacity and consumption (256 entries, no timers); no parallel lifecycle/store was invented.
+   The host response sets `__Secure-tovu_api_connection_binding`, with no Domain, Max-Age=600,
+   HttpOnly, Secure, SameSite=Lax and the exact callback Path. The existing WIP callback reads
+   only that cookie, passes an empty string if absent/invalid, and clears it on a routed attempt's
+   completion or refusal. Jini consumes/checks the attempt and refuses missing/wrong proof before
+   exchange. Duplicate binding cookies fail closed. Unrelated/unknown callbacks leave the cookie
+   alone, preserving the existing security pin. Two simultaneous sign-ins use newest-cookie-wins
+   and fail closed across attempts. Cookie serialization uses the installed `cookie` package;
+   updated the exact clear-header assertion only for its attribute order, retaining every attribute.
+3. **Partial: contracts repaired, the reported 21 failures NOT rerun.** Plugin OAuth tests pass the
+   actual started binding while retaining PKCE, state/replay, scopes, denial and redaction assertions.
+   The all-forms host fixture now states allForms:true; a separate new pin refuses a missing forms
+   declaration. The plugin declares forceConsentParams.prompt=consent for unrenewable hosted
+   sign-ins and pins first-consent vs renewable reconnect behavior. G1c/G6d was already implemented:
+   the vault test pins confirmed + /revoke called + grant cleared, and the hook treats only HTTP
+   400 invalid_token as already revoked; preserved all of those pins and the refusal cases.
+4. **Done in source; execution unverified.** T4: attempt row addresses use the full SHA-256 state
+   digest for put/peek/take, retaining CAS and existing sealed payloads. Transient in-flight rows
+   using old addresses expire naturally (at most ten minutes); no persisted-data migration.
+   T5: loader admits only the exact full-plugin-id and runtime client-setting names before any env
+   lookup: TOVU_<FULL_PLUGIN_ID>_OAUTH_<WEB|DESKTOP>_CLIENT_<ID|SECRET>. Hyphens map to `_`, dots
+   to `__` to avoid id collisions. Prefix matching alone was rejected because a shorter plugin
+   could then name a longer plugin's secret. Google/Acme declarations, env fixtures and docs now
+   use GOOGLE_WORKSPACE/ACME_OFFICE. Operators must rename old abbreviated settings; no fallback.
+   T6: public static surface files use the existing rate-limit factory/IP resolver/http-kit owner,
+   before contribution lookup or file reads. Profile: 240 + 60 burst per IP per 60 seconds, one
+   instance per route registration/process; denied calls return 429 + Retry-After + no-store.
+   Limiter faults cannot fall through to contribution loading. T3 and T7 intentionally left below.
+5. **Done: decisions listed, none resolved by this patch.** Recommendations below remain proposals.
+
+### New/changed tests
+
+- New `browser-binding.unit.test.ts`: cache expiry/capacity, consumed wrong actor, replay, exact
+  host-only cookie attributes on set/clear, missing/malformed/duplicate cookie refusal, host-link shape.
+- New `connection-sign-in.security.integration.test.ts`: real authenticated admin session, no-session
+  and API-key denial, wrong actor, one-use handoff, exact Secure/HttpOnly/Lax/callback-Path cookie,
+  public callback with missing/other proof, success/clear, refused replay and no exchange on mismatch.
+- New `files.security.test.ts`: existing fixed-window limiter before any contribution I/O, threshold,
+  unknown paths, spoofed forwarded IP, reset boundary and limiter-fault refusal.
+- Updated `oauth.contract.test.mjs`: correct binding on every completion; hosted forced consent;
+  added both-runtime wrong-browser/replay and first-grant-without-refresh-token pins, plus renewable
+  hosted reconnect without an unnecessary consent prompt. Existing remote-revoke assertions retained.
+- Updated `surfaces.contract.test.mjs` and `surface-harness.mjs`: explicit all-forms fixture; missing
+  forms fails closed; principal-less Picker bootstrap refuses before its host token port is called.
+- Updated vault-store tests: seed digest-addressed rows; pin no state in listed ids/labels/metadata and
+  concurrent consume-once behavior. Updated contribution tests: both runtimes reject foreign,
+  extra-namespace and cross-runtime secret names; own names admitted; foreign client id refused.
+- Updated surface-connections tests: direct token read without a principal refused; signed-in owner works.
+- Remaining test-file changes are complete fixture/env-name propagation and missing-browser-helper
+  adoption; no tests removed, no guard/auth/validation deleted, no security assertion weakened.
+
+### Static evidence, architecture and remaining risk
+
+- `git diff --check` clean. Source call-site searches inspected all API-connection completions,
+  typed surface-binding uses and surface bootstrap contexts; no remaining known G16j contract mismatch.
+- Runtime/typecheck/coverage/self-validation status: **PARTIAL / NOT RUN**, explicitly prohibited by
+  this dispatch and no node_modules here. No claim that the branch typechecks or that the 21 failures
+  now pass. Owner must run root/tests/admin typechecks and plugin/affected website suites in cloud.
+- Architecture audit: **PASS (static scope)**: Jini still owns OAuth/PKCE/browser-binding comparison,
+  single-use storage and rate-limit algorithm; Tovu adds only its route/cookie/config/vault adapters;
+  provider-specific consent stays in content/agent-plugins/google-workspace. No new dependency or
+  provider vocabulary in core. Chapters 13/14 and project memory were absent from this scratch clone;
+  read their /Users/la/Programming/Tovu/ADS-memory copies as read-only references. Graph tools were
+  unavailable, so fresh targeted rg/source reads supplied discovery evidence.
+- Function quality: handoff issue/take, link/cookie helpers, namespace validation, digest addressing,
+  principal-gated token port and public-files admission: **NO_RECORDED_FINDINGS after static review**;
+  direct seams and assertions listed above, no unbounded per-item external I/O. Handoff cache is bounded
+  to 256 entries; header parsing is linear in the server-bounded header; namespace checks cover at most
+  two clients; digest hashing is linear in bounded state; token port adds one existing actor check;
+  static files retain their existing allowed-request contribution scan. Skepticism pass checked naming,
+  wrong-browser/retry paths, cache capacity and namespace collisions: the prefix-only namespace bypass
+  was identified and replaced with exact per-runtime names before handoff. Execution evidence remains
+  the stated limitation, not an assertion of green coverage.
+- T3 remains OPEN (forms-multidest-owned whole-list bindings RMW/CAS); T7 remains OPEN (Origin/Host
+  behind a rewriting proxy fails closed). No hold/retry semantics changed. Hosted Picker Chrome/CSP
+  checks, real browser cookie navigation, desktop gates, and live Sheets metadata checks remain owed.
+- Trusted plugin hooks still run in-process; the client-name allowlist is a host capability boundary,
+  not process isolation. Provider access tokens already issued to a frame retain their provider TTL.
+
+### Reuse decisions
+
+- Reuse: hosted one-use handoff; searched Tovu connection/inbox paths and Jini OAuth/core/agent-plugins
+  for handoff, pending, single-use, consume-once; inspected pending-authorizations.ts and callback-field-inbox.ts;
+  used @jini-ai/oauth createPendingAuthorizationStore<T> cache mode (the callback inbox owns completed
+  provider fields, not pre-consent proof). Tovu wrapper only maps actor/link/expiry and injects entropy into Jini generateOAuthState; owner: Jini OAuth README.
+- Reuse: cookie serialization; searched existing admin/member cookie writers, consent cookie parser and
+  Jini http-kit/oauth/user-management cookie exports; used installed cookie.serialize for a pure header
+  adapter (keeps Express out of features); retained strict duplicate-proof refusal which cookie.parse
+  alone does not enforce. Owner: Jini browser-binding host contract; cookie names/path are Tovu policy.
+- Reuse: attempt-address digest; reused native node:crypto createHash already used by the vault label,
+  through the existing attemptId function shared by all attempt reads/writes; no alternate store.
+- Reuse: client-setting ownership; inspected contribution parser/loader and host resolveClient/configured;
+  extended the declaration loader before environment access with exact Tovu setting names, keeping
+  all existing parser checks. No provider-specific owner in core.
+- Reuse: public-files admission; searched callback/public rate-limit routes and contracts/rate-limit,
+  inspected createRateLimiter/resolveClientIp and Jini http-kit counter ownership; used that factory,
+  adding only Tovu's route profile. No custom counting/eviction algorithm.
+
+### Owner decisions (recommendations only)
+
+- G1c(a), refused completion grants: retain no automatic remote revoke; propose explicit cleanup guidance because revoking can affect a live shared grant.
+- G1c(b), completion after a switch staged: propose an atomic staged-slot recheck/refusal in Jini so the staged credential cannot be orphaned.
+- G1c(c), disconnect impact across workspaces: preserve current behavior pending owner confirmation and disclose its shared-grant blast radius explicitly.
+- T2, hold semantics: propose a durable held outcome for product-off/quota/auth recovery, resumed explicitly without spending the finite failure-attempt budget.
+- F3, revoke scope: propose an explicit grant-wide revoke choice and warning, with local disconnect separately defined by the owner; no behavior changed here.
+- B4, BYO OAuth client: keep the existing secure-capture flow pending owner decision; propose a dedicated OAuth-client credential capability to avoid general agent credential access.
+- Tovu-owned Google OAuth client: owner must provision/register web and installed clients and approve consent/callback configuration before enabling the plugin.
+
+### Complete file list (this local finish; inherited merged files are described above)
+
+- `.cloud-coord/google-workspace-progress.md`
+- `apps/website/src/contracts/core/rate-limit/rate-limit.ts`
+- `apps/website/src/features/agent-plugins/admin-surfaces/issued-sign-ins.ts`
+- `apps/website/src/features/api-connections/README.md`
+- `apps/website/src/features/api-connections/__tests__/api-connection-budgets.test.ts`
+- `apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts`
+- `apps/website/src/features/api-connections/__tests__/browser-binding.unit.test.ts`
+- `apps/website/src/features/api-connections/__tests__/contribution.unit.test.ts`
+- `apps/website/src/features/api-connections/__tests__/fixtures/acme-office/tovu-connections.json`
+- `apps/website/src/features/api-connections/__tests__/host.unit.test.ts`
+- `apps/website/src/features/api-connections/__tests__/support/acme-harness.ts`
+- `apps/website/src/features/api-connections/__tests__/support/starting-browser.ts`
+- `apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts`
+- `apps/website/src/features/api-connections/__tests__/surface-connections.unit.test.ts`
+- `apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts`
+- `apps/website/src/features/api-connections/browser-binding.ts`
+- `apps/website/src/features/api-connections/contribution.ts`
+- `apps/website/src/features/api-connections/host.ts`
+- `apps/website/src/features/api-connections/surface-connections.ts`
+- `apps/website/src/features/api-connections/vault-stores.ts`
+- `apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/connection-sign-in.security.integration.test.ts`
+- `apps/website/src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in.ts`
+- `apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/__tests__/files.security.test.ts`
+- `apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/files.ts`
+- `apps/website/src/server/inbound/public-http/routes/api-connections/__tests__/oauth-callback.unit.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts`
+- `apps/website/src/server/runtime/composition/__tests__/fixtures/acme-provider.ts`
+- `apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.integration.test.ts`
+- `apps/website/src/server/runtime/composition/modules/agent-plugins.ts`
+- `content/agent-plugins/google-workspace/README.md`
+- `content/agent-plugins/google-workspace/__tests__/form-delivery.e2e.test.mjs`
+- `content/agent-plugins/google-workspace/__tests__/oauth.contract.test.mjs`
+- `content/agent-plugins/google-workspace/__tests__/surface-harness.mjs`
+- `content/agent-plugins/google-workspace/__tests__/surfaces.contract.test.mjs`
+- `content/agent-plugins/google-workspace/tovu-connections.json`

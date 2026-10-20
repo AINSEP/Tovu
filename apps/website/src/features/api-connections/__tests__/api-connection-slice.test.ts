@@ -98,7 +98,7 @@ after(async () => {
   if (callbackServer) await new Promise((resolve) => callbackServer.close(resolve));
 });
 
-const hostedEnv = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
+const hostedEnv = { TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
 
 /** One site key for every host and the saved custom credentials (as in production: `deps.ts` passes the
  *  site's one keyring and sealer to both), so the Tovu keyring type serves both ports. */
@@ -116,7 +116,7 @@ function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" |
     env: options.env ?? { ...hostedEnv, get TOVU_API_CONNECTION_CALLBACK_ORIGINS() { return siteOrigin; } },
     publicOrigin: options.publicOrigin ?? (() => siteOrigin),
   });
-  browser = trackStartingBrowser(host);
+  browser = trackStartingBrowser({ host });
   return host;
 }
 
@@ -317,7 +317,7 @@ test("security: a desktop public client's provider-issued secret reaches only th
   const secret = "d".repeat(28);
   const logs: string[] = [];
   const vaultRepo = new InMemoryVaultRepo({});
-  const host = makeHost("ws-1", { runtime: "desktop", vaultRepo, env: { TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET: secret } });
+  const host = makeHost("ws-1", { runtime: "desktop", vaultRepo, env: { TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET: secret } });
   const [connection] = await host.listConnections({ pluginId: "acme-office" });
   let signInUrl = "";
   const result = await runApiConnectionConnect({
@@ -339,7 +339,7 @@ test("security: a desktop public client's provider-issued secret reaches only th
 });
 
 test("security: a hosted (confidential) client without its server-held secret is refused before any sign-in starts", async () => {
-  const host = makeHost("ws-1", { env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client" } });
+  const host = makeHost("ws-1", { env: { TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client" } });
   const [connection] = await host.listConnections({ pluginId: "acme-office" });
   const calls = tokenCalls;
   assert.throws(() => host.serviceFor({ connection }), { code: "descriptor-invalid", message: /client secret is not configured/ });
@@ -368,7 +368,7 @@ async function connectDesktop(host: ReturnType<typeof makeHost>) {
   });
 }
 
-const desktopEnv = { TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET: "d".repeat(28) };
+const desktopEnv = { TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET: "d".repeat(28) };
 
 test("characterization: a connected account reads as connected through host.records, statusOf and readAccount", async () => {
   const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv });
@@ -546,7 +546,7 @@ test("security: a hosted BYO web client returns to this site's own address, and 
 });
 
 test("security: a byoClient flag that is not true or false refuses the whole declaration (never read as allowed)", () => {
-  const declaration = { id: "account", module: "lib/connection.mjs", clients: { web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } } };
+  const declaration = { id: "account", module: "lib/connection.mjs", clients: { web: { clientIdEnv: "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID" } } };
   assert.deepEqual(parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [{ ...declaration, byoClient: "yes" }] }) }), { ok: false, reason: "connections[0].byoClient must be true or false" });
   const absent = parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [declaration] }) });
   assert.equal(absent.ok && absent.descriptors[0]!.byoClient, false);

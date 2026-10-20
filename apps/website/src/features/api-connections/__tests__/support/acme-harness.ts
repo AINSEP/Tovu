@@ -151,8 +151,8 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
   const oauthHttp: OAuthHttpPorts = { guard: { assertSafeUrl: ({ raw }) => new URL(raw) }, fetchFn: ({ url }, init) => fetch(toLocal(String(url)), init) };
   const pluginHttp: PluginHttp = { fetch: ({ url }, init = {}) => fetch(toLocal(url), init as RequestInit) };
   const env = {
-    TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "w".repeat(24),
-    TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_API_CONNECTION_CALLBACK_ORIGINS: siteOrigin,
+    TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "w".repeat(24),
+    TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_API_CONNECTION_CALLBACK_ORIGINS: siteOrigin,
   };
 
   let browser: StartingBrowser | undefined;
@@ -172,7 +172,7 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
     registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } });
     siteServer.removeAllListeners("request");
     siteServer.on("request", app);
-    browser = trackStartingBrowser(host);
+    browser = trackStartingBrowser({ host });
     return host;
   }
 

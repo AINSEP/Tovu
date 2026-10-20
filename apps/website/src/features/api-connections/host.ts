@@ -159,7 +159,7 @@ export function createApiConnectionHost(
   // connection; a later success deletes it.
   const lastSignInAttempts = new Map<string, AdminSurfaceSignInAttempt>();
   // Hosted sign-ins started here, waiting for their starter's browser to open the host link.
-  const signInHandoffs = createSignInHandoffs({ clock: required.clock });
+  const signInHandoffs = createSignInHandoffs({ clock: required.clock, randomBytesFn: ({ byteLength }) => randomBytes(byteLength) });
   const credentials = { repo: required.customCredentialRepo, sealer: required.sealer, keyring: required.keyring };
   // Per host (so per workspace) and per loaded declaration object: a BYO client never travels with a
   // connection object into another host, and the secret is never a field anything could serialize.

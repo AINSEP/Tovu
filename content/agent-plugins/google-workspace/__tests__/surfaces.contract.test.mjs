@@ -205,7 +205,7 @@ test('destinations: a binding of another adapter, of several forms, or with a co
   const foreign = [
     { ...contact, bindingId: 'other-adapter', adapterId: 'other-rows' },
     { ...contact, bindingId: 'two-forms', formIds: ['contact', 'signup'] },
-    { ...contact, bindingId: 'every-form', formIds: undefined },
+    { ...contact, bindingId: 'every-form', formIds: undefined, allForms: true },
     { ...contact, bindingId: 'bad-slug', formIds: ['Not A Slug'] },
     { ...contact, bindingId: 'no-tab', config: { ...contact.config, tabs: {} } },
     { ...contact, bindingId: 'no-title', config: { ...contact.config, title: 7 } },
@@ -320,4 +320,25 @@ test('picker: without an injected id source, a hosted session id is a random UUI
   const bootstrap = await surfaces.bootstrap('picker');
   assert.match(bootstrap.picker.sessionId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal(ports.state.get('picker-session:picker').id, bootstrap.picker.sessionId);
+});
+
+test('destinations (F11): a host binding with neither formIds nor allForms fails closed and is never treated as every form', async () => {
+  serveGoogle(fake);
+  const { ports, surfaces } = await boot();
+  const invalid = { ...destinationBinding('contact'), formIds: undefined };
+  ports.bindings.push(invalid);
+  const outcome = await surfaces.dispatch('form-destinations', 'list-destinations');
+  assert.equal(outcome.ok, false);
+  assert.equal(ports.bindings.length, 1);
+  assert.equal(ports.bindings[0].allForms, undefined, 'the panel never widens a malformed host binding');
+});
+
+
+test('surface tokens (F7): bootstrap without a signed-in principal cannot mint a Picker access token', async () => {
+  serveGoogle(fake);
+  const ports = createHostPorts({ publicConfig: { TOVU_GOOGLE_PICKER_BROWSER_KEY: 'browser-key-placeholder', TOVU_GOOGLE_PICKER_APP_ID: '123456789' } });
+  ports.state.set('products', { sheets: true });
+  const surfaces = await bootSurfaces({ fake, ports }, { principalId: null });
+  await assert.rejects(surfaces.bootstrap('picker'));
+  assert.equal(ports.calls.getAccessToken, 0, 'Jini refuses before the host token port runs');
 });

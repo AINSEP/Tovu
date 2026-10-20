@@ -114,7 +114,7 @@ const previousPublicUrl = process.env.TOVU_PUBLIC_URL;
 
 export type AcmeComposition = Awaited<ReturnType<typeof compose>>;
 
-export async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL }) {
+export async function compose(env: Record<string, string> = { TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL }) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "agent-plugin-connections-slice" });
   const vaultRepo = new InMemoryVaultRepo({});
   const composition = composeAgentPluginConnections({
@@ -123,7 +123,7 @@ export async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WE
     env,
     derivedPublicOrigin: undefined,
   });
-  browser = trackStartingBrowser(composition.apiConnections.host);
+  browser = trackStartingBrowser({ host: composition.apiConnections.host });
   return { ...composition, vaultRepo };
 }
 

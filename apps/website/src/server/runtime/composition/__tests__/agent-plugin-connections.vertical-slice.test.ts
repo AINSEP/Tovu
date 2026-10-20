@@ -66,7 +66,7 @@ test("vertical slice: connect -> public callback -> executable tool call -> admi
 });
 
 test("vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it", async () => {
-  const composition = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL, TOVU_ACME_CHOOSER_APP_ID: "app-123" });
+  const composition = await compose({ TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL, TOVU_ACME_CHOOSER_APP_ID: "app-123" });
   await connectForRef(composition);
   const context = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account" };
   await composition.adminSurfaceHost.bootstrapData({ context });
@@ -174,13 +174,13 @@ test("security: one token memory across seams: a token a SURFACE handler obtaine
 });
 
 test("security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context", async () => {
-  const desktop = await compose({ ELECTRON_RUN_AS_NODE: "1", TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" });
+  const desktop = await compose({ ELECTRON_RUN_AS_NODE: "1", TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" });
   assert.deepEqual(await (await surfaceDispatch(desktop, { hostKind: "hosted" }))("host-kind"), { ok: true, result: { name: "desktop" } });
   assert.deepEqual(await (await surfaceDispatch(await compose(), { hostKind: "desktop" }))("host-kind"), { ok: true, result: { name: "hosted" } });
 });
 
 test("security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself", async () => {
-  const composition = await compose({ ELECTRON_RUN_AS_NODE: "1", TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" });
+  const composition = await compose({ ELECTRON_RUN_AS_NODE: "1", TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" });
   const { host } = composition.apiConnections;
   assert.equal(host.runtime, "desktop");
   const [connection] = await host.listConnections({ pluginId: PLUGIN });
@@ -194,7 +194,7 @@ test("security: desktop admits only its plaintext loopback redirect, and complet
   });
   assert.equal(connected.status, "connected");
   assert.match(redirectUri, /^http:\/\/127\.0\.0\.1:\d+\//);
-  const hosted = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) });
+  const hosted = await compose({ TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) });
   const service = hosted.apiConnections.host.serviceFor({ connection, redirectUri });
   await assert.rejects(service.start({ workspaceId: WORKSPACE, actorId: "admin-1", intent: "connect", scopeSetIds: [], redirectUri }), { message: /must use https/ });
 });

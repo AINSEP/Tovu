@@ -154,3 +154,28 @@ test("load: earlier refusals from the loader are kept alongside loaded connectio
   assert.deepEqual(loaded.refusals, ["an earlier package refusal"]);
   assert.deepEqual(loaded.connections.map((connection) => connection.descriptor.connectionId), fixture.connections.map((connection) => connection.descriptor.connectionId));
 });
+
+
+for (const runtime of ["web", "desktop"] as const) {
+  for (const clientSecretEnv of ["TOVU_OTHER_OAUTH_WEB_CLIENT_SECRET", "TOVU_ACME_OFFICE_EXTRA_OAUTH_WEB_CLIENT_SECRET", "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET"]) {
+    if (runtime === "desktop" && clientSecretEnv === "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET") continue;
+    test(`security (T5): ${runtime} refuses a foreign or undeclared client secret setting ${clientSecretEnv}`, async (t) => {
+      const root = acmeFixtureCopy(t, (declaration) => {
+        declaration.clients = { [runtime]: { clientIdEnv: `TOVU_ACME_OFFICE_OAUTH_${runtime.toUpperCase()}_CLIENT_ID`, clientSecretEnv } };
+      });
+      const loaded = await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(root) });
+      assert.deepEqual(loaded.connections, []);
+      assert.deepEqual(loaded.refusals, ["API connection 'account' from 'acme-office' was not loaded: Client settings must belong to this plugin's TOVU_ACME_OFFICE_ namespace."]);
+    });
+  }
+}
+
+test("security (T5): own exact runtime client names are admitted; a foreign client id is refused", async (t) => {
+  const loaded = await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(path.join(import.meta.dirname, "fixtures", "acme-office")) });
+  assert.equal(loaded.connections.length, 1);
+  assert.deepEqual(loaded.refusals, []);
+  const root = acmeFixtureCopy(t, (declaration) => {
+    declaration.clients = { web: { clientIdEnv: "TOVU_OTHER_OAUTH_WEB_CLIENT_ID" } };
+  });
+  assert.equal((await loadDeclaredApiConnections({ workspaceId: "ws-1", loadContributions: loaderFor(root) })).connections.length, 0);
+});

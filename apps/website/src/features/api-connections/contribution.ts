@@ -13,7 +13,7 @@ import { parseConnectionBudgets, type ConnectionBudget } from "./budgets.js";
  * TRUST RULE: hooks are plugin code running in this process, so they load through the lifecycle's
  * one executable gate (ACTIVE plugin, bundled digest, contained `.mjs`), like mail adapters. The
  * descriptor is untrusted until Jini's `parseApiConnectionDescriptor` accepts it. Client config is
- * only ever NAMED by the plugin: names must match {@link CLIENT_ENV_PATTERN}, so a plugin can point
+ * only ever NAMED by the plugin: names must match {@link CLIENT_ENV_PATTERN} and the full plugin-id namespace, so a plugin can point
  * at its own `…_CLIENT_ID` / `…_CLIENT_SECRET` and never at another secret of this host. Request
  * budgets (`budgets`) are clamped to the host's maxima by `budgets.ts` and never reach the descriptor;
  * nor do `scopeSets` (the plugin's scope-set ids, for status), `apiOrigins` (the https origins its
@@ -190,6 +190,20 @@ const connectionContribution = defineExecutablePluginContribution<ApiConnectionD
   refusal: ({ plugin, descriptor, reason }) => `API connection '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
 }, { onReadError: ({ error }) => ((error as NodeJS.ErrnoException)?.code === "ENOENT" ? [] : undefined) });
 
+/** Refuse another plugin's client config before reading environment or constructing a service.
+ * Full ids distinguish plugins sharing a prefix; dots and hyphens have distinct encodings to avoid
+ * namespace collisions ("acme.office" vs "acme-office"). O(c) over at most two runtime clients.
+ */
+function checkClientNamespace(required: { readonly pluginId: string; readonly clients: ApiConnectionDeclaration["clients"] }, _optional: Record<string, never> = {}): void {
+  const namespace = `TOVU_${required.pluginId.toUpperCase().replaceAll(".", "__").replaceAll("-", "_")}_`;
+  for (const [runtime, client] of Object.entries(required.clients)) {
+    const prefix = `${namespace}OAUTH_${runtime.toUpperCase()}_CLIENT_`;
+    if (client && (client.clientIdEnv !== `${prefix}ID` || (client.clientSecretEnv !== undefined && client.clientSecretEnv !== `${prefix}SECRET`))) {
+      throw new Error(`Client settings must belong to this plugin's ${namespace} namespace.`);
+    }
+  }
+}
+
 /**
  * Every trusted API connection the workspace's active plugins declare, plus log-safe refusals.
  * A descriptor Jini refuses drops only that connection.
@@ -204,6 +218,7 @@ export async function loadDeclaredApiConnections(
   const refusals = [...load.refusals];
   for (const item of load.items) {
     try {
+      checkClientNamespace({ pluginId: item.pluginId, clients: item.descriptor.clients });
       const descriptor = parseApiConnectionDescriptor({ value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
       const { clients, budgets, scopeSets, apiOrigins, byoClient } = item.descriptor;
       connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, byoClient, module: item.module });
