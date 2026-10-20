@@ -1,4 +1,6 @@
 import { format } from "node:util";
+import { Writable } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 
 import type { ServerLogBuffer, ServerLogLevel, ServerLogSource } from "./log-buffer.js";
 
@@ -11,6 +13,51 @@ import type { ServerLogBuffer, ServerLogLevel, ServerLogSource } from "./log-buf
  */
 
 type ConsoleMethod = "debug" | "log" | "info" | "warn" | "error";
+
+/**
+ * Frames child output before invoking the caller's existing redactor, including an unterminated
+ * final line. Never closes the parent sink. Oversized lines are discarded whole so cutting a
+ * credential before redaction cannot expose a fragment. Redactor failures emit fixed copy.
+ * @param required Parent sink and redaction policy; no process globals are read.
+ * @param optional Input-line and rendered-line limits, in characters.
+ * @returns A writable for one child stream; end it when that child stream ends.
+ * @complexity O(n) time for n input characters; O(maxLineLength) retained space.
+ * @example child.stderr.pipe(createRedactedOutputSink({ sink: process.stderr, redact }));
+ */
+export function createRedactedOutputSink(
+  { sink, redact }: { sink: Pick<Writable, "write">; redact: (text: string) => string },
+  { maxLineLength = 65_536, maxLength = 2_000 }: { maxLineLength?: number; maxLength?: number } = {},
+): Writable {
+  const decoder = new StringDecoder("utf8");
+  let pending = "";
+  let oversized = false;
+  const emit = () => {
+    let safe = "[output redaction failed]";
+    try { safe = oversized ? "[oversized output line omitted]" : redact(pending); }
+    catch { /* Raw child bytes must never be the fallback. */ }
+    if (safe) sink.write(`${safe.slice(0, maxLength)}\n`);
+    pending = "";
+    oversized = false;
+  };
+  const append = (text: string) => {
+    let start = 0;
+    while (start < text.length) {
+      const newline = text.indexOf("\n", start);
+      const end = newline === -1 ? text.length : newline;
+      if (!oversized) {
+        if (pending.length + end - start > maxLineLength) { pending = ""; oversized = true; }
+        else pending += text.slice(start, end);
+      }
+      if (newline === -1) return;
+      emit();
+      start = newline + 1;
+    }
+  };
+  return new Writable({
+    write(chunk: Buffer, _encoding, done) { append(decoder.write(chunk)); done(); },
+    final(done) { append(decoder.end()); if (pending || oversized) emit(); done(); },
+  });
+}
 
 const LEVEL_BY_METHOD: Record<ConsoleMethod, ServerLogLevel> = {
   debug: "debug", log: "info", info: "info", warn: "warn", error: "error",

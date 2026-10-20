@@ -480,7 +480,7 @@ test("startTovuServer redacts split secret values on both mirrored streams", asy
   }
   child.stdout.write(REAL_BOOT_LINE);
   await started;
-  assert.equal(mirror.stdout.read()?.toString(), `key [REDACTED:credential]\n${REAL_BOOT_LINE}`);
+  assert.equal(mirror.stdout.read()?.toString(), `key [REDACTED:credential]\n${REAL_BOOT_LINE.replace(`/Users/${path.basename(os.homedir())}`, "/Users/<USER>")}`);
   assert.equal(mirror.stderr.read()?.toString(), "key [REDACTED:credential]\n");
 });
 
@@ -631,7 +631,7 @@ test("startTovuServer reports Tovu's own error code when the child dies before b
   await assert.rejects(started, /tovu serve failed: PORT_IN_USE: Port 3601 is already in use\./);
 });
 
-test("startTovuServer reports the raw output tail when the child dies without an error line", async () => {
+test("startTovuServer reports the safe output tail when the child dies without an error line", async () => {
   const child = fakeChild();
   const started = startTovuServer({
     repoRoot: makeTempRepo(),
@@ -1092,4 +1092,30 @@ test("deskfx S1: every desktop launch mints a private owner capability without c
   assert.equal(a.TOVU_DESKTOP_OWNER_PID, String(process.pid));
   assert.equal(a.NODE_ENV, "test"); assert.equal(a.TOVU_DEV_OWNER_SIGNIN, "0");
   assert.equal(a.TOVU_HOST, "127.0.0.1"); assert.equal(baseEnv.TOVU_DESKTOP_OWNER_SIGNIN, "inherited");
+});
+
+
+test("native fatal stderr without a newline is redacted in the mirror and boot failure", async () => {
+  const child = fakeChild();
+  const mirror = silentMirror();
+  const started = startTovuServer({ repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror, spawnFn: () => child });
+  const secret = ["ghp", "_", "a".repeat(36)].join("");
+  const homePath = path.join(os.homedir(), "private/addon.node");
+  child.stderr.write(`FATAL ERROR: native load ${secret.slice(0, 5)}`);
+  child.stderr.end(`${secret.slice(5)} ${homePath}\n` + "safe detail ".repeat(1000));
+  child.exitCode = 1;
+  child.emit("exit", 1, "SIGABRT");
+  await assert.rejects(started, (error: Error) => {
+    assert.match(error.message, /exited.*code 1.*FATAL ERROR/s);
+    assert.ok(!error.message.includes(secret));
+    assert.ok(!error.message.includes(homePath));
+    assert.ok(error.message.length < 2_200);
+    return true;
+  });
+  const output = mirror.stderr.read()?.toString() ?? "";
+  assert.match(output, /FATAL ERROR: native load/);
+  assert.ok(!output.includes(secret));
+  assert.ok(!output.includes(homePath));
+  assert.ok(output.length < 4_100);
 });

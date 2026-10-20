@@ -12,22 +12,8 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { isIssuedToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
 import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
-/**
- * @file The 401/403 authentication-failure diagnostic (2026-09-01) — the fix for the live name.com
- * incident this whole dispatch exists for: `custom_credential_make_request`/`custom_credential_verify`
- * used to return a bare 401 with no explanation, so the owner had to go hunt through the Access
- * Tokens UI by hand to discover the saved credential had no username. See `credentialed-request.ts`'s
- * own header, "Authentication-failure diagnostics", for the exact honesty contract this file certifies:
- * a NARROW hypothesis (Bearer sent + no username stored), never a claim, and never surfaced at all
- * when a username IS already stored (a 401 with a stored username is a different, unguessable
- * problem — a wrong username, an expired token, missing scopes — and suggesting "add a username" for
- * that case would be actively misleading).
- *
- * Also certifies (2026-09-01, second pass) that `AuthFailureDiagnostic` is now a genuine INSTANCE of
- * the general `ToolFailureDiagnostic` contract (`contracts/core/tool-failure-diagnostics.ts`), not a
- * parallel shape: `remedyToolId` — facet 4 of that contract, "whether a registered tool can supply
- * it" — names `custom_credential_set_username` exactly when `hint` fires, and is absent whenever
- * `hint` is (the two travel as a pair, never separately).
+/** Authentication failures preserve scheme/username facts and provider output. They never
+ * infer a need for Basic auth. Secure token recovery is issued by the existing recovery adapter.
  */
 
 const WORKSPACE = "ws-1";
@@ -99,7 +85,7 @@ function makeDeps(httpClient: HttpClientPort, base: CustomCredentialWriteDeps): 
 // makeCredentialedRequest
 // ---------------------------------------------------------------------------------------------
 
-test("makeCredentialedRequest: a 401 with Bearer sent and no username stored carries an honest, narrow authDiagnostic hint", async () => {
+test("makeCredentialedRequest: a Bearer 401 reports facts without guessing that a username is missing", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps(httpClient, writeDeps);
@@ -112,10 +98,7 @@ test("makeCredentialedRequest: a 401 with Bearer sent and no username stored car
   assert.ok(result.authDiagnostic, "expected an authDiagnostic on a 401 with no stored username");
   assert.equal(result.authDiagnostic!.schemeSent, "Bearer");
   assert.equal(result.authDiagnostic!.usernameStored, false);
-  assert.ok(result.authDiagnostic!.hint, "expected a hint for the Bearer+no-username case");
-  assert.match(result.authDiagnostic!.hint!, /username/i);
-  // Never a claim: the wording must stay hedged ("may"/"might"), not assert the cause outright.
-  assert.match(result.authDiagnostic!.hint!, /may|might|could/i);
+  assert.deepEqual(result.authDiagnostic, { schemeSent: "Bearer", usernameStored: false });
 });
 
 test("makeCredentialedRequest: a 403 with Bearer sent and no username stored still reports the two structured facts (not just 401)", async () => {
@@ -214,14 +197,14 @@ test("makeCredentialedRequest: a 404 (not an auth failure) carries no authDiagno
   assert.equal("authDiagnostic" in result, false);
 });
 
-test("makeCredentialedRequest: the Bearer+no-username hint carries remedyToolId pointing at the tool that can fix it (facet 4 of the general contract)", async () => {
+test("makeCredentialedRequest: a Bearer 401 never offers the username tool as a remedy", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps(httpClient, writeDeps);
 
   const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
 
-  assert.equal(result.authDiagnostic!.remedyToolId, "custom_credential_set_username");
+  assert.equal(result.authDiagnostic!.remedyToolId, undefined);
 });
 
 test("makeCredentialedRequest: a stored-username 401 carries no remedyToolId — it travels only alongside hint, never alone", async () => {
@@ -235,24 +218,20 @@ test("makeCredentialedRequest: a stored-username 401 carries no remedyToolId —
   assert.equal(result.authDiagnostic!.remedyToolId, undefined);
 });
 
-test("makeCredentialedRequest: the general tool-failure diagnostic is issued for recovery, with hint and remedy together", async () => {
+test("a Bearer rejection offers the secure token card through the existing recovery adapter", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps(httpClient, writeDeps);
-
-  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
-
-  assert.ok(result.authDiagnostic);
-  // The type annotation documents the shared shape; the recovery contract's validator proves
-  // issuance by identity. Returning a plain object or a copy of an issued one fails this (F4.1).
-  const asGeneralContract: ToolFailureDiagnostic = result.authDiagnostic!;
-  assert.equal(isIssuedToolFailureDiagnostic({ value: asGeneralContract }, {}), true);
-  assert.equal(isIssuedToolFailureDiagnostic({ value: { ...asGeneralContract } }, {}), false, "matching fields alone must not authorize recovery");
-  assert.equal(asGeneralContract.hint,
-    "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
-    "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +
-    "for that reason — this credential has no username saved. If that's the cause, saving one may fix it.");
-  assert.equal(asGeneralContract.remedyToolId, "custom_credential_set_username");
+  const result = await withCustomCredentialSetup({ label: "name.com", invoke: () => makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains",
+  }) });
+  assert.ok("credentialSetup" in result);
+  const diagnostic = result.credentialSetup as ToolFailureDiagnostic;
+  assert.equal(isIssuedToolFailureDiagnostic({ value: diagnostic }, {}), true);
+  assert.equal(isIssuedToolFailureDiagnostic({ value: { ...diagnostic } }, {}), false);
+  assert.equal(diagnostic.remedyToolId, "credential_save");
+  assert.doesNotMatch(diagnostic.hint!, /username|Basic/i);
+  assert.deepEqual((result as { authDiagnostic: unknown }).authDiagnostic, { schemeSent: "Bearer", usernameStored: false });
 });
 
 test("makeCredentialedRequest: the authDiagnostic never carries the token, in any field, serialized", async () => {
@@ -271,7 +250,7 @@ test("makeCredentialedRequest: the authDiagnostic never carries the token, in an
 // verifyCustomCredential
 // ---------------------------------------------------------------------------------------------
 
-test("verifyCustomCredential: an 'invalid' (401) result with no stored username carries the same honest hint", async () => {
+test("verifyCustomCredential: an invalid Bearer verification reports facts without a username suggestion", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps(httpClient, writeDeps);
@@ -282,8 +261,8 @@ test("verifyCustomCredential: an 'invalid' (401) result with no stored username 
   assert.ok(result.authDiagnostic);
   assert.equal(result.authDiagnostic!.schemeSent, "Bearer");
   assert.equal(result.authDiagnostic!.usernameStored, false);
-  assert.ok(result.authDiagnostic!.hint);
-  assert.equal(result.authDiagnostic!.remedyToolId, "custom_credential_set_username");
+  assert.equal(result.authDiagnostic!.hint, undefined);
+  assert.equal(result.authDiagnostic!.remedyToolId, undefined);
 });
 
 test("verifyCustomCredential: an 'invalid' (401) result WITH a stored username carries no hint", async () => {
@@ -369,9 +348,14 @@ for (const authDiagnostic of [
 }
 
 for (const authDiagnostic of [undefined, { usernameStored: false }, { usernameStored: false, schemeSent: "Bearer" }]) {
-  test(`a rejected request without a stored username or Basic scheme keeps its original diagnostic (${JSON.stringify(authDiagnostic)})`, async () => {
+  test(`a rejected request offers secure rotation regardless of username presence (${JSON.stringify(authDiagnostic)})`, async () => {
     const output = { status: 401, bodyText: "provider rejection", authDiagnostic };
-    assert.equal(await withCustomCredentialSetup({ label: "Example provider", invoke: async () => output }), output);
+    const result = await withCustomCredentialSetup({ label: "Example provider", invoke: async () => output });
+    assert.deepEqual(result, { ...output, credentialSetup: {
+      setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", target: "Example provider" },
+      hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+    } });
+    assert.equal("credentialSetup" in output, false);
   });
 }
 

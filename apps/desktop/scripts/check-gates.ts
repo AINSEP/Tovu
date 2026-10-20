@@ -20,12 +20,9 @@
  *  - reading an exit code through a shell pipe yields the PIPE's status, which is how
  *    `npm run admin:build` was reported as "exits 0 while blocked" when it exits 1 correctly.
  *
- * So, here: no pipes, ever. `spawnSync` with `stdio: "inherit"` so a gate's own output goes straight
- * to the terminal and its status comes back as a number rather than through a stream. A gate that
- * yields no numeric status at all — killed by a signal, or a command that could not be spawned —
- * is a FAILURE, never a pass (see `isFailure`). And `check-gates-exit-code.test.ts` proves the
- * non-zero actually reaches a caller, by running THIS file against deliberately-failing gates,
- * rather than by anybody reading this comment and believing it.
+ * Read status directly from spawnSync, while capturing and redacting child output before display.
+ * Buffer exhaustion, a signal or a spawn error is always a failure. The exit-code tests exercise
+ * this runner against deliberately failing gates.
  *
  * Usage: node scripts/check-gates.ts
  * Exit codes: 0 = every enabled gate passed and the manifest is sound.
@@ -34,7 +31,10 @@
  */
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "../src/quality-gates.ts";
@@ -68,18 +68,19 @@ function todayIso(): string {
 }
 
 /**
- * Run one gate and return its exit status. `shell: true` because a gate's `run` is a command line
- * (`npm test`), and `stdio: "inherit"` because the alternative — capturing and re-printing — is the
- * pipe that swallows statuses.
+ * Run one gate, render bounded redacted output and return its own exit status.
+ * `shell: true` accepts the manifest's command line without reading status through a shell pipe.
  *
  * @returns the numeric exit code, or `null` when the process never produced one.
  * @complexity O(1) plus the gate's own cost.
  */
 function runGate(gate: GateEntry & { id: string; run: string }): GateExitCode {
   process.stdout.write(`\n${"=".repeat(66)}\n>>> GATE: ${gate.id}\n${"=".repeat(66)}\n`);
-  const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: "inherit" });
+  const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", maxBuffer: 1_000_000 });
+  if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactText({ text: result.stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: result.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
   if (result.error) {
-    process.stderr.write(`check-gates: gate "${gate.id}" could not be spawned: ${result.error.message}\n`);
+    process.stderr.write(`check-gates: gate "${gate.id}" could not be spawned: ${sanitizeUntrustedText({ text: redactText({ text: result.error.message }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}\n`);
     return null;
   }
   if (result.signal) {
@@ -167,4 +168,8 @@ function main(): void {
   process.stdout.write("\ncheck-gates: OK\n");
 }
 
-main();
+try { main(); }
+catch (error) {
+  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.exitCode = 1;
+}

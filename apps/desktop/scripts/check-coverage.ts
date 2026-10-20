@@ -38,6 +38,8 @@
 import { spawnSync } from "node:child_process";
 import { globSync, mkdtempSync, readFileSync, readdirSync, rmSync, existsSync } from "node:fs";
 import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -116,8 +118,8 @@ function parseLcov(text: string): Map<string, LcovCounters> {
   return byFile;
 }
 
-/** Runs one scoped test pass under coverage. `stdio: "inherit"` for the same reason the gate runner
- *  uses it — a status read through a pipe is the pipe's. A pass whose globs match no test file is
+/** Runs one scoped test pass under coverage, capturing and redacting its terminal diagnostics.
+ *  Status comes directly from spawnSync; an exhausted output buffer fails. Empty test globs are
  *  refused before spawning, because node itself would report it as a clean pass of zero tests.
  *  @complexity O(n) in test files globbed, plus the suite's own cost. */
 function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string): SuiteResult {
@@ -137,8 +139,10 @@ function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string)
     "--test-reporter-destination=stdout",
     ...pass.globs,
   ];
-  const result = spawnSync(process.execPath, args, { cwd: DESKTOP_ROOT, stdio: "inherit" });
-  if (result.error) return { status: null, message: result.error.message };
+  const result = spawnSync(process.execPath, args, { cwd: DESKTOP_ROOT, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", maxBuffer: 1_000_000 });
+  if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactText({ text: result.stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: result.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  if (result.error) return { status: null, message: sanitizeUntrustedText({ text: redactText({ text: result.error.message }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) };
   return { status: result.signal ? null : result.status };
 }
 
@@ -222,4 +226,8 @@ function main(): void {
   process.stdout.write("\ncheck-coverage: OK\n");
 }
 
-main();
+try { main(); }
+catch (error) {
+  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.exitCode = 1;
+}

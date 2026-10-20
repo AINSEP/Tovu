@@ -20,7 +20,9 @@ Edit includes the corresponding reads. Cross-product inspection needs both Worke
 even when only one product is the destination. A 403 on either inventory means **unknown**, not clear.
 If the person cannot grant full inspection, publishing without a custom domain remains available.
 
-`GET /user/tokens/verify` checks active token status only. A green token check is not proof that
+`GET /accounts/{account_id}/tokens/verify` checks account-owned tokens; user-owned tokens use
+`GET /user/tokens/verify`. The save check tries the account endpoint first and, on a possible scope
+mismatch, the user endpoint. Both check active token status only. A green token check is not proof that
 Workers upload, Pages upload, zone discovery, DNS changes, route transfer or certificate reads work.
 The authenticated preview names the first denied operation and its account/zone resource.
 

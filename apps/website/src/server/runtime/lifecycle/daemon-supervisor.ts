@@ -26,6 +26,9 @@ import {
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
+import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
+import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
 import { getAgentDaemonPortForSpawnEnv } from "./agent-daemon-port.js";
@@ -381,10 +384,11 @@ export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: st
  * rejection can occur after replacement is visible. Publication errors belong to that child
  * boot path, rather than triggering a second write here before the daemon has bound its port.
  * @param input Workspace, resolved site, proxy port and optional PGlite socket.
+ * @param optional Native spawn and output ports for direct tests; each child gets fresh redacting sinks.
  * @returns Process ports; construction never starts a process or writes a registry record.
  * @complexity O(e) environment copying per spawn for e variables; package tree-stop is O(p) processes.
  */
-function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optional: Pick<NodeDaemonProcessOptions, "spawn"> = {}): DaemonProcessPorts {
+export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optional: Pick<NodeDaemonProcessOptions, "spawn" | "stdout" | "stderr"> = {}): DaemonProcessPorts {
   const daemonPath = resolveDaemonScriptPath();
   const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
   // The local host must prove a detached daemon still belongs to this API before reaping a cached PID.
@@ -404,7 +408,13 @@ function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optional: Pick
         TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath,
       },
       registry,
-    }, { ...optional, stdout: process.stdout, stderr: process.stderr, platform: process.platform });
+    }, { ...optional,
+      stdout: createRedactedOutputSink({ sink: optional.stdout ?? process.stdout,
+        redact: text => redactText({ text }, { username: path.basename(os.homedir()) }) }),
+      stderr: createRedactedOutputSink({ sink: optional.stderr ?? process.stderr,
+        redact: text => redactText({ text }, { username: path.basename(os.homedir()) }) }),
+      platform: process.platform,
+    });
   }
   // Termination uses the same registry identity; launch env is refreshed only when spawning.
   const cleanupAdapter = createProcessAdapter();

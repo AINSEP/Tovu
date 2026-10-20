@@ -115,7 +115,7 @@ test('credential active status is separate from capability authorization; bad fi
   for (const [status, body, expected] of [[200, { status: 'active' }, true], [200, { status: 'disabled' }, false], [403, {}, false], [503, {}, false]]) {
     const f = fixture({ respond: () => json(body, status) });
     assert.equal((await workers.verifyCredential({ credential, kit: f.kit })).ok, expected);
-    assert.ok(f.calls.every(call => call.url.endsWith('/user/tokens/verify')));
+    assert.ok(f.calls.every(call => call.url.endsWith('/accounts/account/tokens/verify') || call.url.endsWith('/user/tokens/verify')));
   }
   assert.match(workers.validateConfig({ assetPlan: 'invented' }), /assetPlan must be free or paid/);
   assert.equal(workers.validateConfig({ assetPlan: 'paid' }), null);
@@ -219,4 +219,59 @@ test('denied hosting inventory also marks requested domain inventory unknown wit
   assert.deepEqual(result.domains.hostnames.map(host => host.status), ['unknown', 'unknown']);
   assert.match(result.domains.message, /HTTP 403.*permission/);
   assert.ok(f.calls.every(call => call.init.method === 'GET'));
+});
+
+
+test('account-owned tokens verify at the account endpoint without probing the user endpoint', async () => {
+  for (const module of [workers, pages]) {
+    const f = fixture({ respond: ({ url, init, index }) => {
+      assert.equal(url.pathname, '/client/v4/accounts/account/tokens/verify');
+      assert.equal(init.method, 'GET');
+      assert.equal(init.redirect, 'error');
+      assert.equal(init.headers.Authorization, `Bearer ${credential.token}`);
+      assert.equal(index, 1);
+      return json({ status: 'active' });
+    } });
+    assert.deepEqual(await module.verifyCredential({ credential, kit: f.kit }), { ok: true });
+    assert.equal(f.calls.length, 1);
+  }
+});
+
+test('user-owned tokens survive a rejection from the account-only endpoint', async () => {
+  for (const module of [workers, pages]) {
+    for (const status of [400, 401, 403, 404]) {
+      const f = fixture({ respond: ({ url }) => url.pathname.includes('/accounts/') ? json({}, status) : json({ status: 'active' }) });
+      assert.deepEqual(await module.verifyCredential({ credential, kit: f.kit }), { ok: true });
+      assert.deepEqual(f.calls.map(call => new URL(call.url).pathname), [
+        '/client/v4/accounts/account/tokens/verify', '/client/v4/user/tokens/verify',
+      ]);
+      assert.ok(f.calls.every(call => call.options.timeoutMs === f.kit.timeouts.QUICK));
+    }
+  }
+});
+
+test('token rejection requires an authoritative response; outage and malformed data stay unreachable', async () => {
+  for (const [accountStatus, userStatus, reason] of [[403, 401, 'rejected'], [403, 503, 'unreachable'], [503, 200, 'unreachable']]) {
+    const f = fixture({ respond: ({ url }) => url.pathname.includes('/accounts/') ? json({}, accountStatus) : json({}, userStatus) });
+    const result = await workers.verifyCredential({ credential, kit: f.kit });
+    assert.equal(result.reason, reason);
+    assert.equal(result.ok, false);
+    assert.equal(f.calls.length, accountStatus === 503 ? 1 : 2);
+  }
+  for (const body of [null, {}, { success: true }, { success: false, errors: [{ message: 'private provider response' }] }]) {
+    const f = fixture({ respond: () => Response.json(body) });
+    assert.deepEqual(await workers.verifyCredential({ credential, kit: f.kit }), { ok: false, reason: 'unreachable', statusCode: 200 });
+  }
+  for (const respond of [() => new Response('not JSON'), () => { throw new Error('private transport failure'); }]) {
+    const f = fixture({ respond });
+    const result = await workers.verifyCredential({ credential, kit: f.kit });
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'unreachable');
+    assert.ok(!JSON.stringify(result).includes('private'));
+  }
+  const f = fixture({ respond: ({ url }) => {
+    assert.equal(url.pathname, '/client/v4/user/tokens/verify');
+    return json({ status: 'active' });
+  } });
+  assert.deepEqual(await workers.verifyCredential({ credential: { token: credential.token }, kit: f.kit }), { ok: true });
 });

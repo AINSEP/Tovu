@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
+import os from "node:os";
+import path from "node:path";
+import { PassThrough } from "node:stream";
+import type { ChildProcess } from "node:child_process";
+import { EventEmitter, once } from "node:events";
 import { existsSync } from "node:fs";
 import test from "node:test";
 
 import { getReadinessSnapshot, clearAssistantDaemonFailure, setReadinessSnapshot } from "../readiness-state.js";
 import {
   createDaemonSupervisor,
+  createRealDaemonProcessPorts,
   resolveDaemonScriptPath,
   startAssistantDaemon,
   shutdownAssistantDaemon,
@@ -522,4 +527,30 @@ test("without quietRoutineLifecycle the first spawn is logged, as before", () =>
   assert.equal(lines.length, 1);
   assert.match(lines[0], /\[daemon-supervisor\] .* spawned agent daemon pid=987654321$/);
   supervisor.shutdown();
+});
+
+
+test("production daemon wiring redacts stdout and native fatal stderr before forwarding", async () => {
+  const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough() });
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  let output = "";
+  for (const stream of [stdout, stderr]) stream.on("data", bytes => { output += bytes.toString(); });
+  const ports = createRealDaemonProcessPorts({ workspaceId: "ws-output", siteDir: "/tmp/site-output", daemonPortOverride: undefined }, {
+    spawn: () => child as unknown as ChildProcess, stdout, stderr,
+  });
+  ports.spawnDaemonProcess();
+  const secret = ["ghp", "_", "x".repeat(36)].join("");
+  const homePath = path.join(os.homedir(), "private/addon.node");
+  for (const stream of [child.stdout, child.stderr]) {
+    stream.write(`FATAL ERROR: native load ${secret.slice(0, 5)}`);
+    stream.end(`${secret.slice(5)} ${homePath}`);
+  }
+  await Promise.all([once(child.stdout, "end"), once(child.stderr, "end")]);
+  assert.equal(output.split("FATAL ERROR: native load").length - 1, 2);
+  assert.ok(!output.includes(secret));
+  assert.ok(!output.includes(homePath));
+  assert.ok(output.length < 4_100);
+  assert.equal(stdout.writableEnded, false);
+  assert.equal(stderr.writableEnded, false);
 });

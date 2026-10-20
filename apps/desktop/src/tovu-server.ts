@@ -17,6 +17,9 @@ import { SITES_MCP_SERVER_ID } from "./sites-mcp-registration.ts";
 import net from "node:net";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
+import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
@@ -58,7 +61,8 @@ const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
  * @complexity O(n) in the text length.
  */
 function redactBootToken(text: string): string {
-  return redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text;
+  return redactText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text },
+    { username: path.basename(os.homedir()) }).slice(0, 2_000);
 }
 
 /**
@@ -922,18 +926,16 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
 
     function readStream(stream: Readable, mirror: Writable): void {
       stream.setEncoding("utf8");
-      // Mirroring is LINE-buffered rather than chunk-passthrough so a boot-token line can be
-      // removed whole. A chunk boundary can fall inside that line, and a substring filter applied
-      // per chunk would echo whichever half arrived first.
-      let pending = "";
+      const safeMirror = createRedactedOutputSink({ sink: mirror, redact: redactBootToken });
+      stream.once("end", () => safeMirror.end());
       stream.on("data", (chunk) => {
-        output += chunk;
-        pending += chunk;
-        const lastNewline = pending.lastIndexOf("\n");
-        if (lastNewline >= 0) {
-          mirror.write(redactBootToken(pending.slice(0, lastNewline + 1)));
-          pending = pending.slice(lastNewline + 1);
+        safeMirror.write(chunk);
+        if (settled) return;
+        if (output.length + chunk.length > 1_000_000) {
+          finish(() => reject(new Error("tovu serve startup output exceeded the diagnostic limit.")));
+          return;
         }
+        output += chunk;
 
         const boot = parseBootLine(output);
         if (boot === null) return;
@@ -964,7 +966,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
 
     child.once("error", (error) => finish(() => reject(error)));
     child.once("exit", (code, signal) => {
-      finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.`))));
+      finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.${signal ? ` Signal: ${signal}.` : ""}`))));
     });
   }).catch(async (error) => {
     await stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });

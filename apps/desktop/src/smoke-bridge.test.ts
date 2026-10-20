@@ -4,6 +4,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { spawn } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
 import {
   assertBridgeReplies, buildBridgeEnv, buildJiniEntryScript, buildSitesBridgeCommand,
   parseBridgeReply, parseJiniEntries, parseJiniEntryEnv, resolveBridgeSmokeTargets, smokeBridge,
@@ -199,4 +200,33 @@ test("failed roster, close, spawn, framing and watchdog all fail and kill the ch
     await assert.rejects(smokeBridge({ entry, hostEnv: {} }, { spawnBridge: fake.spawnBridge, watchdogMs: 10 }), expected);
     assert.deepEqual(fake.signals, ["SIGKILL"], mode);
   }
+});
+
+
+test("bridge failures redact split native stderr and retain exit code and signal", async () => {
+  const secret = ["ghp", "_", "x".repeat(36)].join("");
+  const homePath = path.join(os.homedir(), "private/addon.node");
+  const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough() });
+  let killed = false;
+  const spawnBridge = (() => {
+    queueMicrotask(() => {
+      child.stderr.write(`FATAL ERROR: native load ${secret.slice(0, 5)}`);
+      child.stderr.write(`${secret.slice(5)} ${homePath}\n` + "safe detail ".repeat(1000));
+      child.emit("close", 9, "SIGABRT");
+    });
+    return Object.assign(child, { kill: () => { killed = true; return true; } });
+  }) as unknown as typeof spawn;
+  await assert.rejects(smokeBridge({ entry, hostEnv: {} }, { spawnBridge }), (error: Error) => {
+    assert.match(error.message, /code 9, signal SIGABRT.*FATAL ERROR/s);
+    assert.ok(!error.message.includes(secret));
+    assert.ok(!error.message.includes(homePath));
+    assert.ok(error.message.length <= 2_000);
+    return true;
+  });
+  assert.equal(killed, true);
+  assert.throws(() => parseJiniEntries({ stdout: `invalid ${secret} ${homePath}` }), (error: Error) => {
+    assert.ok(!error.message.includes(secret));
+    assert.ok(!error.message.includes(homePath));
+    return true;
+  });
 });

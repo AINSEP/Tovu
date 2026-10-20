@@ -34,7 +34,10 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { evaluateRun, rejectUnusableEslintRun } from "../src/complexity-debt.ts";
@@ -119,7 +122,7 @@ function main(): void {
   const unusable = rejectUnusableEslintRun(run.status, run.stdout);
   if (unusable) {
     process.stderr.write(`check-complexity: FAIL — ${unusable}\n`);
-    if (run.stderr.trim()) process.stderr.write(`${run.stderr.trim()}\n`);
+    if (run.stderr.trim()) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: run.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
     process.exit(1);
   }
 
@@ -164,4 +167,8 @@ function main(): void {
   process.stdout.write(`check-complexity: OK — ${baseline.length} grandfathered, 0 new\n`);
 }
 
-main();
+try { main(); }
+catch (error) {
+  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.exitCode = 1;
+}

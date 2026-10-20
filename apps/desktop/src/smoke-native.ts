@@ -8,13 +8,16 @@
  * this module is that method turned into a script `scripts/smoke-native.ts` runs on every release
  * build instead of by hand once.
  *
- * Kept pure and dependency-free (no `node:fs`, no `node:child_process`) so both the "where do the
+ * Kept free of filesystem and process-spawning effects so both the "where do the
  * binary and its staged native modules live" question and the "did the child process's JSON report
  * actually mean success" question are provable by unit test alone — the spawn itself is `scripts/
  * smoke-native.ts`'s job, deliberately outside this module, exactly as `resolveAsarPath` in
  * `scripts/verify-package.ts` stays outside `asar-verify.ts`.
  */
 import path from "node:path";
+import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 
 /** Where the smoke check found the packaged executable and its staged `tovu/node_modules`. */
 interface SmokeNativeTargets {
@@ -72,9 +75,7 @@ export function resolveSmokeTargets(platformDir: string, entryNames: string[]): 
       nodeModulesDir: path.join(winDir, "resources", "tovu", "node_modules"),
     };
   }
-  throw new Error(
-    `smoke-native: no mac-prefixed *.app layout or win-unpacked layout found under ${platformDir} — did electron-builder run?`,
-  );
+  throw new Error(`smoke-native: no mac-prefixed *.app layout or win-unpacked layout found under ${sanitizeUntrustedText({ text: redactText({ text: platformDir }, { username: path.basename(os.homedir()) }) })} — did electron-builder run?`);
 }
 
 /**
@@ -156,14 +157,14 @@ export function buildSmokeScript(nodeModulesDir: string): string {
  *
  * @param stdout the spawned process's captured stdout.
  * @throws if `stdout` cannot be parsed as a JSON value at all.
- * @complexity O(1) — fixed three keys.
+ * @complexity O(n) in captured JSON and diagnostic text; fixed three result keys.
  */
 export function parseSmokeOutput(stdout: string): SmokeCheckResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout.trim());
-  } catch (error) {
-    throw new Error(`smoke-native: could not parse smoke output as JSON (${(error as Error).message})\n---\n${stdout}`);
+  } catch {
+    throw new Error(`smoke-native: could not parse smoke output as JSON\n${sanitizeUntrustedText({ text: redactText({ text: stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}`);
   }
 
   const record: Record<string, unknown> =
@@ -175,7 +176,7 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
       const candidate = raw as { ok?: unknown; error?: unknown };
       return {
         ok: candidate.ok === true,
-        error: typeof candidate.error === "string" ? candidate.error : undefined,
+        error: typeof candidate.error === "string" ? sanitizeUntrustedText({ text: redactText({ text: candidate.error }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) : undefined,
       };
     }
     return { ok: false, error: `missing "${key}" result in smoke output` };
@@ -259,16 +260,16 @@ export function buildEntryLoadScript(resourcesDir: string): string {
  * `unresolved` list fails, including output that is not that shape.
  *
  * @throws if `stdout` cannot be parsed as JSON.
- * @complexity O(n) in reported specifiers.
+ * @complexity O(n) in captured JSON, retaining at most 20 bounded diagnostic specifiers.
  */
 export function parseEntryLoadOutput(stdout: string): { ok: boolean; unresolved: string[] } {
   let parsed: { ok?: unknown; unresolved?: unknown };
   try {
     parsed = JSON.parse(stdout.trim()) ?? {};
-  } catch (error) {
-    throw new Error(`smoke-native: could not parse entry-load output as JSON (${(error as Error).message})\n---\n${stdout}`);
+  } catch {
+    throw new Error(`smoke-native: could not parse entry-load output as JSON\n${sanitizeUntrustedText({ text: redactText({ text: stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}`);
   }
-  const unresolved = Array.isArray(parsed.unresolved) ? parsed.unresolved.map(String) : ["malformed entry-load output"];
+  const unresolved = Array.isArray(parsed.unresolved) ? parsed.unresolved.slice(0, 20).map(value => sanitizeUntrustedText({ text: redactText({ text: String(value) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })) : ["malformed entry-load output"];
   return { ok: parsed.ok === true && unresolved.length === 0, unresolved };
 }
 

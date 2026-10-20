@@ -39,52 +39,11 @@ import type { Clock } from "@jini-ai/core/primitives";
  *   gated-hooks.ts` use) — the owner explicitly asked for the lighter MCP-UI confirmation shape
  *   instead for this domain, not that heavier ceremony.
  *
- * ## Authentication-failure diagnostics (2026-09-01)
+ * ## Authentication-failure diagnostics
  *
- * The live incident this addition exists for: name.com's API accepts ONLY HTTP Basic
- * `username:token` (confirmed live — `Bearer` gets 401, `-u "user:token"` gets 200), and
- * {@link buildAuthorizationHeader} sent Basic only when the saved connection carried a `username`
- * (a third case, a token's own self-describing scheme, was added 2026-09-03 — see "Self-describing
- * token schemes" below). A credential saved without one 401'd on every single call with no
- * explanation, and the owner had to go hunt through the Access Tokens UI by hand to work out why.
- * Both entry points now attach {@link AuthFailureDiagnostic} to a 401/403 outcome —
- * {@link verifyCustomCredential}'s `"invalid"` result, and {@link makeCredentialedRequest}'s executed
- * result for that status.
- *
- * The diagnostic is two STRUCTURED FACTS, always present on a 401/403 regardless of cause
- * (`schemeSent`, `usernameStored`), plus an optional `hint` carrying the one HYPOTHESIS this module
- * can honestly make — never a claim. That hypothesis is narrow on purpose: `schemeSent === "Bearer"`
- * is the ONLY shape where "this provider might need a saved username" is a fair guess — and even
- * then, ONLY on a 401. (Before 2026-09-03 this was equivalent to `usernameStored === false`, since
- * {@link buildAuthorizationHeader} only ever sent Basic or Bearer; that equivalence no longer holds
- * now that a token can carry its own self-describing scheme — see "Self-describing token schemes"
- * below — so `schemeSent` is the fact this module actually gates the hint on, not `usernameStored`.)
- * A 401/403 on a credential that ALREADY has a stored username, or whose token embeds its own
- * scheme, is a completely different, un-guessable problem from here — a wrong username, an
- * expired/revoked token, missing scopes, the provider's own policy, or (for a self-describing token)
- * simply a bad credential sent with the correct scheme — so `hint` is deliberately omitted in those
- * cases rather than repeating advice that has already been tried and failed or does not apply;
- * asserting "add a username" there would be actively misleading, not merely unhelpful.
- *
- * **401 vs 403 (2026-09-03 — the GitHub incident this addition fixes).** The scheme-swap hypothesis
- * above shipped for status 401 and 403 alike, on the reasoning that both are "the provider rejected
- * this credential." That reasoning does not hold: HTTP's own split is that 401 Unauthorized means
- * authentication itself failed (a fair place to hypothesize about the auth SCHEME), while 403
- * Forbidden means the request was understood and often even authenticated but refused for a reason
- * that has nothing to do with which scheme was sent — insufficient token scopes, provider policy, or
- * (the live incident) a request the provider's edge rejected before auth was ever evaluated because
- * it carried no `User-Agent` header at all (now fixed at the source — see `platform/http/client.ts`'s
- * `DEFAULT_USER_AGENT`). A saved GitHub PAT with full scopes, sent as `Bearer` with no stored
- * username, 403'd for that header reason alone; this module's old logic saw "Bearer, no username,
- * 401-or-403" and offered the Basic-auth hypothesis anyway, which was simply wrong for GitHub and
- * sent the owner down a dead-end repair path (asked for and saved a GitHub username; the retry still
- * 403'd, because the scheme was never the problem). {@link buildAuthFailureDiagnostic} now offers the
- * scheme hypothesis ONLY for a 401 — status is a structural, general HTTP distinction, never a named
- * provider or hostname, so this does not rot the way a `hostname === "api.github.com"` special case
- * would: it generalizes to any provider whose 403 has a cause unrelated to auth scheme, not just
- * GitHub's. A 403 still reports the two structured facts (never hides them) but carries no `hint` —
- * the module has no honest hypothesis to offer there, matching the same "omit rather than mislead"
- * discipline the stored-username case already used.
+ * Both entry points retain the scheme sent and whether a username is stored. Neither status
+ * identifies the provider's required scheme. The host diagnostic mapper suppresses Jini's
+ * speculative username hint; credential-recovery.ts owns the secure token rotation card.
  *
  * **Self-describing token schemes (2026-09-03 — the live incident this addition fixes).** Every
  * case above assumes {@link buildAuthorizationHeader} always sends either `Bearer <token>` or
@@ -437,56 +396,6 @@ import type { Clock } from "@jini-ai/core/primitives";
  *
  * @complexity O(1).
  *
- * The already-registered tool that can supply the one missing piece of state
- *  {@link buildAuthFailureDiagnostic}'s hint ever names — a saved username. Kept here as this
- *  module's own literal (`agent-tools.ts` has no exported id constant, only inline string literals
- *  for each tool's own `name`) and cross-checked against it by
- *  `__tests__/auth-failure-diagnostic.unit.test.ts`.
- *
- * A 401/403 outcome's structured explanation — see this file's header, "Authentication-failure
- *  diagnostics", for the honesty contract every field here is held to, and for why this interface
- *  `extends` the general {@link ToolFailureDiagnostic} contract rather than merely resembling it.
- *
- * Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
- *  own value, only which of the three shapes it took: a saved token's own self-describing scheme
- *  word (see this file's header, "Self-describing token schemes"), `"Basic"`, or
- *  `"Bearer"`. Typed as a plain `string`, not a closed literal union, because the self-describing
- *  case is driven by plugin-declared scheme rules (`./auth-schemes.ts`) — see
- *  {@link ResolvedAuthorizationScheme}'s own doc. This module's own "what failed" fact (facet 1 of
- *  the general contract — see that file's header for why facts are not modeled there).
- *
- * Whether this credential has a saved `username` at all — never the username's own value. This
- *  module's other "what failed" fact.
- *
- * Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
- *  for: a 401 with `schemeSent === "Bearer"` (no saved username, and no self-describing scheme
- *  matched). Absent for every other 401/403 shape — a credential that already has a stored
- *  username, or whose token embeds its own scheme, hit a DIFFERENT wall this module has no way to
- *  diagnose (wrong username, expired/revoked token, missing scopes, provider policy, or a bad
- *  credential sent with the correct scheme), and repeating "add a username" there would be a false
- *  lead, not merely an unhelpful one. Also absent on a 403 REGARDLESS of scheme/username
- *  (2026-09-03): 403 Forbidden covers causes that have nothing to do with auth scheme (scopes,
- *  policy, a missing standard header), and offering the scheme hypothesis there was confirmed
- *  live-wrong for GitHub — see this file's header, "401 vs 403". Deliberately hedged wording
- *  ("may"/"might") when present — this is a hypothesis for a human or agent to try, never an
- *  assertion of the actual cause.
- *
- * Present exactly when `hint` is: {@link SET_USERNAME_TOOL_ID}, the one already-registered tool
- *  that can save the missing username `hint` describes. A pointer only — this module never calls
- *  it; see the general contract's own doc, "The one-cycle guard".
- *
- * Builds {@link AuthFailureDiagnostic} for one 401/403 outcome by calling
- * {@link resolveAuthorizationScheme} on the SAME `connection` object {@link buildAuthorizationHeader}
- * used to build the request that got rejected — so `schemeSent` is always the scheme that was
- * actually sent, never re-derived by a second, possibly-drifting copy of the precedence logic. The
- * two structured facts (`schemeSent`, `usernameStored`) are always returned; `hint` + `remedyToolId`
- * are added only for the one case this module can honestly diagnose: a 401 sent as Bearer (no saved
- * username, and no self-describing scheme matched — see this file's header, "Self-describing token
- * schemes"). See this file's header, "401 vs 403", for why `status` gates the hint at all and why a
- * 403 never gets one, regardless of scheme.
- *
- * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
- *
  * One audited call outcome — see this file's header, "Audit, never the secret", for exactly why
  *  these fields and no others.
  *
@@ -685,7 +594,6 @@ import {
   type MakeCredentialedRequestInput as JiniRequestInput,
   type CredentialSchemeRule,
 } from "@jini-ai/integrations/credentialed-http";
-import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 // EgressRefusedError is a runtime import so REQUEST_POLICY preserves refusal identity; the barrel
 // otherwise supplies types, and feature code must receive its guarded client from composition.
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
@@ -780,14 +688,12 @@ function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
   };
 }
 
-/** Preserve the registered remedy pointer and in-process issuance identity for the recovery loop. */
-// The remedy id is a pointer, never a callback: issuance uses the shared Jini owner so the recovery loop's
-// one-cycle guard recognizes diagnostics it created rather than trusting provider response text.
-function mapDiagnostic({ diagnostic }: { diagnostic: AuthFailureDiagnostic }): AuthFailureDiagnostic {
-  return diagnostic.hint === undefined ? diagnostic : issueToolFailureDiagnostic({ diagnostic: {
-    ...diagnostic,
-    remedyToolId: "custom_credential_set_username",
-  } }, {});
+/** Return authentication facts without inferring a provider's required scheme from a 401.
+ * The credential recovery adapter owns secure token rotation; only provider documentation can
+ * establish a need for Basic authentication. Pure, O(1) time and space.
+ */
+function mapDiagnostic({ diagnostic }: { diagnostic: AuthFailureDiagnostic }, _optional = {}): AuthFailureDiagnostic {
+  return { schemeSent: diagnostic.schemeSent, usernameStored: diagnostic.usernameStored };
 }
 
 // An egress refusal is a caller-fixable target rejection, not a DNS/timeout crash. Preserve its

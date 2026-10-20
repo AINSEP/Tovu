@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { once } from "node:events";
+import { PassThrough } from "node:stream";
+import { redactText } from "@jini-ai/diagnostics";
 import { inspect } from "node:util";
 
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
-import { installConsoleTee, type TeeableConsole } from "../../console-tee.js";
+import { createRedactedOutputSink, installConsoleTee, type TeeableConsole } from "../../console-tee.js";
 import { createLogBuffer } from "../../log-buffer.js";
 
 function fakeConsole() {
@@ -118,4 +121,44 @@ test("a throwing buffer never breaks the console call", () => {
   installConsoleTee({ buffer: broken }, { target });
   assert.doesNotThrow(() => target.error("still printed"));
   assert.deepEqual(calls, [["error", ["still printed"]]]);
+});
+
+
+test("child output frames split credentials and UTF-8, flushes fatal stderr, and never ends the parent", async () => {
+  const secret = ["ghp", "_", "x".repeat(36)].join("");
+  const sink = new PassThrough();
+  let output = "";
+  sink.on("data", bytes => { output += bytes.toString(); });
+  const stream = createRedactedOutputSink({ sink, redact: text => redactText({ text }, { username: "diagnostic-user" }) });
+  stream.write(Buffer.from("native fatal: café ").subarray(0, 18));
+  stream.write(Buffer.from("native fatal: café ").subarray(18));
+  stream.write(secret.slice(0, 5));
+  stream.write(secret.slice(5) + " /Users/diagnostic-user/private/addon.node");
+  stream.end();
+  await once(stream, "finish");
+  assert.equal(output, "native fatal: café [REDACTED] /Users/<USER>/private/addon.node\n");
+  assert.equal(sink.writableEnded, false);
+});
+
+test("child output omits an oversized credential whole and bounds safe diagnostics", async () => {
+  const secret = ["sk", "-", "a".repeat(100_000)].join("");
+  const output: string[] = [];
+  const stream = createRedactedOutputSink({ sink: { write: text => { output.push(String(text)); return true; } },
+    redact: text => redactText({ text }) }, { maxLength: 100 });
+  stream.write("first safe line\n" + secret.slice(0, 50_000));
+  stream.write(secret.slice(50_000) + "\n" + "safe ".repeat(100));
+  stream.end();
+  await once(stream, "finish");
+  assert.deepEqual(output.slice(0, 2), ["first safe line\n", "[oversized output line omitted]\n"]);
+  assert.equal(output[2].length, 101);
+  assert.ok(!output.join("").includes(secret.slice(-30)));
+});
+
+test("child output fails closed when its redactor throws", async () => {
+  const output: string[] = [];
+  const stream = createRedactedOutputSink({ sink: { write: text => { output.push(String(text)); return true; } },
+    redact: () => { throw new Error("redactor unavailable"); } });
+  stream.end("private raw text");
+  await once(stream, "finish");
+  assert.deepEqual(output, ["[output redaction failed]\n"]);
 });
