@@ -69,17 +69,16 @@ function configured(env: ApiConnectionHostDeps["env"], name: string | undefined)
  */
 function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): { readonly client: OAuthClient; readonly clientKind: ApiConnectionClientKind } {
   const config: ApiConnectionClientConfig | undefined = runtime === "desktop" ? connection.clients.desktop : connection.clients.web;
-  const where = runtime === "desktop" ? "desktop app" : "site";
   const clientId = configured(env, config?.clientIdEnv);
-  if (!config || !clientId) {
-    throw setupRefused(`${connection.descriptor.label} is not set up on this ${where}: its sign-in client is not configured. Ask the operator to configure it, then retry.`);
-  }
+  if (!config || !clientId) throw notConfigured(connection, runtime, "sign-in client");
   const clientSecret = configured(env, config.clientSecretEnv);
   const clientKind: ApiConnectionClientKind = runtime === "desktop" ? "public" : "confidential";
-  if (clientKind === "confidential" && !clientSecret) {
-    throw setupRefused(`${connection.descriptor.label} is not set up on this ${where}: its sign-in client secret is not configured. Ask the operator to configure it, then retry.`);
-  }
+  if (clientKind === "confidential" && !clientSecret) throw notConfigured(connection, runtime, "sign-in client secret");
   return { clientKind, client: clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" } };
+}
+
+function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, what: string): ApiConnectionError {
+  return setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its ${what} is not configured. Ask the operator to configure it, then retry.`);
 }
 
 /**

@@ -1,7 +1,6 @@
-import { createAdminSurfaceHandlerHost, defineAdminSurfaceHandlerContribution } from "@jini-ai/agent-plugins/admin-surfaces";
+import { createAdminSurfaceHandlerHost, defineAdminSurfaceHandlerContribution, type LoadedAdminSurfaceHandlers } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { AgentPluginToolCapabilitiesPort } from "@jini-ai/agent-plugins/lifecycle/tools";
 
-import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { ADMIN_SURFACES_FILENAME, type AdminSurfaceHost } from "./surfaces.js";
 
 /**
@@ -15,6 +14,14 @@ import { ADMIN_SURFACES_FILENAME, type AdminSurfaceHost } from "./surfaces.js";
  * Disabling needs no reload to take effect: the surface routes admit only active plugins per
  * request, and a later load drops the module and revokes the capabilities it kept.
  */
+
+const handlerContribution = defineAdminSurfaceHandlerContribution({ filename: ADMIN_SURFACES_FILENAME });
+
+/** The lifecycle's `loadPluginContributions`, narrowed to this contribution (as the executable-tool host does). */
+export type LoadAdminSurfaceHandlers = (
+  required: { readonly workspaceId: string; readonly definition: typeof handlerContribution },
+  optional: { readonly orderByPluginId?: boolean },
+) => Promise<{ readonly items: readonly LoadedAdminSurfaceHandlers[]; readonly refusals: readonly string[] }>;
 
 export interface AgentPluginAdminSurfaceHandlers extends AdminSurfaceHost {
   /** Loads the active plugins' handler modules and admits them; resolves to the refusal lines. */
@@ -31,15 +38,14 @@ export interface AgentPluginAdminSurfaceHandlers extends AdminSurfaceHost {
  * @complexity `refresh` is one contribution load, O(p) active packages, plus O(s + a) admission.
  */
 export function createAgentPluginAdminSurfaceHandlers(
-  required: { readonly workspaceId: string; readonly loadContributions: LoadPluginContributions; readonly capabilities: AgentPluginToolCapabilitiesPort },
+  required: { readonly workspaceId: string; readonly loadContributions: LoadAdminSurfaceHandlers; readonly capabilities: AgentPluginToolCapabilitiesPort },
   optional: { readonly log?: (line: string) => void } = {},
 ): AgentPluginAdminSurfaceHandlers {
-  const definition = defineAdminSurfaceHandlerContribution({ filename: ADMIN_SURFACES_FILENAME });
   const host = createAdminSurfaceHandlerHost({ capabilities: required.capabilities });
   const log = optional.log ?? ((line: string) => console.warn(`[admin-surfaces] ${line}`));
 
   async function refresh(): Promise<readonly string[]> {
-    const load = await required.loadContributions({ workspaceId: required.workspaceId, definition }, { orderByPluginId: true });
+    const load = await required.loadContributions({ workspaceId: required.workspaceId, definition: handlerContribution }, { orderByPluginId: true });
     const { refusals } = host.sync({ loaded: load.items, refusals: load.refusals });
     for (const line of refusals) log(line);
     return refusals;
