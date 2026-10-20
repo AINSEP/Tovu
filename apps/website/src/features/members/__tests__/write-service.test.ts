@@ -690,3 +690,100 @@ test("setSubscriptionStatus: a non-'canceled' transition leaves canceledAt untou
   assert.deepEqual(await deps.subscriptions.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }), result.subscription);
   assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: clock.nowIso() }), []);
 });
+
+for (const scenario of [
+  { name: "unknown token", token: "unknown", workspaceId: WORKSPACE_ID, message: "sign-in link is invalid" },
+  { name: "another workspace", workspaceId: "other-workspace", message: "sign-in link is invalid" },
+  { name: "consumed token", consumed: true, message: "sign-in link was already used" },
+  { name: "expired token", expiresAt: "2026-07-09T23:59:59.999Z", message: "sign-in link has expired" },
+  { name: "exact expiry boundary", expiresAt: "2026-07-10T00:00:00.000Z", message: "sign-in link has expired" },
+  { name: "consumed and expired token", consumed: true, expiresAt: "2026-07-09T23:59:59.999Z", message: "sign-in link was already used" },
+]) {
+  test(`L298 completeSignIn rejects ${scenario.name} before consuming or changing member/session state`, async () => {
+    const { deps, sent, clock } = makeDeps();
+    await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "guard@example.test" } });
+    const rawToken = extractRawToken(sent[0].message.text!);
+    const tokenHash = hashToken(rawToken);
+    const issued = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
+    assert.ok(issued);
+    const stored = {
+      ...issued,
+      expiresAt: scenario.expiresAt ?? issued.expiresAt,
+      consumedAt: scenario.consumed ? clock.nowIso() : undefined,
+    };
+    await deps.magicLinks.save(stored);
+    const before = await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId });
+    await assert.rejects(
+      completeSignIn({ deps, input: {
+        workspaceId: scenario.workspaceId ?? WORKSPACE_ID, token: scenario.token ?? rawToken,
+      } }),
+      (error: unknown) => {
+        assert.ok(error instanceof MemberAuthError);
+        assert.equal(error.message, scenario.message);
+        return true;
+      },
+    );
+    assert.deepEqual(await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }), stored);
+    assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId }), before);
+    assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: issued.memberId }), []);
+  });
+}
+
+test("L298 completeSignIn consumes a valid token before the member lookup and retains session metadata", async () => {
+  const { deps, sent, clock } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "ordered@example.test" } });
+  const rawToken = extractRawToken(sent[0].message.text!);
+  const tokenHash = hashToken(rawToken);
+  const members = deps.members;
+  const checkedDeps: MembersWriteServiceDeps = { ...deps, members: {
+    findById: async (required) => {
+      const token = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
+      assert.equal(token?.consumedAt, clock.nowIso());
+      return members.findById(required);
+    },
+    findByEmail: required => members.findByEmail(required),
+    list: required => members.list(required),
+    save: record => members.save(record),
+  } };
+  const result = await completeSignIn({ deps: checkedDeps, input: {
+    workspaceId: WORKSPACE_ID, token: rawToken, userAgent: "pin-browser", ip: "192.0.2.1",
+  } });
+  assert.equal(result.member.status, "active");
+  assert.equal(result.member.emailVerifiedAt, clock.nowIso());
+  assert.equal(result.session.userAgent, "pin-browser");
+  assert.equal(result.session.ip, "192.0.2.1");
+  assert.deepEqual(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }), result.session);
+});
+
+test("L298 completeSignIn propagates consumption failure without changing member/session state", async () => {
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "consume-failure@example.test" } });
+  const rawToken = extractRawToken(sent[0].message.text!);
+  const tokenHash = hashToken(rawToken);
+  const issued = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
+  assert.ok(issued);
+  const before = await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId });
+  const failure = new Error("token consumption rejected");
+  const checkedDeps: MembersWriteServiceDeps = { ...deps, magicLinks: {
+    findByTokenHash: required => deps.magicLinks.findByTokenHash(required),
+    save: record => deps.magicLinks.save(record),
+    consume: async () => { throw failure; },
+  } };
+  await assert.rejects(completeSignIn({ deps: checkedDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }), error => error === failure);
+  assert.deepEqual(await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }), issued);
+  assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId }), before);
+  assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: issued.memberId }), []);
+});
+
+test("L298 completeSignIn accepts an email_change-purpose token (reported, not fixed)", async () => {
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "purpose@example.test" } });
+  const rawToken = extractRawToken(sent[0].message.text!);
+  const tokenHash = hashToken(rawToken);
+  const issued = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
+  assert.ok(issued);
+  await deps.magicLinks.save({ ...issued, purpose: "email_change" });
+  const result = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } });
+  assert.equal(result.member.status, "active");
+  assert.ok(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }));
+});

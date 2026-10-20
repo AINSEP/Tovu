@@ -39,6 +39,7 @@ import {
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
+  type MagicLinkTokenRecord,
   type MemberRecord,
   type MemberSessionRecord,
   type MemberSubscriptionRecord,
@@ -269,6 +270,37 @@ async function requestSignInLink(required: {
   return { delivered: true };
 }
 
+/** Looks up, validates and consumes a workspace-scoped sign-in credential before member access. */
+async function consumeSignInToken(required: {
+  deps: MembersWriteServiceDeps;
+  workspaceId: string;
+  tokenHash: string;
+  nowIso: string;
+}, _options: Record<string, never> = {}): Promise<MagicLinkTokenRecord> {
+  const { deps, workspaceId, tokenHash, nowIso } = required;
+  const tokenRecord = await deps.magicLinks.findByTokenHash({
+    workspaceId,
+    tokenHash,
+  });
+  if (!tokenRecord) {
+    throw new MemberAuthError("sign-in link is invalid");
+  }
+  if (tokenRecord.consumedAt) {
+    throw new MemberAuthError("sign-in link was already used");
+  }
+  if (tokenRecord.expiresAt <= nowIso) {
+    throw new MemberAuthError("sign-in link has expired");
+  }
+
+  await deps.magicLinks.consume({
+    workspaceId,
+    id: tokenRecord.id,
+    consumedAt: nowIso,
+  });
+
+  return tokenRecord;
+}
+
 /**
  * Consume a magic-link token: verify email, promote the member to `active`,
  * and mint a member session. See file-header gap (2) — the raw session token
@@ -285,24 +317,11 @@ async function completeSignIn(required: {
   const nowIso = clockNowIso({ clock: deps.clock });
   const tokenHash = hashToken(input.token);
 
-  const tokenRecord = await deps.magicLinks.findByTokenHash({
+  const tokenRecord = await consumeSignInToken({
+    deps,
     workspaceId: input.workspaceId,
     tokenHash,
-  });
-  if (!tokenRecord) {
-    throw new MemberAuthError("sign-in link is invalid");
-  }
-  if (tokenRecord.consumedAt) {
-    throw new MemberAuthError("sign-in link was already used");
-  }
-  if (tokenRecord.expiresAt <= nowIso) {
-    throw new MemberAuthError("sign-in link has expired");
-  }
-
-  await deps.magicLinks.consume({
-    workspaceId: input.workspaceId,
-    id: tokenRecord.id,
-    consumedAt: nowIso,
+    nowIso,
   });
 
   const existingMember = await deps.members.findById({
