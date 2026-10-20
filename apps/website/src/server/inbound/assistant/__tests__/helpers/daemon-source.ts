@@ -19,6 +19,7 @@ import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartL
 import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../../assistant/agent-session-preset.js";
 import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.js";
+import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../../run-start-decisions.js";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 
 export const daemonSource = ts.createSourceFile(
@@ -65,6 +66,7 @@ export async function captureDaemonRun(
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
     formatRunEndLogLine, formatRunErrorLogLine,
+    durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true }),
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),

@@ -10,6 +10,7 @@ import { getAgentDef } from "@jini-ai/agent-runtime";
 import { sniffContentType } from "@jini-ai/cms/media";
 import { prepareMessageAttachments, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon/http";
+import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
@@ -132,7 +133,7 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
       attachmentStore: store,
       // Source evaluation does not inherit imports. Use the exact production dependencies rather
       // than replacing preparation or MIME detection, so this covers the real binary delivery path.
-      DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType,
+      DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, agentReceivesImageAttachments,
       // Let the resolver report its original caught error instead of masking it with a fixture error.
       failRunBeforeStart: async () => {},
       console: { error: (...args: unknown[]) => assert.fail(args.map(String).join(" ")) },

@@ -3,6 +3,7 @@ import test, { describe } from "node:test";
 
 import type { prepareMessageAttachments } from "@jini-ai/daemon";
 import type { AttachmentStore } from "@jini-ai/daemon/http";
+import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { daemonFunction, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
@@ -19,13 +20,13 @@ const RUN = { id: "attachment-run" };
 const LIFECYCLE = { name: "lifecycle" };
 
 function resolver({ claim, def, attachmentStoreMissing = false }: {
-  claim?: Claim; def?: { imageDelivery?: string; promptInputFormat?: string }; attachmentStoreMissing?: boolean;
+  claim?: Claim; def?: { imageDelivery?: string; promptInputFormat?: string } | null; attachmentStoreMissing?: boolean;
 } = {}) {
   const calls = { failures: [] as unknown[], errors: [] as unknown[][], defs: [] as unknown[], prepareOptions: [] as PrepareOptions[] };
   const attachmentStore: Pick<AttachmentStore, "claim"> = { claim: claim ?? (async () => assert.fail("the store must not be consulted")) };
   const resolve = evaluateDaemonExpression<Resolve>(daemonFunction("resolveAttachmentRunFields"), {
     attachmentStore: attachmentStoreMissing ? undefined : attachmentStore,
-    DEFAULT_AGENT_ID: "default-agent",
+    DEFAULT_AGENT_ID: "default-agent", agentReceivesImageAttachments,
     getAgentDef: (input: unknown) => { calls.defs.push(input); return def; },
     prepareMessageAttachments: async (_required: unknown, options: PrepareOptions) => {
       calls.prepareOptions.push(options);
@@ -91,7 +92,7 @@ describe("resolveAttachmentRunFields", () => {
     ["prompt-path image delivery", { imageDelivery: "prompt-path" }, true],
     ["a stream-json prompt", { promptInputFormat: "stream-json" }, true],
     ["unsupported image delivery", { imageDelivery: "unsupported", promptInputFormat: "text" }, false],
-    ["an unknown agent", undefined, false],
+    ["an unknown agent", null, false],
   ] as const) {
     test(`${label} ${imageAccess ? "receives" : "does not receive"} image access`, async () => {
       const { resolve, calls } = resolver({ claim: claimedBatch, def });

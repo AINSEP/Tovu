@@ -47,8 +47,8 @@ function conversationRun(
   return { calls, lifecycle, bindings };
 }
 
-function start(context: Record<string, unknown>, run: ReturnType<typeof conversationRun>, extra: Record<string, unknown> = {}): Promise<AgentExecutorRunInput> {
-  return captureDaemonRun({ conversationId: CONVERSATION, ...context }, { lifecycle: run.lifecycle, request: { agentId: "claude" }, bindings: { ...run.bindings, ...extra } });
+function start(context: Record<string, unknown>, run: ReturnType<typeof conversationRun>, extra: Record<string, unknown> = {}, agentId = "claude"): Promise<AgentExecutorRunInput> {
+  return captureDaemonRun({ conversationId: CONVERSATION, ...context }, { lifecycle: run.lifecycle, request: { agentId }, bindings: { ...run.bindings, ...extra } });
 }
 
 function durablePort(attempt: DurableAttempt | null, captured: unknown[] = []): DurablePort {
@@ -82,6 +82,21 @@ describe("resolveSessionBinding — which stored session a run resumes", () => {
     const input = await start({ prompt: "continue", recoveryMode: "native" }, run);
     assert.equal(input.resumeSessionId, undefined);
     assert.equal(input.newSessionId, "unused-session-id");
+  });
+
+  test("the run's own agent keys the session lookup and is the agent launched", async () => {
+    const run = conversationRun({ stored: "codex-session" });
+    const input = await start({ prompt: "continue" }, run, {}, "codex");
+    assert.deepEqual(run.calls.gets, [{ conversationId: CONVERSATION, agentId: "codex" }]);
+    assert.equal(input.agentId, "codex");
+    assert.equal(input.resumeSessionId, "codex-session");
+  });
+
+  test("a run that names no agent uses the default agent", async () => {
+    const run = conversationRun();
+    const input = await captureDaemonRun({ conversationId: CONVERSATION, prompt: "first" }, { lifecycle: run.lifecycle, bindings: run.bindings });
+    assert.deepEqual(run.calls.gets, [{ conversationId: CONVERSATION, agentId: "claude" }]);
+    assert.equal(input.agentId, "claude");
   });
 
   test("a run outside any conversation never reads or writes a session", async () => {
@@ -154,7 +169,7 @@ describe("onStarted continuation — durable attempt ownership", () => {
   });
 
   test("a durable attempt whose answer already finished is refused", async () => {
-    const run = conversationRun({ durable: durablePort({ cancelReason: null, message: { runStatus: "completed" } }) });
+    const run = conversationRun({ durable: durablePort({ cancelReason: null, message: { runStatus: "succeeded" } }) });
     await assert.rejects(start({ prompt: "go", assistantMessageId: "answer-1" }, run), { message: STALE });
   });
 
