@@ -802,6 +802,10 @@ export async function resolveStaticMenusForRender(
  * the full proof); not narrowed here for the same out-of-scope reason (the real fix narrows
  * `renderStaticPage`'s return type in static-render.ts).
  *
+ * No pending-content override is taken here (removed 2026-10-20, no caller ever passed one): the
+ * one preview path, `renderViaTemplate`, applies its unsaved body in its own body stage before it
+ * calls this, so the markers that body carries are already consumed by the time they get here.
+ *
  * @complexity One `resolveHtmlPageEmbeds` pass (bounded by `MAX_HTML_EMBEDS_PER_PAGE`) plus, only
  * when the assembled html names a menu `input.staticMenus` does not already carry, one additional
  * `resolveStaticMenusForRender` call bounded to exactly those missing ids — never a full theme-wide
@@ -821,18 +825,9 @@ export async function finishStaticTierDocument(
      *  omitted on every surface that is not a post, which removes the marker. */
     readonly featuredImage?: StaticFeaturedImage | null;
     readonly postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">;
-    /** Threaded straight through to `resolveHtmlPageEmbeds`'s identically-shaped deps field — see
-     *  {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}'s own doc for the full rationale. */
-    readonly pendingContentOverride?: {
-      readonly id: string;
-      readonly title: string;
-      readonly slug: string;
-      readonly updatedAt: string;
-      readonly bodyJson: JsonObject;
-    };
   }
 ): Promise<string> {
-  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor, pendingContentOverride } = input;
+  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } = input;
 
   const expanded = expandPartials(html, theme);
   const resolved = await resolveHtmlPageEmbeds({
@@ -844,7 +839,6 @@ export async function finishStaticTierDocument(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...(pendingContentOverride !== undefined ? { pendingContentOverride } : {}),
     },
     input: { workspaceId: deps.workspaceId, html: expanded },
   });
@@ -1757,7 +1751,7 @@ export async function resolveMediaAssetMetadataForRender(
           height: record.height,
           cssClass: record.cssClass,
           htmlAttributes: record.htmlAttributes,
-          slug: record.slug ?? null,
+          slug: record.slug,
           sha256: record.source.sha256,
         },
       ] as const;
@@ -1938,7 +1932,15 @@ export async function resolveMarketingPageOrOverride(
   // place the product constraint bites: on a `static`-tier site, turning the theme off takes the
   // theme's own `/pricing`, `/docs` and themed 404 offline until a theme is turned back on. Nothing
   // is destroyed and reactivating restores every URL.
-  if (theme === null || !isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
+  //
+  // A theme page NOT in `theme.pages` at all is unreachable in practice — `isMarketingPageSlug`
+  // already confirms `slug` is a standalone theme page — but `theme.pages` is typed as a partial
+  // record, so the lookup stays an explicit fallthrough rather than a non-null assertion, same
+  // defensive shape the pre-existing `renderStaticPage` return-value check had. It is read in this
+  // same guard (before the post lookup, not after it) so it is not a separate branch no request can
+  // reach: `theme.pages` is never mutated in place, so reading it earlier changes nothing.
+  const pageHtml = theme?.pages[slug];
+  if (theme === null || pageHtml === undefined || !isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
 
   const candidate = await getPublishedPostBySlug({
     deps: { repo: deps.postRepo },
@@ -1950,13 +1952,6 @@ export async function resolveMarketingPageOrOverride(
   if (candidate && candidate.post.overridesThemePage !== false) {
     return { kind: "overridingPost", post: candidate.post };
   }
-
-  // A theme page NOT in `theme.pages` at all is unreachable in practice — `isMarketingPageSlug`
-  // (checked above) already confirmed `slug` is a standalone theme page — but `theme.pages` is
-  // typed as a partial record, so this stays an explicit fallthrough rather than a non-null
-  // assertion, same defensive shape the pre-existing `renderStaticPage` return-value check had.
-  const pageHtml = theme.pages[slug];
-  if (pageHtml === undefined) return { kind: "fallthrough" };
 
   // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
   // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
