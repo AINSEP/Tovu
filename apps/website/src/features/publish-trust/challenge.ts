@@ -140,6 +140,15 @@ function refuse(reason: string): ChallengeVerification {
 }
 
 /**
+ * Missing or corrupt expiry (or clock) must fail closed in verification and store cleanup.
+ * @returns Whether the record lacks a provably future expiry. No side effects.
+ * @complexity O(1).
+ */
+function isChallengeExpired(input: { record: PublishChallengeRecord; now: number }, _options = {}): boolean {
+  return !(Date.parse(input.record.expiresAtIso) > input.now);
+}
+
+/**
  * Verifies a challenge response against a grant.
  *
  * ORDER MATTERS: the nonce is consumed FIRST, before any other check. A nonce spent on a failed
@@ -167,23 +176,55 @@ export async function verifyChallengeResponse(
 
   const nowIso = deps.clock.nowIso();
   const now = Date.parse(nowIso);
-  if (Number.isNaN(now) || now >= Date.parse(issued.expiresAtIso)) return refuse("nonce has expired");
+  if (isChallengeExpired({ record: issued, now }, {})) return refuse("nonce has expired");
 
-  if (issued.targetInstallationId !== input.targetInstallationId) return refuse("nonce was issued for another destination");
-  if (!isGrantActive(grant, nowIso)) return refuse("the publishing grant has expired or been revoked");
+  const reason = challengeGrantRefusal({ ...input, issued, nowIso }, {});
+  if (reason !== null) return refuse(reason);
+
+  return verifyGrantedChallengeSignature({ grant, response, targetInstallationId: input.targetInstallationId }, {});
+}
+
+/**
+ * Check audience, grant, source and requested capabilities in order after consuming the nonce.
+ * @returns The first refusal reason, or null when all bindings hold. No side effects.
+ * @complexity O(c) capability checks; c is the requested capability count.
+ */
+function challengeGrantRefusal(input: {
+  issued: PublishChallengeRecord;
+  grant: PublishTrustGrant;
+  response: PublishChallengeResponse;
+  targetInstallationId: string;
+  nowIso: string;
+}, _options = {}): string | null {
+  const { issued, grant, response, nowIso } = input;
+  if (issued.targetInstallationId !== input.targetInstallationId) return "nonce was issued for another destination";
+  if (!isGrantActive(grant, nowIso)) return "the publishing grant has expired or been revoked";
   if (response.sourceInstallationId !== grant.sourceInstallationId) {
-    return refuse("the response names an installation this grant is not for");
+    return "the response names an installation this grant is not for";
   }
 
   if (!Array.isArray(response.capabilities) || response.capabilities.length === 0) {
-    return refuse("no capabilities requested");
+    return "no capabilities requested";
   }
   // Intersect, do not accept: a caller asking for something the grant does not hold is refused
   // outright rather than quietly narrowed, so a widening attempt is visible in the log.
   for (const capability of response.capabilities) {
-    if (!grantAllowsCapability(grant, capability)) return refuse(`'${String(capability)}' is outside this grant`);
+    if (!grantAllowsCapability(grant, capability)) return `'${String(capability)}' is outside this grant`;
   }
+  return null;
+}
 
+/**
+ * Verify the signature only after nonce and grant checks pass.
+ * @returns The verified claim or its signature refusal. No side effects.
+ * @complexity O(k) in the grant's key count plus one Ed25519 verification.
+ */
+function verifyGrantedChallengeSignature(input: {
+  grant: PublishTrustGrant;
+  response: PublishChallengeResponse;
+  targetInstallationId: string;
+}, _options = {}): ChallengeVerification {
+  const { grant, response } = input;
   const key = grant.publicKeys.find((candidate) => candidate.generation === response.generation);
   if (!key) return refuse("no accepted public key for the claimed generation");
 
@@ -229,7 +270,7 @@ export class InMemoryPublishChallengeStore implements PublishChallengeStorePort 
   async put(record: PublishChallengeRecord): Promise<void> {
     const now = Date.parse(this.clock.nowIso());
     for (const [nonce, existing] of this.records) {
-      if (Date.parse(existing.expiresAtIso) <= now) this.records.delete(nonce);
+      if (isChallengeExpired({ record: existing, now }, {})) this.records.delete(nonce);
     }
     this.records.set(record.nonce, record);
   }

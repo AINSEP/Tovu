@@ -567,6 +567,32 @@ test("an unusable verification clock refuses and consumes an otherwise valid cha
   assert.equal(await store.takeOnce(response.nonce), null);
 });
 
+for (const expiresAtIso of ["corrupt", undefined]) {
+  test(`a stored challenge with expiry ${JSON.stringify(expiresAtIso)} is refused and consumed`, async () => {
+    const clock = movableClock();
+    const { store, grant, response, challenge } = await handshake({ clock });
+    // Simulate a corrupt adapter record while retaining a valid signature and grant.
+    await store.put({ ...challenge, expiresAtIso: expiresAtIso as unknown as string });
+    assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
+      grant, targetInstallationId: TARGET_INSTALL, response,
+    }), { ok: false, reason: "nonce has expired" });
+    assert.equal(await store.takeOnce(response.nonce), null);
+  });
+
+  test(`the in-memory challenge sweep removes expiry ${JSON.stringify(expiresAtIso)} and retains live records`, async () => {
+    const clock = movableClock();
+    const store = new InMemoryPublishChallengeStore(clock);
+    const live = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
+    await store.put({ ...live, nonce: "corrupt", expiresAtIso: expiresAtIso as unknown as string });
+    await store.put({ ...live, nonce: "due", expiresAtIso: clock.nowIso() });
+    await store.put({ ...live, nonce: "trigger" });
+    assert.equal(await store.takeOnce("corrupt"), null);
+    assert.equal(await store.takeOnce("due"), null);
+    assert.deepEqual(await store.takeOnce(live.nonce), live);
+    assert.deepEqual(await store.takeOnce("trigger"), { ...live, nonce: "trigger" });
+  });
+}
+
 for (const capabilities of [undefined, null, "publish_content.read", {}]) {
   test(`non-array challenge capabilities ${JSON.stringify(capabilities)} refuse and burn the nonce`, async () => {
     const clock = movableClock();
