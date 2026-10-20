@@ -71,3 +71,13 @@ test("host and import failures name the address and never the key", async () => 
 test("destination keys use the origin only", () => {
   assert.equal(formDestinationKey({ scope: "t", url: "https://Site.Example:443/a?b" }), "t:https://site.example");
 });
+
+test("without overrides a pull stops after 10 pages of 50, two receiver requests per page (the bound the pull lease relies on)", async () => {
+  const pages = Array.from({ length: 12 }, (_, index): FormDestinationPage => ({ items: [item(index + 1)], nextAfter: index + 1, hasMore: true }));
+  const h = host(pages);
+  const result = await pullFromFormDestination({ module: h.module, scope: "t", destination, kit, importPage: async ({ items }) => ({ committedIds: items.map((row) => row.id) }) });
+  assert.equal(h.calls.length, 10);
+  assert.equal(h.acks.length, 10);
+  assert.ok(h.calls.every((call) => call.limit === 50));
+  assert.equal(result.hasMore, true);
+});
