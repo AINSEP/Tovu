@@ -1,6 +1,7 @@
 /** Tovu bindings for the Jini comments owner; request/auth/cache behavior stays with its ports. */
 import { createHttpCommentsApi, createHttpCommentsSession, type CommentsTransportPort } from '@jini-ai/admin/comments/adapters/http';
 import { COMMENTS_QUEUE_RESOURCE, type AdminCommentsPort, type CommentsEventsPort, type CommentsSessionPort, type CommentsTranslator } from '@jini-ai/admin/comments';
+import type { CommentQueueScope } from '@jini-ai/admin/comments/react';
 import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
 import { t as translateComments } from '../../features/comments/comments-i18n';
 import { translateAdminNavLabel } from '../../lib/admin-nav-i18n';
@@ -33,6 +34,15 @@ export function createCommentsHostPorts({ transport }: { transport: CommentsTran
   };
 }
 export const commentsHostPorts = createCommentsHostPorts({ transport: mediaTransport });
+
+/** Bind the authenticated operator and workspace to Jini's queue cache identity.
+ * @returns A scope to update before rendering a different principal's comments.
+ * @complexity O(1) time and space; no I/O.
+ * @example createCommentsQueueScope({ principalId: session.user.id })
+ */
+export function createCommentsQueueScope({ principalId }: { principalId: string }, { workspaceId = WORKSPACE_ID }: { workspaceId?: string } = {}): CommentQueueScope {
+  return { workspaceId, principalId };
+}
 
 /** Bind existing copy owners to one locale; keep protocol labels out of feature dictionaries.
  * @param required Current admin locale.

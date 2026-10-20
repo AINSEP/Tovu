@@ -1,0 +1,64 @@
+/** @file Consent 1b: all HTTP contracts, authorization, tenant isolation and safe failures. */
+import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import express from 'express';
+import { registerAdminConsentRoutes } from '../routes.js';
+import { consentFixture } from '#src/features/consent/__tests__/fixture';
+import { startTestServer, loginAsBarePrincipal, bootAuthenticated } from '#src/server/__tests__/helpers/http-test-server';
+import { createApp, createRouteDeps } from '#src/server/runtime/composition/app';
+
+const cases = [
+  { method: 'GET', path: 'settings' },
+  { method: 'GET', path: 'readiness' },
+  { method: 'POST', path: 'dry-run' },
+  { method: 'POST', path: 'preview' },
+  { method: 'PUT', path: 'settings' },
+  { method: 'POST', path: 'publish' },
+];
+
+for (const route of cases) test(`${route.method} consent/${route.path}: permission, workspace and storage failures`, async t => {
+  const f = consentFixture({ t });
+  const app = express(); app.use(express.json());
+  // Authentication itself is exercised through the real composed gate below.
+  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
+  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
+  const base = await startTestServer(app, t);
+  const body = route.path === 'publish' ? { draftId: 'revision-1', expectedPublishedId: null } : route.method === 'PUT' ? { config: f.config, expectedDraftId: null } : {};
+  const request = (workspace = 'ws', payload = body) => fetch(`${base}/api/admin/v1/workspaces/${workspace}/consent/${route.path}`, { method: route.method, ...(route.method === 'GET' ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
+  assert.equal((await request('foreign')).status, 404);
+  if (route.path === 'publish') await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  assert.equal((await request()).status, 200);
+  if (route.method === 'PUT') assert.equal((await request()).status, 409);
+  if (route.method !== 'GET') assert.equal((await request('ws', { ...body, confirm: true } as typeof body)).status, 400);
+  f.ports.store = undefined;
+  assert.equal((await request()).status, 503);
+  f.deny();
+  assert.equal((await request()).status, 403);
+});
+
+test('all consent routes reject anonymous sessions and principals with no grants at the real admin gate', async t => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const bare = await loginAsBarePrincipal(deps, baseUrl);
+  for (const route of cases) {
+    const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/consent/${route.path}`;
+    const body = route.method === 'GET' ? {} : { headers: { 'content-type': 'application/json' }, body: '{}' };
+    assert.equal((await fetch(url, { method: route.method, ...body })).status, 401);
+    assert.equal((await fetch(url, { method: route.method, ...body, headers: { ...('headers' in body ? body.headers : {}), cookie: bare } })).status, 403);
+  }
+});
+
+test('dry-run accepts a candidate without persisting; unknown fields and missing tokens are rejected', async t => {
+  const f = consentFixture({ t }); const app = express(); app.use(express.json());
+  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
+  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: f.ports.authorize }, service: f.service });
+  const base = await startTestServer(app, t);
+  const send = (suffix: string, method: string, value: unknown) => fetch(`${base}/api/admin/v1/workspaces/ws/consent/${suffix}`, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
+  const dryRun = await send('dry-run', 'POST', { config: f.config, path: '/' });
+  assert.equal(dryRun.status, 200); assert.equal((await dryRun.json()).ready, true);
+  assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+  for (const value of [null, [], { config: f.config }, { config: { ...f.config, enabled: 'true' }, expectedDraftId: null }, { config: f.config, expectedDraftId: null, workspaceId: 'other' }]) assert.equal((await send('settings', 'PUT', value)).status, 400);
+  assert.equal((await fetch(`${base}/api/admin/v1/workspaces/ws/consent/readiness?path=/&path=/privacy`)).status, 400);
+});

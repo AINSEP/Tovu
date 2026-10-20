@@ -110,7 +110,10 @@ const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
  * catalog and its copy order; derived search objects instead belong in DERIVED_OBJECTS.
  * The legacy chat entries were retired from content.db by step 0002 (they live in chat.db now).
  */
-const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {};
+const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
+  site_consent_revisions: 'ADR-066 step 0021 owns immutable policy snapshots; the consent SQL contract tests assert the exact columns. No Drizzle declaration (frozen).',
+  site_consent_heads: 'ADR-066 step 0021 owns atomic draft/published pointers; the consent SQL contract tests assert the exact columns. No Drizzle declaration (frozen).',
+};
 
 function fts5ShadowPrefixes(): string[] {
   return DERIVED_OBJECTS.filter((o) => o.kind === "fts5-virtual-table").map((o) => `${o.name}_`);

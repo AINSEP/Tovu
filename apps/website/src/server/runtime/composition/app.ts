@@ -1,3 +1,7 @@
+import { contentKernel } from '#src/platform/db/content-kernel';
+import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
+import { bindSiteConsentService } from './site-consent.js';
+import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
@@ -209,6 +213,7 @@ import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
+import { ensureSiteConsentDefinitions } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -260,6 +265,7 @@ import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
+import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
 import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
@@ -533,6 +539,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
+    .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
@@ -1289,6 +1297,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    consentStore: createLazyProxy(() => createSiteConsentStore({ kernel: contentKernel(taxonomyDb), workspaceId })),
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
     siteDisplayName: { read: () => undefined },
@@ -1543,7 +1552,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // after `createRouteDeps()` has returned, by which point `routeDeps` is fully constructed) — see
     // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
     // shape carries (spread-override is silently inert; mutate the object in place instead).
-    createSiteApp: ({ themeId } = {}) => createApp(routeDeps, themeId === undefined ? {} : { themeIdOverride: themeId }),
+    createSiteApp: ({ themeId, consentAudit } = {}) => createApp(routeDeps, { ...(themeId === undefined ? {} : { themeIdOverride: themeId }), ...(consentAudit ? { consentAudit } : {}) }),
     // 2026-08-16 — see `routes/types.ts`'s `resolveStorefrontProducts` doc (edge 2 of the
     // export<->server decoupling): a direct reference, same reasoning as `createSiteApp` above
     // (`resolveStorefrontProducts` is declared in `./routes/site/products`, already imported by
@@ -1626,6 +1635,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
+  routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
   return routeDeps;
 }
 
@@ -1807,6 +1817,8 @@ export interface CreateAppOptions {
    * falls back like it does for a bad stored id.
    */
   themeIdOverride?: string;
+  /** Internal local-render audit only; no HTTP input can set this option. */
+  consentAudit?: true;
 }
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
@@ -1841,6 +1853,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app);
   applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
+  // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
+  // before every public renderer. The region header is trusted only when the operator names it,
+  // and only behind an edge that strips visitor-supplied copies.
+  if (!options.consentAudit) applySiteConsent({ app, deps: routeDeps }, { trustedRegionHeader: routeDeps.consentTrustedRegionHeader });
 
   // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
@@ -1989,6 +2005,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Deployment panel → publish-to-GitHub-Pages/Vercel: trigger + poll a one-shot static publish
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
+  registerAdminConsentRoutes({ app, deps: routeDeps, service: routeDeps.siteConsent ?? bindSiteConsentService({ deps: routeDeps }) });
   registerAdminPublishSiteRoutes(app, routeDeps);
   // Deployment panel → Static Site tab's credential form: CRUD over saved provider connections
   // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own

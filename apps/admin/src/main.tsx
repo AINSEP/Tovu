@@ -3,6 +3,9 @@ import { KitProvider } from "@jini-ai/ui-kit/react";
 import { tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import { useAdminSession } from "./App.hooks";
+import { CommentQueueScopeProvider } from "@jini-ai/admin/comments/react";
+import { createCommentsQueueScope } from "./integrations/jini-admin/comments-ports";
 import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
 import { FetchQueryProvider } from "./lib/fetch-query/provider";
 import { redirectLegacyHashUrl } from "./lib/router";
@@ -46,6 +49,18 @@ document.head.appendChild(remixiconStyle);
 // existing `/admin/#/section/settings` bookmark becomes `/admin/settings` in place.
 redirectLegacyHashUrl();
 
+/** Keep one session owner above App so Jini receives the current queue identity before rendering.
+ * Boot and login still use App's existing gates. O(1) composition; session I/O stays in its hook.
+ */
+function SessionApp() {
+  const session = useAdminSession();
+  const app = <App useSession={() => session} />;
+  if (session.checking || !session.user) return app;
+  return <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId: session.user.id })}>
+    {app}
+  </CommentQueueScopeProvider>;
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     {/* Server-state cache for every section that reads through `fetch-query`.
@@ -55,7 +70,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <FetchQueryProvider>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
       <ServerRestartingBanner />
-      <App />
+      <SessionApp />
     </FetchQueryProvider>
     </KitProvider>
   </React.StrictMode>

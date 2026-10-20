@@ -71,6 +71,8 @@ function fakeDeps(
 
   const deps: FakeStaticPublishToolDeps = {
     ...base,
+    // Consent has its own SQL/service tests; this fixture controls the deployment preflight port.
+    siteConsent: { deploymentCheck: async () => null },
     exportSiteBound: async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []}),
     publishOutputRootDir: publishOutputDir,
     authorize: async (params: Record<string, unknown>) => {
@@ -1914,4 +1916,14 @@ test("deployment_execute_static_publish sends a custom-domain publish through th
   const execute = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
   await assert.rejects(call(execute, { input: { target: "cloudflare-pages", projectName: "demo", customDomain: "example.com", credentialId: "chosen" } }),
     /DOMAIN_APPROVAL_UNAVAILABLE: The shared mutation gateway is not configured/);
+});
+
+
+test("static publish tool returns consent choices before export or provider writes", async () => {
+  const { deps } = fakeDeps();
+  deps.siteConsent = { deploymentCheck: async () => ({ code: 'CONSENT_REVIEW_REQUIRED', error: 'Review consent', blockingProblems: [], choices: [{ id: 'fix-now', label: 'Fix now', href: '/consent', action: 'Review' }, { id: 'publish-without-banner', label: 'Publish without banner', href: '/consent', action: 'Explicitly disable' }] }) };
+  deps.exportSiteBound = async () => assert.fail('consent refusal cannot start an export');
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const result = await call(tool(buildRegistrations(deps, surfaceExchanges), 'deployment_execute_static_publish'), { input: { target: 'vercel', projectName: 'consent-test' } }) as { published: boolean; code: string };
+  assert.equal(result.published, false); assert.equal(result.code, 'CONSENT_REVIEW_REQUIRED');
 });

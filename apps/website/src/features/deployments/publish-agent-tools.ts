@@ -1,3 +1,4 @@
+import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
 import { domainPublishTool } from './static-publish/domain-publish-tool.js';
@@ -279,6 +280,7 @@ type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePat
  * Every other field is a direct port type, never indexed from the composition root's wide bag.
  */
 export interface StaticPublishToolDeps extends OperatorLocaleDeps {
+  readonly siteConsent?: Pick<SiteConsentService, "deploymentCheck">;
   /** Existing shared gateway; required when publishing with infrastructure changes. */
   readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
   readonly hostKit?: StaticPublishDeps["hostKit"];
@@ -1007,6 +1009,11 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       if (!plan.ok) {
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
+      const consent = deps.siteConsent
+        ? await deps.siteConsent.deploymentCheck({ principalId: ctx.principal.id, permission: 'deployments.publish' })
+        : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
+      if (consent) return { published: false, cancelled: false, ...consent };
+
       if (config.customDomain && loaded.module.preview) {
         return domainPublishTool({ deps, surfaces, credentialSource, historyStore, config, projectName,
           ...toolCredentialChoice({ raw }) })(ctx, optional);

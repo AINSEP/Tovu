@@ -1,3 +1,4 @@
+import { SITE_CONSENT_REVISION_STATEMENTS } from '../migrations/0021_site_consent_revisions.js';
 import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
@@ -148,6 +149,9 @@ export function bootstrapFreshContentDb(
     },
     "0017_publish_history_kind": () => {
       client.exec("ALTER TABLE publish_history ADD COLUMN kind text DEFAULT 'static'");
+    },
+    "0021_site_consent_revisions": () => {
+      for (const statement of SITE_CONSENT_REVISION_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);

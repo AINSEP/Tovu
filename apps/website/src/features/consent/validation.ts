@@ -1,0 +1,53 @@
+/** @file Site copy bounds plus Jini's policy-link and appearance validators. */
+import { compileConsentCss, type ConsentConfig } from '@jini-ai/cms/consent';
+import { consentPolicyHref } from '@jini-ai/cms/consent/html';
+import { ToolInputError } from '@jini-ai/core';
+import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, SITE_CONSENT_TEXT_LIMITS, type SiteConsentSettings } from './config.js';
+
+export type ConsentProblem = { code: string; message: string; field?: string };
+const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss'];
+
+/** Strict full configuration input; every host field is explicit, including the on/off choice.
+ * Missing fields, unknown fields and type mismatches never reach persistence.
+ * Appearance values remain untrusted until Jini compiles them. O(n), n <= 32 KiB.
+ * @example parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, message: 'Our cookie policy.' } }) */
+export function parseConsentConfig({ value }: { value: unknown }, _options = {}): ConsentConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ToolInputError({ message: 'config must be a JSON object.' });
+  const raw = value as Record<string, unknown>;
+  if (Object.keys(raw).some(key => !FIELDS.includes(key))) throw new ToolInputError({ message: 'Unknown consent configuration field. Categories are fixed by the consent engine.' });
+  for (const [key, fallback] of Object.entries(SITE_CONSENT_DEFAULTS)) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key) || typeof raw[key] !== typeof fallback) throw new ToolInputError({ message: `Invalid consent field: ${key}.` });
+  }
+  const config = { ...raw } as SiteConsentSettings;
+  validateConsentCopy({ config });
+  validateConsentAppearanceShape({ raw });
+  if (JSON.stringify(config).length > 32_768) throw new ToolInputError({ message: 'Consent configuration exceeds 32 KiB.' });
+  return config as ConsentConfig;
+}
+
+/** Host copy has bounded plain text and fixed engine-supported presets; never trusted markup. */
+function validateConsentCopy({ config }: { config: SiteConsentSettings }, _options = {}): void {
+  if (!SITE_CONSENT_REGION_MODES.includes(config.regionMode) || !SITE_CONSENT_PLACEMENTS.includes(config.placement)) throw new ToolInputError({ message: 'Choose a supported region mode and placement.' });
+  if (config.policyVersion.trim().length < 1 || config.policyVersion.length > 64) throw new ToolInputError({ message: 'policyVersion must contain 1–64 characters.' });
+  for (const [key, max] of Object.entries(SITE_CONSENT_TEXT_LIMITS)) {
+    const text = config[key as keyof typeof SITE_CONSENT_TEXT_LIMITS];
+    const emptyAllowed = key === 'secondaryLinkLabel' && text.length === 0;
+    if (text.length > max || (!emptyAllowed && !text.trim())) throw new ToolInputError({ message: `${key} must contain 1–${max} characters.` });
+  }
+  if (config.privacyPolicyUrl.length > 2000 || config.secondaryLinkUrl.length > 2000) throw new ToolInputError({ message: 'Policy links must be at most 2000 characters.' });
+}
+
+/** The engine diagnoses CSS semantics; the boundary caps its input and refuses non-object tokens. */
+function validateConsentAppearanceShape({ raw }: { raw: Record<string, unknown> }, _options = {}): void {
+  if (raw.customCss !== undefined && (typeof raw.customCss !== 'string' || raw.customCss.length > 16_384)) throw new ToolInputError({ message: 'customCss must be a string of at most 16384 characters.' });
+  if (raw.appearance !== undefined && (!raw.appearance || typeof raw.appearance !== 'object' || Array.isArray(raw.appearance))) throw new ToolInputError({ message: 'appearance must be a token object.' });
+}
+
+/** Readiness and publication share this decision. Jini is the only CSS/link authority. O(n). */
+export function consentConfigProblems({ config, trustedRegion }: { config: ConsentConfig; trustedRegion: boolean }, _options = {}): ConsentProblem[] {
+  const problems: ConsentProblem[] = compileConsentCss({ css: config.customCss, tokens: config.appearance }).problems.map(problem => ({ ...problem, field: 'appearance' }));
+  if (config.enabled && !consentPolicyHref({ url: config.privacyPolicyUrl })) problems.push({ code: 'PRIVACY_LINK_REQUIRED', field: 'privacyPolicyUrl', message: 'Link a published privacy page or a credential-free HTTPS privacy policy.' });
+  if (Boolean(config.secondaryLinkLabel) !== Boolean(config.secondaryLinkUrl) || (config.secondaryLinkUrl && !consentPolicyHref({ url: config.secondaryLinkUrl }))) problems.push({ code: 'SECONDARY_LINK_INVALID', field: 'secondaryLinkUrl', message: 'Supply both a secondary link label and a local or HTTPS link.' });
+  if (config.regionMode === 'auto' && !trustedRegion) problems.push({ code: 'TRUSTED_REGION_REQUIRED', field: 'regionMode', message: 'Automatic region mode requires an operator-configured trusted region header. Choose opt-in everywhere.' });
+  return problems;
+}

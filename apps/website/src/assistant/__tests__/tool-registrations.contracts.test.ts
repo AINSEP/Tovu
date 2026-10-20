@@ -1,3 +1,4 @@
+import { consentAgentToolCatalog } from '#src/features/consent/tool-registrations';
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
@@ -192,6 +193,7 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * and actorClassRule), so structural casts adapt them to this map's common catalog type.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
+  consent: consentAgentToolCatalog,
   "tool-gaps": toolGapsAgentToolCatalog,
   "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
   analytics: analyticsAgentToolCatalog as unknown as AgentToolDefinition[],

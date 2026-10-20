@@ -588,3 +588,9 @@ test("a confirmed agent write of delivery bindings with a secret in config is st
     /"config\.apiKey" is named like a secret/);
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
 });
+
+for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} cannot bypass cookie consent confirmation through legacy scalar settings`, async () => {
+  const f = fixture('core.consent', 'enabled', { type: 'boolean' });
+  await assert.rejects(f.call(toolId, { namespace: 'core.consent', key: 'enabled', value: true }), /consent_update_settings|consent_publish_settings/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+});

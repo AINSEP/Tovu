@@ -1,3 +1,4 @@
+import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
@@ -433,6 +434,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeRedirectsTools() });
   contributions.contributors.register({ contribution: contributeSeoTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
+  contributions.contributors.register({ contribution: contributeConsentTools() });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.

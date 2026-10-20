@@ -112,7 +112,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink } &
   import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &

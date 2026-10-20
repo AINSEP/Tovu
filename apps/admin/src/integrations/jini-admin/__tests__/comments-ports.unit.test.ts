@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommentsTransportPort } from '@jini-ai/admin/comments/adapters/http';
-import { commentsEvents, commentsSessionGrants, createCommentsHostPorts, createCommentsTranslator } from '../comments-ports';
+import { commentsEvents, commentsSessionGrants, createCommentsHostPorts, createCommentsQueueScope, createCommentsTranslator } from '../comments-ports';
+import { WORKSPACE_ID } from '../../../lib/api';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 
 afterEach(resetContentRefreshBus);
 
 describe('comments host ports', () => {
+  it('binds queue cache scope to the principal and the current or explicitly selected workspace', () => {
+    expect(createCommentsQueueScope({ principalId: 'operator-a' })).toEqual({ workspaceId: WORKSPACE_ID, principalId: 'operator-a' });
+    expect(createCommentsQueueScope({ principalId: 'operator-b' }, { workspaceId: 'ws2' })).toEqual({ workspaceId: 'ws2', principalId: 'operator-b' });
+  });
   it('renders human English labels for each moderation status', () => {
     const t = createCommentsTranslator({ locale: 'en' });
     expect(['pending', 'approved', 'spam', 'trash'].map(status => t(status))).toEqual(['Pending', 'Approved', 'Spam', 'Trash']);
