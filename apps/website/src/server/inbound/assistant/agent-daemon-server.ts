@@ -1573,6 +1573,8 @@ async function start(): Promise<void> {
     registry,
     {
       ...routeDeps,
+      // Executable Agent Plugin tools that ask before acting use this process's confirmation cards.
+      surfaces: { surfaceExchanges },
       registerInstalled: registerInstalledExtensionTools,
       federation: {
         presetRegistry: routeDeps.federatedMcpPresetRegistry,

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import ts from "typescript";
 import type { ToolRegistry } from "@jini-ai/core";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { createChatDeleteScope } from "#src/assistant/permanent-delete-tool-gate";
@@ -36,19 +39,25 @@ export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: Tool
   // federation dependency. Only the unrelated installed-extension I/O is replaced.
   const extensions = daemonVariableStatement(statements, "extensions").declarationList.declarations[0].initializer!;
   let onAdmitted: ((result: FederationReloadResult) => void) | undefined;
+  let surfaces: AssistantSurfaceDeps | undefined;
+  // `start()` hands the process-wide confirmation store (a module-level const the evaluated initializer
+  // closes over) to the installed-extension registrar, so executable plugin tools can ask before acting.
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   evaluateDaemonExpression(extensions, {
     attachAssistantToolExtensions: (...args: Parameters<typeof attachAssistantToolExtensions>) => {
       onAdmitted = args[1].federation.onAdmitted;
+      surfaces = args[1].surfaces;
       return attachAssistantToolExtensions(...args);
     },
     registerInstalledExtensionTools: async () => {},
     federationDeps: { authorize: async () => ({ allowed: true, reason: "fixture" }), workspaceId: "ws-daemon-catalog" },
     source: { resolve: async () => [] },
-    liveToolCatalog: live, registry, auditSink, buildToolCatalogQuery, withToolCatalogAudit,
+    liveToolCatalog: live, registry, auditSink, buildToolCatalogQuery, withToolCatalogAudit, surfaceExchanges,
     UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
     routeDeps: { workspaceId: "ws-daemon-catalog" }, console: { log() {} },
   });
   assert.ok(onAdmitted, "daemon must pass onAdmitted to the real federation constructor");
+  assert.equal(surfaces?.surfaceExchanges, surfaceExchanges, "daemon must pass its confirmation-card store to the extension registrar");
   return {
     onAdmitted,
     async request(path: string, query: Record<string, string> = {}, params: Record<string, string> = {}) {
