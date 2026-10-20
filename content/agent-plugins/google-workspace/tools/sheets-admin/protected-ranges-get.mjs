@@ -5,14 +5,14 @@
  * Exists so chat can explain a refused edit before trying it. Protection changes go through
  * `batch_update` (destructive, confirmed) instead of a wrapper.
  */
-import { boundedOutput, clientFor, getSpreadsheet, tabsOf } from '../../lib/sheets-admin-common.mjs';
+import { assertOutputWithin, getSpreadsheet, sheetsClientFor, tabsOf } from '../../lib/sheets-client.mjs';
 
 const FIELDS = 'sheets(properties(sheetId,title),protectedRanges(protectedRangeId,range,namedRangeId,tableId,description,warningOnly,requestingUserCanEdit,unprotectedRanges,editors))';
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    const body = await getSpreadsheet({ client: clientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, fields: FIELDS }, { signal });
+    const body = await getSpreadsheet({ client: sheetsClientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, fields: FIELDS }, { signal });
     const tabs = tabsOf({ body, sheetId: input.sheetId }).map((sheet) => ({ sheetId: sheet.properties?.sheetId, title: sheet.properties?.title, protectedRanges: sheet.protectedRanges ?? [] }));
-    return boundedOutput({ value: { tabs } });
+    return assertOutputWithin({ value: { tabs } });
   },
 };

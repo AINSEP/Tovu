@@ -6,9 +6,9 @@
  * Exists because chat output is bounded (64 KiB) while a tab is not: the export reads the tab in
  * bounded chunks, encodes CSV locally, and refuses — never truncates — anything over its bounds.
  */
-import { clientFor, getSpreadsheet, spreadsheetUrl, tabsOf } from '../../lib/sheets-admin-common.mjs';
+import { getSpreadsheet, sheetsClientFor, sheetsUrl, tabsOf } from '../../lib/sheets-client.mjs';
 import { encodeCsv, planChunks } from '../../lib/sheets-admin-csv.mjs';
-import { parseA1Range } from '../../lib/sheets-admin-ranges.mjs';
+import { parseBoundsA1 } from '../../lib/sheets-a1.mjs';
 import { GoogleWorkspaceError } from '../../lib/request-policy.mjs';
 
 /** The tab's title and grid size. @complexity O(t) tabs. */
@@ -21,7 +21,7 @@ async function readTab(client, input, signal) {
 
 /** The area to export: the given range, or the tab's whole grid. @complexity O(1). */
 function areaOf(input, properties) {
-  if (input.range !== undefined) return parseA1Range({ range: input.range });
+  if (input.range !== undefined) return parseBoundsA1({ range: input.range });
   const grid = properties.gridProperties ?? {};
   return { firstRow: 0, lastRow: Math.max(0, (grid.rowCount ?? 1) - 1), firstColumn: 0, lastColumn: Math.max(0, (grid.columnCount ?? 1) - 1) };
 }
@@ -31,7 +31,7 @@ async function readRows(client, input, chunks, signal) {
   const rows = [];
   for (const chunk of chunks) {
     const body = await client.request({
-      connectionRef: input.connectionRef, url: spreadsheetUrl({ spreadsheetId: input.spreadsheetId, suffix: '/values:batchGet' }), kind: 'read',
+      connectionRef: input.connectionRef, url: sheetsUrl({ spreadsheetId: input.spreadsheetId }, { segments: ['values'], method: ':batchGet' }), kind: 'read',
       query: { ranges: chunk.range, majorDimension: 'ROWS', valueRenderOption: input.valueRenderOption ?? 'FORMATTED_VALUE' },
     }, signal ? { signal } : {});
     rows.push(...paddedRows(body, chunk.rowCount));
@@ -53,7 +53,7 @@ function fileNameFor(title) {
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    const client = clientFor({ capabilities });
+    const client = sheetsClientFor({ capabilities });
     const properties = await readTab(client, input, signal);
     const chunks = planChunks({ title: properties.title, area: areaOf(input, properties) });
     const { csv, rows, columns, bytes } = encodeCsv({ rows: await readRows(client, input, chunks, signal) });

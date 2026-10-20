@@ -51,7 +51,9 @@ A read returns at most 500 rows, 5,000 cells or 64 KiB. When there is more, the 
 `continuation`: call `sheets_values_get` with exactly that range to read the next part. Do not guess
 the next range yourself. `sheets_get` and `sheets_get_by_data_filter` have no continuation: when
 their answer would be too large they fail with `limit-exceeded`; ask for fewer ranges or leave out
-grid data. `sheets_find` searches at most 50,000 cells and returns at most 100 matches
+grid data. A `fields` mask containing `*` or `data` reads cell data too, so it is refused
+(`invalid-input`) unless `includeGridData: true` is given (with `ranges` for `sheets_get`).
+`sheets_find` searches at most 50,000 cells and returns at most 100 matches
 (`truncated: true` means there were more); narrow the ranges when it says `limit-exceeded`.
 
 ### Writing values
@@ -86,7 +88,7 @@ is rows 2-10, columns A-D.
 |---|---|---|
 | `sheets_tab_modify` | add, rename, delete, duplicate or move a tab | danger card (delete removes the tab's data) |
 | `sheets_sort` | reorder rows of a range by up to 10 columns | danger card (the old order is gone) |
-| `sheets_basic_filter` | get, set or clear a tab's filter | card |
+| `sheets_basic_filter` | get, set or clear a tab's filter (hides rows; no sorting: use `sheets_sort`) | card |
 | `sheets_filter_views` | list, add, update, duplicate or delete saved filter views | danger card |
 | `sheets_format` | number formats, fonts, colours, alignment, wrapping, borders, frozen rows/columns, column widths | card; never changes values |
 | `sheets_named_ranges` | list, add, update or delete named ranges | danger card (formulas follow the name) |
@@ -105,6 +107,11 @@ is rows 2-10, columns A-D.
 - `sheets_export_csv` reads at most 20,000 rows and 100,000 cells and writes at most 4 MiB. A bigger
   tab is refused (`limit-exceeded`), never cut short: export a range instead. It returns a file
   reference, not the data.
+  Text that starts with `=`, `+`, `-`, `@` (or a tab or line break) is written with a leading `'`,
+  so a spreadsheet app opening the file shows it as text instead of running it as a formula (a
+  visitor could have typed one into a form). The trade-off: with the default formatted values, a
+  number shown as `-5` or a phone number like `+1 555` also gets the `'`. Ask for
+  `valueRenderOption: "UNFORMATTED_VALUE"` when exact numbers matter: real numbers are never prefixed.
 - Answers over 64 KiB are refused with `limit-exceeded`: narrow to one tab or fewer items.
 
 ## Raw batch updates (`sheets_batch_update`)
@@ -120,13 +127,14 @@ Supported request kinds. Changes data or protection (shown as destructive on the
 `deleteFilterView`, `findReplace`, `pasteData`, `textToColumns`, `deleteRange`,
 `deleteConditionalFormatRule`, `sortRange`, `addProtectedRange`, `updateProtectedRange`,
 `deleteProtectedRange`, `deleteBanding`, `deleteDeveloperMetadata`, `randomizeRange`,
-`deleteDimensionGroup`, `trimWhitespace`, `deleteDuplicates`, `deleteTable`.
+`deleteDimensionGroup`, `trimWhitespace`, `deleteDuplicates`, `deleteTable`, `setBasicFilter` (its
+`sortSpecs` reorder rows).
 
 Other changes: `updateSpreadsheetProperties`, `updateDimensionProperties`, `updateNamedRange`,
 `addNamedRange`, `addSheet`, `unmergeCells`, `updateBorders`, `addFilterView`, `appendCells`,
 `clearBasicFilter`, `duplicateFilterView`, `duplicateSheet`, `insertDimension`, `insertRange`,
 `moveDimension`, `updateEmbeddedObjectPosition`, `updateFilterView`, `appendDimension`,
-`addConditionalFormatRule`, `updateConditionalFormatRule`, `setDataValidation`, `setBasicFilter`,
+`addConditionalFormatRule`, `updateConditionalFormatRule`, `setDataValidation`,
 `autoResizeDimensions`, `addChart`, `updateChartSpec`, `updateBanding`, `addBanding`,
 `createDeveloperMetadata`, `updateDeveloperMetadata`, `addDimensionGroup`, `updateDimensionGroup`,
 `updateEmbeddedObjectBorder`, `addSlicer`, `updateSlicerSpec`, `addTable`, `updateTable`.

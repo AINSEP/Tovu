@@ -25,10 +25,10 @@ function client() {
   return createGoogleClient({ http: { fetch: fake.fetch }, connections: { getAccessToken: async () => token } });
 }
 
-function serve({ accountId = ACCOUNT, mimeType = SPREADSHEET_MIME_TYPE, fileStatus = 200, sheetsStatus = 200, sheetsId = FILE_ID, driveId = FILE_ID } = {}) {
+function serve({ accountId = ACCOUNT, mimeType = SPREADSHEET_MIME_TYPE, fileStatus = 200, sheetsStatus = 200, sheetsId = FILE_ID, driveId = FILE_ID, trashed = false } = {}) {
   fake.route({ method: 'GET', path: '/drive/v3/about' }, () => [200, { user: { permissionId: accountId, emailAddress: 'alice@example.test' } }]);
   fake.route({ method: 'GET', path: `/drive/v3/files/${FILE_ID}` }, () => fileStatus === 200
-    ? [200, { id: driveId, name: 'Leads', mimeType }]
+    ? [200, { id: driveId, name: 'Leads', mimeType, trashed }]
     : [fileStatus, { error: { code: fileStatus, message: `File not found: ${FILE_ID} for ${token}`, status: 'NOT_FOUND' } }]);
   fake.route({ method: 'GET', path: `/v4/spreadsheets/${FILE_ID}` }, () => sheetsStatus === 200
     ? [200, { spreadsheetId: sheetsId, properties: { title: 'Leads' } }]
@@ -60,6 +60,12 @@ test('authorization: a selection made for another account is refused (account-ch
   serve({ accountId: 'perm-bob' });
   await assert.rejects(verify(), { code: 'account-changed', nextAction: 'review-account' });
   assert.deepEqual(fake.requests.map((request) => request.path), ['/drive/v3/about']);
+});
+
+test('trashed: a spreadsheet in the trash is refused (file-not-granted, re-pick), the Sheets API is not called', async () => {
+  serve({ trashed: true });
+  await assert.rejects(verify(), { code: 'file-not-granted', nextAction: 're-pick-file' });
+  assert.equal(fake.requests.some((request) => request.host === 'sheets.googleapis.com'), false);
 });
 
 test('MIME: a file that is not a Google Sheets spreadsheet is refused (not-a-spreadsheet), the Sheets API is not called', async () => {

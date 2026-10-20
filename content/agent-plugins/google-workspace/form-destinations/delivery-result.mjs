@@ -40,7 +40,7 @@ const CONTRACT_CODES = new Map([
   ['invalid-request', ['mapping-invalid', false]], ['invalid-input', ['configuration-invalid', false]],
   ['limit-exceeded', ['destination-limit', false]],
   ['uncertain-outcome', ['outcome-unknown', true]],
-  ['product-disabled', ['adapter-unavailable', true]], ['destination-unavailable', ['adapter-unavailable', true]],
+  ['product-disabled', ['adapter-unavailable', true]],
   ['conflict', ['delivery-failed', true]], ['service-unavailable', ['delivery-failed', true]], ['network-error', ['delivery-failed', true]],
 ]);
 

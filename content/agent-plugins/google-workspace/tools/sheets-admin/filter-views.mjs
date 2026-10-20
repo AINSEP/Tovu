@@ -5,7 +5,7 @@
  * Exists as a named wrapper over the reviewed filter-view request kinds; `list` reads only the views
  * (field mask), never cell data.
  */
-import { boundedOutput, clientFor, getSpreadsheet, runBatchUpdate, spreadsheetLine, tabsOf } from '../../lib/sheets-admin-common.mjs';
+import { assertOutputWithin, getSpreadsheet, resourceLines, runBatchUpdate, sheetsClientFor, spreadsheetLine, tabsOf } from '../../lib/sheets-client.mjs';
 
 /** action → the one batch request it sends. */
 const REQUESTS = {
@@ -19,20 +19,20 @@ const REQUESTS = {
 async function listViews(client, input, signal) {
   const body = await getSpreadsheet({ client, connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, fields: 'sheets(properties(sheetId,title),filterViews)' }, { signal });
   const tabs = tabsOf({ body, sheetId: input.sheetId }).map((sheet) => ({ sheetId: sheet.properties?.sheetId, title: sheet.properties?.title, filterViews: sheet.filterViews ?? [] }));
-  return boundedOutput({ value: { action: 'list', tabs } });
+  return assertOutputWithin({ value: { action: 'list', tabs } });
 }
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    const client = clientFor({ capabilities });
+    const client = sheetsClientFor({ capabilities });
     if (input.action === 'list') return listViews(client, input, signal);
     const { replies } = await runBatchUpdate({ client, connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [REQUESTS[input.action](input)] }, { signal });
     const view = replies[0]?.addFilterView?.filter ?? replies[0]?.duplicateFilterView?.filter;
-    return boundedOutput({ value: { action: input.action, ...(view ? { filterView: view } : { filterViewId: input.filterViewId }) } });
+    return assertOutputWithin({ value: { action: input.action, ...(view ? { filterView: view } : { filterViewId: input.filterViewId }) } });
   },
   describeAffectedResources({ input }) {
     const target = input.action === 'add' ? `new filter view "${input.filter?.title ?? 'untitled'}"` : `filter view ${input.filterViewId ?? ''}`.trim();
     const verb = input.action === 'list' ? 'list filter views (no change)' : `${input.action} ${target}`;
-    return [spreadsheetLine(input), verb];
+    return resourceLines({ lines: [spreadsheetLine(input), verb] });
   },
 };

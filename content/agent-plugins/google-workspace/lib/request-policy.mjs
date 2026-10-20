@@ -1,19 +1,12 @@
 /**
  * @file Google request policy for the Google Workspace plugin: the safe error every failure becomes,
- * whether a failed request may be retried, how long to wait, and the per-minute budgets the plugin
- * asks the host's limiter to enforce.
+ * whether a failed request may be retried and how long to wait. The per-minute budgets themselves
+ * are declared in `tovu-connections.json` and enforced by the host on every token read.
  *
  * Exists so chat tools, admin actions and form delivery share ONE answer to "may this run again?"
  * and one error vocabulary. Errors never carry tokens, Google's own message text or sheet contents:
  * Google echoes ranges and values in its messages, so only a fixed sentence per code is shown.
  */
-
-/**
- * Local budgets, below Google's Sheets defaults (60 per user and 300 per project per minute), shared
- * by tools and background delivery. They cannot cap the aggregate of every Tovu install that shares
- * the OAuth project; the shared project's quota is monitored separately.
- */
-export const QUOTA_BUDGETS = Object.freeze({ perAccountPerMinute: 45, perInstancePerMinute: 240 });
 
 /** Longest wait spent inside one call; a longer Retry-After is returned to the caller instead. */
 export const MAX_INLINE_WAIT_MS = 10_000;
@@ -37,10 +30,9 @@ const SAFE_ERRORS = Object.freeze({
   'network-error': { retryable: true, nextAction: 'retry-later', message: 'Tovu could not reach Google. Check the connection and retry later.' },
   'uncertain-outcome': { retryable: false, nextAction: 'review-outcome', message: 'Google did not confirm whether the change was applied. Check the spreadsheet before trying again.' },
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
-  'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off for the plugin. Turn it on in the Google Workspace plugin, then retry.' },
+  'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off. Turn it on in the Google Workspace panel, then retry; the Google sign-in is kept.' },
   'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
   'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
-  'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
   // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
   'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
   'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },

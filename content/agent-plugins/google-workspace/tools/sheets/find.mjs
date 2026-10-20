@@ -8,7 +8,8 @@
  * `truncated` set when there were more.
  */
 import { GoogleWorkspaceError } from '../../lib/request-policy.mjs';
-import { cellCount, columnIndex, columnName, parseA1Range, readOptions, sendSheetsRequest, sheetsUrl, SHEETS_LIMITS } from '../../lib/sheets-client.mjs';
+import { columnIndex, columnName, parseA1Range } from '../../lib/sheets-a1.mjs';
+import { cellCount, readOptions, sendSheetsRequest, sheetsUrl, SHEETS_LIMITS } from '../../lib/sheets-client.mjs';
 
 /** The matcher for the caller's options. @complexity O(1) to build; O(text) per cell. */
 function matcherFor(input) {

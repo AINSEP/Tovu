@@ -55,7 +55,7 @@ test('approval: each G12 tool keeps its declared effect (destructive tools are t
 test('schema: every G12 tool takes spreadsheetId only in Google\'s id alphabet and rejects unknown input keys', async () => {
   const file = JSON.parse(await readFile(new URL('../tovu-agent-tools.json', import.meta.url), 'utf8'));
   for (const tool of file.tools.filter((entry) => entry.module.startsWith('tools/sheets-admin/'))) {
-    assert.equal(tool.inputSchema.properties.spreadsheetId.pattern, '^[A-Za-z0-9_-]{10,128}$', tool.name);
+    assert.equal(tool.inputSchema.properties.spreadsheetId.pattern, '^[A-Za-z0-9_-]{10,200}$', tool.name);
     assert.equal(tool.inputSchema.additionalProperties, false, tool.name);
   }
 });
@@ -71,6 +71,22 @@ test('disclosure: every write and destructive tool names the spreadsheet and wha
   ];
   for (const [tool, input, line] of cases) assert.deepEqual(tool.describeAffectedResources({ input: { ...base, ...input } }), [`spreadsheet ${SPREADSHEET}`, line]);
   assert.equal(fake.requests.length, 0);
+});
+
+test('basic filter cannot sort: the schema refuses sortSpecs, and a raw setBasicFilter is disclosed as destructive', async () => {
+  const file = JSON.parse(await readFile(new URL('../tovu-agent-tools.json', import.meta.url), 'utf8'));
+  const tool = file.tools.find((entry) => entry.name === 'sheets_basic_filter');
+  assert.equal(tool.effect, 'write');
+  assert.equal(tool.inputSchema.additionalProperties, false);
+  assert.equal(Object.hasOwn(tool.inputSchema.properties, 'sortSpecs'), false);
+  assert.equal(REQUEST_KINDS.setBasicFilter.effect, 'destructive');
+  assert.deepEqual(batchUpdate.describeAffectedResources({ input: { ...base, requests: [{ setBasicFilter: { filter: { range } } }] } }), [`spreadsheet ${SPREADSHEET}`, 'setBasicFilter x1 (destructive)']);
+});
+
+test('basic filter set sends filterSpecs only, never sortSpecs', async () => {
+  fake.route({ method: 'POST', path: BATCH_PATH }, () => [200, { replies: [{}] }]);
+  await run(basicFilter, { action: 'set', range, filterSpecs: [{ columnIndex: 0 }], sortSpecs: [{ dimensionIndex: 0 }] });
+  assert.deepEqual(JSON.parse(sheetsRequests()[0].body).requests, [{ setBasicFilter: { filter: { range, filterSpecs: [{ columnIndex: 0 }] } } }]);
 });
 
 test('batch disclosure: the card lists every request kind with its count and effect', () => {
@@ -204,9 +220,16 @@ test('open_existing: no id means waiting with no request; an ungranted id is fil
 
 test('open_existing: a picked spreadsheet returns metadata only, with a link built from the verified id', async () => {
   fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Leads', mimeType: 'application/vnd.google-apps.spreadsheet', webViewLink: 'https://evil.example/phish' }]);
+  // The same check as a Picker selection: Drive metadata, then the Sheets API must open it.
+  fake.route({ method: 'GET', path: `/v4/spreadsheets/${SPREADSHEET}` }, () => [200, { spreadsheetId: SPREADSHEET, properties: { title: 'Leads' } }]);
   assert.deepEqual(await run(openExisting, {}), { status: 'selected', resource: { spreadsheetId: SPREADSHEET, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET}/edit` } });
 });
 
-test('CSV export writes formula-like cells (=, +, -, @) unchanged, so a spreadsheet app opening the file may evaluate them (reported, not fixed)', () => {
-  assert.equal(encodeCsv({ rows: [['=HYPERLINK("https://x.test","y")', '+1', '@SUM(A1)']] }).csv, '"=HYPERLINK(""https://x.test"",""y"")",+1,@SUM(A1)');
+test('CSV injection: text starting with =, +, -, @, tab or CR gets a leading apostrophe, so a spreadsheet app shows it as text', () => {
+  const rows = [['=HYPERLINK("https://x.test","y")', '+1', '-2+3', '@SUM(A1)', '\t=1', '\r=1']];
+  assert.equal(encodeCsv({ rows }).csv, `"'=HYPERLINK(""https://x.test"",""y"")",'+1,'-2+3,'@SUM(A1),'\t=1,"'\r=1"`);
+});
+
+test('CSV injection: numbers, booleans and ordinary text are written unchanged (only formula-like text is prefixed)', () => {
+  assert.equal(encodeCsv({ rows: [[-5, 1.5, true, 'a=b', 'plain', '']] }).csv, '-5,1.5,true,a=b,plain,');
 });

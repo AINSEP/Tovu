@@ -1,7 +1,8 @@
 /**
  * @file An in-memory Google Sheets grid served by the local Google fake (`fake-google-http.mjs`),
- * for the form-delivery tests: spreadsheet metadata, values get/update/append and the
- * `appendDimension` batch request, over 1-based rows of cells per tab.
+ * for the form-delivery tests: spreadsheet metadata, values get/update/append, the
+ * `appendDimension`, `updateCells` (row-1 text) and `createDeveloperMetadata` (column markers)
+ * batch requests and `developerMetadata:search`, over 1-based rows of cells per tab.
  *
  * Exists so the Sheets form destination is exercised against the real request shapes it sends
  * (encoded A1 ranges, RAW input, INSERT_ROWS appends) without any network beyond 127.0.0.1. Like
@@ -51,10 +52,15 @@ export function installSheetsGrid(required) {
     sheetId: tab.sheetId, title: tab.title, rowCount: tab.rowCount ?? 1000, columnCount: tab.columnCount ?? 26,
     rows: new Map(Object.entries(tab.rows ?? {}).map(([row, cells]) => [Number(row), [...cells]])),
   }));
+  // Column markers: { sheetId, key, value, index } (what createDeveloperMetadata stores on a column).
+  const metadata = required.tabs.flatMap((tab) => Object.entries(tab.markers ?? {}).map(([value, index]) => ({ sheetId: tab.sheetId, key: 'tovu_form_field', value, index })));
   const grid = {
     failNext: undefined,
     tab: (sheetId) => tabs.find((tab) => tab.sheetId === sheetId),
     /** Non-empty rows in order, trailing blanks trimmed. */
+    metadata,
+    /** field id → column index of the markers on one tab. */
+    markersOf: (sheetId) => Object.fromEntries(metadata.filter((entry) => entry.sheetId === sheetId).map((entry) => [entry.value, entry.index])),
     rowsOf: (sheetId) => [...grid.tab(sheetId).rows.entries()].sort(([a], [b]) => a - b).map(([, row]) => trimRow(row)).filter((row) => row.length > 0),
   };
   const prefix = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}`;
@@ -87,12 +93,39 @@ export function installSheetsGrid(required) {
     return { updates: { updatedRange: `'${tab.title}'!A${target}:${columnLetters(width - 1)}${target + values.length - 1}`, updatedRows: values.length } };
   }
 
+  const BATCH = {
+    appendDimension: ({ sheetId, length }) => { grid.tab(sheetId).columnCount += length; },
+    updateCells: ({ start, rows, fields }) => {
+      if (fields !== 'userEnteredValue' || start.rowIndex !== 0) throw new Error('fake grid: only row-1 text cells');
+      const tab = grid.tab(start.sheetId);
+      if (start.columnIndex + rows[0].values.length > tab.columnCount) throw new Error('fake grid: past the last column');
+      writeRow(tab, 1, start.columnIndex, rows[0].values.map((cell) => cell.userEnteredValue.stringValue));
+    },
+    createDeveloperMetadata: ({ developerMetadata: { metadataKey, metadataValue, location: { dimensionRange } } }) => {
+      metadata.push({ sheetId: dimensionRange.sheetId, key: metadataKey, value: metadataValue, index: dimensionRange.startIndex });
+    },
+  };
+
+  /** Applies every request, or none (Google's batchUpdate is atomic). */
   function batchUpdate(body) {
-    for (const request of body.requests) {
-      const tab = grid.tab(request.appendDimension.sheetId);
-      tab.columnCount += request.appendDimension.length;
+    const before = { tabs: structuredClone(tabs.map((tab) => ({ columnCount: tab.columnCount, rows: [...tab.rows] }))), metadata: metadata.length };
+    try {
+      for (const request of body.requests) {
+        const [[kind, value]] = Object.entries(request);
+        BATCH[kind](value);
+      }
+      return [200, {}];
+    } catch {
+      tabs.forEach((tab, index) => { tab.columnCount = before.tabs[index].columnCount; tab.rows = new Map(before.tabs[index].rows); });
+      metadata.length = before.metadata;
+      return [400, { error: { code: 400, status: 'INVALID_ARGUMENT' } }];
     }
-    return {};
+  }
+
+  function searchMetadata(body) {
+    const lookup = JSON.parse(body).dataFilters[0].developerMetadataLookup;
+    const matched = metadata.filter((entry) => entry.key === lookup.metadataKey && entry.sheetId === lookup.metadataLocation.sheetId);
+    return { matchedDeveloperMetadata: matched.map((entry) => ({ developerMetadata: { metadataKey: entry.key, metadataValue: entry.value, location: { locationType: 'COLUMN', dimensionRange: { sheetId: entry.sheetId, dimension: entry.dimension ?? 'COLUMNS', startIndex: entry.index, endIndex: entry.index + 1 } } } })) };
   }
 
   function values(req, body, url) {
@@ -118,7 +151,8 @@ export function installSheetsGrid(required) {
     if (url.pathname === prefix && req.method === 'GET') {
       return [200, { sheets: tabs.map((tab) => ({ properties: { sheetId: tab.sheetId, title: tab.title, gridProperties: { rowCount: tab.rowCount, columnCount: tab.columnCount } } })) }];
     }
-    if (url.pathname === `${prefix}:batchUpdate`) return [200, batchUpdate(JSON.parse(body))];
+    if (url.pathname === `${prefix}:batchUpdate`) return batchUpdate(JSON.parse(body));
+    if (url.pathname === `${prefix}/developerMetadata:search`) return [200, searchMetadata(body)];
     return values(req, body, url);
   }
 

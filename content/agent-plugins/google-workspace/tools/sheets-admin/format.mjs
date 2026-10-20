@@ -8,8 +8,8 @@
  * format mask is always prefixed `userEnteredFormat.` from an allow-listed set (input schema), so a
  * format call can never clear or overwrite values the way a `*` or `userEnteredValue` mask would.
  */
-import { clientFor, runBatchUpdate, spreadsheetLine } from '../../lib/sheets-admin-common.mjs';
-import { gridRangeLabel } from '../../lib/sheets-admin-ranges.mjs';
+import { resourceLines, runBatchUpdate, sheetsClientFor, spreadsheetLine } from '../../lib/sheets-client.mjs';
+import { gridRangeLabel } from '../../lib/sheets-a1.mjs';
 
 const BORDER_SIDES = ['top', 'bottom', 'left', 'right', 'innerHorizontal', 'innerVertical'];
 
@@ -61,10 +61,10 @@ function changedParts(input) {
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    await runBatchUpdate({ client: clientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: requestsFor(input) }, { signal });
+    await runBatchUpdate({ client: sheetsClientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: requestsFor(input) }, { signal });
     return { formatted: input.range, changed: changedParts(input) };
   },
   describeAffectedResources({ input }) {
-    return [spreadsheetLine(input), `format ${gridRangeLabel({ range: input.range })}: ${changedParts(input).join('; ')}`.slice(0, 300)];
+    return resourceLines({ lines: [spreadsheetLine(input), `format ${gridRangeLabel({ range: input.range })}: ${changedParts(input).join('; ')}`] });
   },
 };

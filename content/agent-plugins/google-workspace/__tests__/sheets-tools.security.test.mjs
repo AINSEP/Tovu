@@ -19,7 +19,7 @@ import { startFakeGoogle } from './fake-google-http.mjs';
 
 const PLUGIN = 'google-workspace';
 const PLUGIN_ROOT = new URL('../', import.meta.url);
-const SHEET = 'sheet-1';
+const SHEET = 'sheet-one-0001';
 const BASE = `/v4/spreadsheets/${SHEET}`;
 // Built at runtime: not secret-shaped, but unique enough to search outputs and errors for.
 const TOKEN = `fake-access-${'t'.repeat(24)}`;
@@ -31,7 +31,7 @@ const SAMPLE_INPUTS = {
   sheets_get_by_data_filter: { spreadsheetId: SHEET, dataFilters: [{ a1Range: 'Leads!A1:B2' }] },
   sheets_create: { title: 'Leads 2026' },
   sheets_copy: { spreadsheetId: SHEET, title: 'Leads copy' },
-  sheets_copy_tab: { spreadsheetId: SHEET, sheetId: 7, destinationSpreadsheetId: 'sheet-2' },
+  sheets_copy_tab: { spreadsheetId: SHEET, sheetId: 7, destinationSpreadsheetId: 'sheet-two-0002' },
   sheets_values_get: { spreadsheetId: SHEET, range: 'Leads!A1:B2' },
   sheets_values_batch_get: { spreadsheetId: SHEET, ranges: ['Leads!A1:B2'] },
   sheets_values_append: { spreadsheetId: SHEET, range: 'Leads', values: [['a', 'b']] },
@@ -73,6 +73,7 @@ before(async () => {
       http: { fetch: (target, init) => fake.fetch(target, init) },
       limiter: { check: async () => ({ allowed: true }) },
       artifacts: { write: async () => { throw new Error('no artifacts in this test'); } },
+      state: { get: async ({ key }) => (key === 'products' ? { sheets: true } : null) },
     }),
   });
   assert.deepEqual(projection.sync({ loaded, refusals: [] }).refusals, []);
@@ -91,16 +92,16 @@ const rows = (count, width) => Array.from({ length: count }, (_, row) => Array.f
 const sheetsRequests = () => fake.requests.filter((request) => request.host === 'sheets.googleapis.com');
 
 test('vertical slice: create, append and read a spreadsheet through the real projection; RAW, bearer token only in the header, no token in any result', async () => {
-  fake.route({ method: 'POST', path: '/v4/spreadsheets' }, (_req, body) => [200, { spreadsheetId: SHEET, spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/sheet-1/edit', properties: { title: JSON.parse(body).properties.title }, sheets: [{ properties: { sheetId: 0, title: 'Leads', index: 0 } }] }]);
+  fake.route({ method: 'POST', path: '/v4/spreadsheets' }, (_req, body) => [200, { spreadsheetId: SHEET, spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/sheet-one-0001/edit', properties: { title: JSON.parse(body).properties.title }, sheets: [{ properties: { sheetId: 0, title: 'Leads', index: 0 } }] }]);
   fake.route({ method: 'POST', path: `${BASE}/values/Leads:append` }, () => [200, { tableRange: 'Leads!A1:B1', updates: { updatedRange: 'Leads!A2:B3', updatedRows: 2, updatedCells: 4 } }]);
   fake.route({ method: 'GET', path: `${BASE}/values/Leads!A1%3AB3` }, () => [200, { range: 'Leads!A1:B3', majorDimension: 'ROWS', values: [['name', 'email'], ['Ada', '=1+1'], ['Bo', 'bo@example.test']] }]);
 
   assert.deepEqual((await disclose('sheets_create', { title: 'Leads 2026', tabs: ['Leads'] })).resources, ['New spreadsheet "Leads 2026" in the connected Google Drive']);
   const created = await callTool('sheets_create', { title: 'Leads 2026', tabs: ['Leads'] });
-  assert.deepEqual(created, { spreadsheetId: SHEET, url: 'https://docs.google.com/spreadsheets/d/sheet-1/edit', title: 'Leads 2026', tabs: [{ sheetId: 0, title: 'Leads', index: 0 }] });
+  assert.deepEqual(created, { spreadsheetId: SHEET, url: 'https://docs.google.com/spreadsheets/d/sheet-one-0001/edit', title: 'Leads 2026', tabs: [{ sheetId: 0, title: 'Leads', index: 0 }] });
 
   const appendInput = { spreadsheetId: SHEET, range: 'Leads', values: [['Ada', '=1+1'], ['Bo', 'bo@example.test']] };
-  assert.deepEqual((await disclose('sheets_values_append', appendInput)).resources, ['Append 2 row(s), 4 cell(s), after the table in Leads of spreadsheet sheet-1']);
+  assert.deepEqual((await disclose('sheets_values_append', appendInput)).resources, ['Append 2 row(s), 4 cell(s), after the table in Leads of spreadsheet sheet-one-0001']);
   assert.deepEqual(await callTool('sheets_values_append', appendInput), { tableRange: 'Leads!A1:B1', updatedRange: 'Leads!A2:B3', updatedRows: 2, updatedCells: 4 });
 
   const read = await callTool('sheets_values_get', { spreadsheetId: SHEET, range: 'Leads!A1:B3' });
@@ -135,7 +136,7 @@ test('disclosure: a 100-range destructive batch stays inside the card bound and 
   const ranges = Array.from({ length: 100 }, (_, index) => `Leads!A${index + 1}:B${index + 1}`);
   const { resources } = await disclose('sheets_values_batch_clear', { spreadsheetId: SHEET, ranges });
   assert.equal(resources.length, 50);
-  assert.equal(resources[48], 'Clear every value in Leads!A49:B49 of spreadsheet sheet-1');
+  assert.equal(resources[48], 'Clear every value in Leads!A49:B49 of spreadsheet sheet-one-0001');
   assert.equal(resources[49], '… and 51 more');
 });
 
@@ -235,3 +236,19 @@ for (const [name, method, path, host] of UNCERTAIN_WRITES) {
     assert.deepEqual(fake.requests.map((request) => [request.host, request.method, request.path]), [[host, method, path]]);
   });
 }
+
+test('grid data opt-in: a fields mask with * or data is refused unless includeGridData (and, for sheets_get, ranges) are given', async () => {
+  for (const fields of ['*', 'sheets.data', 'sheets(data(rowData))', 'spreadsheetId,*']) {
+    await assert.rejects(callTool('sheets_get', { spreadsheetId: SHEET, fields }), (error) => error.code === 'invalid-input' && error.message.includes('needs includeGridData and ranges'), fields);
+    await assert.rejects(callTool('sheets_get_by_data_filter', { spreadsheetId: SHEET, dataFilters: [{ a1Range: 'Leads!A1:B2' }], fields }), (error) => error.code === 'invalid-input', fields);
+  }
+  await assert.rejects(callTool('sheets_get', { spreadsheetId: SHEET, fields: '*', includeGridData: true }), (error) => error.code === 'invalid-input');
+  assert.equal(sheetsRequests().length, 0);
+});
+
+test('grid data opt-in: a grid mask with includeGridData and ranges is sent, and a mask naming dataSources is not grid data', async () => {
+  fake.route({ method: 'GET', path: BASE }, () => [200, { spreadsheetId: SHEET }]);
+  await callTool('sheets_get', { spreadsheetId: SHEET, fields: '*', includeGridData: true, ranges: ['Leads!A1:B2'] });
+  await callTool('sheets_get', { spreadsheetId: SHEET, fields: 'spreadsheetId,dataSources' });
+  assert.deepEqual(sheetsRequests().map((request) => request.query.get('fields')), ['*', 'spreadsheetId,dataSources']);
+});

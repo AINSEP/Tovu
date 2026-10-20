@@ -27,7 +27,6 @@ const EXISTING_CODES = {
   'uncertain-outcome': [false, 'review-outcome'],
   'unexpected-response': [false, 'report'],
   'product-disabled': [false, 'enable-product'],
-  'destination-unavailable': [true, 'retry-later'],
 };
 
 test('request-policy: every existing safe code keeps its retryable flag, next action and default not-applied outcome', () => {
