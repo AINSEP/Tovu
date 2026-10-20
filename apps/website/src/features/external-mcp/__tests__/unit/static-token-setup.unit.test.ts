@@ -353,3 +353,59 @@ test("a configuration check resolves an OAuth token through its injected service
   assert.doesNotMatch(JSON.stringify({ result, emissions: f.emissions }), /private-oauth-token/);
   assert.deepEqual(resolutions, [{ serverId: "oauth" }]);
 });
+
+// L155 pins, written against the old handler before separating save/probe decisions.
+test("a submitted destination change is rejected before writing or probing", async () => {
+  const f = cardFixture();
+  f.deps.externalMcpProbe = async () => assert.fail("a rejected destination must not be probed");
+  const card = await f.open({ id: "hosted", transport: "streamable_http", authMode: "none" });
+  card.submit({ id: "other", url: "https://hosted.example/mcp" });
+  assert.deepEqual(await card.pending, { saved: false, cancelled: false, reason: "invalid",
+    message: "The server ID must match the connection form. Nothing was saved.", field: "id" });
+  assert.deepEqual(await f.repo.listByWorkspaceId(f.deps.workspaceId), []);
+  assert.equal(f.surfaces.size(), 0);
+});
+
+test("a hosted save without a probe binds routing and auth to preparation and reports not tested", async () => {
+  const f = cardFixture();
+  const card = await f.open({ id: "hosted", transport: "streamable_http", authMode: "none" });
+  card.submit({ transport: "stdio", authMode: "oauth", url: "https://hosted.example/mcp", label: "Display", args: "",
+    allowedToolNames: "read, write", writeAllowedToolNames: "write", accessTokenEnvName: "" });
+  const result = await card.pending as { saved: boolean; connection: string; message: string };
+  assert.equal(result.saved, true);
+  assert.equal(result.connection, "not_tested");
+  assert.equal(result.message, "Saved, not tested.");
+  const record = await f.repo.findByServerId({ workspaceId: f.deps.workspaceId, serverId: "hosted" });
+  assert.ok(record);
+  assert.equal(record.transport, "streamable_http");
+  assert.equal(record.authMode, "none");
+  assert.equal(record.label, "Display");
+  assert.equal(record.allowedToolNames, JSON.stringify(["read", "write"]));
+  assert.equal(record.writeAllowedToolNames, JSON.stringify(["write"]));
+  assert.equal(f.surfaces.size(), 0);
+});
+
+for (const code of ["MCP_TIMEOUT", "MCP_AUTH_REJECTED", undefined]) test(`a saved static connection preserves probe code ${String(code)} and offers setup only for rejected auth`, async () => {
+  const f = cardFixture();
+  await saveExternalMcpServer({ repo: f.repo, sealer: f.sealer, keyring: f.deps.siteAssistantSecretKeyring, clock: f.clock }, {
+    workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "static", transport: "streamable_http", authMode: "static_env", enabled: true,
+    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "", accessToken: "test-token",
+  });
+  const probe = { ok: code === undefined, body: { code } };
+  f.deps.externalMcpProbe = async () => probe;
+  const result = await f.call("external_mcp_test_connection", { id: "static" });
+  if (code === "MCP_AUTH_REJECTED") {
+    assert.deepEqual(result, { ...probe, credentialSetup: { setupToolId: "external_mcp_save", remedyToolId: "external_mcp_save",
+      prefill: { id: "static" }, hint: "A missing or rejected credential may be fixed by saving it through the secure card." } });
+  } else assert.equal(result, probe);
+});
+
+test("a disabled connection refuses before invoking an available probe", async () => {
+  const f = cardFixture();
+  await saveExternalMcpServer({ repo: f.repo, sealer: f.sealer, keyring: f.deps.siteAssistantSecretKeyring, clock: f.clock }, {
+    workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "disabled", transport: "streamable_http", authMode: "none", enabled: false,
+    url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "",
+  });
+  f.deps.externalMcpProbe = async () => assert.fail("disabled connections must not be probed");
+  assert.deepEqual(await f.call("external_mcp_test_connection", { id: "disabled" }), { ok: false, reason: "this server is disabled" });
+});

@@ -296,7 +296,7 @@ function buildOAuthSaveInputFromFormParams(params: Record<string, unknown>): Sav
  * route's own default (`enabled: body.enabled !== false`) for the identical "caller sent nothing"
  * case. `writeAllowedToolNames` is read from the submitted form the same tri-state way
  * `allowedToolNames` is (`optionalStringField(params, ...) ?? ""`) — see `save-form.ts`'s
- * `buildWriteAllowedToolNamesField`/`mergeExternalMcpSavePrefill` for the field this reads and its
+ * `writeAllowedToolNames` field/`mergeExternalMcpSavePrefill` for the field this reads and its
  * prefill-from-existing-row behavior. 2026-09-08 fix: this used to hardcode `""` unconditionally,
  * silently dropping every write grant on any save performed through the assistant — this domain's
  * form now has the field `SaveExternalMcpServerInput`'s own doc always assumed an un-migrated caller
@@ -309,12 +309,13 @@ function buildSaveExternalMcpServerInputFromFormParams(
   workspaceId: UUID,
   principalId: string,
 ): SaveExternalMcpServerInput {
-  const label = optionalStringField(params, "label");
-  const url = optionalStringField(params, "url");
-  const authMode = optionalStringField(params, "authMode");
+  const optionalFields = Object.fromEntries(
+    ["label", "url", "authMode", "accessTokenEnvName"]
+      .map(key => [key, optionalStringField(params, key)])
+      .filter(([, value]) => value !== undefined),
+  );
   const env = optionalSecretField(params, "env");
   const accessToken = optionalSecretField(params, "accessToken");
-  const accessTokenEnvName = optionalStringField(params, "accessTokenEnvName");
   const oauth = buildOAuthSaveInputFromFormParams(params);
 
   const serverIdRaw = params.id;
@@ -328,18 +329,15 @@ function buildSaveExternalMcpServerInputFromFormParams(
   return {
     workspaceId,
     serverId: serverIdRaw,
-    ...(label !== undefined ? { label } : {}),
     transport: transportRaw,
-    ...(authMode !== undefined ? { authMode } : {}),
+    ...optionalFields,
     enabled: true,
     command: optionalStringField(params, "command") ?? "",
-    ...(url !== undefined ? { url } : {}),
     args: optionalStringField(params, "args") ?? "",
     allowedToolNames: optionalStringField(params, "allowedToolNames") ?? "",
     writeAllowedToolNames: optionalStringField(params, "writeAllowedToolNames") ?? "",
     ...(env !== undefined ? { env } : {}),
     ...(accessToken !== undefined ? { accessToken } : {}),
-    ...(accessTokenEnvName !== undefined ? { accessTokenEnvName } : {}),
     ...(oauth !== undefined ? { oauth } : {}),
     principalId,
   };
@@ -385,18 +383,32 @@ async function saveSubmittedExternalMcpConfiguration(
   // see `external-mcp-roster-change.ts`'s own header. Fire-and-forget: this chat-surface save
   // already succeeded and is durable regardless of whether any registered runtime reloads cleanly.
   void notifyExternalMcpRosterChanged();
-  let connection = credentialText({ id: 'saved', locale });
-  let connectionCode = 'not_tested';
-  if (server.transport !== 'stdio' && routeDeps.externalMcpProbe) {
-    try {
-      const probe = await routeDeps.externalMcpProbe({ serverId: server.serverId });
-      connectionCode = probe.ok ? 'connected' : String(probe.body.code ?? 'MCP_SERVER_UNREACHABLE');
-      const id = probe.ok ? 'connected' : connectionCode === 'MCP_AUTH_REJECTED' ? 'auth' : connectionCode === 'MCP_TIMEOUT' ? 'timeout' : 'unreachable';
-      connection = credentialText({ id, locale });
-    } catch { connectionCode = 'MCP_SERVER_UNREACHABLE'; connection = credentialText({ id: 'unreachable', locale }); }
-  }
+  const { connection, connectionCode } = await probeSavedExternalMcpConfiguration({
+    server, routeDeps, locale,
+  });
   const hint = [formatCredentialHint({ hint: server.accessTokenHint, locale }), formatCredentialHints({ hints: server.envTokenHints, locale })].filter(Boolean).join(' · ');
   return { saved: true, server, connection: connectionCode, message: `${hint ? `${hint}. ` : ''}${connection}` };
+}
+
+/** Report reachability after a durable save; probe failure does not undo that save. */
+async function probeSavedExternalMcpConfiguration(
+  { server, routeDeps, locale }: {
+    server: { transport: string; serverId: string };
+    routeDeps: Pick<ExternalMcpToolDeps, "externalMcpProbe">;
+    locale: string;
+  }, _optional = {},
+): Promise<{ connection: string; connectionCode: string }> {
+  if (server.transport === "stdio" || !routeDeps.externalMcpProbe) {
+    return { connectionCode: "not_tested", connection: credentialText({ id: "saved", locale }) };
+  }
+  try {
+    const result = await routeDeps.externalMcpProbe({ serverId: server.serverId });
+    const connectionCode = result.ok ? "connected" : String(result.body.code ?? "MCP_SERVER_UNREACHABLE");
+    const id = result.ok ? "connected" : connectionCode === "MCP_AUTH_REJECTED" ? "auth" : connectionCode === "MCP_TIMEOUT" ? "timeout" : "unreachable";
+    return { connectionCode, connection: credentialText({ id, locale }) };
+  } catch {
+    return { connectionCode: "MCP_SERVER_UNREACHABLE", connection: credentialText({ id: "unreachable", locale }) };
+  }
 }
 
 /** Project the engine's classified run without exposing any submitted credential. */
@@ -461,6 +473,19 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
   };
 }
 
+/** Reuse the daemon's configuration resolver when no live probe is wired. */
+async function resolveExternalMcpConfigurationCheck(
+  { routeDeps, id }: { routeDeps: ExternalMcpToolDeps; id: string }, _optional = {},
+): Promise<{ ok: boolean; reason?: string }> {
+  const { configs, failures } = await readEnabledExternalMcpConfigs(
+    { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
+    routeDeps.workspaceId,
+  );
+  if (configs.some((config) => config.serverId === id)) return { ok: true };
+  const failure = failures.find((candidate) => candidate.serverId === id);
+  return { ok: false, reason: failure?.reason ?? "this server's connection could not be resolved" };
+}
+
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
@@ -522,13 +547,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
           : probe;
       }
 
-      const { configs, failures } = await readEnabledExternalMcpConfigs(
-        { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
-        routeDeps.workspaceId,
-      );
-      if (configs.some((config) => config.serverId === id)) return { ok: true };
-      const failure = failures.find((candidate) => candidate.serverId === id);
-      return { ok: false, reason: failure?.reason ?? "this server's connection could not be resolved" };
+      return resolveExternalMcpConfigurationCheck({ routeDeps, id });
     },
 
     /** See this file's header ("`external_mcp_oauth_connect` has no live HTTP request"). */

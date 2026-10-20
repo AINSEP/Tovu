@@ -73,22 +73,22 @@ export function mergeExternalMcpSavePrefill(
   existing: ExternalMcpServerView | undefined,
 ): ExternalMcpSaveInput {
   if (!existing) return input;
-  return {
+  const prefill: ExternalMcpSaveInput = {
     id: input.id,
-    label: input.label ?? existing.label,
+    label: existing.label,
     transport: input.transport,
-    command: input.command ?? existing.command,
-    args: input.args ?? existing.args.join(" "),
-    url: input.url ?? existing.url ?? undefined,
-    allowedToolNames: input.allowedToolNames ?? existing.allowedToolNames.join(", "),
-    writeAllowedToolNames: input.writeAllowedToolNames ?? existing.writeAllowedToolNames.join(", "),
-    authMode: input.authMode ?? existing.authMode,
-    accessTokenEnvName: input.accessTokenEnvName ?? existing.accessTokenEnvName ?? undefined,
-    oauthProviderId: input.oauthProviderId ?? existing.oauth.providerId ?? undefined,
-    oauthGrant: input.oauthGrant ?? existing.oauth.grant ?? undefined,
-    oauthClientId: input.oauthClientId ?? existing.oauth.clientId ?? undefined,
-    oauthScopes: input.oauthScopes ?? existing.oauth.scopes.join(" "),
-    oauthTokenEnvName: input.oauthTokenEnvName ?? existing.oauth.tokenEnvName ?? undefined,
+    command: existing.command,
+    args: existing.args.join(" "),
+    url: existing.url ?? undefined,
+    allowedToolNames: existing.allowedToolNames.join(", "),
+    writeAllowedToolNames: existing.writeAllowedToolNames.join(", "),
+    authMode: existing.authMode,
+    accessTokenEnvName: existing.accessTokenEnvName ?? undefined,
+    oauthProviderId: existing.oauth.providerId ?? undefined,
+    oauthGrant: existing.oauth.grant ?? undefined,
+    oauthClientId: existing.oauth.clientId ?? undefined,
+    oauthScopes: existing.oauth.scopes.join(" "),
+    oauthTokenEnvName: existing.oauth.tokenEnvName ?? undefined,
     // NOT merged from `existing` — `ExternalMcpOAuthView` carries no field for a connection's own
     // typed endpoints (only `providerId`, for a registered one). There is nothing stored to merge
     // from; see `apps/admin`'s `use-external-mcp.hooks.ts` header for the identical, already-disclosed
@@ -97,6 +97,10 @@ export function mergeExternalMcpSavePrefill(
     oauthTokenEndpoint: input.oauthTokenEndpoint,
     oauthDeviceAuthorizationEndpoint: input.oauthDeviceAuthorizationEndpoint,
   };
+  return Object.keys(prefill).reduce((merged, field) => {
+    const key = field as keyof ExternalMcpSaveInput;
+    return { ...merged, [key]: input[key] ?? merged[key] };
+  }, prefill);
 }
 
 /** `{ value }` when `value` is present, an empty object otherwise — the shared shape every optional
@@ -106,43 +110,11 @@ function fieldValue<T>(value: T | undefined): { value: T } | Record<string, neve
   return value !== undefined ? { value } : {};
 }
 
-function buildIdField(input: ExternalMcpSaveInput): SecretCardField {
-  return { kind: "string", name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." };
-}
-
-function buildLabelField(input: ExternalMcpSaveInput): SecretCardField {
-  return { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) };
-}
-
 function buildStdioTransportFields(input: ExternalMcpSaveInput): SecretCardField[] {
   return [
     { kind: "string", name: "command", label: "Command", required: true, ...fieldValue(input.command), placeholder: "e.g. npx, node, /path/to/binary" },
     { kind: "string", name: "args", label: "Args", ...fieldValue(input.args), placeholder: "space-separated" },
   ];
-}
-
-function buildHttpTransportFields(input: ExternalMcpSaveInput): SecretCardField[] {
-  return [{ kind: "string", name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }];
-}
-
-function buildAllowedToolNamesField(input: ExternalMcpSaveInput): SecretCardField {
-  return {
-    kind: "string",
-    name: "allowedToolNames",
-    label: "Allowed tools",
-    ...fieldValue(input.allowedToolNames),
-    hint: "Comma-separated — nothing runs unless it is listed here.",
-  };
-}
-
-function buildWriteAllowedToolNamesField(input: ExternalMcpSaveInput): SecretCardField {
-  return {
-    kind: "string",
-    name: "writeAllowedToolNames",
-    label: "May write",
-    ...fieldValue(input.writeAllowedToolNames),
-    hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access.",
-  };
 }
 
 /** A credential stays exclusively in the human form, with blank update submissions preserving it.
@@ -274,11 +246,13 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
   const isOAuth = input.authMode === "oauth";
 
   return [
-    ...(isUpdate ? [] : [buildIdField(input)]),
-    buildLabelField(input),
-    ...(isStdio ? buildStdioTransportFields(input) : buildHttpTransportFields(input)),
-    buildAllowedToolNamesField(input),
-    buildWriteAllowedToolNamesField(input),
+    ...(isUpdate ? [] : [{ kind: "string" as const, name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." }]),
+    { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) },
+    ...(isStdio ? buildStdioTransportFields(input) : [{ kind: "string" as const, name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }]),
+    { kind: "string", name: "allowedToolNames", label: "Allowed tools", ...fieldValue(input.allowedToolNames),
+      hint: "Comma-separated — nothing runs unless it is listed here." },
+    { kind: "string", name: "writeAllowedToolNames", label: "May write", ...fieldValue(input.writeAllowedToolNames),
+      hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
     ...(isStdio ? [buildEnvField(isUpdate)] : []),
     ...(input.authMode === "static_env" || input.authMode === undefined ? buildStaticTokenFields(input, isUpdate, isStdio) : []),
     ...(isOAuth ? buildOAuthFields(input, isUpdate, isStdio) : []),

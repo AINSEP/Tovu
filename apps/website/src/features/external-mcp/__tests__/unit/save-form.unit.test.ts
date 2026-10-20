@@ -360,3 +360,41 @@ test("static_env explicitly selects token entry and none omits credential fields
   assert.deepEqual(form.details, [{ label: "Connection type", value: "Local command (stdio)" }, { label: "Credentials", value: "None needed" }]);
   assert.deepEqual(form.fields.map(field => field.name), ["id", "label", "command", "args", "allowedToolNames", "writeAllowedToolNames", "env"]);
 });
+
+// L155 pins: the merge's complete field contract, including explicit blank clears.
+for (const override of [undefined, "", "replacement"]) test(`prefill applies ${String(override)} consistently across every optional field`, () => {
+  const fallback = {
+    label: "Existing Label", command: "npx some-server", args: "--flag", url: "https://stored.example/mcp",
+    allowedToolNames: "tool_a, tool_b", writeAllowedToolNames: "tool_b", authMode: "oauth",
+    accessTokenEnvName: "STATIC_TOKEN", oauthProviderId: "provider", oauthGrant: "device_code",
+    oauthClientId: "client", oauthScopes: "read write", oauthTokenEnvName: "OAUTH_TOKEN",
+    oauthAuthorizationEndpoint: undefined, oauthTokenEndpoint: undefined, oauthDeviceAuthorizationEndpoint: undefined,
+  };
+  const existing = existingView({ url: fallback.url, authMode: "oauth", accessTokenEnvName: fallback.accessTokenEnvName,
+    writeAllowedToolNames: ["tool_b"], oauth: { providerId: "provider", grant: "device_code", clientId: "client",
+      scopes: ["read", "write"], tokenEnvName: "OAUTH_TOKEN", status: "connected", expiresAt: null, hasStoredToken: true } });
+  const overrides = Object.fromEntries(Object.keys(fallback).map(key => [key, override]));
+  const input: ExternalMcpSaveInput = { ...BASE_INPUT, ...overrides };
+  const before = structuredClone(existing);
+  assert.deepEqual(mergeExternalMcpSavePrefill(input, existing), {
+    id: BASE_INPUT.id, transport: BASE_INPUT.transport,
+    ...Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, override ?? value])),
+  });
+  assert.deepEqual(existing, before);
+  assert.deepEqual(input, { ...BASE_INPUT, ...overrides });
+});
+
+test("common form fields preserve blank prefills, required flags, order and permission hints", () => {
+  for (const transport of ["stdio", "streamable_http"]) {
+    const fields = buildExternalMcpSaveFormFields({ id: "server", transport, label: "", url: "", allowedToolNames: "", writeAllowedToolNames: "" }, false);
+    assert.deepEqual(fields.slice(0, 2), [
+      { kind: "string", name: "id", label: "ID", required: true, value: "server", hint: "Lowercase letters, digits and dashes." },
+      { kind: "string", name: "label", label: "Display name", value: "" },
+    ]);
+    assert.deepEqual(fields.filter(field => ["allowedToolNames", "writeAllowedToolNames"].includes(field.name)), [
+      { kind: "string", name: "allowedToolNames", label: "Allowed tools", value: "", hint: "Comma-separated — nothing runs unless it is listed here." },
+      { kind: "string", name: "writeAllowedToolNames", label: "May write", value: "", hint: "Comma-separated, and must also be listed above under Allowed tools — a name here that isn't is rejected on save. Leave blank to grant no write access." },
+    ]);
+    if (transport === "streamable_http") assert.deepEqual(fields[2], { kind: "string", name: "url", label: "URL", required: true, value: "", placeholder: "https://…" });
+  }
+});
