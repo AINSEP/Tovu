@@ -90,8 +90,12 @@
  * 4. the file itself must pass `isUnchangedAttachment`: a regular non-symlink file whose `realpath`
  *    equals its own path (so neither it nor any parent directory became a symlink after
  *    registration) and whose `dev`/`ino`/`size` still match what was recorded.
+ * 5. bytes come from one opened descriptor, with `O_NOFOLLOW` where supported. Its `fstat`
+ *    identity must match the validated file before reading, so a later path swap cannot redirect
+ *    the read. The descriptor is closed on success, refusal, or read failure.
  */
-import { lstat, readFile, realpath } from "node:fs/promises";
+import { constants, type Stats } from "node:fs";
+import { lstat, open, readFile, realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { isUnchangedAttachment } from "@jini-ai/daemon/http";
@@ -123,6 +127,15 @@ interface SidecarRecord {
   readonly ino: number;
   readonly ownerId?: string;
 }
+
+/** The attachment's metadata and bytes must come from the same opened descriptor. */
+interface ChatAttachmentReadHandle {
+  stat(): Promise<Pick<Stats, "isFile" | "dev" | "ino" | "size">>;
+  readFile(): Promise<Buffer>;
+  close(): Promise<void>;
+}
+
+type OpenAttachmentFile = (filePath: string, flags: number) => Promise<ChatAttachmentReadHandle>;
 
 /** Field types a sidecar must carry, checked as data so the validator stays one flat loop —
  *  mirrors `attachments.ts`'s `PERSISTED_FIELD_TYPES`. `name`/`kind`/`createdAt` are validated
@@ -229,18 +242,85 @@ async function observeAttachment(
   }
 }
 
+/** Refuses ownership or size violations before touching attachment bytes. O(1), no I/O. */
+function attachmentReadRefusal(
+  { record, ownerId, maxBytes }: { record: SidecarRecord; ownerId: string; maxBytes?: number },
+  _optional: Record<string, never> = {},
+): ChatAttachmentRefusal | undefined {
+  // Ownership and size policy live together here so the read orchestration stays below its
+  // complexity ceiling; these checks still precede every attachment-file operation.
+  //
+  // Ownership is decided BEFORE the attachment file is touched, so a caller who is not the owner
+  // never causes a read of those bytes at all.
+  //
+  // A caller with no usable principal id matches nothing. Guarded explicitly rather than left to
+  // the comparison below, because that comparison has one input for which it says YES:
+  // `undefined !== undefined` is false, so an ownerless record and a caller with no id would match
+  // each other and hand out someone's upload. `ownerId` is typed `string` and comes from
+  // `getAuthedPrincipal`, so this can only fire on a contract violation — but it is the one
+  // contract violation that would grant access rather than deny it.
+  if (typeof ownerId !== "string" || ownerId.length === 0) return "not-owner";
+  // An attachment registered with NO `ownerId` is readable by nobody — never "unscoped", never a
+  // wildcard match. Same rule `AttachmentStore.listPendingForOwner` documents for its own listing,
+  // and it matters for the same reason: every attachment registered before ownership existed, and
+  // every attachment from a host that wires no `resolveOwnerId`, carries no owner at all. The
+  // single comparison below enforces that rule and ordinary ownership together — `undefined` never
+  // equals a non-empty id — so a separate `=== undefined` guard here would be dead code.
+  if (record.ownerId !== ownerId) return "not-owner";
+
+  // Video preview has a tighter cap than upload. Refuse before allocating/reading its payload;
+  // the identity gate below also proves that the current file still has this recorded size.
+  if (maxBytes !== undefined && (!Number.isFinite(record.size) || record.size < 0 || record.size > maxBytes)) return "too-large";
+  return undefined;
+}
+
+/** Validates the path, then checks and reads one descriptor. Open/identity failures refuse;
+ * stat/read/close faults propagate. The handle is closed even when reading fails.
+ * @complexity O(n) time/space for n attachment bytes, bounded by upload/preview limits.
+ */
+async function readUnchangedAttachment(
+  loaded: { record: SidecarRecord; filePath: string },
+  { openFile = open }: { openFile?: OpenAttachmentFile } = {},
+): Promise<ChatAttachmentReadResult> {
+  const observed = await observeAttachment(loaded.filePath);
+  if (observed === undefined) return refuse("integrity");
+  if (!isUnchangedAttachment({ recorded: { ...loaded.record, filePath: loaded.filePath }, observed })) return refuse("integrity");
+
+  let handle: ChatAttachmentReadHandle;
+  try {
+    handle = await openFile(loaded.filePath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  } catch {
+    return refuse("integrity");
+  }
+  try {
+    const info = await handle.stat();
+    // A pathname can change after validation; compare the opened object to that validated identity
+    // through the shared Jini gate, then read only this handle, never the pathname again.
+    if (!isUnchangedAttachment({
+      recorded: { ...observed, filePath: loaded.filePath },
+      observed: { isRegularFile: info.isFile(), dev: info.dev, ino: info.ino, size: info.size, canonicalPath: observed.canonicalPath },
+    })) return refuse("integrity");
+    const bytes = await handle.readFile();
+    return bytes.length === observed.size ? { ok: true, bytes } : refuse("integrity");
+  } finally {
+    await handle.close();
+  }
+}
+
 /**
  * The bytes of the chat attachment `ref` names, if and only if `ownerId` is the principal the store
- * recorded for it and the file is still byte-for-byte the one registration accepted.
+ * recorded for it and the file retains its registered identity and size.
  *
  * Non-mutating: nothing here claims, deletes, or otherwise changes store state, so previewing an
  * attachment cannot consume it (see this file's header for why that rules out `resolveForRun`).
+ * `deps.openFile` defaults to Node's open; metadata and bytes are read through its returned handle.
+ * Open/identity failures refuse; descriptor stat/read/close faults propagate to the caller.
  *
- * @complexity O(1) plus one sidecar read, one `lstat`/`realpath` pair, and one bounded file read
+ * @complexity O(1) plus one sidecar read, one `lstat`/`realpath` pair, and one bounded descriptor read
  * (bounded by the attachment's own upload-time byte cap, `AttachmentsHttpDeps.maxAttachmentBytes`).
  */
 export async function readChatAttachmentForOwner(
-  deps: { readonly uploadDirectory: string },
+  deps: { readonly uploadDirectory: string; readonly openFile?: OpenAttachmentFile },
   input: { readonly ref: string; readonly ownerId: string; readonly maxBytes?: number }
 ): Promise<ChatAttachmentReadResult> {
   if (!CHAT_ATTACHMENT_REF_PATTERN.test(input.ref)) return refuse("malformed-ref");
@@ -262,32 +342,7 @@ export async function readChatAttachmentForOwner(
 
   const loaded = await loadSidecar(sidecarPath, canonicalUploadDirectory, input.ref);
   if (typeof loaded === "string") return refuse(loaded);
-
-  // Ownership is decided BEFORE the attachment file is touched, so a caller who is not the owner
-  // never causes a read of those bytes at all.
-  //
-  // A caller with no usable principal id matches nothing. Guarded explicitly rather than left to
-  // the comparison below, because that comparison has one input for which it says YES:
-  // `undefined !== undefined` is false, so an ownerless record and a caller with no id would match
-  // each other and hand out someone's upload. `ownerId` is typed `string` and comes from
-  // `getAuthedPrincipal`, so this can only fire on a contract violation — but it is the one
-  // contract violation that would grant access rather than deny it.
-  if (typeof input.ownerId !== "string" || input.ownerId.length === 0) return refuse("not-owner");
-  // An attachment registered with NO `ownerId` is readable by nobody — never "unscoped", never a
-  // wildcard match. Same rule `AttachmentStore.listPendingForOwner` documents for its own listing,
-  // and it matters for the same reason: every attachment registered before ownership existed, and
-  // every attachment from a host that wires no `resolveOwnerId`, carries no owner at all. The
-  // single comparison below enforces that rule and ordinary ownership together — `undefined` never
-  // equals a non-empty id — so a separate `=== undefined` guard here would be dead code.
-  if (loaded.record.ownerId !== input.ownerId) return refuse("not-owner");
-
-  // Video preview has a tighter cap than upload. Refuse before allocating/reading its payload;
-  // the identity gate below also proves that the current file still has this recorded size.
-  if (input.maxBytes !== undefined && (!Number.isFinite(loaded.record.size) || loaded.record.size < 0 || loaded.record.size > input.maxBytes)) return refuse("too-large");
-
-  const observed = await observeAttachment(loaded.filePath);
-  if (observed === undefined) return refuse("integrity");
-  if (!isUnchangedAttachment({ recorded: { ...loaded.record, filePath: loaded.filePath }, observed })) return refuse("integrity");
-
-  return { ok: true, bytes: await readFile(loaded.filePath) };
+  const refusal = attachmentReadRefusal({ record: loaded.record, ownerId: input.ownerId, maxBytes: input.maxBytes });
+  if (refusal !== undefined) return refuse(refusal);
+  return readUnchangedAttachment(loaded, { openFile: deps.openFile });
 }

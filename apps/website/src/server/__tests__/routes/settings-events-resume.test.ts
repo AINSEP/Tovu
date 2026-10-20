@@ -8,14 +8,16 @@ import { registerAdminSettingsEventsRoute } from "../../inbound/admin-http/route
 import type { SettingsRouteDeps } from "../../inbound/admin-http/routes/settings/deps.js";
 
 /** sseshare: query resume uses the existing authorized ledger feed, no sockets, DB or timers. */
-async function feed({ query = {}, header, allowed = true, previewAllowed = false, workspaceId = "ws" }: {
+async function feed({ query = {}, header, allowed = true, previewAllowed = false, workspaceId = "ws", authorize }: {
   query?: Record<string, unknown>; header?: string; allowed?: boolean; previewAllowed?: boolean; workspaceId?: string;
+  authorize?: SettingsRouteDeps["authorize"];
 }) {
   let handler!: (req: Request, res: Response) => Promise<void>;
   const ticks = new Map<number, () => void>();
   const reads: number[] = [];
   const writes: string[] = [];
   let status = 200;
+  let ended = false;
   const app = { get: (_path: string, work: typeof handler) => { handler = work; } } as unknown as Express;
   const revision = { seq: 7, settingId: "setting", entityKind: "value", scope: "workspace", workspaceId: "ws", principalId: null } as SettingRevisionRecord;
   const settingsRepo = {
@@ -27,10 +29,10 @@ async function feed({ query = {}, header, allowed = true, previewAllowed = false
   };
   registerAdminSettingsEventsRoute(app, {
     workspaceId: "ws", settingsReady: Promise.resolve(), settingsRepo,
-    authorize: async ({ permission }: { permission: string }) => {
+    authorize: authorize ?? (async ({ permission }: { permission: string }) => {
       const granted = permission === "theme.set" ? previewAllowed : allowed;
       return { allowed: granted, reason: granted ? "granted" : "revoked" };
-    },
+    }),
     feedTimers: {
       scheduleInterval: ((work: () => void, ms: number) => { ticks.set(ms, work); return ms; }) as unknown as typeof setInterval,
       clearScheduledInterval: ((ms: number) => { ticks.delete(ms); }) as unknown as typeof clearInterval,
@@ -42,15 +44,64 @@ async function feed({ query = {}, header, allowed = true, previewAllowed = false
   }) as unknown as Request;
   const res = Object.assign(new EventEmitter(), {
     locals: { principal: { id: "owner" } },
-    writeHead: () => {}, write: (frame: string) => { writes.push(frame); }, end: () => {},
+    writeHead: () => {}, write: (frame: string) => { writes.push(frame); }, end: () => { ended = true; },
     status: (value: number) => { status = value; return res; }, json: () => {},
   }) as unknown as Response;
   await handler(req, res);
-  return { reads, writes, status, settingsRepo, revision, async tick() {
+  return { reads, writes, status, settingsRepo, revision, ticks, get ended() { return ended; }, async reauthorize() {
+    ticks.get(30_000)?.();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }, async tick() {
     ticks.get(1_000)?.();
     for (let i = 0; i < 20; i++) await Promise.resolve();
   }, close() { req.emit("close"); } };
 }
+
+test("settings events close when settings is revoked and theme reauthorization throws", async (t) => {
+  let revoked = false;
+  const permissions: string[] = [];
+  const h = await feed({ query: { themePreview: "1", afterRevision: "6" }, authorize: async ({ permission }) => {
+    permissions.push(permission);
+    if (revoked && permission === "theme.set") throw new Error("authorizer unavailable");
+    return { allowed: !revoked, reason: revoked ? "revoked" : "granted" };
+  } });
+  t.after(() => h.close());
+  t.mock.method(console, "error", () => {});
+  await h.tick();
+  assert.ok(h.writes.includes('data: {"namespaces":["site.hidden-write"]}\n\n'));
+  const beforeRevocation = [...h.writes];
+  const queuedPoll = h.ticks.get(1_000)!;
+  h.settingsRepo.maxRevisionSeq = async () => 9;
+  h.settingsRepo.listRevisionsSince = async () => [{ ...h.revision, seq: 9 }];
+
+  revoked = true;
+  await h.reauthorize();
+  assert.deepEqual(permissions.slice(-2), ["settings.read", "theme.set"]);
+  assert.equal(h.ended, true);
+  assert.equal(h.ticks.size, 0);
+  queuedPoll();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(h.writes, beforeRevocation);
+});
+
+test("settings events suppress an in-flight poll after reauthorization fails", async (t) => {
+  let failAuthorization = false;
+  const h = await feed({ query: { afterRevision: "6" }, authorize: async () => {
+    if (failAuthorization) throw new Error("authorizer unavailable");
+    return { allowed: true, reason: "granted" };
+  } });
+  t.after(() => h.close());
+  t.mock.method(console, "error", () => {});
+  let release!: (head: number) => void;
+  h.settingsRepo.maxRevisionSeq = () => new Promise<number>((resolve) => { release = resolve; });
+  await h.tick();
+  failAuthorization = true;
+  await h.reauthorize();
+  release(8);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(h.ended, true);
+  assert.deepEqual(h.writes, [": connected\n\n"]);
+});
 
 test("explicit settings resume replays hidden writes, preserves header precedence, bounds and authorization", async () => {
   const h = await feed({ query: { afterRevision: "6" } });

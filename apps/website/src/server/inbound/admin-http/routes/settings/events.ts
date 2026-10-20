@@ -217,12 +217,10 @@ export const registerAdminSettingsEventsRoute = (
 
     /**
      * Re-runs the same authorization that opened the stream, and ends it the
-     * moment that stops holding.
+     * moment that stops holding or cannot be confirmed.
      *
-     * Never tears the stream down on an ERROR — only on an explicit denial. A
-     * transient failure in the authorizer would otherwise disconnect every open
-     * tab at once, which is a worse outcome than a slightly delayed revocation;
-     * the next interval re-checks anyway.
+     * Fail closed on errors: a later channel check may throw after settings.read was denied,
+     * leaving the cached grant unchanged. Closing also suppresses any poll already in flight.
      */
     const reauthorize = async (): Promise<void> => {
       if (closed) return;
@@ -232,7 +230,6 @@ export const registerAdminSettingsEventsRoute = (
         if (closed || access.settings || access.preview) return;
       } catch (error) {
         console.error("[settings] change feed re-authorization failed", error);
-        return;
       }
       close();
       res.end();

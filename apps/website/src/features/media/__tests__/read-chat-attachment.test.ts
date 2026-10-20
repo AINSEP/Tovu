@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { lstat, mkdir, mkdtemp, open, rm, symlink, writeFile } from "node:fs/promises";
 import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,10 +18,11 @@ import {
  * @file `readChatAttachmentForOwner` — the authorization and path-safety half of the chat-attachment
  * read-back route (`routes/assistant/get-chat-attachment.ts`).
  *
- * Every case here stages a REAL directory laid out the way `createDiskAttachmentStore` lays one out
+ * Cases stage a REAL directory laid out the way `createDiskAttachmentStore` lays one out
  * with `retainAcrossRestarts` on: `<root>/.records/<reduced-id>.json` beside `<root>/<batch>/<file>`.
  * Symlink and inode cases in particular are staged on a real filesystem rather than faked, because
- * a fake cannot prove that `lstat`/`realpath` are the calls actually being made.
+ * a fake cannot prove that `lstat`/`realpath` are the calls actually being made. The read-race cases
+ * inject the open operation to swap the path or descriptor identity after those checks complete.
  *
  * WHAT MUST HOLD, one group per property:
  *   1. an owner reads their own attachment, and NOBODY else does — including the case that matters
@@ -295,6 +297,128 @@ test("read-chat-attachment: a file replaced by a symlink after registration is r
 
   // `lstat().isFile()` is false for a symlink, so this never follows it.
   assert.deepEqual(await read(staged), { ok: false, refusal: "integrity" });
+});
+
+test("read-chat-attachment: a symlink swapped in between validation and open is refused", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  const secretPath = resolve(staged.uploadDirectory, "secret.txt");
+  await writeFile(secretPath, "private bytes");
+  let opens = 0;
+  let openedPath: string | undefined;
+  let openedFlags: number | undefined;
+  const result = await readChatAttachmentForOwner({
+    uploadDirectory: staged.uploadDirectory,
+    openFile: async (filePath, flags) => {
+      opens++;
+      openedPath = filePath;
+      openedFlags = flags;
+      await rm(filePath);
+      await symlink(secretPath, filePath);
+      return open(filePath, flags);
+    },
+  }, { ref: REF, ownerId: OWNER });
+  assert.equal(opens, 1);
+  assert.equal(openedPath, staged.filePath);
+  assert.equal(openedFlags, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  assert.deepEqual(result, { ok: false, refusal: "integrity" });
+});
+
+test("read-chat-attachment: changed descriptor identity is refused before reading and always closed", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  const validated = await lstat(staged.filePath);
+  // Also covers platforms without O_NOFOLLOW and swaps of a parent directory: fstat sees the
+  // replacement's identity even when open follows a link successfully.
+  for (const replacement of [
+    { dev: validated.dev + 1 },
+    { ino: validated.ino + 1 },
+    { size: validated.size + 1 },
+    { isFile: () => false },
+  ]) {
+    const calls: string[] = [];
+    const result = await readChatAttachmentForOwner({
+      uploadDirectory: staged.uploadDirectory,
+      openFile: async () => {
+        calls.push("open");
+        return {
+          stat: async () => { calls.push("stat"); return { ...validated, isFile: () => true, ...replacement }; },
+          readFile: async () => { calls.push("read"); return Buffer.from("private bytes"); },
+          close: async () => { calls.push("close"); },
+        };
+      },
+    }, { ref: REF, ownerId: OWNER });
+    assert.deepEqual(result, { ok: false, refusal: "integrity" });
+    assert.deepEqual(calls, ["open", "stat", "close"]);
+  }
+});
+
+test("read-chat-attachment: a path swap after fstat cannot redirect the descriptor read", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  const secretPath = resolve(staged.uploadDirectory, "secret.txt");
+  await writeFile(secretPath, "private bytes");
+  const calls: string[] = [];
+  const result = await readChatAttachmentForOwner({
+    uploadDirectory: staged.uploadDirectory,
+    openFile: async (filePath, flags) => {
+      calls.push("open");
+      const handle = await open(filePath, flags);
+      return {
+        stat: async () => {
+          calls.push("stat");
+          const info = await handle.stat();
+          await rm(filePath);
+          await symlink(secretPath, filePath);
+          return info;
+        },
+        readFile: async () => { calls.push("read"); return handle.readFile(); },
+        close: async () => { calls.push("close"); await handle.close(); },
+      };
+    },
+  }, { ref: REF, ownerId: OWNER });
+  assert.ok(result.ok);
+  assert.deepEqual(new Uint8Array(result.bytes), BYTES);
+  assert.deepEqual(calls, ["open", "stat", "read", "close"]);
+});
+
+test("read-chat-attachment: descriptor stat and read failures still close the handle", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  const info = await lstat(staged.filePath);
+  for (const failAt of ["stat", "read"]) {
+    const failure = new Error(`${failAt} failed`);
+    let closed = false;
+    await assert.rejects(readChatAttachmentForOwner({
+      uploadDirectory: staged.uploadDirectory,
+      openFile: async () => ({
+        stat: async () => {
+          if (failAt === "stat") throw failure;
+          return info;
+        },
+        readFile: async () => { throw failure; },
+        close: async () => { closed = true; },
+      }),
+    }, { ref: REF, ownerId: OWNER }), failure);
+    assert.equal(closed, true);
+  }
+});
+
+test("read-chat-attachment: a size change during the descriptor read is refused", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  const info = await lstat(staged.filePath);
+  let closed = false;
+  const result = await readChatAttachmentForOwner({
+    uploadDirectory: staged.uploadDirectory,
+    openFile: async () => ({
+      stat: async () => info,
+      readFile: async () => Buffer.from([...BYTES, 9]),
+      close: async () => { closed = true; },
+    }),
+  }, { ref: REF, ownerId: OWNER });
+  assert.deepEqual(result, { ok: false, refusal: "integrity" });
+  assert.equal(closed, true);
 });
 
 test("read-chat-attachment: a file reached through a SYMLINKED batch directory is refused, even with matching dev/ino/size", async (t) => {
