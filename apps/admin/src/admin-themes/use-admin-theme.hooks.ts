@@ -136,6 +136,22 @@ function withoutField(choice: Partial<AdminThemeChoice>, field: keyof AdminTheme
   return rest;
 }
 
+/** Resolve pending overrides, stored values and readiness for the picker. */
+function resolvePickerValues(
+  { pending, interfaceConfig, appearance }: {
+    pending: Partial<AdminThemeChoice>;
+    interfaceConfig: InterfaceConfig | undefined;
+    appearance: AppearanceConfig | undefined;
+  },
+  _optional: object = {},
+): Pick<AdminThemePicker, "themeId" | "preference" | "ready"> {
+  return {
+    themeId: pending.themeId ?? interfaceConfig?.adminTheme,
+    preference: pending.preference ?? appearance?.theme,
+    ready: interfaceConfig !== undefined && appearance !== undefined,
+  };
+}
+
 /**
  * Page controller: a click repaints at once, then saves. The pending value shows until the refetch
  * confirms it; a failed save restores the stored choice and reports the error.
@@ -145,9 +161,7 @@ export function useAdminThemePicker(_required: object, { port = defaultAdminThem
   const invalidate = useInvalidate();
   const [pending, setPending] = useState<Partial<AdminThemeChoice>>({});
   const [error, setError] = useState<string | null>(null);
-  const themeId = pending.themeId ?? interfaceConfig?.adminTheme;
-  const preference = pending.preference ?? appearance?.theme;
-  const ready = interfaceConfig !== undefined && appearance !== undefined;
+  const { themeId, preference, ready } = resolvePickerValues({ pending, interfaceConfig, appearance }, {});
 
   const commit = (next: AdminThemeChoice, save: () => Promise<unknown>, namespace: string, field: keyof AdminThemeChoice) => {
     setError(null);
