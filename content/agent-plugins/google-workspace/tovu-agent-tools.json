@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "name": "account_info",
+      "description": "Show which Google account a Google Workspace connection is signed in as. Pass the connectionRef from the connection status. Returns the account label only, never a token.",
+      "effect": "read",
+      "module": "tools/account-info.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef"],
+        "additionalProperties": false,
+        "properties": { "connectionRef": { "type": "string", "minLength": 1, "maxLength": 512 } }
+      }
+    }
+  ]
+}
