@@ -1,6 +1,6 @@
 import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { ensureSettingDefinitions, getEffective, SCOPE_BIT, set, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, SCOPE_BIT, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 /**
  * @file The two site settings behind durable form delivery, on the existing settings ledger:
@@ -14,10 +14,10 @@ import { ensureSettingDefinitions, getEffective, SCOPE_BIT, set, ValueValidation
  * copies a destination already received.
  *
  * Validation lives in one pure function, {@link parseFormDeliveryBindings}, used when the setting
- * is read for planning, by {@link writeFormDeliveryBindings} (the typed write a later admin or
- * plugin UI calls), and by the host settings chokepoint (`site-title-write.ts`) through
- * {@link enforceFormDeliveryBindingsWrite}, so the generic settings route and tools cannot store a
- * list planning would refuse, or a secret in `config`.
+ * is read for planning and by the host settings chokepoint (`site-title-write.ts`) through
+ * {@link enforceFormDeliveryBindingsWrite}, which every write goes through: the typed write a later
+ * admin or plugin UI calls (`form-delivery-write.ts`), the generic settings route and the tools. So
+ * none of them can store a list planning would refuse, or a secret in `config`.
  */
 
 const NAMESPACE = "core.forms";
@@ -90,23 +90,6 @@ export async function readFormDeliveryBindings(
 export function enforceFormDeliveryBindingsWrite(input: SetValueRequired["input"]): SetValueRequired["input"] {
   if (input.namespace !== NAMESPACE || input.key !== BINDINGS_KEY) return input;
   return { ...input, value: parseFormDeliveryBindings({ value: input.value }) as unknown as JsonValue };
-}
-
-/**
- * Validates the bindings and saves the cleaned list, so an invalid or secret-carrying list never
- * reaches the ledger.
- * @throws ValueValidationFailedError for any rule {@link parseFormDeliveryBindings} enforces;
- *   authorization and ledger errors from the settings write propagate.
- * @complexity {@link parseFormDeliveryBindings} plus one settings write.
- */
-export async function writeFormDeliveryBindings(
-  required: { deps: SetValueRequired["deps"]; workspaceId: string; callerPrincipalId: string; value: unknown },
-  _optional: Record<string, never> = {},
-): Promise<{ value: JsonValue; revisionSeq: number }> {
-  return set({ deps: required.deps, input: enforceFormDeliveryBindingsWrite({
-    namespace: NAMESPACE, key: BINDINGS_KEY, scope: "workspace", workspaceId: required.workspaceId,
-    callerPrincipalId: required.callerPrincipalId, value: required.value as JsonValue,
-  }) });
 }
 
 /**

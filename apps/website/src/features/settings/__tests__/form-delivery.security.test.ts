@@ -5,7 +5,8 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
-import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, writeFormDeliveryBindings } from "../form-delivery.js";
+import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings } from "../form-delivery.js";
+import { writeFormDeliveryBindings } from "../form-delivery-write.js";
 
 /**
  * @file Phase-A security pins for `core.forms/deliveryBindings`: config never carries a secret
