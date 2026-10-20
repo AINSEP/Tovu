@@ -17,7 +17,7 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 | Lot | Area | Baseline worst cyc/cog | Violations | Status | After | Coverage | Commits |
 |---|---|---|---|---|---|---|---|
 | L003 | site-backup A | 86/72 | 21 | running (01:20) | | | |
-| L011 | theme | 67/92 | 17 | MERGED (7/7, 2 subagents) | MERGED (7/7 + coverage follow-up) | all ≤10/≤10 | 100/100/100 on 6; static-render 99.93/100/100 (line 1500 = node:test coverage-merge artefact on the last mapped line) | f973d835..f935edf9, 9a34a5a6 | L033 | media | 34/22 | 16 | MERGED (6/6) | all ≤10/≤10 (view-video-tool was 34/21) | 100/100/100 all six (see notes) | 05365813..eab672c2 |
+| L011 | theme | 67/92 | 17 | MERGED (7/7 + coverage follow-up, 3 subagents) | all ≤10/≤10 | 100/100/100 on 6; static-render 99.93/100/100 (line 1500 = node:test coverage-merge artefact) | f973d835..f935edf9, 9a34a5a6 |
 | L064 | plugin-runtime | 34/42 | 11 | MERGED (6/6, 2 subagents) | install-archive 7/6, install-tool 5/4, tiptap-blocks 7/7, source-tools 4/3, declarative 7/9, tool-registrations 8/7 | 100/100/100 all six (multi-file runs) | 63d0f665..f1d408c1, aff00e03 |
 | L068 | post | 24/18 | 17 | MERGED (4/4 + coverage follow-up) | all ≤10/≤10 | 100/100/100 all four | 28816ec2..36f47965, e64822d0 |
 | L086 | webhooks | 34/25 | 6 | MERGED (2/2) | keyring.env 6/4, site-key-ensure 9/7 | 100/100/100 both | 0e434a67, 77324a00 | | | |
