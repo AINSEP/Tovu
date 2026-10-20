@@ -31,7 +31,6 @@ export const PICKER_CONFIG_NAMES = Object.freeze({ developerKey: 'TOVU_GOOGLE_PI
 /** Long enough to browse Drive in the Picker; short enough that a forgotten tab stops being usable. */
 export const PICKER_SESSION_TTL_MS = 15 * 60_000;
 
-const SESSION_ID = /^[A-Za-z0-9-]{16,64}$/;
 const sessionKey = (surfaceId) => `picker-session:${surfaceId}`;
 const attemptKey = (surfaceId) => `picker-attempt:${surfaceId}`;
 
@@ -54,12 +53,6 @@ function isLiveSession(session, sessionId, nowMs) {
 /** A stored desktop attempt in the shape `start` wrote. @complexity O(1). */
 function isPendingAttempt(pending) {
   return typeof pending?.attemptId === 'string' && typeof pending.accountId === 'string' && typeof pending.expiresAt === 'number';
-}
-
-/** Throws the safe refusal when Sheets cannot be used now. @complexity O(1): two reads. */
-async function assertSheetsAvailable(capabilities) {
-  const reason = await sheetsUnavailableReason({ capabilities });
-  if (reason !== null) throw new GoogleWorkspaceError({ code: reason });
 }
 
 /**
@@ -99,13 +92,13 @@ export function createPickerFlow(_required = {}, optional = {}) {
     /** Hosted: the frame's `{ sessionId, fileId }` → the verified spreadsheet, for the session's account only. */
     async verifyHosted({ capabilities, context, input, fail }) {
       const session = await capabilities.state.get({ key: sessionKey(context.surfaceId) });
-      if (!SESSION_ID.test(input.sessionId) || !isLiveSession(session, input.sessionId, now())) throw surfaceRefusal({ fail, code: 'picker-expired' });
+      if (!isLiveSession(session, input.sessionId, now())) throw surfaceRefusal({ fail, code: 'picker-expired' });
       return verifySelectedSpreadsheet({ client: surfaceSheetsClient({ capabilities }), connectionRef: CONNECTION_ID, fileId: input.fileId, expectedAccountId: session.accountId });
     },
 
     /** Desktop: starts the native Picker sign-in; the host page opens it in the system browser. */
     async startSystemBrowser({ capabilities, context }) {
-      await assertSheetsAvailable(capabilities);
+      // The account read goes through the Sheets client, so Sheets being off refuses here, before any sign-in.
       const account = await surfaceAccount({ capabilities });
       // Native Picker allows drive.file only, so this re-consent asks for the Sheets scope set alone.
       const started = await capabilities.connections.begin(
