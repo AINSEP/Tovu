@@ -78,6 +78,31 @@ export async function importAgentPluginTokensAtBoot(
   await steps.importFromEnv(pending);
 }
 
+function logBundledPluginRetirements(
+  { retirements }: { retirements: Awaited<ReturnType<typeof seedBundledAgentPlugins>>["retirements"] },
+  _options = {},
+): void {
+  // Retired bundled plugins (`features/agent-plugins/retire-bundled.ts`). A retirement that
+  // happened is logged once — the next boot finds nothing and says nothing — and one case is a
+  // warning even though it succeeded: the retired plugin was on, and its successor stayed off
+  // because an operator had turned it off.
+  for (const retirement of retirements) {
+    if (retirement.status === "failed") {
+      // eslint-disable-next-line no-console
+      console.warn(`[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}`);
+    } else if (retirement.status === "retired") {
+      // eslint-disable-next-line no-console
+      console.info(`[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})`);
+      if (retirement.successor === "left-disabled-by-operator") {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability`,
+        );
+      }
+    }
+  }
+}
+
 export interface BuildBootModulesOptions {
   useMemory: boolean;
   defaultContentDbPath: () => string;
@@ -103,7 +128,7 @@ export interface BuildBootModulesOptions {
  */
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
   let pluginActivationPoll: { stop: () => void } | undefined;
-  const modules: BootModule[] = [
+  return [
     {
       name: "database-migration-reconciliation",
       owner: "features/database",
@@ -184,25 +209,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
           // eslint-disable-next-line no-console
           console.warn(`[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}`);
         }
-        // Retired bundled plugins (`features/agent-plugins/retire-bundled.ts`). A retirement that
-        // happened is logged once — the next boot finds nothing and says nothing — and one case is a
-        // warning even though it succeeded: the retired plugin was on, and its successor stayed off
-        // because an operator had turned it off.
-        for (const retirement of result.retirements) {
-          if (retirement.status === "failed") {
-            // eslint-disable-next-line no-console
-            console.warn(`[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}`);
-          } else if (retirement.status === "retired") {
-            // eslint-disable-next-line no-console
-            console.info(`[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})`);
-            if (retirement.successor === "left-disabled-by-operator") {
-              // eslint-disable-next-line no-console
-              console.warn(
-                `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability`,
-              );
-            }
-          }
-        }
+        logBundledPluginRetirements({ retirements: result.retirements });
         await importAgentPluginTokensAtBoot(deps, options);
         // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
         // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
@@ -221,7 +228,6 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       stop: noop,
     },
   ];
-  return modules;
 }
 
 /** Logs one line per critical, not-ready module from a failed boot. Called only when
