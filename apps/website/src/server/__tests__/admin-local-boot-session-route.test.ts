@@ -469,7 +469,7 @@ test("security: sign-in answers while the pull it started is still running", asy
   let finish!: () => void;
   const running = new Promise<void>((resolve) => { finish = resolve; });
   let started = 0;
-  const trigger = createServingFormPullTrigger({ autoPull: { run: async () => { started += 1; await running; } }, workspaceId: "ws" });
+  const trigger = createServingFormPullTrigger({ autoPull: { run: async () => { started += 1; await running; }, drained: async () => undefined }, workspaceId: "ws" });
   t.after(async () => { finish(); await trigger.stop(); });
   const s = pullSite({ port: trigger.signIn });
   const base = await startTestServer(s.app, t);
@@ -483,7 +483,7 @@ test("security: a failing pull or a throwing sign-in port never changes the sign
   const warned: string[] = [];
   t.mock.method(console, "warn", (line: string) => { warned.push(line); });
   const secretDetail = `https://user:pw@receiver.example/forms?key=${"k".repeat(43)} answers: jane@example.com`;
-  const trigger = createServingFormPullTrigger({ autoPull: { run: async () => { throw new Error(secretDetail); } }, workspaceId: "ws" });
+  const trigger = createServingFormPullTrigger({ autoPull: { run: async () => { throw new Error(secretDetail); }, drained: async () => undefined }, workspaceId: "ws" });
   t.after(() => trigger.stop());
   const failing = pullSite({ port: trigger.signIn });
   const base = await startTestServer(failing.app, t);

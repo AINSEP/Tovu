@@ -247,3 +247,21 @@ test("a receiver whose import fails mid-pull reports the pages it committed, as 
   assert.deepEqual([result.destinations[0]?.imported, result.totals.imported], [1, 1]);
   assert.match(result.message, /^Imported 1 new form submission from 1 published site\./);
 });
+
+test("drained resolves only once the notification drain a pull started has settled", async () => {
+  const s = setup({ hosts: { h: { pages: [page(["r1"])] } } });
+  await s.save("h", "https://h.example");
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let notified = 0;
+  await s.deps.bus.subscribe({ eventName: "form.submission.received", handler: async () => { await gate; notified += 1; } });
+  const composed = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit });
+  await composed.pull.pull({ workspaceId: W });
+  let drained = false;
+  const waiting = composed.autoPull.drained().then(() => { drained = true; });
+  await settle();
+  assert.equal(drained, false, "the drain is still delivering");
+  release();
+  await waiting;
+  assert.equal(notified, 1);
+});

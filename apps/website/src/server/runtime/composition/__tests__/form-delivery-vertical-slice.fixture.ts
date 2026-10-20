@@ -297,7 +297,7 @@ export function countAutoPulls(required: { deps: SiteDeps }): { settled: () => n
   const real = deps.formSubmissionsAutoPull;
   assert.ok(real, "the real composition wires the automatic pull");
   let settled = 0;
-  const counted: FormsAutoPullPort = { run: async (input) => { try { await real.run(input); } finally { settled += 1; } } };
+  const counted: FormsAutoPullPort = { run: async (input) => { try { await real.run(input); } finally { settled += 1; } }, drained: () => real.drained() };
   deps.formSubmissionsAutoPull = counted;
   return { settled: () => settled, restore: () => { deps.formSubmissionsAutoPull = real; } };
 }

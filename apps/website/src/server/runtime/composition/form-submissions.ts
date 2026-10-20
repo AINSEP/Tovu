@@ -45,6 +45,8 @@ export function composeFormSubmissions(
   required: FormSubmissionsCompositionDeps,
   optional: { observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void } = {},
 ): { destination: StaticPublishFormDestinationPort; pull: FormSubmissionsPullPort; autoPull: FormsAutoPullPort } {
+  // The notification drains pulls start in the background; `autoPull.drained` lets shutdown wait for them.
+  const drains = new Set<Promise<void>>();
   const destination = createFormDestinationPort({
     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
     credentials: required.credentials,
@@ -53,12 +55,15 @@ export function composeFormSubmissions(
   });
   return {
     destination,
-    pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, ...options }) },
-    autoPull: { run: async ({ workspaceId }) => {
-      // `core.forms/autoPull` is read fresh at every trigger; manual pulls never read it.
-      if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
-      await pullAll({ deps: required, workspaceId }, { ...optional, trigger: "automatic" });
-    } },
+    pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId, drains }, { ...optional, ...options }) },
+    autoPull: {
+      run: async ({ workspaceId }) => {
+        // `core.forms/autoPull` is read fresh at every trigger; manual pulls never read it.
+        if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
+        await pullAll({ deps: required, workspaceId, drains }, { ...optional, trigger: "automatic" });
+      },
+      drained: async () => { await Promise.all(drains); },
+    },
   };
 }
 
@@ -70,10 +75,11 @@ interface ReceiverPull {
 type SlugPullCounts = FormImportCounts & { failed: number };
 
 /** Each saved destination in turn; one failing host is reported and the others still run. Delivery
- * of `form.submission.received` starts in the background, as on the live submit path.
+ * of `form.submission.received` starts in the background, as on the live submit path, tracked in
+ * `drains` until it settles.
  * @complexity O(destinations * pull cap). */
 async function pullAll(
-  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string },
+  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; drains: Set<Promise<void>> },
   optional: { trigger?: "automatic"; targetId?: string; observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void },
 ): Promise<FormSubmissionsPullResult> {
   const { deps, workspaceId } = required;
@@ -87,10 +93,20 @@ async function pullAll(
   for (const { scope, destination } of saved) {
     receivers.push(await pullLeased({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit, trigger: optional.trigger ?? "manual" }, { logError: optional.logError }));
   }
-  if (receivers.some(({ report }) => report.imported > 0)) {
-    void processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }).catch(() => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"));
-  }
+  if (receivers.some(({ report }) => report.imported > 0)) startDrain({ deps, drains: required.drains }, { warn: optional.warn });
   return pullResult({ deps, workspaceId, receivers });
+}
+
+/** One background outbox drain, kept in `drains` until it settles; it never rejects. @complexity O(1) to start. */
+function startDrain(
+  required: { deps: FormSubmissionsCompositionDeps; drains: Set<Promise<void>> },
+  optional: { warn?: (message: string) => void } = {},
+): void {
+  const { deps, drains } = required;
+  const drain: Promise<void> = processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock })
+    .then(() => undefined, () => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"))
+    .finally(() => { drains.delete(drain); });
+  drains.add(drain);
 }
 
 type PullOneInput = { deps: FormSubmissionsCompositionDeps; workspaceId: string; scope: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: DeployHostKit };
