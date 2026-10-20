@@ -1,11 +1,10 @@
 /** `useFolderUpload`: a picked folder reaches the page as one `<folder>.zip`; refusals come back as
  *  dictionary keys; a pick during an upload is ignored; the input is cleared for a re-pick. */
 import { act, renderHook } from "@testing-library/react";
-import type { ChangeEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FOLDER_EMPTY } from "../InstallTabCard/folder-zip";
-import { FOLDER_TOO_MANY, useFolderUpload } from "../InstallTabCard/use-folder-upload.hooks";
+import { FOLDER_EMPTY } from "../folder-zip";
+import { FOLDER_TOO_MANY, useFolderUpload, type PickedFolderInput } from "../use-folder-upload.hooks";
 
 function picked(path: string, content = "x"): File {
   const file = new File([content], path.split("/").pop()!);
@@ -14,8 +13,8 @@ function picked(path: string, content = "x"): File {
 }
 
 function change(files: File[]) {
-  const target = { files, value: "C:\\fakepath\\x" };
-  return { event: { target } as unknown as ChangeEvent<HTMLInputElement>, target };
+  const target: PickedFolderInput = { files, value: "C:\\fakepath\\x" };
+  return { event: { target }, target };
 }
 
 function setup(locked = false, maxBytes = 1024) {
@@ -84,9 +83,9 @@ describe("useFolderUpload", () => {
 
   it("treats a picker with no file list as an empty folder and clears the input", async () => {
     const { result, onZipped, onError } = setup();
-    const target = { files: null, value: "C:\\fakepath\\x" };
+    const target: PickedFolderInput = { files: null, value: "C:\\fakepath\\x" };
     await act(async () => {
-      await result.current.onChange({ target } as unknown as ChangeEvent<HTMLInputElement>);
+      await result.current.onChange({ target });
     });
     expect(target.value).toBe("");
     expect(onError.mock.calls).toEqual([[FOLDER_EMPTY]]);
