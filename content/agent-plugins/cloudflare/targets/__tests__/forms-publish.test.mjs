@@ -74,6 +74,4 @@ test('preview reports form submissions on Workers and the Pages limitation', asy
   const p = fixture({ respond: routes([['/pages/projects', 'GET', () => json([])]]) });
   const onPages = await pages.preview({ credential, config: {}, kit: p.kit, projectName: 'demo', formDestination: { forms: formDestination.forms } });
   assert.equal(onPages.formSubmissions.status, 'unsupported');
-  assert.equal(typeof workers.pullFormSubmissions, 'function');
-  assert.equal(typeof workers.acknowledgeFormSubmissions, 'function');
 });

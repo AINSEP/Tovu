@@ -87,6 +87,9 @@ test("the package packs through the real packer, and ships no publish target of 
   assert.deepEqual(packed.files.filter((file) => file.startsWith("targets/")), []);
 });
 
+/** Capabilities a hosting plugin provides beyond its deploy targets (other contribution categories). */
+const EXTRA_PROVIDES: Readonly<Record<string, readonly string[]>> = { cloudflare: ["form-destination:cloudflare-d1"] };
+
 for (const host of HOST_PLUGINS) {
   test(`${host.pluginId}: a valid hosting plugin of its own, with its skill, descriptor and module packed`, async () => {
     const packageRoot = path.join(CONTENT_ROOT, host.pluginId);
@@ -95,7 +98,7 @@ for (const host of HOST_PLUGINS) {
     assert.equal(parsed.ok && parsed.manifest.name, host.pluginId);
     assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
     const tovu = (manifest as { extensions: { tovu: { id: string; displayName: string; provides: string[] } } }).extensions.tovu;
-    assert.deepEqual([tovu.id, tovu.provides], [`tovu/${host.pluginId}`, TARGETS.filter(target => target.pluginId === host.pluginId).map(target => `deploy-target:${target.id}`)]);
+    assert.deepEqual([tovu.id, tovu.provides], [`tovu/${host.pluginId}`, [...TARGETS.filter(target => target.pluginId === host.pluginId).map(target => `deploy-target:${target.id}`), ...(EXTRA_PROVIDES[host.pluginId] ?? [])]]);
     const mcp = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json", packageRoot) });
     assert.deepEqual(mcp.ok ? mcp.config.serverIds : ["unreachable"], []);
     assert.match(await readFile(path.join(packageRoot, "skills", host.pluginId, "SKILL.md"), "utf8"), new RegExp(`^---\nname: ${host.pluginId}\n`));

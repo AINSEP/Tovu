@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "cloudflare",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Publishes static exports to Cloudflare Workers or Pages and attaches reviewed custom domains using your saved Cloudflare connection. Workers sites with active forms store submissions in a D1 database in your Cloudflare account for Tovu to pull. Preview reads current infrastructure; domain changes require human confirmation.",
   "author": "Tovu",
   "license": "Apache-2.0",
@@ -12,7 +12,8 @@
       "id": "tovu/cloudflare",
       "provides": [
         "deploy-target:cloudflare-workers",
-        "deploy-target:cloudflare-pages"
+        "deploy-target:cloudflare-pages",
+        "form-destination:cloudflare-d1"
       ]
     }
   },

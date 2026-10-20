@@ -34,6 +34,8 @@ on the free static path), which hides the form and shows Tovu's own success mess
 "Thanks, your submission was received." line when the page has none.
 Needs **Account → D1 → Edit** on the saved token; preview names it when missing. Pages sites with
 forms are not supported yet; preview says so.
+The receiver is form destination `cloudflare-d1` (co-hosted on Workers); the site's `core.forms`
+`receiver` setting keeps it on with `auto` (the default) and turns it off with `none`.
 
 Official protocol: https://developers.cloudflare.com/workers/static-assets/direct-upload/
 

@@ -1,9 +1,9 @@
 import { createTarget, previewTarget, validateConfig, verifyCredential } from '../lib/target.mjs';
 import { uploadWorker } from '../lib/workers-upload.mjs';
-import { acknowledgeFormSubmissions, pullFormSubmissions } from '../lib/forms.mjs';
 
 /** Workers serves static exports only; Tovu's Node/SQLite server stays on its existing server host.
- * A site with active forms also gets the bundled submissions receiver (D1) on the same Worker. */
+ * A site with active forms also gets the bundled submissions receiver (D1) on the same Worker; pulling
+ * what it stored is form destination `cloudflare-d1` (`form-destinations/cloudflare-d1.mjs`). */
 export default {
   defaultForNewDestination: true,
   // Historical worksFor:[cloudflare] meant Pages only. Adding Workers must not expand that grant.
@@ -14,6 +14,4 @@ export default {
   verifyCredential,
   preview: (input, options = {}) => previewTarget({ ...input, targetId: 'cloudflare-workers' }, options),
   create: (context, options = {}) => createTarget({ ...context, targetId: 'cloudflare-workers', upload: uploadWorker }, options),
-  pullFormSubmissions,
-  acknowledgeFormSubmissions,
 };
