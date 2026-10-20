@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE A — G1–G8 + G1b/G5b/G6b merged. G9 (neutrality proof) + G10 (plugin skeleton) + G7fix (process-root-parity harness) running since ~08:20Z. Next: G11/G12/G13 after G10; G14 last.
+Status: PHASE A — G1–G10 merged (+ fix lots G1b, G5b, G6b, G7fix). Running since ~09:10Z: G11, G12, G13, G6c (plugin quota budgets), G1c (Jini revoke honesty, HIGH). Next: G14 after G11+G13 (forms-multidest not complete: build against its contract file), then phase B review.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -40,8 +40,13 @@ Status: PHASE A — G1–G8 + G1b/G5b/G6b merged. G9 (neutrality proof) + G10 (p
 | G5b | MERGED (Jini b633dd94) | cloud/google-workspace-G5b (ca28a268) | b633dd94 | createAdminSurfaceHandlerHost + defineAdminSurfaceHandlerContribution (same trust gate as G4). agent-plugins 49 files pass, tsc 0, guard 26; added lifecycle/contribution-loader.ts + tools/capabilities.ts to jini.isolation.shared (no runtime imports; accepted, phase B review). Jini integrations + agent-plugins rebuilt 07:20. |
 | G7fix | MERGED | cloud/google-workspace-G7fix (40d03af7f) | merged | daemon tool-surface harness binds the real confirmation-card store; process-root-parity + federation wiring 17/17 |
 | G9 | MERGED (Jini + Tovu) | cloud/google-workspace-G9 (Jini 7dc81d61; Tovu 0af7bd9e7) | merged | ZERO non-test edits, no seam bug: acme-office e2e connect→fake OAuth→callback→vault (sealed)→approved write tool→surface action→push form delivery via OAuth connectionRef. Grep tests: Jini 137 files 0 hits; Tovu 6 folders + 10 files, 2 allowlisted lines federate-mcp.ts:20,:99 ('picker' = MCP tool list). Coord: Jini test 2/2, guard 26; Tovu 19/19, typecheck:tests 0. Gap: Tovu FormDestinationModule.deliver lacks binding/idempotencyKey + returns void (G14/forms-multidest F4). |
-| G10 | running | cloud/google-workspace-G10 | | |
-| G11–G16 | pending | | | |
+| G10 | MERGED | cloud/google-workspace-G10 (44c4c6377) | merged | plugin skeleton seeded DISABLED (not in BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED; gating test updated). Coord: 21/21 oauth pins, 74 plugin/bundled suites 1140/1140, cx clean, no secret-shaped literals. Hosted redirectOrigins left empty on purpose (owner registers). Coverage (subagent): auth 100/100, request-policy 35/75 … phase C. Subagent 289k tokens. |
+| G11 | running | cloud/google-workspace-G11 | | |
+| G12 | running | cloud/google-workspace-G12 | | |
+| G13 | running | cloud/google-workspace-G13 | | |
+| G6c | running (fix lot) | cloud/google-workspace-G6c | | plugin-declared budgets (45/min per connection, 240/min per instance) via real limiter |
+| G1c | running (Jini fix lot) | cloud/google-workspace-G1c | | HIGH: disconnect bumps generation before revokeCredential loads tokens → vault store returns null → provider revocation never called, reports not-needed (account-actions.ts:84-87) |
+| G14–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
 (phase C)
@@ -50,6 +55,8 @@ Status: PHASE A — G1–G8 + G1b/G5b/G6b merged. G9 (neutrality proof) + G10 (p
 PASS (G9): acme-office fixture end to end through real Jini + Tovu seams with zero production edits; grep tests in Jini (packages/agent-plugins/src/__tests__/vendor-neutrality.test.ts) and Tovu (api-connections vertical-slice dir vendor-neutrality.test.ts). Outside scanned sets: Jini agent-plugins README.md:7-8 + manifest.ts:4 credit the spec steering committee (names the provider; pre-existing), folder-zip.ts:57 'folder picker'.
 
 ## Bugs + security findings pinned
+- G10 HIGH (Jini): revoke over the vault token store never reaches the provider and reports not-needed (pinned in plugin oauth.contract test '(reported, not fixed)'); G1c fixing.
+- G10: per-account 45/min budget not enforceable with one host limiter profile → G6c.
 - G1b: oauth/src/token-endpoint.ts:55 puts provider `error` string unbounded into OAuthError.message → ApiConnectionError text (Low). G2 label=connectionId collision (fixed in G1b).
 - G5b: bootstrap data deliberately not token-scanned (hosted Picker needs a short-lived access token; schema-checked, no-store) — matches owner decision; it is the connection's own token, not down-scoped. Handler/bootstrap calls have no deadline/signal (phase B fix). Per-call token scan cannot catch a token cached across calls (pinned, reported). trusted-plugin-files.ts:146 raw import error text in refusal line (may hold abs paths). Node module cache: changed module at same path not re-imported until restart.
 - G6 fix: 0020 SQLite rebuild had dropped the secrets_vault_mcp_identity trigger (fixed + pinned before merge).
@@ -73,3 +80,6 @@ PASS (G9): acme-office fixture end to end through real Jini + Tovu seams with ze
 
 ## Next
 Verify + merge G1–G5 as they finish; then G6/G7/G8.
+
+## forms-multidest relation
+- 08:00Z: origin/cloud/forms-multidest exists; F9 not done; `.cloud-coord/forms-multidest-contract.md` EXISTS (copied to /tmp/forms-multidest-contract.md) → G14 builds against that contract; OAuth FormDeliveryConnectionPort stays unwired; follow-up G14b expected. G9 found Tovu FormDestinationModule.deliver still lacks binding/idempotencyKey (base type, forms-multidest-owned).
