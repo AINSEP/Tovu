@@ -57,7 +57,7 @@ export function installServerLogCapture(optional: { source?: ServerLogSource } =
   if (uninstallCapture === null) {
     const source = optional.source ?? "server";
     const buffer = getServerLogBuffer();
-    const untee = installConsoleTee({ buffer }, { source });
+    const untee = installConsoleTee({ buffer }, { source, redact: text => redactSecretShapes({ text }).text });
     const onFatal = (err: unknown) => {
       try { buffer.append({ level: "error", source, message: `[uncaughtException] ${format(err)}` }); } catch { /* never mask the crash */ }
     };

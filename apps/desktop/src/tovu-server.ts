@@ -23,6 +23,7 @@ import { createRequire } from "node:module";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import { redactSecretShapes } from "../../website/src/contracts/core/secret-redaction.ts";
 
 // {@link buildCliSpawnPlan} needs `require.resolve("tsx")`'s CommonJS resolution, which walks up
 // from THIS file to `apps/desktop/node_modules/tsx`. `import.meta.resolve` would pick the package's
@@ -48,7 +49,7 @@ const BOOT_TOKEN_LINE = /^tovu serve: bootToken=(\S+)$/m;
 const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
 
 /**
- * `text` with any boot-token line removed.
+ * `text` with any boot-token line removed and remaining secret values redacted.
  *
  * The token must never reach the parent's own stdout, a log file, or an `Error` message: the E2E
  * suite captures child output, and `describeBootFailure` puts accumulated output straight into a
@@ -57,7 +58,7 @@ const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
  * @complexity O(n) in the text length.
  */
 function redactBootToken(text: string): string {
-  return text.replace(BOOT_TOKEN_LINE_GLOBAL, "");
+  return redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text;
 }
 
 /**

@@ -468,6 +468,22 @@ test("startTovuServer resolves with the admin URL for the port the child reports
   assert.equal(handle.schemaVersion, 42);
 });
 
+test("startTovuServer redacts split secret values on both mirrored streams", async () => {
+  const child = fakeChild();
+  const mirror = silentMirror();
+  const started = startTovuServer({ repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror, spawnFn: () => child });
+  const key = "sk-ant-api03-" + "x".repeat(90);
+  for (const stream of [child.stdout, child.stderr]) {
+    stream.write(`key ${key.slice(0, 20)}`);
+    stream.write(`${key.slice(20)}\n`);
+  }
+  child.stdout.write(REAL_BOOT_LINE);
+  await started;
+  assert.equal(mirror.stdout.read()?.toString(), `key [REDACTED:credential]\n${REAL_BOOT_LINE}`);
+  assert.equal(mirror.stderr.read()?.toString(), "key [REDACTED:credential]\n");
+});
+
 test("startTovuServer passes the site dir and port through as `serve <dir> --port <n>`", async () => {
   const child = fakeChild();
   const root = makeTempRepo();
