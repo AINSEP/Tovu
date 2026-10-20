@@ -4,7 +4,7 @@ import { collectMediaUrlKeys } from "#src/features/publish-content/media-referen
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
-import { importMediaEntity } from "./import-media-entity.js";
+import { importMediaEntity, type ImportMediaEntityResult } from "./import-media-entity.js";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
 import type { MediaRecord } from "./index.js";
 import { verifyPublishedMedia } from "./verify-published-media.js";
@@ -110,6 +110,55 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
   htmlAttributes: "transferred",
 };
 
+const LIBRARY_DOCUMENT_REFUSAL = "Library documents cannot be published";
+
+type MediaPorts = PublishContentPorts["media"];
+
+/** A Library document by either signal: the packed discriminant or the destination row it would replace. */
+function isLibraryDocument({ kind, existing }: { kind: unknown; existing?: MediaRecord | null }, _options = {}): boolean {
+  return (kind !== undefined && kind !== "media") || existing?.kind === "document";
+}
+
+/**
+ * Apply is a second trust boundary: a forged bundle or a destination changed after precheck
+ * must not bypass Library isolation. Refuse before fetching any source bytes.
+ */
+async function assertPublishableMedia(
+  { ports, workspaceId, state, existing }: { ports: MediaPorts; workspaceId: string; state: Record<string, unknown>; existing?: MediaRecord | null },
+  _options = {}
+): Promise<void> {
+  if (isLibraryDocument({ kind: state.kind, existing })) {
+    throw new MediaApplyBlockedError("blocked:precondition", LIBRARY_DOCUMENT_REFUSAL);
+  }
+  const record = state as unknown as MediaRecord; // this handler's own pack() produced it
+  if (await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: record.source?.sha256 ?? "" } })) {
+    throw new MediaApplyBlockedError("blocked:precondition", LIBRARY_DOCUMENT_REFUSAL);
+  }
+}
+
+/** `null` carries a missing staged object into `importMediaEntity`, which owns that refusal. */
+async function stagedBytes(
+  { blobStore, workspaceId, record }: { blobStore: MediaPorts["blobStore"]; workspaceId: string; record: MediaRecord },
+  _options = {}
+): Promise<Uint8Array | null> {
+  const storageKey = computeBlobStorageKey({ workspaceId, sha256: record.source?.sha256 ?? "" });
+  return (await blobStore.exists({ storageKey })) ? await blobStore.get({ storageKey }) : null;
+}
+
+/** Maps an import refusal onto the row error `apply-loop.ts` downgrades; passes a success through. */
+function importedOrThrow(
+  { id, outcome }: { id: string; outcome: ImportMediaEntityResult },
+  _options = {}
+): Extract<ImportMediaEntityResult, { status: "imported" }> {
+  if (outcome.status === "conflict") {
+    throw new MediaApplyConflictError(`media '${id}' changed on the destination during apply: ${outcome.reason}`);
+  }
+  if (outcome.status === "blocked") {
+    throw new MediaApplyBlockedError(`blocked:${outcome.code}`, `media '${id}' cannot be applied — ${outcome.reason}`);
+  }
+  return outcome;
+}
+
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMediaPublish = (): PublishContentContributor =>
   createRepoPublishHandler<MediaRecord, PublishContentPorts["media"]>({
@@ -143,9 +192,9 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
     // media is the one type whose entity IS its blob.
     validate: async ({ ports, workspaceId, entity, existing }) => {
-      if ((entity.state.kind !== undefined && entity.state.kind !== "media") || existing?.kind === "document") return "Library documents cannot be published";
+      if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
       const source = entity.state.source as { sha256?: string } | undefined;
-      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return "Library documents cannot be published";
+      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return LIBRARY_DOCUMENT_REFUSAL;
       for (const sha256 of entity.requiredBlobs) {
         if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
           return `required blob '${sha256}' is not available on this destination`;
@@ -154,20 +203,11 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       return null;
     },
     write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId }) => {
-      // Apply is a second trust boundary: a forged bundle or a destination changed after precheck
-      // must not bypass Library isolation. Refuse before fetching any source bytes.
-      if ((state.kind !== undefined && state.kind !== "media") || existing?.kind === "document") {
-        throw new MediaApplyBlockedError("blocked:precondition", "Library documents cannot be published");
-      }
+      await assertPublishableMedia({ ports, workspaceId, state, existing });
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
-      if (await isDocumentOnlyBlob({ deps: { mediaRepo, blobRepo: assetBlobRepo }, input: { workspaceId, sha256: record.source?.sha256 ?? "" } })) {
-        throw new MediaApplyBlockedError("blocked:precondition", "Library documents cannot be published");
-      }
-      const storageKey = computeBlobStorageKey({ workspaceId, sha256: record.source?.sha256 ?? "" });
-      // `null` carries a missing staged object into `importMediaEntity`, which owns that refusal.
-      const bytes = (await blobStore.exists({ storageKey })) ? await blobStore.get({ storageKey }) : null;
-      const outcome = await importMediaEntity({
+      const bytes = await stagedBytes({ blobStore, workspaceId, record });
+      const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
         input: {
           workspaceId,
@@ -177,13 +217,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
           blobCreatedByPrincipal: principalId,
           baseVersion: expectedVersion ?? null,
         },
-      });
-      if (outcome.status === "conflict") {
-        throw new MediaApplyConflictError(`media '${id}' changed on the destination during apply: ${outcome.reason}`);
-      }
-      if (outcome.status === "blocked") {
-        throw new MediaApplyBlockedError(`blocked:${outcome.code}`, `media '${id}' cannot be applied — ${outcome.reason}`);
-      }
+      }) });
       // Every other write path (upload, import, duplicate) records the sniffed type; without it the
       // destination's embed resolver cannot tell a video from an image. Sniffed from the bytes just
       // imported, never carried from the source (the store's own invariant). `bytes` is non-null
