@@ -38,8 +38,8 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 | F6 | MERGED (Tovu) | 05b067014 | (see log) | personas OK; 272k tokens/70 calls. 10/10 groups PASS (coordinator rerun 10/10, no 'connection is not open' line): P1 pull→plan (2 frozen jobs, key [sid,bindingId], no IP); drain1 A completed / B retrying attempts 1 nextRetryAt +10 min (adapter retryAfter beat 2.5 min backoff) code rate-limited; drain2 same job id/key/payload, A called once; replay adds nothing; binding edits after planning change nothing; non-retryable → failed attempts 1, no retry after +48 h; restart recovers claimed jobs after the 30-min worker lease. P2 autoPull OFF → 0 pulls; ON → 1 startup pull, sign-in within 60 s pulls nothing; manual during in-flight → already-running. Mutation check: 7 product breaks each failed its group. |
 | F7 | not needed beyond F7a/F7b (F6 found no product failure) | | | |
 | F7 | — | | | |
-| F8 | — | | | |
-| F9 | — | | | |
+| F8 | DONE (read-only review = phase B) | — | — | personas OK (code-inspection, security, red-team); 229k tokens/60 calls. 3 High (H1 agent can write core.forms bindings/receiver with no card — Tovu TOVU_CONFIRMATION_SETTINGS, so NOT an owner decision; H2 any vault credential can be bound to any delivery adapter, kit.fetch unrestricted; H3 frozen answers survive permanent delete in outbox_events), 6 Medium, 8 Low, 10 trims. Accepted list: `.cloud-coord/forms-multidest-f8-accepted.md`. DEFERRED (owner): M6 inline admin-route drains also run due delivery jobs (each ≤60 s); L8 inject composition clock; T9 rename site-title-write chokepoint; T10 outbox-retry-policies home. |
+| F9 | running: F9J (Jini), F9A (Tovu security), F9B (Tovu lifecycle) in parallel | | | |
 
 ## Coverage / RED / complexity debt / removed checks / bugs / security
 (filled per merge)
@@ -48,7 +48,7 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 - 2026-10-20 06:18Z: fresh coordinator resumed after the 05:46Z usage-limit stop. The previous F3 merge (997c1a9e) was never pushed; origin coordinator was at 235960d1. Re-merged origin/cloud/forms-multidest-F3 (a7a9a734) as 0ff24f5e and re-verified from scratch. Setup redone: Node v24.22.0 tarball (sha256 OK) in ~/.local/node24 via /tmp/fm-env.sh; Jini install 18 s + build 95 s (integrations tsc fails on its own tests, as before); Tovu npm ci x3 40 s; link:jini OK; sdk OK; Postgres 16 cluster /tmp/fm-pg (socket /tmp, roles la/root). Coordinator personas (software-architect, code-inspection, security) re-loaded.
 
 ## Next
-F8 review (phase B), then F9 fixes + phase C tests, then end-of-build suites.
+Merge F9J (rebuild cms) → F9A + F9B; contract §2 (H2 scope) + §6 (M2) edits; then phase C full tests; then end-of-build suites.
 
 ## Combined F4+F5 verify (coordinator, merged state cc452f863)
 - root tsc 0; typecheck:tests 0; 592 lot+importer test files: 6766 tests, 6752 pass, 6 fail, 8 skipped. 4 fail identically on base (database-transfer tool-registrations.postgres ×3 expect host 'localhost' vs PGHOST=/tmp; theme-colour-contract missing content tokens.json). 2 (commerce-strip-parity) = 0018/0019 tables missing from parity pins → F7b; after F7b: parity + vault-boundary + exclusions 21/21, typecheck:tests 0.
