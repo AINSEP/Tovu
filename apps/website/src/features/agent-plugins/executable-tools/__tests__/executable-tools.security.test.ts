@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';
 import { NOT_CONNECTED_MESSAGE } from '../approval.js';
-import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE } from '../host-capabilities.js';
+import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE, type AgentPluginStateReaderFor } from '../host-capabilities.js';
 import { bootFixture, fakeConnections, fakeHttp, startConfirmingCall, PLUGIN, WORKSPACE } from './fixtures.js';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 
@@ -17,10 +17,10 @@ const input = { connectionRef: 'conn-1', table: 'Leads', values: ['a'] };
 const limiterKeys: string[] = [];
 const recordingLimiter = { check: async ({ key }: { key: string }) => { limiterKeys.push(key); return { allowed: true as const }; } };
 
-function portFor(http: HttpClientPort = fakeHttp().http) {
+function portFor(http: HttpClientPort = fakeHttp().http, state: AgentPluginStateReaderFor = () => ({ get: async () => null })) {
   const { connections, tokenRequests } = fakeConnections({ accountId: 'alice' });
   const frozen = createFrozenConnectionAccounts();
-  return { port: createAgentPluginToolCapabilities({ connections, http, limiter: recordingLimiter, frozen }), tokenRequests, frozen };
+  return { port: createAgentPluginToolCapabilities({ connections, http, limiter: recordingLimiter, frozen, state }), tokenRequests, frozen };
 }
 
 test('a token request always names the calling plugin and workspace, never one the plugin chose', async () => {

@@ -11,13 +11,15 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { AdminSurfaceHost, AdminSurfaceRequestContext, AdminSurfaceSource } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
+import { createIssuedSignInCollector, type IssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { registerAgentPluginAdminSurfaceRoutes } from "../../admin-surfaces.js";
 
 /**
  * @file Security pins for the admin-surface mount (phase A): the public files route serves only
  * declared files with Jini's isolation headers; the bootstrap is never cached; both POSTs refuse
  * cross-origin requests, missing sessions and missing permissions BEFORE any host code runs; a
- * handler's own error text never reaches the response or the log. Real session stack
+ * handler's own error text never reaches the response or the log; host-issued sign-in links ride
+ * along only on a successful action. Real session stack
  * (`requireAdminSession`), typed fakes for the surface source and the host port; acme-style ids.
  */
 
@@ -42,7 +44,7 @@ interface Harness {
   readonly calls: Array<{ payload: unknown; context: AdminSurfaceRequestContext }>;
 }
 
-function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminSurfaceRequestContext> } = {}) {
+function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminSurfaceRequestContext>; readonly signIns?: IssuedSignInCollector } = {}) {
   const harness: Harness = { reads: [], bootstraps: [], calls: [] };
   const source: AdminSurfaceSource = {
     list: async () => [fakeSurface()],
@@ -52,6 +54,7 @@ function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminS
   const host: AdminSurfaceHost = {
     handlersFor: () => ({ "save-selection": handler }),
     bootstrapData: async ({ context }) => { harness.bootstraps.push(context); return { publicConfig: "x" }; },
+    ...(options.signIns ? { signIns: options.signIns } : {}),
   };
   const baseDeps = createRouteDeps();
   const deps = { ...baseDeps, adminSurfaceSource: source, adminSurfaceHost: host };
@@ -186,4 +189,17 @@ test("bootstrap + actions: a machine (API-key) credential is refused even with t
   }
   assert.equal(harness.bootstraps.length, 0);
   assert.equal(harness.calls.length, 0);
+});
+
+test("actions: host-issued sign-in links come back beside a successful answer only", async (t) => {
+  const signIns = createIssuedSignInCollector();
+  const link = { authorizationUrl: "https://auth.acme.test/authorize?state=s1", expiresAt: "2026-10-20T10:10:00.000Z" };
+  let fail = false;
+  const { app } = buildApp({ signIns, handler: async () => { signIns.record(link); if (fail) throw new Error("refused"); return { saved: true }; } });
+  t.mock.method(console, "error", () => {});
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const call = async () => (await post(surfaceUrl(baseUrl, "actions"), { cookie, origin: baseUrl }, { action: "save-selection", payload: { resourceId: "r1" } })).json();
+  assert.deepEqual(await call(), { ok: true, result: { saved: true }, hostSignIns: [link] });
+  fail = true;
+  assert.equal(((await call()) as { hostSignIns?: unknown }).hostSignIns, undefined);
 });

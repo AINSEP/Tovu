@@ -1,4 +1,4 @@
-import { ApiConnectionError, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
+import { ApiConnectionError, type ApiConnectionIntent, type ApiConnectionService, type CompletedAuthorization } from "@jini-ai/integrations/api-connections";
 import { startLoopbackAuthorizationReceiver } from "@jini-ai/oauth";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -63,13 +63,84 @@ async function waitForCallback(run: ConnectRun, service: ApiConnectionService, c
   return false;
 }
 
+/** A started sign-in. Desktop also carries its own completion; hosted completes at the public callback. */
+export interface ApiConnectionSignInStart {
+  readonly authorizationUrl: string;
+  /** The OAuth `state` (bearer value of the callback): never logged, shown or handed to plugin code. */
+  readonly state: string;
+  readonly expiresAt: string;
+  /** Desktop only: the redeemed sign-in, or null when the loopback callback never came (timeout, abort, refusal). */
+  readonly completion?: Promise<CompletedAuthorization | null>;
+}
+
+/**
+ * Starts one sign-in for a declared connection: the generic start with the caller's declared start
+ * parameters (Jini refuses undeclared ones), on the runtime's redirect. Desktop arms Jini's
+ * 127.0.0.1 loopback receiver first (it closes on its callback, `timeoutMs` or `signal`) and
+ * redeems the callback itself, returning the plugin's declared callback fields with the result.
+ * Shared by `agent_plugin_connect` and the admin-surface connection port.
+ * @complexity One start; desktop adds one loopback listener and, later, one exchange.
+ */
+export async function startApiConnectionSignIn(
+  required: SignInRequest,
+  optional: SignInOptions = {},
+): Promise<ApiConnectionSignInStart> {
+  if (required.host.runtime === "desktop") return startDesktopSignIn(required, optional);
+  const { host, connection, actorId, intent, scopeSetIds } = required;
+  const start = await host.serviceFor({ connection }).start(
+    { workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: host.hostedCallbackUrl({ connection }) }, startOptionsOf(optional));
+  return { authorizationUrl: start.authorizationUrl, state: stateOf(start.authorizationUrl), expiresAt: start.expiresAt };
+}
+
+interface SignInRequest {
+  readonly host: ApiConnectionHost; readonly connection: DeclaredApiConnection; readonly actorId: string;
+  readonly intent: ApiConnectionIntent; readonly scopeSetIds: readonly string[];
+}
+
+interface SignInOptions {
+  readonly startParams?: Readonly<Record<string, string>>; readonly timeoutMs?: number; readonly signal?: AbortSignal;
+  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
+}
+
+const startOptionsOf = (optional: SignInOptions) => (optional.startParams === undefined ? {} : { startParams: optional.startParams });
+
+async function startDesktopSignIn(required: SignInRequest, optional: SignInOptions): Promise<ApiConnectionSignInStart> {
+  const { host, connection, actorId, intent, scopeSetIds } = required;
+  const listening = new AbortController();
+  const stop = (): void => listening.abort();
+  const release = (): void => optional.signal?.removeEventListener("abort", stop);
+  optional.signal?.addEventListener("abort", stop, { once: true });
+  try {
+    const receiver = await (optional.startLoopback ?? startLoopbackAuthorizationReceiver)({}, {
+      callbackFields: connection.descriptor.callbackFields.map((field) => field.name), signal: listening.signal,
+      ...(optional.timeoutMs === undefined ? {} : { timeoutMs: optional.timeoutMs }),
+    });
+    const service = host.serviceFor({ connection, redirectUri: receiver.redirectUri });
+    const start = await service.start({ workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
+    const state = stateOf(start.authorizationUrl);
+    const completion = receiver.receive({ expectedState: state }).then(
+      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code } }),
+      () => null,
+    ).finally(release);
+    return { authorizationUrl: start.authorizationUrl, state, expiresAt: start.expiresAt, completion };
+  } catch (error) {
+    // Nothing will arm the listener now: close it instead of leaving it to its timeout.
+    stop();
+    release();
+    throw error;
+  }
+}
+
+function stateOf(authorizationUrl: string): string {
+  return new URL(authorizationUrl).searchParams.get("state") ?? "";
+}
+
 async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): Promise<boolean> {
   const { host } = run.deps;
   const service = host.serviceFor({ connection: run.connection });
   const connectionRef = service.connectionRefFor({ workspaceId: host.workspaceId });
   const startGeneration = await service.readGeneration({ key: connectionRef });
-  const redirectUri = host.hostedCallbackUrl({ connection: run.connection });
-  const start = await service.start({ workspaceId: host.workspaceId, actorId: run.actorId, intent: "connect", scopeSetIds, redirectUri }).catch(asToolError);
+  const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }).catch(asToolError);
   await run.showSignIn({ signInUrl: start.authorizationUrl });
   return waitForCallback(run, service, connectionRef, startGeneration);
 }
@@ -81,19 +152,11 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   const stop = (): void => listening.abort();
   run.signal.addEventListener("abort", stop, { once: true });
   try {
-    const receiver = await (run.deps.startLoopback ?? startLoopbackAuthorizationReceiver)({}, {
-      callbackFields: run.connection.descriptor.callbackFields.map((field) => field.name), timeoutMs: run.waitTimeoutMs, signal: listening.signal,
-    });
-    const service = host.serviceFor({ connection: run.connection, redirectUri: receiver.redirectUri });
-    const start = await service.start({ workspaceId: host.workspaceId, actorId: run.actorId, intent: "connect", scopeSetIds, redirectUri: receiver.redirectUri }).catch(asToolError);
-    const state = new URL(start.authorizationUrl).searchParams.get("state") ?? "";
-    const received = receiver.receive({ expectedState: state });
+    const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
+      timeoutMs: run.waitTimeoutMs, signal: listening.signal, ...(run.deps.startLoopback ? { startLoopback: run.deps.startLoopback } : {}),
+    }).catch(asToolError);
     await run.showSignIn({ signInUrl: start.authorizationUrl });
-    const callback = await received.catch(() => null);
-    if (!callback) return false;
-    await service.complete({ workspaceId: host.workspaceId, actorId: run.actorId, redirectUri: receiver.redirectUri,
-      callbackParams: { ...callback.fields, state, code: callback.code } }).catch(asToolError);
-    return true;
+    return (await (start.completion ?? Promise.resolve(null)).catch(asToolError)) !== null;
   } finally {
     run.signal.removeEventListener("abort", stop);
     stop();

@@ -15,8 +15,17 @@ export interface AgentPluginSurfaceSummary {
   readonly actions: readonly AdminSurfaceAction[];
 }
 
+/** A sign-in link the SERVER issued while running the action (never one the plugin returned). */
+export interface HostSignInLink {
+  readonly authorizationUrl: string;
+  readonly expiresAt: string;
+}
+
+/** The action route's answer: the plugin's outcome, plus the host-issued sign-in links of that request. */
+export type AgentPluginSurfaceActionAnswer = AdminSurfaceActionOutcome & { readonly hostSignIns?: readonly HostSignInLink[] };
+
 export interface AgentPluginSurfacesPort {
   list(required: { readonly pluginId: string }, optional?: Record<string, never>): Promise<{ readonly surfaces: readonly AgentPluginSurfaceSummary[] }>;
   bootstrap(required: { readonly pluginId: string; readonly surfaceId: string }, optional?: Record<string, never>): Promise<AdminSurfaceBootstrap>;
-  action(required: { readonly pluginId: string; readonly surfaceId: string; readonly action: string; readonly payload: unknown }, optional?: Record<string, never>): Promise<AdminSurfaceActionOutcome>;
+  action(required: { readonly pluginId: string; readonly surfaceId: string; readonly action: string; readonly payload: unknown }, optional?: Record<string, never>): Promise<AgentPluginSurfaceActionAnswer>;
 }

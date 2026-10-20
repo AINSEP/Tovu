@@ -84,6 +84,11 @@ function answerTokenEndpoint(res: ServerResponse, body: string): void {
 
 /** The fake provider's table API: `POST /tables/<table>/rows` with the issued bearer token appends one row. */
 function answerTableApi(req: IncomingMessage, res: ServerResponse, body: string): void {
+  // `GET /tables/<id>`: the table exists for the signed-in account (how a surface verifies a pick).
+  if (req.method === "GET") {
+    res.statusCode = req.headers.authorization === `Bearer ${accessToken}` && req.url === "/tables/T1" ? 200 : 404;
+    return void res.end("{}");
+  }
   const table = /^\/tables\/([^/]+)\/rows$/.exec(req.url ?? "")?.[1];
   const authorized = table !== undefined && req.headers.authorization === `Bearer ${accessToken}`;
   if (authorized) appended.push({ table: decodeURIComponent(table), idempotencyKey: req.headers["idempotency-key"] as string | undefined, body: JSON.parse(body) });
@@ -154,13 +159,14 @@ async function connectHosted(composition: Awaited<ReturnType<typeof compose>>) {
 }
 
 /** The "browser": consent at the fake provider, which redirects back with a code bound to the PKCE challenge. */
-function consentRedirect(authorizationUrl: string): string {
+function consentRedirect(authorizationUrl: string, extraFields: Readonly<Record<string, string>> = {}): string {
   const url = new URL(authorizationUrl);
   const code = randomBytes(12).toString("hex");
   issued.set(code, url.searchParams.get("code_challenge") ?? "");
   const back = new URL(url.searchParams.get("redirect_uri") ?? "");
   back.searchParams.set("code", code);
   back.searchParams.set("state", url.searchParams.get("state") ?? "");
+  for (const [name, value] of Object.entries(extraFields)) back.searchParams.set(name, value);
   // The public address is not real; the "browser" reaches this test's local site for it.
   return back.origin === PUBLIC_URL ? `${siteOrigin}${back.pathname}${back.search}` : back.href;
 }
@@ -186,9 +192,38 @@ test("vertical slice: connect -> public callback -> executable tool call -> admi
   assert.equal(await composition.adminSurfaceHost.bootstrapData({ context }), null, "opening the surface loads its handlers");
   const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
   const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) });
-  const answer = await dispatcher.dispatch({ action: "whoami", payload: { connectionRef }, context });
+  const answer = await dispatcher.dispatch({ action: "whoami", payload: {}, context });
   assert.deepEqual(answer, { ok: true, result: { name: "Ada" } });
   assert.ok(!JSON.stringify([toolResult.output, answer]).includes(accessToken), "no token in any answer");
+});
+
+test("vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it", async () => {
+  const composition = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_ACME_CHOOSER_APP_ID: "app-123" });
+  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  const context = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account" };
+  await composition.adminSurfaceHost.bootstrapData({ context });
+  const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
+  const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) });
+  const dispatch = (action: string, payload: unknown = {}) => dispatcher.dispatch({ action, payload, context });
+
+  assert.deepEqual(await dispatch("status"), { ok: true, result: { state: "connected", accountLabel: "Ada", grantedScopeSetIds: [], appId: "app-123" } });
+  // The action route's collection: the host page gets only the link the host issued in this request.
+  const begun = await composition.adminSurfaceHost.signIns!.collect({ run: () => dispatch("begin-pick") });
+  assert.equal(begun.value.ok, true);
+  const { attemptId } = (begun.value as { result: { attemptId: string } }).result;
+  assert.equal(begun.signIns.length, 1);
+  const link = new URL(begun.signIns[0]!.authorizationUrl);
+  assert.equal(link.searchParams.get("pick_mode"), "one", "the declared start parameter reaches the provider");
+  assert.equal((await fetch(consentRedirect(link.href, { picked_ids: "T1" }))).status, 200);
+
+  assert.deepEqual(await dispatch("take-pick", { attemptId }), { ok: true, result: { saved: true } });
+  assert.deepEqual(await dispatch("take-pick", { attemptId }), { ok: false, error: { code: "nothing-picked", message: "Nothing was picked. Pick again.", retryable: false } }, "callback fields are taken once");
+
+  const registry = createToolRegistry({});
+  await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
+  const read = await createToolExecutor({ registry }).execute({ toolId: "p_acme_office__selection", principal: { id: "admin-1" }, run: { id: "run-2" }, input: {} });
+  assert.equal(read.status, "completed", String(read.error));
+  assert.deepEqual(read.output, { selection: { tableId: "T1" } });
 });
 
 test("security: the shared connection port refuses another workspace's target and reads no account for it", async () => {
@@ -260,7 +295,7 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
   await composition.adminSurfaceHost.bootstrapData({ context });
   const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
   const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) });
-  assert.deepEqual(await dispatcher.dispatch({ action: "whoami", payload: { connectionRef }, context }), { ok: true, result: { name: "Ada" } });
+  assert.deepEqual(await dispatcher.dispatch({ action: "whoami", payload: {}, context }), { ok: true, result: { name: "Ada" } });
 
   // Push form delivery: the binding stores only the connectionRef; the OAuth port resolves the token per attempt.
   const destinations = await loadFormDestinationRegistry({ workspaceId: WORKSPACE }, { loadContributions });

@@ -217,6 +217,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Esta vista salió de su página y se cerró. Cierra y vuelve a abrir el plugin para usarla de nuevo.",
     "Could not open this view. Close and reopen the plugin to try again.": "No se pudo abrir esta vista. Cierra y vuelve a abrir el plugin para intentarlo de nuevo.",
+    "Sign-in opens in your browser.": "El inicio de sesión se abre en tu navegador.",
+    "Continue to sign-in": "Continuar al inicio de sesión",
   },
   id: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -396,6 +398,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Tampilan ini keluar dari halamannya dan ditutup. Tutup lalu buka kembali plugin untuk menggunakannya lagi.",
     "Could not open this view. Close and reopen the plugin to try again.": "Tampilan ini tidak dapat dibuka. Tutup lalu buka kembali plugin untuk mencoba lagi.",
+    "Sign-in opens in your browser.": "Proses masuk dibuka di browser Anda.",
+    "Continue to sign-in": "Lanjutkan ke proses masuk",
   },
   de: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -575,6 +579,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Diese Ansicht hat ihre Seite verlassen und wurde geschlossen. Schließen Sie das Plugin und öffnen Sie es erneut, um sie wieder zu verwenden.",
     "Could not open this view. Close and reopen the plugin to try again.": "Diese Ansicht konnte nicht geöffnet werden. Schließen Sie das Plugin und öffnen Sie es erneut, um es noch einmal zu versuchen.",
+    "Sign-in opens in your browser.": "Die Anmeldung wird in Ihrem Browser geöffnet.",
+    "Continue to sign-in": "Weiter zur Anmeldung",
   },
   "zh-CN": {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -754,6 +760,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "此视图已离开其页面并被关闭。请关闭并重新打开该插件以再次使用。",
     "Could not open this view. Close and reopen the plugin to try again.": "无法打开此视图。请关闭并重新打开该插件后重试。",
+    "Sign-in opens in your browser.": "登录将在你的浏览器中打开。",
+    "Continue to sign-in": "继续登录",
   },
   "zh-TW": {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -933,6 +941,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "此檢視已離開其頁面並被關閉。請關閉並重新開啟該外掛以再次使用。",
     "Could not open this view. Close and reopen the plugin to try again.": "無法開啟此檢視。請關閉並重新開啟該外掛後再試一次。",
+    "Sign-in opens in your browser.": "登入將在你的瀏覽器中開啟。",
+    "Continue to sign-in": "繼續登入",
   },
   "pt-BR": {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1112,6 +1122,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Esta visualização saiu da própria página e foi fechada. Feche e reabra o plugin para usá-la novamente.",
     "Could not open this view. Close and reopen the plugin to try again.": "Não foi possível abrir esta visualização. Feche e reabra o plugin para tentar novamente.",
+    "Sign-in opens in your browser.": "O login abre no seu navegador.",
+    "Continue to sign-in": "Continuar para o login",
   },
   ru: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1291,6 +1303,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Это представление покинуло свою страницу и было закрыто. Закройте плагин и откройте его заново, чтобы снова им воспользоваться.",
     "Could not open this view. Close and reopen the plugin to try again.": "Не удалось открыть это представление. Закройте плагин и откройте его заново, чтобы повторить попытку.",
+    "Sign-in opens in your browser.": "Вход откроется в вашем браузере.",
+    "Continue to sign-in": "Перейти ко входу",
   },
   fa: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1470,6 +1484,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "این نما از صفحهٔ خود خارج شد و بسته شد. برای استفادهٔ دوباره، افزونه را ببندید و دوباره باز کنید.",
     "Could not open this view. Close and reopen the plugin to try again.": "باز کردن این نما ممکن نشد. برای تلاش دوباره، افزونه را ببندید و دوباره باز کنید.",
+    "Sign-in opens in your browser.": "ورود در مرورگر شما باز می‌شود.",
+    "Continue to sign-in": "ادامه به ورود",
   },
   ar: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1649,6 +1665,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "غادر هذا العرض صفحته وتم إغلاقه. أغلق الإضافة ثم افتحها مرة أخرى لاستخدامه من جديد.",
     "Could not open this view. Close and reopen the plugin to try again.": "تعذّر فتح هذا العرض. أغلق الإضافة ثم افتحها مرة أخرى للمحاولة من جديد.",
+    "Sign-in opens in your browser.": "يُفتح تسجيل الدخول في متصفحك.",
+    "Continue to sign-in": "المتابعة إلى تسجيل الدخول",
   },
   ja: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1828,6 +1846,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "このビューは元のページから離れたため閉じられました。もう一度使うには、プラグインを閉じてから開き直してください。",
     "Could not open this view. Close and reopen the plugin to try again.": "このビューを開けませんでした。もう一度試すには、プラグインを閉じてから開き直してください。",
+    "Sign-in opens in your browser.": "サインインはブラウザで開きます。",
+    "Continue to sign-in": "サインインに進む",
   },
   ko: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2007,6 +2027,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "이 보기가 해당 페이지를 벗어나 닫혔습니다. 다시 사용하려면 플러그인을 닫았다가 다시 여세요.",
     "Could not open this view. Close and reopen the plugin to try again.": "이 보기를 열 수 없습니다. 다시 시도하려면 플러그인을 닫았다가 다시 여세요.",
+    "Sign-in opens in your browser.": "로그인은 브라우저에서 열립니다.",
+    "Continue to sign-in": "로그인 계속하기",
   },
   pl: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2186,6 +2208,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Ten widok opuścił swoją stronę i został zamknięty. Zamknij wtyczkę i otwórz ją ponownie, aby znowu z niego korzystać.",
     "Could not open this view. Close and reopen the plugin to try again.": "Nie udało się otworzyć tego widoku. Zamknij wtyczkę i otwórz ją ponownie, aby spróbować jeszcze raz.",
+    "Sign-in opens in your browser.": "Logowanie otworzy się w przeglądarce.",
+    "Continue to sign-in": "Przejdź do logowania",
   },
   hu: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2365,6 +2389,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Ez a nézet elhagyta a saját oldalát, ezért bezárult. Az ismételt használathoz zárja be, majd nyissa meg újra a bővítményt.",
     "Could not open this view. Close and reopen the plugin to try again.": "Ezt a nézetet nem sikerült megnyitni. Az újrapróbálkozáshoz zárja be, majd nyissa meg újra a bővítményt.",
+    "Sign-in opens in your browser.": "A bejelentkezés a böngészőben nyílik meg.",
+    "Continue to sign-in": "Tovább a bejelentkezéshez",
   },
   fr: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2544,6 +2570,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Cette vue a quitté sa page et a été fermée. Fermez puis rouvrez le plugin pour l'utiliser de nouveau.",
     "Could not open this view. Close and reopen the plugin to try again.": "Impossible d'ouvrir cette vue. Fermez puis rouvrez le plugin pour réessayer.",
+    "Sign-in opens in your browser.": "La connexion s’ouvre dans votre navigateur.",
+    "Continue to sign-in": "Continuer vers la connexion",
   },
   uk: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2723,6 +2751,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Це подання залишило свою сторінку й було закрите. Закрийте плагін і відкрийте його знову, щоб скористатися ним ще раз.",
     "Could not open this view. Close and reopen the plugin to try again.": "Не вдалося відкрити це подання. Закрийте плагін і відкрийте його знову, щоб повторити спробу.",
+    "Sign-in opens in your browser.": "Вхід відкриється у вашому браузері.",
+    "Continue to sign-in": "Перейти до входу",
   },
   tr: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2902,6 +2932,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Bu görünüm sayfasından ayrıldı ve kapatıldı. Yeniden kullanmak için eklentiyi kapatıp tekrar açın.",
     "Could not open this view. Close and reopen the plugin to try again.": "Bu görünüm açılamadı. Yeniden denemek için eklentiyi kapatıp tekrar açın.",
+    "Sign-in opens in your browser.": "Oturum açma tarayıcınızda açılır.",
+    "Continue to sign-in": "Oturum açmaya devam et",
   },
   th: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3081,6 +3113,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "มุมมองนี้ออกจากหน้าของตัวเองและถูกปิดแล้ว ให้ปิดปลั๊กอินแล้วเปิดใหม่เพื่อใช้งานอีกครั้ง",
     "Could not open this view. Close and reopen the plugin to try again.": "ไม่สามารถเปิดมุมมองนี้ได้ ให้ปิดปลั๊กอินแล้วเปิดใหม่เพื่อลองอีกครั้ง",
+    "Sign-in opens in your browser.": "การลงชื่อเข้าใช้จะเปิดในเบราว์เซอร์ของคุณ",
+    "Continue to sign-in": "ไปที่การลงชื่อเข้าใช้",
   },
   it: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3260,6 +3294,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "Questa vista ha lasciato la propria pagina ed è stata chiusa. Chiudi e riapri il plugin per usarla di nuovo.",
     "Could not open this view. Close and reopen the plugin to try again.": "Impossibile aprire questa vista. Chiudi e riapri il plugin per riprovare.",
+    "Sign-in opens in your browser.": "L’accesso si apre nel browser.",
+    "Continue to sign-in": "Continua con l’accesso",
   },
   hi: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3439,6 +3475,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "यह दृश्य अपने पेज से बाहर चला गया और बंद कर दिया गया। इसे फिर से उपयोग करने के लिए प्लगइन को बंद करके दोबारा खोलें।",
     "Could not open this view. Close and reopen the plugin to try again.": "यह दृश्य खोला नहीं जा सका। फिर से प्रयास करने के लिए प्लगइन को बंद करके दोबारा खोलें।",
+    "Sign-in opens in your browser.": "साइन-इन आपके ब्राउज़र में खुलता है।",
+    "Continue to sign-in": "साइन-इन पर जारी रखें",
   },
   ur: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3618,6 +3656,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "یہ منظر اپنے صفحے سے باہر نکل گیا اور بند کر دیا گیا۔ دوبارہ استعمال کے لیے پلگ ان کو بند کر کے دوبارہ کھولیں۔",
     "Could not open this view. Close and reopen the plugin to try again.": "یہ منظر نہیں کھولا جا سکا۔ دوبارہ کوشش کے لیے پلگ ان کو بند کر کے دوبارہ کھولیں۔",
+    "Sign-in opens in your browser.": "سائن ان آپ کے براؤزر میں کھلتا ہے۔",
+    "Continue to sign-in": "سائن ان پر جاری رکھیں",
   },
   bn: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3797,6 +3837,8 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     // Plugin-owned admin surface frame notices (2026-10-20).
     "This view left its page and was closed. Close and reopen the plugin to use it again.": "এই ভিউ তার পেজ ছেড়ে চলে গেছে এবং বন্ধ হয়ে গেছে। আবার ব্যবহার করতে প্লাগইনটি বন্ধ করে আবার খুলুন।",
     "Could not open this view. Close and reopen the plugin to try again.": "এই ভিউ খোলা যায়নি। আবার চেষ্টা করতে প্লাগইনটি বন্ধ করে আবার খুলুন।",
+    "Sign-in opens in your browser.": "সাইন-ইন আপনার ব্রাউজারে খোলে।",
+    "Continue to sign-in": "সাইন-ইনে চালিয়ে যান",
   },
 };
 

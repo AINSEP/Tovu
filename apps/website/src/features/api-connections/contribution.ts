@@ -15,7 +15,9 @@ import { parseConnectionBudgets, type ConnectionBudget } from "./budgets.js";
  * descriptor is untrusted until Jini's `parseApiConnectionDescriptor` accepts it. Client config is
  * only ever NAMED by the plugin: names must match {@link CLIENT_ENV_PATTERN}, so a plugin can point
  * at its own `…_CLIENT_ID` / `…_CLIENT_SECRET` and never at another secret of this host. Request
- * budgets (`budgets`) are clamped to the host's maxima by `budgets.ts` and never reach the descriptor.
+ * budgets (`budgets`) are clamped to the host's maxima by `budgets.ts` and never reach the descriptor;
+ * nor do `scopeSets` (the plugin's scope-set ids, for status) and `apiOrigins` (the https origins its
+ * API calls reach, for form delivery's host allowlist), which only the host reads.
  */
 
 export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
@@ -23,6 +25,10 @@ const CLIENT_ENV_PATTERN = /^TOVU_[A-Z0-9_]{1,80}_CLIENT_(ID|SECRET)$/;
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_CONNECTIONS = 8;
 const MAX_ORIGINS = 32;
+const MAX_API_ORIGINS = 8;
+const MAX_SCOPE_SETS = 16;
+/** The scope-set id shape Jini's admin-surface port accepts. */
+const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 /** Where a runtime's client id (and, for the hosted web client, its secret) is configured. */
 export interface ApiConnectionClientConfig {
@@ -39,6 +45,10 @@ export interface ApiConnectionDeclaration {
   readonly clients: { readonly web?: ApiConnectionClientConfig; readonly desktop?: ApiConnectionClientConfig };
   /** Clamped per-minute budgets the host charges on every token read; always includes an instance budget. */
   readonly budgets: readonly ConnectionBudget[];
+  /** The scope-set ids (opaque product-module ids) the plugin offers, so status can report which are granted. */
+  readonly scopeSets: readonly string[];
+  /** The https origins the plugin's API calls with this connection reach (form delivery's host allowlist). */
+  readonly apiOrigins: readonly string[];
   /** Passed to `parseApiConnectionDescriptor` with the plugin id at load time. */
   readonly descriptor: Readonly<Record<string, unknown>>;
 }
@@ -54,6 +64,8 @@ export interface DeclaredApiConnection {
   readonly descriptor: ApiConnectionDescriptor;
   readonly clients: ApiConnectionDeclaration["clients"];
   readonly budgets: ApiConnectionDeclaration["budgets"];
+  readonly scopeSets: ApiConnectionDeclaration["scopeSets"];
+  readonly apiOrigins: ApiConnectionDeclaration["apiOrigins"];
   readonly module: ApiConnectionHooksModule;
 }
 
@@ -96,6 +108,19 @@ function parseClient(value: unknown, at: string): ApiConnectionClientConfig | st
   return { clientIdEnv, ...(clientSecretEnv === undefined ? {} : { clientSecretEnv }), ...(redirectOrigins === undefined ? {} : { redirectOrigins }) };
 }
 
+function isHttpsOrigin(value: unknown): value is string {
+  return isOrigin(value) && new URL(value as string).protocol === "https:";
+}
+
+/** Optional host-read lists, each bounded; absent = empty. @complexity O(n) entries. */
+function parseHostLists(scopeSets: unknown, apiOrigins: unknown, at: string): Pick<ApiConnectionDeclaration, "scopeSets" | "apiOrigins"> | string {
+  const sets = scopeSets ?? [];
+  const origins = apiOrigins ?? [];
+  if (!Array.isArray(sets) || sets.length > MAX_SCOPE_SETS || !sets.every((id) => typeof id === "string" && SCOPE_SET_ID_PATTERN.test(id))) return `${at}.scopeSets must be at most ${MAX_SCOPE_SETS} short ids`;
+  if (!Array.isArray(origins) || origins.length > MAX_API_ORIGINS || !origins.every(isHttpsOrigin)) return `${at}.apiOrigins must be at most ${MAX_API_ORIGINS} https:// origins`;
+  return { scopeSets: [...sets] as string[], apiOrigins: [...origins] as string[] };
+}
+
 function idOrModuleProblem(id: unknown, module: unknown, at: string): string | undefined {
   if (typeof id !== "string" || id.length > 64 || !ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
@@ -110,7 +135,7 @@ function idOrModuleProblem(id: unknown, module: unknown, at: string): string | u
  */
 function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration | string {
   if (!isObject(entry)) return `${at} must be an object`;
-  const { id, module, clients, budgets: declaredBudgets, ...descriptor } = entry;
+  const { id, module, clients, budgets: declaredBudgets, scopeSets, apiOrigins, ...descriptor } = entry;
   const invalid = idOrModuleProblem(id, module, at);
   if (invalid) return invalid;
   if (!isObject(clients)) return `${at}.clients must be an object`;
@@ -118,8 +143,10 @@ function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration 
   if (typeof runtimeClients === "string") return runtimeClients;
   const budgets = parseConnectionBudgets({ value: declaredBudgets, at: `${at}.budgets` });
   if (typeof budgets === "string") return budgets;
+  const lists = parseHostLists(scopeSets, apiOrigins, at);
+  if (typeof lists === "string") return lists;
   // idOrModuleProblem returned undefined, so both are checked strings.
-  return { id: id as string, module: module as string, clients: runtimeClients, budgets, descriptor };
+  return { id: id as string, module: module as string, clients: runtimeClients, budgets, ...lists, descriptor };
 }
 
 const INVALID_JSON = Symbol("invalid-json");
@@ -166,7 +193,8 @@ export async function loadDeclaredApiConnections(
   for (const item of load.items) {
     try {
       const descriptor = parseApiConnectionDescriptor({ value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
-      connections.push({ pluginId: item.pluginId, descriptor, clients: item.descriptor.clients, budgets: item.descriptor.budgets, module: item.module });
+      const { clients, budgets, scopeSets, apiOrigins } = item.descriptor;
+      connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, module: item.module });
     } catch (error) {
       refusals.push(`API connection '${item.descriptor.id}' from '${item.pluginId}' was not loaded: ${error instanceof Error ? error.message : "invalid descriptor"}`);
     }

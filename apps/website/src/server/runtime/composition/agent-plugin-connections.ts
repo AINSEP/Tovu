@@ -8,6 +8,10 @@ import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecy
 import type { AgentPluginExecutableToolHost } from "#src/features/agent-plugins/executable-tools/register";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp } from "#src/features/agent-plugins/executable-tools/host-capabilities";
 import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHandlers } from "#src/features/agent-plugins/admin-surfaces/handlers";
+import { createAdminSurfaceCapabilities } from "#src/features/agent-plugins/admin-surfaces/capabilities";
+import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
+import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
+import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 
 /**
@@ -18,7 +22,8 @@ import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
  *
  * The connection port is built ONCE and shared, so a tool call and a surface action see the same
  * ownership rule (a ref must be declared by the calling plugin in this workspace) and the same
- * limiter budget. Nothing here names a provider.
+ * limiter budget. Surfaces additionally get account actions by connection id, the plugin's settings
+ * store (read-write; tools read the same store) and public config. Nothing here names a provider.
  */
 
 /**
@@ -93,10 +98,20 @@ export function composeAgentPluginConnections(
   });
   const limiter = createRateLimiter({ profile: AGENT_PLUGIN_OUTBOUND_BUDGET, clock });
   const connections = host.toolConnections;
-  const capabilities = createAgentPluginToolCapabilities({ connections, http, limiter, frozen: createFrozenConnectionAccounts() });
+  // One plugin-settings store: surfaces write it, tools (and later form delivery) only read it.
+  const state = (scope: { readonly workspaceId: string; readonly pluginId: string }) => host.pluginState.readerFor(scope);
+  const tools = createAgentPluginToolCapabilities({ connections, http, limiter, frozen: createFrozenConnectionAccounts(), state });
+  const signIns = createIssuedSignInCollector();
+  const capabilities = createAdminSurfaceCapabilities({
+    tools, publicConfig: createAdminSurfacePublicConfig({ env }),
+    stateFor: (scope) => host.pluginState.forPlugin(scope),
+    connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId }) => createSurfaceConnections({
+      host, pluginId, workspaceId: scopeWorkspaceId, principalId, onSignInIssued: (issued) => signIns.record(issued),
+    }),
+  });
   return {
     apiConnections: { host },
-    agentPluginTools: { loadContributions, connections, http, limiter },
-    adminSurfaceHost: createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }),
+    agentPluginTools: { loadContributions, connections, http, limiter, state },
+    adminSurfaceHost: createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns }),
   };
 }

@@ -1,6 +1,6 @@
-import { createAdminSurfaceHandlerHost, defineAdminSurfaceHandlerContribution, type LoadedAdminSurfaceHandlers } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { AgentPluginToolCapabilitiesPort } from "@jini-ai/agent-plugins/lifecycle/tools";
+import { createAdminSurfaceHandlerHost, defineAdminSurfaceHandlerContribution, type AdminSurfaceCapabilitiesPort, type LoadedAdminSurfaceHandlers } from "@jini-ai/agent-plugins/admin-surfaces";
 
+import type { IssuedSignInCollector } from "./issued-sign-ins.js";
 import { ADMIN_SURFACES_FILENAME, type AdminSurfaceHost } from "./surfaces.js";
 
 /**
@@ -32,14 +32,15 @@ export interface AgentPluginAdminSurfaceHandlers extends AdminSurfaceHost {
  * Creates the site's admin-surface handler host.
  * @param required.workspaceId - The site's workspace; every load reads its active plugins.
  * @param required.loadContributions - The lifecycle owner's trusted contribution loader.
- * @param required.capabilities - The executable-tool capability port (connections, guarded HTTP, limiter).
+ * @param required.capabilities - The admin-surface capability port (`capabilities.ts`: tool HTTP/limiter + connections, state, public config).
  * @param optional.log - Where refusal lines go; defaults to `console.warn`.
+ * @param optional.signIns - The registry the connections port reports issued sign-ins to; the action route collects it.
  * @returns The `AdminSurfaceHost` port plus `refresh`.
  * @complexity `refresh` is one contribution load, O(p) active packages, plus O(s + a) admission.
  */
 export function createAgentPluginAdminSurfaceHandlers(
-  required: { readonly workspaceId: string; readonly loadContributions: LoadAdminSurfaceHandlers; readonly capabilities: AgentPluginToolCapabilitiesPort },
-  optional: { readonly log?: (line: string) => void } = {},
+  required: { readonly workspaceId: string; readonly loadContributions: LoadAdminSurfaceHandlers; readonly capabilities: AdminSurfaceCapabilitiesPort },
+  optional: { readonly log?: (line: string) => void; readonly signIns?: IssuedSignInCollector } = {},
 ): AgentPluginAdminSurfaceHandlers {
   const host = createAdminSurfaceHandlerHost({ capabilities: required.capabilities });
   const log = optional.log ?? ((line: string) => console.warn(`[admin-surfaces] ${line}`));
@@ -53,6 +54,7 @@ export function createAgentPluginAdminSurfaceHandlers(
 
   return {
     refresh,
+    ...(optional.signIns === undefined ? {} : { signIns: optional.signIns }),
     handlersFor: (input) => host.handlersFor(input),
     async bootstrapData(input) {
       await refresh();

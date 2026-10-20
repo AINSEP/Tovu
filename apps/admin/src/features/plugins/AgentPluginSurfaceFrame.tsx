@@ -7,7 +7,8 @@ import { useAdminSurfaceFrame } from "./hooks/use-admin-surface-frame.hooks";
  * @file One plugin-owned admin surface (for example a plugin's "Manage connection" screen) in
  * Jini's sandboxed frame: `sandbox="allow-scripts"` only (never `allow-same-origin`, which with
  * scripts would let the frame lift its own sandbox) and `referrerpolicy="no-referrer"`. Everything
- * the surface does goes through {@link useAdminSurfaceFrame}'s message gate.
+ * the surface does goes through {@link useAdminSurfaceFrame}'s message gate. Below the frame, the
+ * host page offers the sign-in links the server issued for this mount (the frame cannot open popups).
  */
 
 export interface AgentPluginSurfaceFrameProps {
@@ -33,6 +34,14 @@ export function AgentPluginSurfaceFrame({ pluginId, surface, port, t }: AgentPlu
         onLoad={frame.onLoad}
         style={{ width: "100%", minHeight: "28rem", border: 0 }}
       />
+      {frame.signIns.map((link) => (
+        <p key={link.authorizationUrl} className="field-hint" role="status">
+          {t("Sign-in opens in your browser.")}{" "}
+          <a className="btn-primary" href={link.authorizationUrl} target="_blank" rel="noopener noreferrer" onClick={() => frame.onSignInOpened(link)}>
+            {t("Continue to sign-in")}
+          </a>
+        </p>
+      ))}
     </div>
   );
 }

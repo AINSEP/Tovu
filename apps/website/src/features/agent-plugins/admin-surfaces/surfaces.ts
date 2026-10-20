@@ -7,6 +7,7 @@ import {
 import type { TrustedPluginPackage } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import type { IssuedSignInCollector } from "./issued-sign-ins.js";
 
 /**
  * @file Tovu's adapter over Jini's admin-surface seam (`@jini-ai/agent-plugins/admin-surfaces`):
@@ -56,6 +57,8 @@ export interface AdminSurfaceRequestContext {
 export interface AdminSurfaceHost {
   handlersFor(required: { readonly pluginId: string; readonly surfaceId: string }, optional?: Record<string, never>): Readonly<Record<string, AdminSurfaceActionHandler<AdminSurfaceRequestContext>>>;
   bootstrapData(required: { readonly context: AdminSurfaceRequestContext }, optional?: Record<string, never>): Promise<unknown>;
+  /** The sign-in links an action issued, for the host page to offer (absent: none are ever offered). */
+  readonly signIns?: Pick<IssuedSignInCollector, "collect">;
 }
 
 /** The default host: no handlers, no bootstrap data. */

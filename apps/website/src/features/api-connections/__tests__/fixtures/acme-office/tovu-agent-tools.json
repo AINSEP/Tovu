@@ -8,9 +8,15 @@
       "module": "tools/whoami.mjs",
       "inputSchema": {
         "type": "object",
-        "required": ["connectionRef"],
+        "required": [
+          "connectionRef"
+        ],
         "additionalProperties": false,
-        "properties": { "connectionRef": { "type": "string" } }
+        "properties": {
+          "connectionRef": {
+            "type": "string"
+          }
+        }
       }
     },
     {
@@ -20,13 +26,40 @@
       "module": "tools/append-row.mjs",
       "inputSchema": {
         "type": "object",
-        "required": ["connectionRef", "table", "values"],
+        "required": [
+          "connectionRef",
+          "table",
+          "values"
+        ],
         "additionalProperties": false,
         "properties": {
-          "connectionRef": { "type": "string" },
-          "table": { "type": "string", "maxLength": 100 },
-          "values": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 1000 } }
+          "connectionRef": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "values": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
         }
+      }
+    },
+    {
+      "name": "selection",
+      "description": "Read the table chosen on the plugin's settings screen.",
+      "effect": "read",
+      "module": "tools/selection.mjs",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
       }
     }
   ]
