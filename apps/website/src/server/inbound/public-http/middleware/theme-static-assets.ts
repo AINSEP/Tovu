@@ -1,12 +1,15 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import express from "express";
-import type { Express } from "express";
+import type { Express, NextFunction, Response } from "express";
 
 import { resolvePathWithin } from "#src/contracts/core/index";
-import { themeIdCandidates } from "#src/features/theme/theme-id-aliases";
 
+import { resolveThemeDirs } from "./theme-asset-dirs.js";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
+
+/** Whether an authenticated admin previewed `revision` (supplied by `theme-preview-refresh.ts`). */
+type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional: {}) => boolean;
 
 /**
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only
@@ -64,93 +67,89 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  */
 export function registerThemeStaticAssets(
   app: Express,
-  required: { themeRoots: readonly string[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: (required: { revision: string }, optional: {}) => boolean },
+  required: { themeRoots: readonly string[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
 ): void {
   const serveStatic = required.serveStatic ?? express.static;
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
 
   app.use(["/theme-assets/:themeId", "/theme-preview-assets/:revision/:themeId"], themeAssetSecurityHeaders, (req, res, next) => {
-    const themeId = String(req.params.themeId ?? "");
-    // A renamed theme answers to both ids (`theme-id-aliases.ts`): old `/theme-assets/basic/...`
-    // URLs baked into stored content keep resolving after the rename, on sites that have either
-    // folder. Current name first; a file missing there falls through to the retired folder.
-    const themeDirs = [...new Set(themeIdCandidates(themeId).map((id) => resolveThemeDir(roots, id)))].filter(
-      (dir): dir is string => dir !== null
-    );
+    const themeDirs = resolveThemeDirs({ roots, themeId: req.params.themeId }, {});
+    const requestedRevision = req.params.revision;
+    const preview = typeof requestedRevision === "string";
     const serveFrom = (index: number): void => {
       const themeDir = themeDirs[index];
       if (themeDir === undefined) {
         next();
         return;
       }
-      const preview = typeof req.params.revision === "string";
       if (preview) res.set("Cache-Control", "no-store");
-      const requestedRevision = req.params.revision;
-      const revision = res.locals?.themePreviewRevision ?? (
-        typeof requestedRevision === "string" && /^[\w-]{1,100}$/.test(requestedRevision) && required.isAuthenticatedPreviewRevision?.({ revision: requestedRevision }, {})
-          ? requestedRevision : undefined
-      );
-      if (preview && typeof revision === "string" && (req.method === "GET" || req.method === "HEAD")) {
-        // Only authenticated preview CSS changes bytes; public static responses retain their cache policy.
-        let relativePath: string;
-        try { relativePath = decodeURIComponent(req.url.split("?", 1)[0] ?? "").replace(/^\/+/, ""); }
-        catch { next(); return; }
-        const cssPath = resolvePathWithin({ root: themeDir, segment: relativePath }, {});
-        if (cssPath && relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."))) {
-          try {
-            const css = readFileSync(cssPath, "utf8");
-            // Match root-relative references, preserving external hosts and existing query/fragment tails.
-            const fresh = css.replace(/((?:url\(\s*["']?|@import\s+["']))\/theme-assets\//gi,
-              `$1/theme-preview-assets/${encodeURIComponent(revision)}/`);
-            res.type("css").send(fresh);
-            return;
-          } catch { serveFrom(index + 1); return; }
-        }
-      }
+      const nextDir = (): void => serveFrom(index + 1);
+      const revision = preview
+        ? trustedPreviewRevision(
+          { requestedRevision, localsRevision: res.locals?.themePreviewRevision },
+          { isAuthenticatedPreviewRevision: required.isAuthenticatedPreviewRevision },
+        )
+        : undefined;
+      if (revision !== undefined && (req.method === "GET" || req.method === "HEAD") && sendPreviewCss({ res, themeDir, url: req.url, revision, next, nextDir })) return;
 
-      serveStatic(themeDir, preview ? { cacheControl: false, etag: false, lastModified: false } : {})(req, res, (err?: unknown) => (err ? next(err) : serveFrom(index + 1)));
+      serveStatic(themeDir, preview ? { cacheControl: false, etag: false, lastModified: false } : {})(req, res, (err?: unknown) => (err ? next(err) : nextDir()));
     };
     serveFrom(0);
   });
 }
 
 /**
- * Resolve `<root>/<themeId>` to a real directory for the first `root` (checked in order) where it
- * exists, or `null` if no root has it — the multi-root generalization of the original single-root
- * function (unchanged validation per root, just tried across a list). Tie-break for a `themeId` that
- * happens to exist under more than one root: first root in `roots` wins — today's caller
- * (`app.ts`) always lists `themes/static` before `themes/templated`, so an accidental same-named
- * folder in both resolves to the static one, matching this mount's original (pre-extension) behavior
- * for every theme id that already existed under `themes/static`. No such collision exists on disk
- * today (verified: `ls themes/static themes/templated` share no folder name).
+ * The preview revision a `/theme-preview-assets/:revision/...` request's CSS may be rewritten for:
+ * the one an upstream middleware already authenticated (`res.locals.themePreviewRevision`) when set,
+ * otherwise the URL's own revision if it is well-formed and the predicate trusts it.
  *
- * Four separate refusals per root, because a path segment now arrives from the request rather than
- * from a `readdirSync` of trusted names:
- * - `..`/separators/absolute paths, rejected by `core/path-containment.ts`'s shared
- *   `resolvePathWithin` — kept even though Express decodes `:themeId` as a single segment, because
- *   that is a property of the routing layer rather than of this function.
- * - the `__original-themes__` catalog, whose whole purpose is to be a pristine
- *   copy nothing serves or runs; it is not a theme and must not be reachable as one.
- * - ANY dot-prefixed directory name. `.tovu-migrate-staging-*` scratch output (ARCH-001,
- *   2026-08-19) is the case that forced this: `migrate-theme.ts` deliberately leaves that on disk
- *   for dry-run/failure inspection as a direct sibling of real theme folders, and without a
- *   refusal it resolved here exactly like a real theme id -- its whole folder (css, tokens,
- *   screenshots) was servable over HTTP. Refusing the DOT rather than that one literal prefix is
- *   deliberate: it is strictly broader (any hidden dir -- .git, .env.d, a future scratch prefix --
- *   is refused for free), no legitimate theme id is dot-prefixed (verified against
- *   content/themes/static and content/themes/templated), and it needs NO import. The earlier form
- *   imported MIGRATION_STAGING_DIR_PREFIX from features/theme/theme.ts, which made this the only
- *   file in src/server/ importing that 1134-line module and regressed four check:architecture
- *   metrics (propagation cost all-import 11.57->11.87 and runtime-only 1.75->1.8, module API
- *   surface 201->202, core size 16.84%->17.05%) for a single string constant.
- * - anything that simply is not there, which falls through to the next root, then to the normal 404.
+ * A set but non-string `localsRevision` still wins over the URL's revision and yields `undefined`,
+ * so nothing is rewritten.
+ * @returns The revision string, or `undefined` when no CSS rewrite is allowed.
  */
-function resolveThemeDir(roots: readonly string[], themeId: string): string | null {
-  if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(".")) return null;
-  for (const root of roots) {
-    const candidate = resolvePathWithin({ root: root, segment: themeId }, {});
-    if (candidate === null) continue;
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
+function trustedPreviewRevision(
+  required: { requestedRevision: string; localsRevision: unknown },
+  optional: { isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
+): string | undefined {
+  const { requestedRevision } = required;
+  const revision = required.localsRevision ?? (
+    /^[\w-]{1,100}$/.test(requestedRevision) && optional.isAuthenticatedPreviewRevision?.({ revision: requestedRevision }, {})
+      ? requestedRevision : undefined
+  );
+  return typeof revision === "string" ? revision : undefined;
+}
+
+/**
+ * Serves one theme folder's CSS file with its root-relative `/theme-assets/` references pointed at
+ * `revision`'s preview prefix, when the request names such a file.
+ *
+ * Only authenticated preview CSS changes bytes; public static responses retain their cache policy.
+ * @returns `false` when the request is not rewritable CSS (the caller serves it statically);
+ * `true` once the request is answered, handed to `next` (undecodable path) or handed to `nextDir`
+ * (the file cannot be read in this folder).
+ * @complexity O(file size) for the read and rewrite.
+ */
+function sendPreviewCss(required: { res: Response; themeDir: string; url: string; revision: string; next: NextFunction; nextDir: () => void }): boolean {
+  let relativePath: string;
+  try { relativePath = decodeURIComponent(required.url.replace(/\?[\s\S]*/, "")).replace(/^\/+/, ""); }
+  catch { required.next(); return true; }
+  const cssPath = resolvePathWithin({ root: required.themeDir, segment: relativePath }, {});
+  if (!cssPath || !isRewritableCssPath(relativePath)) return false;
+  try {
+    const css = readFileSync(cssPath, "utf8");
+    required.res.type("css").send(previewCss({ css, revision: required.revision }));
+  } catch { required.nextDir(); }
+  return true;
+}
+
+/** A `.css` file (any case) with no dot-prefixed segment anywhere in its theme-relative path. */
+function isRewritableCssPath(relativePath: string): boolean {
+  return relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."));
+}
+
+/** `css` with every `url(...)`/`@import` reference to `/theme-assets/` moved under `revision`'s preview prefix. */
+function previewCss(required: { css: string; revision: string }): string {
+  // Match root-relative references, preserving external hosts and existing query/fragment tails.
+  return required.css.replace(/((?:url\(\s*["']?|@import\s+["']))\/theme-assets\//gi,
+    `$1/theme-preview-assets/${encodeURIComponent(required.revision)}/`);
 }
