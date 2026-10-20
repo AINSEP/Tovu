@@ -20,10 +20,17 @@ export function useMediaCardMetadata(
 ) {
   const byteSize = item.byteSize == null ? null : formatters.formatByteSize({ bytes: item.byteSize }, { locale });
   const uploadDate = formatters.formatUploadDate?.({ createdAt: item.createdAt }, { locale }) ?? null;
+  return legacyCardMetadata({ byteSize, uploadDate, createdAt: item.createdAt });
+}
+
+function legacyCardMetadata(
+  { byteSize, uploadDate, createdAt }: { byteSize: string | null; uploadDate: string | null; createdAt: string },
+  _options: Record<string, never> = {},
+) {
   return {
     byteSize,
     uploadDate,
-    uploadDateTime: uploadDate ? item.createdAt : undefined,
+    uploadDateTime: uploadDate ? createdAt : undefined,
     metadataSeparator: byteSize && uploadDate ? " · " : "",
     hasMetadata: byteSize !== null || uploadDate !== null,
   };
