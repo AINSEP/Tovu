@@ -1,3 +1,4 @@
+import { toolMetadata as consent } from './consent.js';
 import { projectToolMetadata } from '@jini-ai/core';
 import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
 import { toolMetadata as agent_plugins } from './agent-plugins.js';
@@ -65,6 +66,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'assistant', tools: assistant },
   { domain: 'change-sets', tools: change_sets },
   { domain: 'comments', tools: comments },
+  { domain: 'consent', tools: consent },
   { domain: 'content-duplication', tools: content_duplication },
   { domain: 'content-read', tools: content_read },
   { domain: 'content-types', tools: content_types },

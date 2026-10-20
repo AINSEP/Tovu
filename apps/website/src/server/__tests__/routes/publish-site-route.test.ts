@@ -1069,3 +1069,16 @@ test('publish-site HTTP cannot substitute a request flag for exact human domain 
   assert.equal(body.code, 'DOMAIN_CONFIRMATION_REQUIRED');
   assert.match(body.error, /exact domain changes.*chat/);
 });
+
+
+test("publish-site: enabled consent returns 409 with explicit choices before starting a deployment", async t => {
+  const deps = testRouteDeps();
+  assert.ok(deps.siteConsent);
+  deps.siteConsent.deploymentCheck = async () => ({ code: 'CONSENT_REVIEW_REQUIRED', error: 'Review cookie consent', blockingProblems: [], choices: [{ id: 'fix-now', label: 'Fix now', href: '/consent', action: 'Review' }, { id: 'publish-without-banner', label: 'Publish without banner', href: '/consent', action: 'Publish an explicitly disabled policy' }] });
+  deps.exportSiteBound = async () => assert.fail('no export before consent choice');
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ target: 'github-pages', owner: 'octo', repo: 'demo-repo', projectName: 'demo' }) });
+  assert.equal(response.status, 409);
+  const body = await response.json(); assert.equal(body.code, 'CONSENT_REVIEW_REQUIRED');
+  assert.deepEqual(body.choices.map((choice: { id: string }) => choice.id), ['fix-now', 'publish-without-banner']);
+});

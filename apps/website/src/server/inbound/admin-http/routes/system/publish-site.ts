@@ -1,3 +1,4 @@
+import { deploymentRefusal } from '#src/features/consent/service';
 import { listPublishContentPeers } from "#src/features/publish-content/peers";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { Express } from "express";
@@ -253,6 +254,11 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         res.status(409).json({ code: "DOMAIN_CONFIRMATION_REQUIRED", error: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation." });
         return;
       }
+
+      const consent = deps.siteConsent
+        ? await deps.siteConsent.deploymentCheck({ principalId: principal.id, permission: 'system.publish' })
+        : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
+      if (consent) { res.status(409).json(consent); return; }
 
       // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
       // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both

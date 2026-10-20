@@ -791,6 +791,10 @@ export interface SettingsDeps {
    * (ADR-PIPE-007 Migration Safety), and admin settings routes use the same ledger.
    */
   settingsRepo: SettingsRepoPort;
+  /** Site-owned immutable policies; omitted only by hermetic callers without a durable store. */
+  consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
+  siteConsent?: import('#src/features/consent/service').SiteConsentService;
+  consentTrustedRegionHeader?: string;
   /**
    * The real `features/settings`'s own `getEffective` — threaded through `RouteDeps` (rather than
    * each consumer importing it directly) so `assistant/public-assistant-settings.ts`'s
@@ -1407,7 +1411,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * (see `CreateAppOptions.themeIdOverride`). It is an option of the app being built, never request
    * input, so the serving app has no way to receive it.
    */
-  createSiteApp: (optional?: { themeId?: string }) => Express;
+  createSiteApp: (optional?: { themeId?: string; consentAudit?: true }) => Express;
   /**
    * The same storefront product resolver used by the live `/products` routes, injected
    * for the export route manifest. Its `SiteProduct` return type belongs to the server

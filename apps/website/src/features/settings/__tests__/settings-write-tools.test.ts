@@ -544,3 +544,9 @@ for (const scope of ['user', 'workspace'] as const) {
     assert.equal(listed.data[0]!.confirmationRequired, true);
   });
 }
+
+for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} cannot bypass cookie consent confirmation through legacy scalar settings`, async () => {
+  const f = fixture('core.consent', 'enabled', { type: 'boolean' });
+  await assert.rejects(f.call(toolId, { namespace: 'core.consent', key: 'enabled', value: true }), /consent_update_settings|consent_publish_settings/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+});

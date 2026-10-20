@@ -1,3 +1,5 @@
+import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
+import { bindSiteConsentService } from './site-consent.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
@@ -2231,6 +2233,8 @@ async function composeSiteRouteDeps(
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    consentStore: createSiteConsentStore({ kernel, workspaceId }),
+    consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
     siteTitlePreservationStore,
     siteDisplayName,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
@@ -2514,9 +2518,10 @@ async function composeSiteRouteDeps(
     // below rather than taking it per call; same self-referencing-closure shape `exportSiteBound`
     // below already uses, same TEST GOTCHA (`routes/types.ts`'s `exportSiteBound` doc, generalized:
     // spread-override is silently inert; mutate the object in place instead).
-    createSiteApp: ({ themeId } = {}) =>
+    createSiteApp: ({ themeId, consentAudit } = {}) =>
       createApp(routeDeps, {
         ...(themeId === undefined ? {} : { themeIdOverride: themeId }),
+        ...(consentAudit ? { consentAudit } : {}),
       }),
     siteAppBootWork,
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
@@ -2696,6 +2701,7 @@ async function composeSiteRouteDeps(
       setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
     }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
   }
+  routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
   return routeDeps;
 }
 

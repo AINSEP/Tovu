@@ -68,7 +68,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
   // The chat-selection how-to lives in this tool's search metadata: descriptions stay the catalog's verbatim.
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
-    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
+    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: "core.consent", reason: "Cookie consent changes require consent_update_settings and consent_publish_settings with a human confirmation card." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
     setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.

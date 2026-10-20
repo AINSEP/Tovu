@@ -5,7 +5,8 @@ export { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from './config.js';
 
 const ENUM_VALUES: Partial<Record<keyof SiteConsentSettings, readonly string[]>> = { regionMode: SITE_CONSENT_REGION_MODES, placement: SITE_CONSENT_PLACEMENTS };
 
-/** Existing shared registrar owns transactions/revisions; no new table or migration.
+/** The shared registrar owns legacy scalar definitions and their ledger revisions.
+ * Complete published policies use the site snapshot adapter, avoiding partial field publication.
  * @complexity O(1), thirteen bounded settings definitions. */
 export async function ensureSiteConsentDefinitions(required: EnsureSettingDefinitionsDeps, { systemPrincipalId }: { systemPrincipalId: string }): Promise<void> {
   const definitions: SettingDefinitionSpec[] = Object.entries(SITE_CONSENT_DEFAULTS).map(([key, defaultValue]) => {
@@ -96,4 +97,12 @@ export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, { a
       return { ...values, enabled: true };
     },
   };
+}
+
+/** Authoring reads retain saved copy even while consent is disabled; public rollback still uses get().
+ * @example readSiteConsentAuthoringSettings({ settingsRepo, workspaceId })
+ * @complexity O(1), one bounded set of existing ledger reads; performs no writes. */
+export async function readSiteConsentAuthoringSettings(deps: Deps, { autoEnable }: { autoEnable?: SiteConsentAutoEnablePort } = {}): Promise<SiteConsentSettings> {
+  const activation = await resolveSiteConsentActivation(deps, { autoEnable });
+  return { ...await readValues(deps), enabled: activation.enabled };
 }
