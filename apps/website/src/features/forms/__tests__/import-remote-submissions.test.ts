@@ -125,3 +125,33 @@ test("the store's transaction is called on the store itself, as the SQL adapter'
   assert.deepEqual(result, { committedIds: ["r1"], imported: 1, duplicates: 0, invalid: [], skipped: [], forms: [{ formSlug: "waitlist", imported: 1, alreadyImported: 0, unmapped: 0 }] });
   assert.equal(s.rows.length, 1);
 });
+
+test("per-form counts keep first-seen order across interleaved forms; an invalid row counts as imported, a repeat as already imported", async () => {
+  const s = setup();
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "d", items: [
+    row("r1", { email: "a@b.co" }, { formSlug: "old" }),
+    row("r2", { email: "a@b.co" }),
+    row("r3", { email: "" }, { formSlug: "old" }),
+    row("r4", { email: "a@b.co" }, { formSlug: "gone" }),
+    row("r2", { email: "a@b.co" }),
+    row("r5", { email: "a@b.co" }),
+  ] });
+  assert.deepEqual(result.forms, [
+    { formSlug: "old", imported: 2, alreadyImported: 0, unmapped: 0 },
+    { formSlug: "waitlist", imported: 2, alreadyImported: 1, unmapped: 0 },
+    { formSlug: "gone", imported: 0, alreadyImported: 0, unmapped: 1 },
+  ]);
+  assert.deepEqual([result.imported, result.duplicates, result.skipped.length, result.invalid.length], [4, 1, 1, 1], "the per-form counts add up to the totals");
+});
+
+test("a form slug shaped like an object key is counted as its own form", async () => {
+  const s = setup();
+  const result = await importRemoteFormSubmissions({ deps: s.deps, workspaceId: "w", destinationKey: "d", items: [
+    row("r1", { email: "a@b.co" }, { formSlug: "__proto__" }), row("r2", { email: "a@b.co" }, { formSlug: "constructor" }),
+  ] });
+  assert.deepEqual(result.forms, [{ formSlug: "__proto__", imported: 0, alreadyImported: 0, unmapped: 1 }, { formSlug: "constructor", imported: 0, alreadyImported: 0, unmapped: 1 }]);
+});
+
+test("an empty page reports no forms", async () => {
+  assert.deepEqual((await importRemoteFormSubmissions({ deps: setup().deps, workspaceId: "w", destinationKey: "d", items: [] })).forms, []);
+});
