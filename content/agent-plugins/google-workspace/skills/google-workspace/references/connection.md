@@ -59,7 +59,8 @@ The panels cannot open links themselves: when a sign-in starts, the admin page s
   - Deliveries that were already queued keep the account they were created with, so after a switch
     they fail; they are not sent again automatically.
   - The Google Workspace tools act as the new account at once.
-- **Disconnect** - Tovu stops using the account at once, then asks Google to revoke its access.
+- **Disconnect** - the panel first asks "Disconnect and revoke?" (it cannot be undone at Google);
+  after the person confirms, Tovu stops using the account at once, then asks Google to revoke its access.
   - If Google confirms, the saved sign-in is deleted.
   - If Google does not answer or refuses, Tovu shows **"Disconnected locally; Google revocation
     pending"**. Tovu no longer uses the account, keeps the switched-off sign-in only so it can retry,

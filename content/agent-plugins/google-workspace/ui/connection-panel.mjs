@@ -9,13 +9,15 @@
  * its link expires. The Google Account page (to remove access by hand while a revocation is
  * pending) is opened the same way, through the surface client's `openLink`.
  */
-import { REASSIGN_HINT, connectionSummary, productRows, reassignmentMessage, revocationMessage } from './connection-view.mjs';
+import { DISCONNECT_CONFIRM_TEXT, REASSIGN_HINT, connectionSummary, productRows, reassignmentMessage, revocationMessage } from './connection-view.mjs';
 import { busy, connectToHost, failureText, h, show, wait } from './dom.mjs';
 
 const POLL_MS = 4000;
 let client;
 let app;
 let notice = null;
+/** True while the panel asks "Disconnect and revoke?"; the revocation is sent only from that step. */
+let confirmingDisconnect = false;
 
 const call = (action, payload = {}) => client.call({ action, payload });
 
@@ -51,7 +53,9 @@ function onAction(action, view) {
     render(view);
     await followSignIn(view, started.expiresAt);
   });
-  if (action === 'disconnect' || action === 'retry-revocation') return run(async () => {
+  if (action === 'disconnect') { confirmingDisconnect = true; notice = null; return render(view); }
+  if (action === 'confirm-disconnect' || action === 'retry-revocation') return run(async () => {
+    confirmingDisconnect = false;
     const result = await call('disconnect');
     notice = { text: revocationMessage({ revocation: result.revocation }), ok: result.revocation === 'confirmed' };
     render(result);
@@ -92,6 +96,18 @@ function accountAccessLink(url) {
   ]);
 }
 
+/** The second step of "Disconnect and revoke": nothing is sent until the person confirms here. */
+function disconnectConfirmation(view) {
+  const cancel = () => { confirmingDisconnect = false; render(view); };
+  return h('div', { class: 'confirm', role: 'group', 'aria-label': 'Confirm disconnect' }, [
+    h('p', {}, [DISCONNECT_CONFIRM_TEXT]),
+    h('div', { class: 'actions' }, [
+      h('button', { type: 'button', class: 'primary', onClick: () => onAction('confirm-disconnect', view) }, ['Yes, disconnect and revoke']),
+      h('button', { type: 'button', onClick: cancel }, ['Cancel']),
+    ]),
+  ]);
+}
+
 function connectionCard(view) {
   const summary = connectionSummary({ connection: view.connection });
   const switching = Boolean(view.connection.pendingSwitchAccountLabel);
@@ -100,6 +116,7 @@ function connectionCard(view) {
     h('p', { class: 'muted' }, [summary.detail]),
     switching && view.destinations.length > 0 ? reassignList(view.destinations) : null,
     h('div', { class: 'actions' }, summary.buttons.map((entry, index) => h('button', { type: 'button', class: index === 0 ? 'primary' : undefined, onClick: () => onAction(entry.action, view) }, [entry.label]))),
+    confirmingDisconnect ? disconnectConfirmation(view) : null,
     view.connection.status === 'revocation-pending' ? accountAccessLink(view.accountAccessUrl) : null,
   ]);
 }
@@ -142,6 +159,7 @@ export function initConnectionPanel(required) {
   client = connectToHost({ window: required.window });
   app = required.document.getElementById('app');
   notice = null;
+  confirmingDisconnect = false;
   lastView = null;
   client.ready.then(() => call('status')).then(render, (error) => { notice = { text: failureText(error) }; render(null); });
 }

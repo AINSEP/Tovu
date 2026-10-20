@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 
-import { REVOCATION_PENDING_TEXT } from '../ui/connection-view.mjs';
+import { DISCONNECT_CONFIRM_TEXT, REVOCATION_PENDING_TEXT } from '../ui/connection-view.mjs';
 import {
   HOST_ORIGIN, MARKUP, MOUNT_ID, button, buttonLabels, createFrame, declaredActions, flush, refusal, screenText,
 } from './frame-harness.mjs';
@@ -143,8 +143,10 @@ test('Disconnect and revoke: a confirmed revocation reads as confirmed', async (
   await openPanel(panelView());
   frame.respond.set('disconnect', () => panelView({ connection: { status: 'disconnected', grantedProducts: [], accountLabel: undefined }, revocation: 'confirmed' }));
   button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   assert.deepEqual(frame.requests().at(-1), { action: 'disconnect', payload: {} });
+  assert.equal(frame.document.querySelector('.confirm'), null);
   assert.equal(notice(frame).className, 'notice ok');
   assert.equal(notice(frame).textContent, 'Disconnected. Google confirmed that Tovu\'s access to the account was removed.');
 });
@@ -153,12 +155,30 @@ test('Disconnect and revoke: a pending revocation never reads as revoked, and of
   await openPanel(panelView());
   frame.respond.set('disconnect', () => panelView({ connection: { status: 'revocation-pending', grantedProducts: [], accountLabel: undefined }, revocation: 'pending' }));
   button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   assert.equal(notice(frame).className, 'notice');
   assert.ok(notice(frame).textContent.startsWith(`${REVOCATION_PENDING_TEXT}.`));
   assert.equal(frame.document.getElementById('account-heading').textContent, REVOCATION_PENDING_TEXT);
   assert.deepEqual(buttonLabels(frame).slice(0, 3), ['Retry Google revocation', 'Connect again', 'Open Google Account page']);
   assert.equal(frame.document.querySelector('.url').textContent, ACCOUNT_ACCESS);
+});
+
+test('Disconnect and revoke asks first inside the panel and sends nothing until confirmed', async () => {
+  await openPanel(panelView());
+  button(frame, 'Disconnect and revoke').click();
+  await flush();
+  assert.equal(frame.document.querySelector('.confirm p').textContent, DISCONNECT_CONFIRM_TEXT);
+  assert.deepEqual(frame.requests().map((request) => request.action), ['status']);
+});
+
+test('Cancel on the disconnect question removes it and sends nothing', async () => {
+  await openPanel(panelView());
+  button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Cancel').click();
+  await flush();
+  assert.equal(frame.document.querySelector('.confirm'), null);
+  assert.deepEqual(frame.requests().map((request) => request.action), ['status']);
 });
 
 test('Retry Google revocation sends disconnect again', async () => {
@@ -276,9 +296,10 @@ test('a refused action shows the host sentence above the last panel view', async
 test('while an action is in flight every button is disabled, so a second click sends nothing', async () => {
   await openPanel(panelView());
   button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   const disabled = [...frame.document.querySelectorAll('button')].map((control) => control.disabled);
-  button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   assert.equal(disabled.every(Boolean), true);
   assert.deepEqual(frame.requests().map((request) => request.action), ['status', 'disconnect']);

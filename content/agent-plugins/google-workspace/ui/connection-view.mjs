@@ -25,6 +25,12 @@ export const SWITCH_NOTE = 'After the switch, the Google Workspace tools act as 
 /** What the panel says under the destination checkboxes: nothing is ticked until the person ticks it. */
 export const REASSIGN_HINT = 'Move to the new account (nothing is moved unless you tick it):';
 
+/**
+ * The panel's own second step before a revocation (the sandboxed frame has no `confirm()`): it is
+ * irreversible at Google, so one click must never do it.
+ */
+export const DISCONNECT_CONFIRM_TEXT = 'Disconnect and revoke? Tovu stops using this Google account at once and asks Google to remove its access. This cannot be undone: using Google Workspace again needs a new sign-in, and form deliveries fail until then.';
+
 const button = (action, label) => ({ action, label });
 
 const STATES = Object.freeze({

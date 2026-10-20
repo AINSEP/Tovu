@@ -22,6 +22,8 @@ p { margin: 0; }
 .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); padding: 12px 14px; display: grid; gap: 8px; }
 .notice { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: var(--radius); padding: 10px 12px; }
 .notice.ok { border-color: var(--ok-line); background: var(--ok-bg); }
+.confirm { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 8px; }
+.confirm p { margin: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
