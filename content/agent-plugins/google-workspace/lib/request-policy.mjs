@@ -33,7 +33,6 @@ const SAFE_ERRORS = Object.freeze({
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off. Turn it on in the Google Workspace panel, then retry; the Google sign-in is kept.' },
   'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
   'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
-  'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
   // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
   'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
   'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },

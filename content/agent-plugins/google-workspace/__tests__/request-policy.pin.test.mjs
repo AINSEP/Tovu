@@ -24,7 +24,6 @@ const EXISTING = [
   ['uncertain-outcome', false, 'review-outcome', 'Google did not confirm whether the change was applied.'],
   ['unexpected-response', false, 'report', 'Google returned a response Tovu does not understand.'],
   ['product-disabled', false, 'enable-product', 'This Google product is turned off'],
-  ['destination-unavailable', true, 'retry-later', 'Delivery to Google Sheets is not available'],
 ];
 
 for (const [code, retryable, nextAction, prefix] of EXISTING) {
