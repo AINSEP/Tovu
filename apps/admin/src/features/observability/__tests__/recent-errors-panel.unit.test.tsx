@@ -145,4 +145,34 @@ describe("Observability — Recent errors tab", () => {
     const region = await openRecentErrors(errorsController({ logs: { entries: [], matched: 80, buffered: 2000, truncated: true, capturing: true } }));
     expect(within(region).getByText("Showing the newest 50 errors.")).toBeInTheDocument();
   });
+
+  it("shows no status, alert or list when no logs are available and loading has settled", async () => {
+    const region = await openRecentErrors(errorsController({ logs: null, error: "" }));
+    expect(within(region).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(region).queryByRole("alert")).not.toBeInTheDocument();
+    expect(within(region).queryByRole("note")).not.toBeInTheDocument();
+    expect(within(region).queryByRole("list")).not.toBeInTheDocument();
+    expect(within(region).queryByText("Showing the newest 50 errors.")).not.toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Refresh" })).toBeEnabled();
+  });
+
+  it("keeps cached rows and an alert visible during refresh without the initial loading status", async () => {
+    const region = await openRecentErrors(errorsController({ rows: [row()], loading: true, error: "refresh failed" }));
+    expect(within(region).getByRole("alert")).toHaveTextContent("refresh failed");
+    expect(within(region).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(region).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(region).queryByRole("note")).not.toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Refresh" })).toBeDisabled();
+  });
+
+  it("renders capture and truncation notices independently alongside any supplied rows", async () => {
+    const region = await openRecentErrors(errorsController({
+      rows: [row()],
+      logs: { entries: [], matched: 80, buffered: 2000, truncated: true, capturing: false },
+    }));
+    expect(within(region).getByRole("note")).toHaveTextContent("This server is not recording its log yet");
+    expect(within(region).getByText("Showing the newest 50 errors.")).toBeInTheDocument();
+    expect(within(region).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(region).queryByRole("status")).not.toBeInTheDocument();
+  });
 });
