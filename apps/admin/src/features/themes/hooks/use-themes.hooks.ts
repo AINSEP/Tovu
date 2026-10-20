@@ -34,6 +34,9 @@ export interface ThemesDependencies {
   t: Translate;
 }
 
+/** One `getPresentation()` answer, as the server returns it. */
+type Presentation = Awaited<ReturnType<ThemesPort["getPresentation"]>>;
+
 export interface ThemesController {
   /** `null` until the initial load settles — the caller renders a loading state. */
   settings: PresentationSettings | null;
@@ -113,12 +116,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   }, [port]);
   const query = useFetchQuery({ key, fetch: fetchPresentation }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchPresentation }, { staleTime: 0 });
-  const settings = query.data?.settings ?? null;
-  const themes = query.data?.availableThemeIds ?? [];
-  const themeTiers = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.tier]) ?? []);
-  const themeNames = themeNamesById(query.data?.availableThemes ?? []);
-  const themePreviewImages = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.previewImageUrl]) ?? []);
-  const themeBuiltIn = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.builtIn === true]) ?? []);
+  const { settings, themes, themeTiers, themeNames, themePreviewImages, themeBuiltIn } = presentationView(query.data);
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
@@ -152,7 +150,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   /** One `getPresentation()` answer into every piece of screen state it feeds — shared by `rescan`
    *  and `duplicate`, so the two can never refresh different subsets. (The mount effect below keeps
    *  its own inline copy: calling a per-render function from it would trip exhaustive-deps.) */
-  function applyPresentation(value: Awaited<ReturnType<ThemesPort["getPresentation"]>>) {
+  function applyPresentation(value: Presentation) {
     loader.replace({ value });
   }
 
@@ -273,6 +271,24 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     trashNotice,
     dismissTrashNotice: () => setTrashNotice(null),
     t,
+  };
+}
+
+/**
+ * Every screen field derived from one `getPresentation()` answer, or its empty form while that
+ * answer is still pending (or failed): `settings` stays `null` so the caller renders a loading state.
+ *
+ * @complexity Time/space: O(n) in the available theme count.
+ */
+function presentationView(data: Presentation | undefined) {
+  const available = data?.availableThemes ?? [];
+  return {
+    settings: data?.settings ?? null,
+    themes: data?.availableThemeIds ?? [],
+    themeTiers: Object.fromEntries(available.map(theme => [theme.id, theme.tier])),
+    themeNames: themeNamesById(available),
+    themePreviewImages: Object.fromEntries(available.map(theme => [theme.id, theme.previewImageUrl])),
+    themeBuiltIn: Object.fromEntries(available.map(theme => [theme.id, theme.builtIn === true])),
   };
 }
 
