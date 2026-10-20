@@ -819,12 +819,6 @@ async function stagePhaseIfJournaled(kernel: PluginKernel, journalId: number | n
   await stageJournalPhase({ db: kernel, id: journalId, phase });
 }
 
-/** No-ops when no snapshot file was ever written (in-memory `dbPath` case) — nothing to discard. */
-async function discardSnapshotIfFileBacked(snapshotPath: string | null): Promise<void> {
-  if (snapshotPath === null) return;
-  await discardCommittedSnapshot(snapshotPath);
-}
-
 /** Runs one `CREATE INDEX` and records it. Shared by the create-table path and the add-index alter path. */
 async function applyIndexAdd(
   kernel: PluginKernel,
@@ -885,6 +879,31 @@ async function applyTableAlteration(
   }
   for (const idx of alteration.indexesToRecreate) await applyIndexRecreate(kernel, pluginId, alteration.fqTableName, idx, snapshotPath, at);
   for (const idx of alteration.indexesToAdd) await applyIndexAdd(kernel, pluginId, alteration.fqTableName, idx, snapshotPath, at);
+}
+
+/** Completes housekeeping after the DDL and its COMMITTED journal marker are durable. */
+async function finishCommittedMigration(
+  { kernel, journalId, snapshotPath }: { kernel: PluginKernel; journalId: number | null; snapshotPath: string | null },
+  _optional: Record<string, never> = {}
+): Promise<void> {
+  // The transaction already committed the DDL AND the journal's "COMMITTED" marker
+  // atomically and durably (SQLite's own WAL commit) — recovery already reads this attempt
+  // correctly even if nothing below this line ever runs. What follows is housekeeping only:
+  // `advancePhaseIfJournaled` re-writes the (already correct) row purely to force the WAL→main-file
+  // checkpoint `stagePhaseIfJournaled` could not request from inside the open transaction (see
+  // migration-journal.ts); `discardCommittedSnapshot` deletes a snapshot the never-brick
+  // guarantee no longer needs (see the inline comment on `discardCommittedSnapshot`). Neither can
+  // undo a result that is already correct, so neither failing here is reported as a migration
+  // failure — matching `discardCommittedSnapshot`'s own "must not turn a successful migration into
+  // a reported failure" contract.
+  try {
+    await advancePhaseIfJournaled(kernel, journalId, "COMMITTED");
+    // No-ops when no snapshot file was ever written (in-memory `dbPath` case) — nothing to discard.
+    if (snapshotPath === null) return;
+    await discardCommittedSnapshot(snapshotPath);
+  } catch {
+    // Best-effort only — see the comment above. The migration itself already succeeded.
+  }
 }
 
 /**
@@ -991,22 +1010,7 @@ export async function declareDataModule(
     };
   }
 
-  // The transaction above already committed the DDL AND the journal's "COMMITTED" marker
-  // atomically and durably (SQLite's own WAL commit) — recovery already reads this attempt
-  // correctly even if nothing below this line ever runs. What follows is housekeeping only:
-  // `advancePhaseIfJournaled` re-writes the (already correct) row purely to force the WAL→main-file
-  // checkpoint `stagePhaseIfJournaled` could not request from inside the open transaction (see
-  // migration-journal.ts); `discardSnapshotIfFileBacked` deletes a snapshot the never-brick
-  // guarantee no longer needs (see the inline comment on `discardCommittedSnapshot`). Neither can
-  // undo a result that is already correct, so neither failing here is reported as a migration
-  // failure — matching `discardCommittedSnapshot`'s own "must not turn a successful migration into
-  // a reported failure" contract.
-  try {
-    await advancePhaseIfJournaled(kernel, journalId, "COMMITTED");
-    await discardSnapshotIfFileBacked(snapshotPath);
-  } catch {
-    // Best-effort only — see the comment above. The migration itself already succeeded.
-  }
+  await finishCommittedMigration({ kernel, journalId, snapshotPath });
 
   return { ok: true, created, altered, snapshotPath };
 }
