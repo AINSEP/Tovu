@@ -175,4 +175,34 @@ describe("Observability — Recent errors tab", () => {
     expect(within(region).getAllByRole("listitem")).toHaveLength(1);
     expect(within(region).queryByRole("status")).not.toBeInTheDocument();
   });
+
+  it("shows initial loading, an alert and supplied rows independently when logs are absent", async () => {
+    const region = await openRecentErrors(errorsController({
+      logs: null,
+      rows: [row()],
+      loading: true,
+      error: "load failed",
+    }));
+    expect(within(region).getByRole("status")).toHaveTextContent("Loading recent errors…");
+    expect(within(region).getByRole("alert")).toHaveTextContent("load failed");
+    expect(within(region).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(region).queryByRole("note")).not.toBeInTheDocument();
+    expect(within(region).queryByText("Showing the newest 50 errors.")).not.toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Refresh" })).toBeDisabled();
+  });
+
+  it("keeps the cached empty status, alert and truncation notice visible during refresh", async () => {
+    const region = await openRecentErrors(errorsController({
+      loading: true,
+      error: "refresh failed",
+      logs: { entries: [], matched: 80, buffered: 2000, truncated: true, capturing: true },
+    }));
+    expect(within(region).getByRole("status")).toHaveTextContent("No errors recorded.");
+    expect(within(region).queryByText("Loading recent errors…")).not.toBeInTheDocument();
+    expect(within(region).getByRole("alert")).toHaveTextContent("refresh failed");
+    expect(within(region).getByText("Showing the newest 50 errors.")).toBeInTheDocument();
+    expect(within(region).queryByRole("note")).not.toBeInTheDocument();
+    expect(within(region).queryByRole("list")).not.toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Refresh" })).toBeDisabled();
+  });
 });
