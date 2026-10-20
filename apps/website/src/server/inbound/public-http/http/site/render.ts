@@ -2085,9 +2085,11 @@ export function renderAssignedTermsBlock(terms: readonly AssignedTermView[]): st
  * O(n) over the (typically single-digit) assigned-terms count.
  * @overallScore 100
  */
-function renderPostBody(ctx: SiteRenderContext): string {
-  const post = ctx.post;
-  if (!post) return "";
+function renderPostBody(required: { ctx: SiteRenderContext; post: PostRecord }, _optional: Record<string, never> = {}): string {
+  // `post` is passed already narrowed (L082b): all three callers (`entryContent`, the `content`
+  // slot, `buildTemplateRenderData`) check `ctx.post` first, so the old in-here `!post` guard
+  // could never fire.
+  const { ctx, post } = required;
   // An "html" body renders unmodified: only `pages.edit_html` holders (theme-source trust) write it,
   // and its own inline scripts are the page (`admin-http/routes/pages/update-html.ts`, Authorization).
   // `sanitizePageHtml` is for less-trusted Raw HTML widget content; on page bodies it stripped
@@ -2108,7 +2110,7 @@ function entryContent(ctx: SiteRenderContext): string {
   // `.entry-meta` is a plain text line (no flex gap), so the items need a written separator.
   const date = shortDate(postDisplayDateIso(ctx.post));
   const byline = author ? `${date ? " · " : ""}<span class="post-author">By ${escapeHtml(author)}</span>` : "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(date)}${byline}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(date)}${byline}</p><div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div></article></div>`;
 }
 
 /**
@@ -2410,15 +2412,16 @@ function toEntryListItem(props: JsonObject): EntryListItem {
  */
 function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   const items = (ir.children ?? []).map((child) => toEntryListItem(child.props));
-  if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
-
   const layout = ir.props.layout;
   const structuredData: Pick<EntryListRenderOptions, "structuredData"> = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
   if (layout !== "list" && isCollectionListLayout(layout)) {
     const columns = typeof ir.props.columns === "number" ? ir.props.columns : 3;
     const typeKey = str(ir.props.typeKey, "recent-entries");
+    // `renderEntryList` returns `undefined` exactly when `items` is empty — that IS this widget's
+    // empty state, so no separate length check runs ahead of it on this branch.
     return renderEntryList(items, { columns, layout, typeKey, ...structuredData }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
+  if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
 
   const lis = items
     .map((item) => {
@@ -2660,11 +2663,18 @@ function renderWidgetMediaImage(props: JsonObject): string {
  */
 const renderGalleryImage: GalleryImageRenderer = ({ image, media }, _optional = {}) => {
   const slug = (image as typeof image & { slug?: string }).slug;
-  if (slug !== undefined || image.mediaId !== undefined) {
-    if (!media) return renderWidgetPlaceholder();
-    return renderWidgetMediaImage({ ...media, alt: image.alt, galleryResponsive: true });
+  // URL image: no managed reference. `parseGalleryConfig` (Jini `markers/gallery.ts`) accepts a
+  // legacy image only with exactly one of `mediaId`/`src`, and media-mode items are slug-only, so an
+  // image reaching here with neither `slug` nor `mediaId` always carries its `src` (L082b: the old
+  // `src ?? ""` fallback could not run).
+  if (slug === undefined && image.mediaId === undefined && image.src !== undefined) {
+    return renderDocNode({ type: "image", attrs: { src: image.src, alt: image.alt } });
   }
-  return renderDocNode({ type: "image", attrs: { src: image.src ?? "", alt: image.alt } });
+  // No `!media` guard here: `renderGallery`'s `renderFigure` (Jini `gallery-render.ts`), this
+  // adapter's only caller, already returns `""` for a managed image without a media record before
+  // calling it. Even if that ever changed, `media` undefined spreads to no `assetId`, which
+  // `renderWidgetMediaImage` already renders as the same widget placeholder.
+  return renderWidgetMediaImage({ ...media, alt: image.alt, galleryResponsive: true });
 };
 
 /** Gallery compatibility and generic media share one renderer. HTML uses the page-body policy. */
@@ -2736,7 +2746,7 @@ function extractTitleNode(
 function readMediaTransformVersions(value: JsonValue | undefined): ReadonlyMap<string, number> {
   if (!isObject(value)) return EMPTY_MEDIA_TRANSFORM_VERSIONS;
   const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === "number");
-  return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_TRANSFORM_VERSIONS;
+  return new Map(entries);
 }
 
 /** One raw per-asset JSON value -> {@link MediaAssetRenderMeta}, or `null` when `raw` isn't even an
@@ -2773,7 +2783,7 @@ function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<strin
     const meta = parseMediaAssetMeta(raw);
     if (meta) entries.push([assetId, meta]);
   }
-  return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_ASSET_METADATA;
+  return new Map(entries);
 }
 
 /** Rebuilds the `placementId -> WidgetRenderIR` map `renderDocNode`'s `widgetEmbed` case needs from
@@ -2785,7 +2795,7 @@ function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, Wi
   const entries = Object.entries(value).filter(
     (entry): entry is [string, JsonObject] => isObject(entry[1]) && typeof entry[1].componentId === "string" && isObject(entry[1].props)
   );
-  return entries.length > 0 ? new Map(entries.map(([id, ir]) => [id, ir as unknown as WidgetRenderIR])) : EMPTY_INLINE_RESOLVED;
+  return new Map(entries.map(([id, ir]) => [id, ir as unknown as WidgetRenderIR]));
 }
 
 /**
@@ -2830,13 +2840,15 @@ function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, Wi
  * @complexity O(1) — string concatenation only, no loop or recursion.
  */
 function renderPostDetailHeader(
-  required: { showHeader: boolean; titleHtml: string; dateLabel: string; dateIso: string },
-  optional: { bylineHtml?: string } = {},
+  required: { showHeader: boolean; titleHtml: string; dateLabel: string; dateIso: string; bylineHtml: string },
+  _optional: Record<string, never> = {},
 ): string {
-  const { showHeader, titleHtml, dateLabel, dateIso } = required;
+  const { showHeader, titleHtml, dateLabel, dateIso, bylineHtml } = required;
   if (!showHeader) return "";
   const time = dateLabel ? `<time datetime="${escapeHtml(dateIso)}">${escapeHtml(dateLabel)}</time>` : "";
-  const byline = (optional.bylineHtml ?? "").replace("<span", time ? '<span data-post-author-separator=""' : "<span");
+  // `bylineHtml` is required (L082b): its one caller always passes `str(props.postAuthorByline)`,
+  // which is `""` when there is no byline, so the former optional's `?? ""` default never ran.
+  const byline = bylineHtml.replace("<span", time ? '<span data-post-author-separator=""' : "<span");
   const meta = time + byline;
   return `<div class="post-detail-header">` + titleHtml + (meta ? `<div class="post-meta">${meta}</div>` : "") + `</div>`;
 }
@@ -2870,7 +2882,7 @@ function renderWidgetPostContent(props: JsonObject): string {
   const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
   const inlineWidgets = readInlineWidgets(props.inlineWidgets as JsonValue | undefined);
   return (
-    renderPostDetailHeader({ showHeader, titleHtml, dateLabel, dateIso }, { bylineHtml: str(props.postAuthorByline) }) +
+    renderPostDetailHeader({ showHeader, titleHtml, dateLabel, dateIso, bylineHtml: str(props.postAuthorByline) }) +
     `<div class="post-detail-body">${renderDocNode(bodyJson, inlineWidgets, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
@@ -3012,7 +3024,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
           slug: ctx.post.slug,
           date: postDisplayDateIso(ctx.post),
           dateShort: shortDate(postDisplayDateIso(ctx.post)),
-          content: renderPostBody(ctx),
+          content: renderPostBody({ ctx, post: ctx.post }),
           featuredImage: featuredImageView(ctx, ctx.post),
           author: postAuthorForDisplay({ post: ctx.post }),
           showAuthor: ctx.post.showAuthor ?? false,
@@ -3108,7 +3120,7 @@ function renderSlot(name: string, ctx: SiteRenderContext): string {
     case "title":
       return `<h1 class="slot-title">${escapeHtml(ctx.route === "post" && ctx.post ? ctx.post.title : ctx.siteTitle)}</h1>`;
     case "content":
-      return ctx.post ? `<div class="prose">${renderPostBody(ctx)}</div>` : "";
+      return ctx.post ? `<div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div>` : "";
     case "entry-list":
       return entryList(ctx, {});
     default:
