@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useDashboard } from "../hooks/use-dashboard.hooks";
 import { createFakeDashboardPort } from "../hooks/dashboard-dependencies.hooks";
-import type { AdminPost } from "@/lib/api";
+import type { DashboardPort } from "../hooks/dashboard-port.hooks";
+import { ApiError, type AdminPost } from "@/lib/api";
+import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
+import { createElement, type ReactNode } from "react";
 
 const DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
@@ -225,5 +228,148 @@ describe("useDashboard — site key banner (site-key plan §A.6)", () => {
 
     await waitFor(() => expect(result.current.themeId).not.toBeNull());
     expect(result.current.showSiteKeyBanner).toBe(false);
+  });
+});
+
+describe("useDashboard — boundary pins (L162 refactor)", () => {
+  it.each([
+    ["listPosts", "posts", "no se pudieron cargar las entradas"],
+    ["listPages", "pages", "no se pudieron cargar las páginas"],
+    ["listMedia", "media", "no se pudo cargar el contenido multimedia"],
+    ["listCommentsQueue", "comments", "no se pudieron cargar los comentarios"],
+  ] as const)("%s rejecting with a non-Error reports the locale's own fallback on the %s stat", async (method, stat, message) => {
+    const port: DashboardPort = { ...createFakeDashboardPort(), [method]: () => Promise.reject("offline") };
+    const { result } = renderHook(() => useDashboard({ port, locale: "es", t: (key) => key }));
+
+    await waitFor(() => expect(result.current[stat]).toEqual({ value: null, error: message }));
+  });
+
+  it("getPresentation rejecting with a non-Error reports the locale's own theme fallback", async () => {
+    const port: DashboardPort = { ...createFakeDashboardPort(), getPresentation: () => Promise.reject("offline") };
+    const { result } = renderHook(() => useDashboard({ port, locale: "es", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeError).toBe("no se pudo cargar el tema activo"));
+  });
+
+  it("an ApiError with an empty message falls back to the English source string", async () => {
+    const port: DashboardPort = { ...createFakeDashboardPort(), listPosts: () => Promise.reject(new ApiError("", 500)) };
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.posts.error).toBe("failed to load posts"));
+  });
+
+  it("starts every stat pending before any read settles", () => {
+    const pending = new Promise<never>(() => {});
+    const port: DashboardPort = {
+      listPosts: () => pending, listPages: () => pending, listMedia: () => pending, listCommentsQueue: () => pending,
+      getPresentation: () => pending, getPasswordStatus: () => pending, getSiteKeyState: () => pending,
+    };
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    expect(result.current).toMatchObject({
+      posts: { value: null, error: null }, published: null, pages: { value: null, error: null }, drafts: null,
+      media: { value: null, error: null }, comments: { value: null, error: null },
+      themeId: null, themeName: null, themeError: null, recent: null,
+      showDefaultPasswordBanner: false, showSiteKeyBanner: false, siteKeyBannerMessage: "",
+    });
+  });
+
+  it("builds `recent` from posts alone while pages are still pending", async () => {
+    const port: DashboardPort = { ...createFakeDashboardPort({ posts: [postFixture({ id: "p1" })] }), listPages: () => new Promise<never>(() => {}) };
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.recent?.map((row) => row.id)).toEqual(["p1"]));
+    expect(result.current.pages).toEqual({ value: null, error: null });
+    expect(result.current.drafts).toBeNull();
+  });
+
+  it("builds `recent` from pages alone while posts are still pending", async () => {
+    const port: DashboardPort = { ...createFakeDashboardPort({ pages: [postFixture({ id: "pg1", kind: "page" })] }), listPosts: () => new Promise<never>(() => {}) };
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.recent?.map((row) => row.id)).toEqual(["pg1"]));
+    expect(result.current.posts).toEqual({ value: null, error: null });
+    expect(result.current.published).toBeNull();
+  });
+
+  it("names the active theme by its id when the presentation carries no display name", async () => {
+    const port = createFakeDashboardPort({ activeThemeId: "quartz-libre" });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeName).toBe("quartz-libre"));
+  });
+});
+
+describe("useDashboard — default-password banner boundary pins (L162 refactor)", () => {
+  afterEach(() => {
+    localStorage.removeItem(DISMISSED_KEY);
+  });
+
+  it("stays hidden when the port reports usesDefaultPassword: false", async () => {
+    const port = createFakeDashboardPort({ usesDefaultPassword: false });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeId).not.toBeNull());
+    expect(result.current.showDefaultPasswordBanner).toBe(false);
+  });
+
+  it("asks the port for the boot scope's own principal id", async () => {
+    const port = createFakeDashboardPort();
+    const getPasswordStatus = vi.spyOn(port, "getPasswordStatus");
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(AdminBootScopeContext.Provider, { value: { principalId: "boot-user", checking: false }, children });
+    renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }), { wrapper });
+
+    await waitFor(() => expect(getPasswordStatus).toHaveBeenCalledExactlyOnceWith({ principalId: "boot-user" }));
+  });
+
+  it("asks the port with a null principal id outside an authenticated boot scope", async () => {
+    const port = createFakeDashboardPort();
+    const getPasswordStatus = vi.spyOn(port, "getPasswordStatus");
+    renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(getPasswordStatus).toHaveBeenCalledExactlyOnceWith({ principalId: null }));
+  });
+
+  it("still hides for this session when localStorage throws on write", async () => {
+    const realSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => {
+      throw new Error("storage full");
+    };
+    try {
+      const port = createFakeDashboardPort({ usesDefaultPassword: true });
+      const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+      await waitFor(() => expect(result.current.showDefaultPasswordBanner).toBe(true));
+
+      act(() => result.current.dismissDefaultPasswordBanner());
+
+      expect(result.current.showDefaultPasswordBanner).toBe(false);
+    } finally {
+      Storage.prototype.setItem = realSetItem;
+    }
+    expect(localStorage.getItem(DISMISSED_KEY)).toBeNull();
+  });
+});
+
+describe("useDashboard — site key banner boundary pins (L162 refactor)", () => {
+  it.each([
+    ["missing-with-data", "This site has saved credentials, but no site key was found to open them."],
+    ["mismatch", "This site's key doesn't match the one its data was saved with. Saved credentials can't be opened."],
+    ["invalid", "This site's key isn't in a usable format. Saved credentials can't be opened."],
+  ] as const)("shows %s with its own copy, translated through the injected t", async (siteKeyState, copy) => {
+    const port = createFakeDashboardPort({ siteKeyState });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => `[${key}]` }));
+
+    await waitFor(() => expect(result.current.showSiteKeyBanner).toBe(true));
+    expect(result.current.siteKeyBannerMessage).toBe(`[${copy}]`);
+  });
+
+  it("hides plain missing with an empty message", async () => {
+    const port = createFakeDashboardPort({ siteKeyState: "missing" });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+
+    await waitFor(() => expect(result.current.themeId).not.toBeNull());
+    expect(result.current.showSiteKeyBanner).toBe(false);
+    expect(result.current.siteKeyBannerMessage).toBe("");
   });
 });
