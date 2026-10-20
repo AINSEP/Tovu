@@ -31,5 +31,7 @@ label { display: grid; gap: 4px; }
 input, select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
 .check { display: flex; gap: 8px; align-items: flex-start; }
 ul.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+fieldset.list { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+fieldset.list legend { padding: 0; margin-bottom: 4px; }
 code, .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow-wrap: anywhere; user-select: all; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

@@ -8,7 +8,7 @@ sandboxed frames (Jini `@jini-ai/agent-plugins/admin-surfaces`, Tovu
 
 | surface id | entry | what the person does there |
 |---|---|---|
-| `connection` | `connection-panel.html` | Connect, reconnect, switch account (staged, confirm/cancel), disconnect and retry a pending revocation, turn Sheets on/off, grant a product's permission. |
+| `connection` | `connection-panel.html` | Connect, reconnect, switch account (staged, confirm/cancel; confirming moves only the form destinations the person ticked, each after the new account opened its spreadsheet), disconnect and retry a pending revocation, turn Sheets on/off, grant a product's permission. |
 | `picker` | `picker.html` | Choose a spreadsheet with Google's Picker; see the spreadsheets chosen so far. |
 | `form-destinations` | `destination-panel.html` | Per form: spreadsheet (chosen one or the Picker) + tab (numeric sheet id); save or remove. |
 
@@ -40,7 +40,7 @@ Each `*.handler.mjs` default-exports `{ actions, bootstrap? }` for its surface a
 
 | surface | actions |
 |---|---|
-| `connection` | `status`, `sign-in { action }`, `confirm-switch`, `cancel-switch`, `disconnect` (result adds `revocation: confirmed \| pending \| not-needed`), `set-product { productId, enabled }` |
+| `connection` | `status`, `sign-in { action }`, `confirm-switch { reassign: formSlug[] }` (result adds `reassignment: { moved, failed[{ formSlug, code, message }] }`), `cancel-switch`, `disconnect` (result adds `revocation: confirmed \| pending \| not-needed`), `set-product { productId, enabled }` |
 | `picker` | bootstrap; `list-picked`, `verify-picked { sessionId, fileId }`, `start-system-picker`, `finish-system-picker` |
 | `form-destinations` | the Picker's bootstrap and actions, plus `list-destinations`, `list-tabs { spreadsheetId }`, `save-destination { formSlug, spreadsheetId, sheetId, confirmExternalRows }`, `remove-destination { formSlug }` |
 

@@ -35,7 +35,7 @@ removing the destination there stops new rows (rows already written stay in the 
 
 | code | what it means | what to do |
 |---|---|---|
-| `authorization-required` | Google no longer accepts the sign-in (reconnect required) or a permission is missing. | Reconnect Google Workspace with the same account; the failed delivery stays listed in Tovu. |
+| `authorization-required` | Google no longer accepts the sign-in (reconnect required), a permission is missing, or the destination still belongs to the account used before a switch. | Same account: reconnect Google Workspace. After a switch: choose the spreadsheet again in Form destinations (or tick it when confirming the switch). The failed delivery stays listed in Tovu as failed; it is not sent again. |
 | `resource-not-granted` | The connected account cannot open this spreadsheet. | Choose the spreadsheet again with the file picker. |
 | `configuration-invalid` | The destination does not name a tab for this form, or the tab was deleted. | Choose the tab again in the destination settings. |
 | `mapping-invalid` | The columns cannot be matched: `_tovu_submission_id` or `_tovu_submitted_at` is missing from row 1, a header appears twice, two fields share a label, or one field's hidden column tag appears on two columns (another tool copied it). | Repair the headers in row 1 (or give the fields distinct labels); for a doubled tag, delete the extra column. |

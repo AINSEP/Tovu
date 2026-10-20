@@ -9,7 +9,7 @@
  * its link expires. The Google Account page (to remove access by hand while a revocation is
  * pending) is opened the same way, through the surface client's `openLink`.
  */
-import { connectionSummary, productRows, revocationMessage } from './connection-view.mjs';
+import { REASSIGN_HINT, connectionSummary, productRows, reassignmentMessage, revocationMessage } from './connection-view.mjs';
 import { busy, connectToHost, failureText, h, show, wait } from './dom.mjs';
 
 const POLL_MS = 4000;
@@ -56,7 +56,28 @@ function onAction(action, view) {
     notice = { text: revocationMessage({ revocation: result.revocation }), ok: result.revocation === 'confirmed' };
     render(result);
   });
+  if (action === 'confirm-switch') return run(async () => {
+    const result = await call('confirm-switch', { reassign: tickedDestinations() });
+    notice = { text: reassignmentMessage({ reassignment: result.reassignment, destinations: view.destinations }), ok: result.reassignment.failed.length === 0 };
+    render(result);
+  });
   return run(async () => { notice = null; render(await call(action)); });
+}
+
+/** The form slugs whose "move to the new account" box is ticked right now. */
+function tickedDestinations() {
+  return [...app.querySelectorAll('input[name="reassign"]')].filter((box) => box.checked).map((box) => box.value);
+}
+
+/** One unticked checkbox per destination while a switch is staged: moving one is always a choice. */
+function reassignList(destinations) {
+  return h('fieldset', { class: 'list' }, [
+    h('legend', {}, [REASSIGN_HINT]),
+    ...destinations.map((entry) => h('label', { class: 'check' }, [
+      h('input', { type: 'checkbox', name: 'reassign', value: entry.formSlug }),
+      `${entry.formSlug}: ${entry.title} / ${entry.tabTitle}`,
+    ])),
+  ]);
 }
 
 /**
@@ -77,7 +98,7 @@ function connectionCard(view) {
   return h('section', { class: 'card', 'aria-labelledby': 'account-heading' }, [
     h('h2', { id: 'account-heading' }, [summary.heading]),
     h('p', { class: 'muted' }, [summary.detail]),
-    switching && view.destinations.length > 0 ? h('ul', { class: 'list' }, view.destinations.map((entry) => h('li', {}, [`${entry.formSlug}: ${entry.title} / ${entry.tabTitle}`]))) : null,
+    switching && view.destinations.length > 0 ? reassignList(view.destinations) : null,
     h('div', { class: 'actions' }, summary.buttons.map((entry, index) => h('button', { type: 'button', class: index === 0 ? 'primary' : undefined, onClick: () => onAction(entry.action, view) }, [entry.label]))),
     view.connection.status === 'revocation-pending' ? accountAccessLink(view.accountAccessUrl) : null,
   ]);

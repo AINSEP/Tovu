@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { SWITCH_NOTE, connectionSummary, productRows } from '../ui/connection-view.mjs';
+import { SWITCH_NOTE, connectionSummary, productRows, reassignmentMessage } from '../ui/connection-view.mjs';
 import { CANCELLED_TEXT, EXTERNAL_ROWS_NOTE, pickerIntro, pollText, selectedText } from '../ui/picker-view.mjs';
 
 const actions = (summary) => summary.buttons.map((entry) => entry.action);
@@ -46,6 +46,14 @@ test('connection view: a staged switch without a current label names the new acc
   assert.equal(summary.heading, 'Switch to bob@example.test?');
   assert.equal(summary.detail, `Signed in now as the current account. Nothing changes until you confirm. ${SWITCH_NOTE}`);
   assert.deepEqual(summary.buttons, [{ action: 'confirm-switch', label: 'Use bob@example.test' }, { action: 'cancel-switch', label: 'Keep the current account' }]);
+});
+
+test('reassignment message: a switch with no destinations says only that the account switched', () => {
+  assert.equal(reassignmentMessage({ reassignment: { moved: [], failed: [] }, destinations: [] }), 'Switched account.');
+});
+
+test('reassignment message: an unticked destination is named as still using the old account', () => {
+  assert.equal(reassignmentMessage({ reassignment: { moved: [], failed: [] }, destinations: [{ formSlug: 'contact' }] }), 'Switched account. Still using the old account (deliveries fail until you choose the spreadsheet again in Form destinations): contact.');
 });
 
 test('product rows: off is a paused setting that keeps the sign-in, with a turn-on toggle and no grant button', () => {
