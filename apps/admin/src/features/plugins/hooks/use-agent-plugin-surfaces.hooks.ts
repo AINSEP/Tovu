@@ -17,7 +17,8 @@ export function useAgentPluginSurfaces(
   const [state, setState] = useState<{ pluginId: string; surfaces: readonly AgentPluginSurfaceSummary[] }>({ pluginId, surfaces: NONE });
   useEffect(() => {
     let live = true;
-    port.list({ pluginId }).then((listing) => { if (live) setState({ pluginId, surfaces: listing.surfaces }); }, () => {});
+    // A 200 without a `surfaces` array (an older server, a proxy page) is the same as a failed listing.
+    port.list({ pluginId }).then((listing) => { if (live) setState({ pluginId, surfaces: Array.isArray(listing.surfaces) ? listing.surfaces : NONE }); }, () => {});
     return () => { live = false; };
   }, [pluginId, port]);
   return state.pluginId === pluginId ? state.surfaces : NONE;
