@@ -68,3 +68,22 @@ it("leaves an empty picker available while the page catalogue is unknown", () =>
     value: "", unavailable: false, choices: [{ id: "", title: "Choose a page…" }],
   });
 });
+
+it.each([
+  { entryId: undefined, label: undefined, pages: undefined, value: "", unavailable: false, missing: [] },
+  { entryId: "", label: undefined, pages: [], value: "", unavailable: false, missing: [] },
+  { entryId: "missing", label: "Saved label", pages: undefined, value: "missing", unavailable: false,
+    missing: [{ id: "missing", title: "Saved label" }] },
+  { entryId: "missing", label: "", pages: [], value: "missing", unavailable: true,
+    missing: [{ id: "missing", title: "translated:Page not published" }] },
+  { entryId: "chosen", label: "Old label", pages: [{ id: "chosen", title: "Published", status: "published" as const }],
+    value: "chosen", unavailable: false, missing: [] },
+  { entryId: "chosen", label: "Old label", pages: [{ id: "chosen", title: "Draft", status: "draft" as const }],
+    value: "chosen", unavailable: true, missing: [] },
+])("pins picker defaults, availability and missing choices: %j", ({ entryId, label, pages, value, unavailable, missing }) => {
+  expect(pageLinkState({ entryId, label, pages, t: (key) => `translated:${key}` })).toEqual({
+    value,
+    unavailable,
+    choices: [{ id: "", title: "translated:Choose a page…" }, ...missing, ...(pages ?? [])],
+  });
+});

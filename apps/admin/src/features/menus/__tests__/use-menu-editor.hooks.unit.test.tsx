@@ -512,3 +512,26 @@ it("a failed save for a previous menu cannot put an error on the current menu", 
   expect(result.current.menu).toEqual(other);
   expect(port.menus).toEqual([MENU, other]);
 });
+
+it.each([
+  { failure: new ApiError("Raw conflict", 409, "VERSION_CONFLICT"), expected: `translated:${VERSION_CONFLICT_MESSAGE}` },
+  { failure: new ApiError("Slug already exists", 409), expected: "Slug already exists" },
+  { failure: new Error("Permission denied"), expected: "Permission denied" },
+  { failure: new Error(""), expected: "" },
+  { failure: "not an Error", expected: "save failed" },
+  { failure: null, expected: "save failed" },
+])("pins save error precedence and releases the saving guard: $expected", async ({ failure, expected }) => {
+  const port = createFakeMenusPort({ menus: [MENU] });
+  port.updateMenuTree = vi.fn().mockRejectedValue(failure);
+  const { result } = renderHook(() => useMenuEditor("m1", {
+    port, navigate: vi.fn(), t: (key) => `translated:${key}`,
+  }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.error).toBe(expected);
+  expect(result.current.message).toBeNull();
+  expect(result.current.menu?.version).toBe(1);
+  expect(result.current.saving).toBe(false);
+  await act(async () => { await result.current.save(); });
+  expect(port.updateMenuTree).toHaveBeenCalledTimes(2);
+});

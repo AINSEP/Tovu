@@ -186,6 +186,15 @@ export interface MenuEditorController {
   t: Translate;
 }
 
+function menuSaveError({ error, t }: { error: unknown; t: Translate }, _optional = {}): string {
+  // A lost compare-and-set (`409 VERSION_CONFLICT`, real since menu saves became
+  // compare-and-set, wm S4) gets translated "someone else changed this" copy instead of the
+  // server's "menu '<id>' was modified concurrently…" text. Other errors (a slug already taken
+  // is also a 409, without the code) keep the server message.
+  if (isVersionConflict(error)) return t(VERSION_CONFLICT_MESSAGE);
+  return error instanceof Error ? error.message : "save failed";
+}
+
 export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard,
   itemIdSource = { crypto: globalThis.crypto, nowMs: Date.now, random: Math.random },
 }: MenuEditorDependencies): MenuEditorController {
@@ -382,11 +391,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
       if (activeMenuIdRef.current !== savingForMenuId) return;
-      // A lost compare-and-set (`409 VERSION_CONFLICT`, real since menu saves became
-      // compare-and-set, wm S4) gets translated "someone else changed this" copy instead of the
-      // server's "menu '<id>' was modified concurrently…" text. Other errors (a slug already taken
-      // is also a 409, without the code) keep the server message.
-      setError(isVersionConflict(e) ? t(VERSION_CONFLICT_MESSAGE) : e instanceof Error ? e.message : "save failed");
+      setError(menuSaveError({ error: e, t }));
     } finally {
       // Unconditional, unlike the `activeMenuIdRef` checks above: this flag tracks whether THIS
       // save cycle is still on the wire, not whether its result still belongs to the menu on
