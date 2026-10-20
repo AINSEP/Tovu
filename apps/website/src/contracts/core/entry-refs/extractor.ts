@@ -74,24 +74,34 @@ function collectWidgetEmbedRefs(root: unknown, rootPath: string, input: ExtractE
       for (let index = node.length - 1; index >= 0; index--) stack.push({ node: node[index], path: `${path}[${index}]` });
       continue;
     }
-    const candidate = { value: node };
-    if (!isNonArrayRecord(candidate)) continue;
-    const attrs = { value: candidate.value.type === "widgetEmbed" ? candidate.value.attrs : undefined };
-
-    if (isNonArrayRecord(attrs) && typeof attrs.value.widgetEntryId === "string") {
-      refs.push({
-        workspaceId: input.workspaceId,
-        sourceEntryId: input.sourceEntryId,
-        sourceKind: "widget-embed",
-        fieldPath: path,
-        targetKind: "entry",
-        targetId: attrs.value.widgetEntryId,
-      });
-    }
-
-    if (isNonArrayRecord(attrs)) addMediaConfigRefs({ config: attrs.value.content, path: `${path}.attrs.content`, input, refs });
-    if (Array.isArray(candidate.value.content)) stack.push({ node: candidate.value.content, path: `${path}.content` });
+    collectWidgetEmbedNode({ node, path, input, refs, stack });
   }
+}
+
+function collectWidgetEmbedNode(
+  { node, path, input, refs, stack }: {
+    node: unknown; path: string; input: ExtractEntryRefsInput; refs: EntryRefRow[];
+    stack: Array<{ node: unknown; path: string }>;
+  },
+  _optional: Record<string, never> = {},
+): void {
+  const candidate = { value: node };
+  if (!isNonArrayRecord(candidate)) return;
+  const attrs = { value: candidate.value.type === "widgetEmbed" ? candidate.value.attrs : undefined };
+
+  if (isNonArrayRecord(attrs) && typeof attrs.value.widgetEntryId === "string") {
+    refs.push({
+      workspaceId: input.workspaceId,
+      sourceEntryId: input.sourceEntryId,
+      sourceKind: "widget-embed",
+      fieldPath: path,
+      targetKind: "entry",
+      targetId: attrs.value.widgetEntryId,
+    });
+  }
+
+  if (isNonArrayRecord(attrs)) addMediaConfigRefs({ config: attrs.value.content, path: `${path}.attrs.content`, input, refs });
+  if (Array.isArray(candidate.value.content)) stack.push({ node: candidate.value.content, path: `${path}.content` });
 }
 
 /**
@@ -175,12 +185,22 @@ function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[
     if (!isNonArrayRecord(config)) continue;
 
     collectNamespaceConfigRefs(namespace, config.value, input, refs);
-    if (namespace === "widget" && (namespaceRecord.value.widgetType === "gallery" || namespaceRecord.value.widgetType === "media")) {
-      for (const { mediaId, index } of galleryMediaReferences({ config: config.value })) refs.push({
-        workspaceId: input.workspaceId, sourceEntryId: input.sourceEntryId, sourceKind: "config-field",
-        fieldPath: `fields.ext.${namespace}.config.media[${index}]`, targetKind: "asset", targetId: mediaId,
-      });
-    }
+    collectWidgetConfigMedia({ namespace, widgetType: namespaceRecord.value.widgetType, config: config.value, input, refs });
+  }
+}
+
+function collectWidgetConfigMedia(
+  { namespace, widgetType, config, input, refs }: {
+    namespace: string; widgetType: unknown; config: Record<string, unknown>;
+    input: ExtractEntryRefsInput; refs: EntryRefRow[];
+  },
+  _optional: Record<string, never> = {},
+): void {
+  if (namespace === "widget" && (widgetType === "gallery" || widgetType === "media")) {
+    for (const { mediaId, index } of galleryMediaReferences({ config })) refs.push({
+      workspaceId: input.workspaceId, sourceEntryId: input.sourceEntryId, sourceKind: "config-field",
+      fieldPath: `fields.ext.${namespace}.config.media[${index}]`, targetKind: "asset", targetId: mediaId,
+    });
   }
 }
 
@@ -337,41 +357,60 @@ export function extractHtmlEntryRefs(input: {
   let singleTargetRefs = 0;
   let galleryMarkers = 0;
   for (const marker of markers) {
-    if (marker.type.toLowerCase() !== 'gallery') addMediaConfigRefs({ config: marker.config, path: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`, input, refs });
     if (marker.type.toLowerCase() === "gallery") {
       galleryMarkers += 1;
       if (galleryMarkers > MAX_HTML_PAGE_EMBED_REFS) continue;
-      // Keep image-specific locators, including repeated media ids. Index authored references
-      // even if layout/alt validation fails: safe-delete must still see the dependent page.
-      for (const image of galleryMediaReferences({ config: marker.config })) {
-        refs.push({
-          workspaceId: input.workspaceId,
-          sourceEntryId: input.sourceEntryId,
-          sourceKind: "page-html-embed",
-          fieldPath: `bodyHtml[embed:gallery#${marker.occurrence}].images[${image.index}].mediaId`,
-          targetKind: "asset",
-          targetId: image.mediaId,
-        });
-      }
+      collectHtmlGalleryRefs({ marker, input, refs });
       continue;
     }
-    const targetKind = HTML_EMBED_TARGET_KINDS.get(marker.type.toLowerCase());
-    if (!targetKind) continue;
-    const id = marker.id;
-    if (!id || id.length > MAX_HTML_EMBED_REF_ID_LENGTH) continue;
-
-    refs.push({
-      workspaceId: input.workspaceId,
-      sourceEntryId: input.sourceEntryId,
-      sourceKind: "page-html-embed",
-      fieldPath: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`,
-      targetKind,
-      targetId: id,
-    });
+    addMediaConfigRefs({ config: marker.config, path: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`, input, refs });
+    const ref = htmlSingleTargetRef({ marker, input });
+    if (!ref) continue;
+    refs.push(ref);
     // Gallery images do not consume unrelated markers' existing single-target reference budget.
     singleTargetRefs += 1;
     if (singleTargetRefs >= MAX_HTML_PAGE_EMBED_REFS) break;
   }
 
   return refs;
+}
+
+type HtmlMarker = ReturnType<typeof scanEmbedMarkers>["markers"][number];
+type HtmlRefInput = Pick<ExtractEntryRefsInput, "workspaceId" | "sourceEntryId">;
+
+function collectHtmlGalleryRefs(
+  { marker, input, refs }: { marker: HtmlMarker; input: HtmlRefInput; refs: EntryRefRow[] },
+  _optional: Record<string, never> = {},
+): void {
+  // Keep image-specific locators, including repeated media ids. Index authored references
+  // even if layout/alt validation fails: safe-delete must still see the dependent page.
+  for (const image of galleryMediaReferences({ config: marker.config })) {
+    refs.push({
+      workspaceId: input.workspaceId,
+      sourceEntryId: input.sourceEntryId,
+      sourceKind: "page-html-embed",
+      fieldPath: `bodyHtml[embed:gallery#${marker.occurrence}].images[${image.index}].mediaId`,
+      targetKind: "asset",
+      targetId: image.mediaId,
+    });
+  }
+}
+
+function htmlSingleTargetRef(
+  { marker, input }: { marker: HtmlMarker; input: HtmlRefInput },
+  _optional: Record<string, never> = {},
+): EntryRefRow | undefined {
+  const targetKind = HTML_EMBED_TARGET_KINDS.get(marker.type.toLowerCase());
+  if (!targetKind) return;
+  const id = marker.id;
+  if (!id || id.length > MAX_HTML_EMBED_REF_ID_LENGTH) return;
+
+  return {
+    workspaceId: input.workspaceId,
+    sourceEntryId: input.sourceEntryId,
+    sourceKind: "page-html-embed",
+    fieldPath: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`,
+    targetKind,
+    targetId: id,
+  };
 }

@@ -1,6 +1,6 @@
 import { nowIso as readNowIso, type Clock as ClockPort, type IdGenerator as IdGeneratorPort, type UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent, OutboxPort, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/cms/core";
-import type { RevertRegistry } from "./appliers.js";
+import type { DomainEvent, OutboxPort, ChangeSetRecord, ChangeSetRepoPort, ChangeSetItemRecord } from "@jini-ai/cms/core";
+import type { RevertRegistry, EntityReverter } from "./appliers.js";
 
 /**
  * @file Revert executor (ADR-018 C-004).
@@ -140,47 +140,7 @@ export async function revertChangeSet(
 
   const ordered = [...items].sort((a, b) => b.position - a.position);
 
-  // (3) every item has a registered reverter, (4) every item has a non-null inverse
-  for (const item of ordered) {
-    const reverter = registry.resolve(item.entityType, item.operation);
-    if (!reverter) {
-      throw new RevertNotPossibleError(
-        `no inverse applier registered for '${item.entityType}/${item.operation}'`
-      );
-    }
-    if (item.inversePayload === undefined) {
-      throw new RevertNotPossibleError(
-        `change-set item '${item.id}' has no inverse payload and cannot be reverted`
-      );
-    }
-  }
-
-  // (5) every item passes the version guard (strict equality; missing entity fails). `force`
-  // bypasses ONLY a stale-version mismatch (`current !== null`) — a missing entity always throws,
-  // regardless of `force` (see `RevertChangeSetRequired.input.force`'s doc comment).
-  for (const item of ordered) {
-    const reverter = registry.resolve(item.entityType, item.operation)!;
-    const current = await reverter.currentVersion({
-      workspaceId: input.workspaceId,
-      entityId: item.entityId,
-    });
-    const stale = current === null || current !== item.entityVersionAtApply;
-    if (!stale) continue;
-    if (input.force && current !== null) continue; // operator override — case (2) only
-
-    const currentActorId =
-      current !== null
-        ? ((await reverter.currentActor?.({ workspaceId: input.workspaceId, entityId: item.entityId })) ?? null)
-        : null;
-    const actorSuffix = currentActorId ? `, last changed by principal '${currentActorId}'` : "";
-    throw new RevertConflictError(
-      `entity '${item.entityType}:${item.entityId}' changed since this change set (expected version ${item.entityVersionAtApply}, found ${current ?? "missing"}${actorSuffix})`,
-      item.entityType,
-      item.entityId,
-      current,
-      currentActorId
-    );
-  }
+  await requireRevertibleItems({ ordered, registry, input });
 
   // All preconditions passed — apply inverses in descending position (INV-05: all-or-nothing).
   for (const item of ordered) {
@@ -225,4 +185,57 @@ export async function revertChangeSet(
   }
 
   return reverted;
+}
+
+async function requireRevertibleItems(
+  { ordered, registry, input }: { ordered: readonly ChangeSetItemRecord[]; registry: RevertRegistry; input: RevertChangeSetRequired["input"] },
+  _optional: RevertChangeSetOptional = {},
+): Promise<void> {
+  // (3) every item has a registered reverter, (4) every item has a non-null inverse
+  for (const item of ordered) {
+    const reverter = registry.resolve(item.entityType, item.operation);
+    if (!reverter) {
+      throw new RevertNotPossibleError(
+        `no inverse applier registered for '${item.entityType}/${item.operation}'`
+      );
+    }
+    if (item.inversePayload === undefined) {
+      throw new RevertNotPossibleError(
+        `change-set item '${item.id}' has no inverse payload and cannot be reverted`
+      );
+    }
+  }
+
+  // (5) every item passes the version guard (strict equality; missing entity fails). `force`
+  // bypasses ONLY a stale-version mismatch (`current !== null`) — a missing entity always throws,
+  // regardless of `force` (see `RevertChangeSetRequired.input.force`'s doc comment).
+  for (const item of ordered) {
+    const reverter = registry.resolve(item.entityType, item.operation)!;
+    await requireCurrentVersion({ item, reverter, input });
+  }
+}
+
+async function requireCurrentVersion(
+  { item, reverter, input }: { item: ChangeSetItemRecord; reverter: EntityReverter; input: RevertChangeSetRequired["input"] },
+  _optional: RevertChangeSetOptional = {},
+): Promise<void> {
+  const current = await reverter.currentVersion({
+    workspaceId: input.workspaceId,
+    entityId: item.entityId,
+  });
+  // operator override — case (2) only
+  if (current !== null && (current === item.entityVersionAtApply || input.force)) return;
+
+  const currentActorId =
+    current !== null
+      ? ((await reverter.currentActor?.({ workspaceId: input.workspaceId, entityId: item.entityId })) ?? null)
+      : null;
+  const actorSuffix = currentActorId ? `, last changed by principal '${currentActorId}'` : "";
+  throw new RevertConflictError(
+    `entity '${item.entityType}:${item.entityId}' changed since this change set (expected version ${item.entityVersionAtApply}, found ${current ?? "missing"}${actorSuffix})`,
+    item.entityType,
+    item.entityId,
+    current,
+    currentActorId
+  );
 }

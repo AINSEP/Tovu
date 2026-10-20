@@ -71,3 +71,9 @@ test("resource slugs longer than the limit delegate to the fallback", () => {
     return "Resource overview";
   } }), "Resource overview");
 });
+
+test("L079: named CMS title includes exactly eighty characters and prioritizes publish for long names", () => {
+  assert.equal(title(`Edit a PAGE called "${'x'.repeat(74)}"`), `Page: ${'x'.repeat(74)}`);
+  assert.equal(title(`Create and publish an ARTICLE named "${'x'.repeat(75)}"`), 'Publish article');
+  assert.equal(title('Edit a post called ""'), 'Blog post: ""');
+});
