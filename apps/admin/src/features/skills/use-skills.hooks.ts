@@ -1,4 +1,3 @@
-import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT, type InstalledSkill } from "./api";
@@ -22,11 +21,31 @@ export interface SkillRowView {
 }
 
 const defaultSkillsPort = { listSkills, enableSkill, removeSkill };
+
+function getSkillsAvailability(
+  { skills, error, githubUrl, busy, installBusy }: {
+    skills: readonly InstalledSkill[] | null;
+    error: string | null;
+    githubUrl: string;
+    busy: boolean;
+    installBusy: boolean;
+  },
+  _options = {},
+) {
+  const addBusy = busy || installBusy;
+  return {
+    addBusy,
+    githubDisabled: !githubUrl.trim() || addBusy,
+    loading: skills === null && !error,
+    empty: skills?.length === 0,
+  };
+}
+
 /** Keeps the existing API, refresh event and stale-load guard behind a render-only view.
  * The injected port lets action tests exercise retry/refetch ordering without module mocks. */
 export function useSkills({ port = defaultSkillsPort }: { port?: typeof defaultSkillsPort } = {}, _optional = {}) {
   const tabs = useSkillsTabs();
-  const queryFetch = useQueryFetchCallback(async () => {
+  const queryFetch = useCallback(async () => {
     try { return await port.listSkills(); }
     catch (error) { throw new Error(error instanceof Error ? error.message : "Could not load skills."); }
   }, [port]);
@@ -115,13 +134,12 @@ export function useSkills({ port = defaultSkillsPort }: { port?: typeof defaultS
     onRemove: () => setRemoving(skill),
     onInspect: () => setInspecting(skill),
   }));
-  const addBusy = busy || install.busy;
   return {
     ...tabs,
     skills, rows, error, githubUrl, removing, inspecting, busy, install, confirmation,
     onCloseFiles: () => setInspecting(null),
-    filesInput, folderInput, addBusy, githubDisabled: !githubUrl.trim() || addBusy,
-    loading: skills === null && !error, empty: skills?.length === 0,
+    filesInput, folderInput,
+    ...getSkillsAvailability({ skills, error, githubUrl, busy, installBusy: install.busy }),
     reload, onCancelRemove, onConfirmRemove, onSubmitGithub, onGithubUrlChange, onFilesChange,
     onChooseFiles: () => filesInput.current?.click(),
     onChooseFolder: () => folderInput.current?.click(),

@@ -293,3 +293,42 @@ describe("useSkills", () => {
     expect(result.current.error).toBeNull();
   });
 });
+
+it.each([{ installed: [] }, { installed: [skill] }])("pins list availability before and after loading %j", async ({ installed }) => {
+  const read = deferred<InstalledSkill[]>();
+  const port = { ...skillsPort(), listSkills: () => read.promise };
+  const { result } = renderHook(() => useSkills({ port }));
+  expect(result.current.loading).toBe(true);
+  expect(result.current.empty).toBeUndefined();
+  expect(result.current.addBusy).toBe(false);
+  expect(result.current.githubDisabled).toBe(true);
+  act(() => result.current.onGithubUrlChange({ target: { value: "   " } } as Parameters<typeof result.current.onGithubUrlChange>[0]));
+  expect(result.current.githubDisabled).toBe(true);
+  act(() => result.current.onGithubUrlChange({ target: { value: " https://github.com/acme/skill " } } as Parameters<typeof result.current.onGithubUrlChange>[0]));
+  expect(result.current.githubDisabled).toBe(false);
+  await act(async () => read.resolve(installed));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.empty).toBe(installed.length === 0);
+  expect(result.current.skills).toEqual(installed);
+});
+
+it("disables GitHub submission during an install and restores it after acceptance", async () => {
+  const response = deferred<Response>();
+  vi.stubGlobal("fetch", () => response.promise);
+  const port = skillsPort();
+  const { result } = renderHook(() => useSkills({ port }));
+  await waitFor(() => expect(result.current.rows).toHaveLength(1));
+  act(() => {
+    result.current.onGithubUrlChange({ target: { value: "https://github.com/acme/skill" } } as Parameters<typeof result.current.onGithubUrlChange>[0]);
+    result.current.install.propose({ githubUrl: "https://github.com/acme/skill" });
+  });
+  expect(result.current.githubDisabled).toBe(false);
+  let completion!: Promise<void>;
+  act(() => { completion = result.current.install.confirm(); });
+  expect(result.current.busy).toBe(false);
+  expect(result.current.addBusy).toBe(true);
+  expect(result.current.githubDisabled).toBe(true);
+  await act(async () => { response.resolve(Response.json({ skill })); await completion; });
+  expect(result.current.addBusy).toBe(false);
+  expect(result.current.githubDisabled).toBe(false);
+});

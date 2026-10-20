@@ -160,3 +160,28 @@ it("reports installation proposal failures through the same error presenter", as
   await waitFor(() => expect(onError).toHaveBeenCalledExactlyOnceWith("proposal refused"));
   expect(fallback).not.toHaveBeenCalled();
 });
+
+it.each(["entries", "depth", "files", "bytes"])("accepts a folder exactly at the %s limit", async limit => {
+  let root = directory([entry(md, "/skill/SKILL.md")]);
+  let expectedFiles = [md];
+  if (limit === "entries") root = directory([
+    ...Array.from({ length: 510 }, () => ({ name: "ignored", fullPath: "/ignored", isFile: false, isDirectory: false })),
+    entry(md, "/skill/SKILL.md"),
+  ]);
+  if (limit === "depth") for (let depth = 0; depth < 15; depth++) root = directory([root]);
+  if (limit === "files") {
+    expectedFiles = Array.from({ length: 256 }, () => md);
+    root = directory(expectedFiles.map(file => entry(file, "/skill/SKILL.md")));
+  }
+  if (limit === "bytes") {
+    const remaining = new NativeFile([new Uint8Array(8 * 1024 * 1024 - md.size)], "data.bin") as unknown as File;
+    expectedFiles = [md, remaining];
+    root = directory([entry(md, "/skill/SKILL.md"), entry(remaining, "/skill/data.bin")]);
+  }
+  const onError = vi.fn(), fallback = vi.fn(), proposeFiles = vi.fn(async (_files: readonly File[], _paths?: readonly string[]) => {});
+  await act(async () => { captureSkillDrop({ event: dropEvent(root) as never, proposeFiles, fallback }, { onError }); });
+  await waitFor(() => expect(proposeFiles).toHaveBeenCalledTimes(1));
+  expect(proposeFiles.mock.calls[0]?.[0]).toEqual(expectedFiles);
+  expect(onError).not.toHaveBeenCalled();
+  expect(fallback).not.toHaveBeenCalled();
+});
