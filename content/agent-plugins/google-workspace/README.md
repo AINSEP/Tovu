@@ -17,7 +17,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). |
 | `products.json` | Product catalog: id, label, tool prefix (every tool named with it belongs to the product and is gated by it; a security pin enumerates them), required scopes. Sheets = `drive.file` only. |
 | `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`): `account_info`, and the Sheets tools in `tools/sheets/` (see its README). |
-| `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces. Today a static placeholder; the connection panel and Picker replace it. |
+| `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces: the connection panel, Choose spreadsheet (Picker) and Form destinations, each with a server-side `handlerModule`. See `ui/README.md`. |
 | `tovu-form-destinations.json` + `form-destinations/` | Push-only `google-sheets` destination (no `receive`): frozen column mapping, bounded submission-id dedupe, contract-shaped results. See `form-destinations/README.md`. Not yet called by the host's forms fan-out (wired in a later lot). |
 | `lib/` | Shared code (below). |
 | `skills/google-workspace/` | What the in-app assistant reads. |
@@ -34,6 +34,9 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `sheets-a1.mjs` | A1 helpers, one name and contract each: `columnName`, `columnIndex`, `parseA1Range` (Google's normalized range → parts or undefined), `parseBoundsA1` (a plain `A1:B2` → bounds, else `invalid-input`), `tabRange` (tab-title quoting), `gridRangeLabel` (card label). |
 | `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`, and the product gate: `PRODUCT_STATE_KEY` (`'products'`), `isProductEnabled({ state, productId })`, `assertProductEnabled(...)` (`product-disabled`), `productEnabledReader({ state, productId })` (the `productEnabled` port form delivery takes, built from the host's read-only plugin-state reader). A product is off unless the plugin's settings hold `products: { <id>: true }`. |
 | `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `verifySpreadsheetAccess({ client, connectionRef, fileId })` (live spreadsheet per Drive, then opened by the Sheets API; shared with `sheets_open_existing`), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
+| `surface-actions.mjs` | For the admin-surface handlers: `CONNECTION_ID` (`'account'`), `surfaceSheetsClient({ capabilities })` (the one Sheets client over the surface port, which names connections by id), `surfaceAccount`, `sheetsUnavailableReason`, `withSurfaceFailures` (plugin/host refusals → surface-safe failures), `surfaceRefusal`. |
+| `picker-flow.mjs` | `createPickerFlow({}, { now, randomId })` → `bootstrap` (hosted session + short-lived token, or `system-browser` / `unavailable`), `verifyHosted`, `startSystemBrowser`, `finishSystemBrowser`; `readPickedSpreadsheets`, `rememberPickedSpreadsheet`, `PICKER_CONFIG_NAMES`, `PICKER_SESSION_TTL_MS`. |
+| `form-destination-settings.mjs` | `readFormDestinations`, `writeFormDestinations`, `bindingConfigFor({ formSlug, destination })`, `FORM_SLUG_PATTERN`, `MAX_FORM_DESTINATIONS`. |
 | `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`. |
 
 ## Rules the plugin keeps
@@ -64,17 +67,16 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
-- Products are read from the plugin's settings and default to OFF; only the connection panel (G13)
-  writes them, so until it ships every Sheets tool answers `product-disabled`. The host does not yet
-  pass delivery a `productEnabled` port (G14b wires `productEnabledReader` over its plugin-state reader).
-- Connection panel and Picker surfaces (G13) are not built yet: `ui/connection-panel.html` is a
-  placeholder and `lib/picker-selection.mjs` is called only by `sheets_open_existing` and tests. The
-  host seams they need now exist (G6d): an admin-surface handler gets its connections (status,
-  `connectionRef`, sign-in start), plugin state (read and write),
-  public config, and the desktop sign-in's start params plus the `picked_file_ids` callback field.
-  The Picker's public config names are `TOVU_GOOGLE_PICKER_BROWSER_KEY` and
-  `TOVU_GOOGLE_PICKER_APP_ID` (the public-config port reads only `_APP_ID`, `_CLIENT_ID`,
-  `_BROWSER_KEY` and `_PUBLIC_KEY` names; placeholders, never real values).
+- Products are read from the plugin's settings and default to OFF; the connection panel writes them.
+  The host does not yet pass delivery a `productEnabled` port (G14b wires `productEnabledReader`
+  over its plugin-state reader), nor read the Form destinations panel's saved choices into form
+  bindings (`form-destinations` settings key; `bindingConfigFor` builds the binding config).
+- Panels (G13b) are built and unit-tested only; they need a Chrome check (hosted Picker inside the
+  sandboxed frame, desktop system-browser Picker). The surface port does not tell a handler whether
+  the host is hosted or desktop, so the hosted JS Picker is used exactly when both
+  `TOVU_GOOGLE_PICKER_BROWSER_KEY` and `TOVU_GOOGLE_PICKER_APP_ID` are set (placeholders, never
+  real values). The panels cannot open links (no `allow-popups`): the Google account-access page is
+  shown as text to copy.
 - Quotas: the per-account (45/min) and per-instance (240/min) budgets declared in
   `tovu-connections.json` are implemented by the host and charged on every token read; there is no
   plugin-side limiter. Form delivery is charged once per delivery until it reads a token per

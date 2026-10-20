@@ -29,6 +29,8 @@ Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
    account before you change anything.
 4. Sheets itself starts **off**: until the person turns Sheets on in the Google Workspace panel,
    every Sheets tool answers `product-disabled`. Ask them to turn it on there; chat cannot.
+5. To use an existing spreadsheet, the person chooses it in the plugin's **Choose spreadsheet** tab
+   (Google's file picker); then `sheets_open_existing` with its id works. Or create a new one.
 
 Load [connection](references/connection.md) for sign-in, products and account actions,
 [sheets](references/sheets.md) before any spreadsheet work, [form delivery](references/form-delivery.md)

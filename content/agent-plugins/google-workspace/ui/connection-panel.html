@@ -1,10 +1,17 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Google Workspace</title></head>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Workspace</title>
+<!-- Static and secret-free: served without credentials. Start data arrives in the host's init message. -->
+<link rel="stylesheet" href="panel.css">
+<script type="module" src="connection-panel.mjs"></script>
+</head>
 <body>
-<!-- Placeholder entry so the surface contribution is complete; the connection panel (connect,
-     reconnect, switch account, products, revoke) replaces it. Static and secret-free: it is served
-     without credentials. -->
-<p>Google Workspace connection settings are coming soon. Connect the account from chat for now.</p>
+<main>
+<h1>Google Workspace connection</h1>
+<div id="app" aria-live="polite"><p class="muted">Loading…</p></div>
+</main>
 </body>
 </html>
