@@ -57,6 +57,34 @@ function screenKey(pageContext: RunPageContext): string {
   return JSON.stringify([pageContext.path, pageContext.entry?.kind ?? null, pageContext.entry?.id ?? null]);
 }
 
+/** The newest live recording when every live run shows the same screen; undefined when none is
+ * live or two live runs disagree. Ties on `ts` go to the later recording in iteration order.
+ * @complexity O(live runs). */
+function agreedRecording({ recordings, at }: { recordings: Iterable<Recorded>; at: number }, _options = {}): Recorded | undefined {
+  let newest: Recorded | undefined;
+  const screens = new Set<string>();
+  for (const recorded of recordings) {
+    if (at - recorded.ts > ACTIVE_CONTEXT_TTL_MS) continue;
+    screens.add(screenKey(recorded.pageContext));
+    if (newest === undefined || recorded.ts >= newest.ts) newest = recorded;
+  }
+  return screens.size === 1 ? newest : undefined;
+}
+
+/** The active answer for one agreed recording read at `at`. @complexity O(1). */
+function activeAnswer({ recorded, at }: { recorded: Recorded; at: number }, _options = {}): RunActiveContextAnswer {
+  const { pageContext, ts } = recorded;
+  return {
+    active: true,
+    resourceRef: pageContext.entry?.id ?? pageContext.path,
+    resourceName: pageContext.entry?.title ?? null,
+    detail: pageContext.path,
+    ts,
+    ageMs: at - ts,
+    pageContext,
+  };
+}
+
 /**
  * Builds the store the daemon records each run's screen in.
  *
@@ -77,24 +105,8 @@ export function createRunActiveContextStore(options: { readonly now?: () => numb
     },
     read() {
       const at = now();
-      let newest: Recorded | undefined;
-      const screens = new Set<string>();
-      for (const recorded of byRunId.values()) {
-        if (at - recorded.ts > ACTIVE_CONTEXT_TTL_MS) continue;
-        screens.add(screenKey(recorded.pageContext));
-        if (newest === undefined || recorded.ts >= newest.ts) newest = recorded;
-      }
-      if (newest === undefined || screens.size !== 1) return { active: false };
-      const { pageContext, ts } = newest;
-      return {
-        active: true,
-        resourceRef: pageContext.entry?.id ?? pageContext.path,
-        resourceName: pageContext.entry?.title ?? null,
-        detail: pageContext.path,
-        ts,
-        ageMs: at - ts,
-        pageContext,
-      };
+      const newest = agreedRecording({ recordings: byRunId.values(), at });
+      return newest ? activeAnswer({ recorded: newest, at }) : { active: false };
     },
   };
 }

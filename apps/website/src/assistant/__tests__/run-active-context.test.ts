@@ -119,6 +119,45 @@ test("STORE: a stale run on another screen does not make a fresh one ambiguous",
   if (answer.active) assert.equal(answer.resourceRef, "7b42dba9");
 });
 
+test("STORE: a screen exactly at the TTL is still live", () => {
+  const time = clock();
+  const store = createRunActiveContextStore({ now: time.now });
+  store.record("run-1", MEDIA_INDEX);
+  time.advance(ACTIVE_CONTEXT_TTL_MS);
+
+  assert.equal(store.read().active, true);
+});
+
+test("STORE: equal recording times resolve to the run recorded last", () => {
+  const store = createRunActiveContextStore({ now: () => 7 });
+  store.record("run-1", PAGE_EDITOR);
+  store.record("run-2", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Second" } });
+
+  const answer = store.read();
+  assert.equal(answer.active && answer.resourceName, "Second");
+});
+
+test("STORE: the newest recording wins even when an older run re-records later in map order", () => {
+  const time = clock();
+  const store = createRunActiveContextStore({ now: time.now });
+  store.record("run-a", PAGE_EDITOR);
+  time.advance(10);
+  store.record("run-b", PAGE_EDITOR);
+  time.advance(10);
+  store.record("run-a", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Newest" } });
+
+  const answer = store.read();
+  assert.equal(answer.active && answer.resourceName, "Newest");
+});
+
+test("STORE: the same path with a different open entry is a different screen", () => {
+  const store = createRunActiveContextStore();
+  store.record("run-1", PAGE_EDITOR);
+  store.record("run-2", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, id: "other-id" } });
+
+  assert.deepEqual(store.read(), { active: false });
+});
+
 test("MCP: get_active_context against the daemon route returns the run's screen instead of a 404", async (t) => {
   const token = "test-daemon-token";
   const store = createRunActiveContextStore({ now: () => 42 });
