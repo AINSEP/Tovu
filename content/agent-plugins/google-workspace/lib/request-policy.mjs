@@ -38,6 +38,8 @@ const SAFE_ERRORS = Object.freeze({
   'uncertain-outcome': { retryable: false, nextAction: 'review-outcome', message: 'Google did not confirm whether the change was applied. Check the spreadsheet before trying again.' },
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off for the plugin. Turn it on in the Google Workspace plugin, then retry.' },
+  'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
+  'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
   'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
 });
 
