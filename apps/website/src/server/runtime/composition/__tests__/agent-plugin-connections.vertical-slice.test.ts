@@ -32,6 +32,7 @@ import { createRandomUuidGenerator, createSystemClock, type HttpClientPort } fro
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools";
 
@@ -135,7 +136,7 @@ async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WEB_CLIEN
   const keyring = new InMemoryKeyring({ hkdfSalt: "agent-plugin-connections-slice" });
   const vaultRepo = new InMemoryVaultRepo({});
   const composition = composeAgentPluginConnections({
-    workspaceId: WORKSPACE, loadContributions, vaultRepo, keyring, sealer: new AesGcmSecretSealer({ keyring }),
+    workspaceId: WORKSPACE, loadContributions, vaultRepo, keyring, sealer: new AesGcmSecretSealer({ keyring }), customCredentialRepo: new InMemoryCustomCredentialSetRepo(),
     clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() }, http,
     env,
     derivedPublicOrigin: undefined,
