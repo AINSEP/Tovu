@@ -17,18 +17,33 @@ export async function readAssistantCliPermissions(required: {
       scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
     });
     // The definition default means no owner preference; inherit the legacy Full CLI access grant.
-    if (stored?.value != null && stored.sourceLayer !== "default") {
-      const value = stored.value as Partial<AssistantCliPermissions>;
-      if (typeof value.enabled !== "boolean" || !value.capabilities ||
-        !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof value.capabilities?.[key] === "boolean")) throw new Error("Invalid CLI permissions");
-      return assistantCliPermissions({ enabled: value.enabled, capabilities: value.capabilities });
-    }
+    if (stored?.value != null && stored.sourceLayer !== "default") return parseCliPermissionsSnapshot({ value: stored.value });
     return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw" }) });
   } catch (error) {
-    if (optional.readFailure === "throw") throw error;
-    (optional.warn ?? console.warn)("[agent-daemon] Full CLI access settings unavailable; access remains OFF.");
+    denyOrRethrow({ error }, optional);
     return assistantCliPermissions({ enabled: false });
   }
+}
+
+/** Validates a persisted owner snapshot: the master flag and every known capability must be booleans.
+ * @throws Error("Invalid CLI permissions") for any malformed snapshot, so the caller denies access.
+ * @complexity O(c) for the fixed capability list.
+ */
+function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCliPermissions {
+  const { enabled, capabilities } = required.value as Partial<AssistantCliPermissions>;
+  if (typeof enabled !== "boolean" || !capabilities ||
+    !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof capabilities[key] === "boolean")) throw new Error("Invalid CLI permissions");
+  return assistantCliPermissions({ enabled, capabilities });
+}
+
+/** Shared read-failure policy: HTTP readers propagate the error; the daemon logs a safe diagnostic
+ * and the caller then denies access.
+ * @throws the original error unchanged when `readFailure` is "throw".
+ */
+function denyOrRethrow(required: { error: unknown }, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void }): void {
+  if (optional.readFailure === "throw") throw required.error;
+  // Storage exceptions may contain sensitive values; never copy them into daemon logs.
+  (optional.warn ?? console.warn)("[agent-daemon] Full CLI access settings unavailable; access remains OFF.");
 }
 
 /** Fresh ledger read per launch; the daemon cannot cache a grant changed by the API process.
@@ -50,9 +65,7 @@ export async function readAssistantSubagentsEnabled(required: {
     });
     return setting === null ? true : setting.value === true;
   } catch (error) {
-    if (optional.readFailure === "throw") throw error;
-    // Storage exceptions may contain sensitive values; never copy them into daemon logs.
-    (optional.warn ?? console.warn)("[agent-daemon] Full CLI access settings unavailable; access remains OFF.");
+    denyOrRethrow({ error }, optional);
     return false;
   }
 }
