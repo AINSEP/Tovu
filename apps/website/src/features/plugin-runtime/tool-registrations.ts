@@ -65,7 +65,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * `version`, `archiveDigest`, and skill NAMES, the same "no `handle`-shaped value ever serializes"
  * rule `features/agent-plugins/tool-registrations.ts`'s own header states for its tools.
  */
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, type OutboxPort } from "@jini-ai/cms/core";
 import { ToolInputError, type RememberedApprovalPort } from "@jini-ai/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
@@ -286,19 +286,21 @@ function readSetEnabledRequest(rawInput: unknown): SetEnabledRequest {
   return { family, pluginId, enabled: input["enabled"] };
 }
 
-/** Fails CLOSED without an interactive transport: degrading to "remove it and mention we could
- * not ask" would make confirmation decorative in precisely the contexts that most need it.
- * A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
- * handler open until the idle deadline. Core/host approval ports now own that abort lifecycle.
- * ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was changed or removed
- * either way, and the model is still alive to read this and say something sensible. */
+/** What one plugin's enable approval is bound to; `discovery` is the site-runtime snapshot it was read from. */
+interface PluginApprovalIdentity {
+  readonly key: string;
+  readonly version?: string;
+  readonly label: string;
+  readonly discovery?: readonly PluginDiscoveryRecord[];
+}
+
 /** Identity/version binding before and after consent. The existing MCP fingerprint owner
  * hashes the version/digest metadata; no second hashing or approval store is introduced.
  * Disabling removes capability, so it needs no identity grant and never raises a dialog.
  * @complexity One family discovery scan, bounded by the installed package count. */
 export async function pluginApprovalIdentity(
   { deps: routeDeps, request }: { deps: PluginsToolDeps; request: Pick<SetEnabledRequest, "family" | "pluginId"> }, _optional = {},
-): Promise<{ key: string; version?: string; label: string; discovery?: readonly PluginDiscoveryRecord[] }> {
+): Promise<PluginApprovalIdentity> {
   let revision: string;
   let version: string | undefined;
   let label: string | undefined;
@@ -422,24 +424,6 @@ function restartNoteFor(request: SetEnabledRequest): string {
 }
 
 /**
- * Best-effort: provisions `pluginId`'s auto-admitted remote MCP servers into the external-MCP store
- * on a successful enable. Calls the SAME two primitives
- * (`resolveAgentPluginMcpServers` + `provisionAgentPluginMcpServers`) the admin route's own
- * `provisionAgentPluginMcpServersBestEffort` does, so the in-chat enable and the admin toggle have
- * identical side effects. Create-if-absent, never clobbering an existing row (`federate-mcp.ts`'s
- * header); a failure is logged, never thrown, matching that route's own fail-open posture — the
- * plugin's own activation, the operation this tool is named for, must not fail because one MCP row
- * could not be written.
- * @complexity O(s) in the plugin's declared server count.
- */
-async function provisionAgentPluginMcpServersBestEffort(
-  routeDeps: PluginsToolDeps,
-  input: { readonly pluginId: string; readonly principalId: string },
-): Promise<void> {
-  await requireAgentPluginHost(routeDeps).provisionMcp(input, {});
-}
-
-/**
  * The Agent Plugin branch. Reuses `agent-plugins/set-enabled.ts` — the SAME composition
  * `AGENT_PLUGIN_SET_ENABLED` (the admin route) calls, so there is one writer and one definition of
  * "installed in this workspace", not a second copy that could drift.
@@ -460,8 +444,17 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // route's enable branch does; disabling has nothing to provision. Without this, the same logical
     // enable produced a partially enabled plugin in chat while the admin toggle produced the
     // documented disabled connection rows — see this file's header.
+    //
+    // Best-effort: provisions `pluginId`'s auto-admitted remote MCP servers into the external-MCP store
+    // on a successful enable. Calls the SAME two primitives
+    // (`resolveAgentPluginMcpServers` + `provisionAgentPluginMcpServers`) the admin route's own
+    // `provisionAgentPluginMcpServersBestEffort` does, so the in-chat enable and the admin toggle have
+    // identical side effects. Create-if-absent, never clobbering an existing row (`federate-mcp.ts`'s
+    // header); a failure is logged, never thrown, matching that route's own fail-open posture — the
+    // plugin's own activation, the operation this tool is named for, must not fail because one MCP row
+    // could not be written. O(s) in the plugin's declared server count.
     if (result.enabled) {
-      await provisionAgentPluginMcpServersBestEffort(routeDeps, { pluginId: request.pluginId, principalId });
+      await requireAgentPluginHost(routeDeps).provisionMcp({ pluginId: request.pluginId, principalId }, {});
     }
     return {
       changed: true,
@@ -644,6 +637,129 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
   };
 }
 
+/** The `admin.plugins.enable` check every write path in this file runs, through the kit's evaluator.
+ * @complexity O(1) plus one authorization evaluation. */
+async function requireEnablePermission(
+  routeDeps: PluginsToolDeps,
+  required: { readonly principalId: string; readonly entityType: string; readonly entityId: string },
+): Promise<void> {
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: required.principalId, permission: "admin.plugins.enable" }, { entityType: required.entityType, entityId: required.entityId });
+}
+
+/** `plugins_set_enabled`'s permission check, scoped to the family's own entity type. @complexity O(1) plus one evaluation. */
+function requireSetEnabledPermission(routeDeps: PluginsToolDeps, required: { readonly principalId: string; readonly request: SetEnabledRequest }): Promise<void> {
+  const { principalId, request } = required;
+  return requireEnablePermission(routeDeps, { principalId, entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
+}
+
+/** What the owner's consent to a site-package enable rests on. Only a site-sourced `.tovu-plugin`
+ * that is being enabled can be "sealed here" or carry a capability set; every other call has none. */
+interface SiteConsent {
+  readonly sealedHere: boolean;
+  readonly capabilities: readonly string[] | undefined;
+  readonly added: readonly string[];
+}
+
+/** The site-sourced record a site-runtime ENABLE's approval identity was read from, else `undefined`
+ * (a disable, an Agent Plugin, or a built-in package). @complexity O(p) in the snapshot's plugin count. */
+function siteRecordBeingEnabled(
+  required: { readonly request: SetEnabledRequest; readonly identity: PluginApprovalIdentity | undefined },
+): PluginDiscoveryRecord | undefined {
+  const { request, identity } = required;
+  const record = identity?.discovery?.find(record => record.id === request.pluginId);
+  return request.enabled && request.family === "site-runtime" && record?.source === "site" ? record : undefined;
+}
+
+/** Reads the seal and the capabilities beyond the owner's last approval, in that order, for the
+ * record the approval identity was read from (so `record.version` IS the identity's version).
+ * @complexity O(c) in the manifest's declared capability count, plus two source-port reads. */
+async function siteConsentFor(
+  routeDeps: PluginsToolDeps,
+  required: { readonly request: SetEnabledRequest; readonly identity: PluginApprovalIdentity | undefined },
+): Promise<SiteConsent> {
+  const { request } = required;
+  const record = siteRecordBeingEnabled(required);
+  if (record === undefined) return { sealedHere: false, capabilities: undefined, added: [] };
+  const sealedHere = routeDeps.pluginSource ? await routeDeps.pluginSource.isSealedHere({ id: request.pluginId, version: record.version }, {}) : false;
+  const capabilities = record.manifest ? pluginCapabilitySet({ manifest: record.manifest }) : undefined;
+  const added = capabilities === undefined ? [] : addedPluginCapabilities({ approved: await routeDeps.pluginSource?.readApproval({ id: request.pluginId }, {}), next: capabilities });
+  return { sealedHere, capabilities, added };
+}
+
+/** Whether this enable must show the owner a card (before any remembered approval is consulted).
+ * @complexity O(1) plus the policy's own decision. */
+function enableNeedsConfirmation(routeDeps: PluginsToolDeps, consent: SiteConsent): boolean {
+  // Consent gap (2026-10-12): "sealed here" may mean sealed by the assistant itself, so it skips
+  // the card only when this version adds nothing beyond what the owner last approved.
+  return (consent.sealedHere && consent.capabilities === undefined) || (routeDeps.pluginSourcePolicy?.confirmEnable({ sealedHere: consent.sealedHere, added: consent.added }, {}) ?? true);
+}
+
+/** One prepared `plugins_set_enabled` call: everything the card names and the write re-checks. */
+interface SetEnabledPrepared {
+  readonly request: SetEnabledRequest;
+  readonly identity: PluginApprovalIdentity | undefined;
+  readonly refusal: unknown;
+  readonly confirm: boolean;
+  readonly capabilities: readonly string[] | undefined;
+  readonly added: readonly string[];
+}
+
+/** parse -> authorize -> (Agent Plugin enable: activations.json writable?) -> identity -> consent
+ * inputs. See the `plugins_set_enabled` handler's own comment for why this order is load-bearing.
+ * @complexity One family discovery scan plus the source/policy reads in {@link siteConsentFor}. */
+async function prepareSetEnabled(routeDeps: PluginsToolDeps, required: { readonly ctx: ToolExecutionContext }): Promise<SetEnabledPrepared> {
+  const { ctx } = required;
+  const request = readSetEnabledRequest(ctx.input);
+  await requireSetEnabledPermission(routeDeps, { principalId: ctx.principal.id, request });
+  const refusal = request.enabled && request.family === "agent-plugin" ? await unwritableAgentPluginActivationsResult(routeDeps, request) : undefined;
+  const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
+  const consent = await siteConsentFor(routeDeps, { request, identity });
+  return { request, identity, refusal, confirm: enableNeedsConfirmation(routeDeps, consent), capabilities: consent.capabilities, added: consent.added };
+}
+
+/** Re-reads an enable's identity after consent; a different key means the human approved something
+ * that is no longer what is installed. Disabling binds no identity.
+ * @throws {ToolInputError} `PLUGINS_STALE_APPROVAL` when the version or digest changed.
+ * @complexity One family discovery scan. */
+async function currentApprovedIdentity(
+  routeDeps: PluginsToolDeps,
+  required: { readonly request: SetEnabledRequest; readonly identity: PluginApprovalIdentity | undefined },
+): Promise<PluginApprovalIdentity | undefined> {
+  const { request, identity } = required;
+  if (!request.enabled) return undefined;
+  const current = await pluginApprovalIdentity({ deps: routeDeps, request });
+  if (current.key !== identity?.key) throw new ToolInputError({ message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
+  return current;
+}
+
+/** Fails CLOSED without an interactive transport: degrading to "remove it and mention we could
+ * not ask" would make confirmation decorative in precisely the contexts that most need it.
+ * A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
+ * handler open until the idle deadline. Core/host approval ports now own that abort lifecycle.
+ * ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was changed or removed
+ * either way, and the model is still alive to read this and say something sensible.
+ *
+ * The confirmed (or card-free) half: refusal -> re-authorize -> identity unchanged -> not cancelled
+ * -> record the approval -> write.
+ * @complexity One family discovery scan plus the family's own write. */
+async function runSetEnabled(
+  routeDeps: PluginsToolDeps,
+  required: { readonly ctx: ToolExecutionContext; readonly prepared: SetEnabledPrepared },
+): Promise<unknown> {
+  const { ctx, prepared: { request, identity, refusal, confirm, capabilities } } = required;
+  if (refusal !== undefined) return refusal;
+  await requireSetEnabledPermission(routeDeps, { principalId: ctx.principal.id, request });
+  const currentIdentity = await currentApprovedIdentity(routeDeps, { request, identity });
+  // A cancelled run must neither keep a card open until the deadline nor grant capability.
+  if (ctx.signal.aborted) return { changed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
+  // The owner approved exactly these capabilities (the identity key pins the manifest). Recorded
+  // before the write so a failed record leaves the plugin off rather than enabled unrecorded.
+  if (confirm && capabilities !== undefined && routeDeps.pluginSource) await routeDeps.pluginSource.recordApproval({ id: request.pluginId, capabilities }, {});
+  return request.family === "agent-plugin"
+    ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
+    : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
+}
+
 /**
  * This domain's model-facing allowlist (`contracts/core/model-facing-tool-errors.ts`). Only the
  * conflict refusal is listed (2026-10-04): its message names plugin ids/names and the manifest's own
@@ -690,38 +806,13 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * `admin.plugins.enable` grant must not be able to make a confirmation prompt appear in a human's
      * chat naming a plugin, let alone reach the write behind it.
      */
-    plugins_set_enabled: approvalToolHandler({ surfaces, prepare: async ({ ctx }) => {
-      const request = readSetEnabledRequest(ctx.input);
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
-      let refusal: unknown;
-      if (request.enabled && request.family === "agent-plugin") refusal = await unwritableAgentPluginActivationsResult(routeDeps, request);
-      const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
-      const record = identity?.discovery?.find(record => record.id === request.pluginId);
-      const sitePackage = record?.source === 'site';
-      const sealedHere = request.enabled && request.family === 'site-runtime' && sitePackage && identity?.version !== undefined && routeDeps.pluginSource
-        ? await routeDeps.pluginSource.isSealedHere({ id: request.pluginId, version: identity.version }, {}) : false;
-      // Consent gap (2026-10-12): "sealed here" may mean sealed by the assistant itself, so it skips
-      // the card only when this version adds nothing beyond what the owner last approved.
-      const capabilities = request.enabled && request.family === 'site-runtime' && sitePackage && record?.manifest ? pluginCapabilitySet({ manifest: record.manifest }) : undefined;
-      const added = capabilities === undefined ? [] : addedPluginCapabilities({ approved: await routeDeps.pluginSource?.readApproval({ id: request.pluginId }, {}), next: capabilities });
-      const confirm = (sealedHere && capabilities === undefined) || (routeDeps.pluginSourcePolicy?.confirmEnable({ sealedHere, added }, {}) ?? true);
-      return { request, identity, refusal, confirm, capabilities, added };
-    }, describe: ({ prepared: { request, identity, added } }) => describeEnableApproval({
-      subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label, adds: added },
-    }), run: async ({ ctx, prepared: { request, identity, refusal, confirm, capabilities } }) => {
-      if (refusal !== undefined) return refusal;
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
-      const currentIdentity = request.enabled ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
-      if (request.enabled && currentIdentity?.key !== identity?.key) throw new ToolInputError({ message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
-      // A cancelled run must neither keep a card open until the deadline nor grant capability.
-      if (ctx.signal.aborted) return { changed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
-      // The owner approved exactly these capabilities (the identity key pins the manifest). Recorded
-      // before the write so a failed record leaves the plugin off rather than enabled unrecorded.
-      if (confirm && capabilities !== undefined && routeDeps.pluginSource) await routeDeps.pluginSource.recordApproval({ id: request.pluginId, capabilities }, {});
-      return request.family === "agent-plugin"
-        ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
-        : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
-    } }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined && prepared.confirm,
+    plugins_set_enabled: approvalToolHandler({ surfaces,
+      prepare: ({ ctx }) => prepareSetEnabled(routeDeps, { ctx }),
+      describe: ({ prepared: { request, identity, added } }) => describeEnableApproval({
+        subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label, adds: added },
+      }),
+      run: ({ ctx, prepared }) => runSetEnabled(routeDeps, { ctx, prepared }),
+    }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined && prepared.confirm,
       rememberKey: ({ prepared }) => prepared.request.enabled ? prepared.identity?.key : undefined,
       remembered: routeDeps.nativeApprovalMemory,
       declined: ({ reason, prepared }) => ({ changed: false, family: prepared?.request.family,
@@ -762,7 +853,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
 
       if (family === "agent-plugin") return requireAgentPluginHost(routeDeps).uninstall({ surfaces, ctx, pluginId, executionOptions: optional }, {});
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin", entityId: pluginId });
+      await requireEnablePermission(routeDeps, { principalId: ctx.principal.id, entityType: "plugin", entityId: pluginId });
 
       const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId, ctx.principal.id)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
 
@@ -770,7 +861,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
         prepare: async () => preview,
         describe: ({ prepared }) => describeUninstallApproval({ preview: prepared }),
         run: async ({ ctx: approvedCtx, prepared }) => {
-          await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: approvedCtx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin", entityId: pluginId });
+          await requireEnablePermission(routeDeps, { principalId: approvedCtx.principal.id, entityType: "plugin", entityId: pluginId });
           if (approvedCtx.signal.aborted) return { uninstalled: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
           return uninstallConfirmedPlugin(routeDeps, prepared, approvedCtx.principal.id);
         },
