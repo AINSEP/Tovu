@@ -1,8 +1,9 @@
 import type { DomainEvent, OutboxRecord } from "@jini-ai/cms/core";
 import {
-  type FormDeliveryJob, type FormDeliveryJobStatus, type FormDeliveryPlan, type FormDeliveryPlanPort,
+  type FormDeliveryJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
   type FormPullClaim, type FormPullLeasePort, type FormPullRefusal, formDeliveryStatusFromOutbox,
 } from "@jini-ai/cms/forms";
+import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/features/forms/index";
 
 import type { Kysely } from "kysely";
 
@@ -21,16 +22,7 @@ import { outboxEventValues } from "./outbox-repo.js";
  * just the ids a status read prints, so status reads never load answers.
  */
 
-/** Upper bound of one status listing (the `forms_delivery_status` tool's "most recent 50"). */
-export const FORM_DELIVERY_STATUS_MAX_ROWS = 50;
-
-/** One binding's delivery of one submission, as status reads return it. */
-export type FormDeliveryStatusRow = {
-  readonly bindingId: string;
-  readonly adapterId: string;
-  readonly formId: string;
-  readonly submissionId: string;
-} & FormDeliveryJobStatus;
+export type { FormDeliveryStatusRow };
 
 /** Outbox statuses that are not `delivered`; matches `idx_outbox_events_claim`'s leading column. */
 const UNFINISHED_STATUSES = ["pending", "processing", "failed"];
@@ -133,16 +125,15 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
 
   /**
    * The most recent jobs of `workspaceId` that are not completed (pending, retrying or failed),
-   * newest first, at most {@link FORM_DELIVERY_STATUS_MAX_ROWS}.
+   * newest first, `limit` of them (default {@link DELIVERY_STATUS_MAX_LIMIT}).
+   * @param optional.limit not validated here: the only caller, `forms_delivery_status`, already
+   *   refuses anything but an integer from 1 to {@link DELIVERY_STATUS_MAX_LIMIT}.
    * @complexity Driven from `idx_outbox_events_claim` (undelivered rows only), joined by primary key.
-   * @throws RangeError when `limit` is not a positive integer.
    */
   async recentUnfinished(required: { workspaceId: string }, optional: { limit?: number } = {}): Promise<FormDeliveryStatusRow[]> {
-    const limit = optional.limit ?? FORM_DELIVERY_STATUS_MAX_ROWS;
-    if (!Number.isInteger(limit) || limit < 1) throw new RangeError(`Form delivery status limit must be a positive integer (got ${limit}); pass 1-${FORM_DELIVERY_STATUS_MAX_ROWS} or omit it.`);
     const { kernel } = this.required;
     const rows = await kernel.run(db => statusQuery(db, required.workspaceId).where("o.status", "in", UNFINISHED_STATUSES)
-      .orderBy("o.created_at", "desc").orderBy("o.id", "desc").limit(Math.min(limit, FORM_DELIVERY_STATUS_MAX_ROWS)).execute());
+      .orderBy("o.created_at", "desc").orderBy("o.id", "desc").limit(optional.limit ?? DELIVERY_STATUS_MAX_LIMIT).execute());
     return rows.map(toStatusRow);
   }
 }
