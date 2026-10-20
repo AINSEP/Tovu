@@ -367,3 +367,28 @@ test("widgets_get_region: an unbound regionKey is rejected with WidgetAreaNotFou
     (err: unknown) => err instanceof Error && err.name === "ToolInputError" && /^WIDGETS_AREA_NOT_FOUND: region 'nonexistent' is not bound$/.test(err.message)
   );
 });
+
+test('placement content rejects null, arrays and scalars before binding lookup', async () => {
+  for (const content of [null, [], 'text', 1, false]) {
+    await assert.rejects(wired('widgets_set_region_placements', makeDeps()).handler(executionContext({ regionKey: 'unbound', baseVersion: 1, placements: [{ placementId: 'p', widgetEntryId: 'w', enabled: true, content }] })), { message: 'placement content must be an object' });
+  }
+});
+
+test('placement normalization preserves object content and regenerates empty or non-string IDs', async () => {
+  const deps = makeDeps();
+  const widget = await createInstance(deps);
+  const region = await bindRegion(deps);
+  let generated = 0;
+  deps.idGen = { newId: () => `slot-${++generated}` };
+  const content = { label: 'override' };
+  await wired('widgets_set_region_placements', deps).handler(executionContext({ regionKey: 'footer', baseVersion: region.version, placements: [
+    { placementId: '', widgetEntryId: widget.id, enabled: false, content, ignored: true },
+    { placementId: 7, widgetEntryId: widget.id, enabled: true },
+  ] }));
+  const stored = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: region.areaEntryId });
+  assert.ok(stored);
+  assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: stored.fieldsJson }).doc.placements, [
+    { placementId: 'slot-1', widgetEntryId: widget.id, enabled: false, content },
+    { placementId: 'slot-2', widgetEntryId: widget.id, enabled: true },
+  ]);
+});
