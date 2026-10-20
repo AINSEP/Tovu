@@ -24,6 +24,8 @@ import type { OAuthHttpPorts } from "@jini-ai/oauth";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createCustomCredential, deleteCustomCredential, InMemoryCustomCredentialSetRepo, listCustomCredentials, updateCustomCredential } from "../../custom-credentials/index.js";
 import { byoClientLabel } from "../byo-client.js";
+import { InMemoryKeyring as TovuInMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { runApiConnectionConnect } from "../connect.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
@@ -97,9 +99,10 @@ after(async () => {
 
 const hostedEnv = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
 
-/** One site key for every host and the saved custom credentials (as in production, one keyring per site). */
-const siteKeyring = new InMemoryKeyring({ hkdfSalt: "api-connection-slice" });
-const siteSealer = new AesGcmSecretSealer({ keyring: siteKeyring });
+/** One site key for every host and the saved custom credentials (as in production: `deps.ts` passes the
+ *  site's one keyring and sealer to both), so the Tovu keyring type serves both ports. */
+const siteKeyring = new TovuInMemoryKeyring();
+const siteSealer = new TovuAesGcmSecretSealer(siteKeyring);
 
 function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined; readonly customCredentialRepo?: InMemoryCustomCredentialSetRepo; readonly packageRoot?: string } = {}) {
   const keyring = siteKeyring;
@@ -379,7 +382,7 @@ test("security: a connection's hooks get HTTP limited to its declared API origin
   const host = createApiConnectionHost({
     workspaceId: "ws-1", loadContributions: (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: root }, definition: input.definition }),
     vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => Date.now() },
-    oauthHttp, pluginHttp: spyHttp, runtime: "desktop", env: desktopEnv, publicOrigin: () => undefined,
+    customCredentialRepo: new InMemoryCustomCredentialSetRepo(), oauthHttp, pluginHttp: spyHttp, runtime: "desktop", env: desktopEnv, publicOrigin: () => undefined,
   });
   const [connection] = await host.listConnections({ pluginId: "acme-office" });
   await host.requestedScopes({ connection, scopeSetIds: [] });
