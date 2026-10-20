@@ -6,7 +6,7 @@ import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
 
-import { createAdminSurfaceCallbackInbox } from "@jini-ai/agent-plugins/admin-surfaces";
+import { createAdminSurfaceCallbackInbox, type AdminSurfaceSignInAttempt } from "@jini-ai/agent-plugins/admin-surfaces";
 
 import type { LoadPluginContributions } from "../agent-plugins/lifecycle.js";
 import { createConnectionBudgets } from "./budgets.js";
@@ -118,6 +118,10 @@ export function createApiConnectionHost(
   // In-process: the public callback and the admin-surface routes run in this host's process.
   const callbackInbox = createAdminSurfaceCallbackInbox({ now: () => required.clock.nowMs() });
   const pluginState = createAgentPluginStateStore({ vault, workspaceId: required.workspaceId });
+  // In-process, by connection ref: the last desktop sign-in that failed after the browser opened, so
+  // the plugin's panel can say so (the loopback page is all the user saw). At most one per declared
+  // connection; a later success deletes it.
+  const lastSignInAttempts = new Map<string, AdminSurfaceSignInAttempt>();
 
   async function listConnections(input: { readonly pluginId?: string } = {}): Promise<readonly DeclaredApiConnection[]> {
     const { connections } = await loadDeclaredApiConnections({ workspaceId: required.workspaceId, loadContributions: required.loadContributions });
@@ -220,7 +224,7 @@ export function createApiConnectionHost(
 
   const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;
   return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, startLoopback, listConnections, serviceFor, accessTokensFor,
-    toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
+    toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, lastSignInAttempts, pluginState };
 }
 
 export type ApiConnectionHost = ReturnType<typeof createApiConnectionHost>;

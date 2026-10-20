@@ -377,3 +377,39 @@ test("status: a staged switch's account label disappears once the switch expired
     assert.notEqual((await host.records.read({ key }))?.staged ?? null, null, "the unrevoked staged switch is kept for a retry; only its label is gone");
   } finally { provider.revokeStatus = 200; }
 });
+
+/** Polls `status` until `done` holds (a desktop completion settles after the browser's callback). */
+async function statusWhen(port: ReturnType<typeof portFor>, done: (status: Awaited<ReturnType<ReturnType<typeof portFor>["status"]>>) => boolean) {
+  let status = await port.status({ connectionId: "account" });
+  for (let tries = 0; !done(status) && tries < 100; tries += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    status = await port.status({ connectionId: "account" });
+  }
+  return status;
+}
+
+test("desktop: a sign-in that fails after the browser opened shows a safe code and next action in status; a later success clears it", async () => {
+  const host = makeHost("desktop");
+  const port = portFor(host);
+  assert.equal((await port.status({ connectionId: "account" })).lastSignInAttempt, null, "no attempt yet");
+  const failing = new URL((await port.begin({ connectionId: "account", action: "connect" })).authorizationUrl);
+  // The provider refuses this code's exchange (its PKCE challenge never matches), after the browser came back.
+  const code = randomBytes(12).toString("hex");
+  issued.set(code, "not-the-challenge");
+  const back = new URL(failing.searchParams.get("redirect_uri") ?? "");
+  back.searchParams.set("code", code);
+  back.searchParams.set("state", failing.searchParams.get("state") ?? "");
+  assert.equal((await fetch(back)).status, 200);
+  const failed = await statusWhen(port, (status) => status.lastSignInAttempt !== null);
+  assert.deepEqual(failed.lastSignInAttempt, { code: "authorization-failed", nextAction: "reconnect" });
+  assert.equal(JSON.stringify(failed).includes(code), false, "the authorization code never reaches the status");
+  assert.equal(await consent((await port.begin({ connectionId: "account", action: "connect" })).authorizationUrl), 200);
+  const succeeded = await statusWhen(port, (status) => status.status === "connected");
+  assert.equal(succeeded.status, "connected");
+  assert.equal((await statusWhen(port, (status) => status.lastSignInAttempt === null)).lastSignInAttempt, null, "success clears the failed attempt");
+});
+
+test("hosted: status carries no sign-in attempt (the public callback page reports hosted failures)", async () => {
+  const port = await connected(makeHost("hosted"));
+  assert.equal((await port.status({ connectionId: "account" })).lastSignInAttempt, null);
+});
