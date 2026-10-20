@@ -18,6 +18,7 @@ import type {
   ThemeExploreSlugCollision,
   ThemeFileGroup,
 } from "./theme-explore-port.hooks";
+import { isOpenFileLoaded, keepsOpenFileSelected } from "./theme-explore-open-file.hooks";
 import {
   resolveRequestedThemeExploreSelection,
   writeThemeExploreSelectionToUrl,
@@ -488,20 +489,6 @@ export function themeExploreHtmlMode(
   if (!sourceLoaded) return "unloaded";
   if (!file.editable) return "readonly";
   return "editable";
-}
-
-/**
- * Whether `loaded`, the theme and path the editor buffer was last set from, is the open file. A
- * `null` selection never matches.
- *
- * @complexity O(1).
- */
-function isOpenFileLoaded(
-  loaded: { themeId: string; path: string } | null,
-  themeId: string,
-  selected: string | null
-): boolean {
-  return loaded !== null && loaded.themeId === themeId && loaded.path === selected;
 }
 
 /** The editor state a content-refresh read of the open file is checked against (see
@@ -1152,7 +1139,7 @@ export function useThemeExplore(
    * @complexity O(f) in listed files after one detail request; buffer comparisons are O(s) in text.
    */
   const refreshModifiedState = useCallback(async (
-    { reconcileFiles = false }: { reconcileFiles?: boolean } = {},
+    { reconcileFiles }: { reconcileFiles?: boolean } = {},
   ): Promise<ThemeExploreFile[] | null> => {
     const generation = modifiedRefreshSettlement.next();
     const stillCurrent = () => modifiedRefreshSettlement.isCurrent({ generation }) && openFileRef.current.themeId === themeId;
@@ -1165,19 +1152,15 @@ export function useThemeExplore(
       }
       setDetail(nextDetail);
       setFiles(serverFiles);
-      const open = openFileRef.current;
-      const selectedStillExists = serverFiles.some((file) => file.path === open.selected);
-      const hasUnsavedText = isOpenFileLoaded(open.loadedFile, themeId, open.selected) && open.source !== open.savedSource;
-      if (!selectedStillExists && !hasUnsavedText) {
-        const path = defaultSelectedPath(serverFiles, nextDetail.apiVersion);
-        setPendingSelection(null);
-        setSelected(path);
-        setLoadedFile(null);
-        setSource("");
-        setSavedSource("");
-        const file = serverFiles.find((entry) => entry.path === path);
-        if (file) writeThemeExploreSelectionToUrl(file);
-      }
+      if (keepsOpenFileSelected({ serverFiles, open: openFileRef.current, themeId })) return serverFiles;
+      const path = defaultSelectedPath(serverFiles, nextDetail.apiVersion);
+      setPendingSelection(null);
+      setSelected(path);
+      setLoadedFile(null);
+      setSource("");
+      setSavedSource("");
+      const file = serverFiles.find((entry) => entry.path === path);
+      if (file) writeThemeExploreSelectionToUrl(file);
       return serverFiles;
     } catch (e) {
       if (!stillCurrent()) return null;
