@@ -38,8 +38,8 @@ Status: PHASE A — G1–G8 + G1b/G5b/G6b merged. G9 (neutrality proof) + G10 (p
 | G8 | MERGED 02c8b43ce | cloud/google-workspace-G8 (fixes f64cf5e3c route pin, d8cc64d43 i18n 21 locales, ec280be35 non-array listing) | 02c8b43ce | website importers 104/105 (forms-admin route pin = base failure), admin plugins+assistant 396/396, AgentPlugins 12/12, root+admin tsc 0, cx ≤7, vendor clean; boundaries 1070 (+1: new test deep-imports platform/site-dir test helper, same as existing tests — phase B), architecture API surface →663. |
 | G1b | MERGED (Jini 3f0cfe90) | cloud/google-workspace-G1b (549d7d87) | 3f0cfe90 | fenced token-store install() (no lease) for install/stageSwitch; explicit clientKind dep; vault label=key (fixed G2 bug: staged switch always collided). api-connections 60 tests pass, tsc no new errors, guard 26, cx clean. |
 | G5b | MERGED (Jini b633dd94) | cloud/google-workspace-G5b (ca28a268) | b633dd94 | createAdminSurfaceHandlerHost + defineAdminSurfaceHandlerContribution (same trust gate as G4). agent-plugins 49 files pass, tsc 0, guard 26; added lifecycle/contribution-loader.ts + tools/capabilities.ts to jini.isolation.shared (no runtime imports; accepted, phase B review). Jini integrations + agent-plugins rebuilt 07:20. |
-| G7fix | running | cloud/google-workspace-G7fix | | process-root-parity 'surfaceExchanges is not defined' (G7 harness gap; 7/7 on base) — branch currently RED on this one test |
-| G9 | running | cloud/google-workspace-G9 (both) | | |
+| G7fix | MERGED | cloud/google-workspace-G7fix (40d03af7f) | merged | daemon tool-surface harness binds the real confirmation-card store; process-root-parity + federation wiring 17/17 |
+| G9 | MERGED (Jini + Tovu) | cloud/google-workspace-G9 (Jini 7dc81d61; Tovu 0af7bd9e7) | merged | ZERO non-test edits, no seam bug: acme-office e2e connect→fake OAuth→callback→vault (sealed)→approved write tool→surface action→push form delivery via OAuth connectionRef. Grep tests: Jini 137 files 0 hits; Tovu 6 folders + 10 files, 2 allowlisted lines federate-mcp.ts:20,:99 ('picker' = MCP tool list). Coord: Jini test 2/2, guard 26; Tovu 19/19, typecheck:tests 0. Gap: Tovu FormDestinationModule.deliver lacks binding/idempotencyKey + returns void (G14/forms-multidest F4). |
 | G10 | running | cloud/google-workspace-G10 | | |
 | G11–G16 | pending | | | |
 
@@ -47,7 +47,7 @@ Status: PHASE A — G1–G8 + G1b/G5b/G6b merged. G9 (neutrality proof) + G10 (p
 (phase C)
 
 ## Vendor-neutrality proof
-pending (G9)
+PASS (G9): acme-office fixture end to end through real Jini + Tovu seams with zero production edits; grep tests in Jini (packages/agent-plugins/src/__tests__/vendor-neutrality.test.ts) and Tovu (api-connections vertical-slice dir vendor-neutrality.test.ts). Outside scanned sets: Jini agent-plugins README.md:7-8 + manifest.ts:4 credit the spec steering committee (names the provider; pre-existing), folder-zip.ts:57 'folder picker'.
 
 ## Bugs + security findings pinned
 - G1b: oauth/src/token-endpoint.ts:55 puts provider `error` string unbounded into OAuthError.message → ApiConnectionError text (Low). G2 label=connectionId collision (fixed in G1b).
