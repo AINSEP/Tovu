@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { createApiConnectionService, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
+import { createApiConnectionService, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
 import type { OAuthClient, OAuthHttpPorts } from "@jini-ai/oauth";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
@@ -15,9 +15,10 @@ import { createApiConnectionVault, createApiConnectionVaultRecordStore, createAp
  * connection an active plugin declares. One host per workspace; callers ask it for a connection's
  * service, its record store or a fresh access token. Nothing here names a provider.
  *
- * Runtime decides the client: `hosted` uses the plugin's web client (confidential when a secret is
- * configured) and the fixed public callback; `desktop` uses the installed-app client (public, PKCE)
- * and a per-attempt loopback redirect. Tokens stay bound to the client that issued them.
+ * Runtime decides the client: `hosted` uses the plugin's web client (confidential: its secret is
+ * required) and the fixed public callback; `desktop` uses the installed-app client (public, PKCE,
+ * optionally with a provider-issued non-confidential secret) and a per-attempt loopback redirect.
+ * Tokens stay bound to the client that issued them.
  */
 
 /** The public, cookie-less callback every hosted API-connection sign-in returns to. */
@@ -49,19 +50,31 @@ function setupRefused(message: string): ApiConnectionError {
   return new ApiConnectionError({ code: "descriptor-invalid", message });
 }
 
-/** The runtime's OAuth client. Desktop is always public; hosted is confidential only with a secret. @complexity O(1). */
+/** A configured host setting, trimmed; undefined when the plugin names none or it is unset. @complexity O(1). */
 function configured(env: ApiConnectionHostDeps["env"], name: string | undefined): string | undefined {
   return name === undefined ? undefined : env[name]?.trim() || undefined;
 }
 
-function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): OAuthClient {
+/**
+ * The runtime's OAuth client and how it is registered. Desktop is the installed app (`public`): PKCE,
+ * and a provider-issued secret only when the provider requires one for installed apps (it is not
+ * confidential there, but it still stays in host config and is never shown or logged). Hosted is the
+ * web client (`confidential`) and must have its server-held secret.
+ * @complexity O(1).
+ */
+function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): { readonly client: OAuthClient; readonly clientKind: ApiConnectionClientKind } {
   const config: ApiConnectionClientConfig | undefined = runtime === "desktop" ? connection.clients.desktop : connection.clients.web;
+  const where = runtime === "desktop" ? "desktop app" : "site";
   const clientId = configured(env, config?.clientIdEnv);
   if (!config || !clientId) {
-    throw setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its sign-in client is not configured. Ask the operator to configure it, then retry.`);
+    throw setupRefused(`${connection.descriptor.label} is not set up on this ${where}: its sign-in client is not configured. Ask the operator to configure it, then retry.`);
   }
-  const clientSecret = runtime === "hosted" ? configured(env, config.clientSecretEnv) : undefined;
-  return clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" };
+  const clientSecret = configured(env, config.clientSecretEnv);
+  const clientKind: ApiConnectionClientKind = runtime === "desktop" ? "public" : "confidential";
+  if (clientKind === "confidential" && !clientSecret) {
+    throw setupRefused(`${connection.descriptor.label} is not set up on this ${where}: its sign-in client secret is not configured. Ask the operator to configure it, then retry.`);
+  }
+  return { clientKind, client: clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" } };
 }
 
 /**
@@ -91,11 +104,11 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
   /** One connection's service. Desktop passes the loopback redirect URI its attempt listens on. @complexity O(1). */
   function serviceFor(input: { readonly connection: DeclaredApiConnection; readonly redirectUri?: string }): ApiConnectionService {
     const { connection } = input;
-    const client = resolveClient(connection, required.runtime, required.env);
+    const { client, clientKind } = resolveClient(connection, required.runtime, required.env);
     const redirectUri = input.redirectUri ?? (required.runtime === "hosted" ? hostedCallbackUrl({ connection }) : undefined);
     const owner = { workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, clientId: client.clientId };
     return createApiConnectionService({
-      descriptor: connection.descriptor, client,
+      descriptor: connection.descriptor, client, clientKind,
       appOptions: { clientDisplayName: required.displayName ?? "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
       hooks: connection.module.createHooks({ http: required.pluginHttp }),
       records, tokens: createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }),

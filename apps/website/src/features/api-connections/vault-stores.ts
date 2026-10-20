@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { SecretsVaultService, VaultError, createVaultMetaParsers, type VaultContext, type VaultMeta, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -23,6 +25,15 @@ const RECORD_FORMAT = "api-connection-record";
 const ATTEMPT_FORMAT = "api-connection-attempt";
 const recordId = (key: string): string => `record:${key}`;
 const attemptId = (state: string): string => `attempt:${state}`;
+/**
+ * Vault labels are unique per scope, and one scope holds every connection's record plus every open
+ * sign-in attempt, so each label is derived from what makes its row unique: the record's key, and
+ * for an attempt its key plus a digest of the state (the state itself is the callback's bearer
+ * value and is kept out of anything listed).
+ */
+const recordLabel = (key: string): string => `API connection ${key}`;
+const attemptLabel = (attempt: ApiConnectionAttempt): string =>
+  `API connection sign-in ${attempt.key} ${createHash("sha256").update(attempt.state).digest("hex").slice(0, 16)}`;
 
 /** The host-side record store: Jini's port plus a non-consuming read the public callback routes by. */
 export interface ApiConnectionVaultRecordStore extends ApiConnectionRecordStore {
@@ -115,7 +126,7 @@ export function createApiConnectionVaultRecordStore(
       if (record.key !== key) throw new VaultError({ code: "invalid-record" });
       try {
         await vault.put({ ...scope, id: recordId(key), expectedRevision: expectedRevision === 0 ? null : expectedRevision, provider: null,
-          label: "API connection", meta: { credentialFormat: RECORD_FORMAT }, payload: { record: { ...record } as unknown as VaultMeta } });
+          label: recordLabel(key), meta: { credentialFormat: RECORD_FORMAT }, payload: { record: { ...record } as unknown as VaultMeta } });
         return true;
       } catch (error) {
         if (isConflict(error)) return false;
@@ -124,7 +135,7 @@ export function createApiConnectionVaultRecordStore(
     },
     async putAttempt({ attempt }) {
       await sweepExpiredAttempts();
-      await vault.put({ ...scope, id: attemptId(attempt.state), expectedRevision: null, provider: null, label: "API connection sign-in",
+      await vault.put({ ...scope, id: attemptId(attempt.state), expectedRevision: null, provider: null, label: attemptLabel(attempt),
         meta: { credentialFormat: ATTEMPT_FORMAT, expiresAtMs: Date.parse(attempt.expiresAt) }, payload: { attempt: { ...attempt } as unknown as VaultMeta } });
     },
     async takeAttempt({ state }) {
@@ -142,6 +153,8 @@ export function createApiConnectionVaultRecordStore(
 
 /**
  * Jini's vault token store bound to one connection owner, fenced by the record store's generation.
+ * Sign-in and switch write through its fenced `install` (no lease); only the refresher's `persist`
+ * needs the refresh lease, so the host no longer wraps writes in one.
  * @complexity O(1) setup.
  */
 export function createApiConnectionVaultTokenStore(
@@ -151,18 +164,8 @@ export function createApiConnectionVaultTokenStore(
   },
   _optional: Record<string, never> = {},
 ): ApiConnectionTokenStore {
-  const store = createVaultOAuthTokenStore({
+  return createVaultOAuthTokenStore({
     vault: required.vault, vaultScope: apiConnectionVaultScope({ workspaceId: required.owner.workspaceId }), owner: required.owner,
     readGeneration: createApiConnectionGenerationReader({ records: required.records }), clock: required.clock,
   });
-  return {
-    ...store,
-    // The vault store only writes under a lease (G2 host duty 3), but the service's sign-in install
-    // persists directly. Take the lease for that write; when this instance already holds it (the
-    // refresher's path) acquisition fails and the held lease authorizes the write as before.
-    async persist(args) {
-      if (!(await store.tryAcquireRefreshLease(args))) return store.persist(args);
-      try { await store.persist(args); } finally { await store.releaseRefreshLease(args); }
-    },
-  };
 }

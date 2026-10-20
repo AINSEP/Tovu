@@ -88,7 +88,12 @@ function idOrModuleProblem(id: unknown, module: unknown, at: string): string | u
   return undefined;
 }
 
-/** One declaration, or why it is invalid. The desktop client is public: it never takes a secret. @complexity O(1). */
+/**
+ * One declaration, or why it is invalid. Either client may name a secret setting: the desktop
+ * (installed-app) client stays public even then, because some providers issue installed apps a
+ * secret that is not confidential; the host still keeps it in config only, never in output or logs.
+ * @complexity O(1).
+ */
 // complexity-debt: one guard per declaration field; the field list is the complexity.
 function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration | string {
   if (!isObject(entry)) return `${at} must be an object`;
@@ -100,7 +105,6 @@ function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration 
   const desktop = parseClient(clients.desktop, `${at}.clients.desktop`);
   if (typeof web === "string") return web;
   if (typeof desktop === "string") return desktop;
-  if (desktop?.clientSecretEnv !== undefined) return `${at}.clients.desktop must not declare a secret: an installed app cannot keep one`;
   // idOrModuleProblem returned undefined, so both are checked strings.
   return { id: id as string, module: module as string, clients: { ...(web ? { web } : {}), ...(desktop ? { desktop } : {}) }, descriptor };
 }

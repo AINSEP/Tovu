@@ -10,7 +10,7 @@
       "authorizationParams": { "public": { "prompt": "consent" }, "confidential": { "access_type": "offline" } },
       "clients": {
         "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET" },
-        "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }
+        "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET" }
       }
     }
   ]

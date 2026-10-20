@@ -31,6 +31,8 @@ const refreshToken = "acme-refresh-" + "y".repeat(24);
 /** code -> PKCE challenge the fake provider issued it for. */
 const issued = new Map<string, string>();
 let tokenCalls = 0;
+/** The last token-endpoint form the fake provider received (to see where a client secret went). */
+let lastTokenForm = new URLSearchParams();
 let provider: Server;
 let callbackServer: Server;
 let providerOrigin = "";
@@ -63,6 +65,7 @@ before(async () => {
         return res.end(JSON.stringify({ id: "acct-1", name: "Ada" }));
       }
       const form = new URLSearchParams(body);
+      lastTokenForm = form;
       const challenge = issued.get(form.get("code") ?? "");
       tokenCalls += 1;
       const verified = challenge !== undefined && createHash("sha256").update(form.get("code_verifier") ?? "").digest("base64url") === challenge;
@@ -80,13 +83,15 @@ after(async () => {
   if (callbackServer) await new Promise((resolve) => callbackServer.close(resolve));
 });
 
-function makeHost(workspaceId = "ws-1") {
+const hostedEnv = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
+
+function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo } = {}) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "api-connection-slice" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: fixtureRoot }, definition: input.definition });
   return createApiConnectionHost({
-    workspaceId, loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
-    clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: "hosted",
-    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) },
+    workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
+    clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: options.runtime ?? "hosted",
+    env: options.env ?? hostedEnv,
     publicOrigin: () => siteOrigin,
   });
 }
@@ -179,4 +184,55 @@ test("security: an attempt is consumed once even when two callbacks race on the 
   const [first, second] = await Promise.all([host.records.takeAttempt({ state }), host.records.takeAttempt({ state })]);
   assert.equal([first, second].filter((attempt) => attempt !== null).length, 1);
   assert.equal(await host.records.peekAttempt({ state }), null);
+});
+
+test("security: two open sign-in attempts for one connection and two connections' records never collide on a vault label", async () => {
+  const vaultRepo = new InMemoryVaultRepo({});
+  const host = makeHost("ws-1", { vaultRepo });
+  await mountCallback(host, []);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const begin = () => host.serviceFor({ connection }).start({ workspaceId: "ws-1", actorId: "admin-1", intent: "connect", scopeSetIds: [], redirectUri: host.hostedCallbackUrl({ connection }) });
+  const [first, second] = [await begin(), await begin()];
+  const states = [first, second].map((start) => new URL(start.authorizationUrl).searchParams.get("state")!);
+  assert.notEqual(states[0], states[1]);
+  for (const state of states) assert.ok(await host.records.peekAttempt({ state }), "both attempts stay open");
+  const record = (key: string) => ({ key, workspaceId: "ws-1", pluginId: "acme-office", connectionId: key, status: "disconnected" as const, revision: 0,
+    generation: 0, account: null, grantedScopes: [], staged: null, updatedAt: new Date().toISOString() });
+  assert.equal(await host.records.compareAndSet({ key: "conn-a", expectedRevision: 0, record: record("conn-a") }), true);
+  assert.equal(await host.records.compareAndSet({ key: "conn-b", expectedRevision: 0, record: record("conn-b") }), true);
+  const labels = (await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null, binding: null })).map((row) => row.label);
+  for (const state of states) assert.ok(labels.every((label) => !label.includes(state)), "a listed label never carries the callback state");
+});
+
+test("security: a desktop public client's provider-issued secret reaches only the token endpoint", async () => {
+  const secret = "d".repeat(28);
+  const logs: string[] = [];
+  const vaultRepo = new InMemoryVaultRepo({});
+  const host = makeHost("ws-1", { runtime: "desktop", vaultRepo, env: { TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET: secret } });
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  let signInUrl = "";
+  const result = await runApiConnectionConnect({
+    deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async (input) => {
+      signInUrl = input.signInUrl;
+      const response = await fetch(consentRedirect(input.signInUrl));
+      logs.push(await response.text());
+    },
+  });
+  assert.deepEqual(result, { status: "connected" });
+  assert.equal(lastTokenForm.get("client_secret"), secret, "sent as client_secret_post to the token endpoint");
+  assert.equal(new URL(signInUrl).searchParams.get("prompt"), "consent", "the public client's fixed parameters apply");
+  assert.ok(!signInUrl.includes(secret), "never in the browser's authorization URL");
+  assert.ok(logs.every((line) => !line.includes(secret)), "never on the loopback page");
+  const rows = await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null, binding: null });
+  assert.ok(rows.length > 0);
+  assert.ok(!JSON.stringify(rows).includes(secret), "never stored in a vault row (sealed or not)");
+});
+
+test("security: a hosted (confidential) client without its server-held secret is refused before any sign-in starts", async () => {
+  const host = makeHost("ws-1", { env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client" } });
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const calls = tokenCalls;
+  assert.throws(() => host.serviceFor({ connection }), { code: "descriptor-invalid", message: /client secret is not configured/ });
+  assert.equal(tokenCalls, calls);
 });
