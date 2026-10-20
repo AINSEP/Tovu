@@ -165,7 +165,7 @@ function renderOnboarding(pluginTokens: CreateSitePluginTokensController, useDat
     adminPassword: "",
     setAdminPassword: vi.fn(),
     adminPasswordInputType: "password",
-    adminPasswordRevealLabel: "Show admin password",
+    adminPasswordRevealLabel: "Show password",
     toggleAdminPasswordVisibility: vi.fn(),
     setCreateName: vi.fn(),
     createNameError: null,
@@ -321,9 +321,11 @@ describe("CreateSiteOnboarding inline database disclosures", () => {
     await user.tab();
     expect(document.activeElement).toBe(screen.getByLabelText("Folder name"));
     await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "About the default admin login" }));
+    await user.tab();
     expect(document.activeElement).toBe(screen.getByLabelText("Set a different admin password"));
     await user.tab();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Show admin password" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Show password" }));
     await user.tab();
     expect(document.activeElement).toBe(screen.getByRole("radio", { name: "SQLite" }));
     await user.keyboard("[ArrowRight]");

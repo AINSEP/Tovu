@@ -44,7 +44,7 @@ function controllerFixture(overrides: Partial<SitesController> = {}): SitesContr
     adminPassword: "",
     setAdminPassword: vi.fn(),
     adminPasswordInputType: "password",
-    adminPasswordRevealLabel: "Show admin password",
+    adminPasswordRevealLabel: "Show password",
     toggleAdminPasswordVisibility: vi.fn(),
     setCreateName: vi.fn(),
     createNameError: null,

@@ -40,7 +40,10 @@ describe("new-site admin credentials", () => {
   it("describes the default login without sending its password, then repeats the guidance in the created-site notice", async () => {
     const { requests, user } = setup();
     await waitFor(() => expect(screen.getByLabelText("Folder name")).toBeEnabled());
-    expect(screen.getByText(DEFAULT_LOGIN)).toBeVisible();
+    const hint = screen.getByText("tovu-dev").closest("p")!;
+    expect(hint.textContent).toContain("Sign in as admin with password tovu-dev.");
+    expect(screen.getByText("admin").tagName).toBe("STRONG");
+    expect(screen.getByRole("button", { name: "About the default admin login" })).toBeVisible();
     const password = screen.getByLabelText("Set a different admin password");
     expect(password).toHaveValue("");
     expect(password).toHaveAttribute("type", "password");
@@ -52,7 +55,7 @@ describe("new-site admin credentials", () => {
     await user.click(screen.getByRole("button", { name: "Create site" }));
     await waitFor(() => expect(requests).toEqual([{ name: "new-site" }]));
     expect(Object.keys(requests[0]!)).toEqual(["name"]);
-    await waitFor(() => expect(screen.getAllByText(DEFAULT_LOGIN)).toHaveLength(2));
+    await waitFor(() => expect(screen.getByText(DEFAULT_LOGIN)).toBeVisible());
     const notice = screen.getByText("new-site").closest("p")!;
     expect(notice.textContent).toContain(DEFAULT_LOGIN);
   });
@@ -64,9 +67,9 @@ describe("new-site admin credentials", () => {
     const custom = " chosen 🔑 ";
     await user.type(screen.getByLabelText("Folder name"), "custom-site");
     await user.type(password, custom);
-    await user.click(screen.getByRole("button", { name: "Show admin password" }));
+    await user.click(screen.getByRole("button", { name: "Show password" }));
     expect(password).toHaveAttribute("type", "text");
-    await user.click(screen.getByRole("button", { name: "Hide admin password" }));
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
     expect(password).toHaveAttribute("type", "password");
     await user.click(screen.getByRole("button", { name: "Create site" }));
     await waitFor(() => expect(requests).toEqual([{ name: "custom-site", adminPassword: custom }]));

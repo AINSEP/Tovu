@@ -49,7 +49,7 @@ export function resolveCreatedAdminLogin({ customPassword, t }: { customPassword
 
 /** Mask/reveal presentation stays out of the form markup. @complexity O(1). */
 export function resolveAdminPasswordPresentation({ revealed, t }: { revealed: boolean; t: Translate }, _options: Record<string, never> = {}) {
-  return { inputType: revealed ? "text" : "password", revealLabel: t(revealed ? "Hide admin password" : "Show admin password") };
+  return { inputType: revealed ? "text" : "password", revealLabel: t(revealed ? "Hide password" : "Show password") };
 }
 
 /** The create-name input's own `disabled` state: also disabled while a create is already in flight,

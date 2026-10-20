@@ -1,4 +1,5 @@
 import { agentHandle } from "@jini-ai/agentic";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
@@ -310,29 +311,54 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
       <div className="onboarding-card">
         <DetailsSection controller={controller} />
         <div className="onboarding-section">
-          <p className="field-hint">{controller.t("Admin login: admin / the default password — change it later under Users")}</p>
+          <p className="field-hint site-admin-login-hint">
+            {controller.t("Sign in as")} <strong>admin</strong> {controller.t("with password")} <strong>{DEFAULT_NEW_SITE_ADMIN_PASSWORD}</strong>.
+            <InfoTip
+              label={controller.t("This is a starter password for this site only. Change it after your first sign-in under Users → admin, or set a different one below.")}
+              triggerLabel={controller.t("About the default admin login")}
+              placement="inline"
+              agentHandle="sites-create-admin-login-info"
+            />
+          </p>
           <div className="field">
             <label className="field-label" htmlFor="site-admin-password">{controller.t("Set a different admin password")}</label>
-            <input
-              id="site-admin-password"
-              type={controller.adminPasswordInputType}
-              value={controller.adminPassword}
-              minLength={1}
-              maxLength={512}
-              autoComplete="new-password"
-              disabled={resolveCreateInputDisabled(controller)}
-              onChange={(e) => controller.setAdminPassword(e.target.value)}
-              {...agentHandle({ handle: "sites-create-admin-password" }, { role: "field", label: "Optional admin password for the new site" })}
-            />
-            <button type="button" className="btn-secondary" disabled={resolveCreateInputDisabled(controller)} onClick={controller.toggleAdminPasswordVisibility}
-              {...agentHandle({ handle: "sites-create-admin-password-reveal" }, { role: "button", label: controller.adminPasswordRevealLabel })}>
-              {controller.adminPasswordRevealLabel}
-            </button>
+            <div className="site-admin-password-wrap">
+              <input
+                id="site-admin-password"
+                type={controller.adminPasswordInputType}
+                value={controller.adminPassword}
+                minLength={1}
+                maxLength={512}
+                autoComplete="new-password"
+                disabled={resolveCreateInputDisabled(controller)}
+                onChange={(e) => controller.setAdminPassword(e.target.value)}
+                {...agentHandle({ handle: "sites-create-admin-password" }, { role: "field", label: "Optional admin password for the new site" })}
+              />
+              <button type="button" className="site-admin-password-toggle" disabled={resolveCreateInputDisabled(controller)} onClick={controller.toggleAdminPasswordVisibility}
+                aria-label={controller.adminPasswordRevealLabel} title={controller.adminPasswordRevealLabel}
+                {...agentHandle({ handle: "sites-create-admin-password-reveal" }, { role: "button", label: controller.adminPasswordRevealLabel })}>
+                <PasswordEyeIcon revealed={controller.adminPasswordInputType === "text"} />
+              </button>
+            </div>
           </div>
         </div>
         <DatabaseSection t={controller.t} database={database} pluginTokens={controller.pluginTokens} />
         <OnboardingActions controller={controller} onCancel={onCancel} />
       </div>
     </form>
+  );
+}
+
+/** Starter password every new site is created with when none is chosen (website `DEFAULT_OWNER_PASSWORD`, identity/wiring.ts). */
+const DEFAULT_NEW_SITE_ADMIN_PASSWORD = "tovu-dev";
+
+/** Eye (shown) / struck-through eye (hidden) glyph for the password reveal toggle. */
+function PasswordEyeIcon({ revealed }: { revealed: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {revealed ? <path d="M4 4l16 16" /> : null}
+    </svg>
   );
 }
