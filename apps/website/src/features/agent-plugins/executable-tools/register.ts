@@ -16,12 +16,11 @@
 import { createToolRegistrationScope, type ToolExecutionContext, type ToolRegistration, type ToolRegistry } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
-import { createAgentPluginToolProjection, defineAgentPluginToolContribution, type AgentPluginToolEffect } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { createAgentPluginToolProjection, defineAgentPluginToolContribution, type AgentPluginToolEffect, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 import { EXTENSION_TOOL_APPROVAL_POLICY, withExtensionApprovalPolicy } from '../../../contracts/headless/assistant-tool-approval-policy.js';
 import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
-import type { LoadPluginContributions } from '../lifecycle.js';
 import { APPROVAL_FAMILY_BY_EFFECT, createAgentPluginDisclosure } from './approval.js';
 import {
   createAgentPluginToolCapabilities, createFrozenConnectionAccounts,
@@ -34,7 +33,11 @@ const toolContribution = defineAgentPluginToolContribution({ filename: AGENT_PLU
 
 /** Host ports the composition root binds once per site (see this folder's README). */
 export interface AgentPluginExecutableToolHost {
-  readonly loadContributions: LoadPluginContributions;
+  /** The lifecycle's `loadPluginContributions`, narrowed to this contribution. */
+  readonly loadContributions: (
+    required: { readonly workspaceId: string; readonly definition: typeof toolContribution },
+    optional: { readonly orderByPluginId?: boolean },
+  ) => Promise<{ readonly items: readonly LoadedAgentPluginTool[]; readonly refusals: readonly string[] }>;
   readonly connections: AgentPluginConnectionAccess;
   readonly http: HttpClientPort;
   readonly limiter: AgentPluginRateLimiter;
