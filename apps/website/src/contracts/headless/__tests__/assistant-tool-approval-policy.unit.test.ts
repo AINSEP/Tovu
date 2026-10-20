@@ -54,3 +54,16 @@ test("an extension descriptor with no metadata receives its family's classificat
   assert.deepEqual(policy, { class: "edit", confirmation: "direct" });
   assert.equal(approvalClassAsks({ class: policy.class }, {}), false);
 });
+
+// Executable Agent Plugin tools act on an external account: the declared effect only adds friction.
+for (const [family, expected, asks] of [
+  ["agent-plugin-read", { class: "read", confirmation: "direct" }, false],
+  ["agent-plugin-write", { class: "publish", confirmation: "policy" }, true],
+  ["agent-plugin-destructive", { class: "delete", confirmation: "policy" }, true],
+] as const) {
+  test(`an executable plugin tool in family ${family} is classified ${expected.class}/${expected.confirmation}`, () => {
+    const policy = toolApprovalPolicyFor({ registration: withExtensionApprovalPolicy({ registration: registration("p_acme_office__tool"), family }) });
+    assert.deepEqual(policy, expected);
+    assert.equal(approvalClassAsks({ class: policy.class }, {}), asks);
+  });
+}

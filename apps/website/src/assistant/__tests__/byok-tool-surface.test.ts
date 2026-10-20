@@ -25,7 +25,9 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import type { ByokToolResultBlock } from "../byok-provider-turn.js";
@@ -1042,4 +1044,13 @@ test('an owner delete executes through the assembled BYOK guard only after the c
   assert.notEqual(result.isError, true, textOf(result));
   assert.equal(cards, 1);
   assert.equal(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: 'echo-server' }), null);
+});
+
+test("BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport", async () => {
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const seen: unknown[] = [];
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async (_registry, deps) => { seen.push(deps.surfaces?.surfaceExchanges); } });
+  await s.ready;
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0], store, "the same store the surface's MCP-UI answers are delivered to");
 });
