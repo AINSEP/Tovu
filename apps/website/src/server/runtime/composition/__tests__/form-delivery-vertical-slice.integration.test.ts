@@ -236,7 +236,7 @@ describe("automatic pull: the autoPull setting, startup and sign-in triggers, an
       serving.themeWatcher.stop();
       await Promise.allSettled(serving.bootWork);
     };
-    return { app: serving.app, stop };
+    return { app: serving.app, stop, stopFormPull: () => serving.formPullTrigger.stop() };
   };
   const leaseRows = () => site.kernel.run((db) => db.selectFrom("form_receiver_pulls").select(["receiver_key", "lease_token", "lease_expires_at"]).execute());
 
@@ -295,6 +295,20 @@ describe("automatic pull: the autoPull setting, startup and sign-in triggers, an
     assert.equal(receiver.pulls, 1, "the sign-in came under a minute after the startup pull started");
     assert.deepEqual([...receiver.pending.keys()], ["remote-on"]);
     assert.deepEqual(await leaseRows(), [{ receiver_key: `fixture-host:${RECEIVER_URL}`, lease_token: null, lease_expires_at: null }]);
+  });
+
+  test("once the serving app's form pull trigger has stopped, an owner sign-in starts no pull", async (t) => {
+    const counted = countAutoPulls({ deps: site.deps });
+    const serving = serve();
+    t.after(async () => { await serving.stop(); counted.restore(); });
+    await waitFor({ what: "the startup trigger", check: async () => (counted.settled() === 1 ? true : undefined) });
+
+    await serving.stopFormPull();
+    await loginAsOwner(await startTestServer(serving.app, t));
+    // The sign-in signal runs after a background role lookup; give it ample time to reach the trigger.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    assert.equal(counted.settled(), 1, "the stopped trigger refused the sign-in pull");
   });
 
   test("a manual pull while another pull of the same receiver is in flight answers already-running", async () => {
