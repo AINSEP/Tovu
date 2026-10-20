@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "../../product-root.js";
+import { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot, workerProductRoot, type ThreadContext } from "../../product-root.js";
 
 /**
  * @file Regression coverage for the two path-offset bugs found in `read-template.ts`'s
@@ -195,4 +195,86 @@ test("resolveCheckoutRoot(), called with no fromDir from a real file inside apps
   const root = path.resolve(import.meta.dirname, "../../../../../../..");
   assert.equal(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name, "tovu");
   assert.equal(resolveCheckoutRoot(), root);
+});
+
+/** Builds `<root>/l1/l2/.../l<levels>` and returns that deepest directory. */
+function nestedBelow({ root, levels }: { root: string; levels: number }): string {
+  const deep = path.join(root, ...Array.from({ length: levels }, (_, i) => `l${i + 1}`));
+  mkdirSync(deep, { recursive: true });
+  return deep;
+}
+
+test("resolveProductRoot still finds a root exactly MAX_WALK_UP (12) levels above fromDir", () => {
+  const root = makeFixtureRoot();
+  try {
+    assert.equal(resolveProductRoot(nestedBelow({ root, levels: 12 })), root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveProductRoot gives up on a root 13 levels above fromDir, one past the walk-up cap", () => {
+  const root = makeFixtureRoot();
+  try {
+    assert.throws(() => resolveProductRoot(nestedBelow({ root, levels: 13 })), /^Error: resolveProductRoot: no ancestor of ".*l13" within 12 levels has both a package\.json and a content\/ directory\./);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveAppDistDir falls back to fromDir when apps/<app> is 13 levels up, one past the walk-up cap", () => {
+  const root = makeCheckout();
+  try {
+    const deep = nestedBelow({ root, levels: 13 });
+    assert.equal(resolveAppDistDir("admin", deep), path.join(deep, "apps", "admin", "dist"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveCheckoutRoot falls back to fromDir when apps/website is 13 levels up, one past the walk-up cap", () => {
+  const root = makeCheckout();
+  try {
+    mkdirSync(path.join(root, "apps", "website"));
+    const deep = nestedBelow({ root, levels: 13 });
+    assert.equal(resolveCheckoutRoot(deep), deep);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// `workerProductRoot` is the worker-thread decision behind `resolveProductRoot()`'s default; the
+// real-worker wiring is pinned in `__tests__/integration/product-root-worker.integration.test.ts`.
+const WORKER_ROOT = path.join(os.tmpdir(), "supplied-product-root");
+const worker = (workerData: ThreadContext["workerData"]): { thread: ThreadContext } => ({ thread: { isMainThread: false, workerData } });
+
+test("workerProductRoot returns the parent-supplied absolute root inside a worker", () => {
+  assert.equal(workerProductRoot({}, worker({ productRoot: WORKER_ROOT })), WORKER_ROOT);
+});
+
+test("workerProductRoot ignores workerData on the main thread", () => {
+  assert.equal(workerProductRoot({}, { thread: { isMainThread: true, workerData: { productRoot: WORKER_ROOT } } }), undefined);
+});
+
+test("workerProductRoot ignores workerData when the caller passes an explicit fromDir", () => {
+  assert.equal(workerProductRoot({ fromDir: "/anywhere" }, worker({ productRoot: WORKER_ROOT })), undefined);
+});
+
+test("workerProductRoot ignores a non-string productRoot", () => {
+  assert.equal(workerProductRoot({}, worker({ productRoot: 7 })), undefined);
+});
+
+test("workerProductRoot ignores a worker started without workerData", () => {
+  assert.equal(workerProductRoot({}, worker(undefined)), undefined);
+});
+
+test("workerProductRoot refuses a relative root, naming it and the fix", () => {
+  assert.throws(
+    () => workerProductRoot({}, worker({ productRoot: "rel/root" })),
+    { message: 'resolveProductRoot: worker productRoot "rel/root" must be an absolute path; the parent thread must pass a resolved path in workerData.productRoot.' },
+  );
+});
+
+test("workerProductRoot defaults to this thread's real context (the main thread here)", () => {
+  assert.equal(workerProductRoot({}), undefined);
 });

@@ -1,6 +1,3 @@
-/** Recoverable site-folder Trash. No schema changes; rename preserves the entire site and its keys.
- * Folder identity/containment uses real paths; symlinked roots or entries are never managed.
- */
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -9,67 +6,109 @@ import type { ResolveSiteRootOptional } from "./site-root.js";
 import { listSites } from "./site-registry.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { assertLocalSiteName, LocalSiteError } from "./local-site-supervisor.js";
+
+/**
+ * @file Recoverable site-folder Trash. No schema changes; rename preserves the entire site and its keys.
+ * Folder identity/containment uses real paths; symlinked roots or entries are never managed.
+ */
+
 export interface TrashedSite { id: string; name: string; displayName: string }
 type SiteTrashOptions = Pick<ResolveSiteRootOptional, "env" | "homeDir">;
 const TRASH_ID = /^([a-z0-9-]{1,100})--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
-function containedRoot(base: string, folder: string, create: boolean, optional: SiteTrashOptions = {}) {
-  const workspace = createSitesWorkspace({}, { ...optional, cwd: base });
-  const home = workspace.home({});
-  if (create && folder === "sites") fs.mkdirSync(home, { recursive: true });
-  // Trash keeps its existing repo-owned lifecycle and recovery location; this job changes only
-  // creation/restore destinations and discoverability, not the desktop/Web lifecycle seam.
-  const root = folder === "sites" ? fs.realpathSync(home) : path.join(fs.realpathSync(base), folder);
+/** The sites workspace seen from checkout `base`. @complexity O(1) plus the workspace's config read. */
+function sitesWorkspace({ base }: { base: string }, optional: SiteTrashOptions = {}) {
+  return createSitesWorkspace({}, { ...optional, cwd: base });
+}
+
+/** `lstat` that reports a missing entry as `undefined` and rethrows every other error. @complexity O(1). */
+function lstatIfPresent({ file }: { file: string }): fs.Stats | undefined {
+  try { return fs.lstatSync(file); } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+/** Refuses anything but a real (non-symlinked) directory at `dir`. @complexity O(1) filesystem checks. */
+function assertRealDirectory({ dir }: { dir: string }): void {
+  if (fs.realpathSync(dir) !== dir || !fs.lstatSync(dir).isDirectory()) throw new LocalSiteError("SITE_PATH_UNSAFE");
+}
+
+/**
+ * The Trash folder, `<real base>/site-trash`, refused when it is a symlink.
+ * Trash keeps its existing repo-owned lifecycle and recovery location; this job changes only
+ * creation/restore destinations and discoverability, not the desktop/Web lifecycle seam.
+ *
+ * @param optional.create - Create the folder when missing (every mutation does; listing does not).
+ * @complexity O(1) filesystem checks.
+ */
+function trashRoot({ base }: { base: string }, { create = false, ...optional }: SiteTrashOptions & { create?: boolean } = {}): string {
+  // Resolved before any Trash I/O so Trash fails exactly like the sites home does (test-home
+  // isolation, an unreadable home setting); the home path itself is not used here.
+  sitesWorkspace({ base }, optional).home({});
+  const root = path.join(fs.realpathSync(base), "site-trash");
   if (create) fs.mkdirSync(root, { recursive: true });
   if (fs.realpathSync(root) !== root) throw new LocalSiteError("SITE_PATH_UNSAFE");
   return root;
 }
 
-/** The registry and Trash share the same name/path rule. @complexity O(1) filesystem checks. */
-export function assertManagedSiteDirectory({ base, name }: { base: string; name: string }, optional: SiteTrashOptions = {}): string {
+/** Where restore puts a site: the current sites home, created when missing, as a real path. @complexity O(1). */
+function restoreRoot({ base }: { base: string }, optional: SiteTrashOptions = {}): string {
+  const home = sitesWorkspace({ base }, optional).home({});
+  fs.mkdirSync(home, { recursive: true });
+  return fs.realpathSync(home);
+}
+
+/** The registry and Trash share the same name/path rule. @complexity O(1) filesystem checks plus one site listing. */
+export function assertManagedSiteDirectory(
+  { base, name }: { base: string; name: string },
+  { listSites: list = listSites, ...optional }: SiteTrashOptions & { listSites?: typeof listSites } = {},
+): string {
   assertLocalSiteName({ name });
-  const home = createSitesWorkspace({}, { ...optional, cwd: base }).home({});
-  for (const root of [home, path.resolve(base, "sites")]) {
-    try { if (fs.lstatSync(path.join(root, name)).isSymbolicLink()) throw new LocalSiteError("SITE_PATH_UNSAFE"); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const managedParents = [sitesWorkspace({ base }, optional).home({}), path.resolve(base, "sites")];
+  for (const parent of managedParents) {
+    if (lstatIfPresent({ file: path.join(parent, name) })?.isSymbolicLink()) throw new LocalSiteError("SITE_PATH_UNSAFE");
   }
-  const site = listSites({ ...optional, cwd: base }).find((entry) => entry.name === name);
+  const site = list({ ...optional, cwd: base }).find((entry) => entry.name === name);
   if (!site) throw new LocalSiteError("SITE_NOT_FOUND");
-  const dir = site.dir;
   // Starting an adopted external folder is allowed. Moving it is a separate operator decision;
   // web Trash therefore only manages direct children of the home or the legacy checkout root.
-  if (![home, path.resolve(base, "sites")].includes(path.dirname(dir))) throw new LocalSiteError("SITE_PATH_UNSAFE");
-  if (fs.realpathSync(dir) !== dir || !fs.lstatSync(dir).isDirectory()) throw new LocalSiteError("SITE_PATH_UNSAFE");
-  return dir;
+  if (!managedParents.includes(path.dirname(site.dir))) throw new LocalSiteError("SITE_PATH_UNSAFE");
+  assertRealDirectory({ dir: site.dir });
+  return site.dir;
 }
 
 /** Validate the opaque Trash identifier before deriving a mutation lock's name. */
-export function siteTrashName({ id }: { id: string }, _optional = {}): string {
+export function siteTrashName({ id }: { id: string }): string {
   const match = TRASH_ID.exec(id);
   if (!match) throw new LocalSiteError("VALIDATION_ERROR");
   return match[1];
 }
 
-function trashEntry(base: string, id: string, optional: SiteTrashOptions = {}) {
-  const match = TRASH_ID.exec(id);
-  if (!match) throw new LocalSiteError("VALIDATION_ERROR");
-  const root = containedRoot(base, "site-trash", true, optional);
+/** The folder of Trash entry `id` inside an already-checked Trash `root`. @complexity O(1) filesystem checks. */
+function trashDir({ root, id }: { root: string; id: string }): string {
   const dir = path.join(root, id);
   if (!fs.existsSync(dir)) throw new LocalSiteError("SITE_NOT_FOUND");
-  if (fs.realpathSync(dir) !== dir || !fs.lstatSync(dir).isDirectory()) throw new LocalSiteError("SITE_PATH_UNSAFE");
-  return { dir, name: match[1] };
+  assertRealDirectory({ dir });
+  return dir;
+}
+
+/** A validated Trash entry for a mutation; the id is checked before the Trash folder is created. */
+function trashEntry({ base, id }: { base: string; id: string }, optional: SiteTrashOptions = {}) {
+  const name = siteTrashName({ id });
+  return { dir: trashDir({ root: trashRoot({ base }, { ...optional, create: true }), id }), name };
 }
 
 /** A Trash list exposes only validated site folders. @complexity O(n) in Trash entries. */
 export function listSiteTrash({ base }: { base: string }, optional: SiteTrashOptions = {}): TrashedSite[] {
   if (!fs.existsSync(path.join(base, "site-trash"))) return [];
-  const root = containedRoot(base, "site-trash", false, optional);
+  const root = trashRoot({ base }, optional);
   const rows: TrashedSite[] = [];
   for (const id of fs.readdirSync(root)) {
-    if (!TRASH_ID.test(id)) continue;
+    const name = TRASH_ID.exec(id)?.[1];
+    if (name === undefined) continue;
     try {
-      const { dir, name } = trashEntry(base, id, optional);
-      rows.push({ id, name, displayName: readSiteDir({ dir }).config.name });
+      rows.push({ id, name, displayName: readSiteDir({ dir: trashDir({ root, id }) }).config.name });
     } catch { /* A malformed or externally edited Trash entry is never offered for deletion. */ }
   }
   return rows;
@@ -79,30 +118,23 @@ export function listSiteTrash({ base }: { base: string }, optional: SiteTrashOpt
 export function trashSite({ base, name }: { base: string; name: string }, optional: SiteTrashOptions = {}): TrashedSite {
   const dir = assertManagedSiteDirectory({ base, name }, optional);
   const { config } = readSiteDir({ dir });
-  const root = containedRoot(base, "site-trash", true, optional);
+  const root = trashRoot({ base }, { ...optional, create: true });
   const id = `${name}--${randomUUID()}`;
   fs.renameSync(dir, path.join(root, id));
-  createSitesWorkspace({}, { ...optional, cwd: base }).registry({}).remove({ path: dir });
+  sitesWorkspace({ base }, optional).registry({}).remove({ path: dir });
   return { id, name, displayName: config.name };
 }
 
 /** Restore never overwrites another site's data. @complexity O(1). */
 export function restoreSite({ base, id }: { base: string; id: string }, optional: SiteTrashOptions = {}): void {
-  const { dir, name } = trashEntry(base, id, optional);
+  const { dir, name } = trashEntry({ base, id }, optional);
   readSiteDir({ dir });
-  const root = containedRoot(base, "sites", true, optional);
-  const target = path.join(root, name);
+  const target = path.join(restoreRoot({ base }, optional), name);
   // lstat catches a dangling symlink too; existsSync alone would allow rename over it.
-  try { fs.lstatSync(target); } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      fs.renameSync(dir, target);
-      const { config, meta } = readSiteDir({ dir: target });
-      createSitesWorkspace({}, { ...optional, cwd: base }).registry({}).merge({ entries: [{ id: meta.siteId, name: config.name, path: target, createdBy: "restored", lastOpened: null }] });
-      return;
-    }
-    throw error;
-  }
-  throw new LocalSiteError("SITE_ALREADY_EXISTS");
+  if (lstatIfPresent({ file: target })) throw new LocalSiteError("SITE_ALREADY_EXISTS");
+  fs.renameSync(dir, target);
+  const { config, meta } = readSiteDir({ dir: target });
+  sitesWorkspace({ base }, optional).registry({}).merge({ entries: [{ id: meta.siteId, name: config.name, path: target, createdBy: "restored", lastOpened: null }] });
 }
 
 /** Only the Trash route calls permanent removal, after checkbox + confirm. @complexity O(bytes). */
@@ -110,7 +142,7 @@ export function permanentlyDeleteTrashedSite(
   { base, id, checked, confirmed }: { base: string; id: string; checked: boolean; confirmed: boolean }, optional: SiteTrashOptions = {},
 ): void {
   if (!checked || !confirmed) throw new LocalSiteError("SITE_CONFIRM_REQUIRED");
-  const { dir } = trashEntry(base, id, optional);
+  const { dir } = trashEntry({ base, id }, optional);
   readSiteDir({ dir });
   fs.rmSync(dir, { recursive: true });
 }
