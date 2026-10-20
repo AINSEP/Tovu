@@ -51,7 +51,9 @@ A read returns at most 500 rows, 5,000 cells or 64 KiB. When there is more, the 
 `continuation`: call `sheets_values_get` with exactly that range to read the next part. Do not guess
 the next range yourself. `sheets_get` and `sheets_get_by_data_filter` have no continuation: when
 their answer would be too large they fail with `limit-exceeded`; ask for fewer ranges or leave out
-grid data. `sheets_find` searches at most 50,000 cells and returns at most 100 matches
+grid data. A `fields` mask containing `*` or `data` reads cell data too, so it is refused
+(`invalid-input`) unless `includeGridData: true` is given (with `ranges` for `sheets_get`).
+`sheets_find` searches at most 50,000 cells and returns at most 100 matches
 (`truncated: true` means there were more); narrow the ranges when it says `limit-exceeded`.
 
 ### Writing values

@@ -90,8 +90,21 @@ export function sheetsClientFor(required, _optional = {}) {
   };
 }
 
-/** The spreadsheet field mask: the caller's, else the default (plus cell values when grid data is asked for). @complexity O(1). */
+/** A mask that reaches cell data: `*`, or a `data` field (`sheets.data`, `sheets(data)`), not `dataSources`. */
+const GRID_DATA_MASK = /\*|\bdata\b/;
+
+/**
+ * The spreadsheet field mask: the caller's, else the default (plus cell values when grid data is
+ * asked for). Google ignores `includeGridData` once a mask is set, so a caller mask that reaches
+ * cell data counts as asking for grid data: it needs `includeGridData` (which `sheets_get` only
+ * allows with explicit ranges; `get_by_data_filter` always names its data filters).
+ * @throws {GoogleWorkspaceError} `invalid-input` for a grid-data mask without `includeGridData`.
+ * @complexity O(n) mask length.
+ */
 export function spreadsheetFields(required, _optional = {}) {
+  if (required.fields !== undefined && GRID_DATA_MASK.test(required.fields) && !required.includeGridData) {
+    throw new GoogleWorkspaceError({ code: 'invalid-input' }, { detail: 'a fields mask with * or data needs includeGridData and ranges' });
+  }
   if (required.fields !== undefined) return required.fields;
   return required.includeGridData ? GRID_DATA_FIELDS : SPREADSHEET_FIELDS;
 }

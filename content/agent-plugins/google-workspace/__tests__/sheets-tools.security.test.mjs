@@ -236,3 +236,19 @@ for (const [name, method, path, host] of UNCERTAIN_WRITES) {
     assert.deepEqual(fake.requests.map((request) => [request.host, request.method, request.path]), [[host, method, path]]);
   });
 }
+
+test('grid data opt-in: a fields mask with * or data is refused unless includeGridData (and, for sheets_get, ranges) are given', async () => {
+  for (const fields of ['*', 'sheets.data', 'sheets(data(rowData))', 'spreadsheetId,*']) {
+    await assert.rejects(callTool('sheets_get', { spreadsheetId: SHEET, fields }), (error) => error.code === 'invalid-input' && error.message.includes('needs includeGridData and ranges'), fields);
+    await assert.rejects(callTool('sheets_get_by_data_filter', { spreadsheetId: SHEET, dataFilters: [{ a1Range: 'Leads!A1:B2' }], fields }), (error) => error.code === 'invalid-input', fields);
+  }
+  await assert.rejects(callTool('sheets_get', { spreadsheetId: SHEET, fields: '*', includeGridData: true }), (error) => error.code === 'invalid-input');
+  assert.equal(sheetsRequests().length, 0);
+});
+
+test('grid data opt-in: a grid mask with includeGridData and ranges is sent, and a mask naming dataSources is not grid data', async () => {
+  fake.route({ method: 'GET', path: BASE }, () => [200, { spreadsheetId: SHEET }]);
+  await callTool('sheets_get', { spreadsheetId: SHEET, fields: '*', includeGridData: true, ranges: ['Leads!A1:B2'] });
+  await callTool('sheets_get', { spreadsheetId: SHEET, fields: 'spreadsheetId,dataSources' });
+  assert.deepEqual(sheetsRequests().map((request) => request.query.get('fields')), ['*', 'spreadsheetId,dataSources']);
+});
