@@ -142,3 +142,41 @@ it("checklist commands are inert before settings load", async () => {
   await act(async () => { resolveRead({ enabled: false, allowedToolIds: [], canEdit: true }); });
   await waitFor(() => expect(result.current.settings?.enabled).toBe(false));
 });
+
+it("a read failure shows the actual error, disables the master and drops the loading status", async () => {
+  const f = fakePort();
+  mount({ ...f.port, read: async () => { throw new Error("permanent delete settings are unavailable"); } });
+  expect(await screen.findByRole("alert")).toHaveTextContent("permanent delete settings are unavailable");
+  expect(toggle()).toBeDisabled();
+  expect(screen.queryByText("Loading permanent delete settings…")).toBeNull();
+});
+
+it("shows the loading status until the grant arrives", () => {
+  const f = fakePort();
+  mount({ ...f.port, read: () => new Promise<AssistantPermanentDeletesSettings>(() => {}) });
+  expect(screen.getByRole("status")).toHaveTextContent("Loading permanent delete settings…");
+  expect(toggle()).toBeDisabled();
+});
+
+it("keeps the master enabled while consent is open, then disables master and checklist while saving", async () => {
+  let release!: () => void;
+  const hold = new Promise<void>(resolve => { release = resolve; });
+  const f = fakePort({ enabled: true, allowedToolIds: [], canEdit: true });
+  const port: AssistantPermanentDeletesPort = { ...f.port, write: async input => { await hold; return f.port.write(input); } };
+  const user = userEvent.setup(); mount(port); await ready();
+  await user.click(screen.getByRole("checkbox", { name: PERMANENT_DELETE_TOOLS[0].label }));
+  await waitFor(() => expect(screen.getByText("Waiting for confirmation or saving…")).toBeVisible());
+  expect(toggle()).toBeDisabled();
+  expect(screen.getByRole("group", { name: "Allowed permanent deletes" })).toBeDisabled();
+  await act(async () => { release(); });
+  await ready();
+  expect(screen.queryByText("Waiting for confirmation or saving…")).toBeNull();
+});
+
+it("keeps the master focusable while the enable consent dialog is open", async () => {
+  const f = fakePort(), user = userEvent.setup(); mount(f.port); await ready();
+  await user.click(toggle());
+  expect(screen.getByRole("dialog", { name: "Allow permanent deletes from chat?" })).toBeVisible();
+  expect(screen.getByText("Waiting for confirmation or saving…")).toBeVisible();
+  expect(toggle()).toBeEnabled();
+});

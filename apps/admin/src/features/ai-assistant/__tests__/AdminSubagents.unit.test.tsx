@@ -172,3 +172,35 @@ it("uses a translated fallback when a subagent save fails without an error messa
   expect(result.current.saveError).toBe("no se pudo guardar el acceso de subagentes");
   expect(result.current.settings?.enabled).toBe(true);
 });
+
+it("describes the locked owner switch with the server's env-lock reason", async () => {
+  const f = fakePort({ enabled: false, canEdit: true, unavailableReason: "Turned off on this computer by TOVU_AGENT_FORBID_BASH." });
+  render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port: f.port })} />);
+  await screen.findByText("Turned off on this computer by TOVU_AGENT_FORBID_BASH.");
+  expect(toggle()).toHaveAccessibleDescription(expect.stringMatching(/Changes apply to new runs\. Turned off on this computer by TOVU_AGENT_FORBID_BASH\.$/));
+  expect(screen.queryByText("Only the owner can change Full CLI access.")).toBeNull();
+});
+
+it("shows the loading status until the grant arrives", () => {
+  const f = fakePort();
+  const port: AssistantSubagentsPort = { ...f.port, read: () => new Promise<AssistantSubagentsSettings>(() => {}) };
+  render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port })} />);
+  expect(screen.getByRole("status")).toHaveTextContent("Loading Full CLI access…");
+  expect(toggle()).toBeDisabled();
+  expect(toggle()).not.toBeChecked();
+});
+
+it("disables the switch and shows Saving… while a write is in flight", async () => {
+  let release!: () => void;
+  const hold = new Promise<void>(resolve => { release = resolve; });
+  const f = fakePort({ enabled: true, canEdit: true });
+  const port: AssistantSubagentsPort = { ...f.port, write: async input => { await hold; return f.port.write(input); } };
+  render(<AdminSubagents useController={input => useAdminSubagents({ ...input, port })} />);
+  await ready();
+  await userEvent.setup().click(toggle());
+  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Saving…"));
+  expect(toggle()).toBeDisabled();
+  await act(async () => { release(); });
+  await ready();
+  expect(screen.queryByText("Saving…")).toBeNull();
+});
