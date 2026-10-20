@@ -3,6 +3,14 @@ import { useCallback, useRef, type MouseEvent } from "react";
 const SEND_STOP_GRACE_MS = 500;
 const monotonicNow = () => performance.now();
 
+/** The enabled composer Send/Stop button under the pointer and the composer that owns it, or null for anything else. */
+export function enabledComposerButton(target: EventTarget): { button: HTMLButtonElement; composer: Element } | null {
+  if (!(target instanceof Element)) return null;
+  const button = target.closest<HTMLButtonElement>("button.jini-composer-send");
+  const composer = button?.closest(".jini-composer");
+  return button && !button.disabled && composer ? { button, composer } : null;
+}
+
 /**
  * Jini changes Send into Stop under the pointer, but exposes no cancellation-click hook.
  * Capture at the existing host wrapper BEFORE its onCancel handler: guarding stopRun alone
@@ -20,10 +28,10 @@ export function useComposerSendStopGuard(
 ) {
   const lastSend = useRef<{ composer: Element; at: number } | null>(null);
   return useCallback((event: MouseEvent<HTMLDivElement>) => {
-    if (event.detail === 0 || !(event.target instanceof Element)) return;
-    const button = event.target.closest<HTMLButtonElement>("button.jini-composer-send");
-    const composer = button?.closest(".jini-composer");
-    if (!button || button.disabled || !composer) return;
+    if (event.detail === 0) return;
+    const target = enabledComposerButton(event.target);
+    if (!target) return;
+    const { button, composer } = target;
     if (!button.classList.contains("jini-composer-send--stop")) {
       lastSend.current = { composer, at: now() };
       return;
