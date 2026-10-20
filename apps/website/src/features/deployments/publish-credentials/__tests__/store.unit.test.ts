@@ -916,3 +916,151 @@ test("provider moves retarget only the old compatibility and honor explicit comp
   assert.deepEqual(cleared.publishHosts, []);
   assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "github-pages" }), null);
 });
+
+// TW3 L106 characterization pins: these exercise the pre-refactor store through its public API.
+function credentialRegistry({ specs }: {
+  specs: Record<string, NonNullable<LoadedDeployTarget["descriptor"]["credential"]>>;
+}, _options = {}): DeployTargetRegistry {
+  const targets: LoadedDeployTarget[] = Object.entries(specs).map(([id, credential]) => ({
+    pluginId: "pin-fixture", module: { create: () => { throw new Error("unused"); } },
+    descriptor: { id, label: id, module: "fixture.mjs", configFields: [], credential },
+  }));
+  return { get: id => targets.find(target => target.descriptor.id === id), list: () => targets, refusals: [] };
+}
+
+const PIN_TOKEN_SPEC = {
+  vendorId: "pin-vendor", tokenField: "token",
+  fields: [{ name: "token", label: "Token", required: true }],
+};
+
+for (const connection of [undefined, null, [], "invalid", {}, { providerId: 3 }, { providerId: "unknown" }]) {
+  test(`L106 invalid connection shape/provider ${JSON.stringify(connection)} refuses before writing`, async () => {
+    const deps = makeDeps();
+    await assert.rejects(createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection }), PublishCredentialValidationError);
+    assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), []);
+  });
+}
+
+test("L106 required fields validate before optional fields, preserving declaration order and exact errors", async () => {
+  const registry = credentialRegistry({ specs: { pin: { ...PIN_TOKEN_SPEC, fields: [
+    { name: "note", label: "Note", required: false },
+    { name: "zone", label: "Zone", required: true }, ...PIN_TOKEN_SPEC.fields,
+  ] } } });
+  const deps = makeDeps({ loadDeployTargets: async () => registry });
+  await assert.rejects(createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "pin", note: 3 } }),
+    { name: "Error", message: "'zone' (non-empty string) is required for provider 'pin'" });
+  await assert.rejects(createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "pin", zone: "zone", token: "value", note: 3 } }),
+    { name: "Error", message: "'note' must be a non-empty string when provided" });
+  assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), []);
+});
+
+for (const note of [undefined, "", "   ", " trimmed "]) {
+  test(`L106 optional plain field ${JSON.stringify(note)} is trimmed or omitted and undeclared fields are dropped`, async () => {
+    const deps = makeDeps({ loadDeployTargets: async () => pluginOnlyHostRegistry() });
+    const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: {
+      providerId: "fixture-host", apiKey: " token ", zone: " zone ", note, unknown: "dropped",
+    } });
+    const connection = (await resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }))?.connection;
+    const expected: Record<string, string> = { providerId: "fixture-host", apiKey: "token", zone: "zone" };
+    if (note === " trimmed ") expected.note = "trimmed";
+    assert.deepEqual(connection, expected);
+  });
+}
+
+for (const extra of [undefined, " second ", "", "   ", 3]) {
+  test(`L106 optional secret ${JSON.stringify(extra)} is omitted, normalized, or refused without plaintext fallback`, async () => {
+    const registry = credentialRegistry({ specs: { pin: { ...PIN_TOKEN_SPEC, fields: [
+      ...PIN_TOKEN_SPEC.fields, { name: "extra", label: "Extra", required: false, secret: true },
+    ] } } });
+    const deps = makeDeps({ loadDeployTargets: async () => registry });
+    const create = () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "pin", token: " value ", extra } });
+    if (extra === "" || extra === "   " || extra === 3) {
+      await assert.rejects(create(), PublishCredentialValidationError);
+      assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), []);
+      return;
+    }
+    const saved = await create();
+    const expected: Record<string, string> = { providerId: "pin", token: "value" };
+    if (extra !== undefined) expected.extra = "second";
+    assert.deepEqual((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }))?.connection, expected);
+  });
+}
+
+test("L106 a descriptor missing its token field still refuses the connection", async () => {
+  const registry = credentialRegistry({ specs: { pin: { ...PIN_TOKEN_SPEC, fields: [] } } });
+  const deps = makeDeps({ loadDeployTargets: async () => registry });
+  await assert.rejects(createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "pin", token: "undeclared" } }), PublishCredentialValidationError);
+  assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), []);
+});
+
+for (const token of [undefined, "", "new-value", "   "]) {
+  test(`L106 same-vendor edits with token ${JSON.stringify(token)} preserve only blank secrets and update companion fields`, async () => {
+    const deps = makeDeps({ loadDeployTargets: async () => pluginOnlyHostRegistry() });
+    const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "fixture-host", apiKey: "original", zone: "old" } });
+    await healAccountLabel(deps, { workspaceId: WORKSPACE, id: saved.id, accountLabel: "verified" });
+    const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id });
+    const edit = () => updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "fixture-host", apiKey: token, zone: " new " } });
+    if (token === "   ") {
+      await assert.rejects(edit(), PublishCredentialValidationError);
+      assert.deepEqual(await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }), before);
+      return;
+    }
+    const updated = await edit();
+    assert.equal(updated.accountLabel, null);
+    assert.deepEqual((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }))?.connection,
+      { providerId: "fixture-host", apiKey: token === "new-value" ? "new-value" : "original", zone: "new" });
+  });
+}
+
+for (const connection of [null, [], "invalid", { providerId: 3 }, { providerId: "unknown" }, { providerId: "vercel", token: "   " }]) {
+  test(`L106 invalid update ${JSON.stringify(connection)} preserves all stored state`, async () => {
+    const deps = makeDeps();
+    const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "github-pages", token: "original" } });
+    const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id });
+    await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection }), PublishCredentialValidationError);
+    assert.deepEqual(await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }), before);
+  });
+}
+
+for (const extra of [{}, { token: "" }, { token: "replacement" }, { token: "", ignored: "drop" }]) {
+  test(`L106 token-only move ${JSON.stringify(extra)} preserves ciphertext only for provider-only or blank-token inputs`, async () => {
+    const deps = makeDeps();
+    const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "github-pages", token: "original" } });
+    const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id });
+    const edit = () => updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "vercel", ...extra } });
+    if ("ignored" in extra) {
+      await assert.rejects(edit(), PublishCredentialValidationError);
+      assert.deepEqual(await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }), before);
+      return;
+    }
+    await edit();
+    const after = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id });
+    if (extra.token === "replacement") assert.notDeepEqual(after?.sealed, before?.sealed);
+    else assert.deepEqual(after?.sealed, before?.sealed);
+    assert.equal((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }))?.connection.token, extra.token === "replacement" ? "replacement" : "original");
+  });
+}
+
+test("L106 matching token names with companion fields cannot preserve a provider-only move", async () => {
+  const registry = credentialRegistry({ specs: {
+    source: PIN_TOKEN_SPEC,
+    destination: { ...PIN_TOKEN_SPEC, vendorId: "destination", fields: [
+      ...PIN_TOKEN_SPEC.fields, { name: "zone", label: "Zone", required: true },
+    ] },
+  } });
+  const deps = makeDeps({ loadDeployTargets: async () => registry });
+  const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "source", token: "original" } });
+  const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id });
+  await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "destination", zone: "new" } }), PublishCredentialValidationError);
+  assert.deepEqual(await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: saved.id }), before);
+});
+
+test("L106 a vault row disappearing after DTO lookup remains a typed not-found", async () => {
+  const deps = makeDeps();
+  const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "vercel", token: "original" } });
+  const find = deps.repo.vault!.find.bind(deps.repo.vault!);
+  let reads = 0;
+  deps.repo.vault!.find = async input => { reads += 1; return reads === 1 ? find(input) : null; };
+  await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), PublishCredentialNotFoundError);
+  assert.equal(reads, 2);
+});

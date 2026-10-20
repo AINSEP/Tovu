@@ -8,7 +8,7 @@ import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/vault-adapter.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
-import type { DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { DeployTargetCredentialSpec, DeployTargetFieldSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import type { PublishConnectionInput, PublishCredentialSummary, PublishProviderId } from "./types.js";
 
 /** Publish credentials map deploy hosts to vendor accounts. Feature validation and human-gated
@@ -260,6 +260,21 @@ function validateConnection(raw: unknown, registry: DeployTargetRegistry): Valid
     throw new PublishCredentialValidationError("connection must be an object");
   }
   const value = raw as Record<string, unknown>;
+  const { providerId, spec } = connectionCredentialSpec({ value, registry });
+
+  const fields: Record<string, string> = {};
+  const ordered = [...spec.fields.filter(field => field.required), ...spec.fields.filter(field => !field.required)];
+  for (const field of ordered) {
+    const normalized = validatedConnectionField({ value: value[field.name], field, spec, providerId });
+    if (normalized !== undefined) fields[field.name] = normalized;
+  }
+  if (fields[spec.tokenField] === undefined) normalizeSecret({ value: undefined, field: spec.tokenField });
+  return { connection: { providerId, ...fields }, spec };
+}
+
+function connectionCredentialSpec({ value, registry }: {
+  value: Record<string, unknown>; registry: DeployTargetRegistry;
+}, _options = {}): { providerId: string; spec: DeployTargetCredentialSpec } {
   const providerId = value.providerId;
   const spec = typeof providerId === "string" ? registry.get(providerId)?.descriptor.credential : undefined;
   if (typeof providerId !== "string" || spec === undefined) {
@@ -267,20 +282,23 @@ function validateConnection(raw: unknown, registry: DeployTargetRegistry): Valid
     throw new PublishCredentialValidationError(`connection.providerId must be one of: ${known.join(", ")}`);
   }
 
-  const fields: Record<string, string> = {};
-  for (const field of spec.fields.filter((candidate) => candidate.required)) {
-    const secret = field.secret || field.name === spec.tokenField;
-    fields[field.name] = secret ? normalizeSecret({ value: value[field.name], field: field.name }) : requireNonEmptyString(value[field.name], field.name, providerId);
-    if (!secret) assertPlainField({ value: fields[field.name]!, field: field.name });
-  }
-  for (const field of spec.fields.filter((candidate) => !candidate.required)) {
-    const secret = field.secret || field.name === spec.tokenField;
-    const optional = secret && value[field.name] !== undefined ? normalizeSecret({ value: value[field.name], field: field.name }) : optionalString(value[field.name], field.name);
-    if (!secret && optional !== undefined) assertPlainField({ value: optional, field: field.name });
-    if (optional !== undefined) fields[field.name] = optional;
-  }
-  if (fields[spec.tokenField] === undefined) normalizeSecret({ value: undefined, field: spec.tokenField });
-  return { connection: { providerId, ...fields }, spec };
+  return { providerId, spec };
+}
+
+function isSecretField({ field, spec }: {
+  field: DeployTargetFieldSpec; spec: DeployTargetCredentialSpec;
+}, _options = {}): boolean {
+  return Boolean(field.secret || field.name === spec.tokenField);
+}
+
+function validatedConnectionField({ value, field, spec, providerId }: {
+  value: unknown; field: DeployTargetFieldSpec; spec: DeployTargetCredentialSpec; providerId: string;
+}, _options = {}): string | undefined {
+  const secret = isSecretField({ field, spec });
+  if (secret && (field.required || value !== undefined)) return normalizeSecret({ value, field: field.name });
+  const normalized = field.required ? requireNonEmptyString(value, field.name, providerId) : optionalString(value, field.name);
+  if (!secret && normalized !== undefined) assertPlainField({ value: normalized, field: field.name });
+  return normalized;
 }
 
 /** True iff `err` is the label's UNIQUE `(workspace_id, vendor_id, label)` index rejecting a
@@ -354,32 +372,42 @@ function preservedMove({ raw, registry, host }: { raw: unknown; registry: Deploy
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const values = raw as Record<string, unknown>;
   if (typeof values.providerId !== "string" || values.providerId === host) return undefined;
-  const spec = registry.get(values.providerId)?.descriptor.credential;
+  const spec = tokenOnlyMoveSpec({ registry, host, providerId: values.providerId });
+  if (!spec || !isProviderOnlyMove({ values, spec })) return undefined;
+  return { providerId: values.providerId, spec };
+}
+
+function tokenOnlyMoveSpec({ registry, host, providerId }: {
+  registry: DeployTargetRegistry; host: PublishProviderId; providerId: string;
+}, _options = {}): DeployTargetCredentialSpec | undefined {
+  const spec = registry.get(providerId)?.descriptor.credential;
   const previous = registry.get(host)?.descriptor.credential;
   if (!spec || !previous || spec.tokenField !== previous.tokenField) return undefined;
   if (![spec, previous].every(candidate => candidate.fields.length === 1 && candidate.fields[0]!.name === candidate.tokenField)) return undefined;
-  if (!Object.keys(values).every(key => key === "providerId" || key === spec.tokenField) ||
-    (values[spec.tokenField] !== undefined && values[spec.tokenField] !== "")) return undefined;
-  return { providerId: values.providerId, spec };
+  return spec;
+}
+
+function isProviderOnlyMove({ values, spec }: {
+  values: Record<string, unknown>; spec: DeployTargetCredentialSpec;
+}, _options = {}): boolean {
+  return Object.keys(values).every(key => key === "providerId" || key === spec.tokenField) &&
+    (values[spec.tokenField] === undefined || values[spec.tokenField] === "");
 }
 
 /** Blank secret fields keep their stored value; non-secret companion fields still update. */
 async function updatedConnection({ deps, input, existing, registry, host }: { deps: PublishCredentialWriteDeps; input: UpdatePublishCredentialInput;
   existing: VendorCredentialSetRecord; registry: DeployTargetRegistry; host: PublishProviderId }, _options = {}): Promise<ValidatedConnection> {
-  let raw = input.connection;
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    const values = raw as Record<string, unknown>;
-    const spec = typeof values.providerId === "string" ? registry.get(values.providerId)?.descriptor.credential : undefined;
-    if (spec?.vendorId === existing.vendorId && spec.fields.some(field => (field.secret || field.name === spec.tokenField) && (values[field.name] === "" || values[field.name] === undefined))) {
-      const stored = await decryptRecord(deps, existing, host);
-      const merged = { ...stored, ...values };
-      for (const field of spec.fields.filter(field => field.secret || field.name === spec.tokenField)) {
-        if (values[field.name] === "" || values[field.name] === undefined) merged[field.name] = stored[field.name];
-      }
-      raw = merged;
-    }
-  }
-  return validateConnection(raw, registry);
+  const raw = input.connection;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return validateConnection(raw, registry);
+  const values = raw as Record<string, unknown>;
+  const { spec } = connectionCredentialSpec({ value: values, registry });
+  if (spec.vendorId !== existing.vendorId) return validateConnection(raw, registry);
+  const blankSecrets = spec.fields.filter(field => isSecretField({ field, spec }) && (values[field.name] === "" || values[field.name] === undefined));
+  if (blankSecrets.length === 0) return validateConnection(raw, registry);
+  const stored = await decryptRecord(deps, existing, host);
+  const merged = { ...stored, ...values };
+  for (const field of blankSecrets) merged[field.name] = stored[field.name];
+  return validateConnection(merged, registry);
 }
 
 /** Omitted connections retain their sealed envelope/hints and never require a site key.
@@ -394,24 +422,29 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const row = await deps.repo.vault!.find(input);
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
+  const { providerId, accountLabel, ...changes } = await connectionChanges({ deps, input, existing, registry, host, row });
+  const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
+    expectedRevision: row.revision, label, ...changes,
+    meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
+    ...(requestedDefault === true ? { isDefault: true } : {}) } });
+  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
+}
+
+async function connectionChanges({ deps, input, existing, registry, host, row }: {
+  deps: PublishCredentialWriteDeps; input: UpdatePublishCredentialInput; existing: VendorCredentialSetRecord;
+  registry: DeployTargetRegistry; host: PublishProviderId; row: Pick<VaultSummary, "meta">;
+}, _options = {}) {
   const move = preservedMove({ raw: input.connection, registry, host });
   if (input.connection !== undefined && !move) {
     const validated = await updatedConnection({ deps, input, existing, registry, host });
     const { providerId, ...fields } = validated.connection;
-    const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
-      expectedRevision: row.revision, provider: validated.spec.vendorId, label, meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: validated.spec.vendorId, host }), accountLabel: null },
-      payload: { vendorId: validated.spec.vendorId, ...fields }, hintToken: fields[validated.spec.tokenField],
-      ...(requestedDefault === true ? { isDefault: true } : {}) } });
-    return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
+    return { providerId, provider: validated.spec.vendorId, accountLabel: null,
+      payload: { vendorId: validated.spec.vendorId, ...fields }, hintToken: fields[validated.spec.tokenField] };
   }
   // Payload omission preserves ciphertext/hints; the vault atomically promotes/selects defaults.
   const providerId = move?.providerId ?? host;
   const provider = move?.spec.vendorId ?? existing.vendorId;
-  const summary = await saveConnection({ deps, providerId, input: { ...credentialScope({ ...input, kind: "vendor" }), id: input.id,
-    expectedRevision: row.revision, provider, label,
-    meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider, host }), accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null },
-    ...(requestedDefault === true ? { isDefault: true } : {}) } });
-  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
+  return { providerId, provider, accountLabel: provider === existing.vendorId ? row.meta.accountLabel : null };
 }
 
 /** Legacy rows were folded by 0012. Delete only the vault row; reboot has no source to recopy. */
