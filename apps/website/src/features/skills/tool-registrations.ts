@@ -327,6 +327,23 @@ const SKILL_INPUT_SCHEMA = {
   properties: { file: { type: "string", description: "Optional supporting text file relative to this skill folder, e.g. references/guide.md. Omit to read SKILL.md. Responses list readable files; unknown, unsafe, binary or over-256-KiB requests return a note and valid files." } },
 } as const;
 
+/** Formats standalone-skill guidance while retaining cached instructions when a file is refused. */
+function buildSkillToolResult({ source, content, file }: {
+  readonly source: SkillToolSource;
+  readonly content: Awaited<ReturnType<SkillFileReader["read"]>> | undefined;
+  readonly file: string | undefined;
+}, _options = {}) {
+  const result: Awaited<ReturnType<SkillFileReader["read"]>> = content ?? { text: source.markdown, files: [] };
+  return {
+    skillName: source.skillName,
+    guidance: result.note && !result.text ? source.markdown : result.text,
+    files: result.files ?? [],
+    ...(result.note ? { note: result.note } : {}),
+    ...(file !== undefined && !source.readFile ? { note: "File request refused: no supporting-file reader is available. Valid supporting files: (none)." } : {}),
+    bundledFiles: source.bundledFiles.map((file) => ({ kind: file.kind, root: "site", path: file.path })),
+  };
+}
+
 /**
  * Turns already-resolved skill sources into real `ToolRegistration`s — pure and synchronous, unlike
  * {@link loadInstalledSkillToolSources}, so this is the half a unit test exercises without touching
@@ -349,14 +366,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
       if (Object.keys(input).some(key => key !== "file")) throw new Error("this tool accepts only an optional 'file' argument");
       const file = optionalString({ input, key: "file" });
       const content = source.readFile ? await source.readFile({}, file !== undefined ? { file } : {}) : undefined;
-      return {
-        skillName: source.skillName,
-        guidance: content && !(content.note && !content.text) ? content.text : source.markdown,
-        files: content?.files ?? [],
-        ...(content?.note ? { note: content.note } : {}),
-        ...(file !== undefined && !source.readFile ? { note: "File request refused: no supporting-file reader is available. Valid supporting files: (none)." } : {}),
-        bundledFiles: source.bundledFiles.map((file) => ({ kind: file.kind, root: "site", path: file.path })),
-      };
+      return buildSkillToolResult({ source, content, file });
     };
   }
 

@@ -106,6 +106,69 @@ describe("useAdminThemeDocument", () => {
 });
 
 describe("useAdminThemePicker", () => {
+  it.each(["interface", "appearance"] as const)("keeps values undefined until loaded and stays unready with only %s loaded", async (first) => {
+    let releaseInterface!: (value: InterfaceConfig) => void;
+    let releaseAppearance!: (value: AppearanceConfig) => void;
+    const port = fakePort();
+    port.loadInterface = vi.fn(() => new Promise<InterfaceConfig>((resolve) => { releaseInterface = resolve; }));
+    port.loadAppearance = vi.fn(() => new Promise<AppearanceConfig>((resolve) => { releaseAppearance = resolve; }));
+    const { env } = fakeEnv();
+    const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
+    expect(result.current).toMatchObject({ ready: false, themeId: undefined, preference: undefined });
+    await waitFor(() => {
+      expect(port.loadInterface).toHaveBeenCalled();
+      expect(port.loadAppearance).toHaveBeenCalled();
+    });
+    await act(async () => {
+      if (first === "interface") releaseInterface(DEFAULT_INTERFACE);
+      else releaseAppearance(DEFAULT_APPEARANCE);
+    });
+    await waitFor(() => expect(result.current).toMatchObject({
+      ready: false,
+      themeId: first === "interface" ? DEFAULT_INTERFACE.adminTheme : undefined,
+      preference: first === "appearance" ? DEFAULT_APPEARANCE.theme : undefined,
+    }));
+    act(() => {
+      result.current.selectTheme("different-theme");
+      result.current.selectPreference("dark");
+    });
+    expect(port.saveInterface).not.toHaveBeenCalled();
+    expect(port.saveAppearance).not.toHaveBeenCalled();
+    await act(async () => {
+      if (first === "interface") releaseAppearance(DEFAULT_APPEARANCE);
+      else releaseInterface(DEFAULT_INTERFACE);
+    });
+    await waitFor(() => expect(result.current).toMatchObject({
+      ready: true, themeId: DEFAULT_INTERFACE.adminTheme, preference: DEFAULT_APPEARANCE.theme,
+    }));
+  });
+
+  it("prefers each pending value independently, including an empty theme id, until saves settle", async () => {
+    let releaseInterface!: () => void;
+    let releaseAppearance!: () => void;
+    const port = fakePort();
+    port.saveInterface = vi.fn(() => new Promise<readonly string[]>((resolve) => { releaseInterface = () => resolve([]); }));
+    port.saveAppearance = vi.fn(() => new Promise<readonly string[]>((resolve) => { releaseAppearance = () => resolve([]); }));
+    const { env } = fakeEnv();
+    const { result, rerender } = renderHook(() => useAdminThemePicker({}, { port, env }));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    act(() => result.current.selectTheme(""));
+    expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "light" });
+    act(() => result.current.selectPreference("dark"));
+    expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "dark" });
+    rerender();
+    expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "dark" });
+    await act(async () => {
+      releaseInterface();
+      releaseAppearance();
+    });
+    await waitFor(() => {
+      expect(port.loadInterface).toHaveBeenCalledTimes(2);
+      expect(port.loadAppearance).toHaveBeenCalledTimes(2);
+    });
+    expect(result.current).toMatchObject({ ready: true, themeId: "", preference: "dark" });
+  });
+
   it("repaints at once and saves the theme id through the interface ledger", async () => {
     const port = fakePort({ adminTheme: "default" });
     const { env } = fakeEnv();

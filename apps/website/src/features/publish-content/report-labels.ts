@@ -167,16 +167,19 @@ export function keepChangingIncludedEntities(
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
 
   const rows: unknown[] = [];
-  for (const row of details.rows) {
-    if (!isRecord(row)) {
-      rows.push(row);
-      continue;
-    }
-    const referrers = includedFor.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
-    const outcome = String(row.outcome);
-    if (referrers === undefined) rows.push(row);
-    else if (CHANGING_OUTCOMES.has(outcome)) rows.push({ ...row, includedFor: referrers });
-    else if (outcome !== "unchanged") rows.push(row);
-  }
+  for (const row of details.rows) rows.push(...includedReportRow({ row, includedFor }));
   return { ...plan, details: { ...details, rows } };
+}
+
+/** The display disposition of one carried row; ordinary and malformed rows keep their identity. */
+function includedReportRow(
+  { row, includedFor }: { row: unknown; includedFor: ReadonlyMap<string, readonly string[]> },
+  _options: Record<string, never> = {}
+): unknown[] {
+  if (!isRecord(row)) return [row];
+  const referrers = includedFor.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
+  const outcome = String(row.outcome);
+  if (referrers === undefined) return [row];
+  if (CHANGING_OUTCOMES.has(outcome)) return [{ ...row, includedFor: referrers }];
+  return outcome === "unchanged" ? [] : [row];
 }

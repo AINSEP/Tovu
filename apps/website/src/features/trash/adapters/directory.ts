@@ -112,11 +112,43 @@ async function parkedCount(parkedDir: string): Promise<number> {
   return Math.max(1, (await readdir(parkedDir)).length);
 }
 
+/** Reserve the park atomically; another hide that wins the mkdir race is already in Trash. */
+async function reservePark(required: { parkedDir: string }, _options: Record<string, never> = {}): Promise<Extract<TrashMarkerResult, { ok: false }> | null> {
+  try {
+    await mkdir(required.parkedDir);
+    return null;
+  } catch (error) {
+    if (errorCode(error) === "EEXIST") {
+      return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount(required.parkedDir) };
+    }
+    throw error;
+  }
+}
+
 /** Restore staged roots in reverse order through the same rename port as the forward moves.
  * @complexity O(n) time and space in staged roots; filesystem errors propagate. */
 async function rollbackMoves(required: { moved: readonly { from: string; to: string }[] }, optional: { readonly rename?: typeof rename } = {}): Promise<void> {
   for (const move of [...required.moved].reverse()) {
     if (await exists(move.from)) await moveDir(move, optional);
+  }
+}
+
+/** Stage roots through the rename port, recording inverse moves even if a rename moved then threw.
+ * @complexity O(n) filesystem moves; the caller owns rollback and error classification. */
+async function stageMoves(
+  required: { names: readonly string[]; fromParent: string; toParent: string; moved: { from: string; to: string }[] },
+  optional: { readonly rename?: typeof rename } = {},
+): Promise<void> {
+  for (const name of required.names) {
+    const from = join(required.fromParent, name);
+    const to = join(required.toParent, name);
+    try {
+      await moveDir({ from, to }, optional);
+      required.moved.push({ from: to, to: from });
+    } catch (error) {
+      if ((await exists(to)) && !(await exists(from))) required.moved.push({ from: to, to: from });
+      throw error;
+    }
   }
 }
 
@@ -165,28 +197,12 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
       }
 
       await assertSameFilesystem(location.liveParent, location.parkedDir);
-      try {
-        await mkdir(location.parkedDir);
-      } catch (error) {
-        if (errorCode(error) === "EEXIST") {
-          return { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: await parkedCount(location.parkedDir) };
-        }
-        throw error;
-      }
+      const reservation = await reservePark({ parkedDir: location.parkedDir });
+      if (reservation) return reservation;
 
       const moved: { from: string; to: string }[] = [];
       try {
-        for (const name of location.liveNames) {
-          const from = join(location.liveParent, name);
-          const to = join(location.parkedDir, name);
-          try {
-            await moveDir({ from, to }, optional);
-            moved.push({ from: to, to: from });
-          } catch (error) {
-            if ((await exists(to)) && !(await exists(from))) moved.push({ from: to, to: from });
-            throw error;
-          }
-        }
+        await stageMoves({ names: location.liveNames, fromParent: location.liveParent, toParent: location.parkedDir, moved }, optional);
       } catch (error) {
         await rollbackMoves({ moved }, optional);
         await removeEmptyDir(location.parkedDir);
@@ -209,17 +225,7 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, opt
       await assertSameFilesystem(location.liveParent, location.parkedDir);
       const moved: { from: string; to: string }[] = [];
       try {
-        for (const name of parkedNames) {
-          const from = join(location.parkedDir, name);
-          const to = join(location.liveParent, name);
-          try {
-            await moveDir({ from, to }, optional);
-            moved.push({ from: to, to: from });
-          } catch (error) {
-            if ((await exists(to)) && !(await exists(from))) moved.push({ from: to, to: from });
-            throw error;
-          }
-        }
+        await stageMoves({ names: parkedNames, fromParent: location.parkedDir, toParent: location.liveParent, moved }, optional);
       } catch (error) {
         await rollbackMoves({ moved }, optional);
         throw error;

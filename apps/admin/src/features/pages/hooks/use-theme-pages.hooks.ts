@@ -149,6 +149,22 @@ function mapThemePageRows(entries: readonly ThemePagesFileEntry[]): ThemePageRow
     }));
 }
 
+/** Project the tab's loading/count state and action-before-load error precedence together. */
+function themePagesDisplayState(
+  { data, actionError, presentationError, detailError }: {
+    data: { pages: ThemePageRow[] } | undefined;
+    actionError: string | null;
+    presentationError: Error | null;
+    detailError: Error | null;
+  },
+  _options: Record<string, never> = {},
+): Pick<ThemePagesController, "pages" | "pageCount" | "error"> {
+  const pages = data?.pages ?? null;
+  const error = actionError ?? presentationError?.message ?? detailError?.message ?? null;
+  const pageCount = pages === null ? 0 : pages.length;
+  return { pages, pageCount, error };
+}
+
 /**
  * @complexity Time/space: O(1) plus the O(n) row mapping above — two chained round trips on mount,
  * one on each publish toggle.
@@ -182,9 +198,7 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
    */
   const query = useFetchQuery({ key, fetch: fetchPages }, { enabled: activeThemeId !== null, staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchPages }, { staleTime: 0 });
-  const pages = query.data?.pages ?? null;
   const [actionError, setError] = useState<string | null>(null);
-  const error = actionError ?? presentation.error?.message ?? query.error?.message ?? null;
   const publish = useFetchMutation({ run: ({ input }: { input: { themeId: string; pageId: string; published: boolean } }) => port.setPagePublished(input.themeId, input.pageId, input.published) }, { invalidates: [["themes"]] });
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
 
@@ -206,7 +220,9 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
     [activeThemeId, publish.mutate, loader]
   );
 
-  const pageCount = pages === null ? 0 : pages.length;
+  const { pages, pageCount, error } = themePagesDisplayState({
+    data: query.data, actionError, presentationError: presentation.error, detailError: query.error,
+  });
 
   return { pages, pageCount, activeThemeId, error, savingPageId, setPagePublished };
 }

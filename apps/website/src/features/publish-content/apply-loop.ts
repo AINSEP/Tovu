@@ -241,6 +241,8 @@ function capitalize(value: string): string {
   return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }
 
+type ApplyRowResult = { row: PublishContentOutcomeRow; changeSetId: string | null; retiredChangeSetId: string | null };
+
 /**
  * Applies exactly one report row, mutating nothing — returns the row as it actually resolved (which
  * may differ from the plan's own prediction, see this file's header) plus the `changeSetId` a write
@@ -262,27 +264,7 @@ async function applyOneRow(
   const key = entityKey(row.entityType, row.entityId);
 
   if (!row.writes) {
-    // `conflict`/`blocked` pass through untouched — no baseline write (plan §4 task 8: baselines are
-    // upserted for created/unchanged/applied/forced ONLY). `unchanged` is the one non-writing outcome
-    // that still refreshes the baseline: the destination already matches the source, so there is
-    // nothing to apply, but recording that agreement is exactly what lets FUTURE runs tell "still
-    // agrees" apart from "diverged since we last looked".
-    if (row.outcome === "unchanged") {
-      const entity = ctx.entityByKey.get(key);
-      if (entity) {
-        await ctx.baselineRepo.upsert({
-          workspaceId: ctx.workspaceId,
-          peerPrincipalId: ctx.sourcePrincipalId,
-          entityType: row.entityType,
-          entityId: row.entityId,
-          hashAtLastSync: entity.contentHash,
-          hashVersion: entity.hashVersion,
-          syncedAt: clockNowIso({ clock: ctx.clock }),
-          runId: ctx.runId,
-        });
-      }
-    }
-    return { row, changeSetId: null, retiredChangeSetId: null };
+    return refreshNonWritingRow({ row, ctx });
   }
 
   const entity = ctx.entityByKey.get(key);
@@ -305,6 +287,10 @@ async function applyOneRow(
   const current = await handler.inspect(entity.id);
 
   if (row.retires) {
+    return applyRetiringRow({ row: { ...row, retires: row.retires }, entity, handler });
+  }
+
+  async function validateRetire({ row, entity, handler }: { row: PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> }; entity: PackedEntity; handler: PublishContentHandler }, _optional: Record<string, never> = {}): Promise<ApplyRowResult | null> {
     // publish-overwrite-live-plan §4/S5 — an address-clash overwrite. This row's own entity id must
     // still be free at the destination (unlike a slug clash, "someone already holds THIS id" here
     // would mean a genuine create race, not the live holder this row is about to retire), and the
@@ -350,6 +336,11 @@ async function applyOneRow(
       };
     }
 
+    return null;
+  }
+  async function applyRetiringRow({ row, entity, handler }: { row: PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> }; entity: PackedEntity; handler: PublishContentHandler }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
+    const refused = await validateRetire({ row, entity, handler });
+    if (refused) return refused;
     const itemIdempotencyKey = publishContentItemIdempotencyKey({
       workspaceId: ctx.workspaceId,
       sourcePrincipalId: ctx.sourcePrincipalId,
@@ -358,7 +349,7 @@ async function applyOneRow(
     let retireResult: { changeSetId: string; undo(): Promise<void> } | undefined;
     let changeSetId: string;
     try {
-      retireResult = await handler.retire({
+      retireResult = await handler.retire!({
         target: row.retires,
         principalId: ctx.principalId,
         // Scoped to this run: `undo()` restores forward and leaves the retire's change set (and its
@@ -373,23 +364,7 @@ async function applyOneRow(
         idempotencyKey: itemIdempotencyKey,
       }));
     } catch (error) {
-      // The retire already landed but the create it was clearing the address FOR did not — put the
-      // holder back rather than leaving it retired with nothing to show for it (this handler's own
-      // `retire()` doc: the apply loop is the one caller besides its own gateway rollback that calls
-      // `undo()` directly). Only here: once the create has landed, the new row holds the address and
-      // putting the holder back would collide with it.
-      if (retireResult) {
-        try {
-          await retireResult.undo();
-        } catch (undoError) {
-          const cause = error instanceof Error ? error.message : String(error);
-          const undoCause = undoError instanceof Error ? undoError.message : String(undoError);
-          throw new Error(
-            `${row.entityType} '${row.entityId}' was not created (${cause}), and putting the retired ` +
-              `${row.retires.entityType} '${row.retires.entityId}' back failed too (${undoCause}) — restore it from Trash`
-          );
-        }
-      }
+      await undoRetire({ error, retireResult, row });
       const downgrade = classifyApplyRowFailure(error, row, handler);
       if (downgrade) {
         return {
@@ -403,44 +378,45 @@ async function applyOneRow(
     // Both writes landed. A failure from here on is accounting only, so it fails the run (keeping
     // `content_applied` and both change-set ids) instead of undoing anything.
     await ctx.recordContentApplied({ itemKey: key, changeSetId, retiredChangeSetId: retireResult.changeSetId });
-    await ctx.baselineRepo.upsert({
-      workspaceId: ctx.workspaceId,
-      peerPrincipalId: ctx.sourcePrincipalId,
-      entityType: row.entityType,
-      entityId: row.entityId,
-      hashAtLastSync: entity.contentHash,
-      hashVersion: entity.hashVersion,
-      syncedAt: clockNowIso({ clock: ctx.clock }),
-      runId: ctx.runId,
-    });
+    await refreshBaseline({ row, entity, ctx });
     return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };
   }
 
-  if (row.outcome === "created" && current !== null) {
-    return {
-      row: {
-        ...row,
-        outcome: "conflict",
-        writes: false,
-        reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply`,
-      },
-      changeSetId: null,
-      retiredChangeSetId: null,
-    };
-  }
-  if (row.outcome !== "created" && current === null) {
-    return {
-      row: {
-        ...row,
-        outcome: "conflict",
-        writes: false,
-        reason: `${row.entityType} '${row.entityId}' was removed from the destination between plan and apply`,
-      },
-      changeSetId: null,
-      retiredChangeSetId: null,
-    };
+  const raced = checkExistence({});
+  if (raced) return raced;
+  function checkExistence(_required: Record<string, never>, _optional: Record<string, never> = {}): ApplyRowResult | null {
+    if (row.outcome === "created" && current !== null) {
+      return {
+        row: {
+          ...row,
+          outcome: "conflict",
+          writes: false,
+          reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply`,
+        },
+        changeSetId: null,
+        retiredChangeSetId: null,
+      };
+    }
+    if (row.outcome !== "created" && current === null) {
+      return {
+        row: {
+          ...row,
+          outcome: "conflict",
+          writes: false,
+          reason: `${row.entityType} '${row.entityId}' was removed from the destination between plan and apply`,
+        },
+        changeSetId: null,
+        retiredChangeSetId: null,
+      };
+    }
+    return null;
   }
   if (row.outcome === "applied" && current) {
+    const conflict = await checkAgreement({ current, entity, handler });
+    if (conflict) return conflict;
+  }
+
+  async function checkAgreement({ current, entity, handler }: { current: NonNullable<Awaited<ReturnType<PublishContentHandler["inspect"]>>>; entity: PackedEntity; handler: PublishContentHandler }, _optional: Record<string, never> = {}): Promise<ApplyRowResult | null> {
     // Never for `forced` — an operator forcing past a conflict already accepted overriding whatever
     // is there. Re-derives the SAME baseline `planEntity` (`planner.ts`) compared against, rather
     // than reusing any value carried on `row` (the report never carries one) — this IS the
@@ -471,44 +447,40 @@ async function applyOneRow(
         retiredChangeSetId: null,
       };
     }
+    return null;
   }
 
-  try {
-    const { changeSetId } = await handler.apply({
-      entity,
-      expectedVersion: current?.version, // `created` -> undefined (current is null); applied/forced -> fresh version just read above.
-      principalId: ctx.principalId, // always the operator — see this file's header.
-      idempotencyKey: publishContentItemIdempotencyKey({
-        workspaceId: ctx.workspaceId,
-        sourcePrincipalId: ctx.sourcePrincipalId,
+  return applyOrdinaryRow({ entity, handler });
+  async function applyOrdinaryRow({ entity, handler }: { entity: PackedEntity; handler: PublishContentHandler }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
+    try {
+      const { changeSetId } = await handler.apply({
         entity,
-      }) + (handler.idempotencyScope === "run" ? `:${ctx.runId}` : ""),
-    });
-    // Persist the change-set id BEFORE the baseline write. If that next write fails, status lookup
-    // still proves exactly which content mutation landed and a retry can use the same command key.
-    await ctx.recordContentApplied({ itemKey: key, changeSetId });
-    await ctx.baselineRepo.upsert({
-      workspaceId: ctx.workspaceId,
-      peerPrincipalId: ctx.sourcePrincipalId,
-      entityType: row.entityType,
-      entityId: row.entityId,
-      hashAtLastSync: entity.contentHash,
-      hashVersion: entity.hashVersion,
-      syncedAt: clockNowIso({ clock: ctx.clock }),
-      runId: ctx.runId,
-    });
-    return { row, changeSetId, retiredChangeSetId: null };
-  } catch (error) {
-    const downgrade = classifyApplyRowFailure(error, row, handler);
-    if (downgrade) {
-      return {
-        row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
-        changeSetId: null,
-        retiredChangeSetId: null,
-      };
+        expectedVersion: current?.version, // `created` -> undefined (current is null); applied/forced -> fresh version just read above.
+        principalId: ctx.principalId, // always the operator — see this file's header.
+        idempotencyKey: publishContentItemIdempotencyKey({
+          workspaceId: ctx.workspaceId,
+          sourcePrincipalId: ctx.sourcePrincipalId,
+          entity,
+        }) + (handler.idempotencyScope === "run" ? `:${ctx.runId}` : ""),
+      });
+      // Persist the change-set id BEFORE the baseline write. If that next write fails, status lookup
+      // still proves exactly which content mutation landed and a retry can use the same command key.
+      await ctx.recordContentApplied({ itemKey: key, changeSetId });
+      await refreshBaseline({ row, entity, ctx });
+      return { row, changeSetId, retiredChangeSetId: null };
+    } catch (error) {
+      const downgrade = classifyApplyRowFailure(error, row, handler);
+      if (downgrade) {
+        return {
+          row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
+          changeSetId: null,
+          retiredChangeSetId: null,
+        };
+      }
+      throw error; // genuine failure — the caller's own try/catch persists a `failed` run row and rethrows.
     }
-    throw error; // genuine failure — the caller's own try/catch persists a `failed` run row and rethrows.
   }
+
 }
 
 /**
@@ -602,45 +574,57 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       // The caller's authorize wins when it supplies one: this port is built once per process and
       // closes over RBAC, which is the wrong authority for a publishing credential. See
       // `PublishContentApplyPort.applyReport`'s own doc.
-      const handlerDeps = { ...input.publishContentDeps,
-        ...(authorize === undefined ? {} : { authorize }), ...(backstop === undefined ? {} : { backstop }) };
+      const handlerDeps = {
+        ...input.publishContentDeps,
+        ...(authorize === undefined ? {} : { authorize }), ...(backstop === undefined ? {} : { backstop })
+      };
       const { handlerByType } = buildPublishContentCatalog(handlerDeps);
       const metadata = readBackstopMetadata({ entities });
       let auditRecord: BackstopAuditRecord | undefined;
-      if (metadata) {
-        if (!(await handlerDeps.backstop?.audit?.ready())) throw new Error("Send by hand needs its audit storage installed before it can send anything.");
-        report = { ...report, backstop: metadata };
-        auditRecord = { id: runId, workspaceId: input.workspaceId, direction: "destination", actorId: metadata.sourceActor,
-          destination: metadata.destinationHost, reason: metadata.reason, at: startedAt, gapLabels: metadata.gapLabels,
-          items: await Promise.all(entities.map(async (e) => ({ entityType: e.entityType, id: e.id,
-            beforeHash: (await handlerByType.get(e.entityType)?.inspect(e.id))?.hash ?? null, afterHash: e.contentHash }))),
-          result: "pending", runId, details: {}, inverses: [] };
-        await handlerDeps.backstop!.audit!.save({ record: auditRecord });
+      await prepareAudit({});
+      async function prepareAudit(_required: Record<string, never>, _optional: Record<string, never> = {}) {
+        if (metadata) {
+          if (!(await handlerDeps.backstop?.audit?.ready())) throw new Error("Send by hand needs its audit storage installed before it can send anything.");
+          report = { ...report, backstop: metadata };
+          auditRecord = {
+            id: runId, workspaceId: input.workspaceId, direction: "destination", actorId: metadata.sourceActor,
+            destination: metadata.destinationHost, reason: metadata.reason, at: startedAt, gapLabels: metadata.gapLabels,
+            items: await Promise.all(entities.map(async (e) => ({
+              entityType: e.entityType, id: e.id,
+              beforeHash: (await handlerByType.get(e.entityType)?.inspect(e.id))?.hash ?? null, afterHash: e.contentHash
+            }))),
+            result: "pending", runId, details: {}, inverses: []
+          };
+          await handlerDeps.backstop!.audit!.save({ record: auditRecord });
+        }
       }
 
       const effectiveRowsByKey = new Map(
         report.rows.map((row) => [entityKey(row.entityType, row.entityId), row] as const)
       );
       const itemByKey = new Map<string, PublishContentRunItemState>();
-      for (const row of report.rows) {
-        const key = entityKey(row.entityType, row.entityId);
-        const entity = entityByKey.get(key);
-        const idempotencyKey = entity
-          ? publishContentItemIdempotencyKey({ workspaceId: input.workspaceId, sourcePrincipalId, entity })
-          : `publish-content:v1:missing:${createHash("sha256").update(`${input.workspaceId}:${sourcePrincipalId}:${key}`).digest("hex")}`;
-        itemByKey.set(key, {
-          entityType: row.entityType,
-          entityId: row.entityId,
-          idempotencyKey,
-          phase: "pending",
-          outcome: row.outcome,
-          writes: row.writes,
-          reason: row.reason,
-          changeSetId: null,
-          retiredChangeSetId: null,
-          errorSummary: null,
-          updatedAt: startedAt,
-        });
+      initializeItems({});
+      function initializeItems(_required: Record<string, never>, _optional: Record<string, never> = {}) {
+        for (const row of report.rows) {
+          const key = entityKey(row.entityType, row.entityId);
+          const entity = entityByKey.get(key);
+          const idempotencyKey = entity
+            ? publishContentItemIdempotencyKey({ workspaceId: input.workspaceId, sourcePrincipalId, entity })
+            : `publish-content:v1:missing:${createHash("sha256").update(`${input.workspaceId}:${sourcePrincipalId}:${key}`).digest("hex")}`;
+          itemByKey.set(key, {
+            entityType: row.entityType,
+            entityId: row.entityId,
+            idempotencyKey,
+            phase: "pending",
+            outcome: row.outcome,
+            writes: row.writes,
+            reason: row.reason,
+            changeSetId: null,
+            retiredChangeSetId: null,
+            errorSummary: null,
+            updatedAt: startedAt,
+          });
+        }
       }
 
       const itemStates = (): PublishContentRunItemState[] =>
@@ -739,7 +723,8 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         let repointChangeSetIds: string[] = [];
         let menuLinksUpdated = 0;
         const menuLinksNotUpdated: string[] = [];
-        if (replacements.length > 0) {
+        if (replacements.length > 0) await repointHandlers({ replacements, skipIds });
+        async function repointHandlers({ replacements, skipIds }: { replacements: EntityReplacement[]; skipIds: Set<string> }, _optional: Record<string, never> = {}) {
           for (const handler of handlerByType.values()) {
             if (!handler.repointReferences) continue;
             try {
@@ -812,46 +797,48 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           activeItemKey = null;
         }
         if (auditRecord) {
-          await handlerDeps.backstop!.audit!.save({ record: { ...auditRecord, result: "success",
-            inverses: handlerDeps.backstop?.inverses ?? [], details: { report: currentReport() },
-            items: auditRecord.items.map((item) => {
-              const inverse = handlerDeps.backstop?.inverses?.find((i) => i.entity.id === item.id && i.entity.entityType === item.entityType);
-              if (!inverse) return item;
-              const beforeHash = inverse.kind === "raw-row"
-                ? inverse.before === null ? null : contentHash("raw-row", inverse.before as unknown as Record<string, unknown>)
-                : inverse.before.sha256 === null ? null : contentHash("raw-file", { path: item.id,
-                    sha256: inverse.before.sha256, size: inverse.before.size, mode: inverse.before.mode });
-              return { ...item, beforeHash };
-            }) } });
+          await handlerDeps.backstop!.audit!.save({
+            record: {
+              ...auditRecord, result: "success",
+              inverses: handlerDeps.backstop?.inverses ?? [], details: { report: currentReport() },
+              items: auditRecord.items.map((item) => {
+                const inverse = handlerDeps.backstop?.inverses?.find((i) => i.entity.id === item.id && i.entity.entityType === item.entityType);
+                if (!inverse) return item;
+                const beforeHash = inverse.kind === "raw-row"
+                  ? inverse.before === null ? null : contentHash("raw-row", inverse.before as unknown as Record<string, unknown>)
+                  : inverse.before.sha256 === null ? null : contentHash("raw-file", {
+                    path: item.id,
+                    sha256: inverse.before.sha256, size: inverse.before.size, mode: inverse.before.mode
+                  });
+                return { ...item, beforeHash };
+              })
+            }
+          });
         }
       };
-      // Only a raw-row/raw-file run is all-or-nothing; every other run writes row by row, so an
-      // abort leaves the rows before it saved.
-      const transactional = entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file");
-      try {
-        if (transactional) {
-          if (!handlerDeps.backstop?.rows) throw new Error("The raw-row transaction port is not wired.");
-          await handlerDeps.backstop.rows.transaction({ work: applyRows });
-        } else await applyRows();
-      } catch (error) {
-        const rollbackErrors: string[] = [];
-        if (transactional) {
-          for (const rollback of [...(handlerDeps.backstop?.fileRollbacks ?? [])].reverse()) {
-            try { await rollback(); } catch (failure) { rollbackErrors.push(failure instanceof Error ? failure.message : "A file could not be rolled back."); }
-          }
-          // All raw writes, change sets and baselines rolled back together. Do not report the
-          // tentative per-item snapshots as writes that landed.
-          const reason = [error instanceof Error ? error.message : "This send was rolled back.", ...rollbackErrors].join(" ");
-          for (const row of report.rows) {
-            const key = entityKey(row.entityType, row.entityId);
-            const item = itemByKey.get(key);
-            if (!item) continue;
-            const mayRemain = row.entityType === "raw-file" && item.changeSetId !== null && rollbackErrors.length > 0;
-            effectiveRowsByKey.set(key, { ...row, outcome: "blocked", writes: mayRemain, reason });
-            itemByKey.set(key, { ...item, phase: "failed", outcome: "blocked", writes: mayRemain,
-              changeSetId: null, retiredChangeSetId: null, errorSummary: reason, reason });
-          }
+      async function rollbackRawRun({ error, rollbackErrors }: { error: unknown; rollbackErrors: string[] }, _optional: Record<string, never> = {}) {
+        for (const rollback of [...(handlerDeps.backstop?.fileRollbacks ?? [])].reverse()) {
+          try { await rollback(); } catch (failure) { rollbackErrors.push(failure instanceof Error ? failure.message : "A file could not be rolled back."); }
         }
+        recordRawRollback({ error, rollbackErrors });
+      }
+      function recordRawRollback({ error, rollbackErrors }: { error: unknown; rollbackErrors: string[] }, _optional: Record<string, never> = {}) {
+        // All raw writes, change sets and baselines rolled back together. Do not report the
+        // tentative per-item snapshots as writes that landed.
+        const reason = [error instanceof Error ? error.message : "This send was rolled back.", ...rollbackErrors].join(" ");
+        for (const row of report.rows) {
+          const key = entityKey(row.entityType, row.entityId);
+          const item = itemByKey.get(key);
+          if (!item) continue;
+          const mayRemain = row.entityType === "raw-file" && item.changeSetId !== null && rollbackErrors.length > 0;
+          effectiveRowsByKey.set(key, { ...row, outcome: "blocked", writes: mayRemain, reason });
+          itemByKey.set(key, {
+            ...item, phase: "failed", outcome: "blocked", writes: mayRemain,
+            changeSetId: null, retiredChangeSetId: null, errorSummary: reason, reason
+          });
+        }
+      }
+      function recordFailedItem({ error }: { error: unknown }, _optional: Record<string, never> = {}) {
         // A non-conflict error aborted the run partway through — the run row must still record
         // exactly which change sets landed before the failure (plan §5 risk #7's own words), never
         // silently drop that trail just because the whole run did not complete.
@@ -868,14 +855,38 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             });
           }
         }
+      }
+      async function failRun({ error }: { error: unknown }, _optional: Record<string, never> = {}): Promise<never> {
+        const rollbackErrors: string[] = [];
+        if (transactional) await rollbackRawRun({ error, rollbackErrors });
+        recordFailedItem({ error });
         // R6 — whatever landed before this abort (an overwrite row's retire+create both done) still
         // gets repointed; see `runRepointPass`'s own doc above for why this is safe to call here too.
         await runRepointPass();
         await saveSnapshot("failed", clockNowIso({ clock: input.clock }));
-        if (auditRecord) await handlerDeps.backstop!.audit!.save({ record: { ...auditRecord, result: "failure",
-          inverses: rollbackErrors.length > 0 ? (handlerDeps.backstop?.inverses ?? []).filter((i) => i.kind === "raw-file") : [],
-          details: { error: error instanceof Error ? error.message : "This send was rolled back.", rollbackErrors } } });
+        if (auditRecord) await handlerDeps.backstop!.audit!.save({
+          record: {
+            ...auditRecord, result: "failure",
+            inverses: rollbackErrors.length > 0 ? (handlerDeps.backstop?.inverses ?? []).filter((i) => i.kind === "raw-file") : [],
+            details: { error: error instanceof Error ? error.message : "This send was rolled back.", rollbackErrors }
+          }
+        });
         throw transactional ? error : withRefusedItem(error, activeItemKey);
+      }
+      // Only a raw-row/raw-file run is all-or-nothing; every other run writes row by row, so an
+      // abort leaves the rows before it saved.
+      const transactional = entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file");
+      await executeRows({});
+      async function executeRows(_required: Record<string, never>, _optional: Record<string, never> = {}) {
+        try {
+          if (transactional) {
+            if (!handlerDeps.backstop?.rows) throw new Error("The raw-row transaction port is not wired.");
+            await handlerDeps.backstop.rows.transaction({ work: applyRows });
+          } else await applyRows();
+        } catch (error) {
+          await failRun({ error });
+
+        }
       }
 
       const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass();
@@ -894,4 +905,56 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       };
     },
   };
+}
+
+function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<void> {
+  return ctx.baselineRepo.upsert({
+    workspaceId: ctx.workspaceId,
+    peerPrincipalId: ctx.sourcePrincipalId,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    hashAtLastSync: entity.contentHash,
+    hashVersion: entity.hashVersion,
+    syncedAt: clockNowIso({ clock: ctx.clock }),
+    runId: ctx.runId,
+  });
+}
+
+async function undoRetire({ error, retireResult, row }: {
+  error: unknown; retireResult: { undo(): Promise<void> } | undefined;
+  row: PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> };
+}, _optional: Record<string, never> = {}): Promise<void> {
+  // The retire already landed but the create it was clearing the address FOR did not — put the
+  // holder back rather than leaving it retired with nothing to show for it (this handler's own
+  // `retire()` doc: the apply loop is the one caller besides its own gateway rollback that calls
+  // `undo()` directly). Only here: once the create has landed, the new row holds the address and
+  // putting the holder back would collide with it.
+  if (retireResult) {
+    try {
+      await retireResult.undo();
+    } catch (undoError) {
+      const cause = error instanceof Error ? error.message : String(error);
+      const undoCause = undoError instanceof Error ? undoError.message : String(undoError);
+      throw new Error(
+        `${row.entityType} '${row.entityId}' was not created (${cause}), and putting the retired ` +
+        `${row.retires.entityType} '${row.retires.entityId}' back failed too (${undoCause}) — restore it from Trash`
+      );
+    }
+  }
+}
+
+async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOutcomeRow; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
+  const key = entityKey(row.entityType, row.entityId);
+  // `conflict`/`blocked` pass through untouched — no baseline write (plan §4 task 8: baselines are
+  // upserted for created/unchanged/applied/forced ONLY). `unchanged` is the one non-writing outcome
+  // that still refreshes the baseline: the destination already matches the source, so there is
+  // nothing to apply, but recording that agreement is exactly what lets FUTURE runs tell "still
+  // agrees" apart from "diverged since we last looked".
+  if (row.outcome === "unchanged") {
+    const entity = ctx.entityByKey.get(key);
+    if (entity) {
+      await refreshBaseline({ row, entity, ctx });
+    }
+  }
+  return { row, changeSetId: null, retiredChangeSetId: null };
 }

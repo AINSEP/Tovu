@@ -238,13 +238,25 @@ export async function assertUserAccountAction(required: {
       && !await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId })) {
     throw new OwnerRequiredError({ message: "only an owner can delete, trash, disable or reset the password of an admin or owner account" });
   }
-  if (action !== "reset-password") {
-    if (principalId === seededOwnerPrincipalId) {
-      throw new OwnerRequiredError({ message: action === "disable" ? "the seeded owner principal can never be disabled" : "the seeded owner principal can never be deleted" });
-    }
-    if (target.status === "active" && owner && await countActiveOwnerWildcardPrincipals({ deps, workspaceId }) <= 1) {
-      throw new OwnerRequiredError({ message: "the workspace must keep at least one active owner-`*` principal" });
-    }
+  await assertDestructiveAccountInvariants({ deps, workspaceId, principalId, action, targetStatus: target.status, owner },
+    { seededOwnerPrincipalId });
+}
+
+async function assertDestructiveAccountInvariants(required: {
+  deps: AuthServiceDeps;
+  workspaceId: UUID;
+  principalId: UUID;
+  action: "trash" | "purge" | "disable" | "reset-password";
+  targetStatus: string;
+  owner: boolean;
+}, optional: { seededOwnerPrincipalId?: UUID } = {}): Promise<void> {
+  const { deps, workspaceId, principalId, action, targetStatus, owner } = required;
+  if (action === "reset-password") return;
+  if (principalId === optional.seededOwnerPrincipalId) {
+    throw new OwnerRequiredError({ message: action === "disable" ? "the seeded owner principal can never be disabled" : "the seeded owner principal can never be deleted" });
+  }
+  if (targetStatus === "active" && owner && await countActiveOwnerWildcardPrincipals({ deps, workspaceId }) <= 1) {
+    throw new OwnerRequiredError({ message: "the workspace must keep at least one active owner-`*` principal" });
   }
 }
 

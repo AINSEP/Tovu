@@ -96,3 +96,112 @@ test("creating then undoing removes only the new file, never other live files", 
   assert.equal(await f.handler.inspect(entity.id), null);
   assert.equal(await readFile(path.join(f.siteDir, "snippets/live-only.html"), "utf8"), "live only");
 });
+
+test("L044 validation rejects malformed metadata before reading blobs", async (t) => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  const states = [{ sha256: 1 }, { sha256: "bad" }, { size: "6" }, { size: 1.5 }, { size: -1 }, { size: 50 * 1024 * 1024 + 1 }, { mode: 0o777 }];
+  for (const patch of states) assert.equal(await f.handler.precheck({ ...entity, state: { ...entity.state, ...patch } }), "The raw file has an invalid address, size, mode or checksum.");
+  for (const requiredBlobs of [[], ["wrong"], [entity.state.sha256 as string, "extra"]]) {
+    assert.match((await f.handler.precheck({ ...entity, requiredBlobs }))!, /invalid address/);
+  }
+  assert.match((await f.handler.precheck({ ...entity, id: "different" }))!, /invalid address/);
+  assert.equal(await f.handler.precheck({ ...entity, state: { ...entity.state, path: 1 } }), "Choose a regular file inside the site folder.");
+  assert.match((await f.handler.precheck(entity))!, /verified bytes are missing/);
+  await f.blobs.putIfAbsent({ workspaceId: "ws", sha256: entity.state.sha256 as string, bytes: Buffer.from("footer") });
+  assert.equal(await f.handler.precheck(entity), null);
+  assert.match((await f.handler.precheck({ ...entity, contentHash: "wrong" }))!, /checked content hash/);
+  const noMedia = contributeRawFilePublish().build({ ...f.deps, ports: {} });
+  assert.equal(await noMedia.precheck(entity), "Library documents cannot be published");
+  const unavailable = contributeRawFilePublish().build({ ...f.deps, backstop: undefined });
+  assert.equal(await unavailable.precheck(entity), "Send by hand is not available on this destination.");
+});
+
+test("L044 pack preserves missing/read-error skips, resets skips and enforces selection caps", async (t) => {
+  const f = await fixture(t);
+  assert.deepEqual(await f.pack(), []);
+  assert.equal((await f.handler.listSkipped!())[0]!.reason, "The selected file no longer exists.");
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  assert.equal((await f.pack()).length, 1);
+  assert.deepEqual(await f.handler.listSkipped!(), []);
+  for (const error of [new Error("read failed"), "opaque"]) {
+    const handler = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, read: async () => { throw error; } } } });
+    for await (const _entity of handler.pack()) assert.fail("must skip");
+    assert.equal((await handler.listSkipped!())[0]!.reason, error instanceof Error ? error.message : "This file cannot be sent safely.");
+  }
+  const tooMany = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, selection: { files: Array(51).fill("snippets/footer.html") } } });
+  await assert.rejects(async () => { for await (const _entity of tooMany.pack()) {} }, /at most 50 files/);
+});
+
+test("L044 apply preserves gateway, OCC and undo guards", async (t) => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  await f.blobs.putIfAbsent({ workspaceId: "ws", sha256: entity.state.sha256 as string, bytes: Buffer.from("footer") });
+  const input = { entity, principalId: "admin", idempotencyKey: "pin", expectedVersion: undefined };
+  await assert.rejects(f.handler.apply(input), /changed on live/);
+  await assert.rejects(contributeRawFilePublish().build({ ...f.deps, authorize: undefined }).apply(input), /gateway is not wired/);
+  await assert.rejects(f.handler.apply({ ...input, entity: { ...entity, contentHash: "wrong" } }), /checked content hash/);
+  const before = await f.files.capture({ relPath: entity.id });
+  assert.match((await undoRawFile({ deps: f.deps, entity, before: { ...before, relPath: "other" }, afterHash: entity.contentHash }))!, /does not match/);
+  assert.equal(await undoRawFile({ deps: { ...f.deps, backstop: undefined }, entity, before, afterHash: entity.contentHash }), "Send by hand is not available on this destination.");
+  assert.match((await undoRawFile({ deps: { ...f.deps, backstop: { ...f.deps.backstop!, coveredRoots: ["snippets/"] } }, entity, before, afterHash: entity.contentHash }))!, /publishes normally/);
+});
+
+test("L044 pack availability, aggregate byte cap and byte verification use typed ports", async (t) => {
+  const f = await fixture(t);
+  for (const backstop of [undefined, { ...f.deps.backstop!, fileBlobIndex: undefined }, { ...f.deps.backstop!, selection: undefined }]) {
+    const handler = contributeRawFilePublish().build({ ...f.deps, backstop });
+    for await (const _entity of handler.pack()) assert.fail("must be empty");
+  }
+  const overCap = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: {
+    ...f.files, read: async () => ({ bytes: new Uint8Array(50 * 1024 * 1024 + 1), absPath: "/unused", mode: 0o644 }),
+  } } });
+  await assert.rejects(async () => { for await (const _entity of overCap.pack()) {} }, /totaling at most 50 MB/);
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  const wrongBytes = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, blobs: {
+    put: async () => { throw new Error("no writes expected"); },
+    exists: async () => true, get: async () => Buffer.from("wrong!"),
+    putIfAbsent: async () => { throw new Error("no writes expected"); },
+    remove: async () => { throw new Error("no writes expected"); },
+  } } });
+  assert.match((await wrongBytes.precheck(entity))!, /verified bytes are missing/);
+  assert.match((await wrongBytes.precheck({ ...entity, state: { ...entity.state, size: 7 } }))!, /verified bytes are missing/);
+});
+
+test("L044 recorded inverses support compensation and reject later drift", async (t) => {
+  const f = await fixture(t);
+  const target = path.join(f.siteDir, "snippets/footer.html");
+  await writeFile(target, "new");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  await f.blobs.putIfAbsent({ workspaceId: "ws", sha256: entity.state.sha256 as string, bytes: Buffer.from("new") });
+  await writeFile(target, "old");
+  const inverses: NonNullable<NonNullable<PublishContentDeps["backstop"]>["inverses"]> = [];
+  const fileRollbacks: Array<() => Promise<void>> = [];
+  const handler = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, inverses, fileRollbacks } });
+  const prior = await handler.inspect(entity.id);
+  await handler.apply({ entity, expectedVersion: prior!.version, principalId: "admin", idempotencyKey: "compensate" });
+  assert.equal(inverses.length, 1);
+  assert.equal(fileRollbacks.length, 1);
+  await fileRollbacks[0]!();
+  assert.equal(await readFile(target, "utf8"), "old");
+  await assert.rejects(fileRollbacks[0]!(), /changed on live/);
+});
+
+test("L044 undo covered roots remain case sensitive (reported, not fixed)", async (t) => {
+  const f = await fixture(t);
+  const target = path.join(f.siteDir, "snippets/footer.html");
+  await writeFile(target, "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  const before = await f.files.capture({ relPath: entity.id });
+  const deps = { ...f.deps, backstop: { ...f.deps.backstop!, coveredRoots: ["SNIPPETS"] } };
+  assert.equal(await contributeRawFilePublish().build(deps).inspect(entity.id), null);
+  assert.equal(await undoRawFile({ deps, entity, before, afterHash: entity.contentHash }), null);
+});

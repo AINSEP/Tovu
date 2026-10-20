@@ -42,17 +42,17 @@ export interface SourceControlProviderInfo {
 /** One listed host's entry. A descriptor with no credential form takes just a token.
  *  @complexity O(f) in its declared field count. */
 export function sourceControlProviderInfoFromDescriptor(descriptor: AdminSourceControlProviderDescriptor): SourceControlProviderInfo {
-  const credential = descriptor.credential;
-  const tokenField = credential?.tokenField ?? "token";
-  const token = credential?.fields.find((field) => field.name === tokenField);
+  const credential = descriptor.credential ?? { tokenField: "token", fields: [], tokenPageUrl: "", help: "" };
+  const tokenField = credential.tokenField ?? "token";
+  const token = credential.fields.find((field) => field.name === tokenField);
   return {
     id: descriptor.id,
     label: descriptor.label,
-    tokenPageUrl: credential?.tokenPageUrl ?? "",
-    scopeGuidanceKey: credential?.help ?? "",
+    tokenPageUrl: credential.tokenPageUrl ?? "",
+    scopeGuidanceKey: credential.help ?? "",
     tokenField,
     ...(token !== undefined ? { tokenLabel: token.label } : {}),
-    fields: (credential?.fields ?? []).filter((field) => field.name !== tokenField),
+    fields: (credential.fields ?? []).filter((field) => field.name !== tokenField),
     listed: true,
   };
 }

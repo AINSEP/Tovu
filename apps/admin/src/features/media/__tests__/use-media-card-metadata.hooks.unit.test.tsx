@@ -82,4 +82,32 @@ describe("legacy media card metadata", () => {
     expect(result.current.uploadDate).toBeNull();
     expect(result.current.metadataSeparator).toBe("");
   });
+
+  it.each([
+    { size: "size", date: "date", separator: " · ", dateTime: "original", visible: true },
+    { size: "size", date: null, separator: "", dateTime: undefined, visible: true },
+    { size: "", date: "date", separator: "", dateTime: "original", visible: true },
+    { size: "size", date: "", separator: "", dateTime: undefined, visible: true },
+    { size: "", date: "", separator: "", dateTime: undefined, visible: true },
+  ])("preserves presentation for size '$size' and date '$date'", ({ size, date, separator, dateTime, visible }) => {
+    const { result } = renderHook(() => useMediaCardMetadata({
+      item: { byteSize: 0, createdAt: "original" },
+    }, { formatters: { formatByteSize: () => size, formatUploadDate: () => date } }));
+    expect(result.current).toEqual({
+      byteSize: size, uploadDate: date, uploadDateTime: dateTime,
+      metadataSeparator: separator, hasMetadata: visible,
+    });
+  });
+
+  it.each([null, undefined])("skips formatting a %s byte size when the date port is absent", (byteSize) => {
+    const size = vi.fn(() => "size");
+    const { result } = renderHook(() => useMediaCardMetadata({
+      item: { byteSize, createdAt: "original" },
+    }, { formatters: { formatByteSize: size } }));
+    expect(size).not.toHaveBeenCalled();
+    expect(result.current).toEqual({
+      byteSize: null, uploadDate: null, uploadDateTime: undefined,
+      metadataSeparator: "", hasMetadata: false,
+    });
+  });
 });

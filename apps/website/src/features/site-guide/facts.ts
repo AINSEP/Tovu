@@ -1,4 +1,4 @@
-import { buildSiteProfile, toSiteProfileDeps, type SiteProfileSourceDeps, type SiteProfileSectionName } from "#src/features/site-inspection/index";
+import { buildSiteProfile, toSiteProfileDeps, type SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import type { SiteFact } from "./contracts.js";
 
 /** Only read ports: live registries and host module status. No settings or credential values. */
@@ -22,6 +22,30 @@ async function readScoped(input: { deps: SiteGuideFactsDeps; principalId: string
   } catch { return { status: "unavailable" }; }
 }
 
+const PROFILE_TOPICS = [["themes", "theme"], ["plugins", "plugins"], ["content", "contentTypes"]] as const;
+
+async function readProfileFacts({ deps, caller, requested }: {
+  deps: SiteGuideFactsDeps; caller: { principalId: string }; requested: ReadonlySet<string>;
+}, _options: Record<string, never> = {}): Promise<Record<string, SiteFact>> {
+  const sections = PROFILE_TOPICS.filter(([topic]) => requested.has(topic)).map(([, section]) => section);
+  const profile = sections.length ? await buildSiteProfile(toSiteProfileDeps(deps), caller, { sections }) : undefined;
+  const facts: Record<string, SiteFact> = {};
+  for (const [topic, section] of PROFILE_TOPICS) {
+    const read = profile?.sections[section];
+    if (!read) continue;
+    facts[topic] = read.status === "ok" ? { status: "ok", data: read.data, ...(read.truncated ? { truncated: true } : {}) } : { status: read.status };
+  }
+  return facts;
+}
+
+function mergeProfileRegistryFact({ prior, extra }: { prior: SiteFact | undefined; extra: SiteFact }, _options: Record<string, never> = {}): SiteFact {
+  // A partial read stays explicitly partial; a missing roster must never look empty.
+  if (prior?.status === "ok" && extra.status === "ok") {
+    return { status: "ok", data: { profile: prior.data, registry: extra.data }, ...(prior.truncated ? { truncated: true } : {}) };
+  }
+  return { status: prior?.status === "forbidden" || extra.status === "forbidden" ? "forbidden" : "unavailable" };
+}
+
 /** Read THIS booted site's projected facts. Site Inspection owns theme/plugin aggregation;
  * denied topics perform no registry or storage read. No cache: edits must be visible next call.
  * @returns Topic-keyed safe DTOs, with explicit forbidden/unavailable status.
@@ -33,16 +57,7 @@ export async function readSiteGuideFacts(input: {
 }, _options: Record<string, never> = {}): Promise<Readonly<Record<string, SiteFact>>> {
   const { deps, caller } = input;
   const requested = new Set(input.topics);
-  const sections: SiteProfileSectionName[] = [];
-  if (requested.has("themes")) sections.push("theme");
-  if (requested.has("plugins")) sections.push("plugins");
-  if (requested.has("content")) sections.push("contentTypes");
-  const profile = sections.length ? await buildSiteProfile(toSiteProfileDeps(deps), caller, { sections }) : undefined;
-  const facts: Record<string, SiteFact> = {};
-  for (const [topic, section] of [["themes", "theme"], ["plugins", "plugins"], ["content", "contentTypes"]] as const) {
-    const read = profile?.sections[section];
-    if (read) facts[topic] = read.status === "ok" ? { status: "ok", data: read.data, ...(read.truncated ? { truncated: true } : {}) } : { status: read.status };
-  }
+  const facts = await readProfileFacts({ deps, caller, requested });
   const reads: Record<string, { permission: string; read: () => Promise<unknown> }> = {
     widgets: { permission: "widgets.read", read: async () => ({ types: deps.listWidgetTypes().slice(0, 256) }) },
     forms: { permission: "admin.forms.manage", read: async () => ({ fieldTypes: deps.listFormFieldTypes().slice(0, 256) }) },
@@ -58,11 +73,7 @@ export async function readSiteGuideFacts(input: {
     if (!requested.has(topic)) continue;
     const extra = await readScoped({ deps, principalId: caller.principalId, ...spec });
     if (topic === "themes" || topic === "plugins") {
-      const prior = facts[topic];
-      // A partial read stays explicitly partial; a missing roster must never look empty.
-      facts[topic] = prior?.status === "ok" && extra.status === "ok"
-        ? { status: "ok", data: { profile: prior.data, registry: extra.data }, ...(prior.truncated ? { truncated: true } : {}) }
-        : { status: prior?.status === "forbidden" || extra.status === "forbidden" ? "forbidden" : "unavailable" };
+      facts[topic] = mergeProfileRegistryFact({ prior: facts[topic], extra });
     } else facts[topic] = extra;
   }
   return facts;

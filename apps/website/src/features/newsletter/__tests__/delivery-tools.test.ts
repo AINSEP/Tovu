@@ -468,3 +468,74 @@ test("resend abandoned during contact lookup creates no token or mail", async ()
   assert.deepEqual(await h.deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: "ws", subscriptionId: "subscription" }), []);
   assert.deepEqual(await h.deps.newsletterSubscriptionRepo.findById({ workspaceId: "ws", id: "subscription" }), subscription);
 });
+
+// L299: characterize the resend branches before separating its preflight and contact work.
+for (const scenario of ["pending", "missing", "subscribed", "no-contact", "aborted-contact"] as const) {
+  test(`L299 resend preserves acknowledgement and side effects: ${scenario}`, async () => {
+    const h = await fixture();
+    const abort = new AbortController();
+    if (scenario !== "missing") {
+      await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: scenario === "subscribed" ? "subscribed" : "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
+    }
+    let contacts = 0;
+    h.deps.newsletterSubscriberDirectory.getContact = async (input) => {
+      contacts++;
+      assert.deepEqual(input, { workspaceId: "ws", subscriberId: "subscriber" });
+      if (scenario === "aborted-contact") abort.abort();
+      if (scenario === "no-contact") return null;
+      return { workspaceId: "ws", subscriberId: "subscriber", email: "reader@example.com", emailDeliverable: true };
+    };
+    const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
+    h.tools.set(tool.descriptor.id, tool);
+    assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }, { signal: abort.signal }), scenario === "aborted-contact"
+      ? { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true }
+      : { delivered: true, mailDeliveryAvailable: true });
+    assert.equal(contacts, scenario === "missing" || scenario === "subscribed" ? 0 : 1);
+    assert.equal(h.messages.length, scenario === "pending" ? 1 : 0);
+    const tokens = await h.deps.newsletterConfirmationTokenRepo.findUnconsumedBySubscription({ workspaceId: "ws", subscriptionId: "subscription" });
+    assert.equal(tokens.length, scenario === "pending" ? 1 : 0);
+    assert.equal(h.store.size(), 0);
+  });
+}
+
+for (const failureAt of ["subscription", "contact", "send"] as const) {
+  test(`L299 resend hides ${failureAt} failures and logs only its fixed diagnostic`, async (t) => {
+    const h = await fixture();
+    await h.deps.newsletterSubscriptionRepo.save({ id: "subscription", workspaceId: "ws", listId: "list", subscriberId: "subscriber", status: "pending", source: "admin", subscribedAt: null, unsubscribedAt: null, consentRevisionIdAtSubscribe: null, createdAt: NOW, updatedAt: NOW });
+    const failure = new Error("reader@example.com private provider detail");
+    if (failureAt === "subscription") h.deps.newsletterSubscriptionRepo.findById = async () => { throw failure; };
+    h.deps.newsletterSubscriberDirectory.getContact = async () => {
+      if (failureAt === "contact") throw failure;
+      return { workspaceId: "ws", subscriberId: "subscriber", email: "reader@example.com", emailDeliverable: true };
+    };
+    h.deps.mailer.send = async () => { throw failure; };
+    const log = t.mock.method(console, "error", () => undefined);
+    const tool = buildNewsletterRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
+    h.tools.set(tool.descriptor.id, tool);
+    assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }), { delivered: true, mailDeliveryAvailable: true });
+    assert.deepEqual(log.mock.calls.map(call => call.arguments), [["[newsletter] confirmation request could not be processed; inspect mail configuration"]]);
+    assert.deepEqual(h.messages, []);
+  });
+}
+
+for (const driver of ["console", "memory"] as const) {
+  test(`L299 resend checks ${driver} before abandonment and checks driver again before lookup`, async () => {
+    const h = await fixture(driver);
+    const capabilities = h.deps.mailer.capabilities();
+    let reads = 0;
+    h.deps.mailer.capabilities = () => { reads++; return capabilities; };
+    h.deps.newsletterSubscriptionRepo.findById = async () => assert.fail("mail-off must not look up a subscription");
+    const tool = buildNewsletterRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
+    h.tools.set(tool.descriptor.id, tool);
+    const abort = new AbortController();
+    abort.abort();
+    const expected = { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." };
+    assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }, { signal: abort.signal }), expected);
+    assert.equal(reads, 1);
+    reads = 0;
+    h.deps.mailer.capabilities = () => ({ ...capabilities, driver: ++reads === 1 ? "smtp" : driver });
+    assert.deepEqual(await h.call(tool.descriptor.id, { subscriptionId: "subscription" }), expected);
+    assert.equal(reads, 2);
+    assert.deepEqual(h.messages, []);
+  });
+}

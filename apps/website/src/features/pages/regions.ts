@@ -135,7 +135,24 @@ function parseOpenTag(masked: string, lt: number): ParsedOpenTag | null {
   const name = /^<([a-zA-Z][a-zA-Z0-9:-]*)/.exec(masked.slice(lt, lt + 64));
   if (!name) return null;
 
-  let cursor = lt + name[0].length;
+  const cursor = findOpenTagEnd({ masked, from: lt + name[0].length });
+  if (cursor === null) return null;
+  const attrs = masked.slice(lt + name[0].length, cursor);
+  const handle = HANDLE_ATTRIBUTE_PATTERN.exec(attrs);
+  return {
+    tag: (name[1] as string).toLowerCase(),
+    handle: handle ? ((handle[1] ?? handle[2]) as string) : undefined,
+    innerStart: cursor + 1,
+    selfClosing: masked[cursor - 1] === "/",
+  };
+}
+
+/** Find the tag terminator while keeping `>` inside quoted attribute values literal. */
+function findOpenTagEnd(
+  { masked, from }: { masked: string; from: number },
+  _options: Record<string, never> = {},
+): number | null {
+  let cursor = from;
   let quote: string | null = null;
   while (cursor < masked.length) {
     const ch = masked[cursor];
@@ -144,14 +161,7 @@ function parseOpenTag(masked: string, lt: number): ParsedOpenTag | null {
     } else if (ch === '"' || ch === "'") {
       quote = ch;
     } else if (ch === ">") {
-      const attrs = masked.slice(lt + name[0].length, cursor);
-      const handle = HANDLE_ATTRIBUTE_PATTERN.exec(attrs);
-      return {
-        tag: (name[1] as string).toLowerCase(),
-        handle: handle ? ((handle[1] ?? handle[2]) as string) : undefined,
-        innerStart: cursor + 1,
-        selfClosing: masked[cursor - 1] === "/",
-      };
+      return cursor;
     }
     cursor += 1;
   }

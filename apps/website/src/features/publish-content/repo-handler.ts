@@ -217,10 +217,10 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       return row ? { version: versionOf(row), hash: hashOf(row) } : null;
     }
 
-    /** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
-    async function precheck(entity: PackedEntity): Promise<string | null> {
-      const p = ports();
-      if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
+    async function precheckAddress(
+      { entity, p }: { entity: PackedEntity; p: Ports },
+      _options: Record<string, never> = {}
+    ): Promise<string | null> {
       const { address } = config;
       const value = address ? entity.state[address.field] : undefined;
       if (address && typeof value === "string" && value) {
@@ -230,6 +230,15 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
           return held(entityType, address.field, value, idOf(holder));
         }
       }
+      return null;
+    }
+
+    /** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
+    async function precheck(entity: PackedEntity): Promise<string | null> {
+      const p = ports();
+      if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
+      const addressReason = await precheckAddress({ entity, p });
+      if (addressReason !== null) return addressReason;
       const existing = await config.find(p, workspaceId, entity.id);
       if (existing && config.isTrashed?.(existing)) return trashedAtDestination(entityType, entity.id);
       return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;

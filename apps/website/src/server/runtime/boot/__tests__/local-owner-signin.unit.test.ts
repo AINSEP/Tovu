@@ -122,3 +122,40 @@ test("deskfx2 MUST-1: a server child inherits no desktop capability", async () =
   assert.equal(child.status, 0, child.stderr);
   assert.deepEqual(JSON.parse(child.stdout), { captured: true, child: {}, status: 0 });
 });
+
+test("TW2: launch refusal reasons and precedence describe the existing policy", () => {
+  const cases: readonly [Record<string, string | undefined>, string][] = [
+    [{ TOVU_DESKTOP_OWNER_PID: "42" }, "invalid desktop capability or launcher parent"],
+    [{ NODE_ENV: "test" }, "production or non-development mode"],
+    [{ FLY_APP_NAME: "live", TOVU_DEV_SUPERVISOR_PID: "bad" }, "deployment detected"],
+    [{ TOVU_DEV_SUPERVISOR_PID: "0" }, "no local dev launcher"],
+    [{ TOVU_DEV_SUPERVISOR_PID: "1.5" }, "no local dev launcher"],
+    [{ TOVU_DEV_SUPERVISOR_PID: "9007199254740992" }, "no local dev launcher"],
+    [{ TOVU_DEV_SUPERVISOR_PID: "", TOVU_LOCAL_SITE_OWNER_PID: "42" }, "no local dev launcher"],
+    [{ TOVU_HOST: "0.0.0.0", TOVU_PUBLIC_URL: "bad" }, "listener is not loopback-only"],
+    [{ TOVU_HOST: "bad" }, "listener address is invalid"],
+    [{ TOVU_PUBLIC_URL: "https://example.com" }, "public origin is not loopback"],
+    [{ TOVU_PUBLIC_URL: "bad" }, "public origin is invalid"],
+  ];
+  for (const [override, reason] of cases) {
+    const policy = resolveLocalOwnerSignIn({ env: { ...dev, ...override } }, noContainer);
+    assert.equal(policy.enabled, false);
+    assert.ok(policy.warning?.includes(`is disabled: ${reason}.`), reason);
+  }
+  const probeFailure = resolveLocalOwnerSignIn({ env: dev }, { pathExists: () => { throw new Error("probe"); } });
+  assert.ok(probeFailure.warning?.includes("deployment status could not be verified"));
+  for (const TOVU_PUBLIC_URL of ["", "http://localhost/path", "https://[::1]:4000"]) {
+    assert.deepEqual(resolveLocalOwnerSignIn({ env: { ...dev, TOVU_PUBLIC_URL } }, noContainer), { enabled: true });
+  }
+});
+
+test("TW2: request admission pins proxy prefix, origin parsing and canonical spelling guards", () => {
+  const request = { host: "localhost:3000", origin: "http://localhost:3000", fetchSite: "same-origin", fetchMode: "cors", headers: {} };
+  for (const name of ["X-Envoy-Custom", "X-MS-Custom", "X-Forwarded-Custom"]) {
+    assert.equal(allowsLocalOwnerSignInRequest({ ...request, headers: { [name]: undefined } }), false);
+  }
+  assert.equal(allowsLocalOwnerSignInRequest({ ...request, headers: { "x-unrelated": "", accept: "*/*" } }), true);
+  for (const origin of ["bad", "ftp://localhost:3000", "http://localhost:3000/", "http://LOCALHOST:3000", "http://localhost:3001", "http://u@localhost:3000"]) {
+    assert.equal(allowsLocalOwnerSignInRequest({ ...request, origin }), false, origin);
+  }
+});

@@ -554,3 +554,75 @@ test("an unclosed region is refused with repair guidance and its stored HTML sur
 
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "unclosed" }), before);
 });
+
+// L254: pin the old read handler's fallback before flattening its nested catch.
+for (const { bodyJson, hasDocContent } of [
+  { bodyJson: { type: "doc" }, hasDocContent: false },
+  { bodyJson: { type: "doc", content: [] }, hasDocContent: false },
+  { bodyJson: DOC_WITH_PARAGRAPH, hasDocContent: true },
+]) {
+  test(`L254 doc fallback preserves every response field for ${JSON.stringify(bodyJson)}`, async () => {
+    const { repo, call } = harness();
+    await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "fallback", title: "Landing", kind: "page", bodyJson } });
+    const before = structuredClone(await repo.findById({ workspaceId: WS, id: "fallback" }));
+    assert.ok(before);
+    const result = await call("pages_read_html", { id: "fallback" });
+    assert.deepEqual(result, {
+      id: "fallback", html: "", regions: [], bodyFormat: "doc", version: before.version,
+      hasDocContent, theme: null,
+      ...(hasDocContent ? { note: "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
+        "replaces that rich-text body; the previous body is kept in the page's revision history." } : {}),
+    });
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: "fallback" }), before);
+  });
+}
+
+test("L254 an unrelated read failure propagates without consulting the doc fallback", async () => {
+  const failure = new Error("read unavailable");
+  const { repo, call } = harness({}, () => ({
+    read: async () => { throw failure; },
+    capturedVersion: () => null,
+    ensureHtmlFormat: async () => { assert.fail("read must not convert"); },
+    write: async () => { assert.fail("read must not write"); },
+  }));
+  repo.findById = async () => { assert.fail("unrelated read failures must not look up a doc row"); };
+  await assert.rejects(call("pages_read_html", { id: "fallback" }), error => error === failure);
+});
+
+for (const state of ["missing", "post", "trashed"] as const) {
+  test(`L254 a ${state} row cannot become an authorable doc fallback`, async () => {
+    const { repo, call } = harness({}, () => ({
+      read: async () => { throw new PageNotFoundError("original read failure"); },
+      capturedVersion: () => null,
+      ensureHtmlFormat: async () => { assert.fail("read must not convert"); },
+      write: async () => { assert.fail("read must not write"); },
+    }));
+    if (state !== "missing") {
+      await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "fallback", title: "Landing", kind: state === "post" ? "post" : "page" } });
+    }
+    if (state === "trashed") {
+      const row = await repo.findById({ workspaceId: WS, id: "fallback" });
+      assert.ok(row);
+      await repo.softDelete({ workspaceId: WS, id: row.id, version: row.version, deletedAt: "2026-08-05T00:00:00.000Z", updatedAt: "2026-08-05T00:00:00.000Z" });
+    }
+    const before = structuredClone(await repo.findById({ workspaceId: WS, id: "fallback" }));
+    await assert.rejects(call("pages_read_html", { id: "fallback" }), {
+      name: "ToolInputError", message: "PAGES_NOT_FOUND: original read failure",
+    });
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: "fallback" }), before);
+  });
+}
+
+test("L254 a successful HTML read returns the captured version without a fallback lookup", async () => {
+  const html = '<section data-agent-element="hero">Hello</section>';
+  const { repo, call } = harness({}, () => ({
+    read: async () => html,
+    capturedVersion: () => 7,
+    ensureHtmlFormat: async () => { assert.fail("read must not convert"); },
+    write: async () => { assert.fail("read must not write"); },
+  }));
+  repo.findById = async () => { assert.fail("HTML reads must not consult the doc fallback"); };
+  assert.deepEqual(await call("pages_read_html", { id: "fallback" }), {
+    id: "fallback", html, regions: ["hero"], version: 7, theme: null,
+  });
+});

@@ -555,16 +555,11 @@ export interface PublishContentCatalog {
   readonly applyOrder: readonly string[];
 }
 
-/**
- * Builds the per-operation handler catalog from the registry's current snapshot.
- *
- * Ordering declarations are configuration, not best-effort hints. A dependency on an
- * unregistered type or a dependency cycle makes every possible fallback order unsafe, so this
- * rejects before any handler is built or any publish-content read/write begins.
- */
-export function buildPublishContentCatalog(deps: PublishContentDeps): PublishContentCatalog {
-  const snapshot = [...contributors];
-  const originalOrder = snapshot.map((contributor) => contributor.entityType);
+/** Validates declared edges before any handler is built, counting each dependency once. */
+function catalogDependencies(
+  { snapshot, originalOrder }: { snapshot: readonly PublishContentContributor[]; originalOrder: readonly string[] },
+  _options: Record<string, never> = {}
+) {
   const known = new Set(originalOrder);
   const inDegree = new Map<string, number>(originalOrder.map((entityType) => [entityType, 0]));
   const dependents = new Map<string, string[]>();
@@ -582,6 +577,21 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
       dependents.set(dependency, waiting);
     }
   }
+
+  return { inDegree, dependents };
+}
+
+/**
+ * Builds the per-operation handler catalog from the registry's current snapshot.
+ *
+ * Ordering declarations are configuration, not best-effort hints. A dependency on an
+ * unregistered type or a dependency cycle makes every possible fallback order unsafe, so this
+ * rejects before any handler is built or any publish-content read/write begins.
+ */
+export function buildPublishContentCatalog(deps: PublishContentDeps): PublishContentCatalog {
+  const snapshot = [...contributors];
+  const originalOrder = snapshot.map((contributor) => contributor.entityType);
+  const { inDegree, dependents } = catalogDependencies({ snapshot, originalOrder });
 
   const applyOrder: string[] = [];
   const remaining = new Set(originalOrder);

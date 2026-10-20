@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { McpAuthFailedError, McpProtocolError } from "@jini-ai/mcp/federation";
 import { InMemoryExternalMcpServerRepo, saveExternalMcpServer, ExternalMcpReauthRequiredError } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -134,4 +135,65 @@ test("stored environment decryption failure uses fixed copy instead of a raw par
   const result = await probeExternalMcpServer({ ...deps, siteAssistantSecretSealer }, "hosted");
   assert.deepEqual(result, { ok: false, status: 502, body: { error: "stored credentials could not be decrypted — check the site credential store and re-enter them in Settings → External MCP", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(JSON.stringify(result).includes("env-secret"), false);
+});
+
+// Characterization pins for L211: the service classifies opaque failures without relaying them.
+const probeFailureCases: ReadonlyArray<{ title: string; error: unknown; status: number; code: string; copy: string }> = [
+  { title: "status 401", error: { status: 401 }, status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "status 403", error: { status: 403 }, status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "fallback statusCode", error: { statusCode: 401 }, status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "null status falls back", error: { status: null, statusCode: 403 }, status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "status takes precedence", error: { status: 500, statusCode: 401 }, status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "string status is not numeric", error: { status: "401" }, status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "typed authentication", error: new McpAuthFailedError({ message: "opaque" }), status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "protocol HTTP 401", error: new McpProtocolError({ message: "answered with HTTP 401" }), status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "protocol HTTP 403", error: new McpProtocolError({ message: "answered with HTTP 403" }), status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "HTTP suffix must match exactly", error: new McpProtocolError({ message: "with HTTP 401 extra" }), status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "plain error HTTP text is not protocol", error: new Error("with HTTP 401"), status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "abort error", error: Object.assign(new Error("opaque"), { name: "AbortError" }), status: 504, code: "MCP_TIMEOUT", copy: "The connection timed out." },
+  { title: "timeout error", error: Object.assign(new Error("opaque"), { name: "TimeoutError" }), status: 504, code: "MCP_TIMEOUT", copy: "The connection timed out." },
+  { title: "protocol timeout", error: new McpProtocolError({ message: "the request timed out after 20ms" }), status: 504, code: "MCP_TIMEOUT", copy: "The connection timed out." },
+  { title: "protocol abort", error: new McpProtocolError({ message: "the request was aborted" }), status: 504, code: "MCP_TIMEOUT", copy: "The connection timed out." },
+  { title: "plain timeout text is not protocol", error: new Error("request timed out"), status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "auth precedes timeout", error: Object.assign(new Error("opaque"), { status: 401, name: "TimeoutError" }), status: 401, code: "MCP_AUTH_REJECTED", copy: "The server rejected this token." },
+  { title: "plain object name is not an Error", error: { name: "TimeoutError" }, status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "null", error: null, status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "undefined", error: undefined, status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+  { title: "primitive", error: "opaque", status: 502, code: "MCP_SERVER_UNREACHABLE", copy: "Could not reach the server." },
+];
+for (const entry of probeFailureCases) {
+  for (const phase of ["connect", "list"] as const) {
+    test(`probe pins ${entry.title} during ${phase}, with cleanup`, async () => {
+      const deps = await fixture();
+      let closed = 0;
+      const result = await probeExternalMcpServer({ ...deps, connect: async () => {
+        if (phase === "connect") throw entry.error;
+        return {
+          listTools: async () => { throw entry.error; },
+          callTool: async () => { throw new Error("unused"); },
+          close: async () => { closed++; throw new Error("cleanup failure"); },
+        };
+      } }, "hosted");
+      assert.deepEqual(result, { ok: false, status: entry.status, body: { code: entry.code, error: entry.copy } });
+      assert.equal(closed, phase === "connect" ? 0 : 1);
+    });
+  }
+}
+
+for (const entry of [
+  { title: "connections missing", body: {} },
+  { title: "connections not array", body: { connections: {} } },
+  { title: "null body", body: null },
+  { title: "null config failures", body: { connections: [], configFailures: null } },
+  { title: "object config failures", body: { connections: [], configFailures: {} } },
+]) test(`admissions pins rejection of ${entry.title}`, async () => {
+  const result = await fetchDaemonAdmissions({ token: "fixture-token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => Response.json(entry.body) });
+  assert.deepEqual(result, { ok: false, body: { error: "the agent daemon is not reachable — the assistant may not be running", code: "AGENT_DAEMON_UNAVAILABLE" } });
+});
+
+test("admissions relays array entries verbatim but drops unrelated fields", async () => {
+  const connections = [null, "unvalidated", { custom: true }];
+  const configFailures = [false, { custom: "failure" }];
+  const result = await fetchDaemonAdmissions({ token: "fixture-token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => Response.json({ connections, configFailures, extra: true }) });
+  assert.deepEqual(result, { ok: true, connections, configFailures });
 });

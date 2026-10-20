@@ -397,11 +397,6 @@ export async function readBoundedBody(
   return { body: new TextDecoder("utf-8").decode(Buffer.concat(chunks)), bodyBytes: total, truncated };
 }
 
-/** Resolves once the server is fully closed. Mirrors `export/site-exporter.ts`'s own teardown. */
-async function closeServer(server: Server): Promise<void> {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-}
-
 /** Clamps `maxBytes` into `[1, MAX_MAX_BODY_BYTES]`, defaulting when absent or nonsensical. */
 function resolveMaxBytes(requested: number | undefined): number {
   if (requested === undefined || !Number.isInteger(requested) || requested < 1) return DEFAULT_MAX_BODY_BYTES;
@@ -438,9 +433,31 @@ export async function openLoopbackSiteServer(
     origin: `${LOOPBACK_HOST}:${address.port}`,
     async close() {
       server.closeAllConnections?.();
-      await closeServer(server);
+      // Resolves once the server is fully closed. Mirrors `export/site-exporter.ts`'s own teardown.
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
+}
+
+/** Maps transport aborts to the published-page error while leaving body-read failures unchanged. */
+async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
+  deps: FetchPublishedPageDeps; baseUrl: string; path: string; timeoutMs: number;
+}, _options: Record<string, never> = {}): Promise<Response> {
+  try {
+    // The default global `fetch` is read per call, so a test that swaps it is still honored.
+    const send = trackFetch({ fetch: deps.fetch ?? ((url, init) => fetch(url, init)), observability: deps.observability ?? UNTRACED });
+    return await send(`${baseUrl}${path}`, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      const timeout = new Error(`rendering '${path}' exceeded ${timeoutMs}ms`);
+      timeout.name = "PublishedPageTimeoutError";
+      throw timeout;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -484,22 +501,7 @@ export async function fetchPublishedPage(
     // Validated against the origin this call just minted — see `resolveSameOriginPath`'s doc.
     const path = resolveSameOriginPath(input.path, baseUrl);
 
-    let response: Response;
-    try {
-      // The default global `fetch` is read per call, so a test that swaps it is still honored.
-      const send = trackFetch({ fetch: deps.fetch ?? ((url, init) => fetch(url, init)), observability: deps.observability ?? UNTRACED });
-      response = await send(`${baseUrl}${path}`, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-    } catch (err) {
-      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-        const timeout = new Error(`rendering '${path}' exceeded ${timeoutMs}ms`);
-        timeout.name = "PublishedPageTimeoutError";
-        throw timeout;
-      }
-      throw err;
-    }
+    const response = await requestPublishedPage({ deps, baseUrl, path, timeoutMs });
 
     const headers: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -519,7 +521,6 @@ export async function fetchPublishedPage(
       headers,
       cookies: toCookieShapes(response.headers),
       ...shaped,
-      bodyBytes: legacy ? raw.bodyBytes : shaped.bodyBytes,
       truncated: raw.truncated || shaped.truncated,
     };
   } finally {

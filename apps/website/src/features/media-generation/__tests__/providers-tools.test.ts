@@ -383,3 +383,72 @@ test('the media provider contributor builds a working read-only provider catalog
   assert.equal(result.providers.some(provider => provider.id === 'tavily'), false);
   assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'media.read', workspaceId: 'ws-t10', entityType: 'media' }]);
 });
+
+// L241 pins both projections before sharing the saved-message formatting.
+for (const provider of ['openai', 'replicate']) {
+  for (const withHint of [true, false]) {
+    test(`L241 ${provider} saved result and outcome agree with hint=${withHint}`, async () => {
+      const f = fixture();
+      await saveMediaProviderCredentials(f.writeDeps, { workspaceId: 'ws-t10', providers: { [provider]: { apiKey: SECRET } } });
+      if (!withHint) {
+        const [row] = await f.repo.vault.list({ workspaceId: 'ws-t10', kind: 'media-provider', ownerKey: 'tovu', principalId: null });
+        assert.ok(row);
+        await f.repo.vault.put({ record: { ...row, tokenLength: null, last4: null, revision: row.revision + 1 }, expectedRevision: row.revision });
+      }
+      const emitted: SurfaceEmission[] = [];
+      let ready!: () => void;
+      const raised = new Promise<void>(resolve => { ready = resolve; });
+      const pending = f.call('credential_save', { provider }, { emitSurface: async surface => { emitted.push(surface); ready(); } });
+      await Promise.race([raised, pending.then(() => assert.fail('expected a form'))]);
+      submit(f, { apiKey: '' });
+      const message = `${withHint ? '…-731, 27 chars. ' : ''}Saved, not tested.${provider === 'replicate' ? ' Generation is not available yet for this provider.' : ''}`;
+      assert.deepEqual(await pending, { saved: true, provider, configured: true,
+        tokenHint: withHint ? { length: 27, last4: '-731' } : null, connection: 'not_tested', message });
+      assert.equal(emitted.length, 2);
+      const html = (emitted[1]!.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      assert.ok(html.includes(message));
+      assert.match(html, /Provider key saved/);
+      assert.match(html, /data-state="done"/);
+      assert.equal(f.surfaces.size(), 0);
+      assertNoSecret(emitted);
+    });
+  }
+}
+
+for (const ending of ['blank', 'safe-failure', 'raw-failure', 'cancelled', 'expired', 'abandoned'] as const) {
+  test(`L241 ${ending} pins the declined result and outcome visibility`, async t => {
+    t.mock.method(console, 'warn', () => {});
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const f = fixture(true, { idleTtlMs: 5 });
+    if (ending === 'raw-failure') f.repo.replaceWorkspace = async () => { throw new Error('storage unavailable'); };
+    const controller = new AbortController();
+    const { pending, emitted } = await form(f, { signal: controller.signal });
+    switch (ending) {
+      case 'expired': t.mock.timers.tick(5); break;
+      case 'abandoned': controller.abort(); break;
+      case 'cancelled': submit(f, { [SURFACE_DISMISSED_PARAM]: true }); break;
+      case 'blank': submit(f, { apiKey: '   ' }); break;
+      case 'safe-failure': submit(f, { apiKey: 'x'.repeat(8193) }); break;
+      case 'raw-failure': submit(f, { apiKey: SECRET }); break;
+    }
+    const result = await pending;
+    const messages = {
+      blank: 'Enter a token. Spaces alone are not a token.',
+      'safe-failure': 'The token exceeds the 8192-character limit. Copy only the token.',
+      'raw-failure': 'Nothing was saved. Check the key and the server credential store, then try again.',
+    };
+    const declined = { saved: false, provider: 'openai', configured: false };
+    if (ending === 'blank' || ending === 'safe-failure') assert.deepEqual(result, { ...declined, message: messages[ending] });
+    else assert.deepEqual(result, declined);
+    if (ending === 'blank' || ending === 'safe-failure' || ending === 'raw-failure') {
+      assert.equal(emitted.length, 2);
+      const html = (emitted[1]!.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      assert.ok(html.includes(messages[ending]));
+      assert.match(html, /Provider key not saved/);
+      assert.match(html, /data-state="failed"/);
+    } else assert.equal(emitted.length, 1);
+    assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
+    assert.equal(f.surfaces.size(), 0);
+    assertNoSecret(emitted);
+  });
+}

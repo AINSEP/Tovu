@@ -105,3 +105,24 @@ test("an SEO share image given as an absolute /m/ URL contributes its key, not t
     "og-card",
   ]);
 });
+
+test("TW2 pins malformed documents, asset precedence, inline config and SEO fallbacks", () => {
+  assert.deepEqual(keys({ bodyJson: [null, 3, { type: "image", attrs: { assetId: "", src: "/m/ignored/x" } },
+    { type: "media", attrs: { src: "/m/legacy/x" }, marks: [null, { attrs: { href: "/m/marked/x", count: 1 } }] },
+    { type: "widgetEmbed", attrs: { content: { html: '<img src="/m/inline/x">' } } }],
+    seoExtJson: { ogImage: ":empty", twitterImage: "seo:public" } }), ["", "inline", "legacy", "marked", "seo"]);
+  for (const seoExtJson of ['{', null, [], 2, { ogImage: 7 }]) assert.deepEqual(keys({ seoExtJson }), []);
+  assert.deepEqual(keys({ bodyHtml: `<div data-embed-config='{"type":"gallery","images":[{"src":"/m/decoded/x"},null]}'></div>` }), ["decoded"]);
+});
+
+import { collectPlacedWidgetMediaKeys } from "../media-references.js";
+test("TW2 pins placed-widget readability, missing entries, active modes and overlays", () => {
+  const bodyJson = [null, { type: "widgetEmbed", attrs: { widgetEntryId: "saved", content: { html: '<img src="/m/overlay/x">' } } }];
+  assert.deepEqual(collectPlacedWidgetMediaKeys({ bodyJson }), { keys: new Set(), readable: false });
+  assert.deepEqual(collectPlacedWidgetMediaKeys({ bodyJson, savedWidgets: new Map() }), { keys: new Set(), readable: true });
+  for (const config of [{ mode: "html", html: '<img src="/m/old/x">' }, { html: '<img src="/m/old/x">' }]) {
+    assert.deepEqual(collectPlacedWidgetMediaKeys({ bodyJson, savedWidgets: new Map([["saved", config]]) }), { keys: new Set(["overlay"]), readable: true });
+  }
+  const bodyHtml = `<div data-embed-config='{"type":"Widget","id":"saved"}'></div><div data-embed-config='{"type":"media","id":"other"}'></div>`;
+  assert.deepEqual(collectPlacedWidgetMediaKeys({ bodyHtml, savedWidgets: new Map([["saved", { mode: "html", html: '<img src="/m/saved/x">' }]]) }), { keys: new Set(["saved"]), readable: true });
+});

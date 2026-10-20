@@ -100,3 +100,37 @@ test("postpolish: public static render and editor preview share saved cover choi
   assert.equal(bodyJson.content.length, 2);
   assert.equal(writes(), 3); // Only the three explicit fixture saves; no render writes.
 });
+
+test("TW2 themed preview preserves saved and pending bodies across format and publication state", async () => {
+  const theme: DiscoveredTheme = {
+    manifest: { id: "pin-theme", name: "Pin", version: "1", tier: "static", engine: 1, templates: ["article.html"] },
+    dir: "/unused", tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: { article: `<html><body><main data-embed-config='{"type":"content"}'></main></body></html>` },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  };
+  const savedJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Saved body pin" }] }] };
+  const pendingJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Pending body pin" }] }] };
+  const cases = [
+    ["doc", "draft", "<p>Saved body pin</p>"], ["doc", "draft", null],
+    ["doc", "published", "<p>Saved body pin</p>"], ["doc", "published", null],
+    ["html", "draft", "<p>Saved body pin</p>"], ["html", "draft", null],
+    ["html", "published", "<p>Saved body pin</p>"], ["html", "published", null],
+  ] as const;
+  for (const [bodyFormat, status, bodyHtml] of cases) {
+    const post = { ...barePost, kind: "post" as const, templateChoice: "article.html", bodyFormat, status, bodyJson: savedJson, bodyHtml };
+    const { deps, repo, writes } = bareDeps([post]);
+    deps.themes = [theme];
+    deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: "pin-theme", updatedAt: post.updatedAt }] });
+    const saved = await renderPostPreview(deps, { post });
+    if (bodyFormat === "doc" || bodyHtml !== null) assert.match(saved.html, /Saved body pin/);
+    else assert.doesNotMatch(saved.html, /Saved body pin/);
+    const pending = await renderPostPreview(deps, { post, bodyJson: pendingJson, bodyHtml: "<p>Pending body pin</p>" });
+    assert.match(pending.html, /Pending body pin/);
+    assert.doesNotMatch(pending.html, /Saved body pin/);
+    const empty = await renderPostPreview(deps, { post, bodyJson: { type: "doc", content: [] }, bodyHtml: "" });
+    assert.doesNotMatch(empty.html, /Saved body pin|Pending body pin/);
+    assert.equal(empty.templateChoice, "article.html");
+    assert.deepEqual(await repo.findById({ workspaceId: "w", id: post.id }), post);
+    assert.equal(writes(), 0);
+  }
+});

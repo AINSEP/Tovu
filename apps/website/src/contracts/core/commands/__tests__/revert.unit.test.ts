@@ -573,3 +573,67 @@ test("a change set deleted during inverse application cannot be saved back as re
   assert.equal(deleted, true);
   assert.equal(saved, false);
 });
+
+test("L079: inverse availability is checked before any version read, including under force", async () => {
+  const reads: string[] = [];
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", {
+    currentVersion: async ({ entityId }) => { reads.push(entityId); return null; },
+    applyInverse: async () => { assert.fail("preconditions must prevent writes"); },
+  });
+  const changeSets = new InMemoryChangeSetRepo([baseChangeSet()], [
+    baseItem({ id: "valid", position: 2 }), baseItem({ id: "missing-inverse", inversePayload: undefined }),
+  ]);
+  await assert.rejects(revertChangeSet({ deps: { changeSets, registry, clock, idGen },
+    input: { workspaceId: WS, changeSetId: "cs-1", force: true, principalKind: "user" } }),
+    { message: "change-set item 'missing-inverse' has no inverse payload and cannot be reverted" });
+  assert.deepEqual(reads, []);
+});
+
+test("L079: force without principal kind bypasses stale versions (reported, not fixed)", async () => {
+  const changeSets = new InMemoryChangeSetRepo([baseChangeSet()], [baseItem()]);
+  const registry = createRevertRegistry();
+  const applied: string[] = [];
+  registry.register('widget', 'update', fakeReverter({ currentVersion: 2, onApplyInverse: item => { applied.push(item.id); } }));
+  const result = await revertChangeSet({ deps: { changeSets, registry, clock, idGen },
+    input: { workspaceId: WS, changeSetId: 'cs-1', force: true } });
+  assert.equal(result.status, 'reverted');
+  assert.deepEqual(applied, ['csi-1']);
+});
+
+
+test("L079: a later inverse failure leaves earlier writes applied (reported, not fixed)", async () => {
+  const changeSet = baseChangeSet();
+  const changeSets = new InMemoryChangeSetRepo([changeSet], [
+    baseItem({ id: "first", entityId: "first", position: 1 }),
+    baseItem({ id: "later", entityId: "later", position: 0 }),
+  ]);
+  const values = new Map([["first", "new-first"], ["later", "new-later"]]);
+  const attempted: string[] = [];
+  const failure = new Error("inverse write failed");
+  const registry = createRevertRegistry();
+  registry.register("widget", "update", {
+    currentVersion: async () => 1,
+    applyInverse: async ({ item }) => {
+      attempted.push(item.entityId);
+      if (item.entityId === "later") throw failure;
+      values.set(item.entityId, "old-first");
+    },
+  });
+  const saves: ChangeSetRecord[] = [];
+  const save = changeSets.save.bind(changeSets);
+  changeSets.save = async record => { saves.push(record); await save(record); };
+  const enqueued: DomainEvent[] = [];
+  const outbox: OutboxPort = {
+    enqueue: async event => { enqueued.push(event); },
+    claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {},
+  };
+  await assert.rejects(revertChangeSet({ deps: { changeSets, registry, clock, idGen, outbox },
+    input: { workspaceId: WS, changeSetId: changeSet.id } }), error => error === failure);
+  assert.deepEqual(attempted, ["first", "later"]);
+  assert.deepEqual([...values], [["first", "old-first"], ["later", "new-later"]]);
+  assert.deepEqual(saves, []);
+  assert.deepEqual(enqueued, []);
+  const persisted = await changeSets.findById({ workspaceId: WS, id: changeSet.id });
+  assert.deepEqual(persisted?.changeSet, changeSet);
+});

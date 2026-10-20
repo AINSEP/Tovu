@@ -1,4 +1,7 @@
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
+/** True iff `err` is the `(workspace_id, label)` UNIQUE index rejecting a write, from any database
+ *  (`isUniqueViolation`, storage kernel: SQLite's message, Postgres SQLSTATE 23505).
+ *  @complexity O(n) in the message length. */
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialTokenHint } from "#src/contracts/core/credential-token";
@@ -177,7 +180,7 @@ function peerRecord({ record }: { record: VaultRecord }, _options = {}): Publish
   const meta = peerKinds.metaParsers["publish-peer"]({ meta: record.meta });
   return { workspaceId: record.workspaceId, id: record.id, label: record.label, baseUrl: meta.baseUrl as string,
     remoteWorkspaceId: meta.remoteWorkspaceId as string, sealed: record.sealed,
-    masked: record.sealed ? `••••${record.tokenLength !== null && record.tokenLength >= 12 ? record.last4?.slice(-4) ?? "" : ""}` : null,
+    masked: peerRecordHint({ record }),
     aadVersion: 1, createdAt: record.createdAt, updatedAt: record.updatedAt };
 }
 
@@ -227,13 +230,6 @@ function requireBaseUrl(raw: unknown): string {
   return result.baseUrl;
 }
 
-/** True iff `err` is the `(workspace_id, label)` UNIQUE index rejecting a write, from any database
- *  (`isUniqueViolation`, storage kernel: SQLite's message, Postgres SQLSTATE 23505).
- *  @complexity O(n) in the message length. */
-function isUniqueLabelViolation(err: unknown): boolean {
-  return isUniqueViolation(err);
-}
-
 export interface CreatePeerInput {
   readonly workspaceId: string;
   readonly label: unknown;
@@ -268,12 +264,7 @@ export async function createPublishContentPeer(
       binding: null, expectedRevision: null, label, meta: { baseUrl, remoteWorkspaceId },
       payload: { apiKey }, hintToken: apiKey });
   } catch (err) {
-    if (isUniqueLabelViolation(err) || (err instanceof VaultError && err.code === "conflict" &&
-      (await deps.repo.listByWorkspace({ workspaceId: input.workspaceId })).some(row => row.label === label))) {
-      throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
-    }
-    if (err instanceof VaultError) throw err;
-    throw new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured");
+    await rethrowPeerWriteError(deps, { err, workspaceId: input.workspaceId, label });
   }
   return { id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey(apiKey), hasCredential: true };
 }
@@ -312,11 +303,7 @@ export async function updatePublishContentPeer(
 
   const now = nowIso({ clock: deps.clock });
   if (input.apiKey === undefined) {
-    try { await deps.repo.update({ ...existing, label, baseUrl, remoteWorkspaceId, updatedAt: now }); }
-    catch (err) {
-      if (isUniqueLabelViolation(err)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
-      throw err;
-    }
+    await updatePeerMetadata(deps, { record: { ...existing, label, baseUrl, remoteWorkspaceId, updatedAt: now } });
     return toPeerSummary({ ...existing, label, baseUrl, remoteWorkspaceId });
   }
   const apiKey = requireBoundedField(input.apiKey, "apiKey");
@@ -327,12 +314,7 @@ export async function updatePublishContentPeer(
       binding: null, expectedRevision: current.revision, label, meta: { ...current.meta, baseUrl, remoteWorkspaceId },
       payload: { apiKey }, hintToken: apiKey });
   } catch (err) {
-    if (isUniqueLabelViolation(err) || (err instanceof VaultError && err.code === "conflict" &&
-      (await deps.repo.listByWorkspace({ workspaceId: input.workspaceId })).some(row => row.id !== input.id && row.label === label))) {
-      throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
-    }
-    if (err instanceof VaultError) throw err;
-    throw new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured");
+    await rethrowPeerWriteError(deps, { err, workspaceId: input.workspaceId, label, excludeId: input.id });
   }
   return { id: input.id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey(apiKey), hasCredential: true };
 }
@@ -442,15 +424,10 @@ export class VaultPublishContentPeerRepo implements PublishContentPeerRepoPort {
     const existing = insert ? null : await this.vault.find(record);
     if (!insert && !existing) return;
     if (existing) peerRecord({ record: existing });
-    const meta = peerKinds.metaParsers["publish-peer"]({ meta: { ...existing?.meta, baseUrl: record.baseUrl, remoteWorkspaceId: record.remoteWorkspaceId } });
-    const saved: VaultRecord = { ...peerScope, workspaceId: record.workspaceId, id: record.id, binding: null,
-      label: record.label, meta, sealed: record.sealed, isDefault: existing?.isDefault ?? false,
-      revision: (existing?.revision ?? 0) + 1, last4: record.sealed ? existing?.last4 ?? null : null,
-      tokenLength: record.sealed ? existing?.tokenLength ?? null : null, createdAt: existing?.createdAt ?? record.createdAt, updatedAt: record.updatedAt };
+    const saved = replacementPeerRecord({ record, existing });
     try { await this.vault.put({ record: saved, expectedRevision: existing?.revision ?? null }); }
     catch (err) {
-      if (err instanceof VaultError && err.code === "conflict" &&
-        (await this.vault.list({ ...peerScope, workspaceId: record.workspaceId })).some(row => row.id !== record.id && row.label === record.label)) {
+      if (await vaultLabelConflicts({ vault: this.vault, err, record })) {
         throw new Error("UNIQUE constraint failed: publish_content_peers.workspace_id, publish_content_peers.label");
       }
       throw err;
@@ -605,4 +582,55 @@ export async function removeConnectedDestination(
   if (!match) return false;
   await deps.repo.delete({ workspaceId: input.workspaceId, id: match.id });
   return true;
+}
+
+/** Read-only hint projection retains the legacy length threshold without opening the envelope. */
+function peerRecordHint({ record }: { record: VaultRecord }, _options = {}): string | null {
+  if (!record.sealed) return null;
+  const last4 = record.tokenLength !== null && record.tokenLength >= 12 ? record.last4?.slice(-4) ?? "" : "";
+  return `••••${last4}`;
+}
+
+/** The same vault-write failure policy governs create and credential replacement. */
+async function rethrowPeerWriteError(
+  { repo }: PublishContentPeerReadDeps,
+  { err, workspaceId, label, excludeId }: { err: unknown; workspaceId: string; label: string; excludeId?: string },
+): Promise<never> {
+  if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
+  if (err instanceof VaultError && err.code === "conflict") {
+    const rows = await repo.listByWorkspace({ workspaceId });
+    if (rows.some(row => row.id !== excludeId && row.label === label)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
+  }
+  if (err instanceof VaultError) throw err;
+  throw new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured");
+}
+
+async function updatePeerMetadata({ repo }: PublishContentPeerReadDeps, { record }: { record: PublishContentPeerRecord }): Promise<void> {
+  try { await repo.update(record); }
+  catch (err) {
+    if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${record.label}' already exists in this workspace`);
+    throw err;
+  }
+}
+
+/** Preserve opaque envelope bytes and vault defaults when the feature edits metadata. */
+function replacementPeerRecord({ record, existing }: { record: PublishContentPeerRecord; existing: VaultRecord | null }, _options = {}): VaultRecord {
+  const meta = peerKinds.metaParsers["publish-peer"]({ meta: { ...existing?.meta, baseUrl: record.baseUrl, remoteWorkspaceId: record.remoteWorkspaceId } });
+  return { ...peerScope, workspaceId: record.workspaceId, id: record.id, binding: null,
+    label: record.label, meta, sealed: record.sealed, updatedAt: record.updatedAt,
+    ...peerRevisionFields({ record, existing }), ...peerEnvelopeHint({ record, existing }) };
+}
+
+function peerRevisionFields({ record, existing }: { record: PublishContentPeerRecord; existing: VaultRecord | null }, _options = {}): Pick<VaultRecord, "isDefault" | "revision" | "createdAt"> {
+  return { isDefault: existing?.isDefault ?? false, revision: (existing?.revision ?? 0) + 1, createdAt: existing?.createdAt ?? record.createdAt };
+}
+
+function peerEnvelopeHint({ record, existing }: { record: PublishContentPeerRecord; existing: VaultRecord | null }, _options = {}): Pick<VaultRecord, "last4" | "tokenLength"> {
+  if (!record.sealed) return { last4: null, tokenLength: null };
+  return { last4: existing?.last4 ?? null, tokenLength: existing?.tokenLength ?? null };
+}
+
+async function vaultLabelConflicts({ vault, err, record }: { vault: VaultRepoPort; err: unknown; record: PublishContentPeerRecord }, _options = {}): Promise<boolean> {
+  return err instanceof VaultError && err.code === "conflict" &&
+    (await vault.list({ ...peerScope, workspaceId: record.workspaceId })).some(row => row.id !== record.id && row.label === record.label);
 }

@@ -16,7 +16,7 @@
  * available even when transport config is invalid. Jini owns validation of URLs and metadata lists.
  */
 import { parseAgentPluginMcpConfig as parseMcpConfig } from "@jini-ai/agent-plugins/lifecycle";
-import type { AgentPluginDefaultTools, AgentPluginTokenAuth, StdioMcpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
+import type { AgentPluginDefaultTools, AgentPluginTokenAuth, StdioMcpServerConfig, McpServerConfig as JiniMcpServerConfig } from "@jini-ai/agent-plugins/lifecycle";
 
 export interface RemoteMcpServerConfig {
   readonly type: "streamable-http" | "sse";
@@ -57,6 +57,21 @@ function readTovuServerMetadata({ server, value }: { readonly server: Readonly<R
   };
 }
 
+function translateMcpServer(
+  { server }: { readonly server: JiniMcpServerConfig },
+  _optional = {},
+): McpServerConfig {
+  if (server.type === "stdio") return server;
+  const { authMode, defaultTools, tokenAuth, renamedTools, ...transport } = server;
+  return {
+    ...transport,
+    ...(authMode !== undefined ? { tovuAuthMode: authMode } : {}),
+    ...(defaultTools !== undefined ? { tovuDefaultTools: defaultTools } : {}),
+    ...(tokenAuth !== undefined ? { tovuTokenAuth: tokenAuth } : {}),
+    ...(renamedTools !== undefined ? { tovuRenamedTools: renamedTools } : {}),
+  };
+}
+
 /** Translate host wire names around the shared parser, retaining all declared ids and only valid
  * transport configs. Null-prototype output prevents hostile server ids mutating object prototypes.
  * @complexity O(s + n) in servers and their bounded metadata lists.
@@ -69,15 +84,7 @@ export function parseAgentPluginMcpConfig(
   if (!parsed.ok) return parsed;
   const servers: Record<string, McpServerConfig> = Object.create(null);
   for (const [id, server] of Object.entries(parsed.config.servers)) {
-    if (server.type === "stdio") { servers[id] = server; continue; }
-    const { authMode, defaultTools, tokenAuth, renamedTools, ...transport } = server;
-    servers[id] = {
-      ...transport,
-      ...(authMode !== undefined ? { tovuAuthMode: authMode } : {}),
-      ...(defaultTools !== undefined ? { tovuDefaultTools: defaultTools } : {}),
-      ...(tokenAuth !== undefined ? { tovuTokenAuth: tokenAuth } : {}),
-      ...(renamedTools !== undefined ? { tovuRenamedTools: renamedTools } : {}),
-    };
+    servers[id] = translateMcpServer({ server });
   }
   return { ok: true, config: { serverIds: parsed.config.serverIds, servers } };
 }

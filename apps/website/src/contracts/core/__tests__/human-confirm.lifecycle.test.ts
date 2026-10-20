@@ -213,3 +213,23 @@ test('custom declined results handle an abort before preparation', async (t) => 
   assert.deepEqual(await handler(h.ctx), { refused: 'abandoned', prepared: null });
   assert.equal(h.store.size(), 0);
 });
+
+test('L079: empty description and warning are omitted, cancel label stays empty, and non-string choice is ignored', async t => {
+  const h = harness(t);
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: { surfaceExchanges: h.store }, spec: {
+    ...h.spec, description: '', warning: '', cancelLabel: '', alternatives: [],
+  } }, { emitSurface: h.emitSurface });
+  await turn();
+  assert.equal(h.emitted.length, 1);
+  const { resource } = h.emitted[0].payload as { resource: { resource: { text: string } } };
+  const html = resource.resource.text;
+  assert.match(html, /<h1 class="mcpui-title">Approve this action\?<\/h1>/);
+  assert.match(html, /data-mcpui-action="confirm"[^>]*>Allow once<\/button>/);
+  assert.doesNotMatch(html, /<p class="mcpui-(?:description|warning)">/);
+  const cancel = /<button\b[^>]*data-mcpui-action="cancel"[^>]*>([\s\S]*?)<\/button>/.exec(html);
+  assert.ok(cancel, 'the emitted card must still offer cancel');
+  assert.equal(cancel[1], '', 'an empty cancelLabel must not fall back to Cancel');
+  h.answer({ decision: 'confirm', choice: 42 });
+  assert.deepEqual(await pending, { confirmed: true });
+  assert.equal(h.store.size(), 0);
+});

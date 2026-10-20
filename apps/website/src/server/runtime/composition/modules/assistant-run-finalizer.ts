@@ -173,7 +173,7 @@ export function createHttpRunDaemonClient(
       await response.body?.cancel();
     },
     async cancel(required, _options) {
-      const url = replayOrigins.get(replayKey(required, {})) ?? await origin();
+      const url = replayOrigins.get(replayKey(required)) ?? await origin();
       const response = await send(`${url}/api/runs/${encodeURIComponent(required.runId)}/cancel`, {
         method: "POST", headers: { ...daemonHeaders(required.principalId), "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "recovery-fence" }), signal: AbortSignal.timeout(5_000),
@@ -181,13 +181,13 @@ export function createHttpRunDaemonClient(
       await response.body?.cancel();
     },
     openEvents: async (required, { signal } = {}) =>
-      send(`${replayOrigins.get(replayKey(required, {})) ?? await origin()}/api/runs/${encodeURIComponent(required.runId)}/events`, { headers: daemonHeaders(required.principalId), signal }),
+      send(`${replayOrigins.get(replayKey(required)) ?? await origin()}/api/runs/${encodeURIComponent(required.runId)}/events`, { headers: daemonHeaders(required.principalId), signal }),
     async runStatus(required, requestOptions = {}) {
       try {
         const url = await origin();
         const status = await statusAt({ ...required, url }, requestOptions);
         if (status !== null && status !== 404) {
-          replayOrigins.delete(replayKey(required, {}));
+          replayOrigins.delete(replayKey(required));
           return status;
         }
         const current = (optional.currentUrl ?? getAgentDaemonUrl)();
@@ -197,8 +197,8 @@ export function createHttpRunDaemonClient(
         // before declaring death; a live prior response always wins. A registry read error still
         // fails closed because the owning address is then unknown.
         const currentStatus = await statusAt({ ...required, url: current }, requestOptions);
-        if (currentStatus === 200) replayOrigins.set(replayKey(required, {}), current);
-        else replayOrigins.delete(replayKey(required, {}));
+        if (currentStatus === 200) replayOrigins.set(replayKey(required), current);
+        else replayOrigins.delete(replayKey(required));
         return currentStatus;
       } catch {
         return null;
@@ -255,7 +255,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const observability = options.observability ?? createNoopObservabilityPort({});
   const daemon = options.daemon ?? createHttpRunDaemonClient({ observability });
   const now = options.now ?? Date.now;
-  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs } = recoverySettings({ options }, {});
+  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs } = recoverySettings({ options });
   const scheduler = options.scheduler ?? createNodeSupervisorScheduler({});
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
   const recoveryStore = options.ledger.durable;
@@ -343,7 +343,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     }
     // A launch can still be committing after durable acceptance. Space repeated missing-run
     // probes so its short grace window cannot turn into a hot loop of adopted watches.
-    await delay({ ms: reconnectDelayMs }, {});
+    await delay({ ms: reconnectDelayMs });
     await recovery.recover({ messageId: watch.messageId, expectedRunId: watch.runId, trigger }, {});
   }
 
@@ -472,6 +472,26 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     }
   }
 
+  /** Renews a freshly verified live watch; uncertainty keeps the current reconnect budget.
+   * A live run may outlast that budget, so restart counting rather than abandon its saved row.
+   * Returns the next counter, or undefined after recovery relinquishes this watch and its stream.
+   * @complexity O(1) bookkeeping plus one existing durable-recovery call for a live run. */
+  async function prepareReconnect({ watch, status, attempt }: { watch: Watch; status: number | null; attempt: number }, _options: Record<string, never> = {}): Promise<number | undefined> {
+    if (status !== 200) return attempt;
+    if (!await retainLiveWatch(watch)) {
+      watch.terminal = true;
+      watch.abortStream.abort();
+      return undefined;
+    }
+    watch.resolutionDeadline = now() + resolutionTimeoutMs;
+    if (attempt === maxReconnects) {
+      // Keep monitoring a live run even after exhausting reconnects: its later death must
+      // not strand the row until another browser attachment or serving boot.
+      return -1;
+    }
+    return attempt;
+  }
+
   /** Follows the run to a terminal outcome or bounded resolution and reports it to the tracker. */
   async function follow(watch: Watch): Promise<AgentRunStatus> {
     for (let attempt = 0; ; attempt += 1) {
@@ -482,20 +502,14 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       // Recheck its owning endpoint before either retrying or applying the bounded fallback. Even
       // an events 404 must not override a fresh live answer from the daemon that holds the slot.
       const status = await probe({ runId: watch.runId, principalId: watch.principalId }, { client: watch.daemon });
-      if (shouldRecover({ status, result, attempt, watch }, {})) {
+      if (shouldRecover({ status, result, attempt, watch })) {
         await recoverWatch(watch, status === 404 ? "stream" : "timeout");
         return "interrupted";
       }
-      if (status === 200) {
-        if (!await retainLiveWatch(watch)) { watch.terminal = true; watch.abortStream.abort(); return "interrupted"; }
-        watch.resolutionDeadline = now() + resolutionTimeoutMs;
-        if (attempt === maxReconnects) {
-          // Keep monitoring a live run even after exhausting reconnects: its later death must
-          // not strand the row until another browser attachment or serving boot.
-          attempt = -1;
-        }
-      }
-      await delay({ ms: Math.min(reconnectDelayMs, Math.max(0, watch.resolutionDeadline - now())) }, {});
+      const nextAttempt = await prepareReconnect({ watch, status, attempt });
+      if (nextAttempt === undefined) return "interrupted";
+      attempt = nextAttempt;
+      await delay({ ms: Math.min(reconnectDelayMs, Math.max(0, watch.resolutionDeadline - now())) });
     }
   }
 
@@ -529,12 +543,12 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     },
     watch({ principalId, conversationId, message }, optional = {}) {
       const runId = message.runId;
-      if (!watchable({ message }, {}) || !runId) return;
+      if (!watchable({ message }) || !runId) return;
       if (active.has(runId) && !active.get(runId)!.watch.terminal) return;
 
       const watch = makeWatch({ principalId, conversationId, message, runId,
         daemon: optional.daemon ?? daemon, attemptBase: optional.attemptBase ?? [], now: now(), resolutionTimeoutMs,
-      }, {});
+      });
       startWatch(watch);
     },
 

@@ -77,7 +77,20 @@ export function registerAdminPageWebMcpTools(
       description: `${registration.description} Protected actions return approval_required; explicitly answer through admin.respond_page_approval before they run. Ordinary edits run directly.`,
     } : registration);
   }
-  if (approvals) register({
+  registerAdminPageApprovalTool({ approvals, signal, assertOpen, register });
+}
+
+function registerAdminPageApprovalTool(
+  { approvals, signal, assertOpen, register }: {
+    approvals: AdminPageApprovalStore | undefined;
+    signal: AbortSignal;
+    assertOpen: () => void;
+    register: (registration: WebMcpToolRegistration) => void;
+  },
+  _optional: Record<string, never> = {},
+): void {
+  if (!approvals) return;
+  register({
     name: "admin.respond_page_approval",
     description: "Explicitly approve or decline the exact pending admin page action. Approval executes it once; never approve a destructive action without the user's authorization.",
     inputSchema: { type: "object", properties: { approvalId: { type: "string" }, approved: { type: "boolean" } }, required: ["approvalId", "approved"], additionalProperties: false },

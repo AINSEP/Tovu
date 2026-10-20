@@ -677,3 +677,32 @@ test("round trip: pack -> apply to an empty destination -> re-pack yields an ide
     }
   );
 });
+
+test("L163 precheck preserves address validation gates and refusal precedence", async () => {
+  const repo = new FakeItemRepo();
+  const holder: Row = { id: "holder", workspaceId: WORKSPACE_ID, slug: "taken", title: "Holder", note: "", status: "active", version: 1 };
+  const calls: string[] = [];
+  const config = baseConfig({
+    address: { field: "slug", holder: async () => { calls.push("address"); return holder; } },
+    find: async () => { calls.push("find"); return null; },
+    validate: async () => { calls.push("validate"); return "validated"; },
+  });
+  const handler = buildHandler(config, makeDeps({ repo }));
+  for (const value of [undefined, null, 7, ""]) {
+    calls.length = 0;
+    assert.equal(await handler.precheck(packedEntity("incoming", { slug: value })), "validated");
+    assert.deepEqual(calls, ["find", "validate"]);
+  }
+  calls.length = 0;
+  assert.equal(await handler.precheck(packedEntity("incoming", { slug: "taken" })), addressHeldByOther("item", "slug", "taken", "holder"));
+  assert.deepEqual(calls, ["address"]);
+  calls.length = 0;
+  assert.equal(await buildHandler(config, makeDeps(undefined)).precheck(packedEntity("incoming", { slug: "taken" })), notWired("item", "incoming", "item port"));
+  assert.deepEqual(calls, []);
+  const same = buildHandler({ ...config, address: { field: "slug", holder: async () => holder } }, makeDeps({ repo }));
+  assert.equal(await same.precheck(packedEntity("holder", { slug: "taken" })), "validated");
+  const free = buildHandler({ ...config, address: { field: "slug", holder: async () => null }, validate: undefined }, makeDeps({ repo }));
+  assert.equal(await free.precheck(packedEntity("incoming", { slug: "free" })), null);
+  const noAddress = buildHandler({ ...config, address: undefined }, makeDeps({ repo }));
+  assert.equal(await noAddress.precheck(packedEntity("incoming", { slug: "taken" })), "validated");
+});

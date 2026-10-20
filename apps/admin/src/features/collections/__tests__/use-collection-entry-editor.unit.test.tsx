@@ -889,3 +889,58 @@ describe("collection editor fake port contract", () => {
     expect((await port.listEntries({})).items).toEqual([sibling, { ...ENTRY, status: "unpublished", version: 4 }]);
   });
 });
+
+describe("L289 working-copy hydration characterization", () => {
+  it.each([null, {}, { ext: null }, { ext: {} }, { ext: { site: null } }, { ext: { site: {} } }])(
+    "hydrates absent or empty site fields without changing the loaded entry (%j)", async (fieldsJson) => {
+      const entry: AdminEntry = { ...ENTRY, fieldsJson, bodyJson: null };
+      const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [entry] });
+      const { result } = renderHook(() => useCollectionEntryEditor(
+        { contentTypeKey: "recipe", entryId: entry.id },
+        { port, navigate: vi.fn(), locale: "en", t: key => key },
+      ), { wrapper });
+      await waitFor(() => expect(result.current.entry).toEqual(entry));
+      expect(result.current.title).toBe(entry.title);
+      expect(result.current.slug).toBe(entry.slug);
+      expect(result.current.extFields).toEqual({});
+      expect(result.current.editor!.getText()).toBe("");
+      expect(port.entries[0]).toEqual(entry);
+    },
+  );
+
+  it("shallow-copies populated site fields into the editable working copy", async () => {
+    const site = { notes: "Original", nested: { enabled: true } };
+    const entry: AdminEntry = { ...ENTRY_WITH_BODY, fieldsJson: { ext: { site } } };
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [entry] });
+    const { result } = renderHook(() => useCollectionEntryEditor(
+      { contentTypeKey: "recipe", entryId: entry.id },
+      { port, navigate: vi.fn(), locale: "en", t: key => key },
+    ), { wrapper });
+    await waitFor(() => expect(result.current.entry).toEqual(entry));
+    expect(result.current.extFields).toEqual(site);
+    expect(result.current.extFields).not.toBe(site);
+    expect(result.current.extFields.nested).toBe(site.nested);
+    expect(result.current.editor!.getJSON()).toEqual(entry.bodyJson);
+  });
+
+  it.each([null, "missing-entry"])("clears a populated working copy when switching to %s", async entryId => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY_WITH_BODY] });
+    const navigateSpy = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ entryId }: { entryId: string | null }) => useCollectionEntryEditor(
+        { contentTypeKey: "recipe", entryId },
+        { port, navigate: navigateSpy, locale: "en", t: key => key },
+      ),
+      { initialProps: { entryId: ENTRY.id as string | null }, wrapper },
+    );
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY_WITH_BODY));
+    expect(result.current.editor!.getJSON()).toEqual(ENTRY_WITH_BODY.bodyJson);
+    rerender({ entryId });
+    await waitFor(() => expect(result.current.entry).toBeNull());
+    expect(result.current.title).toBe("");
+    expect(result.current.slug).toBe("");
+    expect(result.current.extFields).toEqual({});
+    expect(result.current.editor!.getText()).toBe("");
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});

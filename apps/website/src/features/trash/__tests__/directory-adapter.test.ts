@@ -255,3 +255,103 @@ test("hide refuses a parking root that resolves inside the live parent through a
   await assert.rejects(adapter.hide(markerArgs()), /resolves inside live parent/);
   assert.equal(await pathExists(liveDir), true);
 });
+
+// L128 pins: exercise the shared staging lifecycle through real filesystem operations.
+for (const operation of ["hide", "unhide"] as const) {
+  for (const afterRename of [false, true]) {
+    test(`${operation} rolls back every staged root when the second rename throws ${afterRename ? "after moving (reported, not fixed)" : "before moving"}`, async (t) => {
+      const { liveParent, parkedDir } = await harness(t);
+      const source = operation === "hide" ? liveParent : parkedDir;
+      const destination = operation === "hide" ? parkedDir : liveParent;
+      await mkdir(source, { recursive: true });
+      for (const name of ["first", "second"]) await makeLive(join(source, name));
+      const failure = new Error("staged move failed");
+      const adapter = createDirectoryTrashAdapter({
+        entityType: ENTITY,
+        locate: () => ({ liveParent, parkedDir, liveNames: operation === "hide" ? ["first", "second"] : [] }),
+      }, {
+        rename: async (from, to) => {
+          if (from === join(source, "second")) {
+            if (afterRename) await fsPromises.rename(from, to);
+            throw failure;
+          }
+          await fsPromises.rename(from, to);
+        },
+      });
+      if (!afterRename) {
+        await assert.rejects(adapter[operation](markerArgs()), (error) => error === failure);
+      } else if (operation === "hide") {
+        // moveDir's finally chmod still addresses the old path when the rename port moved then
+        // threw. Its ENOENT masks the original error, which hide classifies as not-found.
+        assert.deepEqual(await adapter.hide(markerArgs()), { ok: false, reason: "not-found" });
+      } else {
+        await assert.rejects(adapter.unhide(markerArgs()), { code: "ENOENT" });
+      }
+      for (const name of ["first", "second"]) {
+        assert.equal(await readFile(join(source, name, "plugin.json"), "utf8"), "plugin-a");
+        assert.equal(await pathExists(join(destination, name)), false);
+      }
+      assert.equal(await pathExists(parkedDir), operation === "unhide");
+    });
+  }
+}
+
+test("hide maps a vanished source to not-found after rolling back earlier roots", async (t) => {
+  const { liveParent, parkedDir } = await harness(t);
+  for (const name of ["first", "second"]) await makeLive(join(liveParent, name));
+  const adapter = createDirectoryTrashAdapter({
+    entityType: ENTITY, locate: () => ({ liveParent, parkedDir, liveNames: ["first", "second"] }),
+  }, {
+    rename: async (from, to) => {
+      if (from === join(liveParent, "second")) throw Object.assign(new Error("vanished"), { code: "ENOENT" });
+      await fsPromises.rename(from, to);
+    },
+  });
+  assert.deepEqual(await adapter.hide(markerArgs()), { ok: false, reason: "not-found" });
+  assert.equal(await pathExists(join(liveParent, "first")), true);
+  assert.equal(await pathExists(parkedDir), false);
+});
+
+test("hide validates every listed source before staging any root", async (t) => {
+  const { liveParent, parkedDir } = await harness(t);
+  await makeLive(join(liveParent, "first"));
+  const adapter = createDirectoryTrashAdapter({
+    entityType: ENTITY, locate: () => ({ liveParent, parkedDir, liveNames: ["first", "missing"] }),
+  });
+  assert.deepEqual(await adapter.hide(markerArgs()), { ok: false, reason: "not-found" });
+  assert.equal(await pathExists(join(liveParent, "first")), true);
+  assert.equal(await pathExists(parkedDir), false);
+});
+
+test("unhide refuses an empty park and a destination collision even when locate lists no live names", async (t) => {
+  const { liveParent, parkedDir } = await harness(t);
+  await mkdir(parkedDir, { recursive: true });
+  const adapter = createDirectoryTrashAdapter({
+    entityType: ENTITY, locate: () => ({ liveParent, parkedDir, liveNames: [] }),
+  });
+  assert.deepEqual(await adapter.unhide(markerArgs()), { ok: false, reason: "not-found" });
+  await makeLive(join(parkedDir, ID));
+  await makeLive(join(liveParent, ID));
+  assert.deepEqual(await adapter.unhide(markerArgs()), { ok: false, reason: "version-changed" });
+  assert.equal(await pathExists(join(parkedDir, ID)), true);
+});
+
+test("hide accepts parking below a live child starting with two dots (reported, not fixed)", async (t) => {
+  const { liveParent } = await harness(t);
+  const parkedDir = join(liveParent, "..cache", "park");
+  await makeLive(join(liveParent, ID));
+  const adapter = createDirectoryTrashAdapter({
+    entityType: ENTITY, locate: () => ({ liveParent, parkedDir, liveNames: [ID] }),
+  });
+  assert.deepEqual(await adapter.hide(markerArgs()), { ok: true, version: null });
+  assert.equal(await readFile(join(parkedDir, ID, "plugin.json"), "utf8"), "plugin-a");
+});
+
+test("hide gives an empty existing park the minimum blocked count before considering missing live roots", async (t) => {
+  const { liveParent, parkedDir } = await harness(t);
+  await mkdir(parkedDir, { recursive: true });
+  const adapter = createDirectoryTrashAdapter({
+    entityType: ENTITY, locate: () => ({ liveParent, parkedDir, liveNames: ["missing"] }),
+  });
+  assert.deepEqual(await adapter.hide(markerArgs()), { ok: false, reason: "blocked", code: "ALREADY_IN_TRASH", count: 1 });
+});

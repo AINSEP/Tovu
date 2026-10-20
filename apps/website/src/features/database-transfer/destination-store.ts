@@ -108,7 +108,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
     let original: VaultRecord | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       const existing = await this.deps.repo.findOne({ ...destinationScope, workspaceId });
-      if (!existing || (original && (existing.id !== original.id || JSON.stringify(existing.sealed) !== JSON.stringify(original.sealed)))) return;
+      if (!existing || (original && !isSameDestination({ existing, original }))) return;
       original ??= existing;
       try {
         await this.vault.patchMeta({ ...destinationScope, workspaceId, id: existing.id,
@@ -119,6 +119,10 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
       }
     }
   }
+}
+
+function isSameDestination({ existing, original }: { existing: VaultRecord; original: VaultRecord }, _options = {}): boolean {
+  return existing.id === original.id && JSON.stringify(existing.sealed) === JSON.stringify(original.sealed);
 }
 
 /** Same store lifecycle, with Jini's cloned/CAS memory repo and an ephemeral site key. */

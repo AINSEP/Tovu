@@ -95,3 +95,26 @@ test("undo skips a row edited after the push and apply refuses a stale version",
   await assert.rejects(f.handler.apply({ entity: packed!, principalId: "admin", expectedVersion: 1, idempotencyKey: "stale" }), /changed/);
   assert.equal((f.db.prepare("SELECT title FROM p_widgets").get() as { title: string }).title, "edited live");
 });
+
+test("TW2 pins raw precheck validation ordering and malformed addresses", async (t) => {
+  const f = fixture(t); f.db.exec("INSERT INTO p_widgets VALUES ('a', 'footer')");
+  const [packed] = await f.collect(); assert.ok(packed);
+  const cases: Array<[Record<string, unknown>, string]> = [
+    [{ table: 2 }, "The raw row has no valid table name."],
+    [{ values: null }, "The raw row has no valid column values."],
+    [{ columns: [] }, "Live's 'p_widgets' has a different shape; update live first."],
+    [{ columns: [null] }, "The raw row has no valid column shape."],
+    [{ values: { id: "a" } }, "The raw row must contain a valid value for every column."],
+    [{ values: { id: "a", title: { blobBase64: "bad!" } } }, "The raw row must contain a valid value for every column."],
+    [{ pk: null }, "Choose a row by its complete primary key."],
+    [{ pk: { id: "b" } }, "The raw row's primary key does not match its address."],
+  ];
+  for (const [state, reason] of cases) assert.equal(await f.handler.precheck({ ...packed, state: { ...packed.state, ...state } }), reason);
+  for (const id of ["bad", "p_widgets:null", "p_widgets:[]", 'p_widgets:{"id":null}', 'p_widgets:{"id":9007199254740992}', "p_widgets:{}", "p_widgets:{"]) {
+    assert.equal(await f.handler.inspect(id), null);
+    assert.equal(await f.handler.precheck({ ...packed, id }), "The raw row's primary key does not match its address.");
+  }
+  assert.equal(await f.handler.precheck({ ...packed, contentHash: "changed" }), "The raw row does not match its checked content hash.");
+  const absent = contributeRawRowPublish().build({ ...f.deps, backstop: undefined });
+  assert.equal(await absent.precheck(packed), "Send by hand is not available on this destination.");
+});

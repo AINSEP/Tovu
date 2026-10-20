@@ -140,17 +140,18 @@ function PackageFileTree({
           >
             <span className="agent-plugin-source-tree-indent" style={{ width: `calc(${row.depth} * var(--tree-indent))` }} aria-hidden />
             {folder ? (
-              <RemixIcon name={expanded ? "arrow-down-s-line" : "arrow-right-s-line"} size={16} className="agent-plugin-source-tree-twistie" />
+              <>
+                <RemixIcon name={expanded ? "arrow-down-s-line" : "arrow-right-s-line"} size={16} className="agent-plugin-source-tree-twistie" />
+                <RemixIcon name={expanded ? "folder-open-line" : "folder-line"} className="agent-plugin-source-tree-icon is-folder" />
+              </>
             ) : (
-              <span className="agent-plugin-source-tree-twistie" aria-hidden />
-            )}
-            {folder ? (
-              <RemixIcon name={expanded ? "folder-open-line" : "folder-line"} className="agent-plugin-source-tree-icon is-folder" />
-            ) : (
-              <RemixIcon
-                name={FILE_ICON_GLYPH[packageFileIconKind(node.name)]}
-                className={`agent-plugin-source-tree-icon is-${packageFileIconKind(node.name)}`}
-              />
+              <>
+                <span className="agent-plugin-source-tree-twistie" aria-hidden />
+                <RemixIcon
+                  name={FILE_ICON_GLYPH[packageFileIconKind(node.name)]}
+                  className={`agent-plugin-source-tree-icon is-${packageFileIconKind(node.name)}`}
+                />
+              </>
             )}
             <span className="agent-plugin-source-tree-label">{node.name}</span>
           </div>

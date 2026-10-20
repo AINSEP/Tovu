@@ -172,10 +172,22 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
       );
     }
   } finally {
-    const { legacyPublishCredentialsReady, siteAppBootWork } = routeDepsForCleanup;
-    await awaitBootWorkWithinBound({
-      work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
-    });
-    await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, composedStore);
+    await closeExportBoot({ routeDeps: routeDepsForCleanup, bootResult, composedStore }, optional);
   }
+}
+
+/** Wait for readers of the composed store before releasing its boot resources. */
+async function closeExportBoot(
+  { routeDeps, bootResult, composedStore }: {
+    routeDeps: { legacyPublishCredentialsReady?: Promise<void>; siteAppBootWork?: ReadonlySet<Promise<void>> };
+    bootResult: Awaited<ReturnType<typeof bootSiteDir>>;
+    composedStore: SiteStore | undefined;
+  },
+  optional: Pick<RunExportCommandOptional, "closeSiteDirBoot"> = {},
+): Promise<void> {
+  const { legacyPublishCredentialsReady, siteAppBootWork } = routeDeps;
+  await awaitBootWorkWithinBound({
+    work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
+  });
+  await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, composedStore);
 }

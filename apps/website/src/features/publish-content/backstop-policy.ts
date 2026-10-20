@@ -42,11 +42,7 @@ export function checkRawFilePath(
   if (shape) return shape;
   if (/[:%\x01-\x1f\x7f]/.test(relPath)) return `File '${relPath}' has an unsafe path shape.`;
   for (const part of relPath.split("/")) {
-    const lower = part.toLowerCase();
-    if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
-      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower) ||
-      [".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower) ||
-      /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower)) {
+    if (isProtectedRawComponent({ part })) {
       return `File '${relPath}' holds private data or belongs to a protected site folder and is never sent.`;
     }
   }
@@ -58,12 +54,8 @@ export function checkRawValues(
   _optional: Record<string, never> = {},
 ): string | null {
   if (table?.toLowerCase().startsWith("setting_values_")) {
-    if (values.secret === 1 || values.secret === true || values.secret === "1") return "Secret settings are never sent.";
-    const key = values.key;
-    if (typeof key === "string" && (/^core\.(?:execution|privacy)\./.test(key) ||
-      key === "core.instructions.custom" || key === "site.assistant.public_enabled")) {
-      return `Setting '${key}' belongs to this installation and is never sent.`;
-    }
+    const denied = checkInstallationSetting({ values });
+    if (denied) return denied;
   }
   for (const [column, value] of Object.entries(values)) {
     if (typeof value !== "string") continue;
@@ -78,4 +70,24 @@ export function gapLabelFor(
   _optional: Record<string, never> = {},
 ): string {
   return item.entityType === "raw-row" ? `table:${item.table}` : `folder:${item.relPath.split("/").slice(0, 2).join("/")}`;
+}
+
+/** Private names are denied at every depth, including backup and key suffix variants. */
+function isProtectedRawComponent({ part }: { part: string }, _optional: Record<string, never> = {}): boolean {
+  const lower = part.toLowerCase();
+  return BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
+      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower) ||
+      [".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower) ||
+      /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
+}
+
+/** Installation settings stay local independently of the generic secret scan. */
+function checkInstallationSetting({ values }: { values: Readonly<Record<string, unknown>> }, _optional: Record<string, never> = {}): string | null {
+  if (values.secret === 1 || values.secret === true || values.secret === "1") return "Secret settings are never sent.";
+  const key = values.key;
+  if (typeof key === "string" && (/^core\.(?:execution|privacy)\./.test(key) ||
+    key === "core.instructions.custom" || key === "site.assistant.public_enabled")) {
+    return `Setting '${key}' belongs to this installation and is never sent.`;
+  }
+  return null;
 }

@@ -242,3 +242,36 @@ test("presentation get: builtIn is false everywhere when no package themes root 
   assert.ok(body.availableThemes.length > 0);
   assert.ok(body.availableThemes.every((theme) => theme.builtIn === false));
 });
+
+test("presentation get: active-theme response uses current metadata and preserves stored settings", async (t) => {
+  const fixture = createRouteDeps().themes.find((theme) => theme.manifest.id === "tovu-theme");
+  assert.ok(fixture);
+  const theme = {
+    ...fixture,
+    manifest: { ...fixture.manifest, templates: ["page.html", "shared.html", "post.html"],
+      templateFor: { "page.html": ["page"], "post.html": ["post"] } as const },
+    pages: { home: "Home", about: "About" },
+  };
+  for (const storedId of ["tovu-theme", "basic", "missing-theme"]) {
+    for (const [query, templates] of [
+      ["", ["page.html", "shared.html", "post.html"]],
+      ["?kind=post", ["shared.html", "post.html"]],
+      ["?kind=page", ["page.html", "shared.html"]],
+    ] as const) {
+      await t.test(`${storedId}${query}`, async (t) => {
+        const stored = { workspaceId: WORKSPACE_ID, activeThemeId: storedId, updatedAt: "2026-10-10T00:00:00.000Z" };
+        const repo = new InMemoryPresentationSettingsRepo({}, { initialRows: [stored] });
+        const { status, json } = await get(t, buildApp({ themes: [theme], presentationRepo: repo }), `${PATH}${query}`);
+        assert.equal(status, 200);
+        const body = json as {
+          settings: typeof stored; activeThemeTemplates: string[]; activeThemeStaticPageIds: string[];
+        };
+        const found = storedId !== "missing-theme";
+        assert.deepEqual(body.settings, { ...stored, activeThemeId: found ? "tovu-theme" : storedId });
+        assert.deepEqual(body.activeThemeTemplates, found ? templates : []);
+        assert.deepEqual(body.activeThemeStaticPageIds, found ? ["home", "about"] : []);
+        assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), stored);
+      });
+    }
+  }
+});

@@ -405,6 +405,26 @@ async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges
   await proxyPassthrough(req, res, daemon);
 }
 
+/** Resolves the local typed-answer target when there is no nonempty explicit id.
+ * Returns the typed target or the original correlation value; principal binding stays store-owned.
+ * @complexity O(open exchanges) for typed lookup, otherwise O(1); no delivery or execution. */
+function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges }: {
+  exchangeId: unknown; params: Record<string, unknown>; toolName: string; res: Response; byokSurfaceExchanges: SurfaceExchangeStore;
+}, _options: Record<string, never> = {}): unknown {
+  // A TYPED answer (prose from the chat composer) names no exchange — the human never saw one. The
+  // daemon-side route recovers the correlation from its own store; this hop does the same against
+  // the BYOK store first, for the identical reason the exchange-id branch tries local first: a
+  // Local-CLI run's exchange lives HERE and the daemon cannot see it. An unmatched typed answer
+  // falls through below exactly like an unknown exchange id does, so the daemon still answers
+  // authoritatively for every run it owns.
+  const namesAnExchange = typeof exchangeId === "string" && exchangeId.length > 0;
+  const typedTarget =
+    !namesAnExchange && isTypedSurfaceAnswer(params)
+      ? byokSurfaceExchanges.findTypedAnswerTarget({ principalId: getAuthedPrincipal(res).id, toolId: toolName })
+      : undefined;
+  return typedTarget ?? exchangeId;
+}
+
 async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
   const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
   const toolName = body.toolName;
@@ -425,26 +445,14 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
     res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
-  // A TYPED answer (prose from the chat composer) names no exchange — the human never saw one. The
-  // daemon-side route recovers the correlation from its own store; this hop does the same against
-  // the BYOK store first, for the identical reason the exchange-id branch tries local first: a
-  // Local-CLI run's exchange lives HERE and the daemon cannot see it. An unmatched typed answer
-  // falls through below exactly like an unknown exchange id does, so the daemon still answers
-  // authoritatively for every run it owns.
-  const namesAnExchange = typeof exchangeId === "string" && exchangeId.length > 0;
-  const typedTarget =
-    !namesAnExchange && isTypedSurfaceAnswer(params)
-      ? byokSurfaceExchanges.findTypedAnswerTarget({ principalId: getAuthedPrincipal(res).id, toolId: toolName })
-      : undefined;
-  if (tryLocalMcpUiDelivery(res, byokSurfaceExchanges, typedTarget ?? exchangeId, params, toolName)) return;
+  const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
+  if (tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
 
   // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
-  // for itself. Without the two lines below this route fetches the daemon's answer and then never
-  // writes to `res`, so the fall-through above hangs the browser until it times out and the MCP-UI
-  // confirmation dialog never resolves.
-  const upstream = await forwardToAgentDaemon(req, res, req.body, daemon);
-  if (!upstream) return;
-  await relayResponse(upstream, req, res);
+  // for itself. Without the relay in `proxyPassthrough` this route fetches the daemon's answer and
+  // then never writes to `res`, so the fall-through above hangs the browser until it times out and
+  // the MCP-UI confirmation dialog never resolves.
+  await proxyPassthrough(req, res, daemon);
 }
 
 /**

@@ -254,6 +254,18 @@ async function readLocalReplacement({ routeDeps, input }: { routeDeps: MediaImpo
   return { bytes, contentType };
 }
 
+/** Requires exactly one replacement source before media lookup or source I/O. */
+function requireReplacementSource(
+  { input }: { input: Record<string, unknown> },
+  _optional: Record<string, never> = {},
+): boolean {
+  const remote = input.url !== undefined;
+  if (remote ? input.root !== undefined || input.path !== undefined : input.root === undefined || input.path === undefined) {
+    throw new MediaImportValidationError({ message: "Pass either url or root and path, never both." });
+  }
+  return remote;
+}
+
 /** Builds this domain's permission-gated durable import handlers; root/path validation precedes I/O.
  * @complexity O(1) registration work; handlers are bounded by the upload cap.
  */
@@ -271,10 +283,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
         toolId: "media_replace_file", catalog: CATALOG_BY_ID,
         isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof FsFilePathError || error instanceof MediaValidationError,
         fn: async () => {
-          const remote = input.url !== undefined;
-          if (remote ? input.root !== undefined || input.path !== undefined : input.root === undefined || input.path === undefined) {
-            throw new MediaImportValidationError({ message: "Pass either url or root and path, never both." });
-          }
+          const remote = requireReplacementSource({ input });
           const media = await routeDeps.mediaRepo.findById({ workspaceId: routeDeps.workspaceId, id: mediaId });
           if (!media || media.status !== "active") throw new MediaImportValidationError({ message: "Media was not found or is in Trash; restore it before replacing its file." });
           if (!routeDeps.mediaRepo.replaceFileIfVersion || !routeDeps.mediaRepo.saveRenditionIfSource) {

@@ -147,6 +147,16 @@ function readSitePath(raw: unknown): string {
   return raw;
 }
 
+function readViewport({ viewport }: { viewport: unknown }, _options = {}): ViewportName {
+  if (typeof viewport !== "string" || !(VIEWPORT_NAMES as string[]).includes(viewport)) throw refusal(`viewport must be one of ${VIEWPORT_NAMES.join(", ")}.`);
+  return viewport as ViewportName;
+}
+
+function readWaitMs({ waitMs }: { waitMs: unknown }, _options = {}): number {
+  if (typeof waitMs !== "number" || !Number.isInteger(waitMs) || waitMs < 0 || waitMs > MAX_WAIT_MS) throw refusal(`waitMs must be an integer from 0 to ${MAX_WAIT_MS}.`);
+  return waitMs;
+}
+
 /**
  * Validates the raw tool input. Exact messages so a model can correct itself in one turn.
  * @throws ToolInputError for a missing/ambiguous target or an invalid option.
@@ -155,12 +165,12 @@ function readSitePath(raw: unknown): string {
 export function readWebScreenshotInput(input: Readonly<Record<string, unknown>>): WebScreenshotInput {
   const { url, sitePath, viewport = "desktop", fullPage = false, waitMs = DEFAULT_WAIT_MS, themeId } = input;
   if ((url === undefined) === (sitePath === undefined)) throw refusal("pass exactly one of 'url' (a public page) or 'sitePath' (a page of THIS site, e.g. '/').");
-  if (typeof viewport !== "string" || !(VIEWPORT_NAMES as string[]).includes(viewport)) throw refusal(`viewport must be one of ${VIEWPORT_NAMES.join(", ")}.`);
+  const validatedViewport = readViewport({ viewport });
   if (typeof fullPage !== "boolean") throw refusal("fullPage must be a boolean.");
-  if (typeof waitMs !== "number" || !Number.isInteger(waitMs) || waitMs < 0 || waitMs > MAX_WAIT_MS) throw refusal(`waitMs must be an integer from 0 to ${MAX_WAIT_MS}.`);
+  const validatedWaitMs = readWaitMs({ waitMs });
   if (input.dismissCookieBanners !== undefined && typeof input.dismissCookieBanners !== "boolean") throw refusal("dismissCookieBanners must be a boolean.");
   const target = url !== undefined ? { kind: "url" as const, url: readUrl(url) } : { kind: "site" as const, path: readSitePath(sitePath) };
-  return { target, viewport: viewport as ViewportName, fullPage, waitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), ...readThemeId(themeId, target) };
+  return { target, viewport: validatedViewport, fullPage, waitMs: validatedWaitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), ...readThemeId(themeId, target) };
 }
 
 /** Lowercase ASCII words joined by `-`, capped so a long URL still makes a short file name. */
@@ -221,6 +231,46 @@ export interface WebScreenshotService {
   screenshot(required: { input: WebScreenshotInput; openOwnSite?: OpenOwnSite; saveCaptureFiles?: SaveCaptureFiles }, optional?: { signal?: AbortSignal }): Promise<{ content: Array<{ type: "text"; text: string } | { type: "image"; mimeType: "image/jpeg"; data: string }> }>;
 }
 
+async function buildCaptureResult(
+  { ports, input, site, url, shot, preset }: {
+    ports: WebScreenshotPorts; input: WebScreenshotInput; site: OwnSiteServer | null;
+    url: string; shot: PageCapture; preset: ViewportPreset;
+  },
+  { saveCaptureFiles }: { saveCaptureFiles?: SaveCaptureFiles } = {},
+): ReturnType<WebScreenshotService["screenshot"]> {
+  const tiles = await ports.encodeTiles({ png: shot.png, maxWidth: preset.maxImageWidth, tileHeight: TILE_HEIGHT_PX }, { quality: JPEG_QUALITY });
+  const width = tiles[0]?.width ?? 0;
+  const height = tiles.reduce((sum, tile) => sum + tile.height, 0);
+  const capturedAtMs = ports.nowMs();
+  const relPaths = captureRelativePaths({ capturedAtMs, input, count: tiles.length });
+  const saved = saveCaptureFiles ? await saveCaptures(saveCaptureFiles, tiles.map((tile, index) => ({ relPath: relPaths[index]!, bytes: tile.bytes }))) : {};
+  const facts = {
+    ...(site === null ? { requestedUrl: url, finalUrl: shot.finalUrl } : { sitePath: (input.target as { path: string }).path, finalPath: toSitePath(shot.finalUrl, site.origin) }),
+    ...(input.themeId === undefined ? {} : { themeId: input.themeId }),
+    status: shot.status,
+    title: shot.title,
+    viewport: input.viewport,
+    viewportSize: { width: preset.width, height: preset.height },
+    fullPage: input.fullPage,
+    pageHeight: shot.pageHeight,
+    capturedHeight: shot.capturedHeight,
+    truncated: input.fullPage && shot.pageHeight > shot.capturedHeight,
+    width,
+    height,
+    images: tiles.map((tile, index) => ({ index, top: tile.top, height: tile.height })),
+    blockedRequests: shot.blockedRequests,
+    capturedAt: new Date(capturedAtMs).toISOString(),
+    ...saved,
+    ...(site === null ? { untrusted: true, untrustedNotice: UNTRUSTED_NOTICE } : {}),
+  };
+  return {
+    content: [
+      { type: "text" as const, text: JSON.stringify(facts) },
+      ...tiles.map((tile) => ({ type: "image" as const, mimeType: "image/jpeg" as const, data: tile.bytes.toString("base64") })),
+    ],
+  };
+}
+
 /**
  * One capture at a time per service (one Chromium), with at most {@link MAX_WAITING} queued.
  * @complexity O(pixels) per capture for encoding; the queue is O(1) per call.
@@ -255,37 +305,7 @@ export function createWebScreenshotService(
         throw refusal(failureMessage(error, where));
       }
       observe("captured", shot.blockedRequests);
-      const tiles = await ports.encodeTiles({ png: shot.png, maxWidth: preset.maxImageWidth, tileHeight: TILE_HEIGHT_PX }, { quality: JPEG_QUALITY });
-      const width = tiles[0]?.width ?? 0;
-      const height = tiles.reduce((sum, tile) => sum + tile.height, 0);
-      const capturedAtMs = ports.nowMs();
-      const relPaths = captureRelativePaths({ capturedAtMs, input, count: tiles.length });
-      const saved = saveCaptureFiles ? await saveCaptures(saveCaptureFiles, tiles.map((tile, index) => ({ relPath: relPaths[index]!, bytes: tile.bytes }))) : {};
-      const facts = {
-        ...(site === null ? { requestedUrl: url, finalUrl: shot.finalUrl } : { sitePath: (input.target as { path: string }).path, finalPath: toSitePath(shot.finalUrl, site.origin) }),
-        ...(input.themeId === undefined ? {} : { themeId: input.themeId }),
-        status: shot.status,
-        title: shot.title,
-        viewport: input.viewport,
-        viewportSize: { width: preset.width, height: preset.height },
-        fullPage: input.fullPage,
-        pageHeight: shot.pageHeight,
-        capturedHeight: shot.capturedHeight,
-        truncated: input.fullPage && shot.pageHeight > shot.capturedHeight,
-        width,
-        height,
-        images: tiles.map((tile, index) => ({ index, top: tile.top, height: tile.height })),
-        blockedRequests: shot.blockedRequests,
-        capturedAt: new Date(capturedAtMs).toISOString(),
-        ...saved,
-        ...(site === null ? { untrusted: true, untrustedNotice: UNTRUSTED_NOTICE } : {}),
-      };
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify(facts) },
-          ...tiles.map((tile) => ({ type: "image" as const, mimeType: "image/jpeg" as const, data: tile.bytes.toString("base64") })),
-        ],
-      };
+      return await buildCaptureResult({ ports, input, site, url, shot, preset }, { saveCaptureFiles });
     } finally {
       await site?.close();
     }

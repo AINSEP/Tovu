@@ -279,3 +279,19 @@ test("tagTrashingRows passes an envelope it does not recognize straight through"
   const odd = { planId: "plan-1", details: "not a report" };
   assert.equal(tagTrashingRows(odd, ENTITIES), odd);
 });
+
+test("L163 included rows preserve malformed and ordinary values while filtering only included unchanged rows", () => {
+  const malformed = [null, 42, "row", ["row"]];
+  const ordinary = { outcome: "unchanged" };
+  const conflict = { entityType: "media", entityId: "conflict", outcome: "conflict", reason: "Keep me" };
+  const created = { entityType: "media", entityId: "new", outcome: "created" };
+  const same = { entityType: "media", entityId: "same", outcome: "unchanged" };
+  const plan = { details: { rows: [...malformed, ordinary, conflict, created, same] } };
+  const included = new Map(["conflict", "new", "same"].map(id => [`media:${id}`, ["page:p"]]));
+  const result = keepChangingIncludedEntities(plan, included);
+  assert.deepEqual(result, { details: { rows: [...malformed, ordinary, conflict, { ...created, includedFor: ["page:p"] }] } });
+  assert.equal(plan.details.rows.length, 8);
+  assert.equal(keepChangingIncludedEntities(plan, new Map()), plan);
+  const odd = { details: { rows: null } };
+  assert.equal(keepChangingIncludedEntities(odd, included), odd);
+});

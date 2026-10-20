@@ -7,6 +7,7 @@ import type { ContentDatabase } from "../../platform/db/content-database.generat
 import { toBool } from "../../platform/db/kernel/index.js";
 import {
   DEFAULT_BODY_JSON,
+  presentScheduleFields,
   type PostBodyFormat,
   type PostKind,
   type PostRecord,
@@ -35,6 +36,21 @@ export type PostRevisionRow = Selectable<ContentDatabase["post_revisions"]>;
 function parseExt(rawExt: string): JsonObject | undefined {
   const parsed = JSON.parse(rawExt) as JsonObject;
   return Object.keys(parsed).length > 0 ? parsed : undefined;
+}
+
+/** SQL nullable metadata and boolean representations normalized at the row boundary. */
+function readPostMetadata({ row }: { row: PostRow }, _options: Record<string, never> = {}) {
+  return {
+    seoExtJson: row.seo_ext_json ?? null,
+    deletedAt: row.deleted_at ?? null,
+    templateChoice: row.template_choice ?? null,
+    overridesThemePage: toBool(row.overrides_theme_page),
+    memberAccessJson: row.member_access_json ?? null,
+    createdByPrincipalId: row.created_by_principal_id ?? null,
+    createdAt: row.created_at ?? null,
+    author: row.author ?? null,
+    showAuthor: toBool(row.show_author) ?? false,
+  };
 }
 
 /**
@@ -66,19 +82,37 @@ export function toRecord(row: PostRow): PostRecord {
     kind: row.kind as PostKind,
     updatedAt: row.updated_at,
     version: row.version,
-    seoExtJson: row.seo_ext_json ?? null,
-    deletedAt: row.deleted_at ?? null,
-    templateChoice: row.template_choice ?? null,
-    overridesThemePage: toBool(row.overrides_theme_page),
-    memberAccessJson: row.member_access_json ?? null,
-    createdByPrincipalId: row.created_by_principal_id ?? null,
-    createdAt: row.created_at ?? null,
-    author: row.author ?? null,
-    showAuthor: toBool(row.show_author) ?? false,
+    ...readPostMetadata({ row }),
     // Present only when set — see `presentScheduleFields` in `post.ts` for why absent, not `null`.
-    ...(row.publish_at ? { publishAt: row.publish_at } : {}),
-    ...(row.featured_media_id ? { featuredMediaId: row.featured_media_id } : {}),
+    ...presentScheduleFields({ publishAt: row.publish_at, featuredMediaId: row.featured_media_id }),
     ...(ext !== undefined ? { ext } : {}),
+  };
+}
+
+/** Persist nullable metadata, including restore markers and insert-only attribution. */
+function writePostMetadata({ record }: { record: PostRecord }, _options: Record<string, never> = {}) {
+  return {
+    seo_ext_json: record.seoExtJson ?? null,
+    // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
+    // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
+    // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
+    deleted_at: record.deletedAt ?? null,
+    template_choice: record.templateChoice ?? null,
+    // Tri-state (2026-08-15) — `record.overridesThemePage` is `undefined` on every row a caller
+    // never set an opinion on (every `createPost` call today: `CreatePostInput` has no field for
+    // this, deliberately — see its own doc). Coalescing to `null`, NOT `false`, is the entire fix
+    // this migration exists to enable: `false` would silently re-encode "never decided" as
+    // "explicitly kept the theme page", exactly the ambiguity `pages.ts`'s resolver can no longer
+    // tell apart from a real author choice. `null` stays honestly "undecided" all the way to the
+    // resolver, which is the one place the current default policy is allowed to live.
+    overrides_theme_page: record.overridesThemePage ?? null,
+    member_access_json: record.memberAccessJson ?? null,
+    // Authorship attribution (2026-09-18) — written here so a fresh INSERT (createPost's `save()`
+    // upsert) carries them, but see `updatableColumns()` directly below: this same value is
+    // deliberately EXCLUDED from the columns an existing-row write may touch, which is what actually
+    // makes them write-once. See `posts.createdByPrincipalId`'s schema doc for the full contract.
+    created_by_principal_id: record.createdByPrincipalId ?? null,
+    created_at: record.createdAt ?? null,
   };
 }
 
@@ -114,27 +148,7 @@ export function toRow(record: PostRecord) {
     kind: record.kind,
     updated_at: record.updatedAt,
     version: record.version,
-    seo_ext_json: record.seoExtJson ?? null,
-    // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
-    // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
-    // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
-    deleted_at: record.deletedAt ?? null,
-    template_choice: record.templateChoice ?? null,
-    // Tri-state (2026-08-15) — `record.overridesThemePage` is `undefined` on every row a caller
-    // never set an opinion on (every `createPost` call today: `CreatePostInput` has no field for
-    // this, deliberately — see its own doc). Coalescing to `null`, NOT `false`, is the entire fix
-    // this migration exists to enable: `false` would silently re-encode "never decided" as
-    // "explicitly kept the theme page", exactly the ambiguity `pages.ts`'s resolver can no longer
-    // tell apart from a real author choice. `null` stays honestly "undecided" all the way to the
-    // resolver, which is the one place the current default policy is allowed to live.
-    overrides_theme_page: record.overridesThemePage ?? null,
-    member_access_json: record.memberAccessJson ?? null,
-    // Authorship attribution (2026-09-18) — written here so a fresh INSERT (createPost's `save()`
-    // upsert) carries them, but see `updatableColumns()` directly below: this same value is
-    // deliberately EXCLUDED from the columns an existing-row write may touch, which is what actually
-    // makes them write-once. See `posts.createdByPrincipalId`'s schema doc for the full contract.
-    created_by_principal_id: record.createdByPrincipalId ?? null,
-    created_at: record.createdAt ?? null,
+    ...writePostMetadata({ record }),
     publish_at: record.publishAt ?? null,
     featured_media_id: record.featuredMediaId ?? null,
     author: record.author ?? null,

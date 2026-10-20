@@ -206,3 +206,12 @@ test("items unsupported by live are reported by name with a reason, without conf
   assert.deepEqual(result.unmatchedItems, []);
   assert.deepEqual(f.counts(), { confirms: 0, executes: 0 });
 });
+
+test("TW2 pins peer validation and empty selection without execution", async () => {
+  const f = await fixture();
+  for (const peerId of [null, 3, "", " "]) await assert.rejects(() => publish(f, { peerId }), /peerId/);
+  const result = await publish(f, { excludeItems: ["How Tovu Saves You Time", "Contact"] });
+  assert.deepEqual(result.published, []);
+  assert.deepEqual(f.counts(), { confirms: 0, executes: 0 });
+  assert.equal(result.skipped.length, 2);
+});

@@ -16,13 +16,14 @@ async function collect(entries: readonly DropEntry[]) {
       total += file.size;
       if (files.length >= 256 || total > 8 * 1024 * 1024) throw new Error("Choose up to 256 files, 8 MiB total.");
       files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
-    } else if (entry.isDirectory) {
-      const reader = entry.createReader!();
-      for (;;) {
-        const batch = await new Promise<DropEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
-        if (!batch.length) break;
-        for (const child of batch) await walk(child, depth + 1);
-      }
+      return;
+    }
+    if (!entry.isDirectory) return;
+    const reader = entry.createReader!();
+    for (;;) {
+      const batch = await new Promise<DropEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!batch.length) break;
+      for (const child of batch) await walk(child, depth + 1);
     }
   }
   for (const entry of entries) await walk(entry, 0);

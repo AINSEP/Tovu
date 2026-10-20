@@ -100,3 +100,51 @@ for (const topic of ["themes", "plugins"] as const) {
     assert.equal(f.reads.includes(topic === "themes" ? "markers" : "agent-plugins"), false);
   });
 }
+
+test("guide facts deduplicate topics and preserve profile-first key and registry read order", async () => {
+  const f = fixture();
+  const facts = await readSiteGuideFacts({ deps: f.deps, caller, topics: ["members", "plugins", "forms", "content", "themes", "widgets", "plugins", "unknown"] });
+  assert.deepEqual(Object.keys(facts), ["themes", "plugins", "content", "widgets", "forms", "members"]);
+  assert.deepEqual(f.reads, ["site-plugins", "widgets", "forms", "members", "markers", "agent-plugins"]);
+  assert.deepEqual(facts.content, { status: "ok", data: [{ key: "planner", label: "Planner", version: 1, status: "active", fieldCount: 1 }] });
+});
+
+test("guide registry caps preserve the first 256 entries and do not cap layouts", async () => {
+  const f = fixture();
+  const values = Array.from({ length: 257 }, (_, index) => `type-${index}`);
+  const agentPlugins = values.map(id => ({ id, name: id, version: null, enabled: null }));
+  const deps: SiteGuideFactsDeps = { ...f.deps, listWidgetTypes: () => values, listFormFieldTypes: () => values,
+    listMarkers: () => values, listLayouts: () => values, readAgentPlugins: async () => agentPlugins };
+  const facts = await readSiteGuideFacts({ deps, caller, topics: ["themes", "plugins", "widgets", "forms"] });
+  assert.deepEqual(facts.widgets, { status: "ok", data: { types: values.slice(0, 256) } });
+  assert.deepEqual(facts.forms, { status: "ok", data: { fieldTypes: values.slice(0, 256) } });
+  assert.equal(facts.themes?.status, "ok");
+  if (facts.themes?.status === "ok") {
+    const data = facts.themes.data as { registry: unknown };
+    assert.deepEqual(data.registry, { markers: values.slice(0, 256), layouts: values });
+  }
+  assert.equal(facts.plugins?.status, "ok");
+  if (facts.plugins?.status === "ok") {
+    const data = facts.plugins.data as { registry: unknown };
+    assert.deepEqual(data.registry, { agentPlugins: agentPlugins.slice(0, 256) });
+  }
+});
+
+for (const topic of ["themes", "plugins"] as const) {
+  test(`${topic} profile denial wins even if the second permission check allows the registry`, async () => {
+    const f = fixture();
+    let decisions = 0;
+    const deps = { ...f.deps, authorize: async () => ({ allowed: ++decisions === 2, reason: "test decision" }) };
+    assert.deepEqual(await readSiteGuideFacts({ deps, caller, topics: [topic] }), { [topic]: { status: "forbidden" } });
+    assert.equal(decisions, 2);
+    assert.deepEqual(f.reads, [topic === "themes" ? "markers" : "agent-plugins"]);
+  });
+}
+
+test("content failure and denial expose only their status", async () => {
+  const f = fixture();
+  f.grants.clear();
+  assert.deepEqual(await readSiteGuideFacts({ deps: f.deps, caller, topics: ["content"] }), { content: { status: "forbidden" } });
+  const deps = { ...f.deps, authorize: async () => { throw new Error("PRIVATE_CANARY"); } };
+  assert.deepEqual(await readSiteGuideFacts({ deps, caller, topics: ["content"] }), { content: { status: "unavailable" } });
+});

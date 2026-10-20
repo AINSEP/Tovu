@@ -106,17 +106,10 @@ export async function readConnectionStringFromUser(): Promise<string> {
 export async function runInitCommand(input: RunInitCommandInput, _options: Record<string, never> = {}): Promise<void> {
   const storage = parseInitStorage(input.storage, input.storageEnv);
   const sealed = storage.kind === "postgres" && storage.secretRef === "site";
-  if (sealed && (input.agentPluginTokensStdin || input.createInputStdin) && !input.readConnectionString) {
-    const stdinFlag = input.createInputStdin ? "--create-input-stdin" : "--agent-plugin-tokens-stdin";
-    throw new ValidationError(`init: ${stdinFlag} cannot share stdin with a Postgres connection string; use --storage-env`);
-  }
+  assertSeparateInitStdin({ input, sealed });
   const createInput = await readCreateInput(input);
   const adminPassword = resolveNewSiteAdminPassword({ adminPassword: input.createInputStdin ? createInput.adminPassword : input.adminPassword });
-  // Read and checked BEFORE the site is made: a rejected token creates nothing.
-  const tokens = input.createInputStdin
-    ? await readNewSiteAgentPluginTokensFromStdin(async () => JSON.stringify(createInput.agentPluginTokens ?? {}))
-    : input.agentPluginTokensStdin ? await readNewSiteAgentPluginTokensFromStdin(input.readAgentPluginTokens) : {};
-  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck());
+  const tokens = await readAndCheckInitTokens({ input, createInput });
   const connectionString = sealed ? (await (input.readConnectionString ?? readConnectionStringFromUser)()).trim() : undefined;
   const result = await initSite({ dir: input.dir, name: input.name, storage, connectionString, adminPassword }, { withSampleContent: input.withSampleContent });
   // Read the ACTUAL written config.json back (rather than re-deriving the name here) so the
@@ -146,4 +139,23 @@ async function readCreateInput(input: RunInitCommandInput, _options: Record<stri
   }
   const value = raw as Record<string, unknown>;
   return { adminPassword: value.adminPassword, agentPluginTokens: value.agentPluginTokens };
+}
+
+function assertSeparateInitStdin({ input, sealed }: { input: RunInitCommandInput; sealed: boolean }, _options: Record<string, never> = {}): void {
+  if (sealed && (input.agentPluginTokensStdin || input.createInputStdin) && !input.readConnectionString) {
+    const stdinFlag = input.createInputStdin ? "--create-input-stdin" : "--agent-plugin-tokens-stdin";
+    throw new ValidationError(`init: ${stdinFlag} cannot share stdin with a Postgres connection string; use --storage-env`);
+  }
+}
+
+async function readAndCheckInitTokens({ input, createInput }: {
+  input: RunInitCommandInput;
+  createInput: Awaited<ReturnType<typeof readCreateInput>>;
+}, _options: Record<string, never> = {}): Promise<Record<string, string>> {
+  // Read and checked BEFORE the site is made: a rejected token creates nothing.
+  const tokens = input.createInputStdin
+    ? await readNewSiteAgentPluginTokensFromStdin(async () => JSON.stringify(createInput.agentPluginTokens ?? {}))
+    : input.agentPluginTokensStdin ? await readNewSiteAgentPluginTokensFromStdin(input.readAgentPluginTokens) : {};
+  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck());
+  return tokens;
 }

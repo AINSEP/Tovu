@@ -22,6 +22,20 @@ export async function resolveSeoCoverImage(
   return resolveCoverImage({ post }, { mediaLookup: ({ ref }) => media.get(ref) ?? null, allowExternalHttps: true });
 }
 
+/** Decode stored overrides for the detached cover projection; reject non-object JSON values.
+ * @complexity O(s) time and space for the stored SEO JSON; no effects.
+ */
+function readCoverSeoOverrides(
+  { seoExtJson }: Pick<SeoPostRecord, "seoExtJson">,
+  _optional: Record<string, never> = {},
+): Record<string, unknown> {
+  try {
+    const value: unknown = JSON.parse(seoExtJson ?? "{}");
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) return value as Record<string, unknown>;
+  } catch { /* Match the existing SEO evaluator's malformed-JSON fallback. */ }
+  return {};
+}
+
 /** Offer a body cover to the existing SEO evaluator below explicit overrides and above defaults.
  * This detached projection is confined to SEO reads; stored featuredMediaId stays untouched.
  * A library ref uses the evaluator's existing featured/default chain, including transform misses.
@@ -34,11 +48,7 @@ export function withCoverSeoDefaults(
 ): SeoPostRecord {
   if (post.featuredMediaId || !cover) return post;
   if (cover.mediaId) return { ...post, featuredMediaId: cover.mediaId };
-  let overrides: Record<string, unknown> = {};
-  try {
-    const value: unknown = JSON.parse(post.seoExtJson ?? "{}");
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) overrides = value as Record<string, unknown>;
-  } catch { /* Match the existing SEO evaluator's malformed-JSON fallback. */ }
+  const overrides = readCoverSeoOverrides({ seoExtJson: post.seoExtJson });
   return {
     ...post,
     seoExtJson: JSON.stringify({

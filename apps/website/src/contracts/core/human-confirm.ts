@@ -92,29 +92,8 @@ export async function requireHumanConfirm(
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   const { toolId } = spec;
   const exchange = surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id }, emit: emitSurface });
-  const action = (decision: "confirm" | "cancel", choice?: string) => ({
-    toolName: toolId,
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
-  });
   const alternatives = spec.alternatives ?? [];
-  const resource = buildConfirmationSurface({
-    uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
-    title: spec.title,
-    ...(spec.description ? { description: spec.description } : {}),
-    details: spec.details,
-    ...(spec.warning ? { warning: spec.warning } : {}),
-    danger: spec.danger ?? false,
-    confirm: { label: spec.confirmLabel, ...action("confirm") },
-    ...(alternatives.length > 0
-      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action("confirm", alternative.choice) })) }
-      : {}),
-    cancel: { label: spec.cancelLabel ?? "Cancel", ...action("cancel") },
-    app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
-    preferredFrameSize: ["100%", "340px"],
-    // The chat counts this down and closes the card when it passes, so nobody answers a card the
-    // exchange has stopped waiting on.
-    expiresAtMs: exchange.expiresAtMs(),
-  });
+  const resource = renderHumanConfirmation({ spec, exchange, alternatives });
 
   const closeOnAbort = () => exchange.close({});
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
@@ -240,4 +219,37 @@ export function refuseUnexpectedKeys(input: Record<string, unknown>, allowed: re
   if (extra !== undefined) {
     throw new ToolInputError({ message: `'${extra}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` });
   }
+}
+
+function renderHumanConfirmation(
+  { spec, exchange, alternatives }: {
+    spec: HumanConfirmSpec;
+    exchange: ReturnType<ChatDeleteSurfaceDeps["surfaceExchanges"]["open"]>;
+    alternatives: readonly HumanConfirmAlternative[];
+  },
+  _optional: Record<string, never> = {},
+): ReturnType<typeof buildConfirmationSurface> {
+  const { toolId } = spec;
+  const action = (decision: "confirm" | "cancel", choice?: string) => ({
+    toolName: toolId,
+    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
+  });
+  return buildConfirmationSurface({
+    uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
+    title: spec.title,
+    ...(spec.description ? { description: spec.description } : {}),
+    details: spec.details,
+    ...(spec.warning ? { warning: spec.warning } : {}),
+    danger: spec.danger ?? false,
+    confirm: { label: spec.confirmLabel, ...action("confirm") },
+    ...(alternatives.length > 0
+      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action("confirm", alternative.choice) })) }
+      : {}),
+    cancel: { label: spec.cancelLabel ?? "Cancel", ...action("cancel") },
+    app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
+    preferredFrameSize: ["100%", "340px"],
+    // The chat counts this down and closes the card when it passes, so nobody answers a card the
+    // exchange has stopped waiting on.
+    expiresAtMs: exchange.expiresAtMs(),
+  });
 }

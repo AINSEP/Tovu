@@ -5,7 +5,7 @@ import {
 import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agents";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
+import type { AssistantExecutionRouteDeps, AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 
 /**
  * Narrows one model's OWN `reasoning` (`RuntimeModelOption.reasoning` — Codex's per-model effort
@@ -134,6 +134,23 @@ export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
   };
 }
 
+/** Read the host snapshot before sampling its pending state; discovery stays with the cache.
+ * Rejections propagate to the route's existing internal-error response.
+ * @complexity O(1) transport work; inventory discovery is delegated.
+ */
+async function readDetectionSnapshot(
+  { inventory, deps, input }: {
+    inventory: ReturnType<typeof createAssistantDetectionCache> | undefined;
+    deps: AssistantExecutionRouteDeps;
+    input: { force: boolean };
+  },
+  _options: Record<string, never> = {},
+) {
+  const agents = await (inventory ? inventory.read(input) : (deps.assistantAgentInventory?.listDetectedAssistantAgents ?? listDetectedAssistantAgents)(input));
+  const discoveryPending = inventory ? inventory.isPending({}) : (deps.assistantAgentInventory?.assistantAgentDiscoveryPending ?? assistantAgentDiscoveryPending)();
+  return { agents, discoveryPending };
+}
+
 /**
  * POST detects code-agent CLIs installed on the server host — the "Execution
  * mode" tab's Local CLI probe (`ExecutionPort.detectLocalAgents` /
@@ -172,8 +189,7 @@ export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteReg
       }
 
       const input = { force: req.body?.force === true };
-      const agents = await (inventory ? inventory.read(input) : (deps.assistantAgentInventory?.listDetectedAssistantAgents ?? listDetectedAssistantAgents)(input));
-      const discoveryPending = inventory ? inventory.isPending({}) : (deps.assistantAgentInventory?.assistantAgentDiscoveryPending ?? assistantAgentDiscoveryPending)();
+      const { agents, discoveryPending } = await readDetectionSnapshot({ inventory, deps, input });
       res.json({ data: agents.map(agent => ({ ...toExecutionTabAgent(agent), discoveryPending })) });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

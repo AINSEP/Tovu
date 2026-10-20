@@ -1105,3 +1105,32 @@ test("every planned row carries the label its own packed state named it, whateve
     ]
   );
 });
+
+test("L044 preconditions precede unchanged and forcing; missing blobs stop later reads", async () => {
+  const entity = makeEntity({ entityType: "pin", id: "one", requiredBlobs: ["missing", "later"] });
+  const calls: string[] = [];
+  const handler = makeFakeHandler({ entityType: "pin", destination: new Map([["one", { hash: entity.contentHash, version: 1 }]]) });
+  registerPublishContentContributor(fakeContributor({ ...handler,
+    precheck: async () => { calls.push("precheck"); return "blocked"; },
+    inspect: async () => { calls.push("inspect"); return null; },
+  }));
+  const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] };
+  const deps = { ...makeDeps({ forcedEntityKeys: new Set([entityKey("pin", "one")]) }),
+    hasBlob: async (sha: string) => { calls.push(sha); return false; } };
+  assert.equal((await planImport(bundle, deps)).rows[0]!.canOverwrite, false);
+  assert.deepEqual(calls, ["missing"]);
+  calls.length = 0;
+  assert.equal((await planImport({ ...bundle, entities: [{ ...entity, requiredBlobs: [] }] }, deps)).rows[0]!.outcome, "blocked");
+  assert.deepEqual(calls, ["precheck"]);
+});
+
+test("L044 schema refusal precedes every baseline read even after a compatible first entity", async () => {
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "pin", destination: new Map() })));
+  const entities = [makeEntity({ entityType: "pin", id: "one" }), makeEntity({ entityType: "pin", id: "two", schemaVersion: 99 })];
+  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities }, {
+    ...makeDeps({}), getBaseline: async () => { throw new Error("must not read baselines"); },
+  });
+  assert.equal(report.refused, true);
+  assert.deepEqual(report.rows, []);
+  assert.match(report.refusalReason!, /two.*schema version 99/);
+});

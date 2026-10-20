@@ -79,3 +79,25 @@ test("preview exposes the active theme's page templates using the admin applicab
   const result = await registration.handler(context({ id: "draft-1" })) as { availableTemplates: string[] };
   assert.deepEqual(result.availableTemplates, ["page.html", "shared.html"]);
 });
+
+test("L156 preview rejects every malformed override before authorization and keeps omitted keys absent", async () => {
+  const { deps } = bareDeps();
+  let reads = 0;
+  const registration = buildPostPreviewRegistrations({ ...deps, authorize: async () => {
+    reads++; return { allowed: true, reason: "test" };
+  } }, { renderPostPreview: async (_deps, input) => {
+    assert.deepEqual(Object.keys(input), ["post"]);
+    return { html: "", templateChoice: null };
+  } })[0]!;
+  for (const bodyJson of [null, [], "text", 0, false]) {
+    await assert.rejects(registration.handler(context({ id: "draft-1", bodyJson })),
+      { message: "content_post_preview: bodyJson must be a JSON object." });
+  }
+  for (const key of ["bodyHtml", "templateChoice"]) {
+    await assert.rejects(registration.handler(context({ id: "draft-1", [key]: null })),
+      { message: `content_post_preview: ${key} must be a string.` });
+  }
+  assert.equal(reads, 0);
+  await registration.handler(context({ id: "draft-1" }));
+  assert.equal(reads, 1);
+});

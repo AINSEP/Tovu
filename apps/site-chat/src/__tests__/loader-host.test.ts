@@ -119,3 +119,65 @@ test('host passes the root as the mount-readiness boundary', async () => {
   assert.equal(received, dom.window.document.getElementById('tovu-site-assistant-root'));
   dom.window.close();
 });
+
+for (const markup of ['<button data-jini-chat-loader></button>', '<div id="tovu-site-assistant-root"></div>', '']) {
+  test(`loader requires both mount and button: ${markup}`, t => {
+    const dom = new JSDOM(markup, { url: 'https://example.test/' });
+    t.after(() => dom.window.close());
+    startSiteChatLoader({ install: () => { assert.fail('must not install'); }, loadAssets: async () => {} }, {
+      document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
+      loadState: () => { assert.fail('must not read state'); }, hasQueued: () => { assert.fail('must not inspect queue'); },
+    });
+  });
+}
+
+for (const scenario of [
+  { widget: 'vanilla', compare: 'react', open: false, search: '?open-chat=0', hash: '', expected: 'site-assistant', deep: false, queued: false },
+  { widget: 'react', compare: 'vanilla', open: true, search: '', hash: '', expected: 'site-assistant-vanilla', deep: false, queued: true },
+  { widget: 'unknown', compare: 'invalid', open: false, search: '?open-chat=true', hash: '#other', expected: 'site-assistant', deep: false, queued: false },
+  { widget: 'vanilla', compare: '', open: false, search: '?open-chat=1', hash: '', expected: 'site-assistant-vanilla', deep: true, queued: true },
+  { widget: 'vanilla', compare: '', open: false, search: '', hash: '', expected: 'site-assistant-vanilla', deep: false, queued: true },
+]) test(`loader pins widget precedence and open/queue ordering: ${JSON.stringify(scenario)}`, async t => {
+  const dom = new JSDOM(`<div id="tovu-site-assistant-root" data-chat-compare="${scenario.compare}"></div><button data-jini-chat-loader data-widget="${scenario.widget}"></button>`, { url: 'https://example.test/' });
+  t.after(() => dom.window.close());
+  const root = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
+  let queueReads = 0;
+  const assets: string[] = [];
+  startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; },
+    loadAssets: async ({ scriptUrl, styleUrl, mount }) => { assets.push(scriptUrl, styleUrl); assert.equal(mount, root); } }, {
+    document: dom.window.document, location: scenario, events: dom.window as unknown as Window,
+    loadState: () => ({ open: scenario.open, messages: [] }), hasQueued: () => {
+      queueReads++;
+      assert.equal(root.dataset.chatOpen, scenario.open || scenario.deep ? 'true' : undefined);
+      return true;
+    },
+  });
+  assert.ok(config);
+  assert.equal(config.resume, scenario.open);
+  assert.equal(config.deepLink, scenario.deep);
+  assert.equal(config.preload, scenario.queued);
+  assert.equal(queueReads, Number(scenario.queued));
+  assert.equal(root.dataset.chatOpen, scenario.open || scenario.deep ? 'true' : undefined);
+  assert.equal(config.loadingLabel, 'Loading chat…');
+  assert.equal(config.retryLabel, 'Chat could not load. Activate to retry.');
+  await config.load();
+  assert.deepEqual(assets, [`/site-chat/${scenario.expected}.js`, `/site-chat/${scenario.expected}.css`]);
+});
+
+test('loader defaults use the browser document, location, events and session state', t => {
+  const dom = new JSDOM('<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader data-widget="vanilla"></button>', { url: 'https://example.test/#open-chat' });
+  const prior = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: dom.window });
+  t.after(() => {
+    if (prior) Object.defineProperty(globalThis, 'window', prior);
+    else Reflect.deleteProperty(globalThis, 'window');
+    dom.window.close();
+  });
+  let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
+  startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; }, loadAssets: async () => {} });
+  assert.ok(config);
+  assert.equal(config.resume, false);
+  assert.equal(config.deepLink, true);
+  assert.equal(config.preload, false);
+});

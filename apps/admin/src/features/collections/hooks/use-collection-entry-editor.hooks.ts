@@ -175,6 +175,17 @@ export function useCollectionEntryEditor(
   const loaded = list.status !== "loading";
   const loadError = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load entry" })) : null;
 
+  function seedExistingWorkingCopy(
+    { found, editor }: { found: AdminEntry; editor: Editor },
+    _options: Record<string, never> = {},
+  ): void {
+    setTitle(found.title);
+    setSlug(found.slug);
+    const site = (found.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null)?.ext?.site;
+    setExtFields(site ? { ...site } : {});
+    editor.commands.setContent((found.bodyJson ?? "") as never);
+  }
+
   // Seeds `entry`/`title`/`slug`/`extFields`/the editor's content from `list.data` exactly once per
   // `(contentTypeKey, entryId)` identity — see this file's own header for why a background refetch
   // of the SAME identity (e.g. this hook's own `save()` invalidating its parent key) must NOT re-run
@@ -190,15 +201,7 @@ export function useCollectionEntryEditor(
     const found = list.data.entry;
     setEntry(found);
     if (found) {
-      setTitle(found.title);
-      setSlug(found.slug);
-      setExtFields(
-        ((): Record<string, unknown> => {
-          const site = (found.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null)?.ext?.site;
-          return site ? { ...site } : {};
-        })()
-      );
-      editor.commands.setContent((found.bodyJson ?? "") as never);
+      seedExistingWorkingCopy({ found, editor });
       // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
       // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets/menus already apply.
       if (props.entryId) {

@@ -1,3 +1,4 @@
+import type { Response } from "express";
 import { assignLocation, MenuConflictError, MenuNotFoundError, MenuVersionConflictError } from "#src/features/navigation/index";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -9,6 +10,33 @@ function parseLocationKey(rawBody: unknown): string | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const locationKey = String(body.locationKey ?? "").trim();
   return locationKey || null;
+}
+
+/** Maps assignment failures to the existing admin response envelope. @complexity O(1). */
+function sendAssignLocationError(
+  { res, err }: { res: Response; err: unknown },
+  _options: Record<string, never> = {},
+): void {
+  const live = entityNotLiveResponse(err);
+  if (live) {
+    res.status(live.status).json(live.body);
+    return;
+  }
+  if (err instanceof MenuNotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  // Either menu's save can lose its compare-and-set to another editor (the whole assignment rolled
+  // back); same `VERSION_CONFLICT` code as update-tree, so the admin shows its "reload" copy.
+  if (err instanceof MenuVersionConflictError) {
+    res.status(409).json({ error: err.message, code: "VERSION_CONFLICT" });
+    return;
+  }
+  if (err instanceof MenuConflictError) {
+    res.status(409).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
 }
 
 /**
@@ -71,26 +99,7 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
 
       res.json(toAdminAssignLocationResponse({ menu, binding, displacedMenu }));
     } catch (err) {
-      const live = entityNotLiveResponse(err);
-      if (live) {
-        res.status(live.status).json(live.body);
-        return;
-      }
-      if (err instanceof MenuNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-      // Either menu's save can lose its compare-and-set to another editor (the whole assignment rolled
-      // back); same `VERSION_CONFLICT` code as update-tree, so the admin shows its "reload" copy.
-      if (err instanceof MenuVersionConflictError) {
-        res.status(409).json({ error: err.message, code: "VERSION_CONFLICT" });
-        return;
-      }
-      if (err instanceof MenuConflictError) {
-        res.status(409).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
+      sendAssignLocationError({ res, err });
     }
   });
 };

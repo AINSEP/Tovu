@@ -188,6 +188,39 @@ export function toPublishableState(post: PostRecord): Record<string, unknown> {
   return state;
 }
 
+/** Source absence clears destination presentation fields instead of inheriting them. */
+function importedPresentationFields(
+  { packed }: { packed: Partial<PostRecord> },
+  _options: Record<string, never> = {}
+) {
+  return {
+    // Absent on the wire means "none": the destination's own schedule/featured image is CLEARED, not
+    // kept, so a source that went live makes the destination live too.
+    ...presentScheduleFields({ publishAt: packed.publishAt ?? null, featuredMediaId: packed.featuredMediaId ?? null }),
+    author: packed.author ?? null,
+    showAuthor: packed.showAuthor ?? false,
+  };
+}
+
+/** Keep destination bookkeeping and write-once provenance separate from transferred content. */
+function importedLocalFields(
+  { existing, wire }: { existing: PostRecord | null; wire: Record<string, unknown> },
+  _options: Record<string, never> = {}
+) {
+  return {
+    // Recomputed by `importPostEntity` itself; present only because `PostRecord` requires them, and
+    // never read off the wire.
+    version: existing?.version ?? 0,
+    updatedAt: existing?.updatedAt ?? "",
+    // A packed entity is never trashed (`pack` skips trashed rows) and a trashed destination row is
+    // refused before this point, so the only correct value here is "live".
+    deletedAt: null,
+    ...(existing?.ext !== undefined ? { ext: existing.ext } : {}),
+    createdByPrincipalId: existing ? existing.createdByPrincipalId : (wire.createdByPrincipalId as string | null),
+    createdAt: existing ? existing.createdAt : (wire.createdAt as string | null),
+  };
+}
+
 /**
  * Rebuilds the full `PostRecord` `importPostEntity` replicates, from a packed state plus whatever
  * the destination already holds.
@@ -210,23 +243,10 @@ function toImportableRecord(
   }
   return {
     ...(wire as unknown as PublishablePostState),
-    // Absent on the wire means "none": the destination's own schedule/featured image is CLEARED, not
-    // kept, so a source that went live makes the destination live too.
-    ...presentScheduleFields({ publishAt: packed.publishAt ?? null, featuredMediaId: packed.featuredMediaId ?? null }),
-    author: packed.author ?? null,
-    showAuthor: packed.showAuthor ?? false,
+    ...importedPresentationFields({ packed }),
     id,
     workspaceId,
-    // Recomputed by `importPostEntity` itself; present only because `PostRecord` requires them, and
-    // never read off the wire.
-    version: existing?.version ?? 0,
-    updatedAt: existing?.updatedAt ?? "",
-    // A packed entity is never trashed (`pack` skips trashed rows) and a trashed destination row is
-    // refused before this point, so the only correct value here is "live".
-    deletedAt: null,
-    ...(existing?.ext !== undefined ? { ext: existing.ext } : {}),
-    createdByPrincipalId: existing ? existing.createdByPrincipalId : ((wire.createdByPrincipalId as string | null) ?? null),
-    createdAt: existing ? existing.createdAt : ((wire.createdAt as string | null) ?? null),
+    ...importedLocalFields({ existing, wire }),
   };
 }
 

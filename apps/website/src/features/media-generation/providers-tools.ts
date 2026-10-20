@@ -64,6 +64,17 @@ async function listProviders(deps: MediaProviderToolDeps): Promise<{ providers: 
   return { providers: PROVIDERS.map(provider => ({ id: provider.id, label: provider.label, kinds: [...provider.kinds], integrated: provider.integrated, configured: stored[provider.id]?.apiKeyConfigured === true })) };
 }
 
+/** Shared safe copy for the model result and human outcome; no submitted key is accepted.
+ * @complexity Time/space O(m), the formatted message length; no I/O.
+ */
+function savedProviderMessage({ provider, tokenHint, locale }: {
+  provider: { integrated: boolean }; tokenHint: CredentialTokenHint | null | undefined; locale: string;
+}, _optional = {}): string {
+  const hint = formatCredentialHint({ hint: tokenHint, locale });
+  const unavailable = provider.integrated === false ? ` ${credentialText({ id: 'generationUnavailable', locale })}` : '';
+  return `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}${unavailable}`;
+}
+
 /** Strict non-secret model input; bound provider identity is never taken from the form submission.
  * @throws ToolInputError for unknown fields/providers or a missing interactive channel.
  * @complexity Time O(p + s) before a single store patch; space O(p + s).
@@ -118,18 +129,14 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
       if (run.status === 'blank') return { ...declined, message: credentialText({ id: 'blank', locale: prep.locale }) };
       if (run.status === 'failed') return { ...declined, ...(run.safeMessage !== saveFailure ? { message: run.safeMessage } : {}) };
       if (run.status !== 'saved') return declined;
-      const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale: prep.locale });
-      const unavailable = prep.provider.integrated === false ? ` ${credentialText({ id: 'generationUnavailable', locale: prep.locale })}` : '';
-      const message = `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale: prep.locale })}${unavailable}`;
+      const message = savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale });
       return { saved: true, provider: prep.provider.id, configured: run.saved.configured, tokenHint: run.saved.tokenHint, connection: 'not_tested', message };
     },
     // Fixed outcome text cannot echo a submitted key or a raw persistence error.
     outcome: ({ prep, run }) => {
       if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
       const saved = run.status === 'saved';
-      const hint = saved ? formatCredentialHint({ hint: run.saved.tokenHint, locale: prep.locale }) : '';
-      const unavailable = prep.provider.integrated === false ? ` ${credentialText({ id: 'generationUnavailable', locale: prep.locale })}` : '';
-      const message = saved ? `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale: prep.locale })}${unavailable}`
+      const message = run.status === 'saved' ? savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale })
         : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale }) : run.status === 'failed' ? run.safeMessage : saveFailure;
       return { title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' : 'failure', message };
     },

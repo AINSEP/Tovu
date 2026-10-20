@@ -15,6 +15,16 @@ const DUPLICATE_ERROR_STATUS: Record<DuplicateThemeErrorCode, number> = {
   BAD_MANIFEST: 400,
 };
 
+/** Keep the HTTP body's coercion rules separate from the duplication service's validation. */
+function duplicateInput({ body, sourceThemeId }: { body: unknown; sourceThemeId: unknown }, _optional = {}) {
+  const record = bodyRecord(body);
+  return {
+    sourceThemeId: String(sourceThemeId ?? ""),
+    newName: String(record.newName ?? ""),
+    newId: typeof record.newId === "string" && record.newId.length > 0 ? record.newId : undefined,
+  };
+}
+
 /**
  * POST — duplicate one discovered theme into a new theme folder (the Themes screen's Duplicate
  * action). Body: `{ newName: string, newId?: string }`.
@@ -52,10 +62,9 @@ export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = (app, dep
         return;
       }
 
-      const body = bodyRecord(req.body);
-      const newId = typeof body.newId === "string" && body.newId.length > 0 ? body.newId : undefined;
+      const { sourceThemeId, newName, newId } = duplicateInput({ body: req.body, sourceThemeId: req.params.themeId });
       const { result, theme } = duplicateDiscoveredTheme(
-        { themes: deps.themes, themesDir: deps.themesDir, sourceThemeId: String(req.params.themeId ?? ""), newName: String(body.newName ?? "") },
+        { themes: deps.themes, themesDir: deps.themesDir, sourceThemeId, newName },
         { newId }
       );
       requestThemePreviewRefresh({ themesDir: deps.themesDir });

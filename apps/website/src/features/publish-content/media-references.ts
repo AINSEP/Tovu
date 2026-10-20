@@ -79,19 +79,12 @@ export function collectMediaConfigKeys({ config }: { config: unknown }, _optiona
 /** Walks a TipTap tree collecting every `image`/`media` node's `assetId` and legacy `src` key, plus
  *  any media URL in a mark's attrs. @complexity O(n) in the tree's size. */
 function addDocKeys(root: unknown, out: Set<string>): void {
-  const stack: unknown[] = [root];
-  while (stack.length) {
-    const node = stack.pop();
-    if (Array.isArray(node)) { for (const child of node) stack.push(child); continue; }
-    if (!isPlainObject(node)) continue;
-    if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs)) {
-      if (typeof node.attrs.assetId === "string") out.add(node.attrs.assetId);
-      else if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+  walkDoc({
+    root, visit: (node) => {
+      addNodeKeys({ node, out });
+      addMarkKeys(node.marks, out);
     }
-    if (node.type === 'widgetEmbed' && isPlainObject(node.attrs)) for (const key of collectMediaConfigKeys({ config: node.attrs.content })) out.add(key);
-    addMarkKeys(node.marks, out);
-    if (Array.isArray(node.content)) stack.push(node.content);
-  }
+  });
 }
 
 /** Saved widget media belongs to the same authored reference owner as inline content. Hosts
@@ -108,18 +101,13 @@ export function collectPlacedWidgetMediaKeys(
     const config = savedWidgets.get(key);
     if (!config) return; // Missing/trashed widgets do not render; there is no served asset to gate.
     const merged = isPlainObject(content) ? { ...config, ...content } : config;
-    const mode = merged.mode ?? (merged.items !== undefined ? 'media' : merged.html !== undefined ? 'html' : 'legacy');
-    const active = mode === 'html' ? { html: merged.html } : mode === 'media' ? { items: merged.items } : merged;
-    for (const ref of collectMediaConfigKeys({ config: active })) keys.add(ref);
+    for (const ref of collectMediaConfigKeys({ config: activeWidgetConfig({ merged }) })) keys.add(ref);
   };
-  const stack: unknown[] = [bodyJson];
-  while (stack.length) {
-    const node = stack.pop();
-    if (Array.isArray(node)) { for (const child of node) stack.push(child); continue; }
-    if (!isPlainObject(node)) continue;
-    if (node.type === 'widgetEmbed' && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === 'string') collect(node.attrs.widgetEntryId, node.attrs.content);
-    if (Array.isArray(node.content)) stack.push(node.content);
-  }
+  walkDoc({
+    root: bodyJson, visit: (node) => {
+      if (node.type === 'widgetEmbed' && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === 'string') collect(node.attrs.widgetEntryId, node.attrs.content);
+    }
+  });
   if (typeof bodyHtml === 'string') for (const marker of scanEmbedMarkers({ html: bodyHtml }).markers) {
     if (marker.type.toLowerCase() !== 'widget') continue;
     const target = embedMarkerTarget({ type: marker.type, config: marker.config });
@@ -133,15 +121,7 @@ function addHtmlKeys(html: string, out: Set<string>): void {
   for (const ref of galleryMediaReferences({ config: { html } })) out.add(ref.mediaId);
   for (const marker of scanEmbedMarkers({ html: html }).markers) {
     for (const key of collectMediaConfigKeys({ config: marker.config })) out.add(key);
-    if (marker.type.toLowerCase() === "gallery") {
-      for (const image of galleryMediaReferences({ config: marker.config })) out.add(image.mediaId);
-      // Read decoded config values too: a browser save entity-encodes JSON quotes in HTML.
-      if (Array.isArray(marker.config.images)) {
-        for (const image of marker.config.images) {
-          if (isPlainObject(image) && typeof image.src === "string") addUrlKeys(image.src, out);
-        }
-      }
-    }
+    addGalleryKeys({ marker, out });
     if (marker.type.toLowerCase() !== "media") continue;
     const target = embedMarkerTarget({ type: marker.type, config: marker.config });
     if (target !== undefined && target.key !== "none") out.add(target.value);
@@ -162,14 +142,7 @@ function addSeoKeys(raw: unknown, out: Set<string>): void {
   }
   if (!isPlainObject(seo)) return;
   for (const field of SEO_IMAGE_FIELDS) {
-    const ref = seo[field];
-    if (typeof ref !== "string") continue;
-    if (ref.includes("/")) {
-      addUrlKeys(ref, out); // an absolute URL, not a `"{assetId}:{transformName}"` ref
-      continue;
-    }
-    const assetId = ref.split(":")[0];
-    if (assetId) out.add(assetId);
+    addSeoReference({ ref: seo[field], out });
   }
 }
 
@@ -186,4 +159,49 @@ export function collectReferencedMediaKeys(state: Readonly<Record<string, unknow
   if (typeof state.bodyHtml === "string") addHtmlKeys(state.bodyHtml, keys);
   addSeoKeys(state.seoExtJson, keys);
   return keys;
+}
+
+function addNodeKeys({ node, out }: { node: Record<string, unknown>; out: Set<string> }, _optional: Record<string, never> = {}): void {
+  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs)) {
+    if (typeof node.attrs.assetId === "string") out.add(node.attrs.assetId);
+    else if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+  }
+  if (node.type === 'widgetEmbed' && isPlainObject(node.attrs)) for (const key of collectMediaConfigKeys({ config: node.attrs.content })) out.add(key);
+}
+
+function walkDoc({ root, visit }: { root: unknown; visit: (node: Record<string, unknown>) => void }, _optional: Record<string, never> = {}): void {
+  const stack: unknown[] = [root];
+  while (stack.length) {
+    const node = stack.pop();
+    if (Array.isArray(node)) { for (const child of node) stack.push(child); continue; }
+    if (!isPlainObject(node)) continue;
+    visit(node);
+    if (Array.isArray(node.content)) stack.push(node.content);
+  }
+}
+
+function activeWidgetConfig({ merged }: { merged: Record<string, unknown> }, _optional: Record<string, never> = {}): Record<string, unknown> {
+  const mode = merged.mode ?? (merged.items !== undefined ? 'media' : merged.html !== undefined ? 'html' : 'legacy');
+  return mode === 'html' ? { html: merged.html } : mode === 'media' ? { items: merged.items } : merged;
+}
+
+function addGalleryKeys({ marker, out }: { marker: ReturnType<typeof scanEmbedMarkers>["markers"][number]; out: Set<string> }, _optional: Record<string, never> = {}): void {
+  if (marker.type.toLowerCase() !== "gallery") return;
+  for (const image of galleryMediaReferences({ config: marker.config })) out.add(image.mediaId);
+  // Read decoded config values too: a browser save entity-encodes JSON quotes in HTML.
+  if (!Array.isArray(marker.config.images)) return;
+  for (const image of marker.config.images) {
+    if (isPlainObject(image) && typeof image.src === "string") addUrlKeys(image.src, out);
+  }
+}
+
+function addSeoReference({ ref, out }: { ref: unknown; out: Set<string> }, _optional: Record<string, never> = {}): void {
+
+  if (typeof ref !== "string") return;
+  if (ref.includes("/")) {
+    addUrlKeys(ref, out); // an absolute URL, not a `"{assetId}:{transformName}"` ref
+    return;
+  }
+  const assetId = ref.split(":")[0];
+  if (assetId) out.add(assetId);
 }

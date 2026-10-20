@@ -198,7 +198,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
           setNotice({
             kind: "confirmation",
             path,
-            replacedPreviousPath: previousPath !== null && previousPath !== path ? previousPath : null,
+            replacedPreviousPath: previousPath !== path ? previousPath : null,
           });
           scheduleAutoDismiss();
         } catch (err) {

@@ -1,9 +1,43 @@
+import type { Response } from "express";
+
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { enablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+
+function sendUserEnableError({ res, err }: { res: Response; err: unknown }, _options = {}): void {
+  if (err instanceof UserInTrashError) {
+    res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
+    return;
+  }
+
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({
+      error: err.message,
+      code: "FORBIDDEN",
+      details: { permission: err.permission, reason: err.reason },
+    });
+    return;
+  }
+
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+
+  if (err instanceof IdentityNotFoundError) {
+    res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
+    return;
+  }
+
+  if (err instanceof OwnerRequiredError) {
+    res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST users/:principalId/enable — `ENABLE_PRINCIPAL` (SPEC-006 0.6.0, REQ-15) — the symmetric
@@ -53,35 +87,7 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => 
         }),
       });
     } catch (err) {
-      if (err instanceof UserInTrashError) {
-        res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
-        return;
-      }
-
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      if (err instanceof IdentityNotFoundError) {
-        res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
-        return;
-      }
-
-      if (err instanceof OwnerRequiredError) {
-        res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
+      sendUserEnableError({ res, err });
     }
   });
 };

@@ -94,7 +94,7 @@ test('local archive reads accept the byte limit and reject missing and oversized
   await assert.rejects(readPluginInstallArchive(required), { message: 'ZIP exceeds the 32 MiB upload limit.' });
 });
 
-test('local archive rechecks size after a file grows between metadata and byte reads', async () => {
+test('local archive reads grown bytes before the final size refusal (reported, not fixed)', async () => {
   const operations: unknown[] = [];
   await assert.rejects(readPluginInstallArchive({ request: { kind: 'zip', path: '/virtual/plugin.zip', replace: false }, ownerId: 'operator', runId: 'run', maxBytes: 3 }, {
     files: {
@@ -103,4 +103,20 @@ test('local archive rechecks size after a file grows between metadata and byte r
     },
   }), { message: 'ZIP exceeds the 32 MiB upload limit.' });
   assert.deepEqual(operations, [{ path: '/virtual/plugin.zip' }, { path: '/virtual/plugin.zip' }]);
+});
+
+test('L079: invalid kind precedes source exclusivity and invalid path precedes replacement', () => {
+  assert.throws(() => readPluginInstallRequest({ input: { source: { kind: 'tar' }, replace: 'yes' } }), { message: "source.kind must be 'folder' or 'zip'." });
+  assert.throws(() => readPluginInstallRequest({ input: { source: { kind: 'zip', path: 'relative' }, replace: 'yes' } }), { message: 'source.path must be an absolute path on the machine Tovu runs on (expand ~ first).' });
+});
+
+test('L079: oversized stat prevents allocation and read failures propagate unchanged', async () => {
+  const required = { request: { kind: 'zip' as const, path: '/virtual/a.zip', replace: false }, ownerId: 'owner', runId: 'run', maxBytes: 3 };
+  await assert.rejects(readPluginInstallArchive(required, { files: {
+    stat: async () => ({ size: 4 }), read: async () => { assert.fail('must not allocate'); },
+  } }), { message: 'ZIP exceeds the 32 MiB upload limit.' });
+  const failure = new Error('read denied');
+  await assert.rejects(readPluginInstallArchive(required, { files: {
+    stat: async () => ({ size: 3 }), read: async () => { throw failure; },
+  } }), error => error === failure);
 });

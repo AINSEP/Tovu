@@ -31,6 +31,20 @@ import {
   type PublishScope,
 } from "@tovu/publish-content-ui";
 
+/**
+ * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
+ * local `error.message` read (the 2026-08-01 adversarial-UX audit's cross-cutting finding #2: every
+ * screen that rebuilt this chain itself, and every screen whose author forgot, showed a raw
+ * developer string or a blank).
+ *
+ * The verbatim pass-through matters here specifically. A peer whose host resolves to a private
+ * address answers 502 `EGRESS_REFUSED` with a message naming `devHostAllowlist` and the env var to
+ * set — that sentence is the operator's only instruction for fixing it, so it must reach the screen
+ * unrewritten. `request()` throws it as an `ApiError` whose `message` IS `body.error`, and
+ * `describeApiError` returns that untouched; the fallback only covers an empty message or a thrown
+ * non-Error.
+ *
+ */
 import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
@@ -213,28 +227,12 @@ export type PublishPrimaryKind = "start" | "confirm";
 export const CONFIRM_ARM_DELAY_MS = 400;
 
 /** `start` until a plan is on screen (or the run is done), `confirm` from then on. @complexity O(1). */
-function primaryKindFor(phase: PublishContentPhase, connectOffer: PublishContentConnectOffer | null): PublishPrimaryKind {
+function primaryKindFor(
+  phase: PublishContentPhase,
+  connectOffer: PublishContentConnectOffer | null
+): PublishPrimaryKind {
   if (connectOffer || canRequestPlan(phase) || phase.kind === "planning") return "start";
   return "confirm";
-}
-
-/**
- * Operator-facing copy for a failed call, via the shared `describeApiError` base case rather than a
- * local `error.message` read (the 2026-08-01 adversarial-UX audit's cross-cutting finding #2: every
- * screen that rebuilt this chain itself, and every screen whose author forgot, showed a raw
- * developer string or a blank).
- *
- * The verbatim pass-through matters here specifically. A peer whose host resolves to a private
- * address answers 502 `EGRESS_REFUSED` with a message naming `devHostAllowlist` and the env var to
- * set — that sentence is the operator's only instruction for fixing it, so it must reach the screen
- * unrewritten. `request()` throws it as an `ApiError` whose `message` IS `body.error`, and
- * `describeApiError` returns that untouched; the fallback only covers an empty message or a thrown
- * non-Error.
- *
- * @complexity O(1).
- */
-function messageOf(error: unknown, fallback: string): string {
-  return describeApiError(error, fallback);
 }
 
 /**
@@ -264,6 +262,13 @@ function primaryLabelFor(
   // plan-publish-sections-2026-09-25.md §2 S2 — before a plan lands, the idle button promises what
   // this dialog is scoped to, same label as its own title (`publishScopeTitleKey`).
   if (phase.kind !== "planned") return t(publishScopeTitleKey(scope));
+  return plannedPrimaryLabel({ selectedPublishing, onlyLiveGaps, t });
+}
+
+function plannedPrimaryLabel(
+  { selectedPublishing, onlyLiveGaps, t }: { selectedPublishing: number; onlyLiveGaps: boolean; t: Translate },
+  _options: Record<string, never> = {}
+): string {
   // The SELECTED count, not the plan's own: the button must promise what this click will actually
   // do. A plan of 59 writable rows with 56 unchecked says "Publish 3 items".
   // An empty report whose types the live site simply can't take yet is not "nothing to publish" —
@@ -308,7 +313,7 @@ function peerSelectionOpen(phase: PublishContentPhase): boolean {
 /**
  * The confirmation banner shown once a publish executes: how many entities changed, plus how many
  * live menu links were repointed to follow them (`plan-publish-repoint-menus-2026-09-24.md` §2.7/R6).
- * `null` outside the `done` phase, same as the field this replaces.
+ * `doneMessage` is `null` outside the `done` phase, same as the field this replaces.
  *
  * Counted copy is assembled from `t()`-resolved fragments for the same reason `primaryLabelFor` above
  * is: this app's translator has no interpolation. The menu-links clause is appended only when
@@ -318,13 +323,20 @@ function peerSelectionOpen(phase: PublishContentPhase): boolean {
  *
  * @complexity O(1).
  */
-function doneMessageFor(phase: PublishContentPhase, t: Translate): string | null {
-  if (phase.kind !== "done") return null;
+function completionMessagesFor(
+  { phase, t }: { phase: PublishContentPhase; t: Translate },
+  _options: Record<string, never> = {}
+): Pick<PublishContentConfirmView, "doneMessage" | "doneNotices" | "doneProblems"> {
+  if (phase.kind !== "done") return { doneMessage: null, doneNotices: [], doneProblems: [] };
   const changeCount = phase.result.changeSetIds.length;
   const base = `${t("Published")} ${changeCount} ${changeCount === 1 ? t("change") : t("changes")}.`;
   const menuLinksUpdated = phase.result.menuLinksUpdated ?? 0;
-  if (menuLinksUpdated <= 0) return base;
-  return `${base} ${t("Menu links updated:")} ${menuLinksUpdated}.`;
+  return {
+    doneMessage: menuLinksUpdated <= 0 ? base : `${base} ${t("Menu links updated:")} ${menuLinksUpdated}.`,
+    // De-duplicated: a grant that doesn't cover menus refuses every menu with the same line.
+    doneNotices: [...new Set(phase.result.menuLinksNotUpdated ?? [])],
+    doneProblems: [...new Set(phase.result.verificationProblems ?? [])],
+  };
 }
 
 /**
@@ -492,7 +504,18 @@ export function usePublishContentConfirm(props: {
     [port, props.scope]
   );
 
+  // `live` guards every `setState` that follows an `await`: the dialog is unmounted by its own
+  // Cancel button and by Escape, either of which can land while a plan or a publish is in flight.
+  const live = useRef(true);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
+
   const [phase, setPhase] = useState<PublishContentPhase>({ kind: "idle" });
+  // Load the target list before offering destination discovery for an empty install.
   const [peers, setPeers] = useState<readonly PublishContentPeerSummary[]>([]);
   const [peersLoaded, setPeersLoaded] = useState(false);
   const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
@@ -504,6 +527,62 @@ export function usePublishContentConfirm(props: {
   const [destination, setDestination] = useState<AdminPublishDestinationView | null>(null);
   const [destinationLoaded, setDestinationLoaded] = useState(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const readDestination = async (_required: Record<string, never>, _options: Record<string, never> = {}) => {
+      try {
+        const view = await port.getDestination();
+        if (cancelled || !live.current) return;
+        setDestination(view);
+      } catch (destinationErr) {
+        if (cancelled || !live.current) return;
+        setDestinationError(
+          describeApiError(destinationErr, t("Could not check whether this install can publish yet."))
+        );
+      } finally {
+        if (!cancelled && live.current) setDestinationLoaded(true);
+      }
+    };
+    void (async () => {
+      try {
+        const { peers: loaded } = await port.listPeers();
+        if (cancelled || !live.current) return;
+        setPeers(loaded);
+        // Auto-select when there is exactly one target: the overwhelmingly common case is a single
+        // production peer, and making the operator pick it from a list of one is friction with no
+        // decision behind it. With two or more, the dialog asks.
+        setSelectedPeerId(loaded.length === 1 ? loaded[0].id : null);
+        // Nothing to publish to yet — check whether this install can offer a one-click connect
+        // instead of failing shut. Sequenced after `listPeers` rather than fired in parallel: the
+        // common case (already connected) never needs this second call at all.
+        if (loaded.length === 0) {
+          await readDestination({});
+        }
+      } catch (error) {
+        if (cancelled || !live.current) return;
+        setPeersError(describeApiError(error, t("Could not load publish targets.")));
+      } finally {
+        if (!cancelled && live.current) setPeersLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // `t` is read only for a fallback string and is deliberately NOT a dependency: a caller whose
+    // translator is a fresh closure each render would otherwise refetch the peer list on every
+    // render. The worst case is a fallback sentence in a stale locale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port]);
+
+  // `null` until BOTH the peer list came back empty and the destination check that follows it has
+  // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
+  // the connect offer a beat before it has anything real to say.
+  const connectOffer: PublishContentConnectOffer | null =
+    peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
+      ? { message: destination.message, candidateUrl: destination.candidateUrl }
+      : null;
+
   const [connecting, setConnecting] = useState(false);
 
   // Stored as what the operator UNCHECKED, not as what is checked. "All checked by default" is then
@@ -547,64 +626,12 @@ export function usePublishContentConfirm(props: {
     if (dismissible) onCancel();
   };
 
-  // `live` guards every `setState` that follows an `await`: the dialog is unmounted by its own
-  // Cancel button and by Escape, either of which can land while a plan or a publish is in flight.
-  const live = useRef(true);
-  useEffect(() => {
-    live.current = true;
-    return () => {
-      live.current = false;
-    };
-  }, []);
-
   // The site the current phase's plan was requested from — what confirm and execute address, never
   // the picker's value at click time (terra review 2026-09-20, finding 2). `PublishContentPlanResult`
   // carries no peer id of its own, so the binding is kept here: set when a plan is requested, cleared
   // when the operator picks another site. A ref because `requestPlan` compares against it after an
   // `await`, where a state read would be the stale closure value.
   const planPeerRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const { peers: loaded } = await port.listPeers();
-        if (cancelled || !live.current) return;
-        setPeers(loaded);
-        // Auto-select when there is exactly one target: the overwhelmingly common case is a single
-        // production peer, and making the operator pick it from a list of one is friction with no
-        // decision behind it. With two or more, the dialog asks.
-        setSelectedPeerId(loaded.length === 1 ? loaded[0].id : null);
-        // Nothing to publish to yet — check whether this install can offer a one-click connect
-        // instead of failing shut. Sequenced after `listPeers` rather than fired in parallel: the
-        // common case (already connected) never needs this second call at all.
-        if (loaded.length === 0) {
-          try {
-            const view = await port.getDestination();
-            if (cancelled || !live.current) return;
-            setDestination(view);
-          } catch (destinationErr) {
-            if (cancelled || !live.current) return;
-            setDestinationError(messageOf(destinationErr, t("Could not check whether this install can publish yet.")));
-          } finally {
-            if (!cancelled && live.current) setDestinationLoaded(true);
-          }
-        }
-      } catch (error) {
-        if (cancelled || !live.current) return;
-        setPeersError(messageOf(error, t("Could not load publish targets.")));
-      } finally {
-        if (!cancelled && live.current) setPeersLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // `t` is read only for a fallback string and is deliberately NOT a dependency: a caller whose
-    // translator is a fresh closure each render would otherwise refetch the peer list on every
-    // render. The worst case is a fallback sentence in a stale locale.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port]);
 
   // Takes `peerId` explicitly rather than reading `selectedPeerId` off closure: `onConnect` below
   // calls this in the same tick it learns the newly-connected peer's id, before that `setState` has
@@ -635,7 +662,11 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "planned", plan });
       } catch (error) {
         if (!live.current || planPeerRef.current !== peerId) return;
-        setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
+        setPhase({
+          kind: "failed",
+          message: describeApiError(error, t("Could not work out what would be published.")),
+          code: null,
+        });
       }
     },
     [planInScope, setReplanPending, t]
@@ -665,26 +696,41 @@ export function usePublishContentConfirm(props: {
       setOverwriteMismatch(null);
       const useBase = nextOverwriteKeys.size === 0 && !basePlanStaleRef.current;
       setReplanPending(!useBase);
+      // Superseded by a newer tick, a peer switch, or an unmount while this was in flight.
+      const isCurrentReplan = (_required: Record<string, never>, _options: Record<string, never> = {}): boolean =>
+        live.current && planPeerRef.current === peerId && overwriteKeysRef.current === nextOverwriteKeys;
       void (async () => {
         try {
           const replanned = useBase
             ? base
             : await planInScope(
-                nextOverwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(nextOverwriteKeys) }
+                nextOverwriteKeys.size === 0
+                  ? { peerId }
+                  : { peerId, overwriteEntityKeys: Array.from(nextOverwriteKeys) }
               );
-          // Superseded by a newer tick, a peer switch, or an unmount while this was in flight.
-          if (!live.current || planPeerRef.current !== peerId || overwriteKeysRef.current !== nextOverwriteKeys) return;
+          if (!isCurrentReplan({})) return;
           setReplanPending(false);
-          if (!useBase && !overwriteReplanIsConsistent({ shown: shown.details, next: replanned.details, tickedKeys: nextOverwriteKeys, changing })) {
+          if (
+            !useBase &&
+            !overwriteReplanIsConsistent({
+              shown: shown.details,
+              next: replanned.details,
+              tickedKeys: nextOverwriteKeys,
+              changing,
+            })
+          ) {
             basePlanStaleRef.current = true;
-            const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
-            setOverwriteMismatch(`${peerLabel} ${t("changed while you were deciding. Check the list again.")}`);
+            setOverwriteMismatch(publishMismatchMessage({ peers, peerId, t }));
           }
           setPhase((current) => (current.kind === "planned" ? { kind: "planned", plan: replanned } : current));
         } catch (error) {
-          if (!live.current || planPeerRef.current !== peerId || overwriteKeysRef.current !== nextOverwriteKeys) return;
+          if (!isCurrentReplan({})) return;
           setReplanPending(false);
-          setPhase({ kind: "failed", message: messageOf(error, t("Could not work out what would be published.")), code: null });
+          setPhase({
+            kind: "failed",
+            message: describeApiError(error, t("Could not work out what would be published.")),
+            code: null,
+          });
         }
       })();
     },
@@ -728,10 +774,46 @@ export function usePublishContentConfirm(props: {
       void requestPlan(site.id);
     } catch (error) {
       if (!live.current) return;
-      setDestinationError(messageOf(error, t("Could not connect.")));
+      setDestinationError(describeApiError(error, t("Could not connect.")));
       setConnecting(false);
     }
   }, [connecting, port, requestPlan, t]);
+
+  const reportConfirmFailure = useCallback(
+    ({ error, peerId }: { error: unknown; peerId: string }, _options: Record<string, never> = {}): void => {
+      // The narrowed re-plan writes a different set than the one reviewed: put that plan on screen
+      // with the same sentence a drifting overwrite tick gets, rather than confirming unseen rows.
+      if (error instanceof PublishPlanDriftError) {
+        basePlanStaleRef.current = true;
+        setOverwriteMismatch(publishMismatchMessage({ peers, peerId, t }));
+        setPhase({ kind: "planned", plan: error.plan });
+        return;
+      }
+      setPhase({ kind: "failed", message: describeApiError(error, t("Could not publish.")), code: null });
+    },
+    [peers, t]
+  );
+
+  const confirmPreparedPlan = useCallback(
+    async (
+      { peerId, confirmed }: { peerId: string; confirmed: PublishContentPlanResult },
+      _options: Record<string, never> = {}
+    ): Promise<void> => {
+      if (!live.current) return;
+      if (!canConfirmPlan({ kind: "planned", plan: confirmed })) {
+        setPhase({ kind: "planned", plan: confirmed });
+        return;
+      }
+      const { confirmationToken } = await port.confirmPublish({
+        peerId,
+        planId: confirmed.planId,
+        planHash: confirmed.planHash,
+      });
+      if (!live.current) return;
+      setPhase({ kind: "confirmed", plan: confirmed, confirmationToken });
+    },
+    [port]
+  );
 
   /**
    * Confirms the plan on screen — and, when the operator unchecked rows, RE-PLANS first against a
@@ -749,7 +831,8 @@ export function usePublishContentConfirm(props: {
    */
   const confirmPlan = useCallback(async () => {
     const peerId = planPeerRef.current;
-    if (!isChosenPeerId(peerId) || phase.kind !== "planned" || !canConfirmPlan(phase)) return;
+    if (!isChosenPeerId(peerId) || phase.kind !== "planned") return;
+    if (!canConfirmPlan(phase)) return;
     // The plan on screen is not yet the one the operator's latest tick describes.
     if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
@@ -767,34 +850,17 @@ export function usePublishContentConfirm(props: {
       // drop an "Overwrite on live" tick. A ticked row the operator ALSO unchecked is not in
       // `keep`, so its key is dropped here: an overwrite of something not being published
       // would only ask live to force a row the bundle doesn't carry.
-      const confirmed = await preparePublishConfirmation({ plan, deselectedKeys,
-        planPublish: input => planInScope({ peerId, ...input }) });
-      if (!live.current) return;
-      if (!canConfirmPlan({ kind: "planned", plan: confirmed })) {
-        setPhase({ kind: "planned", plan: confirmed });
-        return;
-      }
-      const { confirmationToken } = await port.confirmPublish({
-        peerId,
-        planId: confirmed.planId,
-        planHash: confirmed.planHash,
+      const confirmed = await preparePublishConfirmation({
+        plan,
+        deselectedKeys,
+        planPublish: (input) => planInScope({ peerId, ...input }),
       });
-      if (!live.current) return;
-      setPhase({ kind: "confirmed", plan: confirmed, confirmationToken });
+      await confirmPreparedPlan({ peerId, confirmed });
     } catch (error) {
       if (!live.current) return;
-      // The narrowed re-plan writes a different set than the one reviewed: put that plan on screen
-      // with the same sentence a drifting overwrite tick gets, rather than confirming unseen rows.
-      if (error instanceof PublishPlanDriftError) {
-        basePlanStaleRef.current = true;
-        const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
-        setOverwriteMismatch(`${peerLabel} ${t("changed while you were deciding. Check the list again.")}`);
-        setPhase({ kind: "planned", plan: error.plan });
-        return;
-      }
-      setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
+      reportConfirmFailure({ error, peerId });
     }
-  }, [deselectedKeys, peers, phase, planInScope, port, t]);
+  }, [confirmPreparedPlan, deselectedKeys, phase, planInScope, reportConfirmFailure]);
 
   // The ONLY call site of `port.executePublish` in this package. Its input is whatever
   // `confirmationTokenFor` returns, which is `null` for every phase but `confirmed`/`executing` —
@@ -823,51 +889,36 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "done", result });
       } catch (error) {
         if (!live.current) return;
-        setPhase({ kind: "failed", message: messageOf(error, t("Could not publish.")), code: null });
+        setPhase({ kind: "failed", message: describeApiError(error, t("Could not publish.")), code: null });
       }
     })();
   }, [executionToken, phase, port, t]);
 
-  // The report stays on screen through confirm and execute — `planOnScreen` owns which phases have
-  // one, so this file never has to re-enumerate them (and cannot get `planning`, which has no plan
-  // yet, wrong).
-  const visiblePlan = planOnScreen(phase);
-  // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
-  // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
-  const rows = visiblePlan === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(visiblePlan.details), locale);
-  const summary = visiblePlan === null ? null : summarizePublishReport(rows);
-  // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
-  // so splitting them off keeps both halves in the shared order.
-  const listedRows = rows.filter((row) => row.disposition !== "unchanged");
-  const upToDateRows = rows.filter((row) => row.disposition === "unchanged");
+  const {
+    visiblePlan,
+    rows,
+    summary,
+    listedRows,
+    upToDateRows,
+    liveGapNotices,
+    selectableKeys,
+    selectedKeys,
+    selectedPublishing,
+    carriedAlongKeys,
+    allSelected,
+    someSelected,
+  } = publishReportSelection({ phase, locale, t, deselectedKeys });
   const [upToDateExpanded, setUpToDateExpanded] = useState(false);
   const onToggleUpToDate = useCallback(() => setUpToDateExpanded((open) => !open), []);
-  const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t, locale);
 
-  // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
-  // disagree with it or with the rows currently on screen.
-  const selectableKeys = selectableRowKeys(rows);
-  const selectedKeys: ReadonlySet<string> = new Set(selectableKeys.filter((key) => !deselectedKeys.has(key)));
-  const selectedPublishing = countSelectedPublishing(rows, selectedKeys);
-  const carriedAlongKeys: ReadonlySet<string> = new Set(
-    rows.filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection(row, selectedKeys)).map((row) => row.key)
-  );
-  const allSelected = selectableKeys.length > 0 && selectedKeys.size === selectableKeys.length;
-  const someSelected = selectedKeys.size > 0 && !allSelected;
-
-  // publish-overwrite-live-plan §4/S9. `true` with no plan on screen is harmless: `overwritableRows`
-  // is empty then too, so nothing reads this as "go ahead and offer a box".
-  const liveCanOverwrite = visiblePlan?.liveCanOverwrite ?? true;
-  const overwritableRows = rows.filter((row) => row.overwritable);
-  // A ticked row keeps its box: once its re-plan lands it is `forced`, no longer `overwritable`, and
-  // dropping the box then would leave a tick the operator can neither see nor undo — and, for the
-  // only such row, take the whole column (and its header box) with it.
-  const overwriteOfferKeys: ReadonlySet<string> = new Set(
-    rows.filter((row) => row.overwritable || overwriteKeys.has(row.key)).map((row) => row.key)
-  );
-  const showOverwriteColumn = liveCanOverwrite && overwriteOfferKeys.size > 0;
-  const allOverwriteTicked = overwriteOfferKeys.size > 0 && [...overwriteOfferKeys].every((key) => overwriteKeys.has(key));
-  const someOverwriteTicked = overwriteKeys.size > 0 && !allOverwriteTicked;
+  const {
+    liveCanOverwrite,
+    overwritableRows,
+    overwriteOfferKeys,
+    showOverwriteColumn,
+    allOverwriteTicked,
+    someOverwriteTicked,
+  } = publishOverwriteSelection({ visiblePlan, rows, overwriteKeys });
   // Ticks every offered row — earlier ticks included — or clears them all when every one already is.
   const onToggleAllOverwrite = (): void => {
     applyOverwriteKeys(allOverwriteTicked ? new Set() : new Set(overwriteOfferKeys));
@@ -928,26 +979,13 @@ export function usePublishContentConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, rows]);
 
-  const overwriteWarning =
-    liveCanOverwrite && overwriteKeys.size > 0
-      ? t("Ticked items will replace what's on the live site, and stay recoverable in its Trash or history.")
-      : null;
-
-  // Shown only when the peer itself can't honour the overwrite AND there is something it would
-  // otherwise have offered — an older live with a plain unchanged/created/applied report says nothing
-  // extra here.
-  const overwriteUnavailable =
-    !liveCanOverwrite && overwritableRows.length > 0
-      ? `${currentPeerLabel} ${t("is on an older Tovu and can't overwrite these yet. Update it, then publish again.")}`
-      : null;
-
-  // `null` until BOTH the peer list came back empty and the destination check that follows it has
-  // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
-  // the connect offer a beat before it has anything real to say.
-  const connectOffer: PublishContentConnectOffer | null =
-    peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
-      ? { message: destination.message, candidateUrl: destination.candidateUrl }
-      : null;
+  const { overwriteWarning, overwriteUnavailable } = publishOverwriteNotices({
+    liveCanOverwrite,
+    overwriteKeys,
+    overwritableRows,
+    currentPeerLabel,
+    t,
+  });
 
   // Checkboxes are an offer, and the offer closes the moment the operator commits: `planned` is the
   // only phase where changing the selection could still change what gets published.
@@ -990,7 +1028,6 @@ export function usePublishContentConfirm(props: {
     setOverwriteMismatch(null);
   };
 
-  const canStart = canRequestPlan(phase) && isChosenPeerId(selectedPeerId);
   const runPrimary = useCallback((): Promise<void> => {
     if (connectOffer) return onConnect();
     if (!canRequestPlan(phase)) return confirmPlan();
@@ -998,13 +1035,14 @@ export function usePublishContentConfirm(props: {
   }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
 
   const primaryKind = primaryKindFor(phase, connectOffer);
-  const primaryDisabled = connectOffer
-    ? connecting || connectOffer.candidateUrl === null
-    : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan
-      // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
-      // plan with everything unchecked is disabled too — the button never promises a run that
-      // would write nothing.
-      !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending));
+  const primaryDisabled = publishPrimaryDisabled({
+    phase,
+    selectedPeerId,
+    connectOffer,
+    connecting,
+    selectedPublishing,
+    overwriteReplanPending,
+  });
 
   // When the confirm control last became clickable (appeared, or re-enabled after a tick's re-plan).
   // A layout effect, so the stamp lands before the browser can deliver a click to the new control.
@@ -1077,13 +1115,186 @@ export function usePublishContentConfirm(props: {
     primaryKind,
     primaryDisabled,
     onPrimary,
-    errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
-    refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,
-    doneMessage: doneMessageFor(phase, t),
-    // De-duplicated: a grant that doesn't cover menus refuses every menu with the same line.
-    doneNotices: phase.kind === "done" ? [...new Set(phase.result.menuLinksNotUpdated ?? [])] : [],
-    doneProblems: phase.kind === "done" ? [...new Set(phase.result.verificationProblems ?? [])] : [],
+    ...publishPhaseMessages({ phase, peersError, destinationError, t }),
     liveGapNotices,
     connectOffer,
   };
+}
+
+/** Derive the report and checked selection from the existing publish UI rules. */
+function publishReportSelection(
+  {
+    phase,
+    locale,
+    t,
+    deselectedKeys,
+  }: { phase: PublishContentPhase; locale: string; t: Translate; deselectedKeys: ReadonlySet<string> },
+  _options: Record<string, never> = {}
+) {
+  // The report stays on screen through confirm and execute — `planOnScreen` owns which phases have
+  // one, so this file never has to re-enumerate them (and cannot get `planning`, which has no plan
+  // yet, wrong).
+  const visiblePlan = planOnScreen(phase);
+  // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
+  // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
+  const rows =
+    visiblePlan === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(visiblePlan.details), locale);
+  const summary = visiblePlan === null ? null : summarizePublishReport(rows);
+  // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
+  // so splitting them off keeps both halves in the shared order.
+  const listedRows = rows.filter((row) => row.disposition !== "unchanged");
+  const upToDateRows = rows.filter((row) => row.disposition === "unchanged");
+  const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t, locale);
+
+  // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
+  // disagree with it or with the rows currently on screen.
+  const selectableKeys = selectableRowKeys(rows);
+  const selectedKeys: ReadonlySet<string> = new Set(selectableKeys.filter((key) => !deselectedKeys.has(key)));
+  const selectedPublishing = countSelectedPublishing(rows, selectedKeys);
+  const carriedAlongKeys: ReadonlySet<string> = new Set(
+    rows
+      .filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection(row, selectedKeys))
+      .map((row) => row.key)
+  );
+  const allSelected = selectableKeys.length > 0 && selectedKeys.size === selectableKeys.length;
+  const someSelected = selectedKeys.size > 0 && !allSelected;
+
+  return {
+    visiblePlan,
+    rows,
+    summary,
+    listedRows,
+    upToDateRows,
+    liveGapNotices,
+    selectableKeys,
+    selectedKeys,
+    selectedPublishing,
+    carriedAlongKeys,
+    allSelected,
+    someSelected,
+  };
+}
+
+/** Keep overwrite affordances visible after their rows become forced. */
+function publishOverwriteSelection(
+  {
+    visiblePlan,
+    rows,
+    overwriteKeys,
+  }: {
+    visiblePlan: PublishContentPlanResult | null;
+    rows: readonly PublishReportRow[];
+    overwriteKeys: ReadonlySet<string>;
+  },
+  _options: Record<string, never> = {}
+) {
+  // publish-overwrite-live-plan §4/S9. `true` with no plan on screen is harmless: `overwritableRows`
+  // is empty then too, so nothing reads this as "go ahead and offer a box".
+  const liveCanOverwrite = visiblePlan?.liveCanOverwrite ?? true;
+  const overwritableRows = rows.filter((row) => row.overwritable);
+  // A ticked row keeps its box: once its re-plan lands it is `forced`, no longer `overwritable`, and
+  // dropping the box then would leave a tick the operator can neither see nor undo — and, for the
+  // only such row, take the whole column (and its header box) with it.
+  const overwriteOfferKeys: ReadonlySet<string> = new Set(
+    rows.filter((row) => row.overwritable || overwriteKeys.has(row.key)).map((row) => row.key)
+  );
+  const showOverwriteColumn = liveCanOverwrite && overwriteOfferKeys.size > 0;
+  const allOverwriteTicked =
+    overwriteOfferKeys.size > 0 && [...overwriteOfferKeys].every((key) => overwriteKeys.has(key));
+  const someOverwriteTicked = overwriteKeys.size > 0 && !allOverwriteTicked;
+
+  return {
+    liveCanOverwrite,
+    overwritableRows,
+    overwriteOfferKeys,
+    showOverwriteColumn,
+    allOverwriteTicked,
+    someOverwriteTicked,
+  };
+}
+
+function publishOverwriteNotices(
+  {
+    liveCanOverwrite,
+    overwriteKeys,
+    overwritableRows,
+    currentPeerLabel,
+    t,
+  }: {
+    liveCanOverwrite: boolean;
+    overwriteKeys: ReadonlySet<string>;
+    overwritableRows: readonly PublishReportRow[];
+    currentPeerLabel: string;
+    t: Translate;
+  },
+  _options: Record<string, never> = {}
+) {
+  const overwriteWarning =
+    liveCanOverwrite && overwriteKeys.size > 0
+      ? t("Ticked items will replace what's on the live site, and stay recoverable in its Trash or history.")
+      : null;
+
+  // Shown only when the peer itself can't honour the overwrite AND there is something it would
+  // otherwise have offered — an older live with a plain unchanged/created/applied report says nothing
+  // extra here.
+  const overwriteUnavailable =
+    !liveCanOverwrite && overwritableRows.length > 0
+      ? `${currentPeerLabel} ${t("is on an older Tovu and can't overwrite these yet. Update it, then publish again.")}`
+      : null;
+
+  return { overwriteWarning, overwriteUnavailable };
+}
+
+function publishPhaseMessages(
+  {
+    phase,
+    peersError,
+    destinationError,
+    t,
+  }: { phase: PublishContentPhase; peersError: string | null; destinationError: string | null; t: Translate },
+  _options: Record<string, never> = {}
+) {
+  return {
+    errorMessage: peersError ?? destinationError ?? (phase.kind === "failed" ? phase.message : null),
+    refusalReason: phase.kind === "planned" && phase.plan.details.refused ? phase.plan.details.refusalReason : null,
+    ...completionMessagesFor({ phase, t }),
+  };
+}
+
+function publishPrimaryDisabled(
+  {
+    phase,
+    selectedPeerId,
+    connectOffer,
+    connecting,
+    selectedPublishing,
+    overwriteReplanPending,
+  }: {
+    phase: PublishContentPhase;
+    selectedPeerId: string | null;
+    connectOffer: PublishContentConnectOffer | null;
+    connecting: boolean;
+    selectedPublishing: number;
+    overwriteReplanPending: boolean;
+  },
+  _options: Record<string, never> = {}
+): boolean {
+  const canStart = canRequestPlan(phase) && isChosenPeerId(selectedPeerId);
+  const primaryDisabled = connectOffer
+    ? connecting || connectOffer.candidateUrl === null
+    : // `selectedPublishing` is ANDed with the plan-level rule, never a replacement for it: a plan
+      // that may not be confirmed at all stays disabled whatever is checked, and a confirmable
+      // plan with everything unchecked is disabled too — the button never promises a run that
+      // would write nothing.
+      !(canStart || (canConfirmPlan(phase) && selectedPublishing > 0 && !overwriteReplanPending));
+
+  return primaryDisabled;
+}
+
+function publishMismatchMessage(
+  { peers, peerId, t }: { peers: readonly PublishContentPeerSummary[]; peerId: string; t: Translate },
+  _options: Record<string, never> = {}
+): string {
+  const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
+  return `${peerLabel} ${t("changed while you were deciding. Check the list again.")}`;
 }

@@ -60,6 +60,11 @@ function affected(value: bigint | number | undefined): number {
   return Number(value ?? 0);
 }
 
+/** All table operations skip version comparison only for an unversioned entry or a null expectation. */
+function hasVersionChanged(required: { entry: TrashEntry; row: MarkerRow; expectedVersion: number | null }, _options: Record<string, never> = {}): boolean {
+  return Boolean(required.entry.versionColumn && required.expectedVersion !== null && required.row.version !== required.expectedVersion);
+}
+
 /**
  * Builds one `TrashAdapter` for a single {@link TrashEntry}. Registered once per entry into the
  * adapter map at composition (`deps.ts`), exactly like every bespoke adapter.
@@ -191,6 +196,21 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
     return affected(result.numUpdatedRows) > 0;
   }
 
+  /** Counts the entry's declared blockers only when a real hide transition is needed. */
+  async function checkBlocker(required: { entityId: string }, _options: Record<string, never> = {}): Promise<Extract<TrashMarkerResult, { reason: "blocked" }> | null> {
+    if (!entry.blocker) return null;
+    const blocker = entry.blocker;
+    const counted = await run((db) =>
+      loose(db)
+        .selectFrom(blocker.table)
+        .select((eb) => eb.fn.countAll().as("n"))
+        .where(blocker.parentIdColumn, "=", required.entityId)
+        .executeTakeFirst()
+    );
+    const count = Number(counted?.n ?? 0);
+    return count > 0 ? { ok: false, reason: "blocked", code: blocker.code, count } : null;
+  }
+
   return {
     entityType: entry.entityType,
 
@@ -210,7 +230,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         await lockRow(workspaceId, entityId);
         const before = await readMarkerRow(workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
-        if (entry.versionColumn && expectedVersion !== null && before.version !== expectedVersion) {
+        if (hasVersionChanged({ entry, row: before, expectedVersion })) {
           return { ok: false, reason: "version-changed" };
         }
         if (!isMarkerValueLive(entry.marker, before.marker)) {
@@ -218,18 +238,8 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
           // `noop: true` (@jini-ai/cms/trash) tells `withFollowUps` nothing actually changed here.
           return { ok: true, version: entry.versionColumn ? (before.version ?? null) : null, noop: true };
         }
-        if (entry.blocker) {
-          const blocker = entry.blocker;
-          const counted = await run((db) =>
-            loose(db)
-              .selectFrom(blocker.table)
-              .select((eb) => eb.fn.countAll().as("n"))
-              .where(blocker.parentIdColumn, "=", entityId)
-              .executeTakeFirst()
-          );
-          const count = Number(counted?.n ?? 0);
-          if (count > 0) return { ok: false, reason: "blocked", code: blocker.code, count };
-        }
+        const blocked = await checkBlocker({ entityId });
+        if (blocked) return blocked;
 
         const written = await writeMarker(workspaceId, entityId, entry.marker.kind === "timestamp" ? at : entry.marker.trashed, at, before);
         if (!written) return { ok: false, reason: "version-changed" };
@@ -261,7 +271,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         await lockRow(workspaceId, entityId);
         const before = await readMarkerRow(workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
-        if (entry.versionColumn && expectedVersion !== null && before.version !== expectedVersion) {
+        if (hasVersionChanged({ entry, row: before, expectedVersion })) {
           return { ok: false, reason: "version-changed" };
         }
         if (isMarkerValueLive(entry.marker, before.marker)) {
@@ -300,7 +310,7 @@ export function createTableTrashAdapter(required: { entry: TrashEntry; db: Trash
         const row = await readMarkerRow(workspaceId, entityId);
         if (!row) return "already-gone";
         if (isMarkerValueLive(entry.marker, row.marker)) return "version-changed"; // never purge a live row
-        if (entry.versionColumn && expectedVersion !== null && row.version !== expectedVersion) return "version-changed";
+        if (hasVersionChanged({ entry, row, expectedVersion })) return "version-changed";
 
         // A domain writer does not take Trash's advisory lock. Claim the exact pre-image with a
         // no-op UPDATE before touching children: it both checks the read and holds the database's

@@ -29,6 +29,78 @@ function fixture() {
 }
 
 describe("admin page WebMCP", () => {
+  it("only publishes the approval response channel when an approval store is supplied", () => {
+    const f = fixture();
+    expect(f.tools.some(tool => tool.name === "admin.respond_page_approval")).toBe(false);
+    const tools: WebMcpToolRegistration[] = [];
+    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+      approvals: createAdminPageApprovalStore({}), isEnabled: () => true,
+      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
+    });
+    expect(tools.map(tool => tool.name)).toEqual([
+      ...PAGE_CAPABILITIES.map(capability => capability.id), "admin.respond_page_approval",
+    ]);
+    expect(tools.at(-1)).toMatchObject({
+      inputSchema: { required: ["approvalId", "approved"], additionalProperties: false },
+      annotations: { readOnlyHint: false }, registerOptions: { signal: f.controller.signal },
+    });
+  });
+
+  it.each([
+    {}, { approvalId: "pending-1" }, { approvalId: "pending-1", approved: "true" },
+    { approvalId: "pending-1", approved: true, extra: false },
+  ])("keeps a pending proposal intact for invalid response input %j", async (args) => {
+    const f = fixture();
+    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
+    const tools: WebMcpToolRegistration[] = [];
+    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+      approvals, isEnabled: () => true,
+      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
+    });
+    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
+    await expect(tools.at(-1)!.execute(args)).rejects.toThrow("Expected approvalId (string) and approved (boolean)");
+    expect(approvals.getSnapshot().pending?.approvalId).toBe("pending-1");
+    expect(f.driver.click).not.toHaveBeenCalled();
+    f.controller.abort();
+  });
+
+  it.each(["disabled", "aborted"])("rejects approval replies after access is %s", async (state) => {
+    const f = fixture();
+    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
+    const respond = vi.spyOn(approvals, "respond");
+    const tools: WebMcpToolRegistration[] = [];
+    let enabled = true;
+    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+      approvals, isEnabled: () => enabled,
+      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
+    });
+    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
+    if (state === "disabled") enabled = false;
+    else f.controller.abort();
+    await expect(tools.at(-1)!.execute({ approvalId: "pending-1", approved: true }))
+      .rejects.toThrow("WebMCP admin access is disabled or closed");
+    expect(respond).not.toHaveBeenCalled();
+    expect(f.driver.click).not.toHaveBeenCalled();
+    f.controller.abort();
+  });
+
+  it.each([true, false])("forwards a valid approval response with approved=%s", async (approved) => {
+    const f = fixture();
+    const approvals = createAdminPageApprovalStore({}, { createId: () => "pending-1" });
+    const respond = vi.spyOn(approvals, "respond");
+    const tools: WebMcpToolRegistration[] = [];
+    registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
+      approvals, isEnabled: () => true,
+      modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
+    });
+    await tools.find(tool => tool.name === "page.click")!.execute({ handle: "save" });
+    await expect(tools.at(-1)!.execute({ approvalId: "pending-1", approved }))
+      .resolves.toMatchObject(approved ? { clicked: "save" } : { status: "declined" });
+    expect(respond).toHaveBeenCalledWith({ approvalId: "pending-1", approved });
+    expect(f.driver.click).toHaveBeenCalledTimes(approved ? 1 : 0);
+    f.controller.abort();
+  });
+
   it("does nothing when neither browser host exposes a model context", () => {
     const f = fixture();
     vi.stubGlobal("document", undefined);

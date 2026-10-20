@@ -155,7 +155,7 @@ function deniedFileNameReason(name: string): string | null {
   if (MCP_CONFIG_NAME_PATTERN.test(name)) return "is an MCP server configuration file, which can hold secrets";
   if (name === ".fs-custom-root.json") return "holds a local filesystem path, never portable across machines";
   if (name.includes(".storage-secret.json")) return "is a site's sealed database connection string";
-  if (name === "id_rsa" || name.startsWith("id_rsa.") || name === "id_ed25519" || name.startsWith("id_ed25519.")) {
+  if (["id_rsa", "id_ed25519"].some((prefix) => name === prefix || name.startsWith(`${prefix}.`))) {
     return "looks like a private SSH key";
   }
   return null;
@@ -252,21 +252,11 @@ export function wrapTreePolicyReason(title: string, reason: string): string {
  * @complexity O(k) in `relPath`'s length (segment split, one deny-list lookup per segment).
  */
 export function checkTreePath(relPath: string): string | null {
-  if (relPath.length === 0) return `"${relPath}" is empty`;
-  if (relPath.length > 512) return `"${relPath}" is longer than the 512-character path limit`;
-  if (relPath.startsWith("/")) return `"${relPath}" must be relative, not start with '/'`;
-  if (relPath.includes("\\")) return `"${relPath}" contains a backslash, which is never allowed in a tree path`;
-  // eslint-disable-next-line no-control-regex -- deliberately matching a literal NUL byte, not a typo.
-  if (/\u0000/.test(relPath)) return `"${relPath}" contains a NUL byte`;
-
+  const shapeReason = treePathShapeReason({ relPath });
+  if (shapeReason) return shapeReason;
   const segments = relPath.split("/");
-  if (segments.length > 16) return `"${relPath}" is nested deeper than the 16-level limit`;
-
-  for (const segment of segments) {
-    if (segment.length === 0) return `"${relPath}" contains an empty path segment`;
-    if (segment === "." || segment === "..") return `"${relPath}" contains a '${segment}' segment, which is never allowed`;
-    if (DENY_SEGMENTS.has(segment)) return `"${relPath}" contains a '${segment}' segment, which is never published`;
-  }
+  const segmentReason = treePathSegmentReason({ relPath, segments });
+  if (segmentReason) return segmentReason;
 
   const name = segments[segments.length - 1] as string;
   const deniedReason = deniedFileNameReason(name);
@@ -277,6 +267,31 @@ export function checkTreePath(relPath: string): string | null {
 
   const ext = extensionOf(relPath);
   if (DENY_EXTENSIONS.has(ext)) return `"${relPath}" has a '.${ext}' extension, which is never published`;
+
+  return null;
+}
+
+/** Checks raw path shape before interpreting segments. @complexity O(k) in path length. */
+function treePathShapeReason({ relPath }: { relPath: string }, _options = {}): string | null {
+  if (relPath.length === 0) return `"${relPath}" is empty`;
+  if (relPath.length > 512) return `"${relPath}" is longer than the 512-character path limit`;
+  if (relPath.startsWith("/")) return `"${relPath}" must be relative, not start with '/'`;
+  if (relPath.includes("\\")) return `"${relPath}" contains a backslash, which is never allowed in a tree path`;
+  // eslint-disable-next-line no-control-regex -- deliberately matching a literal NUL byte, not a typo.
+  if (/\u0000/.test(relPath)) return `"${relPath}" contains a NUL byte`;
+
+  return null;
+}
+
+/** Checks depth and every directory component. @complexity O(k) in path length. */
+function treePathSegmentReason({ relPath, segments }: { relPath: string; segments: string[] }, _options = {}): string | null {
+  if (segments.length > 16) return `"${relPath}" is nested deeper than the 16-level limit`;
+
+  for (const segment of segments) {
+    if (segment.length === 0) return `"${relPath}" contains an empty path segment`;
+    if (segment === "." || segment === "..") return `"${relPath}" contains a '${segment}' segment, which is never allowed`;
+    if (DENY_SEGMENTS.has(segment)) return `"${relPath}" contains a '${segment}' segment, which is never published`;
+  }
 
   return null;
 }
@@ -303,15 +318,20 @@ export function checkMcpJsonSecretPlaceholders(jsonText: string): string | null 
   }
   if (typeof parsed !== "object" || parsed === null) return null;
 
-  const PLACEHOLDER = /^\$\{[^}]+\}$/;
   for (const section of ["env", "headers"] as const) {
-    const value = (parsed as Record<string, unknown>)[section];
-    if (typeof value !== "object" || value === null) continue;
-    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-      if (typeof entry !== "string") continue;
-      if (entry.length === 0 || PLACEHOLDER.test(entry)) continue;
-      return `has a key written into mcp.json (${section}.${key}); move it to live's settings`;
-    }
+    const reason = mcpSectionReason({ section, value: (parsed as Record<string, unknown>)[section] });
+    if (reason) return reason;
+  }
+  return null;
+}
+
+/** Checks string entries of one MCP section; nested objects retain legacy behavior. @complexity O(n). */
+function mcpSectionReason({ section, value }: { section: string; value: unknown }, _options = {}): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry !== "string") continue;
+    if (entry.length === 0 || /^\$\{[^}]+\}$/.test(entry)) continue;
+    return `has a key written into mcp.json (${section}.${key}); move it to live's settings`;
   }
   return null;
 }
@@ -379,41 +399,54 @@ export function checkTreeFiles(kind: FileTreeKind, files: readonly FileTreeFileI
   const spec = FILE_TREE_KINDS[kind];
 
   for (const file of files) {
-    const shapeReason = checkTreePath(file.path);
-    if (shapeReason) return shapeReason;
-    // A walker skips OS junk before this runs (`isIgnoredTreeFileName`), so one reaching here came
-    // from a sender that did not — on the destination, every listed file is written. Refused, never
-    // filtered: filtering would let it skip every check below and still be staged.
-    if (isIgnoredTreeFileName(file.path.slice(file.path.lastIndexOf("/") + 1))) {
-      return `"${file.path}" is a system file that is never published`;
-    }
+    const reason = treeFileReason({ file, spec, seenLowercase });
+    if (reason) return reason;
+  }
 
-    const lower = file.path.toLowerCase();
-    const earlier = seenLowercase.get(lower);
-    if (earlier !== undefined) {
-      return `"${earlier}" and "${file.path}" differ only by letter case, which is not safe to publish`;
-    }
-    seenLowercase.set(lower, file.path);
+  return null;
+}
 
-    if (file.size > limits.maxFileBytes) {
-      return `"${file.path}" is ${file.size} bytes, larger than the ${limits.maxFileBytes}-byte per-file limit`;
-    }
+/** Checks one file in original refusal order, recording case collisions. @complexity O(k) in path length. */
+function treeFileReason({ file, spec, seenLowercase }: {
+  file: FileTreeFileInput; spec: FileTreeKindSpec; seenLowercase: Map<string, string>;
+}, _options = {}): string | null {
+  const shapeReason = checkTreePath(file.path);
+  if (shapeReason) return shapeReason;
+  // A walker skips OS junk before this runs (`isIgnoredTreeFileName`), so one reaching here came
+  // from a sender that did not — on the destination, every listed file is written. Refused, never
+  // filtered: filtering would let it skip every check below and still be staged.
+  if (isIgnoredTreeFileName(file.path.slice(file.path.lastIndexOf("/") + 1))) {
+    return `"${file.path}" is a system file that is never published`;
+  }
 
-    if (spec.allowedExtensions) {
-      const ext = extensionOf(file.path);
-      if (!spec.allowedExtensions.includes(ext)) {
-        return disallowedExtensionReason(file.path);
-      }
-    }
+  const lower = file.path.toLowerCase();
+  const earlier = seenLowercase.get(lower);
+  if (earlier !== undefined) {
+    return `"${earlier}" and "${file.path}" differ only by letter case, which is not safe to publish`;
+  }
+  seenLowercase.set(lower, file.path);
 
-    const ext = extensionOf(file.path);
-    if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES && file.textSample !== undefined) {
-      const hits = scanTextForSecrets(file.textSample);
-      if (hits.length > 0) {
-        return `"${file.path}" looks like it holds a key (${hits[0]!.patternName})`;
-      }
+  if (file.size > FILE_TREE_LIMITS.maxFileBytes) {
+    return `"${file.path}" is ${file.size} bytes, larger than the ${FILE_TREE_LIMITS.maxFileBytes}-byte per-file limit`;
+  }
+
+  return treeFileContentReason({ file, spec });
+}
+
+/** Applies the kind's allowlist before scanning supplied text. @complexity O(b) in sample length. */
+function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: FileTreeKindSpec }, _options = {}): string | null {
+  const ext = extensionOf(file.path);
+  if (spec.allowedExtensions) {
+    if (!spec.allowedExtensions.includes(ext)) {
+      return disallowedExtensionReason(file.path);
     }
   }
 
+  if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES && file.textSample !== undefined) {
+    const hits = scanTextForSecrets(file.textSample);
+    if (hits.length > 0) {
+      return `"${file.path}" looks like it holds a key (${hits[0]!.patternName})`;
+    }
+  }
   return null;
 }

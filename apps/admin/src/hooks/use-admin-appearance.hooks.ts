@@ -65,9 +65,9 @@ export function useAdminAppearance(_required: object, { port = defaultPort, root
     // Only an accepted snapshot retires drafts, across all themes. A later preview in another
     // theme must never revive one that this read superseded; in-flight newer drafts survive.
     const readVersion = query.data.readPreviewVersion;
-    for (const [id, draft] of drafts ?? []) {
-      if (draft.version <= readVersion) drafts?.delete(id);
-    }
+    drafts?.forEach((draft, id) => {
+      if (draft.version <= readVersion) drafts.delete(id);
+    });
     const draft = drafts?.get(themeId);
     const accentColor = draft && draft.version > readVersion
       ? draft.accentColor

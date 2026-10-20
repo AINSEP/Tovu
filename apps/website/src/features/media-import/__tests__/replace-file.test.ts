@@ -130,3 +130,36 @@ test('oversized and unsupported local replacement bytes leave the media unchange
   assert.deepEqual(await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }), f.media);
   assert.equal((await f.deps.assetBlobRepo.list({ workspaceId: f.deps.workspaceId })).length, 1);
 });
+
+for (const source of [
+  {},
+  { root: "repo" },
+  { path: "new.png" },
+  { url: "https://cdn.example.com/new.png", root: "repo" },
+  { url: "https://cdn.example.com/new.png", path: "new.png" },
+  { url: "https://cdn.example.com/new.png", root: "repo", path: "new.png" },
+]) test(`source exclusivity is checked before looking up media: ${JSON.stringify(source)}`, async t => {
+  const f = await fixture(t);
+  f.deps.mediaRepo.findById = async () => { assert.fail("invalid source must precede media lookup"); };
+  await assert.rejects(f.run({ mediaId: f.media.id, ...source }), /Pass either url or root and path, never both\./);
+  assert.equal(f.fetches(), 0);
+  assert.equal(f.permissions.length, 1);
+});
+
+test("explicit undefined URL selects local bytes; undefined local fields allow a URL", async t => {
+  const f = await fixture(t);
+  fs.writeFileSync(path.join(f.root, "new.png"), replacement);
+  const local = await f.run({ mediaId: f.media.id, url: undefined, root: "repo", path: "new.png" });
+  assert.equal(local.media.version, f.media.version + 1);
+  assert.equal(f.fetches(), 0);
+  const remote = await f.run({ mediaId: f.media.id, url: "https://cdn.example.com/new.png", root: undefined, path: undefined });
+  assert.equal(remote.media.version, local.media.version + 1);
+  assert.equal(f.fetches(), 1);
+});
+
+test("null URL counts as a supplied remote source before URL string validation", async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.run({ mediaId: f.media.id, url: null, root: "repo", path: "new.png" }), /Pass either url or root and path, never both\./);
+  await assert.rejects(f.run({ mediaId: "missing-media", url: null }), /Media was not found or is in Trash/);
+  assert.equal(f.fetches(), 0);
+});

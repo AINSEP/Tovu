@@ -634,3 +634,55 @@ test("dataModule rolls back migration bookkeeping when a created table cannot be
   assert.equal(tableExists(db, "_plugin_migrations"), false, "bookkeeping creation rolls back with the unverified DDL");
   assert.deepEqual(db.prepare("SELECT * FROM posts").all(), [{ id: "p1", title: "keep" }]);
 });
+
+// TW2-L300 characterization: exercise housekeeping through the public declaration boundary,
+// with the real transaction and filesystem; only the post-commit checkpoint is faulted.
+for (const checkpointFails of [false, true]) {
+  test(`dataModule housekeeping ${checkpointFails ? "retains the snapshot on checkpoint failure" : "checkpoints before discarding the snapshot"}`, async (t) => {
+    const { db, dbPath, dir } = openWithCore();
+    t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+    const kernel = pluginKernel(db);
+    let committedCheckpoint = false;
+    let snapshotAtCheckpoint: string | undefined;
+    const fault: PluginKernel = { ...kernel, query: async (statement) => {
+      const text = await kernel.run(executor => statement.compile(executor).sql);
+      if (text === "PRAGMA wal_checkpoint(FULL)" && tableExists(db, "p_hello__products")) {
+        const row = db.prepare("SELECT phase, snapshot_path FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1").get() as { phase: string; snapshot_path: string };
+        assert.equal(row.phase, "COMMITTED");
+        assert.equal(db.inTransaction, false);
+        assert.equal(fs.existsSync(row.snapshot_path), true, "the checkpoint precedes snapshot disposal");
+        committedCheckpoint = true;
+        snapshotAtCheckpoint = row.snapshot_path;
+        if (checkpointFails) throw new Error("characterization: committed checkpoint failed");
+      }
+      return kernel.query(statement);
+    } };
+    const result = await declareDataModule({ db: fault, dbPath, decl: productsDecl });
+    assert.equal(committedCheckpoint, true, "the fault must reach committed housekeeping");
+    assert.deepEqual(result, { ok: true, created: ["p_hello__products"], altered: [], snapshotPath: snapshotAtCheckpoint });
+    assert.equal(fs.existsSync(snapshotAtCheckpoint!), checkpointFails, "failed checkpoints skip disposal; successful ones discard");
+    assert.equal(tableExists(db, "p_hello__products"), true);
+    assert.deepEqual(db.prepare("SELECT phase FROM _plugin_migration_journal").all(), [{ phase: "COMMITTED" }]);
+    assert.equal((db.prepare("SELECT snapshot_path FROM _plugin_migrations").get() as { snapshot_path: string }).snapshot_path, snapshotAtCheckpoint);
+  });
+}
+
+test("dataModule housekeeping skips checkpoints and backups without a file-backed snapshot", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  const kernel = pluginKernel(db);
+  const fault: PluginKernel = { ...kernel,
+    backupTo: async () => { assert.fail("an in-memory declaration must not create a backup"); },
+    query: async (statement) => {
+      const text = await kernel.run(executor => statement.compile(executor).sql);
+      assert.notEqual(text, "PRAGMA wal_checkpoint(FULL)");
+      return kernel.query(statement);
+    },
+  };
+  assert.deepEqual(await declareDataModule({ db: fault, dbPath: ":memory:", decl: productsDecl }), {
+    ok: true, created: ["p_hello__products"], altered: [], snapshotPath: null,
+  });
+  assert.equal(tableExists(db, "p_hello__products"), true);
+  assert.equal(tableExists(db, "_plugin_migration_journal"), false);
+  assert.deepEqual(db.prepare("SELECT snapshot_path FROM _plugin_migrations").all(), [{ snapshot_path: null }]);
+});

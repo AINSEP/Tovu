@@ -1,4 +1,5 @@
-import { moveToTrash } from "#src/features/trash/index";
+import type { Response } from "express";
+import { moveToTrash, type MoveToTrashOutcome } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TrashRouteRegistrar } from "./deps.js";
 
@@ -34,36 +35,44 @@ export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, dep
         { registry: deps.registry, trash: deps.trash, db: deps.db, authorize: deps.authorize, clock: deps.clock, movers: deps.movers }
       );
 
-      if (outcome.ok) {
-        res.json({ ok: true, version: outcome.version });
-        return;
-      }
-      switch (outcome.reason) {
-        case "unknown-type":
-          res.status(404).json({ error: `'${body.type}' is not a kind the Trash can hold`, code: "TRASH_UNKNOWN_TYPE" });
-          return;
-        case "not-found":
-          res.status(404).json({ error: "item was not found", code: "NOT_FOUND" });
-          return;
-        case "forbidden":
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for '${outcome.permission}'`,
-            code: "FORBIDDEN",
-            details: { permission: outcome.permission },
-          });
-          return;
-        case "version-changed":
-          res.status(409).json({ error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" });
-          return;
-        case "blocked":
-          res.status(409).json({ error: blockedMessage(outcome), code: outcome.code, count: outcome.count });
-          return;
-      }
+      sendMoveOutcome({ outcome, entityType: body.type, principalId: principal.id }, { res });
     } catch {
       res.status(500).json({ error: "internal error" });
     }
   });
 };
+
+/** Map the feature's result to the admin HTTP contract. */
+function sendMoveOutcome(
+  { outcome, entityType, principalId }: { outcome: MoveToTrashOutcome; entityType: string; principalId: string },
+  { res }: { res: Response },
+): void {
+  if (outcome.ok) {
+    res.json({ ok: true, version: outcome.version });
+    return;
+  }
+  switch (outcome.reason) {
+    case "unknown-type":
+      res.status(404).json({ error: `'${entityType}' is not a kind the Trash can hold`, code: "TRASH_UNKNOWN_TYPE" });
+      return;
+    case "not-found":
+      res.status(404).json({ error: "item was not found", code: "NOT_FOUND" });
+      return;
+    case "forbidden":
+      res.status(403).json({
+        error: `principal '${principalId}' is not authorized for '${outcome.permission}'`,
+        code: "FORBIDDEN",
+        details: { permission: outcome.permission },
+      });
+      return;
+    case "version-changed":
+      res.status(409).json({ error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" });
+      return;
+    case "blocked":
+      res.status(409).json({ error: blockedMessage(outcome), code: outcome.code, count: outcome.count });
+      return;
+  }
+}
 
 /**
  * The words for one `blocked` refusal, by its `code`. `TERM_HAS_CHILDREN` is `registry.ts`'s

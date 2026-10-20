@@ -49,26 +49,34 @@ export interface PluginActivationPollDeps {
 export async function reconcilePluginActivationsOnce(deps: PluginActivationPollDeps, attachedIds: Set<string>): Promise<void> {
   const records = await deps.pluginActivationRepo.listAll();
   const enabledVersions = new Map(records.filter(record => record.workspaceId === deps.workspaceId && record.enabled).map(record => [record.pluginId, record.version]));
-  const enabledNow = new Set(enabledVersions.keys());
 
   for (const [pluginId, activeVersion] of enabledVersions) {
     const loadedVersion = deps.pluginLoadedVersion?.({ id: pluginId }, {});
     if (attachedIds.has(pluginId) && (!deps.pluginLoadedVersion || loadedVersion === activeVersion)) continue;
-    try {
-      await deps.onPluginEnabled(pluginId);
-      attachedIds.add(pluginId);
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[plugin-runtime] plugin activation poll failed to attach '${pluginId}': ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    await attachActivatedPlugin({ deps, attachedIds, pluginId });
   }
 
   for (const pluginId of attachedIds) {
-    if (enabledNow.has(pluginId)) continue;
+    if (enabledVersions.has(pluginId)) continue;
     deps.onPluginDisabled(pluginId);
     attachedIds.delete(pluginId);
+  }
+}
+
+/** An attach failure is local to this plugin; later attachments and detachments still run. */
+async function attachActivatedPlugin(
+  required: { deps: PluginActivationPollDeps; attachedIds: Set<string>; pluginId: string },
+  _optional: Record<string, never> = {}
+): Promise<void> {
+  const { deps, attachedIds, pluginId } = required;
+  try {
+    await deps.onPluginEnabled(pluginId);
+    attachedIds.add(pluginId);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[plugin-runtime] plugin activation poll failed to attach '${pluginId}': ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 

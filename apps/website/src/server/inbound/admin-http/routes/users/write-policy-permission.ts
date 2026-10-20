@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, PermissionUnknownError } from "@jini-ai/user-management";
 import { writePolicyPermission } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
 
 /** Maps `writePolicyPermission`'s thrown error types onto the admin error envelope. `req` is needed
  *  only for `PermissionUnknownError`'s `details.permission` echo.
@@ -40,6 +40,30 @@ function sendWritePolicyPermissionError(res: Response, req: Request, err: unknow
   res.status(500).json({ error: "internal error" });
 }
 
+/** Coerce the HTTP payload while leaving grant validation to the identity service. */
+function writeRequestedPolicyPermission(
+  { deps, callerPrincipalId, policyId, body }: {
+    deps: UsersRouteDeps;
+    callerPrincipalId: string;
+    policyId: unknown;
+    body: Record<string, unknown>;
+  },
+  _options = {},
+) {
+  return writePolicyPermission({
+    deps: identityServiceDepsFrom(deps),
+    input: {
+      workspaceId: deps.workspaceId,
+      callerPrincipalId,
+      policyId: String(policyId ?? ""),
+      permission: String(body.permission ?? ""),
+    },
+  }, {
+    resourceType: body.resourceType !== undefined ? String(body.resourceType) : undefined,
+    constraintJson: body.constraintJson !== undefined ? String(body.constraintJson) : undefined,
+  });
+}
+
 /**
  * POST policies/:policyId/permissions — `WRITE_POLICY_PERMISSION` (SPEC-006 0.6.0, INV-07 — first
  * HTTP route for a transition specified since v0.5.3, AC-32). Gated by `role.manage`; refuses an
@@ -62,7 +86,9 @@ export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = (app
         return;
       }
 
-      const { policyPermission } = await writePolicyPermission({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, policyId: String(req.params.policyId ?? ""), permission: String(body.permission ?? "") } }, { resourceType: body.resourceType !== undefined ? String(body.resourceType) : undefined, constraintJson: body.constraintJson !== undefined ? String(body.constraintJson) : undefined });
+      const { policyPermission } = await writeRequestedPolicyPermission({
+        deps, callerPrincipalId: caller.id, policyId: req.params.policyId, body,
+      });
 
       res.status(201).json({ policyPermission });
     } catch (err) {

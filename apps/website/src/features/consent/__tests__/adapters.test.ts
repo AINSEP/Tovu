@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from '../settings.js';
+import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, type SiteConsentAutoEnablePort } from '../settings.js';
 import { createSiteConsentRequestPorts } from '../host.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
@@ -167,4 +167,83 @@ test('consent has independent readiness after the shared ledger boot and cannot 
   const failed = createSiteConsentReadiness({ ...fresh.deps, settingsRepo: new FailingSettingsRepo() }, { after: webmcp, systemPrincipalId: 'system-test' });
   await assert.rejects(failed, { message: 'Consent registration failure' });
   await webmcp;
+});
+
+test('an omitted or explicitly undefined auto-enable port preserves the default OFF result', async () => {
+  const { settingsRepo } = await ledger();
+  const required = { settingsRepo, workspaceId: 'site-a' };
+  assert.deepEqual(await createSiteConsentConfig(required).get(), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig(required, { autoEnable: undefined }).get(), SITE_CONSENT_DEFAULTS);
+});
+
+test('automatic consent stays OFF until the new live site has a valid published privacy link', async () => {
+  const cases = [
+    { live: false, url: '/privacy', exists: true, pageCalls: [] },
+    { live: true, url: '', exists: true, pageCalls: [] },
+    { live: true, url: 42, exists: true, pageCalls: [] },
+    { live: true, url: 'http://example.test/privacy', exists: true, pageCalls: [] },
+    { live: true, url: '/privacy', exists: false, pageCalls: ['/privacy'] },
+  ];
+  for (const scenario of cases) {
+    const { settingsRepo } = await ledger();
+    await persistUnchecked(settingsRepo, 'privacyPolicyUrl', scenario.url);
+    const pageCalls: string[] = [];
+    const autoEnable: SiteConsentAutoEnablePort = {
+      isNewLiveSite: async () => scenario.live,
+      privacyPageExists: async ({ url }: { url: string }) => { pageCalls.push(url); return scenario.exists; },
+    };
+    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), SITE_CONSENT_DEFAULTS);
+    assert.deepEqual(pageCalls, scenario.pageCalls);
+  }
+});
+
+test('a new live site automatically enables consent after its linked privacy page exists', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('privacyPolicyUrl', '/privacy');
+  const pageCalls: string[] = [];
+  const autoEnable: SiteConsentAutoEnablePort = {
+    isNewLiveSite: async () => true,
+    privacyPageExists: async ({ url }: { url: string }) => { pageCalls.push(url); return true; },
+  };
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), {
+    ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy',
+  });
+  assert.deepEqual(pageCalls, ['/privacy']);
+});
+
+test('an explicit owner choice bypasses automatic eligibility and page lookups', async () => {
+  for (const enabled of [false, true]) {
+    const { settingsRepo, write } = await ledger();
+    await write('enabled', enabled);
+    const autoEnable: SiteConsentAutoEnablePort = {
+      isNewLiveSite: async (): Promise<boolean> => { assert.fail('owner choice must bypass eligibility'); },
+      privacyPageExists: async (): Promise<boolean> => { assert.fail('owner choice must bypass page lookup'); },
+    };
+    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), {
+      ...SITE_CONSENT_DEFAULTS, enabled,
+    });
+  }
+});
+
+test('enabled consent refuses an unknown banner placement', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  await persistUnchecked(settingsRepo, 'placement', 'unknown');
+  await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), {
+    message: 'Choose a cookie banner placement: bottom-bar, bottom-left, bottom-right, top-bar.',
+  });
+});
+
+test('policy versions reject whitespace and preserve exactly 128 characters without trimming', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
+  await write('policyVersion', '   ');
+  const config = createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' });
+  await assert.rejects(config.get(), { message: 'Cookie consent policy version must contain 1–128 characters.' });
+  const version = ` ${'v'.repeat(126)} `;
+  await write('policyVersion', version);
+  await write('message', 'm'.repeat(2000));
+  const settings = await config.get();
+  assert.equal(settings.policyVersion, version);
+  assert.equal(settings.message.length, 2000);
 });

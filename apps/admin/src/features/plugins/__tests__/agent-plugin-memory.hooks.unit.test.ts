@@ -90,3 +90,33 @@ test('the editor stays disabled while a save is in flight and becomes editable a
   await act(async () => { finishSave(listing('example', 'Saved')); await request; });
   expect(result.current.editorDisabled).toBe(false);
 });
+
+test('status moves from loading to idle and reports a failed save with the bound translator', async () => {
+  const port: AgentPluginMemoryPort = {
+    read: async () => listing('example', 'Original'),
+    saveNote: async () => { throw new Error('write refused'); },
+  };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}` }));
+  expect(result.current.status).toBe('T:Loading memory…');
+  await waitFor(() => expect(result.current.editorDisabled).toBe(false));
+  expect(result.current.status).toBeNull();
+  await act(async () => { await result.current.save(); });
+  expect(result.current.status).toBe('T:Could not save note.');
+});
+
+test('a save status from a previous plugin is hidden while the next plugin loads', async () => {
+  let finish!: (value: PluginMemoryListing) => void;
+  const pending = new Promise<PluginMemoryListing>(resolve => { finish = resolve; });
+  const port: AgentPluginMemoryPort = {
+    read: ({ pluginId }) => pluginId === 'second' ? pending : Promise.resolve(listing(pluginId, 'Original')),
+    saveNote: async input => listing(input.pluginId, input.text),
+  };
+  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t }), { initialProps: { pluginId: 'first' } });
+  await waitFor(() => expect(result.current.editorDisabled).toBe(false));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.status).toBe('Note saved.');
+  rerender({ pluginId: 'second' });
+  expect(result.current.status).toBe('Loading memory…');
+  await act(async () => { finish(listing('second', 'Second')); await pending; });
+  await waitFor(() => expect(result.current.status).toBeNull());
+});

@@ -304,3 +304,56 @@ test("WRITE_POLICY_PERMISSION route: 500 internal error when an unexpected error
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
 });
+
+for (const permission of ["publish.backstop", "publish_content.backstop"]) {
+  test(`WRITE_POLICY_PERMISSION pin: ${permission} is refused before policy lookup`, async () => {
+    const { app, ownerId } = await buildApp();
+    const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: ownerId };
+    await handler({ params: { workspaceId: WORKSPACE_ID, policyId: "missing" }, body: { permission } }, res);
+    assert.equal(capture.statusCode, 403);
+    assert.deepEqual(capture.jsonBody, {
+      error: "Manual publishing is reserved for the owner and built-in admins; it cannot be granted to another role.",
+      code: "FORBIDDEN",
+    });
+  });
+}
+
+for (const { fields, expected } of [
+  { fields: {}, expected: { resourceType: null, constraintJson: null } },
+  { fields: { resourceType: null, constraintJson: null }, expected: { resourceType: "null", constraintJson: "null" } },
+  { fields: { resourceType: 0, constraintJson: false }, expected: { resourceType: "0", constraintJson: "false" } },
+]) {
+  test(`WRITE_POLICY_PERMISSION pin: optional fields retain coercion ${JSON.stringify(fields)}`, async () => {
+    const { app, deps, ownerId } = await buildApp();
+    const policyId = await createTargetPolicy(deps, "coercion-pin");
+    const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: ownerId };
+    await handler({ params: { workspaceId: WORKSPACE_ID, policyId }, body: { permission: "member.manage", ...fields } }, res);
+    assert.equal(capture.statusCode, 201);
+    const rows = await deps.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].permission, "member.manage");
+    assert.equal(rows[0].resourceType, expected.resourceType);
+    assert.equal(rows[0].constraintJson, expected.constraintJson);
+    assert.deepEqual(capture.jsonBody, { policyPermission: rows[0] });
+  });
+}
+
+for (const permission of [undefined, null, 123]) {
+  test(`WRITE_POLICY_PERMISSION pin: unknown permission echoes original ${String(permission)}`, async () => {
+    const { app, ownerId } = await buildApp();
+    const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: ownerId };
+    await handler({ params: { workspaceId: WORKSPACE_ID }, body: { permission } }, res);
+    assert.equal(capture.statusCode, 400);
+    assert.deepEqual(capture.jsonBody, {
+      error: `permission '${String(permission ?? "")}' is not in the registered catalog`,
+      code: "PERMISSION_UNKNOWN",
+      details: { permission },
+    });
+  });
+}

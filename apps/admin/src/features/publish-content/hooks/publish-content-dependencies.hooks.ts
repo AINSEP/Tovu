@@ -86,7 +86,57 @@ export interface FakePublishContentPortCalls {
     scope?: PublishScope;
   }>;
   readonly confirmPublish: Array<{ peerId: string; planId: string; planHash: string }>;
-  readonly executePublish: Array<{ peerId: string; bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] }>;
+  readonly executePublish: Array<{
+    peerId: string;
+    bundleId: string;
+    confirmationToken: string;
+    overwriteEntityKeys?: readonly string[];
+  }>;
+}
+
+/** Filter the fake report in the same order as staging; retain distinct plan identities. */
+function stageFakeReport(
+  { report, input }: { report: PublishContentReport; input: Parameters<PublishContentPort["planPublish"]>[0] },
+  _options: Record<string, never> = {}
+): { rows: PublishContentReport["rows"]; idSuffix: string } {
+  // A narrowed push stages a DIFFERENT bundle and therefore gets a different plan back — the
+  // real route returns a fresh `bundleId` from `pushBundleToPeer` every call, and the peer plans
+  // only what it was actually given (`export-bundle.ts`'s `selectBundleEntities`). Modelled here
+  // so a test can tell the plans apart and prove which one execute redeemed.
+  let rows = report.rows;
+  let idSuffix = "";
+  // `plan-publish-sections-2026-09-25.md` §1 — scope narrows FIRST, mirroring the real route's
+  // own order (`peer-transport.ts`: `scoped = applyPublishScope(fullBundle, scope)`, then
+  // `selectBundleEntities` on top of that). AND, not OR, when both `entityTypes` and `entityKeys`
+  // are given — same contract `applyPublishScope` documents.
+  if (input.scope !== undefined) {
+    const { entityTypes, entityKeys } = input.scope;
+    const types = entityTypes === undefined ? null : new Set(entityTypes);
+    const keys = entityKeys !== undefined && entityKeys.length > 0 ? new Set(entityKeys) : null;
+    rows = rows.filter((row) => {
+      if (types !== null && !types.has(row.entityType)) return false;
+      if (keys !== null && !keys.has(`${row.entityType}:${row.entityId}`)) return false;
+      return true;
+    });
+    idSuffix += "-scoped";
+  }
+  if (input.selectedEntityKeys !== undefined) {
+    const selected = new Set(input.selectedEntityKeys);
+    rows = rows.filter((row) => selected.has(`${row.entityType}:${row.entityId}`));
+    idSuffix += "-narrowed";
+  }
+  // publish-overwrite-live-plan §4/S9 — a row named in `overwriteEntityKeys` comes back `forced`,
+  // the same outcome a real peer's planner gives a resolvable slug clash or conflict once the
+  // operator ticks it, so the fake exercises the same "ticking turns a skipped row into a
+  // publishable one" path the dialog and hook actually depend on.
+  if (input.overwriteEntityKeys !== undefined && input.overwriteEntityKeys.length > 0) {
+    const overwrite = new Set(input.overwriteEntityKeys);
+    rows = rows.map((row) =>
+      overwrite.has(`${row.entityType}:${row.entityId}`) ? { ...row, outcome: "forced" as const, writes: true } : row
+    );
+    idSuffix += "-overwrite";
+  }
+  return { rows, idSuffix };
 }
 
 /**
@@ -136,7 +186,13 @@ export function createFakePublishContentPort(
         masked: null,
         hasCredential: false,
       };
-      return { connected: true, site, candidateUrl: null, message: `This computer publishes to ${site.label}.`, nextStep: null };
+      return {
+        connected: true,
+        site,
+        candidateUrl: null,
+        message: `This computer publishes to ${site.label}.`,
+        nextStep: null,
+      };
     },
     async planPublish(input): Promise<PublishContentPlanResult> {
       calls.planPublish.push(input);
@@ -144,43 +200,7 @@ export function createFakePublishContentPort(
       const report = options.report ?? { refused: false, refusalReason: null, applyOrder: [], rows: [] };
       const liveCanOverwrite = options.liveCanOverwrite ?? true;
 
-      // A narrowed push stages a DIFFERENT bundle and therefore gets a different plan back — the
-      // real route returns a fresh `bundleId` from `pushBundleToPeer` every call, and the peer plans
-      // only what it was actually given (`export-bundle.ts`'s `selectBundleEntities`). Modelled here
-      // so a test can tell the plans apart and prove which one execute redeemed.
-      let rows = report.rows;
-      let idSuffix = "";
-      // `plan-publish-sections-2026-09-25.md` §1 — scope narrows FIRST, mirroring the real route's
-      // own order (`peer-transport.ts`: `scoped = applyPublishScope(fullBundle, scope)`, then
-      // `selectBundleEntities` on top of that). AND, not OR, when both `entityTypes` and `entityKeys`
-      // are given — same contract `applyPublishScope` documents.
-      if (input.scope !== undefined) {
-        const { entityTypes, entityKeys } = input.scope;
-        const types = entityTypes === undefined ? null : new Set(entityTypes);
-        const keys = entityKeys !== undefined && entityKeys.length > 0 ? new Set(entityKeys) : null;
-        rows = rows.filter((row) => {
-          if (types !== null && !types.has(row.entityType)) return false;
-          if (keys !== null && !keys.has(`${row.entityType}:${row.entityId}`)) return false;
-          return true;
-        });
-        idSuffix += "-scoped";
-      }
-      if (input.selectedEntityKeys !== undefined) {
-        const selected = new Set(input.selectedEntityKeys);
-        rows = rows.filter((row) => selected.has(`${row.entityType}:${row.entityId}`));
-        idSuffix += "-narrowed";
-      }
-      // publish-overwrite-live-plan §4/S9 — a row named in `overwriteEntityKeys` comes back `forced`,
-      // the same outcome a real peer's planner gives a resolvable slug clash or conflict once the
-      // operator ticks it, so the fake exercises the same "ticking turns a skipped row into a
-      // publishable one" path the dialog and hook actually depend on.
-      if (input.overwriteEntityKeys !== undefined && input.overwriteEntityKeys.length > 0) {
-        const overwrite = new Set(input.overwriteEntityKeys);
-        rows = rows.map((row) =>
-          overwrite.has(`${row.entityType}:${row.entityId}`) ? { ...row, outcome: "forced" as const, writes: true } : row
-        );
-        idSuffix += "-overwrite";
-      }
+      const { rows, idSuffix } = stageFakeReport({ report, input });
 
       return {
         planId: `${options.planId ?? "fake-plan"}${idSuffix}`,
@@ -200,7 +220,13 @@ export function createFakePublishContentPort(
     async executePublish(input): Promise<PublishContentExecuteResult> {
       calls.executePublish.push(input);
       if (options.executeError) throw options.executeError;
-      return options.executeResult ?? { restorePointId: "fake-restore-point", runId: "fake-run", changeSetIds: ["fake-change-set"] };
+      return (
+        options.executeResult ?? {
+          restorePointId: "fake-restore-point",
+          runId: "fake-run",
+          changeSetIds: ["fake-change-set"],
+        }
+      );
     },
   };
 }

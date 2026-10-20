@@ -151,3 +151,27 @@ describe("PluginPackageFilesModal", () => {
     expect(within(dialog).getByText("export const WORD_COUNT_MANIFEST = {};")).toBeInTheDocument();
   });
 });
+
+it("keeps folder icon pairs together and file rows free of expansion state", async () => {
+  const file = { relativePath: "src/index.ts", content: "export {}" };
+  const props = renderModal({ files: [file] });
+  const folder = screen.getByRole("treeitem", { name: "src" });
+  expect(folder).toHaveAttribute("aria-expanded", "false");
+  expect(folder).not.toHaveAttribute("aria-selected");
+  expect(folder.querySelector(".ri-arrow-right-s-line")).not.toBeNull();
+  expect(folder.querySelector(".ri-folder-line")).not.toBeNull();
+  await userEvent.click(folder);
+  expect(folder).toHaveAttribute("aria-expanded", "true");
+  expect(folder.querySelector(".ri-arrow-down-s-line")).not.toBeNull();
+  expect(folder.querySelector(".ri-folder-open-line")).not.toBeNull();
+  const row = screen.getByRole("treeitem", { name: "index.ts" });
+  expect(row).not.toHaveAttribute("aria-expanded");
+  expect(row).toHaveAttribute("aria-selected", "false");
+  expect(row.querySelector(".agent-plugin-source-tree-twistie")).toHaveAttribute("aria-hidden", "true");
+  expect(row.querySelector(".ri-code-s-slash-line.is-typescript")).not.toBeNull();
+  await userEvent.click(row);
+  expect(props.onSelectFile).toHaveBeenCalledWith("src/index.ts");
+  await userEvent.click(folder);
+  expect(folder).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("treeitem", { name: "index.ts" })).not.toBeInTheDocument();
+});

@@ -40,10 +40,7 @@ export function readPluginInstallRequest(
   const source = input.source as Record<string, unknown>;
   const { kind, path: sourcePath, attachmentRef } = source;
   if (kind !== "folder" && kind !== "zip") throw new ToolInputError({ message: "source.kind must be 'folder' or 'zip'." });
-  if (Object.hasOwn(source, "path") === Object.hasOwn(source, "attachmentRef")) throw new ToolInputError({ message: "Exactly one of source.path/source.attachmentRef is required." });
-  if (Object.hasOwn(source, "attachmentRef")) {
-    if (kind !== "zip" || typeof attachmentRef !== "string" || !CHAT_ATTACHMENT_REF_PATTERN.test(attachmentRef)) throw new ToolInputError({ message: "source.attachmentRef must be an attachment:<uuid> ZIP reference." });
-  } else if (typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)) throw new ToolInputError({ message: "source.path must be an absolute path on the machine Tovu runs on (expand ~ first)." });
+  validateInstallLocation({ source, kind, sourcePath, attachmentRef });
   if (input.replace !== undefined && typeof input.replace !== "boolean") throw new ToolInputError({ message: "replace must be a boolean." });
   return { kind, ...(typeof sourcePath === "string" ? { path: sourcePath } : { attachmentRef: attachmentRef as string }), replace: input.replace === true };
 }
@@ -57,16 +54,30 @@ export async function readPluginInstallArchive(
   if (request.attachmentRef) {
     const result = await optional.readAttachment?.({ ref: request.attachmentRef, ownerId, runId }, { maxBytes });
     if (!result?.ok) throw new ToolInputError({ message: "Chat ZIP attachment is unavailable or exceeds the 32 MiB upload limit. Use an attachmentRef listed by chat_list_pending_attachments." });
-    if (result.bytes.byteLength > maxBytes) throw new ToolInputError({ message: "ZIP exceeds the 32 MiB upload limit." });
+    requireArchiveSize({ size: result.bytes.byteLength, maxBytes });
     return result.bytes;
   }
   const sourcePath = request.path!;
   const files = optional.files ?? nodeArchiveFiles;
   let size: number;
   try { size = (await files.stat({ path: sourcePath })).size; } catch { throw new ToolInputError({ message: `No readable ZIP at ${sourcePath}.` }); }
-  if (size > maxBytes) throw new ToolInputError({ message: "ZIP exceeds the 32 MiB upload limit." });
+  requireArchiveSize({ size, maxBytes });
   const bytes = await files.read({ path: sourcePath });
   // Re-check in case the local file grew between stat and read.
-  if (bytes.byteLength > maxBytes) throw new ToolInputError({ message: "ZIP exceeds the 32 MiB upload limit." });
+  requireArchiveSize({ size: bytes.byteLength, maxBytes });
   return bytes;
+}
+
+function validateInstallLocation(
+  { source, kind, sourcePath, attachmentRef }: { source: Record<string, unknown>; kind: "folder" | "zip"; sourcePath: unknown; attachmentRef: unknown },
+  _optional: Record<string, never> = {},
+): void {
+  if (Object.hasOwn(source, "path") === Object.hasOwn(source, "attachmentRef")) throw new ToolInputError({ message: "Exactly one of source.path/source.attachmentRef is required." });
+  if (Object.hasOwn(source, "attachmentRef")) {
+    if (kind !== "zip" || typeof attachmentRef !== "string" || !CHAT_ATTACHMENT_REF_PATTERN.test(attachmentRef)) throw new ToolInputError({ message: "source.attachmentRef must be an attachment:<uuid> ZIP reference." });
+  } else if (typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)) throw new ToolInputError({ message: "source.path must be an absolute path on the machine Tovu runs on (expand ~ first)." });
+}
+
+function requireArchiveSize({ size, maxBytes }: { size: number; maxBytes: number }, _optional: Record<string, never> = {}): void {
+  if (size > maxBytes) throw new ToolInputError({ message: "ZIP exceeds the 32 MiB upload limit." });
 }

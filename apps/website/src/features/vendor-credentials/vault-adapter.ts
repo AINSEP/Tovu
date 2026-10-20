@@ -1,4 +1,4 @@
-import { SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import { SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord, type VaultSummary, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort, SealedSecret } from "../webhooks/index.js";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";
@@ -30,14 +30,22 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
     return { workspaceId: input.workspaceId, kind: this.kind, ownerKey: "tovu", principalId: null, binding: null,
       ...(input.provider === undefined ? {} : { provider: input.provider }) };
   }
+  private owns({ row }: { row: VaultRecord }, _options = {}) {
+    return row.kind === this.kind && row.ownerKey === "tovu" && row.principalId === null && row.binding === null;
+  }
+  private providerFields({ row, meta, provider }: { row: VaultRecord; meta: VaultMeta; provider: string }, _options = {}) {
+    return this.vendor
+      ? { vendorId: provider, credentialType: "vendor", worksFor: meta.worksFor as string[], tokenTail: credentialHint({ record: row })?.last4 ?? "" }
+      : { providerId: provider };
+  }
   private record(row: VaultRecord | null, _options = {}): R | null {
-    if (!row || row.kind !== this.kind || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null) return null;
+    if (!row || !this.owns({ row })) return null;
     const meta = registry.metaParsers[this.kind]({ meta: row.meta, provider: row.provider });
     if (this.kind === "vendor" && meta.credentialType !== "vendor") return null;
     if (!row.sealed || row.provider === null) throw new VaultError({ code: "invalid-record" });
     // Keep the hint out of sealed-row DTO enumeration; public store summaries opt in explicitly.
     const record = { workspaceId: row.workspaceId, id: row.id, label: row.label, sealed: row.sealed,
-      ...(this.vendor ? { vendorId: row.provider, credentialType: "vendor", worksFor: meta.worksFor as string[], tokenTail: row.tokenLength !== null && row.tokenLength >= 12 ? row.last4 ?? "" : "" } : { providerId: row.provider }),
+      ...this.providerFields({ row, meta, provider: row.provider }),
       isDefault: row.isDefault, accountLabel: meta.accountLabel ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt } as R;
     Object.defineProperty(record, "tokenHint", { value: credentialHint({ record: row }), enumerable: false });
     return record;
@@ -62,12 +70,22 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
     if (!existing || !this.record(existing)) return;
     await this.write({ record, expectedRevision: existing.revision, existing });
   }
+  private writeMeta({ record, existing, provider }: { record: R; existing: VaultRecord | undefined; provider: string }, _options = {}) {
+    return registry.metaParsers[this.kind]({ meta: {
+      ...existing?.meta,
+      ...(this.kind === "vendor" ? { credentialType: "vendor", worksFor:
+        ("worksFor" in record ? record.worksFor : undefined) ?? existing?.meta.worksFor ?? [provider] } : {}),
+      accountLabel: record.accountLabel,
+    } });
+  }
   private async write({ record, expectedRevision, existing }: { record: R; expectedRevision: number | null; existing?: VaultRecord }, _options = {}): Promise<void> {
+    const provider = "vendorId" in record ? record.vendorId : record.providerId;
+    const sameEnvelope = existing?.sealed?.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce;
     await this.vault.put({ expectedRevision, record: { ...this.scope(record), id: record.id,
-      provider: "vendorId" in record ? record.vendorId : record.providerId, label: record.label, sealed: record.sealed,
-      meta: registry.metaParsers[this.kind]({ meta: { ...existing?.meta, ...(this.kind === "vendor" ? { credentialType: "vendor", worksFor: ("worksFor" in record ? record.worksFor : undefined) ?? existing?.meta.worksFor ?? ["vendorId" in record ? record.vendorId : record.providerId] } : {}), accountLabel: record.accountLabel } }),
-      last4: existing?.sealed?.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce ? existing.last4 : null,
-      tokenLength: existing?.sealed?.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce ? existing.tokenLength : null,
+      provider, label: record.label, sealed: record.sealed,
+      meta: this.writeMeta({ record, existing, provider }),
+      last4: sameEnvelope ? existing.last4 : null,
+      tokenLength: sameEnvelope ? existing.tokenLength : null,
       isDefault: record.isDefault, revision: (expectedRevision ?? 0) + 1, createdAt: record.createdAt, updatedAt: record.updatedAt } });
   }
   async delete(input: { workspaceId: string; id: string }, _options = {}): Promise<void> {

@@ -122,3 +122,58 @@ test("unknown, invalid and non-static themes, another workspace, and a denied ca
   assert.equal((await route({ service, allowed: false })("editorial-rose")).status, 403);
   assert.deepEqual(enqueued, []);
 });
+
+test("empty pages skip the capture queue and use the uncached fallback", async () => {
+  const service: SitePreviewService = {
+    versions: () => { throw new Error("queue must not be queried"); },
+    read: () => { throw new Error("capture must not be read"); },
+    idle: async () => { throw new Error("queue must not be drained"); },
+  };
+  const got = await route({ service, themes: [theme("empty", { pages: {} })], shipped: "/fallback.png" })("empty");
+  assert.deepEqual(got.redirect, [302, "/fallback.png"]);
+  assert.equal(got.headers?.["Cache-Control"], "no-store");
+});
+
+test("a recorded capture with missing bytes uses the shipped image", async () => {
+  const { service } = fakeService({ stored: { "editorial-rose": 2_000 } });
+  service.read = () => null;
+  const got = await route({ service, shipped: "/fallback.png" })("editorial-rose");
+  assert.deepEqual(got.redirect, [302, "/fallback.png"]);
+});
+
+test("a rejected queue drain still rechecks and serves a completed capture", async () => {
+  let calls = 0;
+  const service: SitePreviewService = {
+    versions: () => (++calls < 3 ? {} : { "editorial-rose": 2_000 }),
+    read: () => Buffer.from("completed"),
+    idle: async () => { throw new Error("drain failed after capture"); },
+  };
+  const got = await route({ service })("editorial-rose");
+  assert.equal(got.status, 200);
+  assert.equal(String(got.body), "completed");
+  assert.equal(calls, 3);
+});
+
+test("without a serving socket address, no capture is enqueued or read", async () => {
+  const { service, enqueued } = fakeService();
+  const app = express();
+  registerAdminThemePreviewRoute({ app, deps: {
+    workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    themes: [theme("editorial-rose")] as never, themePreviews: service,
+  } }, { contentVersion: () => 1_000, shippedImage: () => "/fallback.png" });
+  service.read = () => { throw new Error("unrecorded capture must not be read"); };
+  const { res, capture } = response();
+  await extractRouteHandler(app, "get", ROUTE)({ params: { workspaceId: "ws", themeId: "editorial-rose" }, socket: {} }, res as never);
+  assert.deepEqual(capture.redirect, [302, "/fallback.png"]);
+  assert.deepEqual(enqueued, []);
+});
+
+test("capture lookup errors retain the internal-error response", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const service: SitePreviewService = {
+    versions: () => { throw new Error("store offline"); }, read: () => null, idle: async () => {},
+  };
+  const got = await route({ service })("editorial-rose");
+  assert.equal(got.status, 500);
+  assert.deepEqual(got.json, { error: "internal error", code: "INTERNAL_ERROR" });
+});

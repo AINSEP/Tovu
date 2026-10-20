@@ -83,3 +83,52 @@ test("an unchanged wired assignment set needs no write authorization or outbox",
   await empty.apply();
   assert.equal(await readTermIds(h.ports, "post", "untagged"), undefined);
 });
+
+test("preflight reads only added terms, in wanted order, and leaves retained trashed terms alone", async (t) => {
+  const h = fixture(t);
+  await h.site.taxonomies.insert({ id: "tx", name: "Tags", hierarchical: false, status: "active", updatedAt: AT, version: 1 });
+  for (const id of ["keep", "new-a", "new-b"]) {
+    await h.site.terms.insert({ id, taxonomyId: "tx", parentId: null, name: id, status: id === "keep" ? "trash" : "active", updatedAt: AT, version: 1 });
+  }
+  await h.site.entryTerms.upsert({ contentType: "post", contentId: "post-8", termId: "keep", addedAt: AT });
+  const seen: string[] = [];
+  const find = h.ports.terms.findAnyById.bind(h.ports.terms);
+  t.mock.method(h.ports.terms, "findAnyById", async (id: string) => { seen.push(id); return find(id); });
+  await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["new-b", "keep", "new-a"] });
+  assert.deepEqual(seen, ["new-b", "new-a"]);
+  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep"]);
+});
+
+test("preflight stops at the first invalid addition and authorization precedes term reads", async (t) => {
+  const h = fixture(t);
+  const seen: string[] = [];
+  t.mock.method(h.ports.terms, "findAnyById", async (id: string) => { seen.push(id); return null; });
+  await assert.rejects(prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["missing-first", "missing-next"] }), {
+    name: "PublishContentApplyRowError", rowOutcome: "blocked",
+    message: "post 'post-8' is tagged with term 'missing-first', which is missing at this destination — publish or restore that term first",
+  });
+  assert.deepEqual(seen, ["missing-first"]);
+  seen.length = 0;
+  await assert.rejects(prepareTermSync({ ...target, ports: h.ports, wanted: ["missing-first"], deps: {
+    ...h.deps, authorize: async () => ({ allowed: false, reason: "no-grant" }),
+  } }), { name: "PublishContentApplyRowError", rowOutcome: "blocked" });
+  assert.deepEqual(seen, []);
+});
+
+test("addition-only and non-array removal-only syncs apply and revert without the opposite write", async (t) => {
+  const h = fixture(t);
+  h.client.prepare("INSERT INTO posts (id, workspace_id, title, slug, body_json, status, updated_at, version) VALUES ('post-8', ?, 'Eight', 'eight', '{}', 'published', ?, 1)").run(WORKSPACE_ID, AT);
+  await h.site.taxonomies.insert({ id: "tx", name: "Tags", hierarchical: false, status: "active", updatedAt: AT, version: 1 });
+  await h.site.terms.insert({ id: "only", taxonomyId: "tx", parentId: null, name: "Only", status: "active", updatedAt: AT, version: 1 });
+  const addition = await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["only"] });
+  await addition.apply();
+  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["only"]);
+  await addition.revert();
+  assert.equal(await readTermIds(h.ports, "post", "post-8"), undefined);
+  await addition.apply();
+  const removal = await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: "only" });
+  await removal.apply();
+  assert.equal(await readTermIds(h.ports, "post", "post-8"), undefined);
+  await removal.revert();
+  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["only"]);
+});

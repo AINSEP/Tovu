@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
+import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { selectConnectedDestination, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
@@ -43,15 +43,21 @@ export async function listKnownLiveOrigins(deps: LiveOriginSourceDeps): Promise<
   const historyUrls = await deps.publishHistoryStore?.listLiveUrls({ workspaceId: deps.workspaceId }) ?? [];
   if (historyUrls.length > 200) throw new ToolInputError({ message: "fetch_live_url: more than 200 distinct live addresses are recorded. Review the publish history before fetching." });
   urls.push(...historyUrls);
-  if (deps.originRegistry) {
-    try {
-      const configured = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
-      if (configured.source === "workspace-setting") urls.push(`${configured.scheme}://${configured.host}${configured.port ? `:${configured.port}` : ""}`);
-    } catch (error) {
-      if (!(error instanceof OriginNotVerifiedError)) throw error;
-    }
-  }
+  urls.push(...await configuredLiveOrigins(deps));
   return [...new Set(urls.map(liveOrigin))].sort();
+}
+
+/** Reads only explicitly configured trust evidence; absent verification supplies no address. */
+async function configuredLiveOrigins({ originRegistry, workspaceId }: LiveOriginSourceDeps, _options: Record<string, never> = {}): Promise<string[]> {
+  if (!originRegistry) return [];
+  try {
+    const configured = await originRegistry.canonicalOrigin({ workspaceId });
+    if (configured.source !== "workspace-setting") return [];
+    return [`${configured.scheme}://${configured.host}${configured.port ? `:${configured.port}` : ""}`];
+  } catch (error) {
+    if (!(error instanceof OriginNotVerifiedError)) throw error;
+    return [];
+  }
 }
 
 /** Only the origin itself is accepted for explicit selection, never a path/userinfo-bearing URL. */
@@ -115,19 +121,36 @@ async function fetchWithinDeadline(deps: FetchLiveUrlDeps, input: FetchLiveUrlIn
   for (;;) {
     deadline.throwIfAborted();
     const response = await sendPage(deps, url, deadline, Math.max(1, 15_000 - (Date.now() - started)), rawReadCap);
-    const headers: Record<string, string> = {};
-    for (const [key, value] of Object.entries(response.headers)) if (key.toLowerCase() !== "set-cookie") headers[key.toLowerCase()] = value;
+    const headers = pageHeaders(response);
     const location = headers.location;
     if (REDIRECTS.has(response.status) && location && redirects.length < 3) {
       const next = redirectTarget(location, url, origin);
       if (next !== null) { redirects.push(next); url = next; continue; }
     }
-    const cookies = new Headers();
-    for (const cookie of response.setCookies ?? []) cookies.append("set-cookie", cookie);
-    const raw = Buffer.from(response.bodyText).subarray(0, MAX_MAX_BODY_BYTES).toString("utf8");
-    const shaped = shapePageBody(raw, options);
-    return { path: new URL(url).pathname + new URL(url).search, status: response.status, ok: response.status >= 200 && response.status < 300, headers, cookies: toCookieShapes(cookies), ...shaped, truncated: shaped.truncated || response.bodyTruncated === true || Buffer.byteLength(response.bodyText) > MAX_MAX_BODY_BYTES, url, origin, redirects, untrusted: true, ...(REDIRECTS.has(response.status) && location ? { location } : {}) };
+    return livePageResult({ response, headers, options, url, origin, redirects });
   }
+}
+
+/** Header names are case-insensitive; cookie values are projected separately. */
+function pageHeaders({ headers }: HttpResponse, _options: Record<string, never> = {}): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() !== "set-cookie") result[key.toLowerCase()] = value;
+  }
+  return result;
+}
+
+/** Shapes the final hop, retaining both upstream and local truncation evidence. */
+function livePageResult({ response, headers, options, url, origin, redirects }: {
+  response: HttpResponse; headers: Record<string, string>; options: PageBodyOptions;
+  url: string; origin: string; redirects: string[];
+}, _options: Record<string, never> = {}): LivePageResult {
+  const cookies = new Headers();
+  for (const cookie of response.setCookies ?? []) cookies.append("set-cookie", cookie);
+  const raw = Buffer.from(response.bodyText).subarray(0, MAX_MAX_BODY_BYTES).toString("utf8");
+  const shaped = shapePageBody(raw, options);
+  const location = headers.location;
+  return { path: new URL(url).pathname + new URL(url).search, status: response.status, ok: response.status >= 200 && response.status < 300, headers, cookies: toCookieShapes(cookies), ...shaped, truncated: shaped.truncated || response.bodyTruncated === true || Buffer.byteLength(response.bodyText) > MAX_MAX_BODY_BYTES, url, origin, redirects, untrusted: true, ...(REDIRECTS.has(response.status) && location ? { location } : {}) };
 }
 
 /** Caller-safe egress refusals, following media-import's policy-error projection without leaking IPs. */

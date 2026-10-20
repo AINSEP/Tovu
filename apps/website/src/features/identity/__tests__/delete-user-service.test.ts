@@ -596,3 +596,43 @@ test("trashing a user passes its username and email to the Trash display", async
   assert.equal(trashed.displayTitle, "departing-with-email");
   assert.equal(trashed.displaySubtitle, "departing@example.test");
 });
+
+for (const action of ["trash", "purge", "disable"] as const) {
+  test(`L201 pin: ${action} preserves seeded owners without a caller before checking the owner floor`, async (t) => {
+    const f = await setup(`ws-l201-seeded-${action}`);
+    t.after(() => f.db.$client.close());
+    await assert.rejects(assertUserAccountAction({
+      deps: f.identity, workspaceId: f.workspaceId, principalId: f.ownerPrincipalId, action,
+    }, { seededOwnerPrincipalId: f.ownerPrincipalId }), {
+      constructor: OwnerRequiredError,
+      message: action === "disable" ? "the seeded owner principal can never be disabled" : "the seeded owner principal can never be deleted",
+    });
+  });
+
+  test(`L201 pin: ${action} checks only active wildcard targets against the owner floor`, async (t) => {
+    const f = await setup(`ws-l201-floor-${action}`);
+    t.after(() => f.db.$client.close());
+    const target = await createBareUser(f, "target");
+    const required = { deps: f.identity, workspaceId: f.workspaceId, principalId: target, action };
+    await assertUserAccountAction(required);
+    await makeOwnerWildcard(f, target);
+    await assertUserAccountAction(required);
+    await disablePrincipalDirect(f, f.ownerPrincipalId);
+    await assert.rejects(assertUserAccountAction(required), {
+      constructor: OwnerRequiredError,
+      message: "the workspace must keep at least one active owner-`*` principal",
+    });
+    await disablePrincipalDirect(f, target);
+    await assertUserAccountAction(required);
+    const ordinary = await createBareUser(f, "ordinary-without-active-owners");
+    await assertUserAccountAction({ ...required, principalId: ordinary });
+  });
+}
+
+test("L201 pin: resetting the sole seeded owner's password skips destructive invariants without a caller", async (t) => {
+  const f = await setup("ws-l201-reset-floor");
+  t.after(() => f.db.$client.close());
+  await assertUserAccountAction({
+    deps: f.identity, workspaceId: f.workspaceId, principalId: f.ownerPrincipalId, action: "reset-password",
+  }, { seededOwnerPrincipalId: f.ownerPrincipalId });
+});

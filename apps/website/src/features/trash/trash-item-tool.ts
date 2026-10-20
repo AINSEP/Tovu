@@ -64,7 +64,7 @@ import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash, type MoveToTrashOutcome } from "./move-to-trash.js";
-import { type EntitySnapshotRow, readLiveSnapshot } from "./entry-sql.js";
+import { readLiveSnapshot } from "./entry-sql.js";
 import type { TrashActor, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashEntry, TrashRegistry } from "./registry.js";
 
@@ -296,22 +296,6 @@ export const trashItemDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 ]);
 
 /**
- * Reads the live display + version for one GENERIC `TRASHABLE` entity (no bespoke delegate) — the
- * SAME column-only query (`entry-sql.ts`'s `readLiveSnapshot`) `moveToTrash` runs right before it
- * calls `TrashPort.trash`; this tool reads it first for the same version check. `notTrashed` excludes a row already in the Trash, same as `moveToTrash`'s own not-found
- * reading — a caller cannot re-trash what already looks gone from its own point of view.
- *
- * @complexity O(1): one indexed row read.
- */
-async function readGenericEntityDisplay(
-  deps: Pick<TrashItemToolDeps, "db" | "registry" | "workspaceId">,
-  entry: TrashEntry,
-  entityId: string
-): Promise<EntitySnapshotRow | null> {
-  return readLiveSnapshot({ entry, workspaceId: deps.workspaceId, entityId }, { kernel: deps.db, registry: deps.registry });
-}
-
-/**
  * Maps one non-ok {@link MoveToTrashOutcome} to the `ToolInputError` the generic path throws.
  *
  * `default` stays reachable at the type level even though `move-to-trash.ts` names only four reasons
@@ -349,15 +333,26 @@ function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string
  *
  * @complexity O(1) plus the registry adapter read and removal.
  */
-function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: TrashEntry; routeDeps: TrashItemToolDeps; surfaces: AssistantSurfaceDeps }): ToolHandler {
-  const { entityType, entry, routeDeps, surfaces } = spec;
+function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: TrashEntry; routeDeps: TrashItemToolDeps }): ToolHandler {
+  const { entityType, entry, routeDeps } = spec;
   return async (ctx) => {
     const input = requireInputRecord({ input: ctx.input });
     const entityId = requireString({ input: input, key: "entityId" });
 
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: entry.permission }, { entityType, entityId });
 
-    const snapshot = await readGenericEntityDisplay(routeDeps, entry, entityId);
+    /**
+     * Reads the live display + version for one GENERIC `TRASHABLE` entity (no bespoke delegate) — the
+     * SAME column-only query (`entry-sql.ts`'s `readLiveSnapshot`) `moveToTrash` runs right before it
+     * calls `TrashPort.trash`; this tool reads it first for the same version check. `notTrashed` excludes a row already in the Trash, same as `moveToTrash`'s own not-found
+     * reading — a caller cannot re-trash what already looks gone from its own point of view.
+     *
+     * @complexity O(1): one indexed row read.
+     */
+    const snapshot = await readLiveSnapshot(
+      { entry, workspaceId: routeDeps.workspaceId, entityId },
+      { kernel: routeDeps.db, registry: routeDeps.registry },
+    );
     if (!snapshot) {
       throw new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
     }
@@ -418,6 +413,22 @@ function buildUserTrashHandler(trashUser: TrashUserPort): ToolHandler {
   };
 }
 
+/** Index only delegates whose existing delete handlers are present in this composition. */
+function buildDelegateTrashHandlers(required: {
+  registrations: readonly ToolRegistration[];
+  delegates: ReadonlyMap<TrashEntityType, TrashItemDelegate>;
+  routeDeps: TrashItemToolDeps;
+}, _options: Record<string, never> = {}): Map<TrashEntityType, ToolHandler> {
+  const { delegates, routeDeps } = required;
+  const registered = new Map(required.registrations.map((registration) => [registration.descriptor.id, registration.handler]));
+  const handlerByEntityType = new Map<TrashEntityType, ToolHandler>();
+  for (const delegate of delegates.values()) {
+    const delegateHandler = registered.get(delegate.toolId);
+    if (delegateHandler) handlerByEntityType.set(delegate.entityType, buildDelegateTrashHandler({ delegate, delegateHandler, routeDeps }));
+  }
+  return handlerByEntityType;
+}
+
 /**
  * Builds the `trash_item` registration over the already-built registration list.
  *
@@ -443,17 +454,11 @@ export function deriveTrashItemRegistrations(
   required: { registrations: readonly ToolRegistration[]; routeDeps: TrashItemToolDeps; surfaces: AssistantSurfaceDeps },
   optional: { delegates?: ReadonlyMap<TrashEntityType, TrashItemDelegate>; trashUser?: TrashUserPort } = {}
 ): ToolRegistration[] {
-  const { routeDeps, surfaces } = required;
+  const { routeDeps } = required;
   const delegates = optional.delegates ?? TRASH_ITEM_DELEGATES;
-  const registered = new Map(required.registrations.map((registration) => [registration.descriptor.id, registration.handler]));
-
   // One handler per accepted kind, in the order the model is told the kinds in: delegates, then
   // generic registry kinds, then `user`.
-  const handlerByEntityType = new Map<TrashEntityType, ToolHandler>();
-  for (const delegate of delegates.values()) {
-    const delegateHandler = registered.get(delegate.toolId);
-    if (delegateHandler) handlerByEntityType.set(delegate.entityType, buildDelegateTrashHandler({ delegate, delegateHandler, routeDeps }));
-  }
+  const handlerByEntityType = buildDelegateTrashHandlers({ registrations: required.registrations, delegates, routeDeps });
 
   // GENERIC kinds: every `TRASHABLE` registry entry with no bespoke delegate above (`widget` DOES
   // have one, added to `TRASH_ITEM_DELEGATES`, so it never lands here) — read fresh from the live
@@ -467,7 +472,7 @@ export function deriveTrashItemRegistrations(
   // `isTrashableEntityType`. A missing registry degrades to "no generic kinds," not a crash that
   // takes the whole assistant catalog down with it.
   for (const [entityType, entry] of routeDeps.registry ?? []) {
-    if (!handlerByEntityType.has(entityType)) handlerByEntityType.set(entityType, buildGenericTrashHandler({ entityType, entry, routeDeps, surfaces }));
+    if (!handlerByEntityType.has(entityType)) handlerByEntityType.set(entityType, buildGenericTrashHandler({ entityType, entry, routeDeps }));
   }
 
   if (optional.trashUser && !handlerByEntityType.has(USER_ENTITY_TYPE)) {

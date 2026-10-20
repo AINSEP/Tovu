@@ -42,6 +42,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Refresh only addressable embed slots; malformed embeds remain structural copies. */
+function refreshEmbedPlacement(
+  { node, newPlacementId }: { node: Record<string, unknown>; newPlacementId: () => string },
+  _options: Record<string, never> = {}
+): Record<string, unknown> {
+  return node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.placementId === "string"
+    ? { ...node, attrs: { ...node.attrs, placementId: newPlacementId() } }
+    : node;
+}
+
 function walk(root: unknown, newPlacementId: () => string): unknown {
   // An explicit stack, not recursion: a duplicated page's nesting depth is caller/import-controlled
   // and a 5000-deep body overflowed the call stack here (same class as f646ba397's GET-path
@@ -63,9 +73,7 @@ function walk(root: unknown, newPlacementId: () => string): unknown {
       continue;
     }
 
-    const source = node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.placementId === "string"
-      ? { ...node, attrs: { ...node.attrs, placementId: newPlacementId() } }
-      : node;
+    const source = refreshEmbedPlacement({ node, newPlacementId });
     const copy: Record<string, unknown> = {};
     place(copy);
     // Clone every field, including leaf text nodes, marks and nested attrs; walking only content

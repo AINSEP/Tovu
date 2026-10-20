@@ -19,7 +19,7 @@
  * Static tier only: the capture browser carries no admin session, and only static pages render at
  * `/theme-explore/` ungated (see `theme-page-preview.ts`). The listing never points another tier here.
  */
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -56,6 +56,30 @@ function settleWithin(work: Promise<void>, ms: number): Promise<void> {
   return Promise.race([work.catch(() => {}), timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Read a current capture, waiting for the existing queue only when this theme needs one. */
+async function readThemeCapture(
+  { theme, themeId, previews, req, contentVersion, waitMs }: {
+    theme: DiscoveredTheme; themeId: string; previews: SitePreviewService | undefined;
+    req: Request; contentVersion: NonNullable<ThemePreviewRouteOptions["contentVersion"]>; waitMs: number;
+  },
+  _optional = {},
+): Promise<Buffer | null> {
+  const pageId = capturePageId(theme);
+  if (!previews || pageId === null) return null;
+  const version = contentVersion({ dir: theme.dir });
+  // The queue's "older than createdAt is unusable" rule is exactly "captured before the last edit".
+  const site = { name: themeId, createdAt: new Date(version).toISOString() };
+  let captured = previews.versions({ sites: [site], targets: [] })[themeId];
+  const serving = servingAddressOf({ req });
+  if (captured === undefined && serving) {
+    const url = `${serving.scheme}://localhost:${serving.port}/theme-explore/${encodeURIComponent(themeId)}/${encodeURIComponent(pageId)}`;
+    previews.versions({ sites: [site], targets: [{ name: themeId, url, lifecycle: String(version) }] });
+    await settleWithin(previews.idle(), waitMs);
+    captured = previews.versions({ sites: [site], targets: [] })[themeId];
+  }
+  return captured === undefined ? null : previews.read({ name: themeId });
+}
+
 /**
  * @complexity O(t + f) per request for t themes and the theme's f files (one tree walk), plus at
  *   most one capture (~1–2 s) when the theme changed since the last one.
@@ -79,28 +103,14 @@ export function registerAdminThemePreviewRoute(
       const theme = deps.themes.find((t) => t.status === "valid" && t.manifest.id === themeId && t.manifest.tier === "static");
       if (!theme) { res.status(404).json({ code: "THEME_NOT_FOUND", error: "no such static theme" }); return; }
 
-      const pageId = capturePageId(theme);
-      if (previews && pageId !== null) {
-        const version = contentVersion({ dir: theme.dir });
-        // The queue's "older than createdAt is unusable" rule is exactly "captured before the last edit".
-        const site = { name: themeId, createdAt: new Date(version).toISOString() };
-        let captured = previews.versions({ sites: [site], targets: [] })[themeId];
-        const serving = servingAddressOf({ req });
-        if (captured === undefined && serving) {
-          const url = `${serving.scheme}://localhost:${serving.port}/theme-explore/${encodeURIComponent(themeId)}/${encodeURIComponent(pageId)}`;
-          previews.versions({ sites: [site], targets: [{ name: themeId, url, lifecycle: String(version) }] });
-          await settleWithin(previews.idle(), waitMs);
-          captured = previews.versions({ sites: [site], targets: [] })[themeId];
-        }
-        const bytes = captured === undefined ? null : previews.read({ name: themeId });
-        if (bytes !== null) {
-          res.status(200).set({
-            "Content-Type": SITE_PREVIEW_CONTENT_TYPE,
-            "Cache-Control": "private, max-age=31536000, immutable",
-            "X-Content-Type-Options": "nosniff",
-          }).send(bytes);
-          return;
-        }
+      const bytes = await readThemeCapture({ theme, themeId, previews, req, contentVersion, waitMs });
+      if (bytes !== null) {
+        res.status(200).set({
+          "Content-Type": SITE_PREVIEW_CONTENT_TYPE,
+          "Cache-Control": "private, max-age=31536000, immutable",
+          "X-Content-Type-Options": "nosniff",
+        }).send(bytes);
+        return;
       }
 
       // `no-store`: the next request may well have a capture to show.

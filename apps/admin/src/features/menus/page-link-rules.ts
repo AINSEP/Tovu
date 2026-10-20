@@ -62,12 +62,19 @@ export function targetForKind(
   }
 }
 
+function isUnavailablePageSelection(
+  { entryId, pages, selected }: { entryId?: string; pages?: readonly MenuPageChoice[]; selected?: MenuPageChoice },
+  _optional = {},
+): boolean {
+  return Boolean(entryId && pages && (!selected || selected.status !== "published"));
+}
+
 export function pageLinkState(
   { entryId, label, pages, t }: { entryId?: string; label?: string; pages?: readonly MenuPageChoice[]; t: (key: string) => string },
   _optional = {},
 ) {
   const selected = pages?.find((page) => page.id === entryId);
-  const unavailable = Boolean(entryId && pages && (!selected || selected.status !== "published"));
+  const unavailable = isUnavailablePageSelection({ entryId, pages, selected });
   return {
     value: entryId ?? "",
     unavailable,

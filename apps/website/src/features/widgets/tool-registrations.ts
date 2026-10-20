@@ -215,6 +215,12 @@ async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement:
   };
 }
 
+function placementContent({ content }: { content: unknown }, _options: Record<string, never> = {}): { content?: JsonObject } {
+  if (content === undefined) return {};
+  if (typeof content !== 'object' || content === null || Array.isArray(content)) throw new ToolInputError({ message: 'placement content must be an object' });
+  return { content: content as JsonObject };
+}
+
 export function buildWidgetsRegistrations(
   routeDeps: WidgetsToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
@@ -382,8 +388,7 @@ export function buildWidgetsRegistrations(
         const placementId = typeof raw.placementId === "string" && raw.placementId.length > 0 ? raw.placementId : routeDeps.idGen.newId();
         if (seenIds.has(placementId)) throw new ToolInputError({ message: `duplicate placementId '${placementId}'` });
         seenIds.add(placementId);
-        if (raw.content !== undefined && (typeof raw.content !== 'object' || raw.content === null || Array.isArray(raw.content))) throw new ToolInputError({ message: 'placement content must be an object' });
-        return { placementId, widgetEntryId, enabled: raw.enabled, ...(raw.content !== undefined ? { content: raw.content as JsonObject } : {}) };
+        return { placementId, widgetEntryId, enabled: raw.enabled, ...placementContent({ content: raw.content }) };
       });
 
       const binding = await routeDeps.widgetBindingRepo.findByRegion({ workspaceId: routeDeps.workspaceId, regionKey });

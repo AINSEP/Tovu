@@ -16,18 +16,27 @@ export function deriveContentConversationTitle(
   const content = /\b(blog\s+post|post|page|article)\b/i.exec(prompt);
   if (!content) return required.deriveFallback({ prompt });
   const tail = prompt.slice(content.index + content[0].length);
-  // Domains and versions contain punctuation too; only a following space or end ends a sentence.
-  const named = /\b(?:titled|called|named)\s*(?::\s*)?(?:["“]([^"”]+)["”]|'([^']+)'|([^\n]+?)(?=[.!?](?:\s|$)|\n|$))/i.exec(tail);
-  const quoted = /["“]([^"”]+)["”]/.exec(tail);
-  const title = (named?.[1] ?? named?.[2] ?? named?.[3] ?? quoted?.[1])?.trim();
-  if (title) {
-    const label = content[0].toLowerCase() === "page" ? "Page" : content[0].toLowerCase() === "article" ? "Article" : "Blog post";
-    const candidate = `${label}: ${title}`;
-    if (candidate.length <= 80) return candidate;
-    const action = /\bpublish\b/i.test(prompt) ? "Publish" : /\b(?:create|write)\b/i.test(prompt) ? "Write" : "Edit";
-    return `${action} ${label.toLowerCase()}`;
-  }
+  const title = readContentName({ tail });
+  if (title) return formatContentName({ prompt, contentKind: content[0], title });
   // A dangling title introducer never identifies content. Fall back to the complete CMS action.
   const fallback = required.deriveFallback({ prompt });
   return fallback.replace(/\s+(?:titled|called|named)(?:\s+.*)?$/i, "");
+}
+
+function readContentName({ tail }: { tail: string }, _optional: Record<string, never> = {}): string | undefined {
+  // Domains and versions contain punctuation too; only a following space or end ends a sentence.
+  const named = /\b(?:titled|called|named)\s*(?::\s*)?(?:["“]([^"”]+)["”]|'([^']+)'|([^\n]+?)(?=[.!?](?:\s|$)|\n|$))/i.exec(tail);
+  const quoted = /["“]([^"”]+)["”]/.exec(tail);
+  return (named?.[1] ?? named?.[2] ?? named?.[3] ?? quoted?.[1])?.trim();
+}
+
+function formatContentName(
+  { prompt, contentKind, title }: { prompt: string; contentKind: string; title: string },
+  _optional: Record<string, never> = {},
+): string {
+  const label = contentKind.toLowerCase() === "page" ? "Page" : contentKind.toLowerCase() === "article" ? "Article" : "Blog post";
+  const candidate = `${label}: ${title}`;
+  if (candidate.length <= 80) return candidate;
+  const action = /\bpublish\b/i.test(prompt) ? "Publish" : /\b(?:create|write)\b/i.test(prompt) ? "Write" : "Edit";
+  return `${action} ${label.toLowerCase()}`;
 }
