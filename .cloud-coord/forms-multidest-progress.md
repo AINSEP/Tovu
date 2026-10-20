@@ -29,9 +29,9 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 ## Lots
 | Lot | Status | Branch SHA | Merge SHA | Notes |
 |---|---|---|---|---|
-| F1 | running | | | |
-| F2 | running | | | |
-| F3 | waiting F2 | | | |
+| F1 | MERGED (Jini) | d6998d71 | ff to d6998d71 (pull --rebase flattened the --no-ff merge; later merges use --rebase=merges) | personas OK; cx max 9/5; tsc OK; outbox 45/45 + importers (infra 4, cms seo 52); worker/policy 100/100/100/100 (coordinator rerun); guard = base (26 pre-existing); RED 12/12; WIP: kept shape, dropped throw-wedge (fallback to default policy, logged) |
+| F2 | MERGED (Jini) | 57688b37 | 40ee5379 | personas OK; cx max 7/4; tsc OK; cms/forms 400/400; errors.ts 100% (coordinator rerun), deliver-job 50% branch (phase A pins only); guard = base; no vendor names; cms rebuilt; contract ratified → Tovu `.cloud-coord/forms-multidest-contract.md` |
+| F3 | running | | | |
 | F4 | waiting F1, F3 | | | |
 | F5 | waiting F3 | | | |
 | F6 | waiting F4, F5 | | | |
@@ -43,4 +43,9 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 (filled per merge)
 
 ## Next
-F1 + F2 in flight. On F2 merge: rebuild `@jini-ai/cms`, start F3.
+F3 running (wt-F3). After F3: F4 + F5 in parallel.
+
+## Review notes for phase B / F8
+- Tovu `InMemoryEventBus.publish` runs handlers serially; the first throw skips later handlers and retries the whole `form.submission.received` row (planning is idempotent; email/webhook handlers re-run on retry — pre-existing semantics).
+- Status: first in-flight attempt (`processing`, attempts 1) reads `retrying`.
+- Outbox `lastError` stores `error.message` verbatim (F1 note) — delivery path only ever throws FormDeliveryError(code).
