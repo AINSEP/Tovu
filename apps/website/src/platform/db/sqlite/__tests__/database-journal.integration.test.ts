@@ -361,3 +361,46 @@ test("SqliteRestorePointsRepo: list() renders newest-first and is strictly site-
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test("SqliteDatabaseLedgerRepo.append: a fully populated row lands in every database_ledger column, site-scoped", async () => {
+  const { db, tmpDir } = openTempJournal();
+  try {
+    await new SqliteDatabaseLedgerRepo({ db, siteId: "site-1" }).append({
+      id: "led-full", kind: "core.migration", correlationId: "corr-1", restorePointId: "rp-1",
+      schemaBeforeVersion: 6, schemaBeforeTag: "0006_a", schemaAfterVersion: 7, schemaAfterTag: "0007_b",
+      driftStatus: "clean", outcome: "success", detailJson: "{\"n\":1}", actorWorkspaceId: "ws-1", actorId: "user-1",
+      delegatedByWorkspaceId: "ws-2", delegatedById: "user-2", createdAt: "2026-07-15T00:00:00.000Z",
+    });
+    assert.deepEqual(await db.query(sql`SELECT * FROM database_ledger WHERE id = 'led-full'`), [{
+      id: "led-full", site_id: "site-1", kind: "core.migration", correlation_id: "corr-1", restore_point_id: "rp-1",
+      schema_before_version: 6, schema_before_tag: "0006_a", schema_after_version: 7, schema_after_tag: "0007_b",
+      drift_status: "clean", outcome: "success", detail_json: "{\"n\":1}", actor_workspace_id: "ws-1", actor_id: "user-1",
+      delegated_by_workspace_id: "ws-2", delegated_by_id: "user-2", created_at: "2026-07-15T00:00:00.000Z",
+    }]);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("SqliteDatabaseLedgerRepo.append: omitted and explicit-null optional fields are both stored as NULL", async () => {
+  const { db, tmpDir } = openTempJournal();
+  try {
+    const ledger = new SqliteDatabaseLedgerRepo({ db, siteId: "site-1" });
+    await ledger.append({ id: "led-omitted", kind: "core.migration", outcome: "success", createdAt: "2026-07-15T00:00:00.000Z" });
+    await ledger.append({
+      id: "led-null", kind: "core.migration", correlationId: null, restorePointId: null, schemaBeforeVersion: null,
+      schemaBeforeTag: null, schemaAfterVersion: null, schemaAfterTag: null, driftStatus: null, outcome: "success",
+      detailJson: null, actorWorkspaceId: null, actorId: null, delegatedByWorkspaceId: null, delegatedById: null,
+      createdAt: "2026-07-15T00:00:00.000Z",
+    });
+    const nulls = {
+      site_id: "site-1", kind: "core.migration", correlation_id: null, restore_point_id: null, schema_before_version: null,
+      schema_before_tag: null, schema_after_version: null, schema_after_tag: null, drift_status: null, outcome: "success",
+      detail_json: null, actor_workspace_id: null, actor_id: null, delegated_by_workspace_id: null, delegated_by_id: null,
+      created_at: "2026-07-15T00:00:00.000Z",
+    };
+    assert.deepEqual(await db.query(sql`SELECT * FROM database_ledger ORDER BY id`), [{ id: "led-null", ...nulls }, { id: "led-omitted", ...nulls }]);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

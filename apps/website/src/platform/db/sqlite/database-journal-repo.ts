@@ -38,6 +38,12 @@ function inclusiveUpperBound(toDate: string): string {
   return DATE_ONLY.test(toDate) ? `${toDate}T23:59:59.999Z` : toDate;
 }
 
+/** An optional port field that was left out is stored as SQL `NULL`, the same as an explicit `null`.
+ *  @complexity O(1). */
+function orNull<T>(value: T | null | undefined): T | null {
+  return value ?? null;
+}
+
 /** `database_ledger` adapter — implements both the Timeline's read port and the boot
  * reconciliation's append port, siteId-scoped at construction. */
 export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort {
@@ -122,19 +128,19 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
           id: row.id,
           site_id: this.deps.siteId,
           kind: row.kind,
-          correlation_id: row.correlationId ?? null,
-          restore_point_id: row.restorePointId ?? null,
-          schema_before_version: row.schemaBeforeVersion ?? null,
-          schema_before_tag: row.schemaBeforeTag ?? null,
-          schema_after_version: row.schemaAfterVersion ?? null,
-          schema_after_tag: row.schemaAfterTag ?? null,
-          drift_status: row.driftStatus ?? null,
+          correlation_id: orNull(row.correlationId),
+          restore_point_id: orNull(row.restorePointId),
+          schema_before_version: orNull(row.schemaBeforeVersion),
+          schema_before_tag: orNull(row.schemaBeforeTag),
+          schema_after_version: orNull(row.schemaAfterVersion),
+          schema_after_tag: orNull(row.schemaAfterTag),
+          drift_status: orNull(row.driftStatus),
           outcome: row.outcome,
-          detail_json: row.detailJson ?? null,
-          actor_workspace_id: row.actorWorkspaceId ?? null,
-          actor_id: row.actorId ?? null,
-          delegated_by_workspace_id: row.delegatedByWorkspaceId ?? null,
-          delegated_by_id: row.delegatedById ?? null,
+          detail_json: orNull(row.detailJson),
+          actor_workspace_id: orNull(row.actorWorkspaceId),
+          actor_id: orNull(row.actorId),
+          delegated_by_workspace_id: orNull(row.delegatedByWorkspaceId),
+          delegated_by_id: orNull(row.delegatedById),
           created_at: row.createdAt,
         })
         .execute()
@@ -229,7 +235,7 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
           dialect: row.dialect,
           status: row.status,
           blue_touched: 0,
-          correlation_id: row.correlationId ?? null,
+          correlation_id: orNull(row.correlationId),
           created_at: row.createdAt,
           updated_at: row.updatedAt,
         })
@@ -294,9 +300,9 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
           cost_class: row.costClass ?? "cheap",
           kind: row.kind ?? "file-snapshot",
           artifact_ref: row.artifactRef ?? "",
-          watermark_at_capture: row.watermarkAtCapture ?? null,
-          captured_schema_version: row.capturedSchemaVersion ?? null,
-          captured_schema_tag: row.capturedSchemaTag ?? null,
+          watermark_at_capture: orNull(row.watermarkAtCapture),
+          captured_schema_version: orNull(row.capturedSchemaVersion),
+          captured_schema_tag: orNull(row.capturedSchemaTag),
           idempotency_key: row.idempotencyKey,
           actor_id: row.createdBy,
           created_at: row.createdAt,
