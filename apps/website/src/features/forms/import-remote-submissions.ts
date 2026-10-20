@@ -181,7 +181,9 @@ export interface FormSubmissionsPullPort {
 }
 
 /** The automatic pull the serving app's startup and sign-in triggers run (`composeFormSubmissions`).
- * Resolves when the pull is done or skipped; it reports nothing. */
+ * `run` resolves when the pull is done or skipped; it reports nothing. `drained` resolves once every
+ * notification drain a pull (manual or automatic) started has settled, so shutdown can wait for it. */
 export interface FormsAutoPullPort {
   run(required: { workspaceId: string }, optional?: Record<string, never>): Promise<void>;
+  drained(required?: Record<string, never>, optional?: Record<string, never>): Promise<void>;
 }

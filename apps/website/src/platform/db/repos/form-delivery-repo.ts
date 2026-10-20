@@ -1,8 +1,9 @@
 import type { DomainEvent, OutboxRecord } from "@jini-ai/cms/core";
 import {
-  type FormDeliveryJob, type FormDeliveryJobStatus, type FormDeliveryPlan, type FormDeliveryPlanPort,
+  type FormDeliveryJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
   type FormPullClaim, type FormPullLeasePort, type FormPullRefusal, formDeliveryStatusFromOutbox,
 } from "@jini-ai/cms/forms";
+import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/features/forms/index";
 
 import type { Kysely } from "kysely";
 
@@ -21,19 +22,13 @@ import { outboxEventValues } from "./outbox-repo.js";
  * just the ids a status read prints, so status reads never load answers.
  */
 
-/** Upper bound of one status listing (the `forms_delivery_status` tool's "most recent 50"). */
-export const FORM_DELIVERY_STATUS_MAX_ROWS = 50;
-
-/** One binding's delivery of one submission, as status reads return it. */
-export type FormDeliveryStatusRow = {
-  readonly bindingId: string;
-  readonly adapterId: string;
-  readonly formId: string;
-  readonly submissionId: string;
-} & FormDeliveryJobStatus;
+export type { FormDeliveryStatusRow };
 
 /** Outbox statuses that are not `delivered`; matches `idx_outbox_events_claim`'s leading column. */
 const UNFINISHED_STATUSES = ["pending", "processing", "failed"];
+
+/** The safe code a purged submission's unfinished jobs fail with (the contract has no closer one). */
+const PURGED_JOB_ERROR = "delivery-failed";
 
 interface StatusSqlRow {
   binding_id: string; adapter_id: string; form_id: string; submission_id: string;
@@ -47,6 +42,16 @@ function statusQuery(db: Kysely<ContentDatabase>, workspaceId: string) {
     .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", "j.workspace_id").onRef("p.submission_id", "=", "j.submission_id"))
     .select(["j.binding_id", "j.adapter_id", "p.form_id", "j.submission_id", "o.status", "o.attempts", "o.next_attempt_at", "o.last_error"])
     .where("j.workspace_id", "=", workspaceId);
+}
+
+/** The job's outbox columns once its submission is purged: answers blanked, and an unfinished job
+ * failed so the worker never claims it again. `failed` is terminal for the outbox worker. */
+function purgedJobColumns(row: { event_json: string; status: string }) {
+  const event = JSON.parse(row.event_json) as DomainEvent<FormDeliveryJob>;
+  const { snapshot } = event.payload;
+  const payload = { ...event.payload, snapshot: { ...snapshot, submission: { ...snapshot.submission, answers: {} } } };
+  const scrubbed = { event_json: JSON.stringify({ ...event, payload }) };
+  return row.status === "pending" || row.status === "processing" ? { ...scrubbed, status: "failed", last_error: PURGED_JOB_ERROR } : scrubbed;
 }
 
 function toStatusRow(row: StatusSqlRow): FormDeliveryStatusRow {
@@ -121,6 +126,31 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
   }
 
   /**
+   * After a permanent delete (a Trash purge of the submission, or of its form with every submission
+   * it had): blanks the answers frozen into those submissions' delivery jobs and fails the jobs not
+   * yet finished, so the deleted answers neither stay in Tovu nor reach a destination later.
+   * Copies a destination already received are outside Tovu and stay. Runs inside the purge's own
+   * transaction (the kernel joins it), so the purge and the scrub commit or roll back together.
+   * @complexity O(jobs of the purged submissions): one indexed read, one update per job.
+   */
+  async scrubPurged(
+    required: { workspaceId: string; purged: { submissionId: string } | { formId: string } },
+    _optional: Record<string, never> = {},
+  ): Promise<void> {
+    const { kernel } = this.required;
+    const { workspaceId, purged } = required;
+    const [column, id] = "submissionId" in purged ? ["p.submission_id", purged.submissionId] as const : ["p.form_id", purged.formId] as const;
+    const jobs = await kernel.run(db => db.selectFrom("form_delivery_jobs as j")
+      .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", "j.workspace_id").onRef("p.submission_id", "=", "j.submission_id"))
+      .innerJoin("outbox_events as o", "o.id", "j.job_id")
+      .select(["o.id", "o.event_json", "o.status"])
+      .where("j.workspace_id", "=", workspaceId).where(column, "=", id).execute());
+    for (const job of jobs) {
+      await kernel.run(db => db.updateTable("outbox_events").set(purgedJobColumns(job)).where("id", "=", job.id).execute());
+    }
+  }
+
+  /**
    * Every binding's status for one submission of `workspaceId`, ordered by binding id.
    * @complexity O(bindings of the submission), via `ux_form_delivery_jobs_binding` and primary keys.
    */
@@ -133,16 +163,15 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
 
   /**
    * The most recent jobs of `workspaceId` that are not completed (pending, retrying or failed),
-   * newest first, at most {@link FORM_DELIVERY_STATUS_MAX_ROWS}.
+   * newest first, `limit` of them (default {@link DELIVERY_STATUS_MAX_LIMIT}).
+   * @param optional.limit not validated here: the only caller, `forms_delivery_status`, already
+   *   refuses anything but an integer from 1 to {@link DELIVERY_STATUS_MAX_LIMIT}.
    * @complexity Driven from `idx_outbox_events_claim` (undelivered rows only), joined by primary key.
-   * @throws RangeError when `limit` is not a positive integer.
    */
   async recentUnfinished(required: { workspaceId: string }, optional: { limit?: number } = {}): Promise<FormDeliveryStatusRow[]> {
-    const limit = optional.limit ?? FORM_DELIVERY_STATUS_MAX_ROWS;
-    if (!Number.isInteger(limit) || limit < 1) throw new RangeError(`Form delivery status limit must be a positive integer (got ${limit}); pass 1-${FORM_DELIVERY_STATUS_MAX_ROWS} or omit it.`);
     const { kernel } = this.required;
     const rows = await kernel.run(db => statusQuery(db, required.workspaceId).where("o.status", "in", UNFINISHED_STATUSES)
-      .orderBy("o.created_at", "desc").orderBy("o.id", "desc").limit(Math.min(limit, FORM_DELIVERY_STATUS_MAX_ROWS)).execute());
+      .orderBy("o.created_at", "desc").orderBy("o.id", "desc").limit(optional.limit ?? DELIVERY_STATUS_MAX_LIMIT).execute());
     return rows.map(toStatusRow);
   }
 }

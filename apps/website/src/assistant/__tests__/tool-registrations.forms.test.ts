@@ -718,3 +718,20 @@ test("forms_delivery_status: a denied principal is refused before any delivery s
   assert.equal(reads, 0);
   assert.deepEqual(authorizeCalls.map(call => call.permission), ["admin.forms.submissions.read", "admin.forms.submissions.read"]);
 });
+
+// The repo's `recentUnfinished` no longer re-checks `limit`; this refusal is the only guard.
+test("forms_delivery_status: a limit outside 1-50 or not an integer is refused before any delivery status is read", async () => {
+  const { deps } = fakeRouteDeps({ allow: true });
+  const limits: (number | undefined)[] = [];
+  const formDeliveryStatus: FormDeliveryStatusPort = {
+    forSubmission: async () => [],
+    recentUnfinished: async (_required, optional) => { limits.push(optional?.limit); return []; },
+  };
+  for (const limit of [0, 51, 1.5, "10"]) {
+    await assert.rejects(() => wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext({ limit })),
+      (error: unknown) => error instanceof ToolInputError && (error as Error).message === "'limit' must be an integer between 1 and 50");
+  }
+  assert.deepEqual(limits, []);
+  await wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext({}));
+  assert.deepEqual(limits, [50], "an omitted limit reads the maximum");
+});

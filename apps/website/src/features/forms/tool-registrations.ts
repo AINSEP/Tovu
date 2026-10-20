@@ -23,7 +23,7 @@ import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { DELIVERY_STATUS_MAX_LIMIT, formsAgentToolCatalog } from "./agent-tools.js";
 import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
-import type { FormDeliveryStatusPort, FormDeliveryStatusView } from "./delivery-status.js";
+import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "./delivery-status.js";
 import { deriveAvailableFormSlug } from "@jini-ai/cms/forms";
 import { formSlugPolicy } from "./index.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
@@ -212,7 +212,7 @@ function requireDeliveryStatusLimit(input: Record<string, unknown>): number {
 
 /** Copies only the reported fields, so whatever else a status row carries (now or later) never
  *  reaches the model. Error codes are already the allowlisted delivery codes. */
-function toDeliveryStatusView(row: FormDeliveryStatusView): FormDeliveryStatusView {
+function toDeliveryStatusView(row: FormDeliveryStatusRow): FormDeliveryStatusRow {
   return { bindingId: row.bindingId, adapterId: row.adapterId, formId: row.formId, submissionId: row.submissionId,
     status: row.status, attempts: row.attempts, nextRetryAt: row.nextRetryAt, errorCode: row.errorCode };
 }

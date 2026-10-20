@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { DomainEvent } from "@jini-ai/cms/core";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryResult } from "@jini-ai/cms/forms";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
@@ -40,10 +40,14 @@ const ALLOWED_CODES = new Set(["authorization-required", "rate-limited", "config
 const kit: FormDestinationKit = { fetch: async () => new Response(null, { status: 204 }), timeouts: {} };
 const clock = { nowMs: () => Date.parse(T0), nowIso: () => T0 };
 
+/** What the `returns` destination was handed on each attempt (the kit and credential left out). */
+const returnsReceived: unknown[] = [];
+
 /** Three push destinations: one throws a message full of secrets, one returns one, one is never given a credential. */
 const registry = buildFormDestinationRegistry({ refusals: [], loaded: [
   { descriptor: { id: "throws", label: "Throws", module: "throws.mjs" }, pluginId: "p1", module: { deliver: async () => { throw new Error(LEAK); } } },
-  { descriptor: { id: "returns", label: "Returns", module: "returns.mjs" }, pluginId: "p2", module: { deliver: async (): Promise<FormDeliveryResult> => {
+  { descriptor: { id: "returns", label: "Returns", module: "returns.mjs" }, pluginId: "p2", module: { deliver: async ({ form, submission, binding, idempotencyKey }): Promise<FormDeliveryResult> => {
+    returnsReceived.push({ form, submission, binding, idempotencyKey });
     // An untyped plugin may add any text; only the code may survive.
     const error = { code: "rate-limited", retryable: true, message: LEAK } as const;
     return { ok: false, error };
@@ -94,7 +98,7 @@ async function deliverOnce(kernel: ContentKernel, workspaceId: string) {
     payload: { submissionId: "sub-1", formDefinitionId: "form-1" } };
   await bus.publish(received);
   await processOutbox({ outbox, bus, clock }, { random: () => 0 });
-  return { plans, outbox };
+  return { plans, outbox, bus };
 }
 
 /** The outbox rows of the planned child jobs (the received event's own row is not one). */
@@ -139,6 +143,23 @@ describeEachDialect(
         assert.equal(job.event_json.includes(SOURCE_IP), false, "no source IP in the job");
         assert.equal(job.event_json.includes('"label":"Email"'), true, "sanity: the frozen form carries field labels");
       }
+    });
+
+    test("a retried job is handed exactly the payload frozen in its outbox row, which no attempt rewrites", async () => {
+      const { kernel } = make();
+      returnsReceived.length = 0;
+      const { outbox, bus } = await deliverOnce(kernel, W);
+      const rowsOf = () => kernel.run(db => deliveryJobRows(db).select(["o.id as id", "o.event_json as event_json"]).orderBy("o.id").execute());
+      const stored = await rowsOf();
+      const later = { nowMs: () => Date.parse(T0) + 3 * 60_000, nowIso: () => new Date(Date.parse(T0) + 3 * 60_000).toISOString() };
+      assert.equal(await processOutbox({ outbox, bus, clock: later }, { random: () => 0 }), 2, "the two retrying jobs ran a second attempt");
+
+      assert.deepEqual(await rowsOf(), stored, "no attempt rewrote a frozen job");
+      const row = stored.find(entry => entry.event_json.includes('"bindingId":"b-returns"'));
+      assert.ok(row, "the returns job is stored");
+      const { snapshot, binding, idempotencyKey } = (JSON.parse(row.event_json) as DomainEvent<FormDeliveryJob>).payload;
+      const frozen = { form: snapshot.form, submission: snapshot.submission, binding, idempotencyKey };
+      assert.deepEqual(returnsReceived, [frozen, frozen]);
     });
 
     test("a binding with no credential fails at once, while failing deliveries retry on the delivery schedule", async () => {

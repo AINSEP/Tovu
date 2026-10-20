@@ -45,6 +45,8 @@ export function composeFormSubmissions(
   required: FormSubmissionsCompositionDeps,
   optional: { observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void } = {},
 ): { destination: StaticPublishFormDestinationPort; pull: FormSubmissionsPullPort; autoPull: FormsAutoPullPort } {
+  // The notification drains pulls start in the background; `autoPull.drained` lets shutdown wait for them.
+  const drains = new Set<Promise<void>>();
   const destination = createFormDestinationPort({
     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
     credentials: required.credentials,
@@ -53,12 +55,15 @@ export function composeFormSubmissions(
   });
   return {
     destination,
-    pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, ...options }) },
-    autoPull: { run: async ({ workspaceId }) => {
-      // `core.forms/autoPull` is read fresh at every trigger; manual pulls never read it.
-      if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
-      await pullAll({ deps: required, workspaceId }, { ...optional, trigger: "automatic" });
-    } },
+    pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId, drains }, { ...optional, ...options }) },
+    autoPull: {
+      run: async ({ workspaceId }) => {
+        // `core.forms/autoPull` is read fresh at every trigger; manual pulls never read it.
+        if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
+        await pullAll({ deps: required, workspaceId, drains }, { ...optional, trigger: "automatic" });
+      },
+      drained: async () => { await Promise.all(drains); },
+    },
   };
 }
 
@@ -70,10 +75,11 @@ interface ReceiverPull {
 type SlugPullCounts = FormImportCounts & { failed: number };
 
 /** Each saved destination in turn; one failing host is reported and the others still run. Delivery
- * of `form.submission.received` starts in the background, as on the live submit path.
+ * of `form.submission.received` starts in the background, as on the live submit path, tracked in
+ * `drains` until it settles.
  * @complexity O(destinations * pull cap). */
 async function pullAll(
-  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string },
+  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; drains: Set<Promise<void>> },
   optional: { trigger?: "automatic"; targetId?: string; observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void },
 ): Promise<FormSubmissionsPullResult> {
   const { deps, workspaceId } = required;
@@ -87,10 +93,20 @@ async function pullAll(
   for (const { scope, destination } of saved) {
     receivers.push(await pullLeased({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit, trigger: optional.trigger ?? "manual" }, { logError: optional.logError }));
   }
-  if (receivers.some(({ report }) => report.imported > 0)) {
-    void processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }).catch(() => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"));
-  }
+  if (receivers.some(({ report }) => report.imported > 0)) startDrain({ deps, drains: required.drains }, { warn: optional.warn });
   return pullResult({ deps, workspaceId, receivers });
+}
+
+/** One background outbox drain, kept in `drains` until it settles; it never rejects. @complexity O(1) to start. */
+function startDrain(
+  required: { deps: FormSubmissionsCompositionDeps; drains: Set<Promise<void>> },
+  optional: { warn?: (message: string) => void } = {},
+): void {
+  const { deps, drains } = required;
+  const drain: Promise<void> = processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock })
+    .then(() => undefined, () => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"))
+    .finally(() => { drains.delete(drain); });
+  drains.add(drain);
 }
 
 type PullOneInput = { deps: FormSubmissionsCompositionDeps; workspaceId: string; scope: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: DeployHostKit };
@@ -117,6 +133,7 @@ function emptyReport({ scope, destination }: { scope: string; destination: FormD
 
 /** One destination's pull and import; a failure becomes that destination's report, never a throw.
  * The failure's full cause is logged under a reference the report repeats, so a person can quote it.
+ * A failed report still counts the pages committed before the failure, as the per-form counts do.
  * @complexity O(pull cap * rows). */
 async function pullOne(
   required: PullOneInput,
@@ -125,30 +142,33 @@ async function pullOne(
   const { deps, workspaceId, scope, destination, module, kit } = required;
   const base = { targetId: scope, url: new URL(destination.url).origin };
   const forms = new Map<string, SlugPullCounts>();
+  const committed: RemoteImportResult[] = [];
   try {
     const pulled = await pullFromFormDestination({ module, scope, destination, kit,
-      importPage: ({ items, destinationKey }) => importCounted({ forms, items, run: () => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
+      importPage: ({ items, destinationKey }) => importCounted({ forms, committed, items, run: () => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
         receipts: deps.receipts, outbox: deps.outbox, clock: deps.clock, idGen: deps.idGen }, workspaceId, destinationKey, items }) }) });
     return { report: { ...base, ...sumPages({ pages: pulled.pages }), pulled: pulled.pulled, acknowledged: pulled.acknowledged, hasMore: pulled.hasMore }, forms: [...forms.values()] };
   } catch (error) {
     const reference = deps.idGen.newId();
     (optional.logError ?? console.error)(`[form-submissions] pull from ${base.url} (${scope}) failed, reference ${reference}: ${failureDetail({ error, secret: destination.secret })}`);
     const message = error instanceof Error ? error.message : String(error);
-    return { report: { ...emptyReport({ scope, destination }),
+    return { report: { ...emptyReport({ scope, destination }), ...sumPages({ pages: committed }),
       error: `${message} If it fails again, report reference ${reference}: the site's server log has the details.` }, forms: [...forms.values()] };
   }
 }
 
-/** One page's import, counted per form: its own counts when it commits, every row as `failed` when
- * it throws (none of that page is acknowledged, so all of it is read again next time).
+/** One page's import, counted per form: its own counts when it commits (the page also joins
+ * `committed`), every row as `failed` when it throws (none of that page is acknowledged, so all of
+ * it is read again next time).
  * @throws whatever the import throws. @complexity O(rows). */
 async function importCounted(
-  required: { forms: Map<string, SlugPullCounts>; items: readonly RemoteSubmissionInput[]; run: () => Promise<RemoteImportResult> },
+  required: { forms: Map<string, SlugPullCounts>; committed: RemoteImportResult[]; items: readonly RemoteSubmissionInput[]; run: () => Promise<RemoteImportResult> },
   _optional: Record<string, never> = {},
 ): Promise<RemoteImportResult> {
   const { forms, items } = required;
   try {
     const page = await required.run();
+    required.committed.push(page);
     for (const counts of page.forms) addCounts({ forms, counts: { ...counts, failed: 0 } });
     return page;
   } catch (error) {
@@ -183,7 +203,8 @@ async function pullResult(
     unmapped: sum({ forms, key: "unmapped" }), failed: sum({ forms, key: "failed" }),
   };
   const base = { message: pullMessage({ destinations }), destinations, forms, totals };
-  const refusal = destinations[0]?.refused;
+  // `pullAll` returns before this when no receiver is saved, so there is always a first report.
+  const refusal = destinations[0]!.refused;
   return refusal && destinations.every((report) => report.refused) ? { ...base, ran: false, reason: refusal } : { ...base, ran: true };
 }
 

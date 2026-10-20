@@ -44,6 +44,20 @@ only travel to the hosts it was saved for:
   refused before a network call with `configuration-invalid` (not retried). If a destination needs
   another API host, add it to the credential's additional hosts.
 
+## Deleting a submission, stopping a destination
+
+Permanently deleting a submission (a Trash purge of the submission, or of its form with every
+submission it had) scrubs Tovu's own frozen copies in the same transaction: the answers in that
+submission's delivery jobs are blanked, and jobs not yet finished are failed with
+`delivery-failed`, so they never deliver afterwards. Copies a destination already received are
+outside Tovu and stay there; remove them at the destination.
+
+Disabling or deleting a binding only stops planning for submissions that arrive afterwards. Jobs
+already planned keep their frozen binding and keep retrying on their schedule (up to 8 attempts
+over about a day). To stop those too, delete or revoke the binding's saved credential (its
+`connectionRef`): the next attempt finds no credential and fails at once with
+`authorization-required`, without calling the destination.
+
 ## Public API
 
 - `types.ts`: the module ABI (`FormDestinationModule`, `FormDeliveryConnectionPort`, …).

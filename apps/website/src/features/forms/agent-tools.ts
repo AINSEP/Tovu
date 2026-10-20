@@ -309,7 +309,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_pull_submissions",
     description:
-      "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target.",
+      "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target, counts per form (formId, formSlug, imported, alreadyImported, unmapped, failed) with totals, and ran: false with reason 'already-running' when another pull of the same host is still in progress.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.forms.manage" },
     inputSchema: {
