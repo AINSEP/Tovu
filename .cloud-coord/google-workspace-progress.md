@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE C starting (~14:00Z?) — phase B complete: B1, B1b, B5j (Jini) + B2, B3, B3p, B4, B6 (Tovu) merged. Next: C1–C5 full tests, then G15 review, G16 fixes, end-of-build suites. G14b blocked on forms-multidest.
+Status: PHASE C starting (13:25Z) — phase B complete: B1, B1b, B5j (Jini) + B2, B3, B3p, B4, B6 (Tovu) merged. Next: C1–C5 full tests, then G15 review, G16 fixes, end-of-build suites. G14b blocked on forms-multidest.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -59,6 +59,11 @@ Status: PHASE C starting (~14:00Z?) — phase B complete: B1, B1b, B5j (Jini) + 
 | B5j | MERGED (Jini; dist rebuilt) | cloud/google-workspace-B5j (18dcf002) | merged | hostKind (host-required), linkOrigins + open-link protocol + openAdminSurfaceLink, artifacts optional, lastSignInAttempt in status. Coord: agent-plugins 671 pass, tsc 0, guard 26, cx clean. |
 | B6 | MERGED | cloud/google-workspace-B6 (643844b23) | merged | one issued-token memory at the composition root for tools+surfaces; hostKind from api-connection runtime; lastSignInAttempts; artifacts omitted → export_csv refuses up front (export-unavailable); admin mount open-link (noopener,noreferrer; desktop → system browser); panel 'Open Google Account page'; Picker mode from hostKind (+ picker-not-configured). Needs Chrome: account-page button/open-link hosted + desktop. |
 | B4 | MERGED 0aed1073b (coord resolved host.ts union conflict with B6) | cloud/google-workspace-B4 (01128c76b) | 0aed1073b | BYO client = custom credential labelled '<pluginId>/<connectionId> OAuth client' via existing secure capture (Access Tokens / chat custom_credential_create card); base URL must be the token-endpoint origin; client change → reconnect-required (durable, CAS); no fallback to Tovu client when BYO unusable; hook HTTP limited to apiOrigins + token endpoint origin. Finding: BYO secret is a normal custom credential so the agent's credentialed-request tool could send it — only to the token endpoint origin (Medium-Low, G15). Coord (B6+B4): plugin 224/224, website suites 2208/2208, admin plugins 402/402, root/tests/admin tsc 0, cx clean. |
+| C1 | running (Jini api-connections full tests) | cloud/google-workspace-C1 | | |
+| C2 | running (Jini oauth loopback + lifecycle/tools + admin-surfaces) | cloud/google-workspace-C2 | | |
+| C3 | running (Tovu api-connections + callback + composition + 0020) | cloud/google-workspace-C3 | | |
+| C4 | running (Tovu executable tools + surfaces server + admin UI) | cloud/google-workspace-C4 | | |
+| C5 | running (plugin: sheets.contract + full coverage) | cloud/google-workspace-C5 | | |
 | G15–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
