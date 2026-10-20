@@ -1,9 +1,9 @@
-import { OAuthError } from "@jini-ai/oauth";
+import { defaultOAuthMessages, OAuthError } from "@jini-ai/oauth";
 import type { HttpClientPort, HttpRequest, RequestRedirect } from "@jini-ai/core/primitives";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createTovuOAuthGuard, createTovuOAuthHttpPorts, withTovuOAuthCopy, assertSafeProviderEndpoint, assertSafeUserFacingUrl } from "../endpoint-safety.js";
+import { createTovuOAuthGuard, createTovuOAuthHttpPorts, withTovuOAuthCopy, assertSafeProviderEndpoint, assertSafeUserFacingUrl, tovuOAuthMessages } from "../endpoint-safety.js";
 
 test("safe URLs return normalized URLs and permit plaintext only on loopback", () => {
   assert.equal(assertSafeProviderEndpoint("  https://AUTH.example.com/token?q=7  ", "token endpoint").href,
@@ -92,4 +92,72 @@ test("guarded clipping retains its malformed-response code through a fetch wrapp
   const clipped = new OAuthError({ code: "OAUTH_MALFORMED_RESPONSE", message: "clipped", operatorAction: "Check response size." });
   const wrapped = new OAuthError({ code: "OAUTH_PROVIDER_UNREACHABLE", message: "unreachable", operatorAction: "Try again." }, { cause: clipped });
   await assert.rejects(() => withTovuOAuthCopy({ call: async () => { throw wrapped; } }), (error) => error === clipped);
+});
+
+// PIN: the operator endpoint wrapper names its label and keeps the label-free legacy error as its cause.
+test("operator endpoint refusals prefix the label and chain the label-free legacy error as cause", () => {
+  assert.throws(() => assertSafeProviderEndpoint("https://10.1.2.3/token", "token endpoint"), (error) => {
+    assert.ok(error instanceof OAuthError);
+    assert.equal(error.message, "token endpoint: provider endpoint resolves to an internal address, which is not allowed");
+    assert.ok(error.cause instanceof OAuthError);
+    assert.equal(error.cause.code, "OAUTH_UNSAFE_ENDPOINT");
+    assert.equal(error.cause.message, "provider endpoint resolves to an internal address, which is not allowed");
+    assert.equal(error.cause.operatorAction, "Point this provider at a publicly reachable authorization server.");
+    assert.equal(error.cause.cause, undefined);
+    return true;
+  });
+});
+
+// PIN: the displayed-link refusal is a fresh label-free error with no cause.
+test("displayed-link refusals carry no cause", () => {
+  assert.throws(() => assertSafeUserFacingUrl("https://10.1.2.3/activate"), (error) => {
+    assert.ok(error instanceof OAuthError);
+    assert.equal(error.message, "provider-supplied link resolves to an internal address, which is not allowed");
+    assert.equal(error.cause, undefined);
+    return true;
+  });
+});
+
+// PIN: the duplicate-subject repair happens before the caller's label is prepended, so a label that
+// itself reads "provider endpoint" is preserved verbatim.
+test("a caller label equal to the legacy subject is still prepended once", () => {
+  assert.throws(() => assertSafeProviderEndpoint("/relative", "provider endpoint"), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "provider endpoint: provider endpoint is not a valid absolute URL",
+  });
+});
+
+// PIN: the legacy seam's loopback exception covers only http on loopback, not other private hosts.
+test("the legacy seam refuses plaintext to a private non-loopback host on the scheme gate", () => {
+  assert.throws(() => assertSafeProviderEndpoint("http://10.0.0.1/token", "token endpoint"), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "token endpoint: provider endpoint must use https (http is permitted only for loopback)",
+  });
+});
+
+// PIN: the production guard names the caller's label and keeps loopback https usable.
+test("the Tovu guard names the caller label for internal hosts and permits https loopback", () => {
+  const guard = createTovuOAuthGuard({});
+  assert.throws(() => guard.assertSafeUrl({ raw: "https://192.168.1.4/token", label: "token endpoint" }), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "token endpoint: provider endpoint resolves to an internal address, which is not allowed",
+    operatorAction: "Point this provider at a publicly reachable authorization server.",
+  });
+  assert.equal(guard.assertSafeUrl({ raw: "https://127.0.0.1/token", label: "token endpoint" }).href, "https://127.0.0.1/token");
+});
+
+// PIN: only the literal `true` opts into plaintext loopback; the explicit exception is honoured.
+test("the Tovu guard permits plaintext loopback only when allowLoopbackHttp is exactly true", () => {
+  assert.equal(createTovuOAuthGuard({}, { allowLoopbackHttp: true }).assertSafeUrl({ raw: "http://127.0.0.1/token", label: "token endpoint" }).href,
+    "http://127.0.0.1/token");
+  assert.throws(() => createTovuOAuthGuard({}, { allowLoopbackHttp: false }).assertSafeUrl({ raw: "http://127.0.0.1/token", label: "token endpoint" }), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "token endpoint: provider endpoint must use https (http is permitted only for loopback)",
+  });
+});
+
+// PIN: Tovu copy overrides exactly two messages and inherits the rest from Jini.
+test("Tovu OAuth copy overrides reserved-parameter and registration-rejected wording only", () => {
+  assert.equal(tovuOAuthMessages.reservedAuthorizationParameter({ parameter: "redirect_uri" }),
+    "'redirect_uri' is set by Tovu and cannot be overridden for this provider");
+  assert.equal(tovuOAuthMessages.registrationRejectedAction,
+    "This server refused to register Tovu as a client — check its OAuth requirements, or supply a client id by hand.");
+  assert.deepEqual({ ...tovuOAuthMessages, reservedAuthorizationParameter: defaultOAuthMessages.reservedAuthorizationParameter,
+    registrationRejectedAction: defaultOAuthMessages.registrationRejectedAction }, defaultOAuthMessages);
 });
