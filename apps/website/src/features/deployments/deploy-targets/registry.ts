@@ -147,27 +147,23 @@ export function parseDeployTargetsFile(raw: string): ParseResult {
 function parseDescriptor(entry: unknown, at: string): DeployTargetDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, label, module } = entry;
-  if (typeof id !== "string" || id.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  if (!isTargetId({ value: id })) return `${at}.id must be a lowercase hyphenated id`;
   if (!isLabel(label)) return `${at}.label must be a non-empty string`;
-  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  const configFields = parseConfigFields(entry.config, `${at}.config`);
-  if (typeof configFields === "string") return configFields;
-  const env = parseEnvFallback(entry.env, `${at}.env`);
-  if (typeof env === "string") return env;
-  const credential = parseCredentialSpec(entry.credential, `${at}.credential`);
-  if (typeof credential === "string") return credential;
+  if (!isRelativeModulePath({ value: module })) return `${at}.module must be a relative path ending in .mjs`;
+  const settings = parseDescriptorSettings({ entry, at });
+  if (typeof settings === "string") return settings;
   const projectName = parseProjectNameCopy(entry.projectName, `${at}.projectName`);
   if (typeof projectName === "string") return projectName;
   const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
   if (typeof i18n === "string") return i18n;
+  const { configFields, ...optionalSettings } = settings;
   return {
-    id,
+    id: id as string,
     label,
-    module,
+    module: module as string,
     configFields,
     ...(projectName !== undefined ? { projectName } : {}),
-    ...(env !== undefined ? { env } : {}),
-    ...(credential !== undefined ? { credential } : {}),
+    ...optionalSettings,
     ...(i18n !== undefined ? { i18n } : {}),
   };
 }
@@ -198,25 +194,17 @@ const RESERVED_CREDENTIAL_FIELD_NAMES: ReadonlySet<string> = new Set(["providerI
 function parseCredentialSpec(value: unknown, at: string): DeployTargetCredentialSpec | undefined | string {
   if (value === undefined) return undefined;
   if (!isPlainObject(value)) return `${at} must be an object`;
-  const { vendorId, vendorLabel, yieldsAccountLabel, help, userHelp, tokenPageUrl, tokenField = "token" } = value;
-  if (typeof vendorId !== "string" || vendorId.length > MAX_TARGET_ID_LENGTH || !TARGET_ID_PATTERN.test(vendorId)) return `${at}.vendorId must be a lowercase hyphenated id`;
+  const { vendorId, vendorLabel, yieldsAccountLabel } = value;
+  if (!isTargetId({ value: vendorId })) return `${at}.vendorId must be a lowercase hyphenated id`;
   if (vendorLabel !== undefined && !isLabel(vendorLabel)) return `${at}.vendorLabel must be a non-empty string`;
-  if (yieldsAccountLabel !== undefined && typeof yieldsAccountLabel !== "boolean") return `${at}.yieldsAccountLabel must be a boolean`;
-  if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
-  if (userHelp !== undefined && (typeof userHelp !== "string" || userHelp.length > MAX_HELP_LENGTH)) return `${at}.userHelp must be a string of at most ${MAX_HELP_LENGTH} characters`;
-  if (tokenPageUrl !== undefined && !isHttpsUrl(tokenPageUrl)) return `${at}.tokenPageUrl must be an https URL`;
-  const fields = parseFieldList(value.fields, `${at}.fields`, RESERVED_CREDENTIAL_FIELD_NAMES);
-  if (typeof fields === "string") return fields;
-  if (typeof tokenField !== "string" || !fields.some((field) => field.name === tokenField && field.required)) return `${at}.tokenField '${String(tokenField)}' must name a required field`;
+  if (!isOptionalBoolean({ value: yieldsAccountLabel })) return `${at}.yieldsAccountLabel must be a boolean`;
+  const details = parseCredentialDetails({ value, at });
+  if (typeof details === "string") return details;
   return {
-    vendorId,
+    vendorId: vendorId as string,
     ...(vendorLabel !== undefined ? { vendorLabel } : {}),
     ...(yieldsAccountLabel === true ? { yieldsAccountLabel: true as const } : {}),
-    ...(help !== undefined ? { help } : {}),
-    ...(userHelp !== undefined ? { userHelp } : {}),
-    ...(tokenPageUrl !== undefined ? { tokenPageUrl } : {}),
-    tokenField,
-    fields,
+    ...details,
   };
 }
 
@@ -252,20 +240,19 @@ function parseFieldList(value: unknown, at: string, reserved: ReadonlySet<string
 /** One field spec, or the reason it is invalid. @complexity O(1). */
 function parseFieldSpec(entry: unknown, at: string, reserved: ReadonlySet<string>): DeployTargetFieldSpec | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { name, label, required, help, userHelp, secret } = entry;
+  const { name, label, required, secret } = entry;
   if (typeof name !== "string" || !FIELD_NAME_PATTERN.test(name)) return `${at}.name must be a camelCase identifier`;
   if (reserved.has(name)) return `${at}.name '${name}' is reserved`;
   if (!isLabel(label)) return `${at}.label must be a non-empty string`;
-  if (required !== undefined && typeof required !== "boolean") return `${at}.required must be a boolean`;
-  if (secret !== undefined && typeof secret !== "boolean") return `${at}.secret must be a boolean`;
-  if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
-  if (userHelp !== undefined && (typeof userHelp !== "string" || userHelp.length > MAX_HELP_LENGTH)) return `${at}.userHelp must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  if (!isOptionalBoolean({ value: required })) return `${at}.required must be a boolean`;
+  if (!isOptionalBoolean({ value: secret })) return `${at}.secret must be a boolean`;
+  const copy = parseHelpCopy({ value: entry, at });
+  if (typeof copy === "string") return copy;
   return {
     name,
     label,
     required: required === true,
-    ...(help !== undefined ? { help } : {}),
-    ...(userHelp !== undefined ? { userHelp } : {}),
+    ...copy,
     ...(secret === true ? { secret: true as const } : {}),
   };
 }
@@ -279,11 +266,9 @@ function parseEnvFallback(value: unknown, at: string): DeployTargetEnvFallback |
     return `${at}.tokenVars must be a non-empty array of env var names`;
   }
   if (fields === undefined) return { tokenVars };
-  const entries = isPlainObject(fields) ? Object.entries(fields) : [];
-  if (!isPlainObject(fields) || entries.length > MAX_FIELDS || !entries.every(([name, envVar]) => FIELD_NAME_PATTERN.test(name) && isEnvVarName(envVar))) {
-    return `${at}.fields must map field names to env var names`;
-  }
-  return { tokenVars, fields: Object.fromEntries(entries) as Record<string, string> };
+  const parsedFields = parseEnvFields({ fields, at });
+  if (typeof parsedFields === "string") return parsedFields;
+  return { tokenVars, fields: parsedFields };
 }
 
 function isLabel(value: unknown): value is string {
@@ -318,4 +303,65 @@ function buildRegistry(loaded: readonly LoadedDeployTarget[], refusals: readonly
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** The same deploy-target id contract applies to the target and its credential vendor. */
+function isTargetId({ value }: { readonly value: unknown }, _optional: Record<string, never> = {}): boolean {
+  return typeof value === "string" && value.length <= MAX_TARGET_ID_LENGTH && TARGET_ID_PATTERN.test(value);
+}
+
+/** Lexical module validation; the contribution loader still enforces containment on disk. */
+function isRelativeModulePath({ value }: { readonly value: unknown }, _optional: Record<string, never> = {}): boolean {
+  return typeof value === "string" && value.endsWith(".mjs") && !path.posix.isAbsolute(value);
+}
+
+function isOptionalBoolean({ value }: { readonly value: unknown }, _optional: Record<string, never> = {}): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
+/** Shared descriptor help bounds and omission semantics for fields and credentials. */
+function parseHelpCopy({ value, at }: { readonly value: Readonly<Record<string, unknown>>; readonly at: string }, _optional: Record<string, never> = {}): Pick<DeployTargetFieldSpec, "help" | "userHelp"> | string {
+  const { help, userHelp } = value;
+  if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  if (userHelp !== undefined && (typeof userHelp !== "string" || userHelp.length > MAX_HELP_LENGTH)) return `${at}.userHelp must be a string of at most ${MAX_HELP_LENGTH} characters`;
+  return {
+    ...(help !== undefined ? { help } : {}),
+    ...(userHelp !== undefined ? { userHelp } : {}),
+  };
+}
+
+/** Credential guidance and fields, validated after vendor identity in the original refusal order. */
+function parseCredentialDetails({ value, at }: { readonly value: Readonly<Record<string, unknown>>; readonly at: string }, _optional: Record<string, never> = {}): Omit<DeployTargetCredentialSpec, "vendorId" | "vendorLabel" | "yieldsAccountLabel"> | string {
+  const copy = parseHelpCopy({ value, at });
+  if (typeof copy === "string") return copy;
+  const { tokenPageUrl, tokenField = "token" } = value;
+  if (tokenPageUrl !== undefined && !isHttpsUrl(tokenPageUrl)) return `${at}.tokenPageUrl must be an https URL`;
+  const fields = parseFieldList(value.fields, `${at}.fields`, RESERVED_CREDENTIAL_FIELD_NAMES);
+  if (typeof fields === "string") return fields;
+  if (typeof tokenField !== "string" || !fields.some((field) => field.name === tokenField && field.required)) return `${at}.tokenField '${String(tokenField)}' must name a required field`;
+  return { ...copy, ...(tokenPageUrl !== undefined ? { tokenPageUrl } : {}), tokenField, fields };
+}
+
+/** The bounded field-to-environment mapping, separate from the ordered token fallback list. */
+function parseEnvFields({ fields, at }: { readonly fields: unknown; readonly at: string }, _optional: Record<string, never> = {}): Record<string, string> | string {
+  const entries = isPlainObject(fields) ? Object.entries(fields) : [];
+  if (!isPlainObject(fields) || entries.length > MAX_FIELDS || !entries.every(([name, envVar]) => FIELD_NAME_PATTERN.test(name) && isEnvVarName(envVar))) {
+    return `${at}.fields must map field names to env var names`;
+  }
+  return Object.fromEntries(entries) as Record<string, string>;
+}
+
+/** Publish inputs share their validation order, while presentation copy is parsed afterwards. */
+function parseDescriptorSettings({ entry, at }: { readonly entry: Readonly<Record<string, unknown>>; readonly at: string }, _optional: Record<string, never> = {}): Pick<DeployTargetDescriptor, "configFields" | "env" | "credential"> | string {
+  const configFields = parseConfigFields(entry.config, `${at}.config`);
+  if (typeof configFields === "string") return configFields;
+  const env = parseEnvFallback(entry.env, `${at}.env`);
+  if (typeof env === "string") return env;
+  const credential = parseCredentialSpec(entry.credential, `${at}.credential`);
+  if (typeof credential === "string") return credential;
+  return {
+    configFields,
+    ...(env !== undefined ? { env } : {}),
+    ...(credential !== undefined ? { credential } : {}),
+  };
 }
