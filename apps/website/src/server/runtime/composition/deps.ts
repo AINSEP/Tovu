@@ -77,6 +77,7 @@ import { createFileBlobIndex } from "#src/features/publish-content/file-blob-ind
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";
 import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
+import { SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -2607,13 +2608,14 @@ async function composeSiteRouteDeps(
   // receiver key, and the pull imports what it stored (`form-submissions.ts`).
   const formSubmissions = composeFormSubmissions({
     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
-    receipts: new SqlFormSubmissionReceiptRepo(kernel), outbox, bus, clock, idGen,
+    receipts: new SqlFormSubmissionReceiptRepo(kernel), pullLeases: new SqlFormPullLeaseRepo({ kernel }), outbox, bus, clock, idGen,
     credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
     loadFormDestinations: (workspaceId) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     settingsRepo,
   }, { observability });
   routeDeps.formDestination = formSubmissions.destination;
   routeDeps.formSubmissionsPull = formSubmissions.pull;
+  routeDeps.formSubmissionsAutoPull = formSubmissions.autoPull;
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
