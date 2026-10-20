@@ -70,7 +70,69 @@ test("database descriptions cannot hold credentials in an otherwise valid field"
 });
 
 for (const field of ["originalLabel", "mappedLabel"]) test(`migration ${field} cannot contain a credential`, () => {
-  assert.throws(() => parsers.vendor({ meta: { credentialType: "vendor", worksFor: ["host"], migration: { [field]: "https://user:password@example.test" } } }), /credential|secret|password/i);
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "vendor", worksFor: ["host"], migration: { [field]: "https://user:password@example.test" } } }), credentialIn(field));
+});
+
+const credentialUrl = "https://user:password@example.test";
+// A canonical origin whose host label is token-shaped; built at runtime so it is never a real token.
+const tokenOrigin = `https://ghp_${"a".repeat(36)}.example.test`;
+function credentialIn(field: string) {
+  return { name: "CredentialInputError", message: "Put credentials in the secret field, not in this field.", field };
+}
+
+test("legacy AAD markers are rejected on every kind's metadata", () => {
+  invalid("vendor", { credentialType: "vendor", worksFor: ["host"], legacyAad: "v1" });
+  invalid("media-provider", { legacyAad: null });
+});
+test("a legacy AAD marker is refused before migration labels are inspected for credentials", () => {
+  invalid("vendor", { credentialType: "vendor", worksFor: ["host"], legacyAad: "v1", migration: { originalLabel: credentialUrl } });
+});
+test("a recovery status wrapped in an array is accepted and returned as-is (reported, not fixed)", () => {
+  const meta = { credentialType: "vendor", worksFor: ["host"], normalization: ["conflict"] };
+  assert.deepEqual(parsers.vendor({ meta }), meta);
+});
+test("migration credentials are refused before ordinary structural checks", () => {
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "vendor", worksFor: ["host"], unknown: 1, migration: { originalLabel: credentialUrl } } }), credentialIn("originalLabel"));
+});
+test("savedAt belongs only to database destinations and must be a string there", () => {
+  invalid("media-provider", { savedAt: snapshotAt });
+  invalid("database-destination", { description, lastRun: null, savedAt: null });
+});
+test("vendor-subtype credentials skip the custom category catalog", () => {
+  const meta = { credentialType: "vendor", worksFor: ["host"], category: "not-a-category" };
+  assert.deepEqual(parsers.vendor({ meta }), meta);
+});
+test("vendor credentials default worksFor to their provider", () => {
+  assert.deepEqual(parsers.vendor({ meta: { credentialType: "vendor" }, provider: "GitHub" }), { credentialType: "vendor", worksFor: ["github"] });
+});
+test("a token-shaped additional origin cannot hold a credential", () => {
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "custom", worksFor: [], category: "general", additionalHosts: [tokenOrigin] } }), credentialIn("additionalHosts"));
+});
+test("additional hosts are checked one at a time, in order", () => {
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "custom", worksFor: [], category: "general", additionalHosts: [tokenOrigin, "not a URL"] } }), credentialIn("additionalHosts"));
+});
+test("worksFor entries cannot hold a credential", () => {
+  assert.throws(() => parsers.vendor({ meta: { credentialType: "custom", worksFor: [credentialUrl], category: "general" } }), credentialIn("worksFor"));
+});
+test("a missing custom category is refused before credential-shaped fields are inspected", () => {
+  invalid("custom", { credentialType: "custom", worksFor: [], category: null, username: credentialUrl });
+});
+test("publish peer shape is refused before its base URL is inspected for credentials", () => {
+  invalid("publish-peer", { baseUrl: credentialUrl, remoteWorkspaceId: "" });
+});
+test("database description shape is refused before its values are inspected for credentials", () => {
+  invalid("database-destination", { description: { ...description, host: credentialUrl, password: "x" }, lastRun: null });
+});
+test("the host policy is never consulted for metadata a host rule refuses", () => {
+  const seen: unknown[] = [];
+  const registry = createTovuVaultKinds({ policy: { ...policy, validateMeta: input => { seen.push(input); return input.meta; } } });
+  assert.throws(() => registry.metaParsers["publish-peer"]({ meta: { baseUrl: "https://peer.example.test", remoteWorkspaceId: "" } }), { name: "VaultError", code: "invalid-meta" });
+  assert.deepEqual(seen, []);
+});
+test("a host policy refusal propagates unchanged", () => {
+  const refusal = new Error("catalog refused this model");
+  const registry = createTovuVaultKinds({ policy: { ...policy, validateMeta: () => { throw refusal; } } });
+  assert.throws(() => registry.metaParsers["media-provider"]({ meta: { model: "m" } }), error => error === refusal);
 });
 
 test("all custom credential categories accept canonical additional origins and optional username under unified and legacy kinds", () => {
@@ -207,6 +269,19 @@ test("the store passes the original crypto error to its feature storage-error tr
     return true;
   });
   assert.equal(await f.repo.find({ workspaceId: "ws", id: "media" }), null);
+});
+test("a missing keyring is translated twice: the inner storage error becomes the outer one's argument", async () => {
+  const f = storeFixture();
+  const calls: unknown[][] = [];
+  const service = createTovuStoreVault({ ...f.required, keyring: undefined, newId: () => "new",
+    storageError: (...args: unknown[]) => { calls.push(args); return new Error(`storage failure ${calls.length}`); } });
+  await assert.rejects(service.put(f.input), { message: "storage failure 2" });
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], []);
+  const inner = calls[1]?.[0];
+  assert.ok(inner instanceof Error);
+  assert.equal(inner.message, "storage failure 1");
+  assert.equal(await f.repo.find({ workspaceId: "ws", id: "new" }), null);
 });
 for (const failure of ["missing-keyring", "active-key", "seal", "open"] as const) {
   test(`store vault translates ${failure} failures without publishing crypto details`, async t => {
