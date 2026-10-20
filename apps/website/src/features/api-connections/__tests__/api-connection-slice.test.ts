@@ -200,7 +200,7 @@ test("security: two open sign-in attempts for one connection and two connections
     generation: 0, account: null, grantedScopes: [], staged: null, updatedAt: new Date().toISOString() });
   assert.equal(await host.records.compareAndSet({ key: "conn-a", expectedRevision: 0, record: record("conn-a") }), true);
   assert.equal(await host.records.compareAndSet({ key: "conn-b", expectedRevision: 0, record: record("conn-b") }), true);
-  const labels = (await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null, binding: null })).map((row) => row.label);
+  const labels = (await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null })).map((row) => row.label);
   for (const state of states) assert.ok(labels.every((label) => !label.includes(state)), "a listed label never carries the callback state");
 });
 
@@ -224,7 +224,7 @@ test("security: a desktop public client's provider-issued secret reaches only th
   assert.equal(new URL(signInUrl).searchParams.get("prompt"), "consent", "the public client's fixed parameters apply");
   assert.ok(!signInUrl.includes(secret), "never in the browser's authorization URL");
   assert.ok(logs.every((line) => !line.includes(secret)), "never on the loopback page");
-  const rows = await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null, binding: null });
+  const rows = await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null });
   assert.ok(rows.length > 0);
   assert.ok(!JSON.stringify(rows).includes(secret), "never stored in a vault row (sealed or not)");
 });
