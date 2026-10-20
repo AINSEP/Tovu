@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE A in progress — G1–G5 (Jini) dispatched in parallel.
+Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 running.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -24,12 +24,15 @@ Status: PHASE A in progress — G1–G5 (Jini) dispatched in parallel.
 ## Lots
 | Lot | Status | Branch | Merged SHA | Notes |
 |---|---|---|---|---|
-| G1 | running | cloud/google-workspace-G1 (Jini) | | |
+| G1 | MERGED | cloud/google-workspace-G1 (Jini) | merge + 1 coord test-typing fix (pushed) | api-connections service; 44 tests; cx ≤9; package.json conflict with G2 resolved; token-store re-exported from entry |
 | G2 | MERGED | cloud/google-workspace-G2 (Jini) | 70145356 | vault token store in integrations/api-connections/token-store; 17 tests; cx max 9; tsc clean (excl. known integrations test errors); guard 26 = base |
 | G3 | MERGED | cloud/google-workspace-G3 (Jini) | 00a1b4cb | @jini-ai/oauth/loopback-receiver; oauth suite 313/313; cx max 9; 1 RED survivor (!consumed gap guard) → phase C |
-| G4 | running | cloud/google-workspace-G4 (Jini) | | |
-| G5 | running | cloud/google-workspace-G5 (Jini) | | |
-| G6–G16 | pending | | | |
+| G4 | MERGED | cloud/google-workspace-G4 (Jini) | pushed | agent-plugins/lifecycle/tools; 16 tests + 7 char pins; cx ≤9; plugins suite 442/443 — the 1 failure (install.unit 'lock creation rethrows faults') is env (runs as root), untouched file |
+| G5 | MERGED | cloud/google-workspace-G5 (Jini) | pushed | agent-plugins/admin-surfaces (+/client); 70 tests; 31 RED checks; cx ≤9 |
+| G6 | running | cloud/google-workspace-G6 (Tovu, + Jini G6 if vault kind) | | |
+| G7 | running | cloud/google-workspace-G7 (Tovu) | | |
+| G8 | running | cloud/google-workspace-G8 (Tovu) | | |
+| G9–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
 (phase C)
@@ -41,6 +44,9 @@ pending (G9)
 - Jini `pnpm guard` has 26 violations on base general-work (311851df); lots add none.
 - G2: no vault kind fits OAuth rows (Tovu secrets_vault_kind CHECK) → Tovu migration 0020 + platform VAULT_KINDS edit needed (G6). refresh.ts markNeedsReauthBestEffort swallows refused stale mark (reported). Lease 30s must exceed token timeout 15s.
 - G3: agent-runtime/src/providers/oauth-callback-server.ts:134 non-constant-time state, :198 any host bind, :239 echoes provider error (reported). oauth endpoint-safety.ts:40 allowLoopbackHttp also allows http loopback token endpoints (reported). Wrong-state request consumes the one callback (by design, DoS of one attempt).
+- G1: getAccessToken checks plugin ownership only — host must authorize workspace (G6). Confirmed switch overwrites old tokens without remote revocation. PKCE verifier in record store: never log/export. startParams added (phase B review).
+- G4: connectionRef ownership enforced by host capabilities port (G7); token scan 2 levels of cause; abort cooperative. agent-plugins vitest.config aliases @jini-ai/plugins/host to source (phase B: remove now main dist is fresh).
+- G5: host must post init only on first load; surface scripts served ACAO:* must be public static; frame-ancestors 'self' assumes same origin.
 
 ## Needs Chrome visual check locally
 none yet
