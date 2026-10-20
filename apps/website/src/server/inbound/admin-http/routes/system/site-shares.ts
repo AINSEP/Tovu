@@ -7,6 +7,14 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 
+function readShareJobId({ body }: { body: unknown }, _options = {}): string | undefined {
+  const raw = body ?? {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional jobId is accepted." });
+  const jobId = (raw as Record<string, unknown>).jobId;
+  if (jobId !== undefined && (typeof jobId !== "string" || !/^[0-9a-f-]{36}$/.test(jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "jobId must be a share job id." });
+  return jobId as string | undefined;
+}
+
 /** Authenticated management and ZIP-only download. Mounted under the existing admin session gate. */
 export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   const { app, deps } = required;
@@ -28,10 +36,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
   app.post(root, async (req, res) => {
     try {
       if (!await gate(req, res)) return;
-      const raw: unknown = req.body ?? {};
-      if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional jobId is accepted." });
-      const jobId = (raw as Record<string, unknown>).jobId;
-      if (jobId !== undefined && (typeof jobId !== "string" || !/^[0-9a-f-]{36}$/.test(jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "jobId must be a share job id." });
+      const jobId = readShareJobId({ body: req.body });
       res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...(jobId ? { jobId } : {}) }));
     } catch (error) { fail(res, error); }
   });

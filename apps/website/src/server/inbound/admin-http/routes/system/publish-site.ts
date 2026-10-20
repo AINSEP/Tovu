@@ -98,6 +98,7 @@ export type AdminPublishSiteDeps = RouteDeps;
  *  {@link registerAdminPublishSiteRoutes} — see that function's own first lines for where this is now
  *  built. */
 
+
 /**
  * Parses and shape-validates the trigger request body's TARGET-INDEPENDENT fields. Never throws —
  * every malformed shape maps to a `{ok:false, error}` result this route turns into a `400`, matching
@@ -121,7 +122,7 @@ function parsePublishRequestBody(
   // workspace actually owns, for this target, is judged exactly once, by the credential source
   // (`static-publish/credentials.ts`). Optional because the agent tool and env-var installs have no
   // connection id to send; see this file's header for the full backward-compatibility contract.
-  if (raw.credentialId !== undefined && (typeof raw.credentialId !== "string" || raw.credentialId.trim() === "")) {
+  if (!validOptionalCredential({ value: raw.credentialId })) {
     return { ok: false, error: "'credentialId' must be a non-empty string when present" };
   }
 
@@ -136,6 +137,11 @@ function parsePublishRequestBody(
     ...(typeof raw.credentialId === "string" ? { credentialId: raw.credentialId } : {}),
   };
 }
+
+function validOptionalCredential({ value }: { value: unknown }, _options = {}): boolean {
+  return value === undefined || (typeof value === "string" && value.trim() !== "");
+}
+
 
 /**
  * Resolves `targetId` in this workspace's registry and reads its descriptor-declared config fields
@@ -203,6 +209,24 @@ async function httpPublishPreview(required: {
     providerInspection: inspected.inspection };
 }
 
+async function readPublishTriggerConfig(required: {
+  deps: AdminPublishSiteDeps; targetId: string; raw: Record<string, unknown>;
+}, _options = {}): Promise<{ ok: true; config: StaticPublishConfig } | { ok: false; status: number; body: Record<string, unknown> }> {
+  const { deps, targetId, raw } = required;
+  // Fails fast, before flipping the shared run slot to "running" or touching the
+  // filesystem/network at all, on a config `publishStaticSite` would reject anyway — the same
+  // `planStaticPublish` verdict `publishStaticSite` reaches internally — so a caller who only sends
+  // a malformed config never sees a "running" snapshot at all.
+  const read = await readTargetConfig(deps, targetId, raw, false);
+  if (!read.ok) return { ok: false, status: 400, body: { error: read.error } };
+  const plan = planStaticPublish(read.registry, read.config);
+  if (!plan.ok) return { ok: false, status: 400, body: { error: plan.message } };
+  if (read.config.customDomain) {
+    return { ok: false, status: 409, body: { code: "DOMAIN_CONFIRMATION_REQUIRED", error: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation." } };
+  }
+  return { ok: true, config: read.config };
+}
+
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
   // Built once per `registerAdminPublishSiteRoutes` call (this route file's own registration is
   // itself a once-per-process composition step), bound to `deps.workspaceId` — see
@@ -236,22 +260,9 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         return;
       }
 
-      // Fails fast, before flipping the shared run slot to "running" or touching the
-      // filesystem/network at all, on a config `publishStaticSite` would reject anyway — the same
-      // `planStaticPublish` verdict `publishStaticSite` reaches internally — so a caller who only sends
-      // a malformed config never sees a "running" snapshot at all.
-      const read = await readTargetConfig(deps, parsed.targetId, parsed.raw, false);
+      const read = await readPublishTriggerConfig({ deps, targetId: parsed.targetId, raw: parsed.raw });
       if (!read.ok) {
-        res.status(400).json({ error: read.error });
-        return;
-      }
-      const plan = planStaticPublish(read.registry, read.config);
-      if (!plan.ok) {
-        res.status(400).json({ error: plan.message });
-        return;
-      }
-      if (read.config.customDomain) {
-        res.status(409).json({ code: "DOMAIN_CONFIRMATION_REQUIRED", error: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation." });
+        res.status(read.status).json(read.body);
         return;
       }
 

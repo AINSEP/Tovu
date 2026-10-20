@@ -439,13 +439,17 @@ async function generateSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter
   const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
   if (mode === "production" || ensured?.action === "production-noop") return generateProductionSiteKey(deps, hasData);
   if (ensured === undefined) return refusal("SITE_META_UNREADABLE");
+  return ensuredSiteKeyResult({ ensured: { ...ensured, action: ensured.action } });
+}
+
+function ensuredSiteKeyResult({ ensured }: { ensured: SiteKeyEnsureOutcome & { action: Exclude<SiteKeyEnsureOutcome["action"], "production-noop"> } }, _options = {}): GenerateResult {
   const { action, fingerprint, perSiteFilePath } = ensured;
   switch (action) {
     case "noop":
     case "adopt":
     case "mint":
       if (fingerprint === undefined || perSiteFilePath === undefined) throw new Error(`site key '${action}' carried no fingerprint or path`);
-      return success(action === "noop" ? "already-active" : action === "adopt" ? "recovered" : "created", fingerprint, perSiteFilePath);
+      return success(({ noop: "already-active", adopt: "recovered", mint: "created" } as const)[action], fingerprint, perSiteFilePath);
     case "refuse":
       return refusal("KEY_DEPENDENT_DATA");
     case "mismatch":
@@ -491,6 +495,25 @@ async function takeRestorePoint(deps: AdminSiteKeyDeps, actorId: string, trigger
   return restorePointId;
 }
 
+function keyOpensSite(required: { check: SiteKeyKeyCheck; siteDir: string; fingerprint: string }, _options = {}): boolean {
+  const { check, siteDir, fingerprint } = required;
+  return check.opens > 0 || check.storageSecret === "opens" || resolveSiteKeyFingerprint({ siteDir }) === fingerprint;
+}
+
+async function resealForImport(required: {
+  deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter; store: SiteKeyStoreInput;
+  current: { hex?: string; fingerprint?: string }; fingerprint: string; check: SiteKeyKeyCheck; actorId: string;
+}, _options = {}): Promise<RouteResult | { restorePointId?: string; resealed: number }> {
+  const { deps, siteKey, store, current, fingerprint, check, actorId } = required;
+  if ((current.hex !== undefined && current.fingerprint !== fingerprint) || (check.legacy ?? 0) > 0) {
+    const restorePointId = await takeRestorePoint(deps, actorId, "site-key-import");
+    if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
+    const { resealed } = await siteKey.resealFrom({ ...store, previousHex: current.hex ?? store.hex });
+    return { restorePointId, resealed };
+  }
+  return { resealed: 0 };
+}
+
 /**
  * `POST .../import` — "Paste your old token". The token is installed only once it is proven to be
  * this site's: it opens at least one sealed value or the sealed connection string, or it is the key
@@ -509,16 +532,12 @@ async function importSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, 
   if (current.source === "env" && current.fingerprint !== fingerprint) return refusal("ENV_KEY_SET");
   const store = { siteDir, contentKernel: deps.contentKernel, hex: parsed.hex };
   const check = await siteKey.checkKey(store);
-  const proven = check.opens > 0 || check.storageSecret === "opens" || resolveSiteKeyFingerprint({ siteDir }) === fingerprint;
+  const proven = keyOpensSite({ check, siteDir, fingerprint });
   if (!proven) return refusal("SITE_KEY_DOES_NOT_OPEN");
 
-  let restorePointId: string | undefined;
-  let resealed = 0;
-  if ((current.hex !== undefined && current.fingerprint !== fingerprint) || (check.legacy ?? 0) > 0) {
-    restorePointId = await takeRestorePoint(deps, input.actorId, "site-key-import");
-    if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
-    resealed = (await siteKey.resealFrom({ ...store, previousHex: current.hex ?? parsed.hex })).resealed;
-  }
+  const recovery = await resealForImport({ deps, siteKey, store, current, fingerprint, check, actorId: input.actorId });
+  if ("status" in recovery) return recovery;
+  const { restorePointId, resealed } = recovery;
   const installed = siteKey.installSiteKey({ siteDir, hex: parsed.hex });
   if (installed === undefined) return refusal("SITE_META_UNREADABLE");
   if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
