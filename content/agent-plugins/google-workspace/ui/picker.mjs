@@ -7,12 +7,12 @@ import { connectToHost, failureText, h, show } from './dom.mjs';
 import { chooseSpreadsheet } from './picker-flow.mjs';
 import { CANCELLED_TEXT, pickerIntro, selectedText } from './picker-view.mjs';
 
-const client = connectToHost();
-const app = document.getElementById('app');
-let status = '';
-let waiting = false;
-let stopRequested = false;
-let picked = [];
+let client;
+let app;
+let status;
+let waiting;
+let stopRequested;
+let picked;
 
 function render(bootstrap) {
   const ready = bootstrap !== undefined && bootstrap.mode !== 'unavailable';
@@ -53,4 +53,20 @@ async function choose(bootstrap) {
   await refresh(bootstrap);
 }
 
-client.ready.then(() => refresh(client.bootstrap())).catch((error) => show(app, h('p', { class: 'notice' }, [failureText(error)])));
+/**
+ * Starts the panel in a frame: connects to the host and lists the chosen spreadsheets once the host's
+ * init arrives. Exported so a test can start a fresh panel (fresh state) in its own jsdom window; the
+ * last line starts the real one.
+ * @param {{ window: Window, document: Document }} required
+ */
+export function initPickerPanel(required) {
+  client = connectToHost({ window: required.window });
+  app = required.document.getElementById('app');
+  status = '';
+  waiting = false;
+  stopRequested = false;
+  picked = [];
+  client.ready.then(() => refresh(client.bootstrap())).catch((error) => show(app, h('p', { class: 'notice' }, [failureText(error)])));
+}
+
+initPickerPanel({ window, document });

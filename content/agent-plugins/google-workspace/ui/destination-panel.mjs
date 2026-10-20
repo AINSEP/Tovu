@@ -10,11 +10,11 @@ import { connectToHost, failureText, h, show } from './dom.mjs';
 import { chooseSpreadsheet } from './picker-flow.mjs';
 import { CANCELLED_TEXT, EXTERNAL_ROWS_NOTE, pickerIntro } from './picker-view.mjs';
 
-const client = connectToHost();
-const app = document.getElementById('app');
-const draft = { formSlug: '', spreadsheet: null, tabs: [], sheetId: null, confirmed: false };
-let view = { destinations: [], picked: [] };
-let status = '';
+let client;
+let app;
+let draft;
+let view;
+let status;
 let bootstrap;
 
 const call = (action, payload = {}) => client.call({ action, payload });
@@ -83,4 +83,20 @@ function render() {
     editor());
 }
 
-client.ready.then(() => { bootstrap = client.bootstrap(); return step(async () => { view = await call('list-destinations'); }); });
+/**
+ * Starts the panel in a frame: connects to the host and loads the saved destinations once the host's
+ * init arrives. Exported so a test can start a fresh panel (fresh draft) in its own jsdom window; the
+ * last line starts the real one.
+ * @param {{ window: Window, document: Document }} required
+ */
+export function initDestinationPanel(required) {
+  client = connectToHost({ window: required.window });
+  app = required.document.getElementById('app');
+  draft = { formSlug: '', spreadsheet: null, tabs: [], sheetId: null, confirmed: false };
+  view = { destinations: [], picked: [] };
+  status = '';
+  bootstrap = undefined;
+  client.ready.then(() => { bootstrap = client.bootstrap(); return step(async () => { view = await call('list-destinations'); }); });
+}
+
+initDestinationPanel({ window, document });
