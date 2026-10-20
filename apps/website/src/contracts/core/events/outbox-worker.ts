@@ -2,6 +2,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { computeOutboxBackoffMs as jiniBackoff, processOutbox as processJiniOutbox } from "@jini-ai/infra/events/outbox";
 import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
+import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
 
 /**
  * @file Outbox processing orchestration.
@@ -81,6 +82,7 @@ export function computeOutboxBackoffMs(attempts: number, optional: { random?: ()
  * see this file's header doc) on failure. See Jini's `deliver` for a row claimed more
  * than `MAX_OUTBOX_ATTEMPTS` times. Each delivery may run at most `deliveryTimeoutMs` (default
  * {@link DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS}) before the drain moves on; see Jini's `recordOverrun`.
+ * Events listed in `outbox-retry-policies.ts` (external form deliveries) use their own cap and backoff.
  *
  * @throws RangeError before claiming if the batch/timeout bounds are invalid or outlast the lease.
  * @example await processOutbox({ outbox, bus, clock }, { batchSize: 1 });
@@ -91,6 +93,6 @@ export async function processOutbox(
   optional: { batchSize?: number; random?: () => number; deliveryTimeoutMs?: number } = {}
 ): Promise<number> {
   return processJiniOutbox(outboxWorkerArgs(required, { random: optional.random }), {
-    batchSize: optional.batchSize, deliveryTimeoutMs: optional.deliveryTimeoutMs,
+    batchSize: optional.batchSize, deliveryTimeoutMs: optional.deliveryTimeoutMs, retryPolicyForEvent: outboxRetryPolicyForEvent,
   });
 }
