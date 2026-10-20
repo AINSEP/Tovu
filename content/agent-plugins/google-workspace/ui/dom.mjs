@@ -8,11 +8,15 @@
  */
 import { createAdminSurfaceClient } from './surface-client.mjs';
 
-/** The client for this frame: listens to the parent's messages only (the client checks the source). */
-export function connectToHost() {
+/**
+ * The client for this frame: listens to the parent's messages only (the client checks the source).
+ * @param {{ window: Window }} required - the frame's window (a test passes its own jsdom window).
+ */
+export function connectToHost(required) {
+  const { window: frame } = required;
   return createAdminSurfaceClient({
-    parent: window.parent,
-    listen: (handler) => { window.addEventListener('message', handler); return () => window.removeEventListener('message', handler); },
+    parent: frame.parent,
+    listen: (handler) => { frame.addEventListener('message', handler); return () => frame.removeEventListener('message', handler); },
   });
 }
 

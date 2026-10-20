@@ -19,13 +19,16 @@ const SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet';
 const PICKER_SCRIPT = 'https://apis.google.com/js/api.js';
 const POLL_MS = 3000;
 
-/** Loads Google's Picker library once. Rejects when the script is blocked or fails. */
+/**
+ * Loads Google's Picker library once. Rejects when the script is blocked or fails, and forgets the
+ * failure so the next "Choose spreadsheet" (the message says "try again") loads it again.
+ */
 let pickerLibrary;
 function loadPickerLibrary() {
   pickerLibrary ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = PICKER_SCRIPT;
-    script.onerror = () => reject(new Error('Google\'s file picker could not load (a blocked script, network, or browser setting). Allow apis.google.com and try again.'));
+    script.onerror = () => { pickerLibrary = undefined; reject(new Error('Google\'s file picker could not load (a blocked script, network, or browser setting). Allow apis.google.com and try again.')); };
     script.onload = () => window.gapi.load('picker', { callback: () => resolve(window.google.picker), onerror: script.onerror });
     document.head.append(script);
   });
