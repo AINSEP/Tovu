@@ -73,3 +73,27 @@ test("a custom tokenField selects the declared alternate secret with all field f
     fields: [{ name: "accessToken", label: "Access token", required: true, secret: true }, { name: "username", label: "Username", required: false }],
   });
 });
+
+test("L146 validation preserves bounds, optional flags and first-error ordering", () => {
+  const cases: ReadonlyArray<[unknown, string]> = [
+    [null, "c must be an object"],
+    [[], "c must be an object"],
+    [{ help: "h".repeat(501), fields: [] }, "c.help must be a string of at most 500 characters"],
+    [{ tokenPageUrl: "invalid", fields: [] }, "c.tokenPageUrl must be an https URL"],
+    [{ fields: undefined }, "c.fields must be a list of 1 to 10 fields"],
+    [{ fields: Array.from({ length: 11 }, () => TOKEN) }, "c.fields must be a list of 1 to 10 fields"],
+    [{ fields: [{ ...TOKEN, name: 2 }] }, "c.fields[0].name must be a camelCase identifier"],
+    [{ fields: [{ ...TOKEN, label: 2 }] }, "c.fields[0].label must be a non-empty string"],
+    [{ fields: [{ ...TOKEN, label: "  " }] }, "c.fields[0].label must be a non-empty string"],
+    [{ fields: [{ ...TOKEN, label: "a".repeat(101) }] }, "c.fields[0].label must be a non-empty string"],
+    [{ fields: [{ ...TOKEN, required: null, secret: null }] }, "c.fields[0].required must be a boolean"],
+    [{ fields: [{ ...TOKEN, secret: null }] }, "c.fields[0].secret must be a boolean"],
+    [{ fields: [TOKEN], tokenField: null }, "c.tokenField must name a declared secret field"],
+  ];
+  for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm(value, "c"), reason);
+  assert.deepEqual(parseSourceControlCredentialForm({ help: "h".repeat(500), fields: [TOKEN,
+    { name: "username", label: " User ".padEnd(100, " ") },
+  ] }, "c"), { help: "h".repeat(500), tokenField: "token", fields: [TOKEN,
+    { name: "username", label: " User ".padEnd(100, " "), required: false },
+  ] });
+});

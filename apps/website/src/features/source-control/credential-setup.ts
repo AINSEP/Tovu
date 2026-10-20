@@ -6,7 +6,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { optionalString, requireInputRecord, requireString } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
-import { defineSecretCardTool, type SecretCardField } from '@jini-ai/ui/mcp-ui/secret-card';
+import { defineSecretCardTool, type SecretCardField, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createSourceControlCredential, isSourceControlProviderId, type SourceControlCredentialWriteDeps } from './store.js';
 import type { LoadSourceControlProviders, SourceControlProviderDescriptor } from './provider-registry.js';
@@ -50,14 +50,7 @@ const BACKUP_REPOSITORY_RULES = 'For a site backup, the repository must be priva
  */
 export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionContext; deps: SourceControlCredentialSetupDeps; surfaces: AssistantSurfaceDeps }, optional: ToolExecutionOptions = {}): Promise<ProposalResult> {
   const { ctx, deps, surfaces } = spec;
-  const raw = requireInputRecord({ input: ctx.input });
-  if (Object.keys(raw).some(key => key !== 'provider' && key !== 'label')) {
-    throw new ToolInputError({ message: 'source_control_propose_credential accepts only provider and label; enter secrets in the human form.' });
-  }
-  const provider = requireString({ input: raw, key: 'provider' });
-  const label = optionalString({ input: raw, key: 'label' }) ?? 'default';
-  assertCredentialFreeField({ value: label, field: "label" });
-  if (label.length > 200) throw new ToolInputError({ message: 'Credential label must be at most 200 characters.' });
+  const { provider, label } = parseProposalInput({ input: ctx.input });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
   // An ended run must not load plugins; the engine classifies abandonment without opening a card.
   const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders(deps.workspaceId);
@@ -121,24 +114,19 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     result: ({ prep, run }): ProposalResult => {
       const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };
       if (run.status !== 'saved') {
-        const message = run.status === 'cancelled' ? PROPOSE_CREDENTIAL_CANCELLED
-          : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale })
-          : run.status === 'failed' ? run.safeMessage
-          : run.status === 'abandoned' && prep.descriptor === undefined ? PROPOSE_CREDENTIAL_ABORTED : PROPOSE_CREDENTIAL_CLOSED;
+        const message = declinedMessage({ prep, run });
         return { ...declined, message };
       }
       const credential = run.saved;
-      const hint = formatCredentialHint({ hint: credential.tokenHint, locale: prep.locale });
       const connection = credential.connection ?? 'saved';
       return { saved: true, credentialId: credential.id, provider: prep.provider, label: credential.label, tokenHint: credential.tokenHint, connection,
-        message: `${hint ? `${hint}. ` : ''}${credentialText({ id: connection, locale: prep.locale })}` };
+        message: savedMessage({ credential, locale: prep.locale }) };
     },
     // Renders a value-free save outcome on the form's URI, supplied by the engine.
     outcome: ({ prep, run }) => {
       if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
       const saved = run.status === 'saved';
-      const hint = saved ? formatCredentialHint({ hint: run.saved.tokenHint, locale: prep.locale }) : '';
-      const message = saved ? `${hint ? `${hint}. ` : ''}${credentialText({ id: run.saved.connection ?? 'saved', locale: prep.locale })}`
+      const message = saved ? savedMessage({ credential: run.saved, locale: prep.locale })
         : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale }) : run.status === 'failed' ? run.safeMessage : PROPOSE_CREDENTIAL_SAVE_FAILED;
       return { title: saved ? 'Credential saved' : 'Credential not saved', state: saved ? 'success' : 'failure', message };
     },
@@ -153,4 +141,37 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     logFailure: metadata => console.warn(JSON.stringify(metadata)),
   });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+}
+
+/** Validate only public model fields before authorization or plugin lookup. @complexity O(k) input keys. */
+function parseProposalInput({ input }: { input: unknown }, _options = {}): { provider: string; label: string } {
+  const raw = requireInputRecord({ input });
+  if (Object.keys(raw).some(key => key !== 'provider' && key !== 'label')) {
+    throw new ToolInputError({ message: 'source_control_propose_credential accepts only provider and label; enter secrets in the human form.' });
+  }
+  const provider = requireString({ input: raw, key: 'provider' });
+  const label = optionalString({ input: raw, key: 'label' }) ?? 'default';
+  assertCredentialFreeField({ value: label, field: "label" });
+  if (label.length > 200) throw new ToolInputError({ message: 'Credential label must be at most 200 characters.' });
+  return { provider, label };
+}
+
+type CredentialPrep = { descriptor: SourceControlProviderDescriptor | undefined; locale: string };
+type SavedCredential = Awaited<ReturnType<typeof createSourceControlCredential>>;
+
+/** Fixed decline copy preserves the distinction between unopened and closed forms. @complexity O(1). */
+function declinedMessage({ prep, run }: { prep: CredentialPrep; run: Exclude<SecretCardRun<SavedCredential>, { status: 'saved' }> }, _options = {}): string {
+  switch (run.status) {
+    case 'cancelled': return PROPOSE_CREDENTIAL_CANCELLED;
+    case 'blank': return credentialText({ id: 'blank', locale: prep.locale });
+    case 'failed': return run.safeMessage;
+    case 'abandoned': return prep.descriptor === undefined ? PROPOSE_CREDENTIAL_ABORTED : PROPOSE_CREDENTIAL_CLOSED;
+    default: return PROPOSE_CREDENTIAL_CLOSED;
+  }
+}
+
+/** Both projections use the same safe hint and connection copy. @complexity O(1). */
+function savedMessage({ credential, locale }: { credential: SavedCredential; locale: string }, _options = {}): string {
+  const hint = formatCredentialHint({ hint: credential.tokenHint, locale });
+  return `${hint ? `${hint}. ` : ''}${credentialText({ id: credential.connection ?? 'saved', locale })}`;
 }

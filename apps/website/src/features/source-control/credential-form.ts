@@ -37,16 +37,35 @@ const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set(["providerId"]);
 /**
  * A provider's `credential` block (absent = none declared), or the reason it is invalid.
  *
- * @complexity O(f) in the declared field count.
+ * @complexity O(f²) time and O(f) space in the declared field count (at most 10).
  */
 export function parseSourceControlCredentialForm(value: unknown, at: string): SourceControlCredentialForm | undefined | string {
   if (value === undefined) return undefined;
   if (!isPlainObject(value)) return `${at} must be an object`;
-  const { help, tokenPageUrl, tokenField = "token", fields } = value;
+  const details = parseFormDetails({ value, at });
+  if (typeof details === "string") return details;
+  const parsed = parseFields({ fields: value.fields, at });
+  if (typeof parsed === "string") return parsed;
+  const { tokenField = "token" } = value;
+  const token = parsed.find((field) => field.name === tokenField);
+  if (token === undefined || token.secret !== true) return `${at}.tokenField must name a declared secret field`;
+  return { ...details, tokenField: token.name, fields: parsed };
+}
+
+/** Validate optional form guidance before inspecting fields, preserving error precedence. @complexity O(1). */
+function parseFormDetails({ value, at }: { value: Readonly<Record<string, unknown>>; at: string }, _options = {}): Pick<SourceControlCredentialForm, "help" | "tokenPageUrl"> | string {
+  const { help, tokenPageUrl } = value;
   if (help !== undefined && (typeof help !== "string" || help.length > MAX_HELP_LENGTH)) return `${at}.help must be a string of at most ${MAX_HELP_LENGTH} characters`;
   if (tokenPageUrl !== undefined && !isHttpsUrl(tokenPageUrl)) return `${at}.tokenPageUrl must be an https URL`;
-  if (!Array.isArray(fields) || fields.length === 0 || fields.length > MAX_FIELDS) return `${at}.fields must be a list of 1 to ${MAX_FIELDS} fields`;
+  return {
+    ...(help !== undefined ? { help: help as string } : {}),
+    ...(tokenPageUrl !== undefined ? { tokenPageUrl } : {}),
+  };
+}
 
+/** Parse the bounded list in order; the first invalid or duplicate field wins. @complexity O(f²), f <= 10. */
+function parseFields({ fields, at }: { fields: unknown; at: string }, _options = {}): SourceControlCredentialField[] | string {
+  if (!Array.isArray(fields) || fields.length === 0 || fields.length > MAX_FIELDS) return `${at}.fields must be a list of 1 to ${MAX_FIELDS} fields`;
   const parsed: SourceControlCredentialField[] = [];
   for (const [index, entry] of fields.entries()) {
     const field = parseField(entry, `${at}.fields[${index}]`);
@@ -54,14 +73,7 @@ export function parseSourceControlCredentialForm(value: unknown, at: string): So
     if (parsed.some((seen) => seen.name === field.name)) return `${at}.fields[${index}].name '${field.name}' is declared twice`;
     parsed.push(field);
   }
-  const token = parsed.find((field) => field.name === tokenField);
-  if (token === undefined || token.secret !== true) return `${at}.tokenField must name a declared secret field`;
-  return {
-    ...(help !== undefined ? { help: help as string } : {}),
-    ...(tokenPageUrl !== undefined ? { tokenPageUrl } : {}),
-    tokenField: token.name,
-    fields: parsed,
-  };
+  return parsed;
 }
 
 function parseField(entry: unknown, at: string): SourceControlCredentialField | string {
@@ -70,9 +82,16 @@ function parseField(entry: unknown, at: string): SourceControlCredentialField | 
   if (typeof name !== "string" || !FIELD_NAME_PATTERN.test(name)) return `${at}.name must be a camelCase identifier`;
   if (RESERVED_FIELD_NAMES.has(name)) return `${at}.name '${name}' is reserved`;
   if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
+  const flags = parseFieldFlags({ required, secret, at });
+  if (typeof flags === "string") return flags;
+  return { name, label, ...flags };
+}
+
+/** Optional booleans default to false; false secret flags stay omitted. @complexity O(1). */
+function parseFieldFlags({ required, secret, at }: { required: unknown; secret: unknown; at: string }, _options = {}): Pick<SourceControlCredentialField, "required" | "secret"> | string {
   if (required !== undefined && typeof required !== "boolean") return `${at}.required must be a boolean`;
   if (secret !== undefined && typeof secret !== "boolean") return `${at}.secret must be a boolean`;
-  return { name, label, required: required === true, ...(secret === true ? { secret: true as const } : {}) };
+  return { required: required === true, ...(secret === true ? { secret: true as const } : {}) };
 }
 
 function isHttpsUrl(value: unknown): value is string {
