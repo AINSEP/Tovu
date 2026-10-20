@@ -14,10 +14,10 @@
  * `RestoreOutcome`/`TrashPurgeOutcome` elsewhere in this feature, so the route (`routes/trash/
  * items.ts`) maps outcomes to status codes without a try/catch around a business decision.
  */
-import { readLiveSnapshot } from "./entry-sql.js";
-import type { TrashActor, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
+import { readLiveSnapshot, type EntitySnapshotRow } from "./entry-sql.js";
+import type { TrashActor, TrashEntityType, TrashPort, TrashMarkerResult } from "@jini-ai/cms/trash";
 import type { TrashAuthorizeFn } from "./permissions.js";
-import type { TrashRegistry } from "./registry.js";
+import type { TrashEntry, TrashRegistry } from "./registry.js";
 import type { TrashDb } from "./db-port.js";
 
 /**
@@ -126,22 +126,37 @@ export async function moveToTrash(
   );
   if (!row) return { ok: false, reason: "not-found" };
 
-  // The confirmation-dialog race: the human was shown `required.expectedVersion` before answering,
+  return trashLiveSnapshot({ input: required, entry, row }, deps);
+}
+
+/** Confirm and remove the live snapshot through the existing atomic Trash port. */
+async function trashLiveSnapshot(
+  required: { input: Parameters<typeof moveToTrash>[0]; entry: TrashEntry; row: EntitySnapshotRow },
+  deps: Pick<Parameters<typeof moveToTrash>[1], "trash" | "clock">,
+): Promise<MoveToTrashOutcome> {
+  const { input, entry, row } = required;
+  // The confirmation-dialog race: the human was shown `input.expectedVersion` before answering,
   // and the row now reads differently — same "changed while the confirmation was open" outcome the
   // race against `deps.trash.trash` itself already distinguishes below, caught one read earlier.
-  if (entry.versionColumn && required.expectedVersion !== undefined && (row.version ?? null) !== required.expectedVersion) {
+  if (entry.versionColumn && input.expectedVersion !== undefined && (row.version ?? null) !== input.expectedVersion) {
     return { ok: false, reason: "version-changed" };
   }
 
   const marker = await deps.trash.trash({
-    workspaceId: required.workspaceId,
-    entityType: required.entityType,
-    entityId: required.entityId,
-    actor: required.actor,
+    workspaceId: input.workspaceId,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    actor: input.actor,
     display: { title: row.title, subtitle: row.subtitle ?? null },
     at: deps.clock.nowIso(),
     expectedVersion: entry.versionColumn ? (row.version ?? null) : null,
   });
+  return markerOutcome({ marker });
+}
+
+/** Keep adapter-only success metadata out of the generic removal result. */
+function markerOutcome(required: { marker: TrashMarkerResult }, _options: Record<string, never> = {}): MoveToTrashOutcome {
+  const { marker } = required;
   if (marker.ok) return { ok: true, version: marker.version };
   // A race between the read above and `trash.trash` itself (someone else trashed or edited the row,
   // or a blocking child appeared, in between) — same reasons `TrashMarkerResult`'s failure branch

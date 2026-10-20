@@ -253,3 +253,52 @@ test("a live term whose taxonomy is LIVE trashes normally — hiddenWithParent o
   const row = h.db.$client.prepare(`SELECT status, version FROM terms WHERE id = ?`).get("term-1") as { status: string; version: number };
   assert.deepEqual(row, { status: "trash", version: 2 });
 });
+
+for (const expectedVersion of [undefined, null, 4, 3]) {
+  test(`moveToTrash confirmation ${String(expectedVersion)} pins the snapshot write contract`, async () => {
+    const h = harness();
+    seedForm(h, "l128-form", { version: 4 });
+    const calls: Parameters<TrashPort["trash"]>[0][] = [];
+    const outcome = await moveToTrash({
+      workspaceId: WS, entityType: "form", entityId: "l128-form", actor: { principalId: "l128-actor" }, expectedVersion,
+    }, {
+      registry: h.registry, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize,
+      clock: { nowIso: () => AT }, trash: { ...h.trash, trash: async (args) => {
+        calls.push(args);
+        return { ok: true, version: 5, noop: true, priorMarker: "ignored" };
+      } },
+    });
+    if (expectedVersion === null || expectedVersion === 3) {
+      assert.deepEqual(outcome, { ok: false, reason: "version-changed" });
+      assert.deepEqual(calls, []);
+      return;
+    }
+    assert.deepEqual(outcome, { ok: true, version: 5 });
+    assert.deepEqual(calls, [{ workspaceId: WS, entityType: "form", entityId: "l128-form",
+      actor: { principalId: "l128-actor" }, display: { title: "Form l128-form", subtitle: "slug-l128-form" },
+      at: AT, expectedVersion: 4 }]);
+  });
+}
+
+const l128Markers: Awaited<ReturnType<TrashPort["trash"]>>[] = [
+  { ok: true, version: null }, { ok: false, reason: "not-found" },
+  { ok: false, reason: "version-changed" }, { ok: false, reason: "blocked", code: "CHILDREN", count: 2 },
+];
+for (const marker of l128Markers) {
+  test(`moveToTrash preserves the marker outcome ${JSON.stringify(marker)} for an unversioned kind`, async () => {
+    const h = harness();
+    seedForm(h, "l128-unversioned");
+    const entry = { ...h.registry.get("form")!, versionColumn: undefined, display: { title: "form_definitions.name" } };
+    const registry = new Map([["form", entry]]);
+    const outcome = await moveToTrash({ workspaceId: WS, entityType: "form", entityId: "l128-unversioned",
+      actor: { principalId: "actor" }, expectedVersion: 999 }, {
+      registry, db: createSqliteTrashDb({ db: h.db }), authorize: h.authorize, clock: { nowIso: () => AT },
+      trash: { ...h.trash, trash: async (args) => {
+        assert.deepEqual(args.display, { title: "Form l128-unversioned", subtitle: null });
+        assert.equal(args.expectedVersion, null);
+        return marker;
+      } },
+    });
+    assert.deepEqual(outcome, marker);
+  });
+}

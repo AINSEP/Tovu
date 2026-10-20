@@ -737,3 +737,38 @@ test("hide with no expected version: a writer that changes the status between th
   assert.deepEqual(hidden, { ok: false, reason: "version-changed" });
   assert.deepEqual(readMenuRow(h.client, "menu-1"), { status: "draft", version: 4 });
 });
+
+// L128 pins: version validation precedes idempotence, and idempotence precedes blockers.
+for (const operation of ["hide", "unhide"] as const) {
+  test(`${operation}: stale versions win over an already-in-target marker; null skips the version check`, async () => {
+    const h = harness();
+    const status = operation === "hide" ? "trashed" : "published";
+    seedMenu(h.client, "l128-menu", { status, version: 4 });
+    const args = { workspaceId: WS, entityId: "l128-menu", at: AT, expectedVersion: 3 };
+    assert.deepEqual(await h.menuAdapter[operation](args), { ok: false, reason: "version-changed" });
+    assert.deepEqual(await h.menuAdapter[operation]({ ...args, expectedVersion: null }), { ok: true, version: 4, noop: true });
+    assert.deepEqual(readMenuRow(h.client, "l128-menu"), { status, version: 4 });
+    assert.deepEqual(await h.menuAdapter[operation]({ ...args, entityId: "missing" }), { ok: false, reason: "not-found" });
+  });
+}
+
+test("hide: an already-trashed term with children is a no-op, but a stale version is refused first", async () => {
+  const h = harness();
+  seedTaxonomy(h.client, "l128-tax");
+  seedTerm(h.client, "l128-parent", "l128-tax", { status: "trash", version: 3 });
+  seedTerm(h.client, "l128-child", "l128-tax", { parentId: "l128-parent" });
+  const args = { workspaceId: WS, entityId: "l128-parent", at: AT, expectedVersion: 2 };
+  assert.deepEqual(await h.termAdapter.hide(args), { ok: false, reason: "version-changed" });
+  assert.deepEqual(await h.termAdapter.hide({ ...args, expectedVersion: 3 }), { ok: true, version: 3, noop: true });
+  assert.deepEqual(readTermRow(h.client, "l128-parent"), { status: "trash", version: 3 });
+});
+
+test("purge: null expectedVersion permits a hidden row but never permits a live row", async () => {
+  const h = harness();
+  seedForm(h.client, "l128-hidden", { deletedAt: AT, version: 7 });
+  seedForm(h.client, "l128-live", { version: 7 });
+  assert.equal(await h.formAdapter.purge({ workspaceId: WS, entityId: "l128-hidden", expectedVersion: null }), "purged");
+  assert.equal(await h.formAdapter.purge({ workspaceId: WS, entityId: "l128-live", expectedVersion: null }), "version-changed");
+  assert.equal(readFormRow(h.client, "l128-hidden"), undefined);
+  assert.equal(readFormRow(h.client, "l128-live")?.deleted_at, null);
+});
