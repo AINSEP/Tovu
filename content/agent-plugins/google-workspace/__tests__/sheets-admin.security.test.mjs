@@ -207,6 +207,11 @@ test('open_existing: a picked spreadsheet returns metadata only, with a link bui
   assert.deepEqual(await run(openExisting, {}), { status: 'selected', resource: { spreadsheetId: SPREADSHEET, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET}/edit` } });
 });
 
-test('CSV export writes formula-like cells (=, +, -, @) unchanged, so a spreadsheet app opening the file may evaluate them (reported, not fixed)', () => {
-  assert.equal(encodeCsv({ rows: [['=HYPERLINK("https://x.test","y")', '+1', '@SUM(A1)']] }).csv, '"=HYPERLINK(""https://x.test"",""y"")",+1,@SUM(A1)');
+test('CSV injection: text starting with =, +, -, @, tab or CR gets a leading apostrophe, so a spreadsheet app shows it as text', () => {
+  const rows = [['=HYPERLINK("https://x.test","y")', '+1', '-2+3', '@SUM(A1)', '\t=1', '\r=1']];
+  assert.equal(encodeCsv({ rows }).csv, `"'=HYPERLINK(""https://x.test"",""y"")",'+1,'-2+3,'@SUM(A1),'\t=1,"'\r=1"`);
+});
+
+test('CSV injection: numbers, booleans and ordinary text are written unchanged (only formula-like text is prefixed)', () => {
+  assert.equal(encodeCsv({ rows: [[-5, 1.5, true, 'a=b', 'plain', '']] }).csv, '-5,1.5,true,a=b,plain,');
 });

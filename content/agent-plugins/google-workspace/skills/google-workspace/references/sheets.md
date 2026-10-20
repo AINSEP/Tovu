@@ -105,6 +105,11 @@ is rows 2-10, columns A-D.
 - `sheets_export_csv` reads at most 20,000 rows and 100,000 cells and writes at most 4 MiB. A bigger
   tab is refused (`limit-exceeded`), never cut short: export a range instead. It returns a file
   reference, not the data.
+  Text that starts with `=`, `+`, `-`, `@` (or a tab or line break) is written with a leading `'`,
+  so a spreadsheet app opening the file shows it as text instead of running it as a formula (a
+  visitor could have typed one into a form). The trade-off: with the default formatted values, a
+  number shown as `-5` or a phone number like `+1 555` also gets the `'`. Ask for
+  `valueRenderOption: "UNFORMATTED_VALUE"` when exact numbers matter: real numbers are never prefixed.
 - Answers over 64 KiB are refused with `limit-exceeded`: narrow to one tab or fewer items.
 
 ## Raw batch updates (`sheets_batch_update`)

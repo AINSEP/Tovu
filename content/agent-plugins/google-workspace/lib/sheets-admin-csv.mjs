@@ -5,7 +5,8 @@
  * Exists because Google's own CSV export covers only a spreadsheet's first tab and an arbitrary tab
  * would need an undocumented `gid` URL; bounded `values.batchGet` reads plus local encoding work for
  * any tab. The size is bounded BEFORE the first read (from the tab's grid size or the range), and an
- * export over a bound is an error, never a silently partial file.
+ * export over a bound is an error, never a silently partial file. Text cells that start like a
+ * formula are prefixed with `'` so opening the file never runs a visitor's formula.
  */
 import { GoogleWorkspaceError } from './request-policy.mjs';
 import { columnLetters } from './sheets-admin-ranges.mjs';
@@ -46,9 +47,24 @@ export function planChunks(required, _optional = {}) {
   return chunks;
 }
 
-/** One CSV field: quoted when it holds a comma, quote or line break. @complexity O(length). */
+/**
+ * Text a spreadsheet app would run as a formula when it opens the CSV (OWASP "CSV injection"):
+ * a leading `=`, `+`, `-`, `@`, tab or carriage return. Form answers are stored RAW, so a visitor's
+ * `=HYPERLINK(...)` comes back from Google as plain text and would otherwise become live.
+ */
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+/**
+ * One CSV field: text that a spreadsheet app would evaluate gets a leading `'` (shown as text, not
+ * run), then the field is quoted when it holds a comma, quote or line break. Only strings are
+ * prefixed: a number Google returns as a number (`UNFORMATTED_VALUE`) stays exact, while a
+ * formatted value such as `-5` or `+1 555` is text and keeps the `'` (the fidelity trade-off,
+ * documented in `references/sheets.md`).
+ * @complexity O(length).
+ */
 function csvField(value) {
-  const text = value === undefined || value === null ? '' : String(value);
+  const raw = value === undefined || value === null ? '' : String(value);
+  const text = typeof value === 'string' && FORMULA_TRIGGER.test(value) ? `'${raw}` : raw;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
