@@ -78,6 +78,11 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  * disabled control.
  */
 
+/** Code-health pass (2026-10-20): this and the three other local components' props used to carry a
+ *  `use…Hook` field ("Dependency injection seam for tests — the same convention `@jini-ai/ui`'s
+ *  `CustomSelect` uses for `useCustomSelect`."). None of these components is exported, so nothing
+ *  could ever pass one; they now call their `useWiredX` hook directly, and tests drive those real
+ *  hooks through `<Taxonomy>` with a mocked fetch. `Taxonomy`'s own `useTaxonomyHook` seam stays. */
 export interface NewTermFormProps {
   taxonomy: AdminTaxonomyWithTerms;
   onCreated: () => void;
@@ -85,15 +90,12 @@ export interface NewTermFormProps {
    *  `namespaceList` (via `buildAgentListHandles`) and passed down; a `Set`-based uniqueness
    *  search only works when it runs once over the whole list, not once per `NewTermForm` instance. */
   agentBase: string;
-  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
-   *  for `useCustomSelect`. */
-  useNewTermFormHook?: typeof useWiredNewTermForm;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
 
-function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook = useWiredNewTermForm, t }: NewTermFormProps) {
-  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({
+function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormProps) {
+  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useWiredNewTermForm({
     taxonomy,
     onCreated,
   });
@@ -181,15 +183,14 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook 
 
 export interface NewTaxonomyFormProps {
   onCreated: () => void;
-  useNewTaxonomyFormHook?: typeof useWiredNewTaxonomyForm;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
 
 /** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
  * `NewTermForm`'s local-state/submit/error shape. */
-function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxonomyForm, t }: NewTaxonomyFormProps) {
-  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useNewTaxonomyFormHook({ onCreated });
+function NewTaxonomyForm({ onCreated, t }: NewTaxonomyFormProps) {
+  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useWiredNewTaxonomyForm({ onCreated });
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
@@ -238,7 +239,6 @@ export interface MergeTermSectionProps {
   taxonomy: AdminTaxonomyWithTerms;
   term: AdminTerm;
   onMerged: () => void;
-  useMergeTermSectionHook?: typeof useWiredMergeTermSection;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
@@ -358,9 +358,9 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
   );
 }
 
-function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useWiredMergeTermSection, t }: MergeTermSectionProps) {
+function MergeTermSection({ taxonomy, term, onMerged, t }: MergeTermSectionProps) {
   const otherTerms = otherMergeTargets(taxonomy, term.id);
-  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useMergeTermSectionHook({
+  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useWiredMergeTermSection({
     term,
     onMerged,
   });
@@ -396,13 +396,12 @@ export interface TermDetailPanelProps {
   term: AdminTerm;
   onRenamed: () => void;
   onMerged: () => void;
-  useTermDetailPanelHook?: typeof useWiredTermDetailPanel;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
 
-function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPanelHook = useWiredTermDetailPanel, t }: TermDetailPanelProps) {
-  const { newName, setNewName, saving, message, error, rename } = useTermDetailPanelHook({ term, onRenamed });
+function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, t }: TermDetailPanelProps) {
+  const { newName, setNewName, saving, message, error, rename } = useWiredTermDetailPanel({ term, onRenamed });
 
   return (
     <div className="settings-detail-panel taxonomy-term-detail">
@@ -570,6 +569,31 @@ function TaxonomyDeleteDialog({
   );
 }
 
+interface TaxonomyNoticesProps {
+  copyFeedback: string | null;
+  error: string | null;
+  /** No taxonomy exists yet — show the shared empty card. */
+  empty: boolean;
+  t: (key: string) => string;
+}
+
+/** The copy-feedback status line, the error banner and the empty card, in that order — extracted
+ *  from `Taxonomy` verbatim (it was 11/10 cyclomatic with them inline). */
+function TaxonomyNotices({ copyFeedback, error, empty, t }: TaxonomyNoticesProps) {
+  return (
+    <>
+      {copyFeedback ? <p role="status">{copyFeedback}</p> : null}
+      {error ? <div className="notice error">{error}</div> : null}
+
+      {empty ? (
+        <div className="card">
+          <div className="empty-state" role="status">{t("No taxonomies yet")}</div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps = {}) {
   // Place popups outside the row scroller but inside the bridge's page scope.
   // A callback ref supplies the mounted container before any menu can open.
@@ -601,18 +625,12 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
   if (!taxonomies) return <div className="notice">{t("Loading taxonomies…")}</div>;
+  const list = namespaceList({ taxonomies, selectedTermId, setSelectedTermId, load, deleteState, menuPortalContainer, t });
 
   return (
     <div className="page" ref={setMenuPortalContainer}>
       <TaxonomyPageHeader formOpen={formOpen} setFormOpen={setFormOpen} t={t} />
-      {copyFeedback ? <p role="status">{copyFeedback}</p> : null}
-      {error ? <div className="notice error">{error}</div> : null}
-
-      {taxonomies.length === 0 ? (
-        <div className="card">
-          <div className="empty-state" role="status">{t("No taxonomies yet")}</div>
-        </div>
-      ) : null}
+      <TaxonomyNotices copyFeedback={copyFeedback} error={error} empty={taxonomies.length === 0} t={t} />
 
       {formOpen ? (
         <NewTaxonomyForm
@@ -633,7 +651,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
           comment for the fuller diagnosis. */}
       {selected ? (
         <div className="settings-body">
-          {namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, menuPortalContainer, t)}
+          {list}
           <TermDetailPanel
             taxonomy={selected.taxonomy}
             term={selected.term}
@@ -646,7 +664,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
           />
         </div>
       ) : (
-        namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, menuPortalContainer, t)
+        list
       )}
 
       <TermDeleteDialog
@@ -677,6 +695,8 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
  * `deleteState` (web-design pass, 2026-08-05): bundles the five `useTaxonomy` fields this list needs
  * to offer "Delete taxonomy"/"Delete term" and show a blocked-delete reason — passed as one object
  * rather than five more positional params now that this function's signature already has four.
+ * (Code-health pass, 2026-10-20: the whole argument list is now that one required object, and
+ * `Taxonomy` calls this once and places the same result in whichever branch renders.)
  *
  * The `buildAgentListHandles`/`Map` calls below are not `useMemo`d: this is a plain helper, not a
  * component (it is called conditionally from the `selected ? … : …` branch in `Taxonomy`'s render),
@@ -684,21 +704,29 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
  * (see `buildAgentListHandles`'s own `@complexity` doc) — cheap enough next to the list render it
  * feeds that hoisting the computation up into `Taxonomy` to memoize it was not judged worth the
  * added indirection. */
-function namespaceList(
-  taxonomies: AdminTaxonomyWithTerms[],
-  selectedTermId: string | null,
-  setSelectedTermId: (id: string) => void,
-  load: () => void,
+function namespaceList({
+  taxonomies,
+  selectedTermId,
+  setSelectedTermId,
+  load,
+  deleteState,
+  menuPortalContainer,
+  t,
+}: {
+  taxonomies: AdminTaxonomyWithTerms[];
+  selectedTermId: string | null;
+  setSelectedTermId: (id: string) => void;
+  load: () => void;
   deleteState: {
     copyHtmlEmbed: (required: { taxonomy: AdminTaxonomy }) => Promise<void>;
     requestDeleteTerm: (term: AdminTerm | null) => void;
     deleteTermBlocked: { termId: string; state: DeleteBlockedState } | null;
     requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
     deleteTaxonomyBlocked: { taxonomyId: string; state: DeleteBlockedState } | null;
-  },
-  menuPortalContainer: HTMLElement | null,
-  t: (key: string) => string,
-) {
+  };
+  menuPortalContainer: HTMLElement | null;
+  t: (key: string) => string;
+}) {
   // Computed once, across every group, so two taxonomies whose names slugify identically still get
   // distinct handles — see `NewTermForm`'s own `agentBase` doc for why this cannot be derived
   // independently inside each group's own `NewTermForm` instance.
