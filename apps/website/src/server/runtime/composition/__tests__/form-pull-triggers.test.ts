@@ -42,3 +42,45 @@ test("stop waits for the notification drain a finished pull started, and no long
   assert.ok(Date.now() - before < FORM_PULL_STOP_GRACE_MS / 2, "stop returned when the drain settled, not at the grace");
   assert.deepEqual(warned, []);
 });
+
+/** A counting automatic pull: records the input of every run. */
+function countingAutoPull() {
+  const runs: { workspaceId: string }[] = [];
+  return { runs, autoPull: { run: async (input: { workspaceId: string }) => { runs.push(input); }, drained: async () => undefined } };
+}
+
+test("an owner/admin sign-in runs one automatic pull for the trigger's workspace", async () => {
+  const counted = countingAutoPull();
+  const trigger = createServingFormPullTrigger({ autoPull: counted.autoPull, workspaceId: "ws-sign-in" });
+
+  trigger.signIn.signedIn();
+  await trigger.stop();
+
+  assert.deepEqual(counted.runs, [{ workspaceId: "ws-sign-in" }]);
+});
+
+test("after stop, neither the startup nor the sign-in trigger starts another pull", async () => {
+  const counted = countingAutoPull();
+  const trigger = createServingFormPullTrigger({ autoPull: counted.autoPull, workspaceId: "ws" });
+  await trigger.stop();
+
+  trigger.pullNow();
+  trigger.signIn.signedIn();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(counted.runs, []);
+});
+
+test("with no composed automatic pull every trigger is a no-op and stop returns at once", async (t) => {
+  const warned: string[] = [];
+  t.mock.method(console, "warn", (line: string) => { warned.push(line); });
+  const trigger = createServingFormPullTrigger({ autoPull: undefined, workspaceId: "ws" });
+
+  trigger.pullNow();
+  trigger.signIn.signedIn();
+  const before = Date.now();
+  await trigger.stop();
+
+  assert.ok(Date.now() - before < FORM_PULL_STOP_GRACE_MS / 2, "stop did not wait for the grace");
+  assert.deepEqual(warned, [], "nothing failed and nothing was late");
+});
