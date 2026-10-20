@@ -45,6 +45,15 @@ function appendVisibleNode({ node, pending, text }: {
   if (typeof node === "string") { text.push(node); return; }
   if ("tagName" in node && OMITTED_ELEMENTS.has(node.tagName)) return;
   if (node.nodeName === "#text" && "value" in node) { text.push(node.value); return; }
+  scheduleVisibleChildren({ node, pending, text });
+}
+
+/** Schedules children in document order, surrounding blocks with deferred closing spaces. */
+function scheduleVisibleChildren({ node, pending, text }: {
+  node: DefaultTreeAdapterMap["node"];
+  pending: Array<DefaultTreeAdapterMap["node"] | string>;
+  text: string[];
+}, _options: Record<string, never> = {}): void {
   if (!("childNodes" in node)) return;
   const block = "tagName" in node && BLOCK_ELEMENTS.has(node.tagName);
   if (block) { text.push(" "); pending.push(" "); }
