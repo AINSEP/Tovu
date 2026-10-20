@@ -1,5 +1,5 @@
 import { cpSync, existsSync, mkdirSync, statSync, renameSync, rmSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import path, { dirname, join, relative, sep } from "node:path";
 import { seedStarterTitle } from "./seed-starter-title.js";
 
 /**
@@ -135,18 +135,7 @@ export function seedSiteThemes(required: SeedSiteThemesRequired, optional: { sit
   const siteRoot = required.siteRoot ?? themesParent;
   const stagingDir = join(themesParent, STAGING_DIR_NAME);
 
-  // A moved site must not be resurrected from a cwd-derived fallback. Init owns creation of
-  // the site directory; seeding only adds themes to the directory its caller already created.
-  if (!existsSync(siteRoot) || !statSync(siteRoot).isDirectory()) throw new Error(`Site folder is unavailable: ${siteRoot}. Locate the site before seeding themes.`);
-  if (!existsSync(themesParent)) {
-    const withinSite = relative(siteRoot, themesParent);
-    if (withinSite === ".." || withinSite.startsWith(".." + sep) || isAbsolute(withinSite)) {
-      throw new Error(`Themes parent folder is unavailable: ${themesParent}. Choose a themes folder inside the existing site.`);
-    }
-    // Overrides may nest themes inside a live site. Create those parents only AFTER proving the
-    // actual served site exists; a missing site root must never be recreated by theme seeding.
-    mkdirSync(themesParent, { recursive: true });
-  }
+  prepareThemesParent({ siteRoot, themesParent });
   // Clears an orphan left by a previous interrupted boot. Unconditional rather than guarded by
   // `existsSync` — `force: true` already makes the absent case a no-op, and one syscall is cheaper
   // than two.
@@ -160,4 +149,32 @@ export function seedSiteThemes(required: SeedSiteThemesRequired, optional: { sit
   renameSync(stagingDir, siteThemesDir);
 
   return { status: "seeded", siteThemesDir };
+}
+
+/**
+ * Prove the served site exists, then create a missing themes parent only inside it.
+ * @throws When the site root is absent or not a directory, or a missing parent lies outside it.
+ */
+function prepareThemesParent({ siteRoot, themesParent }: { siteRoot: string; themesParent: string }): void {
+  // A moved site must not be resurrected from a cwd-derived fallback. Init owns creation of
+  // the site directory; seeding only adds themes to the directory its caller already created.
+  if (!existsSync(siteRoot) || !statSync(siteRoot).isDirectory()) throw new Error(`Site folder is unavailable: ${siteRoot}. Locate the site before seeding themes.`);
+  if (existsSync(themesParent)) return;
+  if (isOutsideRoot({ root: siteRoot, target: themesParent })) {
+    throw new Error(`Themes parent folder is unavailable: ${themesParent}. Choose a themes folder inside the existing site.`);
+  }
+  // Overrides may nest themes inside a live site. Create those parents only AFTER proving the
+  // actual served site exists; a missing site root must never be recreated by theme seeding.
+  mkdirSync(themesParent, { recursive: true });
+}
+
+/**
+ * Whether `target` lies outside `root`: above it, or (on Windows) on another drive, where
+ * `relative` returns an absolute path.
+ * @param options.pathApi - Path flavour; defaults to the host's, `path.win32` exercises drive letters.
+ * @complexity O(length of both paths).
+ */
+export function isOutsideRoot({ root, target }: { root: string; target: string }, { pathApi = path }: { pathApi?: path.PlatformPath } = {}): boolean {
+  const rel = pathApi.relative(root, target);
+  return rel.split(pathApi.sep)[0] === ".." || pathApi.isAbsolute(rel);
 }

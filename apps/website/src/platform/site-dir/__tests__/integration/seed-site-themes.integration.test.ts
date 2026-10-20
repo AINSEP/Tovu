@@ -3,12 +3,12 @@ import fs from "node:fs";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { after, test } from "node:test";
 
 import { DEFAULT_THEME_ID } from "#src/features/theme/active-theme";
 
-import { SEEDED_STOCK_THEME_IDS, seedSiteThemes } from "../seed-site-themes.js";
+import { isOutsideRoot, SEEDED_STOCK_THEME_IDS, seedSiteThemes } from "../../seed-site-themes.js";
 
 /**
  * @file `seedSiteThemes()` — the first-boot copy that gets a site's themes OUT of the package.
@@ -245,4 +245,34 @@ test("deskfx2 NIT: explicit site root must exist before creating override parent
   const outside = join(parent, "outside-missing", "themes");
   assert.throws(() => seedSiteThemes({ stockDir, siteThemesDir: outside, siteRoot: existingSite }), /Themes parent folder is unavailable/);
   assert.equal(existsSync(join(parent, "outside-missing")), false);
+});
+
+test("refuses a site root that is a file", () => {
+  const stockDir = makeStockTree(), parent = makeEmptySiteRoot(), siteRoot = join(parent, "site-file");
+  writeFileSync(siteRoot, "");
+  assert.throws(() => seedSiteThemes({ stockDir, siteThemesDir: join(parent, "themes"), siteRoot }), { message: `Site folder is unavailable: ${siteRoot}. Locate the site before seeding themes.` });
+});
+
+test("isOutsideRoot keeps nested paths inside and refuses parents, siblings and other drives", () => {
+  assert.equal(isOutsideRoot({ root: "/site", target: "/site/custom/themes" }), false);
+  assert.equal(isOutsideRoot({ root: "/site/inner", target: "/site" }), true);
+  assert.equal(isOutsideRoot({ root: "/site", target: "/other/themes" }), true);
+  assert.equal(isOutsideRoot({ root: "C:\\site", target: "D:\\themes" }, { pathApi: win32 }), true);
+  assert.equal(isOutsideRoot({ root: "C:\\site", target: "C:\\site\\themes" }, { pathApi: win32 }), false);
+});
+
+test("a creation-time site name is written into the seeded starter's pages", () => {
+  const stockDir = makeStockTree(), siteRoot = makeEmptySiteRoot();
+  const page = join(stockDir, "static", "tovu-starter", "render", "pages", "index.html");
+  mkdirSync(join(page, ".."), { recursive: true });
+  writeFileSync(page, "<title>Your Site</title>");
+  const siteThemesDir = join(siteRoot, "themes");
+  seedSiteThemes({ stockDir, siteThemesDir }, { siteName: "Ada & Co" });
+  assert.equal(readFileSync(join(siteThemesDir, "static", "tovu-starter", "render", "pages", "index.html"), "utf8"), "<title>Ada &amp; Co</title>");
+});
+
+test("an existing themes parent is used as is, even outside the site root", () => {
+  const stockDir = makeStockTree(), parent = makeEmptySiteRoot(), siteRoot = join(parent, "site");
+  mkdirSync(siteRoot);
+  assert.equal(seedSiteThemes({ stockDir, siteThemesDir: join(parent, "shared-themes"), siteRoot }).status, "seeded");
 });
