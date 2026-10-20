@@ -7,15 +7,14 @@
  * chosen by its numeric sheet id (renaming a tab never moves deliveries), and every save re-checks
  * the spreadsheet and tab through Google before anything is stored, so a pasted id grants nothing.
  * Saving asks the person to confirm that removing the destination later leaves the rows already
- * written in the spreadsheet (local delete never purges external rows).
+ * written in the spreadsheet (local delete never purges external rows). A saved destination is the
+ * form's delivery binding itself, written through the host's `deliveryBindings` capability.
  */
 import { metadataOf, readPickedSpreadsheets } from '../lib/picker-flow.mjs';
 import { verifySpreadsheetAccess } from '../lib/picker-selection.mjs';
 import { assertSpreadsheetId, getSpreadsheet } from '../lib/sheets-client.mjs';
 import { CONNECTION_ID, sheetsUnavailableReason, surfaceAccount, surfaceRefusal, surfaceSheetsClient, withSurfaceFailures } from '../lib/surface-actions.mjs';
-import {
-  FORM_SLUG_PATTERN, MAX_FORM_DESTINATIONS, bindingConfigFor, readFormDestinations, writeFormDestinations,
-} from '../lib/form-destination-settings.mjs';
+import { FORM_SLUG_PATTERN, MAX_FORM_DESTINATIONS, readFormDestinations, saveFormDestination } from '../lib/form-destination-settings.mjs';
 import { createPickerHandlers } from './picker.handler.mjs';
 
 const TAB_FIELDS = 'sheets.properties(sheetId,title,sheetType)';
@@ -36,14 +35,12 @@ async function currentAccountId(capabilities) {
   return (await sheetsUnavailableReason({ capabilities })) === null ? (await surfaceAccount({ capabilities })).accountId : null;
 }
 
-/** The panel's list: saved destinations (with their binding config) and the picked spreadsheets. @complexity O(d + p). */
+/** The panel's list: saved destinations and the picked spreadsheets. @complexity O(d + p). */
 async function listView(capabilities) {
   const accountId = await currentAccountId(capabilities);
-  const saved = await readFormDestinations({ state: capabilities.state });
+  const saved = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
   const destinations = Object.entries(saved).map(([formSlug, destination]) => ({
     formSlug, ...metadataOf(destination), sheetId: destination.sheetId, tabTitle: destination.tabTitle,
-    // Text, because the binding config is keyed by form slug and surface results are closed objects.
-    bindingConfigJson: JSON.stringify(bindingConfigFor({ formSlug, destination })),
     ...(accountId === null ? {} : { sameAccount: destination.accountId === accountId }),
   }));
   return { destinations, picked: (await readPickedSpreadsheets({ state: capabilities.state })).map(metadataOf) };
@@ -55,17 +52,18 @@ function assertSaveInput(input, fail) {
   if (input.confirmExternalRows !== true) throw surfaceRefusal({ fail, code: 'confirm-external-rows' });
 }
 
-/** Verifies and stores one form's destination. @complexity O(t + d): four requests, one state write. */
+/** Verifies and stores one form's destination as its binding. @complexity O(t + d): four requests, one binding write. */
 async function saveDestination({ capabilities, input, fail }) {
   assertSaveInput(input, fail);
   const account = await surfaceAccount({ capabilities });
   const { spreadsheet, tabs } = await spreadsheetTabs(capabilities, input.spreadsheetId);
   const tab = tabs.find((candidate) => candidate.sheetId === input.sheetId);
   if (tab === undefined) throw surfaceRefusal({ fail, code: 'tab-not-found' });
-  const destinations = await readFormDestinations({ state: capabilities.state });
-  if (!Object.hasOwn(destinations, input.formSlug) && Object.keys(destinations).length >= MAX_FORM_DESTINATIONS) throw surfaceRefusal({ fail, code: 'too-many-destinations' });
-  const entry = { ...metadataOf(spreadsheet), sheetId: tab.sheetId, tabTitle: tab.title, accountId: account.accountId };
-  await writeFormDestinations({ state: capabilities.state, destinations: { ...destinations, [input.formSlug]: entry } });
+  const destinations = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
+  const existing = Object.hasOwn(destinations, input.formSlug) ? destinations[input.formSlug] : undefined;
+  if (existing === undefined && Object.keys(destinations).length >= MAX_FORM_DESTINATIONS) throw surfaceRefusal({ fail, code: 'too-many-destinations' });
+  const destination = { spreadsheetId: spreadsheet.spreadsheetId, title: spreadsheet.title, sheetId: tab.sheetId, tabTitle: tab.title, accountId: account.accountId };
+  await saveFormDestination({ deliveryBindings: capabilities.deliveryBindings, formSlug: input.formSlug, destination }, existing === undefined ? {} : { bindingId: existing.bindingId });
   return listView(capabilities);
 }
 
@@ -90,10 +88,10 @@ export function createDestinationPanelHandlers(_required = {}, optional = {}) {
         return { spreadsheet: metadataOf(spreadsheet), tabs };
       }),
       'save-destination': (call) => act(call.fail, () => saveDestination(call)),
-      /** Forgets one form's destination here; rows already in the spreadsheet stay where they are. */
+      /** Removes one form's binding; rows already in the spreadsheet stay where they are. */
       'remove-destination': ({ capabilities, input, fail }) => act(fail, async () => {
-        const { [input.formSlug]: _removed, ...rest } = await readFormDestinations({ state: capabilities.state });
-        await writeFormDestinations({ state: capabilities.state, destinations: rest });
+        const destinations = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
+        if (Object.hasOwn(destinations, input.formSlug)) await capabilities.deliveryBindings.remove({ bindingId: destinations[input.formSlug].bindingId });
         return listView(capabilities);
       }),
     },

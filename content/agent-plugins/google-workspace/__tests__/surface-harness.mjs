@@ -26,7 +26,9 @@ export const TOKEN = 'ya' + '29.' + 's'.repeat(40);
 export const ACCOUNT_ACCESS = 'https://myaccount.google.com/connections';
 
 /**
- * In-memory host ports, typed against Jini's `AdminSurfaceCapabilities`.
+ * In-memory host ports, typed against Jini's `AdminSurfaceCapabilities`. `bindings` is the host's
+ * delivery-binding list in the surface's view; {@link destinationBinding} builds an entry as the
+ * destination panel saves it.
  * @param {{ connected?: boolean, granted?: string[], revocation?: 'confirmed' | 'pending' | 'not-needed', publicConfig?: Record<string, string> }} [options]
  */
 export function createHostPorts(options = {}) {
@@ -64,7 +66,33 @@ export function createHostPorts(options = {}) {
     async delete({ key }) { state.delete(key); },
   };
   const config = options.publicConfig ?? {};
-  return { state, inbox, calls, connection, connections, stateStore, publicConfig: { async get({ name }) { return config[name] ?? null; } } };
+  const bindings = [];
+  let bindingIds = 0;
+  /** The host's binding store as the surface sees it (the host assigns ids; refs never reach the plugin). @type {import('@jini-ai/agent-plugins/admin-surfaces').AdminSurfaceDeliveryBindings} */
+  const deliveryBindings = {
+    async list() { return structuredClone(bindings); },
+    async save(draft) {
+      const binding = { ...structuredClone(draft), bindingId: draft.bindingId ?? `binding-${(bindingIds += 1)}` };
+      const index = bindings.findIndex((entry) => entry.bindingId === binding.bindingId);
+      bindings.splice(index < 0 ? bindings.length : index, index < 0 ? 0 : 1, binding);
+      return structuredClone(binding);
+    },
+    async remove({ bindingId }) { bindings.splice(bindings.findIndex((entry) => entry.bindingId === bindingId), 1); },
+  };
+  return { state, inbox, calls, connection, connections, stateStore, bindings, deliveryBindings, publicConfig: { async get({ name }) { return config[name] ?? null; } } };
+}
+
+/**
+ * One form's destination binding as the destination panel saves it.
+ * @param {string} formSlug
+ * @param {{ spreadsheetId?: string, sheetId?: number, accountId?: string, title?: string, tabTitle?: string }} [destination]
+ */
+export function destinationBinding(formSlug, destination = {}) {
+  const { spreadsheetId = FILE_ID, sheetId = 7, accountId = 'perm-alice', title = 'Leads', tabTitle = 'Leads' } = destination;
+  return {
+    bindingId: `binding-${formSlug}`, adapterId: 'google-sheets', connectionId: 'account', enabled: true, formIds: [formSlug],
+    config: { spreadsheetId, accountId, tabs: { [formSlug]: { sheetId } }, title, tabTitle },
+  };
 }
 
 /** The surfaces file as Jini parses it. */
@@ -92,7 +120,7 @@ export async function bootSurfaces(required, optional = {}) {
     http: { fetch: fake.fetch },
     limiter: { async check() { return { allowed: true }; } },
     artifacts: { async write() { throw new Error('admin surfaces write no artifacts'); } },
-    connections: ports.connections, state: ports.stateStore, publicConfig: ports.publicConfig,
+    connections: ports.connections, state: ports.stateStore, publicConfig: ports.publicConfig, deliveryBindings: ports.deliveryBindings,
   });
   const host = createAdminSurfaceHandlerHost({ capabilities, issuedTokens: createIssuedTokenMemories(), hostKind: optional.hostKind ?? 'hosted' });
   const { refusals } = host.sync({ loaded: descriptors.map((descriptor) => ({ pluginId: PLUGIN, descriptor, module: modules[descriptor.id] })), refusals: [] });

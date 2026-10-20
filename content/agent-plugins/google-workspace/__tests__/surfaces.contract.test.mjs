@@ -10,13 +10,13 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 
-import { FORM_DESTINATIONS_KEY, MAX_FORM_DESTINATIONS } from '../lib/form-destination-settings.mjs';
+import { MAX_FORM_DESTINATIONS } from '../lib/form-destination-settings.mjs';
 import { PICKED_SPREADSHEETS_KEY, rememberPickedSpreadsheet } from '../lib/picker-flow.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
-import { FILE_ID, OTHER_FILE_ID, bootSurfaces, createHostPorts, serveGoogle } from './surface-harness.mjs';
+import { FILE_ID, OTHER_FILE_ID, bootSurfaces, createHostPorts, destinationBinding, serveGoogle } from './surface-harness.mjs';
 
 const PICKER_CONFIG = { TOVU_GOOGLE_PICKER_BROWSER_KEY: 'browser-key-placeholder', TOVU_GOOGLE_PICKER_APP_ID: '123456789' };
-const SAVED = { spreadsheetId: FILE_ID, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${FILE_ID}/edit`, sheetId: 7, tabTitle: 'Leads', accountId: 'perm-alice' };
+const SAVED_VIEW = { spreadsheetId: FILE_ID, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${FILE_ID}/edit`, sheetId: 7, tabTitle: 'Leads' };
 
 let fake;
 before(async () => { fake = await startFakeGoogle({ clients: {} }); });
@@ -36,6 +36,13 @@ test('connection: a staged account switch is shown with the pending account labe
   ports.connection.pendingSwitchAccountLabel = 'Bob';
   const { result } = await surfaces.dispatch('connection', 'status');
   assert.deepEqual(result.connection, { status: 'connected', grantedProducts: ['sheets'], accountLabel: 'Alice', pendingSwitchAccountLabel: 'Bob' });
+});
+
+test('connection: the status lists the form destinations a switch would affect, read from the delivery bindings', async () => {
+  const { ports, surfaces } = await boot();
+  ports.bindings.push(destinationBinding('contact', { tabTitle: 'Contact' }), { ...destinationBinding('signup'), adapterId: 'other-rows' });
+  const { result } = await surfaces.dispatch('connection', 'status');
+  assert.deepEqual(result.destinations, [{ formSlug: 'contact', title: 'Leads', tabTitle: 'Contact' }]);
 });
 
 test('connection: confirm-switch asks the host to confirm and answers with the new account', async () => {
@@ -80,22 +87,40 @@ test('connection: sign-in with no product on and none granted asks for the base 
 
 // --- destinations panel -------------------------------------------------------------------------
 
-test('destinations: list shows each saved destination with its binding config and whether it is on the connected account', async () => {
+test('destinations: list shows each saved destination binding and whether it is on the connected account', async () => {
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
-  ports.state.set(FORM_DESTINATIONS_KEY, { contact: SAVED, signup: { ...SAVED, accountId: 'perm-bob' } });
+  ports.bindings.push(destinationBinding('contact'), destinationBinding('signup', { accountId: 'perm-bob' }));
   const { result } = await surfaces.dispatch('form-destinations', 'list-destinations');
-  assert.deepEqual(result.destinations.map((entry) => [entry.formSlug, entry.sameAccount]), [['contact', true], ['signup', false]]);
-  // The binding config freezes the account the spreadsheet was verified with (each job then refuses another account).
-  assert.deepEqual(JSON.parse(result.destinations[0].bindingConfigJson), { spreadsheetId: FILE_ID, accountId: 'perm-alice', tabs: { contact: { sheetId: 7 } } });
-  assert.deepEqual(JSON.parse(result.destinations[1].bindingConfigJson).accountId, 'perm-bob');
+  assert.deepEqual(result.destinations, [
+    { formSlug: 'contact', ...SAVED_VIEW, sameAccount: true },
+    { formSlug: 'signup', ...SAVED_VIEW, sameAccount: false },
+  ]);
   assert.deepEqual(result.picked, []);
+});
+
+test('destinations: a binding of another adapter, of several forms, or with a config in another shape is not listed (and left alone)', async () => {
+  serveGoogle(fake);
+  const { ports, surfaces } = await boot();
+  const contact = destinationBinding('contact');
+  const foreign = [
+    { ...contact, bindingId: 'other-adapter', adapterId: 'other-rows' },
+    { ...contact, bindingId: 'two-forms', formIds: ['contact', 'signup'] },
+    { ...contact, bindingId: 'every-form', formIds: undefined },
+    { ...contact, bindingId: 'bad-slug', formIds: ['Not A Slug'] },
+    { ...contact, bindingId: 'no-tab', config: { ...contact.config, tabs: {} } },
+    { ...contact, bindingId: 'no-title', config: { ...contact.config, title: 7 } },
+  ];
+  ports.bindings.push(...foreign);
+  assert.deepEqual((await surfaces.dispatch('form-destinations', 'list-destinations')).result.destinations, []);
+  assert.equal((await surfaces.dispatch('form-destinations', 'remove-destination', { formSlug: 'contact' })).ok, true);
+  assert.deepEqual(ports.bindings.map((binding) => binding.bindingId), foreign.map((binding) => binding.bindingId));
 });
 
 test('destinations: while Google needs a reconnect, list still shows destinations, says nothing about accounts, and sends nothing to Google', async () => {
   const { ports, surfaces } = await boot();
   ports.connection.status = 'reconnect-required';
-  ports.state.set(FORM_DESTINATIONS_KEY, { contact: SAVED });
+  ports.bindings.push(destinationBinding('contact'));
   const { result } = await surfaces.dispatch('form-destinations', 'list-destinations');
   assert.equal(result.destinations.length, 1);
   assert.equal('sameAccount' in result.destinations[0], false);
@@ -109,41 +134,43 @@ test('destinations: the Picker bootstrap reports reconnect-required while Google
   assert.deepEqual([bootstrap.mode, bootstrap.reason], ['unavailable', 'reconnect-required']);
 });
 
-test('destinations: remove deletes only that form\'s destination and answers with the rest', async () => {
+test('destinations: remove deletes only that form\'s binding and answers with the rest', async () => {
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
-  ports.state.set(FORM_DESTINATIONS_KEY, { contact: SAVED, signup: SAVED });
+  ports.bindings.push(destinationBinding('contact'), destinationBinding('signup'));
   const { result } = await surfaces.dispatch('form-destinations', 'remove-destination', { formSlug: 'contact' });
   assert.deepEqual(result.destinations.map((entry) => entry.formSlug), ['signup']);
-  assert.deepEqual(Object.keys(ports.state.get(FORM_DESTINATIONS_KEY)), ['signup']);
+  assert.deepEqual(ports.bindings.map((binding) => binding.bindingId), ['binding-signup']);
 });
 
 test('destinations: removing a form with no destination leaves the others unchanged', async () => {
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
-  ports.state.set(FORM_DESTINATIONS_KEY, { signup: SAVED });
+  ports.bindings.push(destinationBinding('signup'));
   assert.equal((await surfaces.dispatch('form-destinations', 'remove-destination', { formSlug: 'contact' })).ok, true);
-  assert.deepEqual(ports.state.get(FORM_DESTINATIONS_KEY), { signup: SAVED });
+  assert.deepEqual(ports.bindings, [destinationBinding('signup')]);
 });
 
-const fullHouse = () => Object.fromEntries(Array.from({ length: MAX_FORM_DESTINATIONS }, (_, index) => [`form-${index}`, SAVED]));
+const fullHouse = () => Array.from({ length: MAX_FORM_DESTINATIONS }, (_, index) => destinationBinding(`form-${index}`));
 
 test('destinations: a 51st form is refused (too-many-destinations) and nothing is saved', async () => {
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
-  ports.state.set(FORM_DESTINATIONS_KEY, fullHouse());
+  ports.bindings.push(...fullHouse());
   const outcome = await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 7, confirmExternalRows: true });
   assert.equal(outcome.error.code, 'too-many-destinations');
-  assert.equal(Object.keys(ports.state.get(FORM_DESTINATIONS_KEY)).length, MAX_FORM_DESTINATIONS);
+  assert.equal(ports.bindings.length, MAX_FORM_DESTINATIONS);
 });
 
 test('destinations: at the ceiling, a form that already has a destination can still change it', async () => {
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
-  ports.state.set(FORM_DESTINATIONS_KEY, fullHouse());
+  ports.bindings.push(...fullHouse());
   const outcome = await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'form-3', spreadsheetId: FILE_ID, sheetId: 0, confirmExternalRows: true });
   assert.equal(outcome.ok, true);
-  assert.equal(ports.state.get(FORM_DESTINATIONS_KEY)['form-3'].sheetId, 0);
+  // The form's existing binding is replaced in place (same id), not added beside it.
+  assert.equal(ports.bindings.length, MAX_FORM_DESTINATIONS);
+  assert.deepEqual(ports.bindings[3], { ...destinationBinding('form-3', { sheetId: 0, tabTitle: 'Sheet1' }) });
 });
 
 test('destinations: list-tabs keeps grid tabs only (a tab with no type counts as a grid) and gives an untitled tab an empty title', async () => {

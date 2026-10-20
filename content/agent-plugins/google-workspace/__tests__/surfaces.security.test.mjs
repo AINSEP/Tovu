@@ -14,7 +14,6 @@ import { readAdminSurfaceFile } from '@jini-ai/agent-plugins/admin-surfaces';
 import { GOOGLE_ACCOUNT_ACCESS_PAGE } from '../lib/auth.mjs';
 import { DESKTOP_PICKER_START_PARAMS } from '../lib/picker-selection.mjs';
 import { PICKED_SPREADSHEETS_KEY, PICKER_SESSION_TTL_MS } from '../lib/picker-flow.mjs';
-import { FORM_DESTINATIONS_KEY } from '../lib/form-destination-settings.mjs';
 import { REVOCATION_PENDING_TEXT, connectionSummary, revocationMessage } from '../ui/connection-view.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { FILE_ID, OTHER_FILE_ID, TOKEN, bootSurfaces, createHostPorts, serveGoogle, surfaceDescriptors } from './surface-harness.mjs';
@@ -36,7 +35,7 @@ async function boot(options = {}) {
   return { ports, surfaces };
 }
 
-const settings = (ports) => JSON.stringify([ports.state.get(PICKED_SPREADSHEETS_KEY), ports.state.get(FORM_DESTINATIONS_KEY)]);
+const settings = (ports) => JSON.stringify([ports.state.get(PICKED_SPREADSHEETS_KEY), ports.bindings]);
 const googleRequests = () => fake.requests.length;
 
 // --- declarations -------------------------------------------------------------------------------
@@ -60,7 +59,7 @@ test('declarations: only the connection panel may open a link, only to the Googl
   assert.equal(new URL(GOOGLE_ACCOUNT_ACCESS_PAGE).origin, linkOrigins.connection[0]);
 });
 
-test('declarations: Picker surfaces declare exactly the desktop start params, the picked_file_ids field and the two public Picker names; the connection panel none', async () => {
+test('declarations: Picker surfaces declare exactly the desktop start params, the picked_file_ids field and the two public Picker names; the connection panel none; the binding surfaces only the Sheets adapter', async () => {
   const descriptors = await surfaceDescriptors();
   const connectionsFile = JSON.parse(await readFile(new URL('../tovu-connections.json', import.meta.url), 'utf8')).connections[0];
   const declared = Object.fromEntries(descriptors.map((surface) => [surface.id, { connections: surface.connections, publicConfig: surface.publicConfig ?? [] }]));
@@ -70,6 +69,12 @@ test('declarations: Picker surfaces declare exactly the desktop start params, th
     connection: { connections: [{ id: 'account', startParams: [], callbackFields: [] }], publicConfig: [] },
     picker: { connections: pickerConnection, publicConfig },
     'form-destinations': { connections: pickerConnection, publicConfig },
+  });
+  // The two surfaces that read or write form-delivery bindings name exactly this plugin's Sheets adapter
+  // (`tovu-form-destinations.json`); the Picker surface touches no binding.
+  const destinationsFile = JSON.parse(await readFile(new URL('../tovu-form-destinations.json', import.meta.url), 'utf8'));
+  assert.deepEqual(Object.fromEntries(descriptors.map((surface) => [surface.id, surface.deliveryAdapters ?? []])), {
+    connection: [destinationsFile.destinations[0].id], picker: [], 'form-destinations': [destinationsFile.destinations[0].id],
   });
   // Every declared start param and callback field is one the connection descriptor allowlists.
   assert.deepEqual(connectionsFile.startParams.map((param) => param.name), pickerConnection[0].startParams);
@@ -293,7 +298,7 @@ for (const formSlug of ['__proto__', 'Contact Form', '../x', '-lead']) {
     const outcome = await surfaces.dispatch('form-destinations', 'save-destination', { formSlug, spreadsheetId: FILE_ID, sheetId: 7, confirmExternalRows: true });
     assert.equal(outcome.error.code, 'invalid-destination');
     assert.equal(googleRequests(), 0);
-    assert.equal(ports.state.has(FORM_DESTINATIONS_KEY), false);
+    assert.deepEqual(ports.bindings, []);
   });
 }
 
@@ -301,7 +306,7 @@ test('destination: saving without confirming that rows stay in the spreadsheet i
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
   assert.equal((await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 7, confirmExternalRows: false })).error.code, 'confirm-external-rows');
-  assert.equal(ports.state.has(FORM_DESTINATIONS_KEY), false);
+  assert.deepEqual(ports.bindings, []);
 });
 
 test('destination: a pasted spreadsheet id the account was never granted is refused (file-not-granted); nothing saved', async () => {
@@ -310,14 +315,14 @@ test('destination: a pasted spreadsheet id the account was never granted is refu
   const outcome = await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 7, confirmExternalRows: true });
   assert.equal(outcome.error.code, 'file-not-granted');
   assert.equal(outcome.error.message.includes(FILE_ID), false);
-  assert.equal(ports.state.has(FORM_DESTINATIONS_KEY), false);
+  assert.deepEqual(ports.bindings, []);
 });
 
 test('destination: a sheet id that is not a tab of the spreadsheet is refused (tab-not-found); nothing saved', async () => {
   serveGoogle(fake);
   const { ports, surfaces } = await boot();
   assert.equal((await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 99, confirmExternalRows: true })).error.code, 'tab-not-found');
-  assert.equal(ports.state.has(FORM_DESTINATIONS_KEY), false);
+  assert.deepEqual(ports.bindings, []);
 });
 
 // --- account actions and products ---------------------------------------------------------------

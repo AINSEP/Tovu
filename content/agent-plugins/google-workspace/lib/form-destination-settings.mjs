@@ -1,55 +1,70 @@
 /**
- * @file The form-destination choices the destination panel saves in the plugin's settings: per form
- * (by its short name), the spreadsheet and the tab (numeric sheet id) its submissions go to, plus the
- * account the spreadsheet was verified with. Also builds the binding config the Sheets destination
- * reads (`{ spreadsheetId, tabs: { <formSlug>: { sheetId } } }`, see `form-destinations/README.md`).
+ * @file The form destinations the destination panel saves: one host form-delivery binding per form
+ * (by its short name), for this plugin's Sheets adapter over its own connection, through the host's
+ * `deliveryBindings` capability. The binding config is what the Sheets destination reads
+ * (`{ spreadsheetId, accountId, tabs: { <formSlug>: { sheetId } } }`, see
+ * `form-destinations/README.md`) plus the spreadsheet and tab names the panels show.
  *
- * Exists because the plugin cannot write Tovu's form bindings: it keeps the verified choice where the
- * host (and the connection panel's account-switch screen) can read it, and the host copies the
- * binding config into the binding. Values are metadata only, never a token or a cell.
+ * Exists so a saved choice IS the delivery binding: there is no second copy to keep in step, and the
+ * connection panel's account-switch screen lists exactly what delivery uses. Values are metadata
+ * only, never a token or a cell.
  */
-export const FORM_DESTINATIONS_KEY = 'form-destinations';
+import { CONNECTION_ID } from './surface-actions.mjs';
+
+/** This plugin's form-destination adapter id (`tovu-form-destinations.json`). */
+export const SHEETS_ADAPTER_ID = 'google-sheets';
 export const MAX_FORM_DESTINATIONS = 50;
 
-/** A form's short name: also a property name in the stored object, so no `__proto__`-style names. */
+/** A form's short name: also a property name in the binding config, so no `__proto__`-style names. */
 export const FORM_SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
-/** A stored entry in the shape `saveFormDestination` writes. @complexity O(1). */
-function isSaved(entry) {
-  return typeof entry?.spreadsheetId === 'string' && Number.isInteger(entry.sheetId) && typeof entry.accountId === 'string';
+/** The one form a binding saved here is for, or null for a binding this panel did not write. @complexity O(1). */
+function formSlugOf(binding) {
+  const slug = binding.formIds?.length === 1 ? binding.formIds[0] : null;
+  return slug !== null && FORM_SLUG_PATTERN.test(slug) ? slug : null;
+}
+
+/** The saved destination a binding holds, or null when its config is not in the shape `saveFormDestination` writes. @complexity O(1). */
+function destinationOf(binding, formSlug) {
+  const { spreadsheetId, accountId, tabs, title, tabTitle } = binding.config;
+  const sheetId = tabs?.[formSlug]?.sheetId;
+  const valid = typeof spreadsheetId === 'string' && typeof accountId === 'string' && Number.isInteger(sheetId) && typeof title === 'string' && typeof tabTitle === 'string';
+  return valid ? { bindingId: binding.bindingId, spreadsheetId, title, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, sheetId, tabTitle, accountId } : null;
 }
 
 /**
- * The saved destinations, keyed by form slug; malformed entries are dropped.
- * @param {{ state: { get(input: { key: string }): Promise<unknown> } }} required
- * @returns {Promise<Record<string, { spreadsheetId: string, title: string, sheetId: number, tabTitle: string, accountId: string }>>}
- * @complexity O(d), d ≤ 50.
+ * The saved destinations, keyed by form slug: this plugin's Sheets bindings that name one form;
+ * any other binding of the adapter is left out (and left alone).
+ * @param {{ deliveryBindings: { list(): Promise<readonly { bindingId: string, adapterId: string, formIds?: readonly string[], config: Record<string, unknown> }[]> } }} required
+ * @returns {Promise<Record<string, { bindingId: string, spreadsheetId: string, title: string, url: string, sheetId: number, tabTitle: string, accountId: string }>>}
+ * @complexity O(b), one host read.
  */
 export async function readFormDestinations(required, _optional = {}) {
-  const stored = await required.state.get({ key: FORM_DESTINATIONS_KEY });
-  if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) return {};
-  return Object.fromEntries(Object.entries(stored).filter(([formSlug, entry]) => FORM_SLUG_PATTERN.test(formSlug) && isSaved(entry)));
+  const entries = (await required.deliveryBindings.list()).flatMap((binding) => {
+    const formSlug = binding.adapterId === SHEETS_ADAPTER_ID ? formSlugOf(binding) : null;
+    const destination = formSlug === null ? null : destinationOf(binding, formSlug);
+    return destination === null ? [] : [[formSlug, destination]];
+  });
+  return Object.fromEntries(entries);
 }
 
 /**
- * Writes the whole destination map (callers add or remove one form's entry on what they just read).
- * @param {{ state: { set: Function }, destinations: Record<string, object> }} required
- * @complexity O(d).
+ * Saves one form's destination as its delivery binding (a new one, or the form's existing one).
+ * `accountId` is the account the spreadsheet was verified with: the host freezes it into every
+ * delivery job and refuses a job once the connection holds another account (an account switch never
+ * silently moves where rows go).
+ * @param {{ deliveryBindings: { save(draft: object): Promise<object> }, formSlug: string, destination: { spreadsheetId: string, title: string, sheetId: number, tabTitle: string, accountId: string } }} required
+ * @param {{ bindingId?: string }} [optional] The form's existing binding, replaced in place.
+ * @complexity O(1), one host write.
  */
-export function writeFormDestinations(required, _optional = {}) {
-  return required.state.set({ key: FORM_DESTINATIONS_KEY, value: required.destinations });
-}
-
-/**
- * The binding config for one saved destination, as the Sheets destination reads it. `accountId` is
- * the account the spreadsheet was verified with: the host freezes it into every delivery job and
- * refuses a job once the connection holds another account (an account switch never silently moves
- * where rows go).
- * @param {{ formSlug: string, destination: { spreadsheetId: string, sheetId: number, accountId: string } }} required
- * @returns {{ spreadsheetId: string, accountId: string, tabs: Record<string, { sheetId: number }> }}
- * @complexity O(1).
- */
-export function bindingConfigFor(required, _optional = {}) {
+export async function saveFormDestination(required, optional = {}) {
   const { formSlug, destination } = required;
-  return { spreadsheetId: destination.spreadsheetId, accountId: destination.accountId, tabs: { [formSlug]: { sheetId: destination.sheetId } } };
+  await required.deliveryBindings.save({
+    ...(optional.bindingId === undefined ? {} : { bindingId: optional.bindingId }),
+    adapterId: SHEETS_ADAPTER_ID, connectionId: CONNECTION_ID, enabled: true, formIds: [formSlug],
+    config: {
+      spreadsheetId: destination.spreadsheetId, accountId: destination.accountId, tabs: { [formSlug]: { sheetId: destination.sheetId } },
+      title: destination.title, tabTitle: destination.tabTitle,
+    },
+  });
 }

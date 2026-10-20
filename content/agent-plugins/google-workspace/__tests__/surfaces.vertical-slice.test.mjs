@@ -2,7 +2,7 @@
  * @file The one vertical-slice proof for the plugin's admin surfaces (phase A, G13b), through the real
  * Jini handler host and dispatcher: the connection panel turns Sheets on, the Picker panel's hosted
  * bootstrap opens a session, the picked file is verified and saved, and the form-destination panel
- * saves a form → spreadsheet tab choice whose binding config the Sheets destination reads. Google is
+ * saves a form → spreadsheet tab choice as its delivery binding, with the config the Sheets destination reads. Google is
  * the 127.0.0.1 fake.
  */
 import assert from 'node:assert/strict';
@@ -15,7 +15,7 @@ let fake;
 before(async () => { fake = await startFakeGoogle({ clients: {} }); });
 after(async () => { await fake.close(); });
 
-test('vertical slice: Sheets on → hosted Picker → verified selection → form destination saved with its binding config', async () => {
+test('vertical slice: Sheets on → hosted Picker → verified selection → form destination saved as its delivery binding', async () => {
   serveGoogle(fake);
   const ports = createHostPorts({ publicConfig: { TOVU_GOOGLE_PICKER_BROWSER_KEY: 'browser-key-placeholder', TOVU_GOOGLE_PICKER_APP_ID: '123456789' } });
   const surfaces = await bootSurfaces({ fake, ports }, { randomId: () => 'session-0123456789abcdef' });
@@ -35,8 +35,12 @@ test('vertical slice: Sheets on → hosted Picker → verified selection → for
   const saved = await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 7, confirmExternalRows: true });
   assert.equal(saved.ok, true);
   assert.deepEqual(saved.result.destinations, [{
-    formSlug: 'contact', spreadsheetId: FILE_ID, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${FILE_ID}/edit`, sheetId: 7, tabTitle: 'Leads',
-    bindingConfigJson: JSON.stringify({ spreadsheetId: FILE_ID, accountId: 'perm-alice', tabs: { contact: { sheetId: 7 } } }), sameAccount: true,
+    formSlug: 'contact', spreadsheetId: FILE_ID, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${FILE_ID}/edit`, sheetId: 7, tabTitle: 'Leads', sameAccount: true,
+  }]);
+  // The saved choice IS the delivery binding: the Sheets adapter's config, on this plugin's own connection.
+  assert.deepEqual(ports.bindings, [{
+    bindingId: 'binding-1', adapterId: 'google-sheets', connectionId: 'account', enabled: true, formIds: ['contact'],
+    config: { spreadsheetId: FILE_ID, accountId: 'perm-alice', tabs: { contact: { sheetId: 7 } }, title: 'Leads', tabTitle: 'Leads' },
   }]);
   assert.deepEqual(saved.result.picked.map((entry) => entry.spreadsheetId), [FILE_ID]);
 
