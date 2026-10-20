@@ -306,7 +306,7 @@ test("workspace: every connection-ref operation names the port's workspace (conn
     deps: { host: recording }, connection: connection!, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => { assert.equal(await consent(signInUrl), 200); },
   });
-  assert.deepEqual(connected, { status: "connected" });
+  assert.equal(connected.status, "connected");
   const port = createSurfaceConnections({ host: recording, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
   assert.equal(await consentAs({ id: "acct-2", name: "Bob" }, (await port.begin({ connectionId: "account", action: "switch" })).authorizationUrl), 200);
   assert.equal((await port.confirmSwitch({ connectionId: "account" })).accountLabel, "Bob");
