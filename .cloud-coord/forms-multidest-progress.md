@@ -80,3 +80,30 @@ F9C (outbox-repo conditional transitions), then phase C full tests (coverage rec
 
 ## End of build (running 10:16Z)
 Jini build+vitest infra/cms + guard → Tovu `TEST_CONCURRENCY=2 npm test`, admin vitest, tsc, typecheck:tests, 4 repo checks → same Tovu suite + admin on base (wt-base @ 910e7f8ed) → `npm run gates -w apps/desktop`. Script /tmp/fm-coord/eob.sh, logs /tmp/fm-coord/eob/.
+
+## End of build — RESULTS (2026-10-20, coordinator)
+- Jini (cloud/forms-multidest @ 01bc4a22): infra vitest 64/64 (11 files); cms vitest 2667/2668 — the 1 fail is media/video-frames.ffmpeg "temporary files that cannot be removed" (chmod 0o500 has no effect as root; no media file in this diff); guard 26 (= base).
+- Tovu whole suite (`TEST_CONCURRENCY=2 npm test`, build @ c034cc08e): 23162 tests, 23081 pass, 45 fail, 36 skipped. Base (910e7f8ed): 22944 tests, 22860 pass, 48 fail, 36 skipped.
+  - Build-only failure: no-raw-sqlite.boundary (scanner's `.run()` pattern matched two non-SQLite port calls) → F9D (654617630, merged e7dc8ba11): `trigger.run({})` + local port renamed `importPage`; boundary + form-submissions + form-pull-triggers 31/31 after merge; F9D tsc 0, typecheck:tests 0.
+  - Base-only failures fixed by this build: commerce-strip-parity, vault-boundary-parity (F7b), tiptap-render-contract (not touched by this build: treat as flaky).
+  - Shared (fail identically on base): database-transfer tool-registrations.postgres ×3 (expects host localhost), default-credential-exposure ×2, theme-colour-contract, playwright-page-capture redirect, vault-hot-path ×2, vault-read-parity(.postgres) ×10, vault-write-parity ×3, postgres-baseline (publish_history.config_fields_json text vs jsonb), render-form-layout ×3, theme-preview-refresh, route-modules 'forms-admin', development/eslint-rules single-fetch-query-provider ×10, development/scripts check-idle-motion, dead-path-sweep ×2, openapi-contract-fixtures, repair-site ×2.
+- Admin vitest: build 11945 pass / 5 fail / 2 skipped; base identical 5 (Users.unit, account-protections, untranslated-copy ×3). apps/admin untouched.
+- Root tsc 0; typecheck:tests 0.
+- Repo checks vs base: boundaries 1071 vs 1069 (+2 = test files importing the repo-wide isolated-catalog-home helper, 623 such on base); architecture: API surface 661 vs 660 (deps.ts → form-delivery-repo), hub count 391 vs 390 (non-blocking warning), back-edges 9 = base; inventory OK; outbox-bridge 5 = base.
+- Desktop gates (owed for 910e7f8ed; this build does not touch apps/desktop): `npm run gates -w apps/desktop` → "No workspaces found" (apps/desktop is not a workspace). Ran `cd apps/desktop && npm ci --ignore-scripts` (ELECTRON_SKIP_BINARY_DOWNLOAD) + `npm run gates`: with registry @jini-ai → typecheck FAIL (registry Jini lacks readLoginShellEnvironment, createToolGapCollector). With desktop's @jini-ai symlinked to the local Jini checkout: tree-quiet PASS, typecheck PASS, complexity PASS, js-backslide PASS, tests FAIL, coverage FAIL — the failing tests are websites-width ×2 (Playwright wants chromium_headless_shell-1228, container has a different revision: environment) and coverage follows from them. Swift helper / macOS gates: NOT RUN (Linux).
+- Subagent tokens (approx): F4 323k, F5 306k, F9B 322k (all three OVER the 300k ceiling), F6 273k, C3 252k, F8 229k, F9A 220k, C4 219k, C2 205k, C1 195k, F7b 164k, F9J 145k, F7a 113k, F9D 96k; avg ≈ 219k. Hand-offs: none.
+
+## Owner merge order
+1. Jini `cloud/forms-multidest` (01bc4a22) → general-work first; rebuild cms + infra (and publish/link) .
+2. Tovu `cloud/forms-multidest` → restructure/apps-website-phased, with link:jini to the merged Jini.
+3. LOCAL DB: the owner's local DB has the stale WIP `0019_form_delivery_and_pull` applied (stale checksum) — drop that migration's tables + its ledger row before running this branch (new id `0019_form_delivery_plans`).
+
+## Deferred / follow-ups (owner)
+- F8 M6: inline admin-route `processOutbox` drains also run due delivery jobs (each ≤60 s) → saving a post can wait behind a down destination; fix = inline drains skip FORM_DELIVERY_EVENT.
+- F8 L8: inject the composition clock so the 60 s window is fake-clock testable; T9 rename site-title-write chokepoint; T10 outbox-retry-policies home.
+- C2 pinned (reported, not fixed): a raw vendor-prefixed token under an innocent config key (e.g. header.value) is not caught by shape.
+- core.forms.autoPull is writable by the assistant without a card (low: changes no destination).
+- Plugins run in-process: a delivery plugin calling globalThis.fetch bypasses the host-bound kit (needs a sandbox).
+- A copied DB carries pending delivery jobs; source + copy running together can both deliver (pre-existing for all outbox jobs).
+- C3: a late success after a timeout cap-seal stays `failed` (no re-delivery).
+- P5: admin bindings/status UI; email durable jobs; manual retry action.
