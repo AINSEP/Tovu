@@ -181,7 +181,8 @@ The earlier CANCELLED section records the previous run; this section records the
    lookup: TOVU_<FULL_PLUGIN_ID>_OAUTH_<WEB|DESKTOP>_CLIENT_<ID|SECRET>. Hyphens map to `_`, dots
    to `__` to avoid id collisions. Prefix matching alone was rejected because a shorter plugin
    could then name a longer plugin's secret. Google/Acme declarations, env fixtures and docs now
-   use GOOGLE_WORKSPACE/ACME_OFFICE. Operators must rename old abbreviated settings; no fallback.
+   use GOOGLE_WORKSPACE/ACME_OFFICE. Google settings were never configured; provision the new full
+   names when enabling the plugin, with no fallback.
    T6: public static surface files use the existing rate-limit factory/IP resolver/http-kit owner,
    before contribution lookup or file reads. Profile: 240 + 60 burst per IP per 60 seconds, one
    instance per route registration/process; denied calls return 429 + Retry-After + no-store.
@@ -236,6 +237,7 @@ The earlier CANCELLED section records the previous run; this section records the
   checks, real browser cookie navigation, desktop gates, and live Sheets metadata checks remain owed.
 - Trusted plugin hooks still run in-process; the client-name allowlist is a host capability boundary,
   not process isolation. Provider access tokens already issued to a frame retain their provider TTL.
+- Documented behavior: the same authenticated actor can redeem an unopened handoff in another browser; browser binding begins when that handoff opens.
 
 ### Reuse decisions
 
@@ -303,3 +305,19 @@ The earlier CANCELLED section records the previous run; this section records the
 - `content/agent-plugins/google-workspace/__tests__/surface-harness.mjs`
 - `content/agent-plugins/google-workspace/__tests__/surfaces.contract.test.mjs`
 - `content/agent-plugins/google-workspace/tovu-connections.json`
+
+## G16 review fixes
+
+- Inputs: the 2026-10-20 `gwreview.md` dispatch and read-only Jini `381583e6`; Programmer and Security personas loaded. Scope is the four requested review items only.
+- 1 — Done in source: reassignment carries each binding's `enabled` value through the existing destination reader/writer. Normal explicit destination saves still default to enabled. Added mixed enabled/disabled reassignment and explicit-save compatibility tests in `surfaces.contract.test.mjs`.
+- 2 — Done in source: inspected Jini's plugin tool/surface token capabilities, API-connection access-token service and OAuth refresher. None exposes plugin force-refresh/invalidation. A 401 retries only with a different token; an unchanged cached token requires reconnect, including after an intervening host quota wait. No Jini changes.
+- T8 tests: replaced the artificial two-token case with Jini's real `createTokenRefresher` and a fixed clock outside its refresh window (read and write cases). Retained successful refreshed-write and persistent second-401 coverage using a clock that makes refresh due; added quota-wait/cached-token coverage. Updated Sheets and form-delivery contract expectations to forbid resending the cached token and appending a row.
+- 3 — Done: repaired the issued-sign-in test fixture to a 43-character handoff id; the malformed extra-path case remains. Production path validation is unchanged.
+- 4 — Done: all repository references found for the abbreviated Google OAuth setting names now use `TOVU_GOOGLE_WORKSPACE_OAUTH_*`. Corrected README/progress provisioning advice: the old names were never configured; no fallback added. Updated the G15 document's example too.
+- Added the same-actor/unopened-handoff behavior line to G16 finish above; no handoff behavior changed.
+- Reuse: destination state; searched plugin destination save/read/reassignment and Jini delivery-binding contracts; extended `readFormDestinations`/`saveFormDestination`, preserving Jini's binding-store ownership. Reuse: 401 handling; traced tools, surfaces and delivery through the shared `createGoogleClient` and Jini token service/refresher; retained that single HTTP policy owner and its safe error/backoff implementations.
+- Regression reasoning (static, not executed): old reassignment turns the disabled binding on; old cached-token tests send two requests; old quota-wait path resends the rejected token; old form-delivery case delivers a row; old short handoff fixture is discarded. Explicit-save and refreshed-token cases protect behavior that must remain supported.
+- Static architecture/security review: no new dependency, generic platform module, persistence format, token logging, `as any`, empty options parameter or weakened security pin. Existing rationale comments were retained and updated with the behavior. Chapters 13/14 and GOV-ADR-001 read from the main checkout because absent here; no ownership/boundary change or new gated-mutation owner.
+- Function assessment: destination projection/save/move and HTTP attempt/retry/request retain direct test seams and bounded existing I/O; no remaining finding recorded by source review. Execution/coverage disposition is INCONCLUSIVE because this dispatch forbids running tests, tsc, builds, installs and runtime checks. Naming/error/disabled-state/quota-wait paths were rechecked statically; no claim of passing tests.
+- Validation: `git diff --check` clean; fresh repository search found no abbreviated Google OAuth setting references. No prohibited commands, Git mutations or long-running processes; Jini clone remained read-only.
+- Files changed (complete list): `.cloud-coord/google-workspace-G15-tovu.md`; `.cloud-coord/google-workspace-progress.md`; `apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts`; `content/agent-plugins/google-workspace/README.md`; `content/agent-plugins/google-workspace/__tests__/form-delivery.contract.test.mjs`; `content/agent-plugins/google-workspace/__tests__/google-client.unit.test.mjs`; `content/agent-plugins/google-workspace/__tests__/sheets.contract.test.mjs`; `content/agent-plugins/google-workspace/__tests__/surfaces.contract.test.mjs`; `content/agent-plugins/google-workspace/lib/form-destination-settings.mjs`; `content/agent-plugins/google-workspace/lib/http.mjs`; `content/agent-plugins/google-workspace/ui/connection-panel.handler.mjs`.

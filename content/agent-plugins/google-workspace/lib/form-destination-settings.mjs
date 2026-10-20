@@ -29,14 +29,14 @@ function destinationOf(binding, formSlug) {
   const { spreadsheetId, accountId, tabs, title, tabTitle } = binding.config;
   const sheetId = tabs?.[formSlug]?.sheetId;
   const valid = typeof spreadsheetId === 'string' && typeof accountId === 'string' && Number.isInteger(sheetId) && typeof title === 'string' && typeof tabTitle === 'string';
-  return valid ? { bindingId: binding.bindingId, spreadsheetId, title, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, sheetId, tabTitle, accountId } : null;
+  return valid ? { bindingId: binding.bindingId, enabled: binding.enabled, spreadsheetId, title, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, sheetId, tabTitle, accountId } : null;
 }
 
 /**
  * The saved destinations, keyed by form slug: this plugin's Sheets bindings that name one form;
  * any other binding of the adapter is left out (and left alone).
- * @param {{ deliveryBindings: { list(): Promise<readonly { bindingId: string, adapterId: string, formIds?: readonly string[], config: Record<string, unknown> }[]> } }} required
- * @returns {Promise<Record<string, { bindingId: string, spreadsheetId: string, title: string, url: string, sheetId: number, tabTitle: string, accountId: string }>>}
+ * @param {{ deliveryBindings: { list(): Promise<readonly { bindingId: string, enabled: boolean, adapterId: string, formIds?: readonly string[], config: Record<string, unknown> }[]> } }} required
+ * @returns {Promise<Record<string, { bindingId: string, enabled: boolean, spreadsheetId: string, title: string, url: string, sheetId: number, tabTitle: string, accountId: string }>>}
  * @complexity O(b), one host read.
  */
 export async function readFormDestinations(required, _optional = {}) {
@@ -54,14 +54,15 @@ export async function readFormDestinations(required, _optional = {}) {
  * delivery job and refuses a job once the connection holds another account (an account switch never
  * silently moves where rows go).
  * @param {{ deliveryBindings: { save(draft: object): Promise<object> }, formSlug: string, destination: { spreadsheetId: string, title: string, sheetId: number, tabTitle: string, accountId: string } }} required
- * @param {{ bindingId?: string }} [optional] The form's existing binding, replaced in place.
+ * @param {{ bindingId?: string, enabled?: boolean }} [optional] The existing binding id and enabled
+ *   state for reassignment; normal destination saves enable delivery by default.
  * @complexity O(1), one host write.
  */
 export async function saveFormDestination(required, optional = {}) {
   const { formSlug, destination } = required;
   await required.deliveryBindings.save({
     ...(optional.bindingId === undefined ? {} : { bindingId: optional.bindingId }),
-    adapterId: SHEETS_ADAPTER_ID, connectionId: CONNECTION_ID, enabled: true, formIds: [formSlug],
+    adapterId: SHEETS_ADAPTER_ID, connectionId: CONNECTION_ID, enabled: optional.enabled ?? true, formIds: [formSlug],
     config: {
       spreadsheetId: destination.spreadsheetId, accountId: destination.accountId, tabs: { [formSlug]: { sheetId: destination.sheetId } },
       title: destination.title, tabTitle: destination.tabTitle,

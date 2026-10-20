@@ -207,10 +207,10 @@ test("issued sign-ins: only links recorded inside a collection, only https, and 
 
 test("issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not", async () => {
   const signIns = createIssuedSignInCollector();
-  const hostLink = { authorizationUrl: "http://127.0.0.1:3000/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/abc", expiresAt: "2026-10-20T10:10:00.000Z" };
+  const hostLink = { authorizationUrl: `http://127.0.0.1:3000/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/${"a".repeat(43)}`, expiresAt: "2026-10-20T10:10:00.000Z" };
   const collected = await signIns.collect({ run: async () => {
     signIns.record(hostLink);
-    signIns.record({ authorizationUrl: "http://127.0.0.1:3000/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/abc/extra", expiresAt: "x" });
+    signIns.record({ authorizationUrl: `${hostLink.authorizationUrl}/extra`, expiresAt: "x" });
     signIns.record({ authorizationUrl: "not a url", expiresAt: "x" });
     return 0;
   } });

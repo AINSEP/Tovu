@@ -372,14 +372,15 @@ test('failure mapping: a refused append (400) is mapping-invalid and is not re-s
   assert.equal(sheetsRequests().filter((request) => request.method === 'GET' && request.path === PREFIX).length, 1);
 });
 
-test('a single 401 is retried once with a freshly read token and the row is delivered', async () => {
+test('a 401 with an unchanged cached token requires authorization and appends no row', async () => {
   const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
   sheets.failNext = { status: 401 };
   let reads = 0;
   const credential = { baseUrl: '', getAccessToken: async () => { reads += 1; return TOKEN; } };
-  assert.equal((await deliver({ ...job(), credential })).ok, true);
-  assert.equal(appends().length, 1);
-  assert.equal(reads, sheetsRequests().length);
+  assert.deepEqual(await deliver({ ...job(), credential }), { ok: false, error: { code: 'authorization-required', retryable: false, outcome: 'not-applied' } });
+  assert.equal(appends().length, 0);
+  assert.equal(reads, 2);
+  assert.equal(sheetsRequests().length, 1);
 });
 
 test('OAuth credential: a host credential with getAccessToken is asked for a fresh token before every Google request', async () => {

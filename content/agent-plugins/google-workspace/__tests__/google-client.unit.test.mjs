@@ -11,6 +11,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { createTokenRefresher } from '@jini-ai/oauth';
+
 import { createHooks } from '../lib/auth.mjs';
 import { readAccount } from '../lib/drive-files.mjs';
 import { createGoogleClient } from '../lib/http.mjs';
@@ -52,26 +54,70 @@ function scripted(required, optional = {}) {
 const read = (client, optional = {}) => client.request({ connectionRef: 'conn-1', url: URL_UNDER_TEST, kind: 'read' }, optional);
 const write = (client) => client.request({ connectionRef: 'conn-1', url: URL_UNDER_TEST, method: 'POST', kind: 'write', body: { a: 1 } });
 
-test('client: a single 401 is sent again at once with a freshly read token, then succeeds', async () => {
-  const tokens = ['expired-in-flight', 'fresh'];
-  const fetches = [];
-  const http = { async fetch(target, init) { fetches.push(init.headers.authorization); return new Response(fetches.length === 1 ? '' : '{"ok":true}', { status: fetches.length === 1 ? 401 : 200 }); } };
+/** Jini's real freshness policy over an in-memory token store and an injected clock. */
+function cachedConnection(required) {
+  let stored = { accessToken: TOKEN, refreshToken: 'fake-refresh', tokenType: 'Bearer', scopes: [], expiresAt: '2026-10-20T10:30:00.000Z' };
+  const calls = { reads: 0, refreshes: 0 };
+  const refresher = createTokenRefresher({
+    clock: required.clock,
+    sleep: async () => { throw new Error('no refresh lease wait expected'); },
+    port: {
+      async load({ key }) { assert.equal(key, 'conn-1'); calls.reads += 1; return stored; },
+      async persist({ tokens }) { stored = tokens; },
+      async markNeedsReauth() { throw new Error('no rejected refresh expected'); },
+      async refresh() { calls.refreshes += 1; return { ...stored, accessToken: `${TOKEN}-refreshed`, expiresAt: '2026-10-20T12:00:00.000Z' }; },
+    },
+  });
+  return { calls, connections: { getAccessToken: ({ connectionRef }) => refresher.getAccessToken({ key: connectionRef }) } };
+}
+
+for (const [kind, invoke] of [['read', read], ['write', write]]) {
+  test(`client: a 401 on a ${kind} with Jini's cached token requires reconnect without resending it`, async () => {
+    // A corrected host clock can still put Google's rejected token outside Jini's refresh window.
+    const cached = cachedConnection({ clock: { nowMs: () => Date.parse('2026-10-20T10:00:00.000Z') } });
+    const fetches = [];
+    const sleeps = [];
+    const http = { async fetch(target, init) { fetches.push(init.headers.authorization); return new Response('', { status: 401 }); } };
+    const client = createGoogleClient({ http, connections: cached.connections }, { sleep: async (ms) => { sleeps.push(ms); } });
+    await assert.rejects(invoke(client), { code: 'reconnect-required', outcome: 'not-applied', retryable: false });
+    assert.deepEqual([cached.calls, fetches, sleeps], [{ reads: 2, refreshes: 0 }, [`Bearer ${TOKEN}`], []]);
+  });
+}
+
+for (const retryStatus of [200, 401]) {
+  test(`client: a 401 on a write retries once after Jini refreshes; HTTP ${retryStatus} ends the retry`, async () => {
+    let nowMs = Date.parse('2026-10-20T10:00:00.000Z');
+    const cached = cachedConnection({ clock: { nowMs: () => nowMs } });
+    const fetches = [];
+    const sleeps = [];
+    const http = { async fetch(target, init) {
+      fetches.push(init.headers.authorization);
+      // Google refused a 401 before acting, so even a write can retry once time makes refresh due.
+      nowMs = Date.parse('2026-10-20T11:00:00.000Z');
+      return new Response('{}', { status: fetches.length === 1 ? 401 : retryStatus });
+    } };
+    const client = createGoogleClient({ http, connections: cached.connections }, { sleep: async (ms) => { sleeps.push(ms); } });
+    if (retryStatus === 200) assert.deepEqual(await write(client), {});
+    else await assert.rejects(write(client), { code: 'reconnect-required', outcome: 'not-applied', retryable: false });
+    assert.deepEqual([cached.calls, fetches, sleeps], [{ reads: 2, refreshes: 1 }, [`Bearer ${TOKEN}`, `Bearer ${TOKEN}-refreshed`], []]);
+  });
+}
+
+test('client: a quota wait after a 401 cannot resend the rejected cached token', async () => {
+  const cached = cachedConnection({ clock: { nowMs: () => Date.parse('2026-10-20T10:00:00.000Z') } });
+  let reads = 0;
+  let fetches = 0;
   const sleeps = [];
-  const client = createGoogleClient({ http, connections: { getAccessToken: async () => tokens.shift() } }, { sleep: async (ms) => { sleeps.push(ms); } });
-  assert.deepEqual(await read(client), { ok: true });
-  assert.deepEqual([fetches, sleeps], [['Bearer expired-in-flight', 'Bearer fresh'], []]);
-});
-
-test('client: a 401 on a write is sent again once (Google refused it before acting)', async () => {
-  const { client, fetches } = scripted({ answers: [{ status: 401 }, { status: 200, text: '{}' }] });
-  assert.deepEqual(await write(client), {});
-  assert.equal(fetches.length, 2);
-});
-
-test('client: a second 401 is reconnect-required, not-applied, with no further retry', async () => {
-  const { client, fetches, sleeps } = scripted({ answers: [{ status: 401 }] });
-  await assert.rejects(read(client), (error) => error instanceof GoogleWorkspaceError && error.code === 'reconnect-required' && error.outcome === 'not-applied');
-  assert.deepEqual([fetches.length, sleeps], [2, []]);
+  const client = createGoogleClient({
+    connections: { async getAccessToken(input) {
+      reads += 1;
+      if (reads === 2) throw Object.assign(new Error('budget'), { code: 'rate-limited', retryAfterMs: 2000 });
+      return cached.connections.getAccessToken(input);
+    } },
+    http: { async fetch() { fetches += 1; return new Response('', { status: 401 }); } },
+  }, { sleep: async (ms) => { sleeps.push(ms); }, random: () => 0 });
+  await assert.rejects(write(client), { code: 'reconnect-required', outcome: 'not-applied', retryable: false });
+  assert.deepEqual([reads, cached.calls, fetches, sleeps], [3, { reads: 2, refreshes: 0 }, 1, [2000]]);
 });
 
 test('client: an empty 2xx body resolves to null', async () => {

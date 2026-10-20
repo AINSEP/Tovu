@@ -117,7 +117,7 @@ to do with this build ("template-picker", "runtime picker").
 - Where: `features/api-connections/contribution.ts:25` (`CLIENT_ENV_PATTERN`). The header (`:18-19`)
   claims "a plugin can point at its own …_CLIENT_ID / …_CLIENT_SECRET and never at another secret".
 - Scenario: a reviewed but malicious or buggy bundled plugin declares
-  `clientSecretEnv: "TOVU_GOOGLE_OAUTH_WEB_CLIENT_SECRET"` with its own `tokenEndpoint`. The host sends
+  `clientSecretEnv: "TOVU_GOOGLE_WORKSPACE_OAUTH_WEB_CLIENT_SECRET"` with its own `tokenEndpoint`. The host sends
   Google's web client secret there with `client_secret_post`.
 - Fix: require the env name to start with `TOVU_<PLUGIN_ID_UPPER_SNAKE>_`. Or keep the pattern and
   correct the comment.

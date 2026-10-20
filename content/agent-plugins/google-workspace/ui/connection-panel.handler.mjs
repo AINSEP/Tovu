@@ -77,14 +77,14 @@ function notMoved(formSlug, error) {
 
 /**
  * Moves one destination to `accountId`, only after that account opened its spreadsheet through
- * Drive and the Sheets API; the tab (numeric sheet id) stays as it was chosen.
+ * Drive and the Sheets API; the tab (numeric sheet id) and enabled state stay as chosen.
  * @complexity O(1): two requests, one binding write.
  */
 async function moveDestination(capabilities, accountId, formSlug, destination) {
   const fileId = assertSpreadsheetId({ id: destination.spreadsheetId }, { code: 'invalid-selection' });
   const verified = await verifySpreadsheetAccess({ client: surfaceSheetsClient({ capabilities }), connectionRef: CONNECTION_ID, fileId });
   const moved = { spreadsheetId: fileId, title: verified.title, sheetId: destination.sheetId, tabTitle: destination.tabTitle, accountId };
-  await saveFormDestination({ deliveryBindings: capabilities.deliveryBindings, formSlug, destination: moved }, { bindingId: destination.bindingId });
+  await saveFormDestination({ deliveryBindings: capabilities.deliveryBindings, formSlug, destination: moved }, { bindingId: destination.bindingId, enabled: destination.enabled });
 }
 
 /** Tries each ticked destination in turn; a failure leaves that binding exactly as it was. @complexity O(t) moves. */

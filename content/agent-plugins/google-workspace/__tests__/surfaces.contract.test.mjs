@@ -83,6 +83,18 @@ test('connection: a destination ticked twice is moved once', async () => {
   assert.deepEqual(outcome.result.reassignment, { moved: ['contact'], failed: [] });
 });
 
+test('connection: reassigning enabled and disabled destinations preserves each binding state', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact'), { ...destinationBinding('signup'), enabled: false });
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['signup', 'contact'] });
+  assert.deepEqual(outcome.result.reassignment, { moved: ['signup', 'contact'], failed: [] });
+  assert.deepEqual(ports.bindings.map((binding) => [binding.bindingId, binding.config.accountId, binding.enabled]), [
+    ['binding-contact', 'perm-bob', true], ['binding-signup', 'perm-bob', false],
+  ]);
+});
+
 test('connection: a ticked destination the new account cannot open is listed with the plugin message and left unchanged', async () => {
   serveGoogle(fake, { accountId: 'perm-bob', fileStatus: 404 });
   const { ports, surfaces } = await boot();
@@ -270,6 +282,15 @@ test('destinations: at the ceiling, a form that already has a destination can st
   // The form's existing binding is replaced in place (same id), not added beside it.
   assert.equal(ports.bindings.length, MAX_FORM_DESTINATIONS);
   assert.deepEqual(ports.bindings[3], { ...destinationBinding('form-3', { sheetId: 0, tabTitle: 'Sheet1' }) });
+});
+
+test('destinations: explicitly saving a disabled destination still enables its existing binding', async () => {
+  serveGoogle(fake);
+  const { ports, surfaces } = await boot();
+  ports.bindings.push({ ...destinationBinding('contact'), enabled: false });
+  const outcome = await surfaces.dispatch('form-destinations', 'save-destination', { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 7, confirmExternalRows: true });
+  assert.equal(outcome.ok, true);
+  assert.deepEqual(ports.bindings, [destinationBinding('contact')]);
 });
 
 test('destinations: list-tabs keeps grid tabs only (a tab with no type counts as a grid) and gives an untitled tab an empty title', async () => {

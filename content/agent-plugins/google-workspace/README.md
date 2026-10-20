@@ -48,8 +48,8 @@ digest at seed time, which the executable trust gate checks before any module lo
   retried; reads and idempotent writes retry with jittered backoff that honours Retry-After.
 - Revocation is confirmed only by Google's 200 (or `invalid_token`: already revoked); a failed
   revoke throws `provider-unreachable` or `provider-refused` for the host to record.
-- A 401 is sent once more at once with a freshly read token (an access token can expire in
-  flight); only a second 401 is `reconnect-required`. Tools and form delivery share this.
+- An access token can expire in flight: a 401 gets one more token read and is retried only if the
+  token differs. An unchanged token or second 401 is `reconnect-required`. Tools and form delivery share this.
 - The budgets declared in `tovu-connections.json` (45/min per account, 240/min per instance) are
   charged by the host on every token read; its refusal (`rate-limited`) becomes `quota-delay` with
   the host's `retryAfterMs` and `outcome: 'not-applied'`, and follows the same inline backoff rules
@@ -123,5 +123,5 @@ on `GoogleWorkspaceError` (a request index or kind name, never Google's text or 
 Hosted sign-in asks for consent when Jini has no renewable credential stored (`forceConsentParams`),
 so connecting another workspace can obtain offline access. Renewable same-account reconnects keep
 incremental grants without forcing consent. Client settings now use the full plugin namespace,
-`TOVU_GOOGLE_WORKSPACE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`; rename older
-`TOVU_GOOGLE_OAUTH_…` settings before enabling this build (no fallback).
+`TOVU_GOOGLE_WORKSPACE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`. Provision these settings
+before enabling this build; the earlier abbreviated names were never configured, so no fallback is needed.

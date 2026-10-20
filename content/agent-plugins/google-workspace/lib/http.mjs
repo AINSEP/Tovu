@@ -12,8 +12,8 @@
  *   `outcome`, next action); Google's message text is dropped because it can echo sheet contents;
  * - only retryable failures are retried, with jittered backoff that honours Retry-After, and a
  *   non-idempotent write whose outcome is unknown is never replayed;
- * - a 401 is tried once more at once with a freshly read token (the token can expire between the
- *   host's freshness check and Google's); only a second 401 becomes `reconnect-required`.
+ * - a token can expire between the host's freshness check and Google's: a 401 gets one more token
+ *   read, and is retried only if that token differs; an unchanged token or second 401 requires reconnect.
  * Redirects, HTTPS-only and response-size bounds are enforced by the host's guarded HTTP capability.
  */
 import { GoogleWorkspaceError, backoffMs, capRetryAfterMs, classifyFailure, shouldRetryInline } from './request-policy.mjs';
@@ -116,26 +116,30 @@ export function createGoogleClient(required, optional = {}) {
     }
   }
 
-  async function attemptOnce(request, signal) {
+  /** One token read and at most one request; never resend a rejected token. @complexity O(1) plus response parsing. */
+  async function attemptOnce(request, { signal, rejectedToken }) {
     const { token, error } = await tokenOrRefusal(request.connectionRef);
-    if (error) return { ok: false, error };
+    if (error) return { ok: false, error, rejectedToken };
+    if (token === rejectedToken) return { ok: false, error: new GoogleWorkspaceError({ code: 'reconnect-required' }) };
     let response;
     try {
       response = await http.fetch({ url: buildUrl(request) }, requestInit(request, token, signal));
     } catch (cause) {
       if (signal?.aborted) throw cause;
-      return { ok: false, error: classifyFailure({ kind: request.kind, cause }) };
+      return { ok: false, error: classifyFailure({ kind: request.kind, cause }), rejectedToken };
     }
-    return { ...(await readResponse(response, request.kind)), unauthorized: response.status === 401 };
+    return { ...(await readResponse(response, request.kind)), unauthorized: response.status === 401, rejectedToken: response.status === 401 ? token : rejectedToken };
   }
 
   /**
-   * One attempt, and one more with a fresh token read when Google answered 401. Google refused a
-   * 401 before acting, so even a `write` is safe to send again; a second 401 is final.
+   * One attempt, and one more with a different token when Google answered 401. Google refused a
+   * 401 before acting, so even a `write` is safe to send again; a second 401 is final. Jini exposes
+   * no plugin force-refresh option and can return a cached token, which must not be sent again.
+   * @complexity O(1) attempts, at most two token reads and two requests.
    */
-  async function attemptWithFreshToken(request, signal) {
-    const first = await attemptOnce(request, signal);
-    return first.unauthorized ? attemptOnce(request, signal) : first;
+  async function attemptWithFreshToken(request, { signal, rejectedToken }) {
+    const first = await attemptOnce(request, { signal, rejectedToken });
+    return first.unauthorized ? attemptOnce(request, { signal, rejectedToken: first.rejectedToken }) : first;
   }
 
   return {
@@ -145,8 +149,11 @@ export function createGoogleClient(required, optional = {}) {
      * @param {{ signal?: AbortSignal }} [options]
      */
     async request(request, options = {}) {
+      // A host quota wait must not let a later attempt reuse a token Google already rejected.
+      let rejectedToken;
       for (let attempt = 0; ; attempt += 1) {
-        const result = await attemptWithFreshToken(request, options.signal);
+        const result = await attemptWithFreshToken(request, { signal: options.signal, rejectedToken });
+        rejectedToken = result.rejectedToken;
         if (result.ok) return result.value;
         const delayMs = backoffMs({ attempt, retryAfterMs: result.error.retryAfterMs }, optional.random ? { random: optional.random } : {});
         if (!shouldRetryInline({ error: result.error, attempt, delayMs })) throw result.error;
