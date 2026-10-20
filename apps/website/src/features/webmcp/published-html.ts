@@ -6,6 +6,18 @@ type Node = DefaultTreeAdapterMap['childNode'];
 const SCRIPT_MARKER = 'data-tovu-webmcp-script';
 const FORM_ATTRIBUTES = new Set(['toolname', 'tooldescription', 'toolautosubmit', 'toolparamtitle', 'toolparamdescription']);
 
+function formToolAttributeRanges(
+  { node }: { node: DefaultTreeAdapterMap['element'] },
+  _optional: Record<string, never> = {},
+): { startOffset: number; endOffset: number }[] {
+  const ranges: { startOffset: number; endOffset: number }[] = [];
+  for (const attr of node.attrs) {
+    const range = node.sourceCodeLocation?.attrs?.[attr.name];
+    if (range && FORM_ATTRIBUTES.has(attr.name)) ranges.push(range);
+  }
+  return ranges;
+}
+
 /** Remove only actual HTML attribute ranges. Re-serializing trusted HTML would
  * change scripts, embeds, formatting and template content on every opt-out. */
 function withoutNativeFormTools(html: string): string {
@@ -19,10 +31,7 @@ function withoutNativeFormTools(html: string): string {
       ranges.push(node.sourceCodeLocation);
       continue;
     }
-    for (const attr of node.attrs) {
-      const range = node.sourceCodeLocation?.attrs?.[attr.name];
-      if (range && FORM_ATTRIBUTES.has(attr.name)) ranges.push(range);
-    }
+    ranges.push(...formToolAttributeRanges({ node }));
     stack.push(...node.childNodes);
     if (node.tagName === 'template') stack.push(...(node as DefaultTreeAdapterMap['template']).content.childNodes);
   }
