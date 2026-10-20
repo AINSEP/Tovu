@@ -339,3 +339,71 @@ test("field labels handle empty words, hyphens, camel case and whitespace", () =
   assert.equal(humanizeFieldName(" _-  "), "");
   assert.equal(humanizeFieldName("__prepTime-2Minutes  total__"), "Prep time 2 minutes total");
 });
+
+test("TW2 sort pins: keywords take precedence over identically named declared fields", () => {
+  const contentType = { ...RECIPE_CONTENT_TYPE, fields: [
+    ...RECIPE_CONTENT_TYPE.fields, field("newest", "text"), field("updated", "text"), field("title", "text"),
+  ] };
+  const cases = [
+    ["newest", "published", "desc"], ["oldest", "published", "asc"],
+    ["updated", "updated", "desc"], ["-updated", "updated", "asc"],
+    ["title", "title", "asc"], ["-title", "title", "desc"],
+  ] as const;
+  for (const [sort, by, dir] of cases) {
+    const parsed = parseCollectionListConfig({ sort }, contentType);
+    assert.ok(parsed.ok);
+    assert.deepEqual(parsed.query.sort, { by, dir });
+  }
+});
+
+test("TW2 sort pins: declared fields preserve direction and invalid references preserve the authored error", () => {
+  for (const [sort, dir] of [["serves", "asc"], ["-serves", "desc"]] as const) {
+    const parsed = parseCollectionListConfig({ sort }, RECIPE_CONTENT_TYPE);
+    assert.ok(parsed.ok);
+    assert.deepEqual(parsed.query.sort, { by: { field: "serves" }, dir });
+  }
+  for (const sort of ["-", "unknown", "-unknown", "-oldest", "constructor", "toString", " serves "]) {
+    assert.deepEqual(parseCollectionListConfig({ sort }, RECIPE_CONTENT_TYPE), {
+      ok: false, reason: `unknown field in sort: "${sort}"`,
+    });
+  }
+});
+
+test("TW2 sort pins: missing, empty and non-string sorts honor defaults and authored strings are never trimmed", () => {
+  for (const sort of [undefined, "", null, false, 0, [], {}]) {
+    const marker = parseCollectionListConfig({ sort }, RECIPE_CONTENT_TYPE);
+    assert.ok(marker.ok);
+    assert.deepEqual(marker.query.sort, { by: "published", dir: "desc" });
+    const widget = parseCollectionListConfig({ sort }, RECIPE_CONTENT_TYPE, { defaultSort: "updated" });
+    assert.ok(widget.ok);
+    assert.deepEqual(widget.query.sort, { by: "updated", dir: "desc" });
+  }
+  assert.deepEqual(parseCollectionListConfig({ sort: " " }, RECIPE_CONTENT_TYPE, { defaultSort: "title" }), {
+    ok: false, reason: 'unknown field in sort: " "',
+  });
+  assert.deepEqual(parseCollectionListConfig({}, RECIPE_CONTENT_TYPE, { defaultSort: "" }), {
+    ok: false, reason: 'unknown field in sort: ""',
+  });
+  const authored = parseCollectionListConfig({ sort: "-serves" }, RECIPE_CONTENT_TYPE, { defaultSort: "unknown" });
+  assert.ok(authored.ok);
+  assert.deepEqual(authored.query.sort, { by: { field: "serves" }, dir: "desc" });
+});
+
+test("TW2 parser pins: rejection precedence remains system, tombstone, where, sort, fields", () => {
+  const invalid = { where: { nope: 1 }, sort: "unknown", fields: ["missing"] };
+  assert.deepEqual(parseCollectionListConfig(invalid, { ...TOMBSTONED_CONTENT_TYPE, key: "widget" }), {
+    ok: false, reason: 'system content type: "widget"',
+  });
+  assert.deepEqual(parseCollectionListConfig(invalid, TOMBSTONED_CONTENT_TYPE), {
+    ok: false, reason: 'content type is tombstoned: "old_recipe"',
+  });
+  assert.deepEqual(parseCollectionListConfig(invalid, RECIPE_CONTENT_TYPE), {
+    ok: false, reason: 'unknown field in where: "nope"',
+  });
+  assert.deepEqual(parseCollectionListConfig({ ...invalid, where: null }, RECIPE_CONTENT_TYPE), {
+    ok: false, reason: 'unknown field in sort: "unknown"',
+  });
+  assert.deepEqual(parseCollectionListConfig({ ...invalid, where: null, sort: "newest" }, RECIPE_CONTENT_TYPE), {
+    ok: false, reason: 'unknown field in fields: "missing"',
+  });
+});

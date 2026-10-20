@@ -231,16 +231,32 @@ function parseSortSpec(
       return { ok: true, value: { by: "title", dir: "asc" } };
     case "-title":
       return { ok: true, value: { by: "title", dir: "desc" } };
-    default: {
-      const descending = spec.startsWith("-");
-      const fieldName = descending ? spec.slice(1) : spec;
-      const known = fieldName.length > 0 && contentType.fields.some((f) => f.name === fieldName);
-      if (!known) {
-        return { ok: false, reason: `unknown field in sort: "${spec}"` };
-      }
-      return { ok: true, value: { by: { field: fieldName }, dir: descending ? "desc" : "asc" } };
-    }
+    default:
+      return parseFieldSortSpec({ spec, contentType });
   }
+}
+
+/** Validates the field-reference branch after built-in sort keywords have been resolved. */
+function parseFieldSortSpec(
+  { spec, contentType }: { readonly spec: string; readonly contentType: ContentTypeRecord },
+  _options: Record<string, never> = {},
+): SubParseResult<CollectionListQuery["sort"]> {
+  const descending = spec.startsWith("-");
+  const fieldName = descending ? spec.slice(1) : spec;
+  const known = fieldName.length > 0 && contentType.fields.some((f) => f.name === fieldName);
+  if (!known) {
+    return { ok: false, reason: `unknown field in sort: "${spec}"` };
+  }
+  return { ok: true, value: { by: { field: fieldName }, dir: descending ? "desc" : "asc" } };
+}
+
+/** Resolves marker/widget sort defaults before applying the shared grammar. */
+function parseConfiguredSort(
+  { raw, contentType }: { readonly raw: Record<string, unknown>; readonly contentType: ContentTypeRecord },
+  options: Pick<ParseCollectionListConfigOptions, "defaultSort"> = {},
+): SubParseResult<CollectionListQuery["sort"]> {
+  const spec = typeof raw.sort === "string" && raw.sort.length > 0 ? raw.sort : options.defaultSort ?? DEFAULT_COLLECTION_LIST_SORT;
+  return parseSortSpec(spec, contentType);
 }
 
 /** Resolves which fields a card/list item displays. An authored `fields` array (of field names)
@@ -307,8 +323,7 @@ export function parseCollectionListConfig(
     return whereResult;
   }
 
-  const sortSpec = typeof raw.sort === "string" && raw.sort.length > 0 ? raw.sort : options.defaultSort ?? DEFAULT_COLLECTION_LIST_SORT;
-  const sortResult = parseSortSpec(sortSpec, contentType);
+  const sortResult = parseConfiguredSort({ raw, contentType }, options);
   if (!sortResult.ok) {
     return sortResult;
   }
