@@ -7,6 +7,7 @@ import { createSiteConsentStore } from '../revisions.repo.js';
 import { SiteConsentConflict } from '../revisions.js';
 import { parseConsentConfig, consentConfigProblems } from '../validation.js';
 import { consentFixture } from './fixture.js';
+import { SITE_CONSENT_DEFAULTS } from '../config.js';
 
 test('draft saves preserve published enforcement; stale editors and stale publication are refused', async t => {
   const f = consentFixture({ t });
@@ -89,7 +90,57 @@ for (const patch of [ { enabled: 'yes' }, { categories: ['necessary'] }, { custo
     assert.throws(() => parseConsentConfig({ value: { ...consentFixtureDefaults, ...patch } }));
   });
 }
-const consentFixtureDefaults = { enabled: true, privacyPolicyUrl: '/privacy' };
+const consentFixtureDefaults = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' };
+
+for (const field of Object.keys(SITE_CONSENT_DEFAULTS)) {
+  test(`full configuration requires an explicit ${field}`, () => {
+    const incomplete: Record<string, unknown> = { ...consentFixtureDefaults };
+    delete incomplete[field];
+    assert.throws(() => parseConsentConfig({ value: incomplete }), new RegExp(`Invalid consent field: ${field}`));
+  });
+}
+
+test('a copy-only save cannot silently disable consent or move a draft head', async t => {
+  const f = consentFixture({ t });
+  const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  await f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null });
+  const before = await f.store.read({});
+  await assert.rejects(f.service.saveDraft({ principalId: 'owner', config: { title: 'Edited title' }, expectedDraftId: saved.revision.id }), /Invalid consent field: enabled/);
+  assert.deepEqual(await f.store.read({}), before);
+});
+
+test('persisted policies missing enabled are rejected by reads, publication and deployment', async t => {
+  const f = consentFixture({ t });
+  const { enabled: _enabled, ...incomplete } = f.config;
+  const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  await contentKernel(f.db).execute(sql`UPDATE site_consent_revisions SET config_json = ${JSON.stringify(incomplete)} WHERE id = ${saved.revision.id}`);
+  await assert.rejects(f.service.publish({ principalId: 'owner', draftId: saved.revision.id, expectedPublishedId: null }), /Invalid consent field: enabled/);
+  await f.store.publish({ draftId: saved.revision.id, expectedPublishedId: null });
+  await assert.rejects(f.service.read({ principalId: 'owner' }), /Invalid consent field: enabled/);
+  assert.equal((await f.service.deploymentCheck({ principalId: 'owner', permission: 'system.publish' }))?.blockingProblems[0]?.code, 'CONSENT_UNAVAILABLE');
+});
+
+test('readiness requires writable receipt storage and reports its count without leaking storage errors', async t => {
+  const f = consentFixture({ t });
+  f.ports.receiptStorage = async () => ({ writable: true, count: 7 });
+  const healthy = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.equal(healthy.ready, true);
+  assert.deepEqual(healthy.receipts, { writable: true, count: 7 });
+  f.ports.receiptStorage = async () => ({ writable: false, count: 7 });
+  const denied = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.equal(denied.ready, false);
+  assert.ok(denied.blockingProblems.some(problem => problem.code === 'RECEIPT_STORAGE_UNAVAILABLE'));
+  f.ports.receiptStorage = async () => ({ writable: true, count: null });
+  assert.equal((await f.service.readiness({ principalId: 'owner', config: f.config })).ready, false);
+  f.ports.receiptStorage = async () => { throw new Error('private receipt directory'); };
+  const failed = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.equal(failed.ready, false);
+  assert.deepEqual(failed.receipts, { writable: false, count: null });
+  assert.ok(failed.blockingProblems.some(problem => problem.code === 'RECEIPT_STORAGE_UNAVAILABLE'));
+  assert.ok(!JSON.stringify(failed).includes('private receipt directory'));
+  f.ports.renderPage = async () => { throw new Error('render failed'); };
+  assert.deepEqual((await f.service.readiness({ principalId: 'owner', config: f.config })).receipts, { writable: false, count: null });
+});
 
 test('Jini validators reject credential links, untrusted auto mode and unreadable custom colors', () => {
   const config = parseConsentConfig({ value: { ...consentFixtureDefaults, privacyPolicyUrl: 'https://user:pass@example.com/privacy', regionMode: 'auto', appearance: { backgroundColor: '#fff', textColor: '#fff' } } });

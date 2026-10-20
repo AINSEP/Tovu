@@ -22,6 +22,7 @@ export function consentFixture({ t }: { t: TestContext }, _options = {}) {
     trustedRegion: false, readLegacy: async () => ({ ...SITE_CONSENT_DEFAULTS }), privacyPageExists: async () => true,
     renderPage: async () => ({ html: '<!doctype html><html><head></head><body><script src="https://tracker.example/pixel.js?secret=redact"></script><script>window.optional=1</script><button onclick="window.clicked=1">Click</button></body></html>', ok: true, truncated: false }),
     necessaryScripts: [],
+    receiptStorage: async () => ({ writable: true, count: 0 }),
   };
   const service = createSiteConsentService({ ports });
   return { db, store, ports, service, config, calls, deny: () => { allowed = false; } };

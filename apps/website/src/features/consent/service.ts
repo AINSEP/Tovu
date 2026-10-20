@@ -1,5 +1,6 @@
 /** @file Shared site consent use cases for HTTP and assistant adapters. */
 import type { ConsentConfig } from '@jini-ai/cms/consent';
+import type { ConsentReceiptStorageHealth } from '@jini-ai/cms/consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { ToolInputError } from '@jini-ai/core';
 import type { AuthorizeFn } from '#src/contracts/core/commands/index';
@@ -23,12 +24,14 @@ export interface ConsentServicePorts {
   privacyPageExists(required: { url: string }, optional?: Record<string, never>): Promise<boolean>;
   renderPage(required: { path: string }, optional?: Record<string, never>): Promise<{ html: string; ok: boolean; truncated: boolean }>;
   necessaryScripts: readonly { content: string }[];
+  /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
+  receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
 }
 
 /** Creates one workspace's adapters over the engine and durable policy store.
  * Authorization remains in each operation so direct/tool callers cannot bypass the HTTP guard.
  * @example createSiteConsentService({ ports })
- * @complexity Fixed repository operations; readiness renders one bounded page, never executes JS. */
+ * @complexity Fixed repository operations; readiness scans receipt filenames and renders one bounded page, never executes JS. */
 export function createSiteConsentService({ ports }: { ports: ConsentServicePorts }, _options = {}) {
   /** Deny before touching readiness, configuration or rendered content. */
   const authorize = async ({ principalId, write = false }: { principalId: string; write?: boolean }, _optional = {}) => {
@@ -55,22 +58,27 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
     return found;
   };
-  /** One local page sample; render failure/truncation must be visible as blocking problems. */
+  /** Readiness needs writable proof storage as well as a safe local page sample.
+   * Storage errors expose no private paths; render failure/truncation also blocks readiness. */
   const readiness = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
     const config = proposed === undefined ? parseConsentConfig({ value: state.draft?.config ?? state.effective }) : parseConsentConfig({ value: proposed });
     path = consentPagePath({ path });
     const blockingProblems = await problems({ config: { ...config, enabled: true } });
+    let receipts: ConsentReceiptStorageHealth;
+    try { receipts = await ports.receiptStorage({}); }
+    catch { receipts = { writable: false, count: null }; }
+    if (!receipts.writable || receipts.count === null) blockingProblems.push({ code: 'RECEIPT_STORAGE_UNAVAILABLE', message: 'Consent receipt storage is unavailable or not writable. Visitor choices cannot be saved reliably.' });
     try {
       const page = await ports.renderPage({ path });
       if (!page.ok || page.truncated) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
       const dryRun = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts });
       blockingProblems.push(...dryRun.problems);
-      return { ready: blockingProblems.length === 0, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated, blockingProblems,
+      return { ready: blockingProblems.length === 0, receipts, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated, blockingProblems,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
     } catch {
       blockingProblems.push({ code: 'RENDER_FAILED', message: 'The page could not be rendered safely. Readiness cannot be established.' });
-      return { ready: false, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), detected: [], truncated: false, blockingProblems, limitations: ['Rendered evidence unavailable.'] };
+      return { ready: false, receipts, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), detected: [], truncated: false, blockingProblems, limitations: ['Rendered evidence unavailable.'] };
     }
   };
   /** Render the real gated page into an inert iframe document for the separate admin UI.

@@ -7,17 +7,18 @@ import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MOD
 export type ConsentProblem = { code: string; message: string; field?: string };
 const FIELDS = [...Object.keys(SITE_CONSENT_DEFAULTS), 'appearance', 'customCss'];
 
-/** Strict full configuration input; unknown fields and type mismatches never reach persistence.
+/** Strict full configuration input; every host field is explicit, including the on/off choice.
+ * Missing fields, unknown fields and type mismatches never reach persistence.
  * Appearance values remain untrusted until Jini compiles them. O(n), n <= 32 KiB.
  * @example parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, message: 'Our cookie policy.' } }) */
 export function parseConsentConfig({ value }: { value: unknown }, _options = {}): ConsentConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ToolInputError({ message: 'config must be a JSON object.' });
   const raw = value as Record<string, unknown>;
   if (Object.keys(raw).some(key => !FIELDS.includes(key))) throw new ToolInputError({ message: 'Unknown consent configuration field. Categories are fixed by the consent engine.' });
-  const config = { ...SITE_CONSENT_DEFAULTS, ...raw };
   for (const [key, fallback] of Object.entries(SITE_CONSENT_DEFAULTS)) {
-    if (typeof config[key as keyof typeof config] !== typeof fallback) throw new ToolInputError({ message: `Invalid consent field: ${key}.` });
+    if (!Object.prototype.hasOwnProperty.call(raw, key) || typeof raw[key] !== typeof fallback) throw new ToolInputError({ message: `Invalid consent field: ${key}.` });
   }
+  const config = { ...raw } as SiteConsentSettings;
   validateConsentCopy({ config });
   validateConsentAppearanceShape({ raw });
   if (JSON.stringify(config).length > 32_768) throw new ToolInputError({ message: 'Consent configuration exceeds 32 KiB.' });
