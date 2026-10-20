@@ -32,13 +32,13 @@ function ctxFor(signal: AbortSignal = new AbortController().signal): ToolExecuti
   return { executionId: "exec-1", principal: { id: "admin-1" }, run: { id: "run-1" }, input: { pluginId: PLUGIN }, signal };
 }
 
-/** Route deps for a plugin with no MCP servers, connecting through `apiConnections` when given. The
+/** Route deps for a plugin with no MCP servers, connecting through `apiConnections` when given (`null` wait: the tool's built-in defaults). The
  *  external-MCP store is real but stays empty: this branch never provisions an MCP row. */
-function depsFor(apiConnections: AgentPluginConnectToolDeps["apiConnections"], waitTimeoutMs = 5_000): AgentPluginConnectToolDeps {
+function depsFor(apiConnections: AgentPluginConnectToolDeps["apiConnections"], waitTimeoutMs: number | null = 5_000): AgentPluginConnectToolDeps {
   const keyring = new InMemoryKeyring();
   return testSiteLayoutContext({
     workspaceId: WORKSPACE, clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() },
-    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), authorize: async () => ({ allowed: true, reason: "test" }), pollIntervalMs: 5, waitTimeoutMs,
+    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), authorize: async () => ({ allowed: true, reason: "test" }), ...(waitTimeoutMs === null ? {} : { pollIntervalMs: 5, waitTimeoutMs }),
     resolveInstalledPlugin: async () => ({ servers: {} }), ...(apiConnections ? { apiConnections } : {}),
   });
 }
@@ -172,4 +172,15 @@ test("aborting closes the card at once, even while a status read is still in fli
   });
   assert.equal(closedAtAbort, 1, "the card closed on the abort itself, not when the pending read returned");
   assert.equal(result.status, "waiting-for-sign-in");
+});
+
+test("with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect", async () => {
+  const composition = await compose();
+  mountCallback(composition);
+  let shown = 0;
+  const result = await runAgentPluginConnect(depsFor(composition.apiConnections, null), surfaces(), ctxFor(), PLUGIN, {
+    // The "browser" finishes before the first status read, so the default interval is never slept.
+    emitSurface: async (emission) => { if (shown++ === 0) assert.equal((await fetch(consentRedirect(signInUrlOf(htmlOf(emission))))).status, 200); },
+  });
+  assert.equal(result.status, "connected");
 });
