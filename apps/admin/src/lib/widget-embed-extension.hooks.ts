@@ -86,41 +86,11 @@ export interface WidgetEmbedNodeViewController {
  * @complexity O(1) per render; one `api.getWidget` call per `widgetEntryId` change.
  */
 export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeViewController {
-  const widgetEntryId = String(props.node.attrs.widgetEntryId ?? "");
-  const placementId = String(props.node.attrs.placementId ?? "");
-  const cssClass = (props.node.attrs.cssClass as string | null | undefined) ?? null;
-  const htmlAttributes = (props.node.attrs.htmlAttributes as string | null | undefined) ?? null;
-  const [widget, setWidget] = useState<AdminWidget | null | undefined>(undefined);
-  const [isBroken, setIsBroken] = useState(false);
+  const { widgetEntryId, placementId, cssClass, htmlAttributes } = widgetEmbedAttrs(props.node.attrs);
+  const { widget, isBroken } = useResolvedWidget(widgetEntryId);
   const [changing, setChanging] = useState(false);
   const [styling, setStyling] = useState(false);
   const [placementDraft, setPlacementDraft] = useState<PlacementContentDraft>({ custom: false, content: {} });
-
-  useEffect(() => {
-    if (!widgetEntryId) {
-      setIsBroken(true);
-      setWidget(null);
-      return;
-    }
-    // Cleared by this run's own cleanup, i.e. as soon as `widgetEntryId` changes or the node view
-    // unmounts — see this file's header on why a stale settle must not apply.
-    let current = true;
-    api
-      .getWidget(widgetEntryId)
-      .then((r) => {
-        if (!current) return;
-        setWidget(r.widget);
-        setIsBroken(r.widget.status !== "active");
-      })
-      .catch(() => {
-        if (!current) return;
-        setWidget(null);
-        setIsBroken(true);
-      });
-    return () => {
-      current = false;
-    };
-  }, [widgetEntryId]);
 
   function changeInstance(newWidgetEntryId: string) {
     props.updateAttributes({ widgetEntryId: newWidgetEntryId });
@@ -153,29 +123,103 @@ export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeVie
       setStyling(false);
     },
     placementContent: styling && contentEditable && widget
-      ? {
-          ...placementDraft,
-          widgetType: widget.widgetType,
-          setCustom: (custom) => setPlacementDraft((draft) => ({ ...draft, custom })),
-          setContent: (content) => setPlacementDraft((draft) => ({ ...draft, content })),
-        }
+      ? placementContentController({ widgetType: widget.widgetType, draft: placementDraft, setDraft: setPlacementDraft })
       : null,
-    changeDialog:
-      changing && widget
-        ? {
-            widgetType: widget.widgetType,
-            onUseExisting: (id) => changeInstance(id),
-            onCreateNew: async (title, config) => {
-              try {
-                const { widget: created } = await api.createWidget({ widgetType: widget.widgetType, title, config });
-                changeInstance(created.id);
-              } catch (e) {
-                // eslint-disable-next-line no-alert
-                window.alert(describeApiError(e, "failed to create widget"));
-              }
-            },
-            onCancel: () => setChanging(false),
-          }
-        : null,
+    changeDialog: changing && widget
+      ? changeDialogController({ widgetType: widget.widgetType, changeInstance, close: () => setChanging(false) })
+      : null,
+  };
+}
+
+/**
+ * Reads one `widgetEmbed` node's attributes, normalising absent ones.
+ * @param attrs The node's raw TipTap attributes.
+ * @returns Ids as strings (`""` when unset, never `"undefined"`); style attrs as string or `null`.
+ */
+function widgetEmbedAttrs(attrs: NodeViewProps["node"]["attrs"]) {
+  return {
+    widgetEntryId: String(attrs.widgetEntryId ?? ""),
+    placementId: String(attrs.placementId ?? ""),
+    cssClass: (attrs.cssClass as string | null | undefined) ?? null,
+    htmlAttributes: (attrs.htmlAttributes as string | null | undefined) ?? null,
+  };
+}
+
+/**
+ * Resolves the widget a node points at, dropping stale settles (see this file's header).
+ * @param widgetEntryId The node's widget id; `""` marks the node broken without fetching.
+ * @returns `widget` (`undefined` while loading, `null` when unresolvable) and the broken flag.
+ * @complexity One `api.getWidget` call per `widgetEntryId` change.
+ */
+function useResolvedWidget(widgetEntryId: string): { widget: AdminWidget | null | undefined; isBroken: boolean } {
+  const [widget, setWidget] = useState<AdminWidget | null | undefined>(undefined);
+  const [isBroken, setIsBroken] = useState(false);
+
+  useEffect(() => {
+    if (!widgetEntryId) {
+      setIsBroken(true);
+      setWidget(null);
+      return;
+    }
+    // Cleared by this run's own cleanup, i.e. as soon as `widgetEntryId` changes or the node view
+    // unmounts — see this file's header on why a stale settle must not apply.
+    let current = true;
+    api
+      .getWidget(widgetEntryId)
+      .then((r) => {
+        if (!current) return;
+        setWidget(r.widget);
+        setIsBroken(r.widget.status !== "active");
+      })
+      .catch(() => {
+        if (!current) return;
+        setWidget(null);
+        setIsBroken(true);
+      });
+    return () => {
+      current = false;
+    };
+  }, [widgetEntryId]);
+
+  return { widget, isBroken };
+}
+
+/** The Style dialog's per-placement content override for a media/gallery widget. */
+function placementContentController(
+  { widgetType, draft, setDraft }: {
+    widgetType: string;
+    draft: PlacementContentDraft;
+    setDraft: (update: (draft: PlacementContentDraft) => PlacementContentDraft) => void;
+  },
+): WidgetEmbedPlacementContent {
+  return {
+    ...draft,
+    widgetType,
+    setCustom: (custom) => setDraft((current) => ({ ...current, custom })),
+    setContent: (content) => setDraft((current) => ({ ...current, content })),
+  };
+}
+
+/** The Change dialog's handlers, scoped to the current widget's own `widgetType`. */
+function changeDialogController(
+  { widgetType, changeInstance, close }: {
+    widgetType: AdminWidget["widgetType"];
+    changeInstance: (widgetEntryId: string) => void;
+    close: () => void;
+  },
+): WidgetEmbedChangeDialog {
+  return {
+    widgetType,
+    onUseExisting: (id) => changeInstance(id),
+    onCreateNew: async (title, config) => {
+      try {
+        const { widget: created } = await api.createWidget({ widgetType, title, config });
+        changeInstance(created.id);
+      } catch (e) {
+        // eslint-disable-next-line no-alert
+        window.alert(describeApiError(e, "failed to create widget"));
+      }
+    },
+    onCancel: close,
   };
 }
