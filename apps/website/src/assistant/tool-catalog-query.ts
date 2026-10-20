@@ -40,8 +40,9 @@ const enricher: SearchEnricher = {
   // but discovering the read prerequisite must not outrank the requested write action.
   // Site creation's later paragraphs explain switching/duplication and deployment restrictions.
   // Index its action paragraph too: that surrounding prose dilutes "create a new site" in BM25.
+  // Static publish's input/confirmation/result contract likewise diluted "publish the site" to rank 6.
   indexedDescription: ({ id, description, metadata }, optional) => indexedDescriptionFor(id,
-    id === "sites_create_site" || id === "pages_read_html" || description.includes(PAGE_HTML_CONTRACT) ? description.split("\n\n", 1)[0]! : description,
+    id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execute_static_publish" || description.includes(PAGE_HTML_CONTRACT) ? description.split("\n\n", 1)[0]! : description,
     { ...optional, ...(metadata ? { metadata } : {}) }),
   authoredDescription: ({ description }) => stripSearchKeywords(description),
 };
