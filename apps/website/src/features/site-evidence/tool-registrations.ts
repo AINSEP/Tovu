@@ -132,6 +132,18 @@ export function readPathsArgument(input: Readonly<Record<string, unknown>>): rea
   return paths;
 }
 
+/** Reads one optional evidence capture flag without coercing caller input. */
+function readOptionalEvidenceFlag(
+  { input, name }: { input: Readonly<Record<string, unknown>>; name: "collectAccessibility" | "collectPerformance" },
+  _options: Record<string, never> = {},
+): boolean | undefined {
+  const value = input[name];
+  if (value !== undefined && typeof value !== "boolean") {
+    throw new ToolInputError({ message: `'${name}' must be a boolean when provided` });
+  }
+  return value;
+}
+
 /**
  * Reads optional consent, accessibility and on-demand performance arguments.
  *
@@ -147,14 +159,8 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
   if (selector !== undefined && typeof selector !== "string") {
     throw new ToolInputError({ message: "'consentAcceptSelector' must be a CSS selector string when provided" });
   }
-  const collectAccessibility = input.collectAccessibility;
-  if (collectAccessibility !== undefined && typeof collectAccessibility !== "boolean") {
-    throw new ToolInputError({ message: "'collectAccessibility' must be a boolean when provided" });
-  }
-  const collectPerformance = input.collectPerformance;
-  if (collectPerformance !== undefined && typeof collectPerformance !== "boolean") {
-    throw new ToolInputError({ message: "'collectPerformance' must be a boolean when provided" });
-  }
+  const collectAccessibility = readOptionalEvidenceFlag({ input, name: "collectAccessibility" });
+  const collectPerformance = readOptionalEvidenceFlag({ input, name: "collectPerformance" });
   return {
     ...(typeof collectPerformance === "boolean" ? { collectPerformance } : {}),
     ...(typeof selector === "string" && selector.trim().length > 0 ? { consentAcceptSelector: selector.trim() } : {}),

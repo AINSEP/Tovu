@@ -212,3 +212,61 @@ test('performance diagnostics are explicit opt-in and reject non-boolean input',
   assert.deepEqual(readOptionalEvidenceArguments({ collectPerformance: false }), { collectPerformance: false });
   assert.throws(() => readOptionalEvidenceArguments({ collectPerformance: 'true' }), ToolInputError);
 });
+
+test("optional evidence arguments preserve omission, selector normalization and explicit flag combinations", () => {
+  const cases = [undefined, "", " \t\n ", "  #accept  "].flatMap(selector =>
+    [undefined, false, true].flatMap(collectAccessibility =>
+      [undefined, false, true].map(collectPerformance => ({ selector, collectAccessibility, collectPerformance })),
+    ),
+  );
+  for (const { selector, collectAccessibility, collectPerformance } of cases) {
+    const input = Object.freeze({ consentAcceptSelector: selector, collectAccessibility, collectPerformance });
+    const expected: Record<string, unknown> = {};
+    if (collectPerformance !== undefined) expected.collectPerformance = collectPerformance;
+    if (selector === "  #accept  ") expected.consentAcceptSelector = "#accept";
+    if (collectAccessibility !== undefined) expected.collectAccessibility = collectAccessibility;
+    const actual = readOptionalEvidenceArguments(input);
+    assert.deepEqual(actual, expected);
+    assert.deepEqual(Object.keys(actual), Object.keys(expected));
+  }
+});
+
+test("optional evidence arguments reject invalid selector values with the original typed message", () => {
+  for (const consentAcceptSelector of [null, false, 0, [], {}, new String("#accept")]) {
+    assert.throws(() => readOptionalEvidenceArguments({ consentAcceptSelector }), {
+      name: ToolInputError.name,
+      message: "'consentAcceptSelector' must be a CSS selector string when provided",
+    });
+  }
+});
+
+test("optional evidence flags reject non-booleans rather than coercing truthy or falsy values", () => {
+  for (const name of ["collectAccessibility", "collectPerformance"]) {
+    for (const value of [null, "", "false", 0, 1, [], {}, new Boolean(false)]) {
+      assert.throws(() => readOptionalEvidenceArguments({ [name]: value }), {
+        name: ToolInputError.name,
+        message: `'${name}' must be a boolean when provided`,
+      });
+    }
+  }
+});
+
+test("optional evidence argument validation reports selector then accessibility then performance errors", () => {
+  const input: Record<string, unknown> = {
+    consentAcceptSelector: null, collectAccessibility: null, collectPerformance: null,
+  };
+  assert.throws(() => readOptionalEvidenceArguments(input), {
+    name: ToolInputError.name,
+    message: "'consentAcceptSelector' must be a CSS selector string when provided",
+  });
+  input.consentAcceptSelector = " #accept ";
+  assert.throws(() => readOptionalEvidenceArguments(input), {
+    name: ToolInputError.name,
+    message: "'collectAccessibility' must be a boolean when provided",
+  });
+  input.collectAccessibility = false;
+  assert.throws(() => readOptionalEvidenceArguments(input), {
+    name: ToolInputError.name,
+    message: "'collectPerformance' must be a boolean when provided",
+  });
+});
