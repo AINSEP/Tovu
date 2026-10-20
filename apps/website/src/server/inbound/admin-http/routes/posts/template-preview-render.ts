@@ -89,6 +89,37 @@ export interface PostPreviewRenderInput {
   bodyHtml?: string | undefined;
 }
 export interface PostPreviewRenderResult { html: string; templateChoice: string | null }
+/** Selects pending content first, then the already-authorized unpublished row's own body. */
+function resolvePreviewBodyOverrides(
+  { post, pendingBodyJson, pendingBodyHtmlOverride }: {
+    post: PostRecord;
+    pendingBodyJson: JsonObject | undefined;
+    pendingBodyHtmlOverride: string | undefined;
+  },
+  _options: Record<string, never> = {}
+): { bodyJson: JsonObject | undefined; bodyHtml: string | undefined } {
+  // 2026-09-16, owner: "it should render even in unpublished state." The template's own
+  // `{"type":"content"}` slot resolves through a VISIBILITY-FILTERED resolver
+  // (`resolver-service.ts`'s `findPublishedPostById`), which finds nothing for an unpublished
+  // row — so a draft previewed with styled chrome and NO BODY AT ALL, the REQ-28 placeholder
+  // where its content should be. Measured, not inferred, before this change.
+  //
+  // The row's own body is the right answer here and is already in hand: this request fetched it
+  // by id and `deps.authorize` already cleared this principal for `content.read` above, so the
+  // operator can read this exact body from the admin API anyway. Rendering it into a `no-store`,
+  // admin-only preview response exposes nothing new — the guard exists to keep unpublished
+  // content off the PUBLIC site, and this route is not that.
+  //
+  // Scoped to unpublished rows deliberately: a published row's preview keeps resolving through
+  // the resolver exactly as before, byte for byte, so this cannot change what the owner already
+  // sees for the overwhelmingly common case. A genuine pending override always wins over it.
+  const unpublished = post.status !== "published";
+  const bodyJson = pendingBodyJson ?? (unpublished && post.bodyFormat === "doc" ? post.bodyJson : undefined);
+  const bodyHtml = pendingBodyHtmlOverride ?? (unpublished && post.bodyFormat === "html" ? (post.bodyHtml ?? undefined) : undefined);
+
+  return { bodyJson, bodyHtml };
+}
+
 /**
  * Renders an already-authorized row through the existing bare/theme pipelines, without writes.
  * Omitted templateChoice uses the saved choice; null and an empty string retain their distinct
@@ -137,24 +168,9 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   }
   const theme = resolved;
 
-  // 2026-09-16, owner: "it should render even in unpublished state." The template's own
-  // `{"type":"content"}` slot resolves through a VISIBILITY-FILTERED resolver
-  // (`resolver-service.ts`'s `findPublishedPostById`), which finds nothing for an unpublished
-  // row — so a draft previewed with styled chrome and NO BODY AT ALL, the REQ-28 placeholder
-  // where its content should be. Measured, not inferred, before this change.
-  //
-  // The row's own body is the right answer here and is already in hand: this request fetched it
-  // by id and `deps.authorize` already cleared this principal for `content.read` above, so the
-  // operator can read this exact body from the admin API anyway. Rendering it into a `no-store`,
-  // admin-only preview response exposes nothing new — the guard exists to keep unpublished
-  // content off the PUBLIC site, and this route is not that.
-  //
-  // Scoped to unpublished rows deliberately: a published row's preview keeps resolving through
-  // the resolver exactly as before, byte for byte, so this cannot change what the owner already
-  // sees for the overwhelmingly common case. A genuine pending override always wins over it.
-  const unpublished = post.status !== "published";
-  const previewBodyJson = pendingBodyJson ?? (unpublished && post.bodyFormat === "doc" ? post.bodyJson : undefined);
-  const previewBodyHtml = pendingBodyHtmlOverride ?? (unpublished && post.bodyFormat === "html" ? (post.bodyHtml ?? undefined) : undefined);
+  const { bodyJson: previewBodyJson, bodyHtml: previewBodyHtml } = resolvePreviewBodyOverrides({
+    post, pendingBodyJson, pendingBodyHtmlOverride,
+  });
 
   // 2026-09-16 fix. This route used to hand `previewPost` straight to `renderViaTemplate`, while
   // the PUBLIC route reaches that same function only through `renderTemplateBranchIfEligible`,

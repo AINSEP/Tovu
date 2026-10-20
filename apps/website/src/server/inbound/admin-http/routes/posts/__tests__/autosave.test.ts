@@ -330,3 +330,41 @@ test("the URL segment resolves by SLUG, not just id — the admin's own Posts li
   const getAfterDelete = await fetch(autosaveUrl(baseUrl, post.id), { headers: { cookie } });
   assert.deepEqual(await getAfterDelete.json(), { autosave: null });
 });
+
+test("TW2 byline parsing preserves absent, null, trimmed and boolean fields and rejects invalid shapes", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+  const cases: { fields: Record<string, unknown>; expected: Record<string, unknown> }[] = [
+    { fields: {}, expected: {} },
+    { fields: { author: null }, expected: { author: null } },
+    { fields: { author: "  Ada  ", showAuthor: true }, expected: { author: "Ada", showAuthor: true } },
+    { fields: { author: "   ", showAuthor: false }, expected: { author: null, showAuthor: false } },
+    { fields: { showAuthor: false }, expected: { showAuthor: false } },
+  ];
+  for (const { fields, expected } of cases) {
+    const response = await fetch(autosaveUrl(baseUrl, post.id), {
+      method: "PUT", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ bodyFormat: "doc", bodyJson: {}, title: "Draft", slug: post.slug, baseVersion: post.version, ...fields }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { applied: true });
+    const read = await fetch(autosaveUrl(baseUrl, post.id), { headers: { cookie } });
+    const { autosave } = await read.json() as { autosave: PostAutosaveSnapshot };
+    const byline = Object.fromEntries(Object.entries(autosave).filter(([key]) => key === "author" || key === "showAuthor"));
+    assert.deepEqual(byline, expected);
+  }
+  for (const fields of [{ author: 42 }, { author: {} }, { showAuthor: null }, { showAuthor: "true" }, { author: 42, showAuthor: false }]) {
+    const response = await fetch(autosaveUrl(baseUrl, post.id), {
+      method: "PUT", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ bodyFormat: "doc", bodyJson: {}, title: "Draft", slug: post.slug, baseVersion: post.version, ...fields }),
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+  }
+  const response = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bodyFormat: "doc", bodyJson: {}, title: "Draft", slug: post.slug, baseVersion: post.version, author: "a".repeat(201) }),
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "author must be at most 200 characters", code: "VALIDATION_ERROR" });
+});

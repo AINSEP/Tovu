@@ -82,6 +82,20 @@ function parseAutosaveContent(body: Record<string, unknown>, bodyFormat: PostBod
   return { bodyHtml: body.bodyHtml };
 }
 
+/** Validates optional byline fields while preserving absent keys in the parked snapshot.
+ * Author normalization remains owned by the shared post write validator. */
+function parseAutosaveByline(
+  { body }: { body: Record<string, unknown> },
+  _options: Record<string, never> = {}
+): Pick<PostAutosaveSnapshot, "author" | "showAuthor"> | null {
+  if (body.author !== undefined && body.author !== null && typeof body.author !== "string") return null;
+  if (body.showAuthor !== undefined && typeof body.showAuthor !== "boolean") return null;
+  return {
+    ...(body.author !== undefined ? { author: normalizePostAuthor({ author: body.author }) } : {}),
+    ...(body.showAuthor !== undefined ? { showAuthor: body.showAuthor as boolean } : {}),
+  };
+}
+
 /** This route's four writable PUT fields, read off an untyped body in one place — mirrors
  *  `posts/update.ts`'s `parsePostUpdateBody`. Returns `null` on any payload shape the
  *  `posts_body_format_shape` CHECK constraint would also reject, so the route can 400 before ever
@@ -94,12 +108,9 @@ function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFo
   if (!common) return null;
   const content = parseAutosaveContent(body, common.bodyFormat);
   if (!content) return null;
-  if (body.author !== undefined && body.author !== null && typeof body.author !== "string") return null;
-  if (body.showAuthor !== undefined && typeof body.showAuthor !== "boolean") return null;
-  return { ...common, ...content,
-    ...(body.author !== undefined ? { author: normalizePostAuthor({ author: body.author }) } : {}),
-    ...(body.showAuthor !== undefined ? { showAuthor: body.showAuthor as boolean } : {}),
-  };
+  const byline = parseAutosaveByline({ body });
+  if (!byline) return null;
+  return { ...common, ...content, ...byline };
 }
 
 /**
