@@ -39,7 +39,6 @@ export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerMo
   return {
     name: "integrations",
     start: () => {
-      void deps.formDelivery?.start();
       const formsWebhookEnvelopeStore = new InMemoryDeliveryEnvelopeStore();
       void deps.bus.subscribe<JsonObject>({
         eventName: "form.submission.received",
@@ -64,6 +63,9 @@ export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerMo
           });
         },
       });
+      // After the webhook fan-out: the bus runs an event's handlers in subscription order and stops
+      // at the first that throws, so a delivery planner that throws can no longer cost the webhook.
+      void deps.formDelivery?.start();
     },
   };
 }
