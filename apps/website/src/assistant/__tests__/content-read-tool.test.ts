@@ -21,7 +21,8 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
  *    shipped thing against itself. A doc comment cannot prevent that; the test below can, because
  *    deleting the option makes this file stop compiling and the assertions below go red.
  */
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -29,7 +30,7 @@ import test from "node:test";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { RETIRED_READ_TOOL_TO_CARD, currentToolIdFor } from "../content-read-tool.js";
-import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
+import { KEYWORD_MARKER, TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -129,6 +130,53 @@ function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set
 test("the real composition publishes exactly the 32 content_read cards", () => {
   const cards = [...idsOf()].filter((id) => id.startsWith("content_read.")).sort();
   assert.deepEqual(cards, [...EXPECTED_CARD_IDS].sort());
+});
+
+test("content_read.menu declares optional menuId and explicitly names it in both model-visible descriptions", () => {
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
+  assert.ok(menu);
+  const schema = menu.descriptor.inputSchema as { required: string[]; properties: Record<string, { description?: string }> };
+  const guidance = "menuId: the menu's id (use this name, not 'id').";
+  assert.ok(Object.hasOwn(schema.properties, "menuId"));
+  assert.ok(!Object.hasOwn(schema.properties, "id"));
+  assert.ok(!schema.required.includes("menuId"));
+  assert.ok(schema.properties.menuId?.description?.startsWith(guidance));
+  assert.match(schema.properties.menuId?.description ?? "", /Omit to list instead of fetching a single item\.$/);
+  assert.ok(menu.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes(guidance));
+});
+
+test("content_read.menu refuses id through the execution gate with a menuId correction before any read", async () => {
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
+  assert.ok(menu);
+  let handlerCalled = false;
+  const registry = createToolRegistry({});
+  registry.register({ ...menu, handler: async () => { handlerCalled = true; throw new Error("invalid input reached a read handler"); } });
+  const executor = createToolExecutor({ registry });
+  const result = await executor.execute({
+    principal: { id: "owner" }, run: { id: "menu-input-regression" }, toolId: "content_read.menu",
+    input: { id: "58371ca4-private-menu-value" },
+  });
+  assert.equal(result.status, "failed");
+  assert.equal(result.errorKind, "validation");
+  assert.equal(result.error, "Unknown input 'id'. Declared inputs: menuId (optional). Did you mean 'menuId'? Resend with the declared name.");
+  assert.equal(handlerCalled, false);
+});
+
+test("id-name guidance is shared by get-only and list-lookup cards while canonical id cards retain their prose", () => {
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  for (const [resource, idProperty] of [["comment", "commentId"], ["theme", "themeId"]]) {
+    const registration = registrations.find((entry) => entry.descriptor.id === `content_read.${resource}`);
+    assert.ok(registration);
+    const schema = registration.descriptor.inputSchema as { properties: Record<string, { description?: string }> };
+    const guidance = `${idProperty}: the ${resource}'s id (use this name, not 'id').`;
+    assert.ok(schema.properties[idProperty]?.description?.startsWith(guidance));
+    assert.ok(registration.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes(guidance));
+  }
+  const redirect = registrations.find((entry) => entry.descriptor.id === "content_read.redirect");
+  assert.ok(redirect);
+  assert.ok(!redirect.descriptor.description?.includes("use this name, not 'id'"));
 });
 
 test("not one of the 41 retired Tier-1 read ids survives into the collapsed catalog", () => {
