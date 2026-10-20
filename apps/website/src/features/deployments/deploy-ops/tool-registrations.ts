@@ -7,7 +7,6 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type Ag
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { notConfirmedResult, approvalToolHandler } from "#src/contracts/core/human-confirm";
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { runListSecrets, runSetSecret, runUnsetSecret, type SecretConfirm, type SecretConfirmRequest, type SecretValueSource } from "./secrets.js";
@@ -48,7 +47,7 @@ function integer(input: Record<string, unknown>, key: string, fallback: number, 
 }
 /** Validate deploy input independently of the schema, then call the same feature function as the admin route. */
 function deployHandler(deps: DeployOpsToolDeps, input: Record<string, unknown>, signal?: AbortSignal) {
-  for (const key of Object.keys(input)) if (!["platform", "target", "ref", "credentialLabel"].includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
+  onlyKeys(input, ["platform", "target", "ref", "credentialLabel"]);
   const ref = string(input, "ref"); const credentialLabel = string(input, "credentialLabel");
   return runDeploy({ deps, input: { platform: string(input, "platform", true)!, target: string(input, "target", true)!, ...(ref !== undefined ? { ref } : {}), ...(credentialLabel !== undefined ? { credentialLabel } : {}) } }, { signal });
 }
@@ -59,8 +58,7 @@ function onlyKeys(input: Record<string, unknown>, allowed: readonly string[]): v
 function valueSource(raw: unknown): SecretValueSource {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new ToolInputError({ message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
   const record = raw as Record<string, unknown>;
-  if (record.kind === "typed" && Object.keys(record).length === 1) return { kind: "typed" };
-  if (record.kind === "site-key" && Object.keys(record).length === 1) return { kind: "site-key" };
+  if ((record.kind === "typed" || record.kind === "site-key") && Object.keys(record).length === 1) return { kind: record.kind };
   if (record.kind === "secret" && typeof record.name === "string" && Object.keys(record).length === 2) return { kind: "secret", name: record.name };
   throw new ToolInputError({ message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
 }
@@ -112,6 +110,23 @@ function secretsHandler(deps: DeployOpsToolDeps, surfaces: ChatDeleteSurfaceDeps
   };
 }
 const SECRET_TOOLS = ["deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"];
+function observationInput({ name, input }: { name: string; input: Record<string, unknown> }, _optional = {}): DeployOpsInput {
+  const isList = name === "deployment_ops_list_targets";
+  const allowed = isList ? ["platform", "credentialLabel", "org"] : ["platform", "target", "credentialLabel", "runId", "branch", ...(name === "deployment_ops_logs" ? ["limit"] : []), ...(name === "deployment_ops_wait" ? ["until", "timeoutSeconds"] : [])];
+  onlyKeys(input, allowed);
+  const args: DeployOpsInput = { platform: string(input, "platform", true)!, target: isList ? "" : string(input, "target", true)!, credentialLabel: string(input, "credentialLabel"), ...(isList ? { org: string(input, "org") } : { runId: string(input, "runId"), branch: string(input, "branch") }) };
+  return args;
+}
+
+async function observationHandler({ deps, input, name }: { deps: DeployOpsToolDeps; input: Record<string, unknown>; name: string }, { signal }: { signal?: AbortSignal } = {}) {
+  const args = observationInput({ name, input }, {});
+  if (name === "deployment_ops_list_targets") return await runDeployOps(deps, args, "listTargets", signal);
+  if (name === "deployment_ops_logs") return await runDeployOps(deps, { ...args, limit: integer(input, "limit", 100, 1, 500) }, "logs", signal);
+  if (name === "deployment_ops_status") return await runDeployOps(deps, args, "status", signal);
+  if (input.until !== "healthy" && input.until !== "finished") throw new ToolInputError({ message: "until must be 'healthy' or 'finished'." });
+  return await waitForDeployOps({ status: signal => runDeployOps(deps, args, "status", signal), clock: deps.waitClock, initial: { platform: args.platform, target: args.target, state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: nowIso({ clock: deps.clock }) } }, { until: input.until, timeoutSeconds: integer(input, "timeoutSeconds", 180, 10, MAX_WAIT_SECONDS), signal });
+}
+
 /** Permission precedes any plugin/credential read. Handler input validation is independent of the schema. */
 export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: ChatDeleteSurfaceDeps): ToolRegistration[] {
   const catalog = getDeployOpsAgentToolCatalog(deps.deployOpsRegistry);
@@ -123,15 +138,7 @@ export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: 
       if (SECRET_TOOLS.includes(tool.name)) return await secretsHandler(deps, surfaces, tool.name, permit)(ctx, options);
       const input = requireInputRecord({ input: ctx.input });
       if (tool.name === "deployment_ops_deploy") return await deployHandler(deps, input, ctx.signal);
-      const isList = tool.name === "deployment_ops_list_targets";
-      const allowed = isList ? ["platform", "credentialLabel", "org"] : ["platform", "target", "credentialLabel", "runId", "branch", ...(tool.name === "deployment_ops_logs" ? ["limit"] : []), ...(tool.name === "deployment_ops_wait" ? ["until", "timeoutSeconds"] : [])];
-      for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
-      const args: DeployOpsInput = { platform: string(input, "platform", true)!, target: isList ? "" : string(input, "target", true)!, credentialLabel: string(input, "credentialLabel"), ...(isList ? { org: string(input, "org") } : { runId: string(input, "runId"), branch: string(input, "branch") }) };
-      if (tool.name === "deployment_ops_list_targets") return await runDeployOps(deps, args, "listTargets", ctx.signal);
-      if (tool.name === "deployment_ops_logs") return await runDeployOps(deps, { ...args, limit: integer(input, "limit", 100, 1, 500) }, "logs", ctx.signal);
-      if (tool.name === "deployment_ops_status") return await runDeployOps(deps, args, "status", ctx.signal);
-      if (input.until !== "healthy" && input.until !== "finished") throw new ToolInputError({ message: "until must be 'healthy' or 'finished'." });
-      return await waitForDeployOps({ status: signal => runDeployOps(deps, args, "status", signal), clock: deps.waitClock, initial: { platform: args.platform, target: args.target, state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: nowIso({ clock: deps.clock }) } }, { until: input.until, timeoutSeconds: integer(input, "timeoutSeconds", 180, 10, MAX_WAIT_SECONDS), signal: ctx.signal });
+      return await observationHandler({ deps, input, name: tool.name }, { signal: ctx.signal });
     } catch (error) {
       if (error instanceof DeployCredentialSetupRequired) return { executed: false, credentialSetup: error.credentialSetup };
       throw error;

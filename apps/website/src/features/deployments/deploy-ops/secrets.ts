@@ -7,7 +7,7 @@ import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from "#
 import { siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
 import { requirePlatform } from "./registry.js";
 import { aborted, boundContext, type DeployOpsToolDeps } from "./run-ops.js";
-import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, DeployOpsSecretWrite, LoadedDeployOps } from "./types.js";
+import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, DeployOpsSecretRead, DeployOpsSecretWrite, LoadedDeployOps } from "./types.js";
 
 /**
  * @file Generic host-secrets verbs (owner 2026-10-05: "a tool that sets and unsets secrets ... not just
@@ -26,7 +26,7 @@ export type SecretValueSource = { kind: "site-key" } | { kind: "secret"; name: s
 export interface SecretTargetInput { platform: string; target: string; credentialLabel?: string }
 export interface SetSecretInput extends SecretTargetInput { name: string; source: SecretValueSource; dryRun?: boolean }
 export interface UnsetSecretInput extends SecretTargetInput { name: string }
-/** `unknown`: the secret exists but this adapter cannot read it back, so the values were not compared. */
+/** `unknown`: the secret may exist but cannot be compared or ruled out by a complete listing. */
 export type SecretComparison = "same" | "different" | "absent" | "unknown";
 /** What a human is asked to approve; fixed before the card is drawn. */
 export interface SecretConfirmRequest { action: "overwrite" | "remove"; platform: string; target: string; name: string; source?: string; comparison?: SecretComparison; appliesOn: DeployOpsSecretAppliesOn }
@@ -122,7 +122,8 @@ export async function runListSecrets(required: { deps: DeployOpsToolDeps; input:
 }
 
 /** Read the source value server side. A copy needs the adapter's read verb and a source that exists. */
-async function resolveValue(platform: LoadedDeployOps, ctx: DeployOpsContext, input: SetSecretInput, siteKey: string | undefined): Promise<string> {
+async function resolveValue({ platform, ctx, input, siteKey }: { platform: LoadedDeployOps; ctx: DeployOpsContext; input: SetSecretInput; siteKey: string | undefined }, { typedValue }: { typedValue?: unknown } = {}): Promise<string> {
+  if (input.source.kind === "typed") return requireTypedValue({ value: typedValue }, {});
   if (siteKey !== undefined) return siteKey;
   const source = input.source as { kind: "secret"; name: string };
   const read = await platform.module.readSecret!(ctx, { target: input.target, name: source.name });
@@ -130,17 +131,28 @@ async function resolveValue(platform: LoadedDeployOps, ctx: DeployOpsContext, in
   return read.value;
 }
 
-/** Compare the stored value when the adapter can read it; otherwise fall back to presence from the list. */
-async function compareCurrent(platform: LoadedDeployOps, ctx: DeployOpsContext, input: SetSecretInput, value: string, signal?: AbortSignal): Promise<SecretComparison> {
+function comparisonOfRead({ current, value }: { current: DeployOpsSecretRead | undefined; value: string }, _optional = {}): SecretComparison | undefined {
+  if (current && "value" in current && typeof current.value === "string") return sameValue(current.value, value) ? "same" : "different";
+  if (current && "absent" in current && current.absent === true) return "absent";
+  return undefined;
+}
+
+async function readComparison({ platform, ctx, input, value }: { platform: LoadedDeployOps; ctx: DeployOpsContext; input: SetSecretInput; value: string }, { signal }: { signal?: AbortSignal } = {}): Promise<SecretComparison | undefined> {
   if (platform.module.readSecret) {
     try {
       const current = await platform.module.readSecret(ctx, { target: input.target, name: input.name });
-      if (current && "value" in current && typeof current.value === "string") return sameValue(current.value, value) ? "same" : "different";
-      if (current && "absent" in current && current.absent === true) return "absent";
+      return comparisonOfRead({ current, value }, {});
     } catch (error) { if (signal?.aborted) throw error; /* An unreadable value (e.g. a token without secret-read scope) degrades to a presence check. */ }
   }
+  return undefined;
+}
+
+/** Compare the stored value when the adapter can read it; otherwise only a complete list can establish absence. */
+async function compareCurrent(platform: LoadedDeployOps, ctx: DeployOpsContext, input: SetSecretInput, value: string, signal?: AbortSignal): Promise<SecretComparison> {
+  const comparison = await readComparison({ platform, ctx, input, value }, { signal });
+  if (comparison !== undefined) return comparison;
   const listed = await listNormalized(platform, ctx, input.target);
-  return listed.secrets.some(s => s.name === input.name) ? "unknown" : "absent";
+  return listed.truncated || listed.secrets.some(s => s.name === input.name) ? "unknown" : "absent";
 }
 
 /** Fail closed: an overwrite or removal without a confirmation channel never runs. */
@@ -163,6 +175,10 @@ function requireTypedValue({ value }: { value: unknown }, _optional = {}): strin
   return value;
 }
 
+function describeSource({ source }: { source: SecretValueSource }, _optional = {}): string {
+  return source.kind === "site-key" ? "this site's key" : source.kind === "typed" ? "the secure card" : `secret ${source.name}`;
+}
+
 /**
  * Set one secret on a host target from a server-side source; skips the write when the value is already there.
  * @param required - `deps`: credential ports, no-redirect client, site-key reader; `input`: platform, target, name, source, optional dryRun and credential label.
@@ -178,11 +194,9 @@ export async function runSetSecret(required: { deps: DeployOpsToolDeps; input: S
   validateSetInput(platform, input);
   const siteKey = input.source.kind === "site-key" ? requireSiteKey(deps) : undefined;
   const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
-  const value = input.source.kind === "typed"
-    ? requireTypedValue({ value: optional.typedValue }, {})
-    : await resolveValue(platform, ctx, input, siteKey);
+  const value = await resolveValue({ platform, ctx, input, siteKey }, { typedValue: optional.typedValue });
   const comparison = await compareCurrent(platform, ctx, input, value, signal);
-  const source = input.source.kind === "site-key" ? "this site's key" : input.source.kind === "typed" ? "the secure card" : `secret ${input.source.name}`;
+  const source = describeSource({ source: input.source }, {});
   const base = { platform: input.platform, target: input.target, name: input.name, source: input.source, comparison, ...secretFingerprint(value), ...applies(platform) };
   if (comparison === "same") return { ...base, changed: false, deployNeeded: false, summary: `'${input.name}' on '${input.target}' already holds ${source}; nothing was written.` };
   if (input.dryRun) return { ...base, changed: false, dryRun: true, deployNeeded: false, summary: `Dry run: '${input.name}' would be ${comparison === "absent" ? "created" : "replaced"} from ${source}. Nothing was written.` };
@@ -193,6 +207,13 @@ export async function runSetSecret(required: { deps: DeployOpsToolDeps; input: S
   if (signal?.aborted) throw aborted();
   const write = await platform.module.setSecret!(ctx, { target: input.target, name: input.name, value });
   return { ...base, changed: true, ...version(write), summary: `Set '${input.name}' on '${input.target}' from ${source}.${nextStep(platform, input.target)}` };
+}
+
+/** Confirmation must be tied to an identifiable provider version. */
+function requireSecretSnapshot({ secrets, name }: { secrets: DeployOpsSecretInfo[]; name: string }, _optional = {}): DeployOpsSecretInfo {
+  const targetSnapshot = secrets.find(secret => secret.name === name);
+  if (!targetSnapshot || (!targetSnapshot.digest && !targetSnapshot.updatedAt)) throw new ToolInputError({ message: "deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted." });
+  return targetSnapshot;
 }
 
 /**
@@ -212,8 +233,7 @@ export async function runUnsetSecret(required: { deps: DeployOpsToolDeps; input:
   const listed = await listNormalized(platform, ctx, input.target);
   const base = { platform: input.platform, target: input.target, name: input.name, ...applies(platform) };
   if (!listed.truncated && !listed.secrets.some(s => s.name === input.name)) return { ...base, removed: false, deployNeeded: false, summary: `'${input.name}' is not set on '${input.target}'; nothing was removed.` };
-  const targetSnapshot = listed.secrets.find(secret => secret.name === input.name);
-  if (!targetSnapshot || (!targetSnapshot.digest && !targetSnapshot.updatedAt)) throw new ToolInputError({ message: "deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted." });
+  const targetSnapshot = requireSecretSnapshot({ secrets: listed.secrets, name: input.name }, {});
   const decision = await confirmOrRefuse(confirm, { action: "remove", platform: input.platform, target: input.target, name: input.name, appliesOn: base.appliesOn });
   if (!decision.confirmed) return { ...base, removed: false, deployNeeded: false, ...decision.result };
   if (signal?.aborted) throw aborted();

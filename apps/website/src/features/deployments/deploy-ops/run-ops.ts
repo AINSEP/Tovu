@@ -62,7 +62,6 @@ export class DeployCredentialSetupRequired extends ToolInputError {
 /** Resolve by explicit label or exactly one saved host match, without decrypting. O(credentials). */
 async function credentialLabel(deps: DeployOpsToolDeps, platform: LoadedDeployOps, explicit?: string): Promise<string> {
   const credentials = await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId });
-  const labels = credentials.map(c => c.label).sort().join(", ") || "(none)";
   if (explicit !== undefined) {
     if (!credentials.some(c => c.label === explicit)) throw new DeployCredentialSetupRequired({ label: explicit, baseUrl: `https://${platform.descriptor.hosts[0]!}` }, {});
     return explicit;
@@ -72,6 +71,45 @@ async function credentialLabel(deps: DeployOpsToolDeps, platform: LoadedDeployOp
   if (matches.length === 0) throw new DeployCredentialSetupRequired({ label: platform.descriptor.id, baseUrl: `https://${host}` }, {});
   if (matches.length !== 1) throw new ToolInputError({ message: `Several saved custom credentials match '${host}'. Set credentialLabel to one of: ${matches.map(c => c.label).sort().join(", ")}.` });
   return matches[0]!.label;
+}
+
+function requirePlatformUrl({ rawUrl, platform }: { rawUrl: string; platform: LoadedDeployOps }, _optional = {}): URL {
+  let url: URL;
+  try { url = new URL(rawUrl); } catch { throw new ToolInputError({ message: "Deployment ops module supplied an invalid URL." }); }
+  if (url.protocol !== "https:" || url.username || url.password || url.port || !platform.descriptor.hosts.includes(url.hostname)) throw new ToolInputError({ message: `Deployment ops platform '${platform.descriptor.id}' does not allow host '${url.hostname}'.` });
+  return url;
+}
+
+/** Validate both independent host bindings before any credentialed request. */
+async function requireBoundUrl({ rawUrl, platform, requestDeps, workspaceId, label }: { rawUrl: string; platform: LoadedDeployOps; requestDeps: CredentialedRequestDeps; workspaceId: string; label: string }, _optional = {}): Promise<URL> {
+  const url = requirePlatformUrl({ rawUrl, platform }, {});
+  try { await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId, label, url: rawUrl }); }
+  catch (error) {
+    if (error instanceof CredentialedRequestValidationError) throw new ToolInputError({ message: `Credential '${label}' does not allow host '${url.hostname}'. Add that host to the saved credential or choose another credentialLabel.` });
+    if (error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `No saved custom credential labeled '${label}'. Choose another credentialLabel.` });
+    throw error;
+  }
+  return url;
+}
+
+/** Translate only known credential/transport failures without echoing provider payloads. */
+function requestFailure({ error, signal, method, host, label }: { error: unknown; signal?: AbortSignal; method: string; host: string; label: string }, _optional = {}): unknown {
+  if (signal?.aborted) return aborted();
+  if (error instanceof EgressRefusedError) return new ToolInputError({ message: `Deployment ops host '${host}' was refused by outbound HTTP policy. Use a public HTTPS endpoint allowed by the saved credential.` });
+  if (error instanceof CredentialedRequestTransportError) return new ToolInputError({ message: method === "GET" ? `Could not reach deployment ops host '${host}' using credential '${label}'. Retry the check.` : `Lost the connection to deployment ops host '${host}' during a ${method}; it may or may not have been accepted. Check deployment_ops_status before retrying.` });
+  if (error instanceof CredentialedRequestValidationError || error instanceof CustomCredentialNotFoundError) return new ToolInputError({ message: `Credential '${label}' changed or no longer allows host '${host}'. Check its saved hosts or choose another credentialLabel.` });
+  return error;
+}
+
+/** Response text is bounded before parsing; clipped JSON must remain text. */
+function normalizeResponse({ response, transportTruncated, host, label }: { response: { status: number; bodyText: string }; transportTruncated: boolean; host: string; label: string }, _optional = {}): DeployOpsResponse {
+  if (response.status === 401 || response.status === 403) throw new ToolInputError({ message: `Credential '${label}' was rejected (HTTP ${response.status}). Run custom_credential_verify with label '${label}' and check its saved token/scopes.` });
+  if (response.status < 200 || response.status >= 300) throw new ToolInputError({ message: `Deployment ops host '${host}' returned HTTP ${response.status}. Check the target and retry; redirects are not followed.` });
+  const text = response.bodyText.slice(0, MAX_RESPONSE_CHARS);
+  const truncated = transportTruncated || response.bodyText.length > MAX_RESPONSE_CHARS;
+  let json: unknown;
+  if (!truncated) { try { json = JSON.parse(text); } catch { /* Plain logs are valid text. */ } }
+  return { status: response.status, ...(json !== undefined ? { json } : {}), text, truncated };
 }
 
 /**
@@ -92,15 +130,7 @@ export async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDepl
   /** One guarded path for every method, so a write can never get a looser binding than a read. */
   const call = async (method: "GET" | DeployOpsSendRequest["method"], rawUrl: string, body?: unknown): Promise<DeployOpsResponse> => {
     if (signal?.aborted) throw aborted();
-    let url: URL;
-    try { url = new URL(rawUrl); } catch { throw new ToolInputError({ message: "Deployment ops module supplied an invalid URL." }); }
-    if (url.protocol !== "https:" || url.username || url.password || url.port || !platform.descriptor.hosts.includes(url.hostname)) throw new ToolInputError({ message: `Deployment ops platform '${platform.descriptor.id}' does not allow host '${url.hostname}'.` });
-    try { await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: deps.workspaceId, label, url: rawUrl }); }
-    catch (error) {
-      if (error instanceof CredentialedRequestValidationError) throw new ToolInputError({ message: `Credential '${label}' does not allow host '${url.hostname}'. Add that host to the saved credential or choose another credentialLabel.` });
-      if (error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `No saved custom credential labeled '${label}'. Choose another credentialLabel.` });
-      throw error;
-    }
+    const url = await requireBoundUrl({ rawUrl, platform, requestDeps, workspaceId: deps.workspaceId, label }, {});
     if (signal?.aborted) throw aborted();
     let response;
     let transportTruncated = false;
@@ -114,21 +144,9 @@ export async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDepl
     } } };
     const write = method === "GET" ? {} : { headers: { "content-type": "application/json", accept: "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) };
     try { response = await makeCredentialedRequest(boundedDeps, { workspaceId: deps.workspaceId, label, method, url: rawUrl, ...write }); }
-    catch (error) {
-      if (signal?.aborted) throw aborted();
-      if (error instanceof EgressRefusedError) throw new ToolInputError({ message: `Deployment ops host '${url.hostname}' was refused by outbound HTTP policy. Use a public HTTPS endpoint allowed by the saved credential.` });
-      if (error instanceof CredentialedRequestTransportError) throw new ToolInputError({ message: method === "GET" ? `Could not reach deployment ops host '${url.hostname}' using credential '${label}'. Retry the check.` : `Lost the connection to deployment ops host '${url.hostname}' during a ${method}; it may or may not have been accepted. Check deployment_ops_status before retrying.` });
-      if (error instanceof CredentialedRequestValidationError || error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `Credential '${label}' changed or no longer allows host '${url.hostname}'. Check its saved hosts or choose another credentialLabel.` });
-      throw error;
-    }
+    catch (error) { throw requestFailure({ error, signal, method, host: url.hostname, label }, {}); }
     if (signal?.aborted) throw aborted();
-    if (response.status === 401 || response.status === 403) throw new ToolInputError({ message: `Credential '${label}' was rejected (HTTP ${response.status}). Run custom_credential_verify with label '${label}' and check its saved token/scopes.` });
-    if (response.status < 200 || response.status >= 300) throw new ToolInputError({ message: `Deployment ops host '${url.hostname}' returned HTTP ${response.status}. Check the target and retry; redirects are not followed.` });
-    const text = response.bodyText.slice(0, MAX_RESPONSE_CHARS);
-    const truncated = transportTruncated || response.bodyText.length > MAX_RESPONSE_CHARS;
-    let json: unknown;
-    if (!truncated) { try { json = JSON.parse(text); } catch { /* Plain logs are valid text. */ } }
-    return { status: response.status, ...(json !== undefined ? { json } : {}), text, truncated };
+    return normalizeResponse({ response, transportTruncated, host: url.hostname, label }, {});
   };
   return {
     nowIso: () => nowIso({ clock: deps.clock }),
@@ -170,10 +188,14 @@ export async function runDeployOps(deps: DeployOpsToolDeps, input: DeployOpsInpu
 
 export interface DeployRequest { platform: string; target: string; ref?: string; credentialLabel?: string }
 const clip = (value: unknown) => String(value).slice(0, 2000);
-/** Keep only the documented fields; platform/target come from the request, never from the module. O(machineIds). */
-function normalizeDeployResult(input: DeployRequest, result: DeployOpsDeployResult): DeployOpsDeployResult {
+function validateDeployResult({ input, result }: { input: DeployRequest; result: DeployOpsDeployResult }, _optional = {}): void {
   if (result?.started !== true || typeof result.summary !== "string") throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid deploy result.` });
   if (result.runId !== undefined && !/^[0-9]+$/.test(String(result.runId))) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid run id.` });
+}
+
+/** Keep only the documented fields; platform/target come from the request, never from the module. O(machineIds). */
+function normalizeDeployResult(input: DeployRequest, result: DeployOpsDeployResult): DeployOpsDeployResult {
+  validateDeployResult({ input, result }, {});
   return {
     platform: input.platform, target: input.target, started: true, summary: clip(result.summary),
     ...(result.runId !== undefined ? { runId: String(result.runId) } : {}),
@@ -206,6 +228,11 @@ export async function runDeploy(required: { deps: DeployOpsToolDeps; input: Depl
   if (signal?.aborted) throw aborted();
   const result = await platform.module.deploy(ctx, { target: input.target, ...(input.ref !== undefined ? { ref: input.ref } : {}) });
   const normalized = normalizeDeployResult(input, result);
+  await recordAcceptedDeploy({ deps, platform, normalized }, {});
+  return normalized;
+}
+
+async function recordAcceptedDeploy({ deps, platform, normalized }: { deps: DeployOpsToolDeps; platform: LoadedDeployOps; normalized: DeployOpsDeployResult }, _optional = {}): Promise<void> {
   // Accepted requests are successful dispatches, not proof of a healthy landing. Preserve that
   // distinction in status; never invent a URL when the adapter cannot supply one.
   // Status may describe an older healthy run (runId is optional), so acceptance stays pending.
@@ -221,7 +248,6 @@ export async function runDeploy(required: { deps: DeployOpsToolDeps; input: Depl
       console.warn("[deploy-ops] destination history write failed after accepted deploy");
     }
   }
-  return normalized;
 }
 
 /** Race an in-flight status against the deadline and cancellation. Listeners/timers always cleaned up. */
@@ -239,6 +265,29 @@ async function boundedPoll(status: (signal: AbortSignal) => Promise<DeployOpsSta
   finally { if (timer) clearTimeout(timer); if (onAbort) signal?.removeEventListener("abort", onAbort); }
 }
 
+async function pollBeforeDeadline({ status, clock, deadline }: { status(signal: AbortSignal): Promise<DeployOpsStatus>; clock: WaitClock; deadline: number }, { signal }: { signal?: AbortSignal } = {}): Promise<DeployOpsStatus | typeof TIMEOUT> {
+  try {
+    const observation = await boundedPoll(status, deadline - clock.now(), signal);
+    if (signal?.aborted) throw aborted();
+    return observation;
+  } catch (error) { if (error === TIMEOUT) return TIMEOUT; throw error; }
+}
+
+function reachedCondition({ until, state }: { until: "healthy" | "finished"; state: DeployOpsStatus["state"] }, _optional = {}): boolean {
+  return until === "healthy" ? state === "healthy" : ["healthy", "failing", "stopped"].includes(state);
+}
+
+async function sleepBeforeDeadline({ clock, deadline }: { clock: WaitClock; deadline: number }, { signal }: { signal?: AbortSignal } = {}): Promise<void> {
+  const remaining = deadline - clock.now();
+  if (remaining > 0) await clock.sleep(Math.min(10_000, remaining), signal);
+}
+
+function waitSettings({ deps, input }: { deps: { clock?: WaitClock; initial?: DeployOpsStatus }; input: { timeoutSeconds?: number } }, _optional = {}) {
+  const clock = deps.clock ?? systemClock; const started = clock.now(); const deadline = started + (input.timeoutSeconds ?? 180) * 1000;
+  const initial: DeployOpsStatus = deps.initial ?? { platform: "unknown", target: "unknown", state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: "" };
+  return { clock, started, deadline, initial };
+}
+
 /**
  * Poll immediately and every 10s, bounding sleeps and in-flight polls by the remaining deadline.
  * @param deps - Status reader, optional monotonic clock/sleep seam, and initial unknown observation.
@@ -249,20 +298,19 @@ async function boundedPoll(status: (signal: AbortSignal) => Promise<DeployOpsSta
  * @example await waitForDeployOps({ status }, { until: "healthy", timeoutSeconds: 180, signal });
  */
 export async function waitForDeployOps(deps: { status(signal: AbortSignal): Promise<DeployOpsStatus>; clock?: WaitClock; initial?: DeployOpsStatus }, input: { until: "healthy" | "finished"; timeoutSeconds?: number; signal?: AbortSignal }): Promise<DeployOpsWaitResult> {
-  const clock = deps.clock ?? systemClock; const started = clock.now(); const deadline = started + (input.timeoutSeconds ?? 180) * 1000;
+  const { clock, started, deadline, initial } = waitSettings({ deps, input }, {});
   let polls = 0;
-  let last = deps.initial ?? { platform: "unknown", target: "unknown", state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: "" };
+  let last = initial;
   const result = (reached: boolean): DeployOpsWaitResult => ({ reached, waitedSeconds: Math.min((clock.now() - started) / 1000, (deadline - started) / 1000), polls, last });
   while (clock.now() < deadline) {
     if (input.signal?.aborted) throw aborted();
     polls++;
-    try { last = await boundedPoll(deps.status, deadline - clock.now(), input.signal); }
-    catch (error) { if (error === TIMEOUT) return result(false); throw error; }
-    if (input.signal?.aborted) throw aborted();
+    const observation = await pollBeforeDeadline({ status: deps.status, clock, deadline }, { signal: input.signal });
+    if (observation === TIMEOUT) return result(false);
+    last = observation;
     if (clock.now() > deadline) return result(false);
-    if (input.until === "healthy" ? last.state === "healthy" : ["healthy", "failing", "stopped"].includes(last.state)) return result(true);
-    const remaining = deadline - clock.now();
-    if (remaining > 0) await clock.sleep(Math.min(10_000, remaining), input.signal);
+    if (reachedCondition({ until: input.until, state: last.state }, {})) return result(true);
+    await sleepBeforeDeadline({ clock, deadline }, { signal: input.signal });
   }
   if (input.signal?.aborted) throw aborted();
   return result(false);

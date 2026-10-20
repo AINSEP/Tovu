@@ -22,15 +22,35 @@ export function parseDeployOpsFile(raw: string): ParseResult {
   for (const [i, entry] of value.platforms.entries()) {
     const at = `platforms[${i}]`;
     if (!object(entry)) return { ok: false, reason: `${at} must be an object` };
-    const { id, label, module, hosts } = entry;
-    if (typeof id !== "string" || id.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) return { ok: false, reason: `${at}.id must be a lowercase hyphenated id` };
-    if (seen.has(id)) return { ok: false, reason: `${at}.id '${id}' is declared twice` };
-    if (typeof label !== "string" || !label.trim() || label.length > 100) return { ok: false, reason: `${at}.label must be a non-empty string` };
-    if (typeof module !== "string" || !module.endsWith(".mjs") || module.startsWith("/") || module.includes("\\") || module.split("/").some(s => s === ".." || s === "." || !s)) return { ok: false, reason: `${at}.module must be a contained relative .mjs path` };
-    if (!Array.isArray(hosts) || hosts.length === 0 || hosts.length > 8 || !hosts.every(host => typeof host === "string" && host.length <= 253 && /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(host))) return { ok: false, reason: `${at}.hosts must be a non-empty array of HTTPS hostnames` };
+    const reason = descriptorError({ entry, at, seen }, {});
+    if (reason) return { ok: false, reason };
+    const { id, label, module, hosts } = entry as unknown as DeployOpsDescriptor;
     seen.add(id); descriptors.push({ id, label, module, hosts });
   }
   return { ok: true, descriptors };
+}
+
+/** Lexical containment is checked before the lifecycle loader checks disk containment. */
+function containedModule({ module }: { module: unknown }, _optional = {}): boolean {
+  return typeof module === "string" && module.endsWith(".mjs") && !module.startsWith("/") && !module.includes("\\") && !module.split("/").some(s => s === ".." || s === "." || !s);
+}
+
+function validHosts({ hosts }: { hosts: unknown }, _optional = {}): boolean {
+  return Array.isArray(hosts) && hosts.length > 0 && hosts.length <= 8 && hosts.every(host => typeof host === "string" && host.length <= 253 && /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(host));
+}
+
+function descriptorError({ entry, at, seen }: { entry: Record<string, unknown>; at: string; seen: Set<string> }, _optional = {}): string | undefined {
+  const { id, label, module, hosts } = entry;
+  if (typeof id !== "string" || id.length > 64 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  if (seen.has(id)) return `${at}.id '${id}' is declared twice`;
+  return descriptorFieldsError({ label, module, hosts, at }, {});
+}
+
+function descriptorFieldsError({ label, module, hosts, at }: { label: unknown; module: unknown; hosts: unknown; at: string }, _optional = {}): string | undefined {
+  if (typeof label !== "string" || !label.trim() || label.length > 100) return `${at}.label must be a non-empty string`;
+  if (!containedModule({ module }, {})) return `${at}.module must be a contained relative .mjs path`;
+  if (!validHosts({ hosts }, {})) return `${at}.hosts must be a non-empty array of HTTPS hostnames`;
+  return undefined;
 }
 
 const OPTIONAL_VERBS = ["listTargets", "deploy", "listSecrets", "setSecret", "unsetSecret", "readSecret"] as const;
