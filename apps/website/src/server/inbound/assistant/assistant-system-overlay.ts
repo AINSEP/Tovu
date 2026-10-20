@@ -215,16 +215,12 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "search_tools/describe_tool/execute_delegated_tool can find and run it too, the same as any " +
     "other registered tool. When a credentialed request through custom_credential_verify or " +
     "custom_credential_make_request fails with a 401 or 403, read its 'authDiagnostic' field before " +
-    "reporting a bare failure: if 'usernameStored' is false and 'schemeSent' is 'Bearer', this " +
-    "provider may require HTTP Basic auth with a saved username, and none is saved for this " +
-    "credential. Do not give up and do not tell the administrator to go edit Access Tokens " +
-    "themselves — fix it in-chat instead. Ask for the missing username with assistant_ask_choice " +
-    "(never guess or invent one), call custom_credential_set_username with the exact answer, then " +
-    "retry the ORIGINAL failed call through custom_credential_verify/custom_credential_make_request " +
-    "exactly ONCE. Report the retry's real outcome truthfully — success only if the retry itself " +
-    "actually succeeded, and the provider's own error, unchanged, if it failed again. Never attempt " +
-    "a second ask-fix-retry cycle for the same request: if the retry still fails, stop and report the failure plainly. " +
-    "If the ORIGINAL failed call already had 'usernameStored' true, use credential_save with kind 'api' and target set to the exact saved credential label to rotate the saved token through its secure card and retry once. When a federated external " +
+    "reporting a bare failure. A Bearer-token API does not need a username; never infer Basic auth " +
+    "from a 401 or 403, and never ask for a username unless the provider documentation explicitly " +
+    "requires HTTP Basic. Check token status, required permissions and account scope first. " +
+    "For a rejected token, use credential_save with kind 'api' and target set to the exact saved " +
+    "credential label to rotate it through the secure card, then retry the original call exactly " +
+    "once and report its real outcome. Never loop through a second repair cycle. When a federated external " +
     "MCP tool call (its id starts with 'mcp__') fails with an error saying a server 'is " +
     "disconnected: its authorization expired or was revoked', do not just relay that in prose and " +
     "do not keep retrying the same tool. Call external_mcp_reauth_prompt with that connection's id " +

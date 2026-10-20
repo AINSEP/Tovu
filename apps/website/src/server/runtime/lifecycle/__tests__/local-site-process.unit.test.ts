@@ -44,6 +44,7 @@ test("local child spawn errors and bounded UTF-8 stderr survive without an exit 
   diagnostics.stderr.write(unicode.subarray(0, 2));
   diagnostics.stderr.write(unicode.subarray(2));
   const error = new Error("spawn ENOENT");
+  error.stack = "Error: spawn ENOENT\n    at launch (/repo/worker.ts:1:1)";
   events.emit("error", { error });
   diagnostics.stderr.end();
   const saved = readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8");
@@ -77,4 +78,28 @@ test("devsignin: managed children inherit only a safely admitted local owner cap
   for (const override of [{ TOVU_DEV_OWNER_SIGNIN: "0" }, { NODE_ENV: "production" }, { TOVU_RUNTIME_MODE: "production" }, { FLY_APP_NAME: "live" }, { TOVU_HOST: "0.0.0.0" }]) {
     assert.equal(make({ ...dev, ...override }).TOVU_DEV_OWNER_SIGNIN, "0");
   }
+});
+
+
+test("native fatal evidence redacts home paths and runtime-built vendor tokens before taking a tail", (t) => {
+  const siteDir = mkdtempSync(path.join(os.tmpdir(), "native-redaction-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  const events = new EventEmitter();
+  const child: SpawnedDaemonProcess = { pid: 42, on(input) { events.on(input.event, input.listener); }, kill() { return true; } };
+  const diagnostics = localSiteProcessLog({ name: "fatal", siteDir });
+  diagnostics.observe({ child });
+  const secret = ["sk", "-", "x".repeat(6000)].join("");
+  const homePath = path.join(os.homedir(), "private/addon.node");
+  diagnostics.stderr.write(`FATAL ERROR: native load ${homePath} ${secret.slice(0, 5)}`);
+  diagnostics.stderr.write(secret.slice(5));
+  events.emit("exit", { code: null, signal: "SIGABRT" });
+  diagnostics.stderr.end();
+  const saved = readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8");
+  assert.match(saved, /FATAL ERROR: native load/);
+  assert.match(saved, /code=none signal=SIGABRT/);
+  assert.ok(!saved.includes(secret));
+  assert.ok(!saved.includes(secret.slice(-40)), "cutting before redaction would leak the secret's suffix");
+  assert.ok(!saved.includes(homePath));
+  const entries = saved.trim().split("\n").map(line => JSON.parse(line) as { message: string });
+  assert.ok(entries.every(entry => entry.message.length <= 8_100));
 });

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createApi, refusal, segment, PAGES_PROJECTS_PAGING } from './api.mjs';
+import { API_ROOT, createApi, refusal, segment, PAGES_PROJECTS_PAGING } from './api.mjs';
 import { prepareAssets } from './assets.mjs';
 import { previewDomains, assertDomainApproval, applyDomains } from './domains.mjs';
 import { normalizeDomain } from './zones.mjs';
@@ -111,16 +111,32 @@ function preparePublish({ input, kit, config, plan, targetId }, _options = {}) {
   return { assets: prepareAssets({ files: [...input.files, proofFile], responseHeaders: input.responseHeaders, kit }, { maxFiles }), proof: { path, expected } };
 }
 
-/** Verify token active status only; this does not authorize publishing, DNS or domain inventory.
- * `GET /user/tokens/verify` is Cloudflare's own check for a scoped API token (a broader `/user` read
- * can need account scopes a Pages-only token lacks, misreporting a good token as rejected). It
- * returns no account identity, so nothing is read back. */
+/** Verify active status with the account endpoint when an account is supplied. User-owned
+ * tokens may require the user endpoint; a scope mismatch alone must not be called rejection.
+ * No identity or provider body crosses this boundary. At most two bounded read-only requests.
+ * @complexity O(1) requests and response processing (transport bounds response size).
+ */
 export async function verifyCredential({ credential, kit }, _options = {}) {
-  const resp = await kit.fetch('https://api.cloudflare.com/client/v4/user/tokens/verify', { headers: { Authorization: `Bearer ${credential.token}` }, redirect: 'error' }, { timeoutMs: kit.timeouts.QUICK });
-  if (!resp.ok) return { ok: false, reason: resp.status === 401 || resp.status === 403 ? 'rejected' : 'unreachable', statusCode: resp.status };
-  const json = await resp.json();
-  if (json.success === false || json.result?.status !== 'active') return { ok: false, reason: 'rejected', statusCode: resp.status };
-  return { ok: true };
+  const paths = credential.accountId
+    ? [`/accounts/${segment({ value: credential.accountId })}/tokens/verify`, '/user/tokens/verify']
+    : ['/user/tokens/verify'];
+  for (const [index, path] of paths.entries()) {
+    let resp;
+    try {
+      resp = await kit.fetch(`${API_ROOT}${path}`, { method: 'GET', headers: { Authorization: `Bearer ${credential.token}` }, redirect: 'error' }, { timeoutMs: kit.timeouts.QUICK });
+    } catch { return { ok: false, reason: 'unreachable' }; }
+    if (!resp.ok) {
+      if (index + 1 < paths.length && [400, 401, 403, 404].includes(resp.status)) continue;
+      return { ok: false, reason: resp.status === 401 || resp.status === 403 ? 'rejected' : 'unreachable', statusCode: resp.status };
+    }
+    let json;
+    try { json = await resp.json(); }
+    catch { return { ok: false, reason: 'unreachable', statusCode: resp.status }; }
+    if (json?.success === true && json.result?.status === 'active') return { ok: true };
+    if (json?.success === true && ['disabled', 'expired'].includes(json.result?.status)) return { ok: false, reason: 'rejected', statusCode: resp.status };
+    return { ok: false, reason: 'unreachable', statusCode: resp.status };
+  }
+  return { ok: false, reason: 'unreachable' };
 }
 
 export function validateConfig(config, _options = {}) {

@@ -16,7 +16,10 @@
  */
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { treeQuietProblems } from "../src/tree-quiet.ts";
@@ -52,7 +55,7 @@ function isViteWatchRunning(): boolean {
   } catch (error) {
     // `as`: execFileSync throws a plain Error decorated with the spawned process's own `status`.
     if ((error as { status?: number }).status === 1) return false;
-    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${(error as Error).message}`);
+    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${sanitizeUntrustedText({ text: redactText({ text: (error as Error).message }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}`);
   }
 }
 
@@ -141,4 +144,8 @@ function main(): void {
   process.stdout.write("check-tree-quiet: OK — apps/desktop is quiet\n");
 }
 
-main();
+try { main(); }
+catch (error) {
+  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.exitCode = 1;
+}

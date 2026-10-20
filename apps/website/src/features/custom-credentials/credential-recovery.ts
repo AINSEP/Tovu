@@ -21,8 +21,8 @@ export async function withCustomCredentialSetup<T>(
     }
     return { executed: false, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill }, {}) };
   }
-  const output = result as { status?: unknown; authDiagnostic?: { usernameStored?: boolean; schemeSent?: string } };
+  const output = result as { status?: unknown };
   const rotation = (verification && output.status === "invalid") ||
-    (output.status === 401 && (output.authDiagnostic?.usernameStored === true || output.authDiagnostic?.schemeSent === "Basic"));
+    output.status === 401;
   return rotation ? { credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "api", target: label } }, {}), ...result } : result;
 }

@@ -192,3 +192,21 @@ test("the runner does not report ITSELF as an unregistered gate script", () => {
   assert.equal(status, 0);
   assert.doesNotMatch(stderr, /nothing runs/);
 });
+
+
+test("gate output is bounded and redacted while a failing child still fails the runner", () => {
+  const secret = ["ghp", "_", "x".repeat(36)].join("");
+  const homePath = path.join(os.homedir(), "private/gate.ts");
+  // Build the secret in the child, so the manifest and shell command never contain it.
+  const code = `const line = 'gate diagnostic ' + ['ghp','_', 'x'.repeat(36)].join('') + ' ' + require('node:path').join(require('node:os').homedir(), 'private/gate.ts'); console.log(line + ' detail'.repeat(1000)); console.error(line); process.exitCode = 7;`;
+  const encoded = Buffer.from(code).toString("base64");
+  const result = runWith({ gates: [{ id: "redacted", run: `node -e "eval(Buffer.from('${encoded}','base64').toString())"` }] });
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /gate diagnostic/);
+  assert.match(result.stdout, /FAIL.*redacted/);
+  for (const output of [result.stdout, result.stderr]) {
+    assert.ok(!output.includes(secret));
+    assert.ok(!output.includes(homePath));
+    assert.ok(output.length < 3_000);
+  }
+});

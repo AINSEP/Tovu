@@ -1,6 +1,9 @@
 /** Packaged MCP release checks. Command construction and reply validation are independently testable. */
 import { spawn } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { buildSitesMcpLauncherScript, buildSitesMcpRegistration } from "./sites-mcp-registration.ts";
 import { resolveSmokeTargets } from "./smoke-native.ts";
 
@@ -84,8 +87,10 @@ export function buildJiniEntryScript(
 }
 
 /** Rejects incomplete resolver output so a failed packaged bootstrap cannot silently skip a bridge. */
-export function parseJiniEntries({ stdout }: { stdout: string }): BridgeCommand[] {
-  const entries: unknown = JSON.parse(stdout);
+export function parseJiniEntries({ stdout }: { stdout: string }, _options = {}): BridgeCommand[] {
+  let entries: unknown;
+  try { entries = JSON.parse(stdout); }
+  catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactText({ text: stdout }, { username: path.basename(os.homedir()) }) })}`); }
   if (!Array.isArray(entries) || entries.length !== 2) throw new Error("expected two packaged Jini entries");
   return entries.map((entry: unknown, index) => {
     if (!isRecord(entry) || typeof entry.command !== "string" || entry.command.length === 0
@@ -187,9 +192,14 @@ export async function smokeBridge(
   });
   const closed = new Promise<void>(resolve => child.once("close", () => resolve()));
   let stderr = "";
+  let stderrOverflow = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   child.stderr.setEncoding("utf8");
-  child.stderr.on("data", (chunk: string) => { stderr = (stderr + chunk).slice(-65_536); });
+  child.stderr.on("data", (chunk: string) => {
+    if (stderrOverflow) return;
+    stderrOverflow = stderr.length + chunk.length > 65_536;
+    stderr = stderrOverflow ? "[oversized stderr omitted]" : stderr + chunk;
+  });
   try {
     await new Promise<void>((resolve, reject) => {
       let buffer = "";
@@ -199,7 +209,7 @@ export async function smokeBridge(
       timer = setTimeout(() => reject(new Error(`MCP watchdog exceeded ${watchdogMs} ms`)), watchdogMs);
       child.once("error", reject);
       child.stdin.on("error", reject);
-      child.once("close", () => reject(new Error("bridge closed before completing MCP handshake")));
+      child.once("close", (code, signal) => reject(new Error(`bridge closed before completing MCP handshake (code ${code ?? "none"}, signal ${signal ?? "none"})`)));
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => {
         buffer += chunk;
@@ -229,8 +239,8 @@ export async function smokeBridge(
       } });
     });
   } catch (error) {
-    // No host secrets are inherited; captured diagnostics belong to the disposable smoke run.
-    throw new Error(`${entry.label}: ${error instanceof Error ? error.message : String(error)}${stderr ? `\n${stderr}` : ""}`);
+    const detail = `${entry.label}: ${error instanceof Error ? error.message : String(error)}${stderr ? `\n${stderr}` : ""}`;
+    throw new Error(sanitizeUntrustedText({ text: redactText({ text: detail }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }));
   } finally {
     clearTimeout(timer);
     child.kill("SIGKILL");

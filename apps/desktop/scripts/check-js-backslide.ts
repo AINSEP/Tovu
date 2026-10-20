@@ -24,6 +24,9 @@
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { fileURLToPath } from "node:url";
 
 import { jsBackslideOffenders } from "../src/js-backslide-guard.ts";
@@ -83,4 +86,8 @@ function main(): void {
   process.stdout.write("check-js-backslide: OK — apps/desktop is TypeScript-only\n");
 }
 
-main();
+try { main(); }
+catch (error) {
+  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.exitCode = 1;
+}

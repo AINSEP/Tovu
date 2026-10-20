@@ -36,6 +36,12 @@ Keep one saved vendor connection: kind `vendor`, vendor `cloudflare`, encrypted
 people enter secrets in its secure form, never chat. Keep existing Pages-only `worksFor` compatibility.
 To add Workers/DNS capabilities, the person must explicitly update permissions/compatibility on that
 same credential. Token active status alone proves no capability's permissions.
+If a token is over-broad, suggest replacing it with one limited to the selected account/zones and
+list the exact permissions needed for the requested operation from the permissions table. For a
+Workers-only static publish, request Workers Scripts: Edit; add D1: Edit only for active forms.
+For Pages-only publishing, request Cloudflare Pages: Edit. Add domain permissions only when needed.
+Offer to help enable workers.dev when the chosen deployment needs it. If the account has no
+subdomain, guide the person through Workers & Pages setup; never invent one or enable it silently.
 
 Hosting accepted plus unfinished requested domains is `ok:"partial"` (tools: `published:true`,
 `reachable:false`). Report every hostname's state and next step. Never say the requested site is live

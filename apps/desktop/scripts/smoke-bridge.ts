@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /** Release gate: initialize + tools/list for all three shipped MCP bridges, without a daemon/model. */
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { redactText } from "@jini-ai/diagnostics";
+import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { resolveSmokeTargets } from "../src/smoke-native.ts";
@@ -26,7 +29,7 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
     encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL",
   });
   if (resolved.error || resolved.status !== 0) {
-    throw new Error(`smoke-bridge: packaged resolver failed: ${resolved.error?.message ?? resolved.status}\n${resolved.stderr ?? ""}`);
+    throw new Error(`smoke-bridge: packaged resolver failed: ${resolved.error?.message ?? resolved.status} (signal ${resolved.signal ?? "none"})\n${resolved.stderr ?? ""}`);
   }
   const entries = parseJiniEntries({ stdout: resolved.stdout });
   const userDataDir = mkdtempSync(path.join(directory, "tovu-release-smoke-"));
@@ -43,6 +46,6 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
 }
 
 main().catch(error => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 });

@@ -9,6 +9,7 @@ import { format } from "node:util";
 import path from "node:path";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
+import { redactText } from "@jini-ai/diagnostics";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
@@ -29,33 +30,45 @@ import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
  * Reuses the existing redactor, bounded buffer and synchronous rotating sink. Native fatal errors
  * bypass console capture, so retain stderr until exit/pipe close, including split writes.
  * @returns A stderr sink, lifecycle observer and breadcrumb writer; no process policy changes.
- * @complexity O(chunk bytes) per stderr write, bounded to a 4096-character tail; O(1) per lifecycle event.
+ * @complexity O(chunk bytes) per write, at most 65536 raw characters retained; redact before
+ * taking the 4096-character diagnostic tail so a sliced vendor-token prefix cannot leak its suffix.
  */
 export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: string }, _options = {}) {
-  const buffer = createLogBuffer({ redact: text => redactSecretShapes({ text }).text });
+  const redact = (text: string) => redactText({ text: redactSecretShapes({ text }).text }, { username: path.basename(os.homedir()) });
+  const buffer = createLogBuffer({ redact });
   const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
-  let stderrTail = "";
+  let stderrText = "";
+  let oversized = false;
   const decoder = new StringDecoder("utf8");
-  const record = ({ message, level = "info" }: { message: string; level?: "info" | "error" }, _optional = {}) => {
-    const entry = buffer.append({ level, source: "server", message: `[local-site ${name}] ${message}` });
+  const record = ({ message, level = "info", includeStderr = false }: { message: string; level?: "info" | "error"; includeStderr?: boolean }, _optional = {}) => {
+    const tail = includeStderr ? `; stderr tail=${redact(stderrText).slice(-4096)}` : "";
+    const entry = buffer.append({ level, source: "server", message: `[local-site ${name}] ${message}${tail}` });
     sink.write(entry);
     // A full/unwritable site disk must still leave evidence in the serving host's log.
     if (!sink.isHealthy()) console.error(entry.message);
   };
   const stderr = new Writable({
-    write(chunk, _encoding, done) { stderrTail = (stderrTail + decoder.write(chunk)).slice(-4096); done(); },
+    write(chunk, _encoding, done) {
+      const text = decoder.write(chunk);
+      if (!oversized) {
+        oversized = stderrText.length + text.length > 65_536;
+        stderrText = oversized ? "[oversized stderr omitted]" : stderrText + text;
+      }
+      done();
+    },
     final(done) {
-      stderrTail = (stderrTail + decoder.end()).slice(-4096);
-      record({ message: `stderr closed; tail=${stderrTail}` }); done();
+      const finalText = decoder.end();
+      if (!oversized) stderrText += finalText;
+      record({ message: "stderr closed", includeStderr: true }); done();
     },
   });
   return { stderr, record, observe({ child }: { child: SpawnedDaemonProcess }, _optional = {}) {
     record({ message: `spawned pid=${child.pid ?? "none"}` });
     child.on({ event: "exit", listener: ({ code, signal }) => {
-      record({ level: code === 0 ? "info" : "error", message: `pid=${child.pid ?? "none"} exited code=${code ?? "none"} signal=${signal ?? "none"}; stderr tail=${stderrTail}` });
+      record({ level: code === 0 ? "info" : "error", includeStderr: true, message: `pid=${child.pid ?? "none"} exited code=${code ?? "none"} signal=${signal ?? "none"}` });
     } });
     child.on({ event: "error", listener: ({ error }) => {
-      record({ level: "error", message: `pid=${child.pid ?? "none"} process error=${format(error)}; stderr tail=${stderrTail}` });
+      record({ level: "error", includeStderr: true, message: `pid=${child.pid ?? "none"} process error=${format(error)}` });
     } });
   } };
 }

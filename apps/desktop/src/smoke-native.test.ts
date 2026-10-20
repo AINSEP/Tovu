@@ -10,7 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import vm from "node:vm";
 
@@ -149,7 +149,7 @@ test("any single check failing makes the overall result false, and the failing c
   assert.equal(result.betterSqlite3.ok, true, "an unrelated passing check must not be dragged down");
 });
 
-test("malformed JSON is a parse failure, not a silent pass -- the raw stdout is included for diagnosis", () => {
+test("malformed JSON is a parse failure, not a silent pass -- a safe stdout excerpt is included for diagnosis", () => {
   assert.throws(() => parseSmokeOutput("not json at all"), /could not parse smoke output as JSON/);
   try {
     parseSmokeOutput("not json at all");
@@ -268,4 +268,30 @@ test("entry-load output that is not JSON throws; any other shape fails", () => {
   assert.deepEqual(parseEntryLoadOutput("null"), { ok: false, unresolved: ["malformed entry-load output"] });
   assert.deepEqual(parseEntryLoadOutput(JSON.stringify({ ok: true })), { ok: false, unresolved: ["malformed entry-load output"] });
   assert.deepEqual(parseEntryLoadOutput(JSON.stringify({ ok: false, unresolved: [] })), { ok: false, unresolved: [] });
+});
+
+
+test("native smoke malformed JSON and module errors expose only bounded redacted diagnostics", () => {
+  const secrets = [["ghp", "_", "x".repeat(36)], ["sk", "-", "x".repeat(40)], ["AK", "IA", "X".repeat(16)]].map(parts => parts.join(""));
+  const homePath = path.join(homedir(), "private/addon.node");
+  const detail = `native load failed ${secrets.join(" ")} ${homePath}\n` + "safe detail ".repeat(1000);
+  for (const parse of [parseSmokeOutput, parseEntryLoadOutput]) {
+    assert.throws(() => parse(detail), (error: Error) => {
+      assert.match(error.message, /could not parse.*native load failed/s);
+      for (const secret of secrets) assert.ok(!error.message.includes(secret));
+      assert.ok(!error.message.includes(homePath));
+      assert.ok(error.message.length < 2_100);
+      return true;
+    });
+  }
+  const failed = parseSmokeOutput(JSON.stringify({ betterSqlite3: { ok: false, error: detail } }));
+  assert.equal(failed.ok, false);
+  assert.match(failed.betterSqlite3.error!, /native load failed/);
+  for (const secret of secrets) assert.ok(!JSON.stringify(failed).includes(secret));
+  assert.ok(!JSON.stringify(failed).includes(homePath));
+  assert.ok(failed.betterSqlite3.error!.length <= 2_000);
+  const entries = parseEntryLoadOutput(JSON.stringify({ ok: false, unresolved: [detail] }));
+  for (const secret of secrets) assert.ok(!JSON.stringify(entries).includes(secret));
+  assert.ok(!JSON.stringify(entries).includes(homePath));
+  assert.ok(entries.unresolved[0].length <= 2_000);
 });
