@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { FormDefinitionRecord } from "@jini-ai/cms/forms";
-import { buildFormDestinationManifest } from "../form-destination-manifest.js";
+import { buildFormDeliveryForm, buildFormDestinationManifest } from "../form-destination-manifest.js";
 
 /** @file Unit tests for the generic form manifest handed to hosting targets. */
 
@@ -27,4 +27,25 @@ test("active forms map to names, required flags, lengths and multi-value groups 
 
 test("no active forms means an empty manifest", () => {
   assert.deepEqual(buildFormDestinationManifest({ definitions: [] }), []);
+});
+
+// ---- buildFormDeliveryForm: the snapshot a push delivery freezes when a submission is planned ----
+
+test("the delivery form adds each field's label and type to the manifest's names, flags, lengths and groups", () => {
+  assert.deepEqual(buildFormDeliveryForm({ definition: waitlist }), { slug: "byho-waitlist", fields: [
+    { name: "email", required: true, maxLength: 254, label: "Email", type: "email" },
+    { name: "interests", required: true, multiple: true, label: "Interests", type: "checkbox-group" },
+    { name: "consent", required: true, label: "Consent", type: "checkbox" },
+    { name: "visitor_note", required: false, label: "Note", type: "textarea" },
+  ] });
+});
+
+test("the delivery form is built whatever the definition's status is now (the submission was already accepted)", () => {
+  assert.equal(buildFormDeliveryForm({ definition: { ...waitlist, slug: "old", status: "disabled" } }).slug, "old");
+});
+
+test("the delivery form never carries notification recipients or option lists", () => {
+  const form = JSON.stringify(buildFormDeliveryForm({ definition: waitlist }));
+  assert.equal(form.includes("owner@example.com"), false);
+  assert.equal(form.includes("options"), false);
 });

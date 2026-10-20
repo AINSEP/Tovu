@@ -52,6 +52,19 @@ const LATER_COLUMNS: Record<string, { before: string; classes: Record<string, st
   publish_history: { before: "published_at", classes: { credential_id: "plain-text", config_fields_json: "json-text", kind: "plain-text" } },
 };
 
+// Later migrations' whole tables, pinned column by column the same way: copied tables enter the
+// transfer catalog in copy order before `before`; `form_receiver_pulls` is classified but never
+// copied (`database-transfer/exclusions.ts` says why). a8bce53c8 (0018), 6bee1800b (0019).
+const LATER_TABLES: Record<string, { before: string | null; classes: Record<string, string> }> = {
+  form_delivery_jobs: { before: "form_submissions", classes: { job_id: "plain-text", workspace_id: "plain-text", submission_id: "plain-text",
+    binding_id: "plain-text", adapter_id: "plain-text" } },
+  form_delivery_plans: { before: "form_submissions", classes: { workspace_id: "plain-text", submission_id: "plain-text", form_id: "plain-text" } },
+  form_receiver_pulls: { before: null, classes: { workspace_id: "plain-text", receiver_key: "plain-text", lease_token: "plain-text",
+    lease_expires_at: "utc-timestamp-text", last_started_at: "utc-timestamp-text" } },
+  form_submission_remote_receipts: { before: "form_submissions", classes: { workspace_id: "plain-text", destination_key: "plain-text",
+    remote_id: "plain-text", submission_id: "plain-text", imported_at: "utc-timestamp-text" } },
+};
+
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
   transfer: Record<string, string[]>; classes: Record<string, Record<string, string>>;
 };
@@ -180,8 +193,15 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
       columns.splice(at, 0, ...Object.keys(addition.classes));
       expected[table] = columns;
     }
+    let entries = Object.entries(expected);
+    for (const [table, addition] of Object.entries(LATER_TABLES)) {
+      if (addition.before === null) continue;
+      const at = entries.findIndex(([name]) => name === addition.before);
+      assert.notEqual(at, -1, `${table}: the pre-strip insertion anchor must exist`);
+      entries = [...entries.slice(0, at), [table, Object.keys(addition.classes)], ...entries.slice(at)];
+    }
     // Entries compare in copy order: dropping six leaf tables must not reorder the rest.
-    assert.deepEqual(Object.entries(actual), Object.entries(expected));
+    assert.deepEqual(Object.entries(actual), entries);
   });
 
   test("the manifest classifies every other table's columns as before", () => {
@@ -195,6 +215,7 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
     for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
       expected[table] = { ...expected[table], ...addition.classes };
     }
+    for (const [table, addition] of Object.entries(LATER_TABLES)) expected[table] = addition.classes;
     expected.external_mcp_servers = without(expected.external_mcp_servers, MCP_SEALED);
     const current = without(actual, ["secrets_vault"]);
     current.external_mcp_servers = without(current.external_mcp_servers, MCP_POINTERS);

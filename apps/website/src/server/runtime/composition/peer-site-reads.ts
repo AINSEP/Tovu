@@ -31,6 +31,7 @@ import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/f
 import { SqliteSettingsRepo } from '#src/features/settings/repo.sqlite';
 import { SqliteWorkspaceRepo } from '#src/features/workspace/index';
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from '#src/features/forms/repo.sqlite';
+import { SqlFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-repo';
 import { SqliteTaxonomyRepo, SqliteTermRepo, SqliteEntryTermRepo, SqliteTaxonomyRevisionRepo } from '#src/features/taxonomy/repo.sqlite';
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from '#src/features/navigation/repo.sqlite';
 import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
@@ -212,6 +213,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   const dbOps = new SqliteDbOpsAdapter({ connection: { backup: unavailable({ field: 'dbOps.captureRestorePoint' }) },
     filePath: contentDbPath, readWatermark: unavailable({ field: 'dbOps.readWatermark' }) });
   const trashRepo = new SqliteTrashRepo(kernel);
+  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const bag = {
     ...identity, contentKernel: kernel, workspaceId, clock, idGen, settingsRepo, getEffective,
@@ -245,6 +247,9 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     // The existing factories borrow their connection; construction/get/history reads never write.
     workspaceRepo: new SqliteWorkspaceRepo(kernel), chatHistory: createChatStoreFactory(chat),
     formDefinitionRepo: new SqliteFormDefinitionRepo(kernel), formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
+    // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
+    // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
+    formDeliveryStatus: { forSubmission: formDeliveryRepo.forSubmission.bind(formDeliveryRepo), recentUnfinished: formDeliveryRepo.recentUnfinished.bind(formDeliveryRepo) },
     taxonomyRepo: new SqliteTaxonomyRepo({ db: kernel, workspaceId }), termRepo: new SqliteTermRepo({ db: kernel, workspaceId }),
     entryTermRepo: new SqliteEntryTermRepo({ db: kernel, workspaceId }), taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId }),
     menuRepo: new SqliteMenuRepo(kernel), navLocationBindingRepo: new SqliteNavLocationBindingRepo(kernel),

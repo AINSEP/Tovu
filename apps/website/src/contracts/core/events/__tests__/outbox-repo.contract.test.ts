@@ -200,11 +200,39 @@ function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) =
   });
 }
 
+/**
+ * The SQL adapter only (F9C, 2026-10-20): an outcome never rewrites a settled row. `InMemoryOutbox`
+ * settles by id alone and is not changed by F9C, so it is not run here.
+ */
+function runSettledRowSuite(label: string, makeOutbox: () => OutboxPort) {
+  // The purge-then-late-success case (failed must not become delivered) is pinned with a status read
+  // in `platform/db/repos/__tests__/form-delivery-repo.{dialects,postgres}.test.ts`.
+  test(`[${label}] a failed row is not revived by a late retryable failure (purge, or a timeout sealed at the cap)`, async () => {
+    const outbox = makeOutbox();
+    await outbox.enqueue(makeEvent());
+    await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
+    await outbox.markFailed({ id: "evt-1", error: "sealed", nextAttemptAt: "2026-07-16T00:00:02.000Z", nextStatus: "failed" });
+    await outbox.markFailed({ id: "evt-1", error: "late retryable", nextAttemptAt: "2026-07-16T00:00:03.000Z", nextStatus: "pending" });
+    assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
+  });
+
+  test(`[${label}] a delivered row is not reopened by a stale claimer's late failure`, async () => {
+    const outbox = makeOutbox();
+    await outbox.enqueue(makeEvent());
+    await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
+    await outbox.markDelivered({ id: "evt-1" });
+    await outbox.markFailed({ id: "evt-1", error: "stale", nextAttemptAt: "2026-07-16T00:00:02.000Z", nextStatus: "pending" });
+    assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
+  });
+}
+
 runContractSuite("memory", (options) => new InMemoryOutbox(options));
 
 runContractSuite("sqlite", (options) => new SqliteOutboxAdapter(openContentDb(":memory:"), options));
+runSettledRowSuite("sqlite", () => new SqliteOutboxAdapter(openContentDb(":memory:")));
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral factory, and PGlite.
 for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
   runContractSuite(`kysely/${each.name}`, (options) => outboxFor(each.make(), options));
+  runSettledRowSuite(`kysely/${each.name}`, () => outboxFor(each.make()));
 }

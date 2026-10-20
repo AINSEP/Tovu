@@ -132,3 +132,32 @@ test("index.ts hands the legacy tail and createServingApp's bootWork to the stor
   assert.match(source, /const \{[^}]*\bbootWork: servingBootWork\b[^}]*\} = createServingApp\(deps\);/);
   assert.match(source, /bootWork\.push\(\.\.\.servingBootWork\)/, "createApp's BYOK pass must be awaited");
 });
+
+/**
+ * Same "only there" rule for the automatic form pull (forms multi-destination P2): it imports a
+ * static site's stored submissions and enqueues their events. A pull from the exporter, the CLI
+ * outside `serve` or the enqueue-only agent daemon would run where no subscriber is attached and
+ * nobody asked for it. Startup and owner/admin sign-in in a serving process are its only triggers.
+ */
+test("the automatic form pull trigger is built only by createServingApp, the only runner of autoPull", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bcreateServingFormPullTrigger\(/), ["server/runtime/composition/serving-app.ts"]);
+  assert.deepEqual(filesCalling(/(?<!function )\bcreateFormPullTrigger\(/), ["server/runtime/composition/form-pull-triggers.ts"]);
+  assert.deepEqual(filesCalling(/\.formSubmissionsAutoPull\b/), ["server/runtime/composition/deps.ts", "server/runtime/composition/serving-app.ts"]);
+  assert.deepEqual(filesCalling(/\bonAdminSignIn: formPull\.signIn\b/), ["server/runtime/composition/serving-app.ts"]);
+});
+
+test("createServingApp pulls once at startup, after createApp attached the subscribers", () => {
+  const lines = readCodeLines("server/runtime/composition/serving-app.ts");
+  const created = lines.findIndex((line) => /\bcreateApp\(routeDeps,/.test(line));
+  const pulls = lines.flatMap((line, index) => (/\bformPull\.pullNow\(\)/.test(line) ? [index] : []));
+  assert.equal(pulls.length, 1, "exactly one startup pull");
+  assert.ok(created >= 0 && pulls[0]! > created, "the startup pull must follow createApp");
+});
+
+for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
+  test(`${bootPath} stops the automatic form pull trigger at shutdown`, () => {
+    const source = readCodeLines(bootPath).join("\n");
+    assert.match(source, /const \{[^}]*\bformPullTrigger\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /workers: \[[^\]]*\bformPullTrigger\b[^\]]*\]/);
+  });
+}

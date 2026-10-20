@@ -544,3 +544,47 @@ for (const scope of ['user', 'workspace'] as const) {
     assert.equal(listed.data[0]!.confirmationRequired, true);
   });
 }
+
+// Delivery bindings route every new submission's answers to outside destinations, and the receiver
+// decides where a static site's visitors submit: an agent must never change either without a human,
+// and a plugin's saved escalation grant does not cover them.
+for (const [key, schema, value, reason] of [
+  ["deliveryBindings", { type: "json" }, [], "Changes where new form submissions are sent"],
+  ["receiver", { type: "string" }, "none", "Changes which receiver collects your published site's form submissions"],
+] as const) {
+  test(`core.forms.${key} asks a human every time and writes nothing on decline`, async () => {
+    const f = fixture("core.forms", key, schema as SettingDefinitionRecord["schema"]);
+    f.deps.approvalIdentityForRun = async () => ({ key: "already-approved-plugin", label: "Example" });
+    f.deps.nativeApprovalMemory = { has: async () => true, grant: async () => undefined };
+    const cards: string[] = [];
+    const answer = (decision: "confirm" | "cancel") => ({ emitSurface: async (emission: unknown) => {
+      cards.push(JSON.stringify(emission));
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision } }, { toolId: "settings_set_value" }), { ok: true });
+    } });
+    await assert.rejects(f.call("settings_set_value", { namespace: "core.forms", key, value }), /SETTINGS_NO_CONFIRMATION_CHANNEL/);
+    await assert.rejects(f.call("settings_set_value", { namespace: "core.forms", key, value }, answer("cancel")), { message: "settings_set_value: the human did not confirm the change. Nothing was changed." });
+    assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+    await f.call("settings_set_value", { namespace: "core.forms", key, value }, answer("confirm"));
+    assert.equal(cards.length, 2);
+    assert.ok(cards[0]!.includes(reason), "the card says what the change does");
+    assert.deepEqual((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, value);
+  });
+}
+
+test("core.forms.receiver cleared by an agent asks a human every time, even with a saved plugin grant", async () => {
+  const f = fixture("core.forms", "receiver");
+  f.deps.approvalIdentityForRun = async () => ({ key: "already-approved-plugin", label: "Example" });
+  f.deps.nativeApprovalMemory = { has: async () => true, grant: async () => undefined };
+  await assert.rejects(f.call("settings_clear_value", { namespace: "core.forms", key: "receiver" }), /SETTINGS_NO_CONFIRMATION_CHANNEL/);
+});
+
+test("a confirmed agent write of delivery bindings with a secret in config is still refused by the host chokepoint, and nothing is stored", async () => {
+  const f = fixture("core.forms", "deliveryBindings", { type: "json" });
+  const secretConfig = [{ bindingId: "b1", adapterId: "rows", connectionRef: "conn-1", enabled: true, config: { apiKey: "k".repeat(12) } }];
+  const confirm = { emitSurface: async () => {
+    assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" }), { ok: true });
+  } };
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.forms", key: "deliveryBindings", value: secretConfig }, confirm),
+    /"config\.apiKey" is named like a secret/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+});

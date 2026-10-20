@@ -171,6 +171,8 @@ const FORM_ID_SCHEMA = {
  */
 const SUBMISSIONS_MIN_LIMIT = 1;
 const SUBMISSIONS_MAX_LIMIT = 100;
+/** `forms_delivery_status` lists at most this many unfinished deliveries (the status repo's own cap). */
+export const DELIVERY_STATUS_MAX_LIMIT = 50;
 
 const SUBMISSION_ID_SCHEMA = {
   type: "string",
@@ -307,7 +309,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_pull_submissions",
     description:
-      "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target.",
+      "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target, counts per form (formId, formSlug, imported, alreadyImported, unmapped, failed) with totals, and ran: false with reason 'already-running' when another pull of the same host is still in progress.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.forms.manage" },
     inputSchema: {
@@ -315,6 +317,26 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
       additionalProperties: false,
       properties: {
         targetId: { type: "string", minLength: 1, maxLength: 64, description: "Optional hosting target id to pull from that target only. Omit to pull from every hosting target that receives forms." },
+      },
+    },
+  },
+  {
+    name: "forms_delivery_status",
+    description:
+      "Shows whether form submissions reached the destinations configured to receive them (the site's form delivery bindings): per binding, its status (pending, retrying, completed or failed), attempts so far, the next retry time and a short error code. With submissionId, that submission's deliveries; without it, the most recent deliveries that have not completed. Read-only; never shows answers, destination addresses or credentials.",
+    sideEffects: "none",
+    authorization: { permission: "admin.forms.submissions.read" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        submissionId: SUBMISSION_ID_SCHEMA,
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: DELIVERY_STATUS_MAX_LIMIT,
+          description: `Without submissionId: how many unfinished deliveries to list, 1-${DELIVERY_STATUS_MAX_LIMIT}. Defaults to ${DELIVERY_STATUS_MAX_LIMIT}.`,
+        },
       },
     },
   },

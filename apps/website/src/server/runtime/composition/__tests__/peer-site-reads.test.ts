@@ -10,6 +10,8 @@ import { openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { CONTENT_MIGRATIONS } from '#src/platform/db/migrations/index';
 import { LEDGER_TABLE } from '#src/platform/db/migrations/runner';
 import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index';
+import { planFormDeliveries } from '@jini-ai/cms/forms';
+import { SqlFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-repo';
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { CrossSiteUnavailable, createPeerSiteReads } from '../peer-site-reads.js';
 import { peerFixture } from './peer-site-reads.fixture.js';
@@ -92,6 +94,25 @@ test('foreign-site writes never reach a handler; the current registry name is st
   assert.equal(await f.call('content_post_create', { site: 'A', title: 'Yes' }), f.a.workspaceId);
   assert.equal(calls, 1);
   assert.equal(f.audits.length, 0);
+});
+
+test("forms_delivery_status on B reads only B's delivery rows, never A's, and never answers (security pin)", async t => {
+  const f = await peerFixture(t);
+  // Both sites hold a plan for the SAME submission id: a fallback to A's kernel or workspace would surface A's binding.
+  for (const site of [f.a, f.b]) {
+    await planFormDeliveries({ workspaceId: site.workspaceId, submissionId: 's1', formId: 'form', deps: {
+      plans: new SqlFormDeliveryRepo({ kernel: site.kernel }),
+      bindings: async () => [{ bindingId: `${site.name}-binding`, adapterId: 'adapter', connectionRef: 'conn', enabled: true, config: {} }],
+      snapshot: async () => ({ form: { slug: 'form', fields: [{ name: 'email', required: true }] },
+        submission: { id: 's1', answers: { email: `${site.name}-answer@example.com` }, submittedAt: site.clock.nowIso() } }),
+      newId: () => `${site.name}-job`, nowIso: () => site.clock.nowIso(),
+    } });
+  }
+  for (const input of [{ submissionId: 's1' }, {}]) {
+    const result = await f.call('forms_delivery_status', { ...input, site: 'B' }) as { deliveries: Array<{ bindingId: string }> };
+    assert.deepEqual(result.deliveries.map(row => row.bindingId), ['B-binding']);
+    assert.ok(!JSON.stringify(result).includes('answer@example.com'), 'status rows never carry answers');
+  }
 });
 
 test('non-owner refuses before registry discovery, including any peer SQL opens', async t => {
