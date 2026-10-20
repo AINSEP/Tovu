@@ -119,6 +119,12 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     return input.pluginId === undefined ? connections : connections.filter((connection) => connection.pluginId === input.pluginId);
   }
 
+  /** The https origins `pluginId`'s connections declare here (union); another workspace declares none. @complexity O(p + c). */
+  async function apiOriginsFor(input: { readonly workspaceId: string; readonly pluginId: string }): Promise<readonly string[]> {
+    if (input.workspaceId !== required.workspaceId) return [];
+    return (await listConnections({ pluginId: input.pluginId })).flatMap((connection) => connection.apiOrigins);
+  }
+
   /**
    * The hosted callback URL. Fails closed: refused when no return address is registered at all
    * (declared or configured), when this site has no public origin, or when its origin is not one of
@@ -208,7 +214,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
   }
 
   return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, listConnections, serviceFor, accessTokensFor,
-    toolConnections, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
+    toolConnections, apiOriginsFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
 }
 
 export type ApiConnectionHost = ReturnType<typeof createApiConnectionHost>;

@@ -75,7 +75,7 @@ export async function bootFixture(options: { readonly active?: () => boolean; re
   const loadContributions: AgentPluginExecutableToolHost['loadContributions'] = async () => ({ items: acmeTools(calls), refusals: [] });
   const registered = await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, authorize: options.authorize ?? allowAll,
-    host: { loadContributions, connections, http, limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }) },
+    host: { loadContributions, connections, http, limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }), apiOrigins: async () => ['https://api.acme.test'] },
     isActive: async () => options.active?.() ?? true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });

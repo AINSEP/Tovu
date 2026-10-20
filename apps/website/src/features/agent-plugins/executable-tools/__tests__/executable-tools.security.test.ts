@@ -20,7 +20,9 @@ const recordingLimiter = { check: async ({ key }: { key: string }) => { limiterK
 function portFor(http: HttpClientPort = fakeHttp().http, state: AgentPluginStateReaderFor = () => ({ get: async () => null })) {
   const { connections, tokenRequests } = fakeConnections({ accountId: 'alice' });
   const frozen = createFrozenConnectionAccounts();
-  return { port: createAgentPluginToolCapabilities({ connections, http, limiter: recordingLimiter, frozen, state }), tokenRequests, frozen };
+  // Only PLUGIN declares an API origin (its connections' `apiOrigins`, as the host reports them).
+  const apiOrigins = async ({ pluginId }: { readonly pluginId: string }) => (pluginId === PLUGIN ? ['https://api.acme.test'] : []);
+  return { port: createAgentPluginToolCapabilities({ connections, http, limiter: recordingLimiter, frozen, state, apiOrigins }), tokenRequests, frozen };
 }
 
 test('a token request always names the calling plugin and workspace, never one the plugin chose', async () => {
@@ -41,6 +43,17 @@ test('plugin HTTP refuses non-https URLs before sending anything', async () => {
   const { http, requests } = fakeHttp();
   await assert.rejects(portFor(http).port({ pluginId: PLUGIN, workspaceId: WORKSPACE }).http.fetch({ url: 'http://api.acme.test/x' }), { message: HTTPS_ONLY_MESSAGE });
   assert.equal(requests.length, 0);
+});
+
+test('security: plugin HTTP refuses an origin the calling plugin does not declare, before sending anything', async () => {
+  const { http, requests } = fakeHttp();
+  const { port } = portFor(http);
+  const undeclared = { message: /only call the API addresses their plugin declares/ };
+  await assert.rejects(port({ pluginId: PLUGIN, workspaceId: WORKSPACE }).http.fetch({ url: 'https://elsewhere.example/x' }), undeclared);
+  await assert.rejects(port({ pluginId: 'other-plugin', workspaceId: WORKSPACE }).http.fetch({ url: 'https://api.acme.test/x' }), undeclared, 'origins are per plugin');
+  assert.equal(requests.length, 0);
+  await port({ pluginId: PLUGIN, workspaceId: WORKSPACE }).http.fetch({ url: 'https://api.acme.test/x' });
+  assert.deepEqual(requests.map((request) => request.url), ['https://api.acme.test/x']);
 });
 
 test('plugin HTTP never follows redirects and refuses a truncated body instead of returning part of it', async () => {

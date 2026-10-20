@@ -41,6 +41,12 @@ export async function loadPluginTools() {
   return Promise.all(parsed.descriptors.map((descriptor) => definition.load({ plugin, descriptor, importModule })));
 }
 
+/** The host's `apiOrigins` port, answered from the plugin's own `tovu-connections.json` (what the real host reads). */
+async function declaredApiOrigins() {
+  const declared = JSON.parse(await readFile(new URL('../tovu-connections.json', import.meta.url), 'utf8'));
+  return declared.connections.flatMap((connection) => connection.apiOrigins ?? []);
+}
+
 /** Tovu's HttpClientPort over the fake's fetch (which refuses every non-Google host). */
 function httpPortOver(fake) {
   return {
@@ -72,7 +78,7 @@ export async function bootPluginTools({ fake }) {
   const items = await loadPluginTools();
   const registered = await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, authorize: async () => ({ allowed: true, reason: 'test' }),
-    host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) }, state: () => SHEETS_ON },
+    host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) }, state: () => SHEETS_ON, apiOrigins: declaredApiOrigins },
     isActive: async () => true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });

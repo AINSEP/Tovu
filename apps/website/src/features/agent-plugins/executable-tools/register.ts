@@ -24,7 +24,7 @@ import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
 import { APPROVAL_FAMILY_BY_EFFECT, createAgentPluginDisclosure } from './approval.js';
 import {
   createAgentPluginToolCapabilities, createFrozenConnectionAccounts,
-  type AgentPluginArtifactWriter, type AgentPluginConnectionAccess, type AgentPluginRateLimiter, type AgentPluginStateReaderFor,
+  type AgentPluginArtifactWriter, type AgentPluginConnectionAccess, type AgentPluginRateLimiter, type AgentPluginStateReaderFor, type AgentPluginApiOriginsFor,
 } from './host-capabilities.js';
 
 /** The file a plugin ships at its package root to contribute executable tools. */
@@ -44,6 +44,8 @@ export interface AgentPluginExecutableToolHost {
   readonly artifacts?: AgentPluginArtifactWriter;
   /** The plugin settings reader (the store its admin surface writes); tools only read it. */
   readonly state: AgentPluginStateReaderFor;
+  /** Each plugin's declared API origins: the only hosts its tools' HTTP may reach. */
+  readonly apiOrigins: AgentPluginApiOriginsFor;
 }
 
 /** Wraps one registration in the approval owner (`applyToolApprovalPolicy`, injected by the composition root). */
@@ -84,7 +86,7 @@ export async function registerAgentPluginExecutableTools(
 ): Promise<{ readonly refusals: readonly string[]; dispose(): void }> {
   const { registry, workspaceId, host } = required;
   const frozen = createFrozenConnectionAccounts();
-  const capabilities = createAgentPluginToolCapabilities({ connections: host.connections, http: host.http, limiter: host.limiter, frozen, state: host.state }, host.artifacts ? { artifacts: host.artifacts } : {});
+  const capabilities = createAgentPluginToolCapabilities({ connections: host.connections, http: host.http, limiter: host.limiter, frozen, state: host.state, apiOrigins: host.apiOrigins }, host.artifacts ? { artifacts: host.artifacts } : {});
   const contributions = createPluginContributionRegistry({});
   const projection = createAgentPluginToolProjection({ registry: contributions, toolIdFor: pluginToolIdFor, capabilities });
   const disclose = createAgentPluginDisclosure({ source: projection, connections: host.connections, frozen });

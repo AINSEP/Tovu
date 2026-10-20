@@ -42,7 +42,7 @@ handler runs; a plugin disabled during confirmation is refused.
 | export | what it is |
 |---|---|
 | `registerAgentPluginExecutableTools(required)` | Loads, projects and registers; returns `{ refusals, dispose }`. |
-| `AgentPluginExecutableToolHost` | The ports the composition root binds: `loadContributions`, `connections`, `http`, `limiter`, `state` (the plugin settings reader, `api-connections/plugin-state.ts`), optional `artifacts`. Tools get `state.get` only. |
+| `AgentPluginExecutableToolHost` | The ports the composition root binds: `loadContributions`, `connections`, `http`, `limiter`, `state` (the plugin settings reader, `api-connections/plugin-state.ts`), `apiOrigins` (each plugin's declared API origins), optional `artifacts`. Tools get `state.get` only. |
 | `AGENT_PLUGIN_TOOLS_FILENAME` | `tovu-agent-tools.json`. |
 | `createAgentPluginToolCapabilities(required, optional)` | Tovu's `AgentPluginToolCapabilitiesPort`. |
 | `AgentPluginConnectionAccess` | Port over the API-connection service: `readAccount`, `getAccessToken(…, { expectedAccountId })`. |
@@ -61,12 +61,19 @@ agentPluginTools: {
   connections: apiConnectionHost.toolConnections,  // refuses refs the plugin/workspace does not own
   http: guardedOutboundHttpClient,
   limiter: createRateLimiter({ profile: AGENT_PLUGIN_OUTBOUND_BUDGET, clock }),
+  apiOrigins: apiConnectionHost.apiOriginsFor,      // union of the plugin's connections' apiOrigins
 }
 ```
 
+A plugin's `http` reaches only the https origins its own connections declare in
+`tovu-connections.json` (`apiOrigins`); any other origin is refused before anything is sent, so a
+URL built from tool input can never carry the plugin's token elsewhere. A plugin with no declared
+origin can make no HTTP call from a tool or surface.
+
 The same `connections`, `http` and `limiter` back plugin admin-surface handlers
 (`../admin-surfaces/handlers.ts`). `createGuardedPluginHttp({ http })` is the `http` capability on
-its own, which API-connection hooks receive.
+its own (no origin list: hooks also reach token and revocation endpoints), which API-connection
+hooks receive.
 
 ## Extension points
 
@@ -78,5 +85,7 @@ connection, and receives the same ports. Provider endpoints, scopes and parsing 
 - Tools are loaded once per boot; enabling a plugin later needs a restart to add its tools (disabling
   is enforced per call).
 - `artifacts.write` refuses until a host artifact store is bound.
-- One limiter profile (`AGENT_PLUGIN_OUTBOUND_BUDGET`, 240/min per plugin key) for every plugin;
-  plugin-declared budgets (per user / per instance) are a TODO until a declaration format exists.
+- One limiter profile (`AGENT_PLUGIN_OUTBOUND_BUDGET`, 240/min per plugin key) backs the `limiter`
+  capability. Plugin-declared request budgets (per connection / per instance, `budgets` in
+  `tovu-connections.json`) are charged by the host on every token read
+  (`../../api-connections/budgets.ts`).

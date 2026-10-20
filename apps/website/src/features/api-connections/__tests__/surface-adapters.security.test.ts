@@ -30,6 +30,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { createIssuedSignInCollector } from "../../agent-plugins/admin-surfaces/issued-sign-ins.js";
 import { createAdminSurfacePublicConfig, PUBLIC_CONFIG_REFUSED_MESSAGE } from "../../agent-plugins/admin-surfaces/public-config.js";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "../../agent-plugins/executable-tools/host-capabilities.js";
+import { createAdminSurfaceCapabilities } from "../../agent-plugins/admin-surfaces/capabilities.js";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
@@ -226,12 +227,32 @@ test("tools: plugin state is read-only and scoped to the calling plugin and work
   const port = createAgentPluginToolCapabilities({
     connections: { readAccount: async () => null, getAccessToken: async () => accessToken }, http: { send: async () => { throw new Error("no network"); } },
     limiter: { check: async () => ({ allowed: true }) }, frozen: createFrozenConnectionAccounts(),
-    state: (scope) => { scopes.push(scope); return writable; },
+    state: (scope) => { scopes.push(scope); return writable; }, apiOrigins: async () => [],
   });
   const { state } = port({ pluginId: PLUGIN, workspaceId: WORKSPACE });
   assert.deepEqual(Object.keys(state), ["get"]);
   assert.equal(await state.get({ key: "selection" }), "value");
   assert.deepEqual(scopes, [{ workspaceId: WORKSPACE, pluginId: PLUGIN }]);
+});
+
+test("security: a surface handler's HTTP reaches only the https origins its plugin's connections declare", async () => {
+  const host = makeHost();
+  const sent: string[] = [];
+  const tools = createAgentPluginToolCapabilities({
+    connections: host.toolConnections, http: { send: async ({ request }) => { sent.push(request.url); return { status: 200, headers: {}, bodyText: "{}" }; } },
+    limiter: { check: async () => ({ allowed: true }) }, frozen: createFrozenConnectionAccounts(), state: () => ({ get: async () => null }), apiOrigins: host.apiOriginsFor,
+  });
+  const surface = createAdminSurfaceCapabilities({
+    tools, connectionsFor: (scope) => createSurfaceConnections({ host, pluginId: scope.pluginId, workspaceId: scope.workspaceId }),
+    stateFor: (scope) => host.pluginState.forPlugin(scope), publicConfig: createAdminSurfacePublicConfig({ env: {} }),
+  });
+  const { http } = surface({ pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
+  const undeclared = { message: /only call the API addresses their plugin declares/ };
+  await assert.rejects(http.fetch({ url: "https://auth.acme.test/token" }), undeclared, "a declared connection's sign-in host is not an API origin");
+  await assert.rejects(surface({ pluginId: PLUGIN, workspaceId: "ws-2", principalId: "admin-1" }).http.fetch({ url: "https://api.acme.test/me" }), undeclared, "another workspace declares nothing here");
+  assert.deepEqual(sent, []);
+  await http.fetch({ url: "https://api.acme.test/me" });
+  assert.deepEqual(sent, ["https://api.acme.test/me"]);
 });
 
 test("public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null", async () => {
