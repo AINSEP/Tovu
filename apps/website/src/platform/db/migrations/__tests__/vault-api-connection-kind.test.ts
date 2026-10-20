@@ -1,11 +1,13 @@
 /**
  * @file Security pins for 0020: widening the vault kind CHECK must keep every sealed row byte for
  * byte, keep the external-MCP pointers and their RESTRICT protection, and still refuse unknown kinds.
+ * Phase C: it refuses to run without the 0012 table and refuses DDL that is not the 0012 shape.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
-import { vaultApiConnectionKind } from "../0020_vault_api_connection_kind.js";
+import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
+import { vaultApiConnectionKind, widenedVaultTableDdl } from "../0020_vault_api_connection_kind.js";
 import { insertFixture, stamp, vaultFixture, vaultStep } from "./secrets-vault.fixture.js";
 
 const step = vaultApiConnectionKind({ checksum: "c".repeat(64) });
@@ -41,3 +43,23 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     }
   });
 }
+
+test("sqlite: 0020 refuses to run when secrets_vault is missing (0012 must run first), changing nothing", async () => {
+  const kernel = openMemorySqliteKernel<unknown>();
+  try {
+    await assert.rejects(kernel.transaction(() => step.up(kernel, { note: () => {} })), { message: "secrets_vault is missing; 0012_secrets_vault must run first" });
+    assert.deepEqual(await kernel.query<Row>(sql`SELECT name FROM sqlite_master WHERE name LIKE 'secrets_vault%' OR name = '_vault_0020_pointers'`), []);
+  } finally {
+    await kernel.close();
+  }
+});
+
+test("0020 refuses vault DDL that is not the 0012 shape instead of guessing at an edit", () => {
+  const kinds = "'source-control','mcp-env','mcp-auth')";
+  const refused = { message: "secrets_vault does not have the 0012 shape; revise this migration before applying it" };
+  assert.throws(() => widenedVaultTableDdl({ original: "CREATE TABLE secrets_vault (kind TEXT CHECK(kind IN ('custom')))" }), refused, "no 0012 kind list");
+  assert.throws(() => widenedVaultTableDdl({ original: `CREATE TABLE secrets_vault (a CHECK(a IN (${kinds}, b CHECK(b IN (${kinds}))` }), refused, "the kind list twice");
+  assert.throws(() => widenedVaultTableDdl({ original: `CREATE TABLE "secrets_vault" (kind CHECK(kind IN (${kinds}))` }), refused, "another table header");
+  assert.equal(widenedVaultTableDdl({ original: `CREATE TABLE secrets_vault (kind CHECK(kind IN (${kinds}))` }),
+    "CREATE TABLE secrets_vault_0020 (kind CHECK(kind IN ('source-control','mcp-env','mcp-auth','api-connection')))");
+});
