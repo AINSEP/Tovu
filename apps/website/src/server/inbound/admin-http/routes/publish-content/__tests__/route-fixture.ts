@@ -4,6 +4,7 @@ import express from "express";
 
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
+import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 
 import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "../deps.js";
 
@@ -36,15 +37,21 @@ export function routeDeps(overrides: Partial<PublishContentRouteDeps> = {}): Pub
 /**
  * An express app with `register` mounted. `x-principal` / `x-kind` headers set the principal and
  * credential kind (defaults: `owner` / `session`); `x-principal: none` leaves no principal at all,
- * the "requireAdminSession did not run" fault. `json: false` mounts no body parser.
+ * the "requireAdminSession did not run" fault. `json: false` mounts no body parser; `publishTrust`
+ * records a publishing credential's grant the way the publish-trust gate does.
  */
-export function routeApp(register: PublishContentRouteRegistrar, deps: PublishContentRouteDeps, options: { json?: boolean } = {}): express.Express {
+export function routeApp(
+  register: PublishContentRouteRegistrar,
+  deps: PublishContentRouteDeps,
+  options: { json?: boolean; publishTrust?: PublishTrustContext } = {}
+): express.Express {
   const app = express();
   if (options.json !== false) app.use(express.json());
   app.use((req, res, next) => {
     const principal = req.get("x-principal") ?? "owner";
     if (principal !== "none") res.locals.principal = { id: principal };
     res.locals.authCredentialKind = req.get("x-kind") ?? "session";
+    if (options.publishTrust) res.locals.publishTrust = options.publishTrust;
     next();
   });
   register(app, deps);
