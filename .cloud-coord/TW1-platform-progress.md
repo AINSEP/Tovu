@@ -61,7 +61,15 @@ See lot table; worst per lot recorded as cyc/cog.
 - L147 error messages changed: "Invalid portable columns for 'X': its portability policy names a column the table does not declare."; "Cannot build portable plugin schema for '<pluginId>': …".
 - L147 added optional seams prepareSharePluginTables(…, {modules}), sanitizeShareDatabase(…, {statfs}) + exported StagingSpacePort type.
 
-## Next
-All 10 lots merged. Remaining: whole website suite + admin suite on cloud/tw1-platform vs base (wt-base detached at origin/restructure/apps-website-phased).
+## Final results (2026-10-20 ~04:10 UTC)
+- Complexity lint (cyc≤10, cog≤10) over all 34 lot files + 42 changed non-test .ts files: 0 violations (baseline 58).
+- Typecheck: root tsc 0 errors, typecheck:tests 0 errors, admin tsc 0 errors.
+- Website suite (TEST_CONCURRENCY=2, PG env set): head 23484 tests / 44 fail / 36 skip; base 22824 / 45 fail / 36 skip. Every head failure also fails on base (0 new); base-only failure = sdk-importable test. ~82 min each.
+- Admin suite (vitest 4.1.11; `--minWorkers` is REJECTED by this vitest — use `--maxWorkers=4` only): 5 fail / 11944 pass; same 5 fail on base (untranslated-copy x3, Users, account-protections). No apps/admin files changed.
+- Diff vs base: 88 files, +8567/-1367.
+
+## Next (for a fresh coordinator / next wave)
+Wave TW1-platform is complete; nothing to resume. Branch cloud/tw1-platform is ready for owner review (no PR opened).
+Next-wave setup changes: build packages/sdk in SETUP; push lot branches from the main checkout; split lots >5 files; per-lot scratch subdirs; drop --minWorkers from admin command; start Postgres (pg_ctlcluster 16 main start + role root) up front.
 - L278: assertSafeProviderEndpoint / assertSafeUserFacingUrl (legacy testing/DB seam) have no production callers — owner decides on removal.
 - Whole suite (both base and head) leaks untracked files into the checkout: chat.db, content/themes/.preview-refresh.json, sites/tovu-dev/agent-plugins/ — pre-existing test-cleanup bug, removed after the run.
