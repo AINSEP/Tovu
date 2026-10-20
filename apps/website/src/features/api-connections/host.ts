@@ -152,7 +152,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
         const connection = await declaredFor({ pluginId: scope.pluginId, connectionRef: input.connectionRef });
         if (!connection) throw notAvailable();
         await budgets.charge({ workspaceId: required.workspaceId, pluginId: scope.pluginId, connectionId: connection.descriptor.connectionId, connectionRef: input.connectionRef, budgets: connection.budgets });
-        return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef }, options);
+        return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef, workspaceId: required.workspaceId }, options);
       },
     };
   }
@@ -187,7 +187,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     return { connectionRef: key, status: record?.status ?? "disconnected", grantedScopes: record?.grantedScopes ?? [] } as const;
   }
 
-  return { workspaceId: required.workspaceId, runtime: required.runtime, records, listConnections, serviceFor, accessTokensFor,
+  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, listConnections, serviceFor, accessTokensFor,
     toolConnections, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
 }
 

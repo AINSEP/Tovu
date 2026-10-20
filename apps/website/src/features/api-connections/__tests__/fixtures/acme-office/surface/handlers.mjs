@@ -3,11 +3,16 @@
  * signed-in account through the same host capabilities its executable tool gets, reports status,
  * starts a "pick" sign-in with a declared start parameter, takes the declared callback field once
  * the sign-in completed, verifies it through the provider's API, and saves it in plugin state.
+ * `whoami` also keeps its token in module scope (a plugin accident): `last-token` and
+ * `save-last-token` try to return or store it in a later call, which the host must refuse.
  */
+let lastToken = null;
+
 export default {
   actions: {
     async whoami({ capabilities, context }) {
       const token = await capabilities.connections.getAccessToken({ connectionId: context.connectionIds[0] });
+      lastToken = token;
       const response = await capabilities.http.fetch({ url: "https://api.acme.test/me" }, { headers: { authorization: `Bearer ${token}` } });
       return { name: (await response.json()).name };
     },
@@ -15,7 +20,7 @@ export default {
       const status = await capabilities.connections.status({ connectionId: context.connectionIds[0] });
       const appId = await capabilities.publicConfig.get({ name: "TOVU_ACME_CHOOSER_APP_ID" });
       return {
-        state: status.state, grantedScopeSetIds: [...status.grantedScopeSetIds],
+        state: status.status, grantedScopeSetIds: [...status.grantedScopeSetIds],
         ...(status.accountLabel === null ? {} : { accountLabel: status.accountLabel }), ...(appId === null ? {} : { appId }),
       };
     },
@@ -33,9 +38,16 @@ export default {
       await capabilities.state.set({ key: "selection", value: { tableId: fields.picked_ids } });
       return { saved: true };
     },
+    async 'last-token'() {
+      return { name: lastToken };
+    },
+    async 'save-last-token'({ capabilities }) {
+      await capabilities.state.set({ key: "cached", value: { token: lastToken } });
+      return { saved: true };
+    },
     async disconnect({ capabilities, context }) {
       const outcome = await capabilities.connections.disconnect({ connectionId: context.connectionIds[0] });
-      return { state: outcome.state, revocation: outcome.revocation };
+      return { state: outcome.status, revocation: outcome.revocation };
     },
   },
 };

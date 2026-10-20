@@ -136,7 +136,7 @@ test('vertical slice: hosted sign-in asks for drive.file only, proves PKCE, and 
   assert.equal(exchange.get('client_secret'), CLIENTS.hosted.clientSecret);
   assert.deepEqual([completed.outcome, completed.account, completed.grantedScopes], ['connected', { accountId: 'perm-alice', displayName: 'alice@example.test' }, [DRIVE_FILE]]);
 
-  const capabilities = { connections: { getAccessToken: ({ connectionRef }) => h.service.getAccessToken({ connectionRef }) }, http: { fetch: fake.fetch }, limiter: { check: async () => ({ allowed: true }) } };
+  const capabilities = { connections: { getAccessToken: ({ connectionRef }) => h.service.getAccessToken({ connectionRef, workspaceId: WS }) }, http: { fetch: fake.fetch }, limiter: { check: async () => ({ allowed: true }) } };
   const output = await accountInfo.invoke({ input: { connectionRef: started.connectionRef }, capabilities });
   assert.deepEqual(output, { accountId: 'perm-alice', displayName: 'alice@example.test' });
   const about = fake.requests.at(-1);
@@ -149,7 +149,7 @@ test('PKCE: the verifier sent to the token endpoint matches the S256 challenge o
   const other = await consent(h);
   // Swap codes: attempt A's state with attempt B's code. The verifier of A does not match B's challenge.
   await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams: { ...callbackParams, code: other.callbackParams.code } }), { code: 'authorization-failed' });
-  assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef })).status, 'disconnected');
+  assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef, workspaceId: WS })).status, 'disconnected');
 });
 
 test('state: a callback whose state was never issued is refused as invalid-attempt and no code is exchanged', async () => {
@@ -172,14 +172,14 @@ test('consent denial: access-denied, nothing exchanged or stored, still not conn
   const { started, callbackParams } = await consent(h, { deny: true });
   await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams }), { code: 'access-denied' });
   assert.equal(issuedTokens(), 0);
-  assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef })).status, 'disconnected');
+  assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef, workspaceId: WS })).status, 'disconnected');
 });
 
 test('partial scopes: a grant without drive.file is refused as scope-not-granted and no token is served', async () => {
   const h = await harness();
   const { started, callbackParams } = await consent(h, { grantScopes: ['openid'] });
   await assert.rejects(h.service.complete({ workspaceId: WS, actorId: ACTOR, redirectUri: h.callback, callbackParams }), { code: 'scope-not-granted' });
-  await assert.rejects(h.service.getAccessToken({ connectionRef: started.connectionRef }), { code: 'connection-not-found' });
+  await assert.rejects(h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS }), { code: 'connection-not-found' });
 });
 
 test('missing refresh token: a hosted same-account reconnect that omits one keeps the stored refresh token', async () => {
@@ -188,7 +188,7 @@ test('missing refresh token: a hosted same-account reconnect that omits one keep
   const [original] = fake.liveRefreshTokens();
   await signIn(h, { omitRefreshToken: true });
   h.clock.now += 3600_000;
-  await h.service.getAccessToken({ connectionRef: first.started.connectionRef });
+  await h.service.getAccessToken({ connectionRef: first.started.connectionRef, workspaceId: WS });
   assert.equal(tokenRequests().at(-1).get('refresh_token'), original);
 });
 
@@ -198,10 +198,10 @@ test('refresh rotation: a rotated refresh token is stored and the old one is nev
   const [original] = fake.liveRefreshTokens();
   fake.behaviour.rotateRefreshTokens = true;
   h.clock.now += 3600_000;
-  await h.service.getAccessToken({ connectionRef: started.connectionRef });
+  await h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS });
   const [rotated] = fake.liveRefreshTokens();
   h.clock.now += 3600_000;
-  await h.service.getAccessToken({ connectionRef: started.connectionRef });
+  await h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS });
   assert.deepEqual(tokenRequests().slice(-2).map((form) => form.get('refresh_token')), [original, rotated]);
 });
 
@@ -210,10 +210,10 @@ test('invalid_grant: the connection needs a reconnect and the plugin client says
   const { started } = await signIn(h);
   fake.behaviour.refreshError = 'invalid_grant';
   h.clock.now += 3600_000;
-  const client = createGoogleClient({ http: { fetch: fake.fetch }, connections: { getAccessToken: ({ connectionRef }) => h.service.getAccessToken({ connectionRef }) } });
+  const client = createGoogleClient({ http: { fetch: fake.fetch }, connections: { getAccessToken: ({ connectionRef }) => h.service.getAccessToken({ connectionRef, workspaceId: WS }) } });
   await assert.rejects(client.request({ connectionRef: started.connectionRef, url: 'https://www.googleapis.com/drive/v3/about', kind: 'read' }),
     (error) => error.code === 'reconnect-required' && error.nextAction === 'reconnect' && error.message.startsWith('Reconnect required'));
-  assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef })).status, 'reconnect-required');
+  assert.equal((await h.service.getStatus({ connectionRef: started.connectionRef, workspaceId: WS })).status, 'reconnect-required');
 });
 
 test('revoke hook: posts the token form-encoded to Google\'s revocation endpoint and resolves only on 200', async () => {
@@ -254,11 +254,11 @@ test('revoke: a confirmed revocation clears local tokens; a failed one stays "re
   const h = await harness({ tokenStore: 'memory' });
   const { started } = await signIn(h);
   fake.behaviour.revokeStatus = 503;
-  const pending = await h.service.disconnect({ connectionRef: started.connectionRef });
+  const pending = await h.service.disconnect({ connectionRef: started.connectionRef, workspaceId: WS });
   assert.deepEqual([pending.status, pending.remoteRevocation], ['revocation-pending', 'pending']);
-  await assert.rejects(h.service.getAccessToken({ connectionRef: started.connectionRef }), { code: 'revocation-pending' });
+  await assert.rejects(h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS }), { code: 'revocation-pending' });
   fake.behaviour.revokeStatus = 200;
-  const retried = await h.service.disconnect({ connectionRef: started.connectionRef });
+  const retried = await h.service.disconnect({ connectionRef: started.connectionRef, workspaceId: WS });
   assert.deepEqual([retried.status, retried.remoteRevocation, fake.liveRefreshTokens()], ['disconnected', 'confirmed', []]);
 });
 
@@ -267,7 +267,7 @@ test('revoke over the vault token store reaches Google and clears the grant', as
   // reads them through loadForRevocation, so the disabled credential still revokes the grant.
   const h = await harness();
   const { started } = await signIn(h);
-  const result = await h.service.disconnect({ connectionRef: started.connectionRef });
+  const result = await h.service.disconnect({ connectionRef: started.connectionRef, workspaceId: WS });
   assert.deepEqual([result.status, result.remoteRevocation, fake.requests.some((entry) => entry.path === '/revoke'), fake.liveRefreshTokens().length], ['disconnected', 'confirmed', true, 0]);
 });
 
@@ -276,7 +276,7 @@ test('revoke: Google answering that the token is already revoked counts as confi
   const { started } = await signIn(h);
   fake.behaviour.revokeStatus = 400;
   fake.behaviour.revokeBody = { error: 'invalid_token', error_description: 'Token expired or revoked' };
-  const result = await h.service.disconnect({ connectionRef: started.connectionRef });
+  const result = await h.service.disconnect({ connectionRef: started.connectionRef, workspaceId: WS });
   assert.deepEqual([result.status, result.remoteRevocation], ['disconnected', 'confirmed']);
 });
 
@@ -285,7 +285,7 @@ test('revoke: any other refusal from Google stays pending', async () => {
   const { started } = await signIn(h);
   fake.behaviour.revokeStatus = 400;
   fake.behaviour.revokeBody = { error: 'invalid_request' };
-  const result = await h.service.disconnect({ connectionRef: started.connectionRef });
+  const result = await h.service.disconnect({ connectionRef: started.connectionRef, workspaceId: WS });
   assert.deepEqual([result.status, result.remoteRevocation], ['revocation-pending', 'pending']);
 });
 
@@ -298,7 +298,7 @@ test('desktop: the installed-app sign-in forces consent without incremental gran
   const again = await signIn(h);
   assert.equal(again.completed.outcome, 'connected');
   h.clock.now += 3600_000;
-  await h.service.getAccessToken({ connectionRef: started.connectionRef });
+  await h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS });
   const used = tokenRequests().at(-1).get('refresh_token');
   assert.ok(used !== oldRefresh && fake.liveRefreshTokens().includes(used));
 });
@@ -313,10 +313,10 @@ test('hosted incremental: include_granted_scopes=true and a grant carrying earli
 test('redaction: no token or client secret reaches status, connection records or the tool output', async () => {
   const h = await harness();
   const { started } = await signIn(h);
-  const accessToken = await h.service.getAccessToken({ connectionRef: started.connectionRef });
+  const accessToken = await h.service.getAccessToken({ connectionRef: started.connectionRef, workspaceId: WS });
   const [refreshToken] = fake.liveRefreshTokens();
   const capabilities = { connections: { getAccessToken: () => accessToken }, http: { fetch: fake.fetch }, limiter: { check: async () => ({ allowed: true }) } };
-  const visible = JSON.stringify([await h.service.getStatus({ connectionRef: started.connectionRef }), [...h.records.records.values()],
+  const visible = JSON.stringify([await h.service.getStatus({ connectionRef: started.connectionRef, workspaceId: WS }), [...h.records.records.values()],
     await accountInfo.invoke({ input: { connectionRef: started.connectionRef }, capabilities })]);
   for (const secret of [accessToken, refreshToken, CLIENTS.hosted.clientSecret]) assert.equal(visible.includes(secret), false);
 });

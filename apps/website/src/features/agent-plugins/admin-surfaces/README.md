@@ -50,9 +50,9 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
   - `connections` by connection id (`api-connections/surface-connections.ts`): the host resolves the
     id to its own ref for the scope's plugin and workspace (anything else is one refusal), account
     actions need the signed-in admin, `begin` passes declared start parameters through, `disconnect`
-    reports `revoked` / `revocation-pending` / `not-needed` verbatim, and `takeCallbackFields` reads
-    the host's consume-once inbox the public callback filled (owner plugin only; attempt id = a
-    digest of the OAuth state);
+    reports `confirmed` / `pending` / `not-needed` verbatim, and `takeCallbackFields` reads
+    the host's consume-once inbox the public callback filled (owner plugin only; attempt id = the
+    service's own random attempt id, never the OAuth state);
   - `state`: the plugin's settings (`api-connections/plugin-state.ts`), read-write here and
     read-only for its tools (and later form delivery), keyed by plugin and workspace;
   - `publicConfig`: the declared public names, from host config; only `TOVU_…_APP_ID`, `_CLIENT_ID`,

@@ -39,6 +39,16 @@
           "result": { "type": "object", "properties": { "saved": { "type": "boolean" } }, "required": ["saved"] }
         },
         {
+          "name": "last-token",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "save-last-token",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "saved": { "type": "boolean" } }, "required": ["saved"] }
+        },
+        {
           "name": "disconnect",
           "input": { "type": "object", "properties": {} },
           "result": { "type": "object", "properties": { "state": { "type": "string" }, "revocation": { "type": "string" } }, "required": ["state", "revocation"] }

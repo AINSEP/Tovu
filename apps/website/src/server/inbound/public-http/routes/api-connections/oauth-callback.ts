@@ -4,7 +4,6 @@ import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { API_CONNECTION_OAUTH_CALLBACK_PATH, type ApiConnectionHost } from "#src/features/api-connections/host";
-import { callbackAttemptId } from "#src/features/api-connections/surface-connections";
 import { renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { resolvePublicOrigin } from "../oauth/public-origin.js";
 
@@ -46,6 +45,8 @@ function classify(error: unknown): OAuthCallbackFailureReason {
   if (!(error instanceof ApiConnectionError)) return "exchange_failed";
   if (error.code === "invalid-attempt" || error.code === "attempt-superseded") return "state_expired";
   if (error.code === "access-denied") return "provider_denied";
+  // A same-account switch would share the live grant; the person needs "reconnect", not a retry.
+  if (error.code === "account-unchanged") return "account_unchanged";
   return "exchange_failed";
 }
 
@@ -70,12 +71,13 @@ async function routeAttempt(host: ApiConnectionHost, state: string) {
 /**
  * Only after a successful exchange: the plugin's declared callback fields wait in the host's inbox
  * for that plugin's surface handler, keyed by the attempt's own workspace, plugin and connection and
- * by a digest of the state (the surface's attempt id), so no other plugin or second read gets them.
+ * by the service's attempt id (what the surface was given, never the state), so no other plugin or
+ * second read gets them.
  */
-function depositCallbackFields(host: ApiConnectionHost, input: { readonly attempt: { readonly workspaceId: string; readonly pluginId: string; readonly connectionId: string }; readonly state: string; readonly fields: Readonly<Record<string, string>> }): void {
+function depositCallbackFields(host: ApiConnectionHost, input: { readonly attempt: { readonly workspaceId: string; readonly pluginId: string; readonly connectionId: string }; readonly attemptId: string; readonly fields: Readonly<Record<string, string>> }): void {
   if (Object.keys(input.fields).length === 0) return;
   const { workspaceId, pluginId, connectionId } = input.attempt;
-  host.callbackInbox.deposit({ workspaceId, pluginId, connectionId, attemptId: callbackAttemptId({ state: input.state }), fields: input.fields });
+  host.callbackInbox.deposit({ workspaceId, pluginId, connectionId, attemptId: input.attemptId, fields: input.fields });
 }
 
 /** Codes are closed vocabularies; messages and causes may carry provider text and stay out of logs. */
@@ -103,7 +105,7 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
       if (!routed) return send(res, 400, "state_expired");
       const { attempt, connection } = routed;
       const done = await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params });
-      depositCallbackFields(deps.host, { attempt, state, fields: done.callbackFields });
+      depositCallbackFields(deps.host, { attempt, attemptId: done.attemptId, fields: done.callbackFields });
       return send(res, 200);
     } catch (error) {
       log(`api-connection oauth callback failed: ${safeErrorLabel(error)}`);

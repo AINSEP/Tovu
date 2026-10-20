@@ -237,3 +237,16 @@ test("security: a hosted (confidential) client without its server-held secret is
   assert.throws(() => host.serviceFor({ connection }), { code: "descriptor-invalid", message: /client secret is not configured/ });
   assert.equal(tokenCalls, calls);
 });
+
+test("callback: a switch to the account already connected is refused with copy that says to reconnect instead", async () => {
+  const host = makeHost();
+  await mountCallback(host, []);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const service = host.serviceFor({ connection });
+  const begin = (intent: "connect" | "switch-account") => service.start({ workspaceId: "ws-1", actorId: "admin-1", intent, scopeSetIds: [], redirectUri: host.hostedCallbackUrl({ connection }) });
+  assert.equal((await fetch(consentRedirect((await begin("connect")).authorizationUrl))).status, 200);
+  const response = await fetch(consentRedirect((await begin("switch-account")).authorizationUrl));
+  assert.equal(response.status, 400);
+  assert.match(await response.text(), /already connected to Tovu, so there is nothing to switch\. Close this window and use Reconnect in Tovu instead\./);
+  assert.equal((await host.statusOf({ connection })).status, "connected", "the live connection is untouched");
+});
