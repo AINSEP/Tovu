@@ -134,6 +134,69 @@ async function rebindLocation(
   return displacedMenu;
 }
 
+type ExistingMenu = Awaited<ReturnType<MenuRepoPort["findById"]>>;
+
+/**
+ * The caller's basis (`expectedVersion`) and the destination's reality (`existing`) must agree before
+ * anything is written — mirrors `importPostEntity`'s identical guard.
+ * @complexity O(1).
+ */
+function assertImportBasis({ record, existing, expectedVersion }: {
+  record: NavMenuEntry; existing: ExistingMenu; expectedVersion: number | undefined;
+}): void {
+  if (expectedVersion === undefined) {
+    if (existing) {
+      throw new MenuConflictError({ message: `menu '${record.id}' already exists at this destination (version ${existing.version}) but was published as new` });
+    }
+    return;
+  }
+  if (!existing) {
+    throw new MenuNotFoundError({ message: `menu '${record.id}' was not found at this destination` });
+  }
+  if (existing.version !== expectedVersion) {
+    throw new MenuConflictError({ message: `menu '${record.id}' was modified concurrently (expected version ${expectedVersion}, found ${existing.version})` });
+  }
+}
+
+/** Refuses a slug already held by a different menu; an unchanged slug needs no lookup. @complexity O(1) repo calls. */
+async function assertSlugAvailable({ deps, workspaceId, record, existing }: {
+  deps: ImportMenuEntityDeps; workspaceId: UUID; record: NavMenuEntry; existing: ExistingMenu;
+}): Promise<void> {
+  if (record.slug === existing?.slug) return;
+  const slugHolder = await deps.repo.findBySlug({ workspaceId, slug: record.slug });
+  if (slugHolder && slugHolder.id !== record.id) {
+    throw new MenuConflictError({ message: `slug '${record.slug}' already exists at this destination` });
+  }
+}
+
+/** Rebinds every location `menu` claims, in order, returning each menu displaced on the way. @complexity O(k) repo calls. */
+async function rebindClaimedLocations({ deps, workspaceId, menu, now }: {
+  deps: ImportMenuEntityDeps; workspaceId: UUID; menu: NavMenuEntry; now: string;
+}): Promise<NavMenuEntry[]> {
+  const displacedMenus: NavMenuEntry[] = [];
+  for (const locationKey of menu.locations) {
+    const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now);
+    if (displaced) displacedMenus.push(displaced);
+  }
+  return displacedMenus;
+}
+
+/** @complexity O(k) repo calls for k locations `existing` held that `menu` no longer claims. */
+async function unbindDroppedLocations({ deps, workspaceId, menu, existing }: {
+  deps: ImportMenuEntityDeps; workspaceId: UUID; menu: NavMenuEntry; existing: ExistingMenu;
+}): Promise<void> {
+  // Locations the destination previously had bound to this menu, but the incoming record no longer
+  // claims — unassign, but only if the binding still actually points at THIS menu (never clobber a
+  // location this run already reassigned elsewhere, or one another writer holds).
+  const droppedLocations = (existing?.locations ?? []).filter((key) => !menu.locations.includes(key));
+  for (const locationKey of droppedLocations) {
+    const binding = await deps.bindingRepo.findByLocation({ workspaceId, locationKey });
+    if (binding?.menuId === menu.id) {
+      await deps.bindingRepo.remove({ workspaceId, locationKey });
+    }
+  }
+}
+
 /**
  * Replicates ONE menu from another instance, preserving its id, and rebinds every theme location it
  * claims — the write `features/navigation/publish-content.ts`'s `apply()` calls through.
@@ -163,23 +226,8 @@ export async function importMenuEntity(required: {
   const { workspaceId, record } = input;
 
   const existing = await deps.repo.findById({ workspaceId, id: record.id });
-
-  if (input.expectedVersion === undefined && existing) {
-    throw new MenuConflictError({ message: `menu '${record.id}' already exists at this destination (version ${existing.version}) but was published as new` });
-  }
-  if (input.expectedVersion !== undefined && !existing) {
-    throw new MenuNotFoundError({ message: `menu '${record.id}' was not found at this destination` });
-  }
-  if (existing && input.expectedVersion !== undefined && existing.version !== input.expectedVersion) {
-    throw new MenuConflictError({ message: `menu '${record.id}' was modified concurrently (expected version ${input.expectedVersion}, found ${existing.version})` });
-  }
-
-  if (record.slug !== existing?.slug) {
-    const slugHolder = await deps.repo.findBySlug({ workspaceId, slug: record.slug });
-    if (slugHolder && slugHolder.id !== record.id) {
-      throw new MenuConflictError({ message: `slug '${record.slug}' already exists at this destination` });
-    }
-  }
+  assertImportBasis({ record, existing, expectedVersion: input.expectedVersion });
+  await assertSlugAvailable({ deps, workspaceId, record, existing });
 
   const items = validateAndCloneTree({ items: record.doc.items });
   const now = clockNowIso({ clock: deps.clock });
@@ -199,24 +247,8 @@ export async function importMenuEntity(required: {
         slug: menu.slug,
       })
     );
-
-    const displacedMenus: NavMenuEntry[] = [];
-    for (const locationKey of menu.locations) {
-      const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now);
-      if (displaced) displacedMenus.push(displaced);
-    }
-
-    // Locations the destination previously had bound to this menu, but the incoming record no longer
-    // claims — unassign, but only if the binding still actually points at THIS menu (never clobber a
-    // location this run already reassigned elsewhere, or one another writer holds).
-    const droppedLocations = (existing?.locations ?? []).filter((key) => !menu.locations.includes(key));
-    for (const locationKey of droppedLocations) {
-      const binding = await deps.bindingRepo.findByLocation({ workspaceId, locationKey });
-      if (binding && binding.menuId === menu.id) {
-        await deps.bindingRepo.remove({ workspaceId, locationKey });
-      }
-    }
-
+    const displacedMenus = await rebindClaimedLocations({ deps, workspaceId, menu, now });
+    await unbindDroppedLocations({ deps, workspaceId, menu, existing });
     return { menu, displacedMenus };
   } });
 }

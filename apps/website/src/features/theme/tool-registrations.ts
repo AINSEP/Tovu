@@ -408,9 +408,9 @@ function applyThemeFileEdit(
 /** `name` is a bare filename, not a path — mirrors `explore.ts`'s `validateRenameTargetName` (the
  *  HTTP rename route's identical check on the identical input shape); kept as its own small
  *  duplicate here rather than a third shared module, since it is a 3-line, dependency-free input
- *  check with nothing else to drift out of sync. `null` means `name` is valid. */
+ *  check with nothing else to drift out of sync. `null` means `name` is valid. An empty `name`
+ *  never reaches this: the handler's `requireString` already refuses it. */
 function invalidRenameTargetNameReason(name: string): string | null {
-  if (name.length === 0) return "name is required";
   if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
     return `name '${name}' must be a plain filename in the same folder, not a path`;
   }
@@ -546,6 +546,12 @@ function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection 
   return { mode: "full" };
 }
 
+/** One merged `[start, end)` line interval of a find result. */
+interface ThemeReadWindow {
+  start: number;
+  end: number;
+}
+
 /**
  * Finds up to 50 matching lines and merges overlapping or adjacent context intervals.
  * Caps each window at 2,000 characters and each result at 4,000; the existing 20-item
@@ -556,43 +562,79 @@ function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection 
  * @complexity O(b) time/space in file text size; returned text is bounded even for minified lines.
  */
 function findThemeReadWindows(lines: string[], options: Extract<ThemeReadSelection, { mode: "find" }>) {
-  const windows: Array<{ start: number; end: number }> = [];
+  const found = collectThemeReadMatches({ lines, options });
+  const rendered = renderThemeReadWindows({ lines, windows: found.windows, find: options.find });
+  const truncated = found.truncated || rendered.truncated;
+  return {
+    content: rendered.content,
+    returned: { matches: found.matches, truncated,
+      ...(truncated ? { hint: "Search results were truncated; narrow the find pattern and reduce context." } : {}),
+    },
+  };
+}
+
+/**
+ * The find pass of {@link findThemeReadWindows}: every matching line inside the selected range (up
+ * to 50; a 51st sets `truncated`), each widened by `context` lines clamped to the range, merged
+ * into file-ordered windows.
+ * @complexity O(r) in the selected range's line count.
+ */
+function collectThemeReadMatches(required: { lines: string[]; options: Extract<ThemeReadSelection, { mode: "find" }> }): {
+  windows: ThemeReadWindow[];
+  matches: number;
+  truncated: boolean;
+} {
+  const { lines, options } = required;
+  const windows: ThemeReadWindow[] = [];
   let matches = 0;
-  let truncated = false;
   const rangeStart = options.startLine - 1;
   const rangeEnd = Math.min(lines.length, options.lineCount === undefined ? lines.length : rangeStart + options.lineCount);
   for (let index = rangeStart; index < rangeEnd; index++) {
     if (!lines[index].includes(options.find)) continue;
-    if (matches === 50) {
-      truncated = true;
-      break;
-    }
+    if (matches === 50) return { windows, matches, truncated: true };
     matches++;
-    const start = Math.max(rangeStart, index - options.context);
-    const end = Math.min(rangeEnd, index + options.context + 1);
-    const previous = windows.at(-1);
-    if (previous && start <= previous.end) previous.end = end;
-    else windows.push({ start, end });
+    mergeThemeReadWindow({
+      windows,
+      window: { start: Math.max(rangeStart, index - options.context), end: Math.min(rangeEnd, index + options.context + 1) },
+    });
   }
+  return { windows, matches, truncated: false };
+}
+
+/**
+ * Append `window` to the file-ordered `windows`, extending the last one instead when the two overlap
+ * or touch. Mutates `windows` (the caller's own accumulator).
+ * @complexity O(1).
+ */
+function mergeThemeReadWindow(required: { windows: ThemeReadWindow[]; window: ThemeReadWindow }): void {
+  const { windows, window } = required;
+  const previous = windows.at(-1);
+  if (previous && window.start <= previous.end) previous.end = window.end;
+  else windows.push(window);
+}
+
+/**
+ * The text pass of {@link findThemeReadWindows}: join each window's lines, capping each at 2,000
+ * characters and the whole result at 4,000. `truncated` when any text was cut or windows remained.
+ * @complexity O(b) in the windows' text size.
+ */
+function renderThemeReadWindows(required: { lines: string[]; windows: readonly ThemeReadWindow[]; find: string }): {
+  content: string;
+  truncated: boolean;
+} {
+  const { lines, windows, find } = required;
   let content = "";
+  let truncated = false;
   for (const { start, end } of windows) {
     const limit = Math.min(2_000, 4_000 - content.length);
-    if (limit === 0) {
-      truncated = true;
-      break;
-    }
+    if (limit === 0) return { content, truncated: true };
     const text = lines.slice(start, end).join("");
     // Keep the match visible when a minified line or its surrounding context exceeds the cap.
-    const offset = text.length > limit ? Math.max(0, text.indexOf(options.find) - Math.floor(limit / 2)) : 0;
+    const offset = text.length > limit ? Math.max(0, text.indexOf(find) - Math.floor(limit / 2)) : 0;
     content += text.slice(offset, offset + limit);
     if (text.length > limit) truncated = true;
   }
-  return {
-    content,
-    returned: { matches, truncated,
-      ...(truncated ? { hint: "Search results were truncated; narrow the find pattern and reduce context." } : {}),
-    },
-  };
+  return { content, truncated };
 }
 
 /**

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
 import { DuplicateThemeError, duplicateDiscoveredTheme, duplicateTheme, MAX_DUPLICATE_THEME_BYTES, themeIdFromName } from "../duplicate-theme.js";
 import { discoverAllBuiltInThemes, MIGRATION_STAGING_DIR_PREFIX, THEME_CATALOG_DIR, type DiscoveredTheme } from "../theme.js";
-import { resolveThemeOriginalSource } from "../theme-files.js";
+import { MAX_LISTED_FILES, MAX_WALK_DEPTH, resolveThemeOriginalSource } from "../theme-files.js";
 
 /**
  * @file `duplicateTheme` / `duplicateDiscoveredTheme` — the one runtime "make a new theme" service
@@ -310,4 +311,84 @@ test("themeIdFromName folds diacritics and punctuation into single hyphens", () 
   assert.equal(themeIdFromName("  Café — Noir!! "), "cafe-noir");
   assert.equal(themeIdFromName("***"), "");
   assert.equal(themeIdFromName("a".repeat(60)).length, 48);
+});
+
+/** Refusal with both the specific code and the message that names what failed. */
+function assertRefusedWith(fn: () => unknown, code: DuplicateThemeError["code"], message: RegExp): void {
+  assert.throws(fn, (err: unknown) => err instanceof DuplicateThemeError && err.code === code && message.test(err.message));
+}
+
+/** {@link makeSite} plus removal of the scratch root when the test ends. */
+function makeCleanSite(t: TestContext): ReturnType<typeof makeSite> {
+  const site = makeSite();
+  t.after(() => fs.rmSync(site.root, { recursive: true, force: true }));
+  return site;
+}
+
+test("an explicit newId that is free is used exactly as given", (t) => {
+  const { root, themes, source } = makeCleanSite(t);
+  const result = duplicateTheme({ source, themesRoot: root, newName: "Roastery", takenIds: new Set(themes.map((tm) => tm.manifest.id)) }, { newId: "my-pick" });
+  assert.equal(result.id, "my-pick");
+  assert.equal(result.dir, path.join(root, STOCK_TIER, "my-pick"));
+});
+
+test("a source nested deeper than the walk limit is refused before any copy", (t) => {
+  const { root, themes, source } = makeCleanSite(t);
+  const deep = path.join(source.dir, ...Array.from({ length: MAX_WALK_DEPTH + 1 }, (_, i) => `d${i}`));
+  fs.mkdirSync(deep, { recursive: true });
+  assertRefusedWith(
+    () => duplicateTheme({ source, themesRoot: root, newName: "Deep", takenIds: new Set(themes.map((tm) => tm.manifest.id)) }),
+    "TOO_LARGE",
+    new RegExp(`nested deeper than ${MAX_WALK_DEPTH} folders`)
+  );
+  assert.deepEqual(tierEntries(root), [STOCK_ID]);
+});
+
+test("a source with more files than the listing limit is refused before any copy", (t) => {
+  const { root, themes, source } = makeCleanSite(t);
+  const bulk = path.join(source.dir, "bulk");
+  fs.mkdirSync(bulk);
+  for (let i = 0; i <= MAX_LISTED_FILES; i += 1) fs.writeFileSync(path.join(bulk, `f${i}.txt`), "");
+  assertRefusedWith(
+    () => duplicateTheme({ source, themesRoot: root, newName: "Many", takenIds: new Set(themes.map((tm) => tm.manifest.id)) }),
+    "TOO_LARGE",
+    new RegExp(`more than ${MAX_LISTED_FILES} files`)
+  );
+  assert.deepEqual(tierEntries(root), [STOCK_ID]);
+});
+
+test("a theme.json that is not valid JSON is refused as unreadable and leaves nothing", (t) => {
+  const { root, themes, source } = makeCleanSite(t);
+  fs.writeFileSync(path.join(source.dir, "theme.json"), "{ not json");
+  assertRefusedWith(
+    () => duplicateTheme({ source, themesRoot: root, newName: "Broken", takenIds: new Set(themes.map((tm) => tm.manifest.id)) }),
+    "BAD_MANIFEST",
+    new RegExp(`source theme '${STOCK_ID}' has no readable theme.json`)
+  );
+  assert.deepEqual(tierEntries(root), [STOCK_ID]);
+});
+
+test("a non-regular entry (a FIFO) in the source is skipped, not copied", (t) => {
+  const { root, themes, source } = makeCleanSite(t);
+  execFileSync("mkfifo", [path.join(source.dir, "pipe")]);
+  const result = duplicateTheme({ source, themesRoot: root, newName: "Piped", takenIds: new Set(themes.map((tm) => tm.manifest.id)) });
+  assert.equal(fs.existsSync(path.join(result.dir, "pipe")), false);
+});
+
+test("a theme.json with no version records the discovered source version in lineage", (t) => {
+  const { root, themes, source } = makeCleanSite(t);
+  const manifestPath = path.join(source.dir, "theme.json");
+  const { version: _dropped, ...withoutVersion } = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  fs.writeFileSync(manifestPath, JSON.stringify(withoutVersion));
+  const result = duplicateTheme({ source, themesRoot: root, newName: "Unversioned", takenIds: new Set(themes.map((tm) => tm.manifest.id)) });
+  const manifest = JSON.parse(fs.readFileSync(path.join(result.dir, "theme.json"), "utf8"));
+  assert.deepEqual(manifest.lineage, { from: STOCK_ID, tier: STOCK_TIER, version: source.manifest.version });
+});
+
+test("an unknown source id with no discovered themes says none were discovered", () => {
+  assertRefusedWith(
+    () => duplicateDiscoveredTheme({ themes: [], themesDir: os.tmpdir(), sourceThemeId: "ghost", newName: "X" }),
+    "SOURCE_NOT_FOUND",
+    /theme 'ghost' was not found — discovered themes are: \(none discovered\)$/
+  );
 });

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { constants as fsConstants } from "node:fs";
+import { constants as fsConstants, type Dirent, type Stats } from "node:fs";
 import { chmod, lstat, mkdir, open, readFile, readdir, realpath, rename, rm, rmdir, stat } from "node:fs/promises";
 import path from "node:path";
 
@@ -91,6 +91,53 @@ function isMissing(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ENOENT";
 }
 
+/** `readdir` with file types, or `[]` when the folder does not exist; any other error propagates.
+ * @complexity O(entries). */
+async function readDirIfPresent({ absDir }: { absDir: string }): Promise<Dirent[]> {
+  try {
+    return await readdir(absDir, { withFileTypes: true });
+  } catch (err) {
+    if (isMissing(err)) return [];
+    throw err;
+  }
+}
+
+/** `lstat`, or `null` when nothing is there; any other error propagates. @complexity O(1). */
+async function lstatIfPresent({ absPath }: { absPath: string }): Promise<Stats | null> {
+  try {
+    return await lstat(absPath);
+  } catch (err) {
+    if (isMissing(err)) return null;
+    throw err;
+  }
+}
+
+/** `realpath`, or `null` when nothing is there; any other error propagates. @complexity O(path depth). */
+async function realpathIfPresent({ absPath }: { absPath: string }): Promise<string | null> {
+  try {
+    return await realpath(absPath);
+  } catch (err) {
+    if (isMissing(err)) return null;
+    throw err;
+  }
+}
+
+/** Ascending code-unit (or numeric) order as a sort comparator: -1, 0 or 1. Positional because
+ *  `Array.prototype.sort` dictates the signature. @complexity O(1) per comparison. */
+function compareAscending<T extends string | bigint>(a: T, b: T): number {
+  return Number(a > b) - Number(a < b);
+}
+
+/** A tier-folder entry that is a theme tree: a real directory that is not migration scratch output. */
+function isThemeTreeEntry({ entry }: { entry: Dirent }): boolean {
+  return !entry.name.startsWith(MIGRATION_STAGING_DIR_PREFIX) && entry.isDirectory();
+}
+
+/** Tier first, then id, both by locale. */
+function compareTreeLocations(a: ThemeTreeLocation, b: ThemeTreeLocation): number {
+  return a.tier === b.tier ? a.id.localeCompare(b.id) : a.tier.localeCompare(b.tier);
+}
+
 /**
  * Every theme tree currently on disk under {@link THEME_FILE_TREE_TIERS} — directory NAMES only, no
  * manifest is loaded and no theme.json is parsed here (that happens implicitly: `theme.json` is just
@@ -103,20 +150,11 @@ async function discoverThemeTreeDirs(themesDir: string): Promise<readonly ThemeT
   const found: ThemeTreeLocation[] = [];
   for (const tier of THEME_FILE_TREE_TIERS) {
     const tierDir = path.join(themesDir, tier);
-    let entries;
-    try {
-      entries = await readdir(tierDir, { withFileTypes: true });
-    } catch (err) {
-      if (isMissing(err)) continue;
-      throw err;
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith(MIGRATION_STAGING_DIR_PREFIX)) continue;
-      if (!entry.isDirectory()) continue;
-      found.push({ tier, id: entry.name, absDir: path.join(tierDir, entry.name) });
+    for (const entry of await readDirIfPresent({ absDir: tierDir })) {
+      if (isThemeTreeEntry({ entry })) found.push({ tier, id: entry.name, absDir: path.join(tierDir, entry.name) });
     }
   }
-  return found.sort((a, b) => (a.tier === b.tier ? a.id.localeCompare(b.id) : a.tier.localeCompare(b.tier)));
+  return found.sort(compareTreeLocations);
 }
 
 /** One real file {@link walkThemeTree} found and read. `textSample` is the whole file decoded as
@@ -131,6 +169,41 @@ interface WalkedThemeFile {
   readonly sha256: string;
   readonly absPath: string;
   readonly textSample?: string;
+}
+
+/** @complexity O(1). */
+function childRelPath({ relDir, name }: { relDir: string; name: string }): string {
+  return relDir.length > 0 ? `${relDir}/${name}` : name;
+}
+
+/** What {@link walkThemeTree} does with one directory entry: skip it, descend into it, or read it. */
+function walkStep({ entry, relPath }: { entry: Dirent; relPath: string }): "skip" | "descend" | "read" {
+  if (entry.isSymbolicLink()) return "skip"; // never followed, never part of the tree.
+  // OS junk (macOS's `.DS_Store`, `.Spotlight-V100`, `.Trashes`, AppleDouble `._*`; Windows'
+  // `Thumbs.db`/`desktop.ini`) is excluded HERE, at the source of the file list every downstream
+  // consumer (state, upload, contentHash, `inspect()`'s live re-hash) builds from — never a
+  // whole-tree DENY (`file-tree-policy.ts`'s own header on `isIgnoredTreeFileName`).
+  if (isIgnoredTreeFileName(entry.name)) return "skip";
+  if (entry.isDirectory()) return "descend";
+  if (!entry.isFile()) return "skip"; // a socket, fifo, or other non-regular entry — never a theme file.
+  if (isGeneratedThemePath(relPath)) return "skip"; // regenerated on every build; never real source.
+  return "read";
+}
+
+/** Reads and hashes one walked file, or `null` when it is no longer a regular file.
+ * @complexity O(file bytes). */
+async function readWalkedFile({ absPath, relPath }: { absPath: string; relPath: string }): Promise<WalkedThemeFile | null> {
+  const info = await lstat(absPath);
+  if (info.isSymbolicLink() || !info.isFile()) return null; // defends a TOCTOU swap between readdir and here.
+  const bytes = await readFile(absPath);
+  return {
+    path: relPath,
+    size: bytes.length,
+    mode: normalizeMode(info.mode),
+    sha256: sha256Of(bytes),
+    absPath,
+    textSample: bytes.length <= MAX_SECRET_SCAN_BYTES ? bytes.toString("utf8") : undefined,
+  };
 }
 
 /**
@@ -148,42 +221,14 @@ async function walkThemeTree(absTreeDir: string): Promise<readonly WalkedThemeFi
   const files: WalkedThemeFile[] = [];
 
   async function recurse(absDir: string, relDir: string): Promise<void> {
-    let entries;
-    try {
-      entries = await readdir(absDir, { withFileTypes: true });
-    } catch (err) {
-      if (isMissing(err)) return;
-      throw err;
-    }
-    for (const entry of entries) {
+    for (const entry of await readDirIfPresent({ absDir })) {
       const absPath = path.join(absDir, entry.name);
-      const relPath = relDir.length > 0 ? `${relDir}/${entry.name}` : entry.name;
-      if (entry.isSymbolicLink()) continue; // never followed, never part of the tree.
-      // OS junk (macOS's `.DS_Store`, `.Spotlight-V100`, `.Trashes`, AppleDouble `._*`; Windows'
-      // `Thumbs.db`/`desktop.ini`) is excluded HERE, at the source of the file list every downstream
-      // consumer (state, upload, contentHash, `inspect()`'s live re-hash) builds from — never a
-      // whole-tree DENY (`file-tree-policy.ts`'s own header on `isIgnoredTreeFileName`).
-      if (isIgnoredTreeFileName(entry.name)) continue;
-      if (entry.isDirectory()) {
-        await recurse(absPath, relPath);
-        continue;
-      }
-      if (!entry.isFile()) continue; // a socket, fifo, or other non-regular entry — never a theme file.
-      if (isGeneratedThemePath(relPath)) continue; // regenerated on every build; never real source.
-
-      const info = await lstat(absPath);
-      if (info.isSymbolicLink() || !info.isFile()) continue; // defends a TOCTOU swap between readdir and here.
-      const bytes = await readFile(absPath);
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
-      const mode = normalizeMode(info.mode);
-      files.push({
-        path: relPath,
-        size: bytes.length,
-        mode,
-        sha256,
-        absPath,
-        textSample: bytes.length <= MAX_SECRET_SCAN_BYTES ? bytes.toString("utf8") : undefined,
-      });
+      const relPath = childRelPath({ relDir, name: entry.name });
+      const step = walkStep({ entry, relPath });
+      if (step === "descend") await recurse(absPath, relPath);
+      if (step !== "read") continue;
+      const file = await readWalkedFile({ absPath, relPath });
+      if (file) files.push(file);
     }
   }
 
@@ -226,7 +271,7 @@ async function themeDisplayName(walked: readonly WalkedThemeFile[]): Promise<str
 
 /** @complexity O(n log n) in `files.length`. */
 function sortByPath<T extends { readonly path: string }>(files: readonly T[]): T[] {
-  return [...files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return [...files].sort((a, b) => compareAscending(a.path, b.path));
 }
 
 /**
@@ -367,13 +412,8 @@ function parseTreeAddress(id: string): ThemeTreeAddress | null {
  * @complexity O(files under `absDir`) reads + hashes.
  */
 async function hashTreeAt(absDir: string, treeKey: string): Promise<string | null> {
-  try {
-    const info = await lstat(absDir);
-    if (!info.isDirectory()) return null;
-  } catch (err) {
-    if (isMissing(err)) return null;
-    throw err;
-  }
+  const info = await lstatIfPresent({ absPath: absDir });
+  if (!info?.isDirectory()) return null;
   const walked = await walkThemeTree(absDir);
   return contentHash("theme-files", buildTreeState(treeKey, sortByPath(walked)));
 }
@@ -387,13 +427,8 @@ async function hashTreeAt(absDir: string, treeKey: string): Promise<string | nul
  * @complexity O(1) — at most 5 `lstat`/`stat` calls.
  */
 async function checkDestinationLinks(themesDir: string, address: ThemeTreeAddress): Promise<string | null> {
-  let rootReal: string;
-  try {
-    rootReal = await realpath(themesDir);
-  } catch (err) {
-    if (isMissing(err)) return null;
-    throw err;
-  }
+  const rootReal = await realpathIfPresent({ absPath: themesDir });
+  if (rootReal === null) return null;
   if (rootReal !== path.resolve(themesDir)) return LINK_REASON;
   const rootDev = (await stat(themesDir)).dev;
   const components = [
@@ -403,16 +438,17 @@ async function checkDestinationLinks(themesDir: string, address: ThemeTreeAddres
     path.join(themesDir, PUBLISH_PREVIOUS_DIR),
   ];
   for (const component of components) {
-    let info;
-    try {
-      info = await lstat(component);
-    } catch (err) {
-      if (isMissing(err)) continue;
-      throw err;
-    }
-    if (info.isSymbolicLink() || !info.isDirectory()) return LINK_REASON;
-    if (info.dev !== rootDev) return "live's themes folder spans two disks; nothing was written";
+    const reason = componentLinkReason({ info: await lstatIfPresent({ absPath: component }), rootDev });
+    if (reason) return reason;
   }
+  return null;
+}
+
+/** One destination path component's refusal, or `null` when it is absent or a same-device real folder. */
+function componentLinkReason({ info, rootDev }: { info: Stats | null; rootDev: number }): string | null {
+  if (!info) return null;
+  if (info.isSymbolicLink() || !info.isDirectory()) return LINK_REASON;
+  if (info.dev !== rootDev) return "live's themes folder spans two disks; nothing was written";
   return null;
 }
 
@@ -434,22 +470,31 @@ function readIncomingFiles(entity: PackedEntity): { files: readonly IncomingThem
   const notDescribed = { reason: `its file list does not describe '${entity.id}'` };
   const { state } = entity;
   if (state.kind !== "theme-files" || state.treeKey !== entity.id || !Array.isArray(state.files)) return notDescribed;
-  const files: IncomingThemeFile[] = [];
-  for (const raw of state.files as unknown[]) {
-    const file = raw as Partial<IncomingThemeFile> | null;
-    if (
-      !file ||
-      typeof file.path !== "string" ||
-      typeof file.sha256 !== "string" ||
-      !/^[0-9a-f]{64}$/.test(file.sha256) ||
-      typeof file.size !== "number" ||
-      typeof file.mode !== "number"
-    ) {
-      return notDescribed;
-    }
-    files.push({ path: file.path, sha256: file.sha256, size: file.size, mode: normalizeMode(file.mode) });
-  }
-  return { files };
+  const raws = state.files as unknown[];
+  if (!raws.every(isIncomingFileShape)) return notDescribed;
+  return { files: raws.map((file) => ({ path: file.path, sha256: file.sha256, size: file.size, mode: normalizeMode(file.mode) })) };
+}
+
+/** One raw `state.files[]` entry has the {@link IncomingThemeFile} shape (mode not yet normalized). */
+function isIncomingFileShape(raw: unknown): raw is IncomingThemeFile {
+  const file = raw as Partial<IncomingThemeFile> | null;
+  return (
+    Boolean(file) &&
+    typeof file!.path === "string" &&
+    typeof file!.sha256 === "string" &&
+    /^[0-9a-f]{64}$/.test(file!.sha256) &&
+    typeof file!.size === "number" &&
+    typeof file!.mode === "number"
+  );
+}
+
+/** True when this site cannot vouch that `sha256` is not a library document: no media port wired,
+ *  or media's own ownership policy says the blob is document-only.
+ * @complexity O(workspace media rows), plus one indexed asset lookup. */
+async function isBlockedLibraryBlob({ deps, sha256 }: { deps: PublishContentDeps; sha256: string }): Promise<boolean> {
+  const media = deps.ports.media;
+  return !media || isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
+    input: { workspaceId: deps.workspaceId, sha256 } });
 }
 
 /** Reads one staged blob, or `null` when this destination never received it.
@@ -457,13 +502,11 @@ function readIncomingFiles(entity: PackedEntity): { files: readonly IncomingThem
  * @complexity O(workspace media rows + blob bytes), plus one indexed asset lookup. */
 async function readBlob({ deps, sha256 }: { deps: PublishContentDeps; sha256: string },
   _optional: Record<string, never> = {}): Promise<Uint8Array | null> {
-  const media = deps.ports.media;
   // All readers share media's policy, including the authoritative read just before staging.
-  if (!media || await isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
-    input: { workspaceId: deps.workspaceId, sha256 } })) {
+  if (await isBlockedLibraryBlob({ deps, sha256 })) {
     throw new PublishContentApplyRowError("blocked", "Library documents cannot be published");
   }
-  const { blobStore } = media;
+  const { blobStore } = deps.ports.media!;
   const workspaceId = deps.workspaceId;
   const storageKey = computeBlobStorageKey({ workspaceId, sha256 });
   if (!(await blobStore.exists({ storageKey }))) return null;
@@ -495,7 +538,7 @@ async function prunePreviousCopies(themesDir: string, address: ThemeTreeAddress)
       }
       copies.push({ keyDir, mtimeNs: (await stat(keyDir, { bigint: true })).mtimeNs });
     }
-    copies.sort((a, b) => (a.mtimeNs > b.mtimeNs ? -1 : a.mtimeNs < b.mtimeNs ? 1 : 0));
+    copies.sort((a, b) => compareAscending(b.mtimeNs, a.mtimeNs)); // newest first.
     for (const { keyDir } of copies.slice(KEEP_PREVIOUS_COPIES)) {
       await rm(path.join(keyDir, address.tier, address.themeId), { recursive: true, force: true });
       for (const emptied of [path.join(keyDir, address.tier), keyDir]) {
@@ -505,6 +548,59 @@ async function prunePreviousCopies(themesDir: string, address: ThemeTreeAddress)
   } catch {
     // See this function's doc: never fail a landed publish over housekeeping.
   }
+}
+
+/**
+ * {@link precheck}'s policy inputs for every incoming file, or the library-document refusal.
+ * @complexity O(files) ownership checks plus O(bytes) for the text files small enough to scan.
+ */
+async function incomingPolicyInputs({ deps, files }: { deps: PublishContentDeps; files: readonly IncomingThemeFile[] }):
+  Promise<{ inputs: FileTreeFileInput[] } | { reason: string }> {
+  const inputs: FileTreeFileInput[] = [];
+  for (const file of files) {
+    // Check even files too large for the secret scan, before staging creates any files.
+    if (await isBlockedLibraryBlob({ deps, sha256: file.sha256 })) return { reason: "Library documents cannot be published" };
+    inputs.push({ path: file.path, size: file.size, mode: file.mode, textSample: await incomingTextSample({ deps, file }) });
+  }
+  return { inputs };
+}
+
+/**
+ * The bytes that actually arrived for one small, policy-clean path, decoded for the secret scan, or
+ * `undefined` (too large, a refused path, or a blob not here yet — the planner's `hasBlob` leg).
+ * Reads through `ports.media`'s blob store — the SAME ADR-027 instance a composition root threads to
+ * both (see the comment above `buildHandler`'s `themePort`). `theme-files` has no blob store of its
+ * own; media's ownership policy must be wired before any bytes can be read.
+ * @complexity O(blob bytes).
+ */
+async function incomingTextSample({ deps, file }: { deps: PublishContentDeps; file: IncomingThemeFile }): Promise<string | undefined> {
+  if (file.size > MAX_SECRET_SCAN_BYTES || checkTreePath(file.path) !== null) return undefined;
+  const bytes = await readBlob({ deps, sha256: file.sha256 });
+  return bytes && bytes.length <= MAX_SECRET_SCAN_BYTES ? Buffer.from(bytes).toString("utf8") : undefined;
+}
+
+/** `apply()`'s gateway wiring, or the error naming what to wire. @complexity O(1). */
+function requireApplyWiring({ deps }: { deps: PublishContentDeps }) {
+  const { changeSets, authorize, outbox } = deps;
+  const themesDir = deps.ports["theme-files"]?.themesDir;
+  if (!changeSets || !authorize || !outbox || !deps.ports.media?.blobStore || !themesDir) {
+    throw new Error(
+      "publish-content: theme-files.apply() requires PublishContentDeps.changeSets/authorize/outbox, " +
+        "ports.media.blobStore and ports['theme-files'].themesDir — wire them from the real " +
+        "apply-loop composition root (features/publish-content/apply-loop.ts)."
+    );
+  }
+  return { changeSets, authorize, outbox, themesDir };
+}
+
+/** Where the live tree and its kept previous copy live; empty for an invalid address, which
+ *  `apply()`'s precheck refuses before either path is used. @complexity O(1). */
+function swapPaths({ themesDir, address, keyHash }: { themesDir: string; address: ThemeTreeAddress | null; keyHash: string }) {
+  if (!address) return { target: "", previousPath: "" };
+  return {
+    target: path.join(themesDir, address.tier, address.themeId),
+    previousPath: path.join(themesDir, PUBLISH_PREVIOUS_DIR, keyHash, address.tier, address.themeId),
+  };
 }
 
 function buildHandler(deps: PublishContentDeps): PublishContentHandler {
@@ -565,35 +661,27 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
    * @complexity O(files) plus O(bytes) for the text files small enough to scan.
    */
   async function precheck(entity: PackedEntity): Promise<string | null> {
+    const checked = await precheckIncoming(entity);
+    return "reason" in checked ? checked.reason : null;
+  }
+
+  /** {@link precheck}'s whole pass, returning the validated files on success so `apply()` stages
+   *  exactly what was checked. */
+  async function precheckIncoming(entity: PackedEntity): Promise<{ reason: string } | { files: readonly IncomingThemeFile[] }> {
     const title = treeTitle(entity.id);
     const address = parseTreeAddress(entity.id);
-    if (!address) return `${title} was not published: '${entity.id}' is not a valid theme tree address`;
-    if (!themePort) return `${title} was not published: this site has no themes folder`;
+    if (!address) return { reason: `${title} was not published: '${entity.id}' is not a valid theme tree address` };
+    if (!themePort) return { reason: `${title} was not published: this site has no themes folder` };
     const incoming = readIncomingFiles(entity);
-    if ("reason" in incoming) return `${title} was not published: ${incoming.reason}`;
+    if ("reason" in incoming) return { reason: `${title} was not published: ${incoming.reason}` };
 
     const linkReason = await checkDestinationLinks(themePort.themesDir, address);
-    if (linkReason) return linkReason;
+    if (linkReason) return { reason: linkReason };
 
-    // Reuses `ports.media`'s blob store — the SAME ADR-027 instance a composition root threads to
-    // both (see this function's own header comment above `buildHandler`). `theme-files` has no blob
-    // store of its own; media's ownership policy must be wired before any bytes can be read.
-    const blobStore = deps.ports.media?.blobStore;
-    const policyInputs: FileTreeFileInput[] = [];
-    for (const file of incoming.files) {
-      const media = deps.ports.media;
-      // Check even files too large for the secret scan, before staging creates any files.
-      if (!media || await isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
-        input: { workspaceId: deps.workspaceId, sha256: file.sha256 } })) return "Library documents cannot be published";
-      let textSample: string | undefined;
-      if (blobStore && file.size <= MAX_SECRET_SCAN_BYTES && checkTreePath(file.path) === null) {
-        const bytes = await readBlob({ deps, sha256: file.sha256 });
-        if (bytes && bytes.length <= MAX_SECRET_SCAN_BYTES) textSample = Buffer.from(bytes).toString("utf8");
-      }
-      policyInputs.push({ path: file.path, size: file.size, mode: file.mode, textSample });
-    }
-    const policyReason = checkTreeFiles("theme-files", policyInputs);
-    return policyReason ? wrapTreePolicyReason(title, policyReason) : null;
+    const policy = await incomingPolicyInputs({ deps, files: incoming.files });
+    if ("reason" in policy) return policy;
+    const policyReason = checkTreeFiles("theme-files", policy.inputs);
+    return policyReason ? { reason: wrapTreePolicyReason(title, policyReason) } : incoming;
   }
 
   /**
@@ -614,24 +702,14 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     principalId: string;
     idempotencyKey: string;
   }): Promise<{ changeSetId: string }> {
-    const { changeSets, authorize, outbox } = deps;
-    const blobStore = deps.ports.media?.blobStore;
-    const themesDir = themePort?.themesDir;
-    if (!changeSets || !authorize || !outbox || !blobStore || !themesDir) {
-      throw new Error(
-        "publish-content: theme-files.apply() requires PublishContentDeps.changeSets/authorize/outbox, " +
-          "ports.media.blobStore and ports['theme-files'].themesDir — wire them from the real " +
-          "apply-loop composition root (features/publish-content/apply-loop.ts)."
-      );
-    }
+    const { changeSets, authorize, outbox, themesDir } = requireApplyWiring({ deps });
     const { entity } = input;
     const title = treeTitle(entity.id);
     const address = parseTreeAddress(entity.id);
     const keyHash = createHash("sha256").update(input.idempotencyKey).digest("hex").slice(0, 32);
     const stagingRoot = path.join(themesDir, PUBLISH_STAGING_DIR);
     const stagingDir = path.join(stagingRoot, keyHash);
-    const target = address ? path.join(themesDir, address.tier, address.themeId) : "";
-    const previousPath = address ? path.join(themesDir, PUBLISH_PREVIOUS_DIR, keyHash, address.tier, address.themeId) : "";
+    const { target, previousPath } = swapPaths({ themesDir, address, keyHash });
     let swapped: { previous: string | null } | null = null;
 
     const blocked = (reason: string): never => {
@@ -663,13 +741,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
     async function swapIntoPlace(): Promise<{ previous: string | null }> {
       await mkdir(path.dirname(target), { recursive: true });
-      let hadTarget = true;
-      try {
-        await lstat(target);
-      } catch (err) {
-        if (!isMissing(err)) throw err;
-        hadTarget = false;
-      }
+      const hadTarget = (await lstatIfPresent({ absPath: target })) !== null;
       if (hadTarget) {
         await rm(previousPath, { recursive: true, force: true });
         await mkdir(path.dirname(previousPath), { recursive: true });
@@ -701,10 +773,8 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         captureInverse: async () => ({ treeKey: entity.id, previousPath: previousPath || null }),
         execute: async (): Promise<{ previous: string | null }> => {
           // Authoritative re-check inside the gateway, after `authorize` (same order as media).
-          const reason = await precheck(entity);
-          if (reason) blocked(reason);
-          const incoming = readIncomingFiles(entity);
-          if ("reason" in incoming) return blocked(`${title} was not published: ${incoming.reason}`);
+          const incoming = await precheckIncoming(entity);
+          if ("reason" in incoming) return blocked(incoming.reason);
           try {
             await stageFiles(incoming.files);
             swapped = await swapIntoPlace();
@@ -718,11 +788,12 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
           return swapped;
         },
         captureEntityVersion: () => 0,
+        // The gateway calls rollback only after `execute` resolved (`executeCommand` in
+        // @jini-ai/cms core/commands/command.ts), and every resolving `execute` has swapped.
         rollback: async () => {
-          if (!swapped) return;
           const discard = `${stagingDir}.rollback`;
           await rename(target, discard);
-          if (swapped.previous) await rename(swapped.previous, target);
+          if (swapped!.previous) await rename(swapped!.previous, target);
           await rm(discard, { recursive: true, force: true });
           await themePort?.onReplaced?.();
         },

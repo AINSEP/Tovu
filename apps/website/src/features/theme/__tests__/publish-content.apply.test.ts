@@ -8,8 +8,8 @@
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { PathLike } from "node:fs";
-import fsPromises, { chmod, stat, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { existsSync, type PathLike } from "node:fs";
+import fsPromises, { chmod, stat, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,7 +17,7 @@ import test, { afterEach } from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
+import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore, type AssetBlobRecord } from "#src/features/media/index";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
@@ -235,7 +235,7 @@ test("precheck() re-runs the secret scan on the destination against the staged b
   const fixture = await makeFixture({ sourceFiles: SOURCE_BASIC });
   const entity = await packAndStage(fixture);
   // Swap one staged blob's bytes for a key-bearing file under a sha the state now claims.
-  const leaked = new TextEncoder().encode(`a { content: "${"sk-ant-" + "a".repeat(95)}"; }`);
+  const leaked = new TextEncoder().encode(`a { content: "${("s" + "k-ant-") + "a".repeat(95)}"; }`);
   const sha256 = createHash("sha256").update(leaked).digest("hex");
   await fixture.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes: leaked });
   const files = (entity.state.files as Array<Record<string, unknown>>).map((f) => (f.path === "css/theme.css" ? { ...f, sha256, size: leaked.length } : f));
@@ -541,4 +541,179 @@ test("apply normalizes executable modes and restores bits masked by the process 
     assert.equal((await stat(path.join(fixture.destThemes, "static/basic", rel))).mode & 0o777, 0o755);
     assert.equal((await stat(path.join(fixture.destThemes, "static/basic/css/theme.css"))).mode & 0o777, 0o644);
   } finally { process.umask(oldUmask); }
+});
+
+// ---------------------------------------------------------------------------
+// Boundary pins: destination branches (behaviour pinned before the S-F4 complexity split)
+// ---------------------------------------------------------------------------
+
+/** Replaces one `node:fs/promises` export for this test; the module under test reads the live binding. */
+function mockFs<K extends "lstat" | "realpath">(t: { mock: { method: typeof test.mock.method }; after: (fn: () => void) => void }, name: K, impl: (typeof fsPromises)[K]): void {
+  const mock = t.mock.method(fsPromises, name, impl);
+  syncBuiltinESMExports();
+  t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); });
+}
+const eio = (p: string) => Object.assign(new Error(`EIO: ${p}`), { code: "EIO" });
+const blockedWith = (message: string) => (error: unknown) =>
+  error instanceof PublishContentApplyRowError && error.rowOutcome === "blocked" && error.message === message;
+const NOT_DESCRIBED = "Theme: static/basic was not published: its file list does not describe 'static/basic'";
+
+test("inspect() and seedHash() resolve only two-segment ids in a published tier with a valid theme id", async () => {
+  const fixture = await makeFixture();
+  const handler = handlerFor(fixture.deps);
+  for (const id of ["static/basic/extra", "handlebars/basic", "static/Bad_Name"]) {
+    assert.equal(await handler.inspect(id), null, id);
+    assert.equal(await handler.seedHash?.(id), null, id);
+  }
+});
+
+test("inspect() is null when the tree path is a file, and fails when its tier path is a file", async () => {
+  const fixture = await makeFixture({ destFiles: null });
+  await mkdir(path.join(fixture.destThemes, "static"));
+  await writeFile(path.join(fixture.destThemes, "static/basic"), "a file");
+  assert.equal(await handlerFor(fixture.deps).inspect("static/basic"), null);
+  await rm(path.join(fixture.destThemes, "static"), { recursive: true });
+  await writeFile(path.join(fixture.destThemes, "static"), "a file");
+  await assert.rejects(handlerFor(fixture.deps).inspect("static/basic"), { code: "ENOTDIR" });
+});
+
+test("without a theme-files port every destination read is empty and precheck says why", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const { "theme-files": _omitted, ...ports } = fixture.deps.ports;
+  const handler = handlerFor({ ...fixture.deps, ports });
+  assert.equal(await handler.inspect("static/basic"), null);
+  assert.equal(await handler.seedHash?.("static/basic"), null);
+  assert.deepEqual(await handler.listSkipped?.(), []);
+  const packed: PackedEntity[] = [];
+  for await (const e of handler.pack()) packed.push(e);
+  assert.deepEqual(packed, []);
+  assert.equal(await handler.precheck(entity), "Theme: static/basic was not published: this site has no themes folder");
+});
+
+test("precheck() refuses an id that is not a theme tree address", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  assert.equal(await handlerFor(fixture.deps).precheck({ ...entity, id: "static/a/b" }), "Theme: static/a/b was not published: 'static/a/b' is not a valid theme tree address");
+});
+
+test("precheck() refuses every malformed state file list with the same reason", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const good = { path: "a.css", sha256: "0".repeat(64), size: 1, mode: 0o644 };
+  const handler = handlerFor(fixture.deps);
+  for (const state of [
+    { ...entity.state, kind: "raw-file" },
+    { ...entity.state, files: "not-a-list" },
+    ...[null, { ...good, path: 1 }, { ...good, sha256: 1 }, { ...good, sha256: "A".repeat(64) }, { ...good, size: "1" }, { ...good, mode: "644" }]
+      .map((file) => ({ ...entity.state, files: [file] })),
+  ]) assert.equal(await handler.precheck(rehash(entity, state)), NOT_DESCRIBED, JSON.stringify(state));
+});
+
+test("precheck() treats a themes folder that does not exist yet as link-free", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const themesDir = path.join(fixture.destThemes, "not-yet");
+  const ports = { ...fixture.deps.ports, "theme-files": { themesDir } };
+  assert.equal(await handlerFor({ ...fixture.deps, ports }).precheck(entity), null);
+});
+
+test("precheck() fails when the themes folder cannot be resolved for a reason other than absence", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const blocker = path.join(fixture.destThemes, "a-file");
+  await writeFile(blocker, "x");
+  const ports = { ...fixture.deps.ports, "theme-files": { themesDir: path.join(blocker, "themes") } };
+  await assert.rejects(handlerFor({ ...fixture.deps, ports }).precheck(entity), { code: "ENOTDIR" });
+});
+
+test("precheck() refuses a themes folder that is itself a symlink", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const linked = path.join(await tempDir("linkroot"), "themes");
+  await symlink(fixture.destThemes, linked);
+  const ports = { ...fixture.deps.ports, "theme-files": { themesDir: linked } };
+  assert.equal(await handlerFor({ ...fixture.deps, ports }).precheck(entity), LINK_REASON);
+});
+
+test("precheck() fails on an unexpected lstat error and refuses a tier folder on another device", async (t) => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const realLstat = fsPromises.lstat;
+  const tierDir = path.join(fixture.destThemes, "static");
+  let mode: "eio" | "dev" = "eio";
+  mockFs(t, "lstat", (async (p: string) => {
+    if (p !== tierDir) return realLstat(p);
+    if (mode === "eio") throw eio(p);
+    const info = await realLstat(p);
+    info.dev += 1;
+    return info;
+  }) as typeof fsPromises.lstat);
+  await assert.rejects(handlerFor(fixture.deps).precheck(entity), { code: "EIO" });
+  mode = "dev";
+  assert.equal(await handlerFor(fixture.deps).precheck(entity), "live's themes folder spans two disks; nothing was written");
+});
+
+test("precheck() fails, not refuses, when a blob becomes a library document between its two ownership checks", async (t) => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const blobRepo = fixture.deps.ports.media!.assetBlobRepo as InMemoryAssetBlobRepo;
+  let calls = 0;
+  t.mock.method(blobRepo, "findByHash", async (required: { workspaceId: string; sha256: string }): Promise<AssetBlobRecord | null> => {
+    calls += 1;
+    if (calls === 1) return null;
+    return { id: "blob-1", workspaceId: required.workspaceId, sha256: required.sha256, storageKey: "k", createdByPrincipal: "owner", createdAt: "2026-09-24T12:00:00.000Z", status: "active", documentOwned: true };
+  });
+  await assert.rejects(handlerFor(fixture.deps).precheck(entity), blockedWith("Library documents cannot be published"));
+});
+
+test("apply() without its gateway wiring fails with what to wire", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  await assert.rejects(handlerFor({ ...fixture.deps, outbox: undefined }).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "k" }), {
+    message: "publish-content: theme-files.apply() requires PublishContentDeps.changeSets/authorize/outbox, ports.media.blobStore and ports['theme-files'].themesDir — wire them from the real apply-loop composition root (features/publish-content/apply-loop.ts).",
+  });
+});
+
+test("apply() blocks an id that is not a theme tree address and writes nothing", async () => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  await assert.rejects(handlerFor(fixture.deps).apply({ entity: { ...entity, id: "static/a/b" }, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "k" }),
+    blockedWith("Theme: static/a/b was not published: 'static/a/b' is not a valid theme tree address"));
+  assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), ORIGINAL_BASIC);
+  assert.equal(await exists(path.join(fixture.destThemes, ".publish-staging")), false);
+});
+
+test("apply() fails on an unexpected lstat error at the swap and removes its staging folder", async (t) => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const realLstat = fsPromises.lstat;
+  const target = path.join(fixture.destThemes, "static/basic");
+  // The link check (precheck) and the swap both lstat the target; fail only the swap's, which runs
+  // once the staging folder exists.
+  mockFs(t, "lstat", (async (p: string) => {
+    if (p === target && existsSync(path.join(fixture.destThemes, ".publish-staging"))) throw eio(p);
+    return realLstat(p);
+  }) as typeof fsPromises.lstat);
+  await assert.rejects(handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "k" }), { code: "EIO" });
+  assert.deepEqual(await readTree(target), ORIGINAL_BASIC);
+  assert.deepEqual(await readdir(path.join(fixture.destThemes, ".publish-staging")), []);
+});
+
+test("pruning skips another tree's previous copy and keeps a key folder that still holds one", async () => {
+  const fixture = await makeFixture();
+  const previous = path.join(fixture.destThemes, ".publish-previous");
+  await writeTree(path.join(previous, "k-other-only/static/other"), { "theme.json": "{}" });
+  await writeTree(path.join(previous, "k-shared/static/basic"), ORIGINAL_BASIC);
+  await writeTree(path.join(previous, "k-shared/static/other"), { "theme.json": "{}" });
+  const old = new Date("2020-01-01T00:00:00Z");
+  await utimes(path.join(previous, "k-shared"), old, old);
+  for (let i = 0; i < 2; i += 1) {
+    await writeFile(path.join(fixture.sourceThemes, "static/basic/css/theme.css"), `header { order: ${i}; }`);
+    const entity = await packAndStage(fixture);
+    await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: `prune-${i}` });
+  }
+  assert.equal(await exists(path.join(previous, "k-shared/static/basic")), false);
+  assert.deepEqual(await readTree(path.join(previous, "k-shared")), { "static/other/theme.json": "{}" });
+  assert.deepEqual(await readTree(path.join(previous, "k-other-only")), { "static/other/theme.json": "{}" });
 });

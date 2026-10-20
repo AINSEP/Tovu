@@ -405,13 +405,13 @@ async function resolveFeaturedImageInput(routeDeps: PostToolDeps, input: Record<
   return resolution.id;
 }
 
-/** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
- * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
  *  imported, the same "structurally typed, no `features/trash` import" convention
  *  {@link RemovePostFn}'s own doc already follows. */
 const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
 
+/** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
+ * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 function postCommandDeps(routeDeps: PostToolDeps) {
   return {
     clock: routeDeps.clock,
@@ -722,6 +722,139 @@ function assertFreshVersion(current: PostRecord | null, existing: PostRecord, ki
   // already produces for that case above.
 }
 
+/** content_post_update's validated caller fields; `undefined` means "not sent". */
+interface PostUpdatePatch {
+  title?: string;
+  slug?: string;
+  bodyJson?: JsonObject;
+  status?: PostStatus;
+  author?: string | null;
+  showAuthor?: boolean;
+  templateChoice?: string | null;
+  publishAt?: string | null;
+}
+
+/**
+ * Validates content_post_update's own fields in the tool's documented order (first failure wins);
+ * `featuredImage` is resolved separately because it reads the media library.
+ * @throws {ToolInputError | PostValidationError} The first invalid field's refusal, unchanged.
+ * @complexity O(1).
+ */
+function parseUpdatePatch(input: Record<string, unknown>): PostUpdatePatch {
+  const title = optionalNonEmptyString(input, "title");
+  const slug = optionalNonEmptyString(input, "slug");
+  const bodyJson = optionalBodyJson(input, "bodyJson");
+  const status = optionalPostStatus(input);
+  // Tri-state, forwarded as-is: `updatePost` itself keeps the stored value for `undefined`
+  // and clears on `null`, so these need no fill-in from `existing` the way the four above do.
+  const author = input.author === undefined ? undefined : normalizePostAuthor({ author: input.author });
+  const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
+  const templateChoice = input.template;
+  if (templateChoice !== undefined && templateChoice !== null && typeof templateChoice !== "string") {
+    throw new ToolInputError({ message: "content_post_update: template must be a filename from content_post_preview.availableTemplates, an empty string for no template, or null to reset the choice. Nothing was changed." });
+  }
+  return { title, slug, bodyJson, status, author, showAuthor, templateChoice, publishAt: optionalPublishAt(input) };
+}
+
+/** Refuses an update that sends no field to change. @throws {ToolInputError} Naming every accepted field. */
+function assertPatchNotEmpty(required: { patch: PostUpdatePatch; featuredMediaId: string | null | undefined }): void {
+  if (required.featuredMediaId === undefined && Object.values(required.patch).every(value => value === undefined)) {
+    throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author, showAuthor or template. Nothing was changed." });
+  }
+}
+
+/** Whether any of the four fill-in fields was omitted, so `existing` supplies it. @complexity O(1). */
+function isPartialPatch(patch: PostUpdatePatch): boolean {
+  return patch.title === undefined || patch.slug === undefined || patch.bodyJson === undefined || patch.status === undefined;
+}
+
+/** The four fill-in fields: the caller's value, else the stored one. @complexity O(1). */
+function mergeUpdatePatch(required: { patch: PostUpdatePatch; existing: PostRecord }): { title: string; slug: string; bodyJson: JsonObject; status: PostStatus } {
+  const { patch, existing } = required;
+  return {
+    title: patch.title ?? existing.title,
+    slug: patch.slug ?? existing.slug,
+    bodyJson: patch.bodyJson ?? existing.bodyJson,
+    status: patch.status ?? existing.status,
+  };
+}
+
+/**
+ * Reads the row content_post_update edits. A missing row is not-found; so is a non-page for kind "page".
+ * @throws {PostNotFoundError} `post '<id>' was not found` / `page '<id>' was not found`.
+ * @complexity O(1) — one repo read.
+ */
+async function loadUpdateTarget(required: { routeDeps: PostToolDeps; id: string; kind: PostKind }): Promise<PostRecord> {
+  const { routeDeps, id, kind } = required;
+  const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
+  if (!existing) throw new PostNotFoundError(`post '${id}' was not found`);
+  if (kind === "page" && existing.kind !== "page") {
+    // Kind mismatch treated identically to not-found — mirrors pages/update.ts exactly
+    // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
+    // mirroring posts/update.ts's own kind-blind captureInverse).
+    throw new PostNotFoundError(`page '${id}' was not found`);
+  }
+  return existing;
+}
+
+/**
+ * Refuses a named template the active theme does not offer for this kind; "" and null need no check.
+ * @throws {ToolInputError} Listing the valid templates.
+ * @complexity O(t) for t templates; one theme read only when a filename is sent.
+ */
+async function assertTemplateAvailable(required: { routeDeps: PostToolDeps; templateChoice: string | null | undefined; kind: PostKind }): Promise<void> {
+  const { routeDeps, templateChoice, kind } = required;
+  if (typeof templateChoice !== "string" || templateChoice === "") return;
+  const availableTemplates = await readPostTemplateOptions({ deps: routeDeps, kind });
+  if (!availableTemplates.includes(templateChoice)) {
+    throw new ToolInputError({ message: `content_post_update: template '${templateChoice}' is not available for this ${kind} in the active theme. Valid templates: ${JSON.stringify(availableTemplates)}. Use one of these filenames, an empty string for no template, or null to reset the choice. Nothing was changed.` });
+  }
+}
+
+/**
+ * S3 (fix-plan-web-high-2026-09-24.md row 6) — `updatePost` ignores `bodyJson` outright
+ * on an html-format row (CIC-3: an html Page's body is written only by
+ * `PagesHtmlDocumentStore`, never through this chokepoint). Without this guard, a caller
+ * sending a changed `bodyJson` got back a 200 with its edit silently dropped. Reject it
+ * here instead, before the write — the one place this handler already has `existing` in
+ * hand. A caller round-tripping the SAME bodyJson it just read (the metadata-only edit
+ * case) is unaffected: `isDeepStrictEqual` makes this opt-in, not a ban on ever sending
+ * the field. Compares the MERGED value, not the raw (possibly-omitted) input — see the
+ * merge comment in content_post_update's `captureInverse` for why that is what lets a title-only patch succeed.
+ * @throws {ToolInputError} `CONTENT_POST_HTML_BODY` with the editing alternatives.
+ * @complexity O(n) for n JSON values compared.
+ */
+function assertHtmlBodyUnchanged(required: { id: string; existing: PostRecord; bodyJson: JsonObject }): void {
+  const { id, existing, bodyJson } = required;
+  if (existing.bodyFormat === "html" && !isDeepStrictEqual(bodyJson, existing.bodyJson)) {
+    throw new ToolInputError({ message: `CONTENT_POST_HTML_BODY: page '${id}' is a bespoke-HTML page, so bodyJson can't change its body. ` +
+        `To edit its title, slug or status, send bodyJson back exactly as content_read returned it. ` +
+        `To change the body, use pages_write_html or pages_write_region.` });
+  }
+}
+
+/**
+ * The pre-image content_post_update's change set records for undo.
+ * `publishAt`/`featuredMediaId` ride in the pre-image as `null` for "none", the same
+ * shape `posts/update.ts`'s inverse records, so an undo through `reverters.ts` puts a
+ * cleared schedule or image back too. `templateChoice` is recorded only when the call sends one.
+ * @complexity O(1).
+ */
+function updateInverse(required: { existing: PostRecord; templateChoice: string | null | undefined }) {
+  const { existing, templateChoice } = required;
+  return {
+    title: existing.title,
+    slug: existing.slug,
+    bodyJson: existing.bodyJson,
+    status: existing.status,
+    publishAt: existing.publishAt ?? null,
+    featuredMediaId: existing.featuredMediaId ?? null,
+    author: existing.author ?? null,
+    showAuthor: existing.showAuthor ?? false,
+    ...(templateChoice !== undefined ? { templateChoice: existing.templateChoice ?? null } : {}),
+  };
+}
+
 /**
  * Builds this domain's registrations.
  *
@@ -921,23 +1054,10 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // independently optional. An omitted one is filled from the stored row inside
         // `captureInverse` below (the one place this handler already reads `existing`), not here —
         // a present-but-invalid value still rejects with the exact same message it always did.
-        const title = optionalNonEmptyString(input, "title");
-        const slug = optionalNonEmptyString(input, "slug");
-        const bodyJson = optionalBodyJson(input, "bodyJson");
-        const status = optionalPostStatus(input);
-        // Tri-state, forwarded as-is: `updatePost` itself keeps the stored value for `undefined`
-        // and clears on `null`, so these need no fill-in from `existing` the way the four above do.
-        const author = input.author === undefined ? undefined : normalizePostAuthor({ author: input.author });
-        const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
-        const templateChoice = input.template;
-        if (templateChoice !== undefined && templateChoice !== null && typeof templateChoice !== "string") {
-          throw new ToolInputError({ message: "content_post_update: template must be a filename from content_post_preview.availableTemplates, an empty string for no template, or null to reset the choice. Nothing was changed." });
-        }
-        const publishAt = optionalPublishAt(input);
+        const patch = parseUpdatePatch(input);
+        const { author, showAuthor, templateChoice, publishAt } = patch;
         const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
-        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined && publishAt === undefined && featuredMediaId === undefined && author === undefined && showAuthor === undefined && templateChoice === undefined) {
-          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author, showAuthor or template. Nothing was changed." });
-        }
+        assertPatchNotEmpty({ patch, featuredMediaId });
         // Validated, not cast — see `expected-version.ts`. `expectedVersion` is optional on
         // `UpdatePostInput`, so anything this handler failed to recognize would coerce to "no basis
         // sent" and be written through as an unguarded save, re-opening the very clobber the guard
@@ -947,14 +1067,18 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
         // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
         // `posts/update.ts`/`pages/update.ts`'s identical unit-of-work compensation.
-        let priorPost: PostRecord | null = null;
+        // `priorPost` and `merged` are declared without an initializer, so neither reader needs a
+        // null guard: `core/commands`'s `executeCommand` always awaits `captureInverse` first and
+        // calls `execute` only once it returned, and calls `rollback` only after `execute`
+        // succeeded — so both are always set by the time `execute`/`rollback` read them.
+        let priorPost: PostRecord;
         // The merged, fully-populated values `execute` below actually sends to `updatePost` — set
         // inside `captureInverse`, the only place `existing` (the fill-in source for an omitted
         // field) is available. `basisVersion` starts as whatever the caller sent and is upgraded to
         // `existing.version` there too, but ONLY for a partial patch with no caller-sent
         // `expectedVersion` — see that comment for why a full four-field call must NOT gain a basis
         // it never asked for.
-        let merged: { title: string; slug: string; bodyJson: JsonObject; status: PostStatus } | null = null;
+        let merged: { title: string; slug: string; bodyJson: JsonObject; status: PostStatus };
         let basisVersion = expectedVersion;
 
         const { result } = await executeCommand<{ post: PostRecord }>({
@@ -970,31 +1094,14 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             entityId: id,
             operation: "update",
             captureInverse: async () => {
-              const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-              if (!existing) throw new PostNotFoundError(`post '${id}' was not found`);
-              if (kind === "page" && existing.kind !== "page") {
-                // Kind mismatch treated identically to not-found — mirrors pages/update.ts exactly
-                // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
-                // mirroring posts/update.ts's own kind-blind captureInverse).
-                throw new PostNotFoundError(`page '${id}' was not found`);
-              }
-              if (typeof templateChoice === "string" && templateChoice !== "") {
-                const availableTemplates = await readPostTemplateOptions({ deps: routeDeps, kind: existing.kind });
-                if (!availableTemplates.includes(templateChoice)) {
-                  throw new ToolInputError({ message: `content_post_update: template '${templateChoice}' is not available for this ${existing.kind} in the active theme. Valid templates: ${JSON.stringify(availableTemplates)}. Use one of these filenames, an empty string for no template, or null to reset the choice. Nothing was changed.` });
-                }
-              }
+              const existing = await loadUpdateTarget({ routeDeps, id, kind });
+              await assertTemplateAvailable({ routeDeps, templateChoice, kind: existing.kind });
               // S7 — fill every field the caller omitted from the stored row. This runs BEFORE the
               // html-body guard just below on purpose: an omitted `bodyJson` must merge in as
               // `existing.bodyJson` itself, so a title-only patch on an html Page compares equal
               // to itself and sails through that guard rather than being misread as a body change
               // it never made.
-              merged = {
-                title: title ?? existing.title,
-                slug: slug ?? existing.slug,
-                bodyJson: bodyJson ?? existing.bodyJson,
-                status: status ?? existing.status,
-              };
+              merged = mergeUpdatePatch({ patch, existing });
               // A partial patch (any of the four omitted) is a read-then-write on a basis the
               // caller did NOT necessarily pin with its own `expectedVersion`. Filling the gap from
               // `existing` and then writing unconditionally would silently clobber a human's save
@@ -1004,46 +1111,17 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               // enforcement; this only supplies the basis for a caller who left it out. A FULL
               // four-field call is unaffected: `basisVersion` stays whatever the caller sent (or
               // `undefined`), the same opt-in last-write-wins behavior as before this slice.
-              const isPartialPatch = title === undefined || slug === undefined || bodyJson === undefined || status === undefined;
-              if (isPartialPatch && expectedVersion === undefined) {
+              if (isPartialPatch(patch) && expectedVersion === undefined) {
                 basisVersion = existing.version;
               }
-              // S3 (fix-plan-web-high-2026-09-24.md row 6) — `updatePost` ignores `bodyJson` outright
-              // on an html-format row (CIC-3: an html Page's body is written only by
-              // `PagesHtmlDocumentStore`, never through this chokepoint). Without this guard, a caller
-              // sending a changed `bodyJson` got back a 200 with its edit silently dropped. Reject it
-              // here instead, before the write — the one place this handler already has `existing` in
-              // hand. A caller round-tripping the SAME bodyJson it just read (the metadata-only edit
-              // case) is unaffected: `isDeepStrictEqual` makes this opt-in, not a ban on ever sending
-              // the field. Compares the MERGED value, not the raw (possibly-omitted) input — see the
-              // merge comment just above for why that is what lets a title-only patch succeed.
-              if (existing.bodyFormat === "html" && !isDeepStrictEqual(merged.bodyJson, existing.bodyJson)) {
-                throw new ToolInputError({ message: `CONTENT_POST_HTML_BODY: page '${id}' is a bespoke-HTML page, so bodyJson can't change its body. ` +
-                    `To edit its title, slug or status, send bodyJson back exactly as content_read returned it. ` +
-                    `To change the body, use pages_write_html or pages_write_region.` });
-              }
+              // S3 — see assertHtmlBodyUnchanged's doc for why an html Page refuses a changed bodyJson.
+              assertHtmlBodyUnchanged({ id, existing, bodyJson: merged.bodyJson });
               priorPost = existing;
-              // `publishAt`/`featuredMediaId` ride in the pre-image as `null` for "none", the same
-              // shape `posts/update.ts`'s inverse records, so an undo through `reverters.ts` puts a
-              // cleared schedule or image back too.
-              return {
-                title: existing.title,
-                slug: existing.slug,
-                bodyJson: existing.bodyJson,
-                status: existing.status,
-                publishAt: existing.publishAt ?? null,
-                featuredMediaId: existing.featuredMediaId ?? null,
-                author: existing.author ?? null,
-                showAuthor: existing.showAuthor ?? false,
-                ...(templateChoice !== undefined ? { templateChoice: existing.templateChoice ?? null } : {}),
-              };
+              return updateInverse({ existing, templateChoice });
             },
             execute: () => {
               // `captureInverse` above always runs first (per `core/commands`'s own contract) and
-              // either throws or sets `merged` — this branch is unreachable in practice, the same
-              // guarantee `rollback`'s `if (!priorPost)` below relies on, kept here only to satisfy
-              // the type checker without a forbidden non-null assertion.
-              if (!merged) throw new PostNotFoundError(`post '${id}' was not found`);
+              // either throws or sets `merged` — see the declarations above.
               return updatePost({
                 deps: {
                   repo: routeDeps.postRepo,
@@ -1081,7 +1159,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             },
             captureEntityVersion: ({ result }) => result.post.version,
             rollback: async () => {
-              if (!priorPost) return;
               await restorePostForward({
                 deps: {
                   repo: routeDeps.postRepo,
@@ -1133,8 +1210,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       assertFreshVersion(current, existing, kind);
 
-      let priorPost: PostRecord | null = null;
-
       const { result } = await executeCommand<{ post: PostRecord }>({
         deps: postCommandDeps(routeDeps),
         command: {
@@ -1149,7 +1224,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
           entityId: id,
           operation: "delete",
           captureInverse: async () => {
-            priorPost = existing;
             // The whole inverse of a soft delete is "clear the marker" — see
             // `core/commands/appliers.ts`'s `postDeleteReverter`.
             return { deletedAt: null };
@@ -1168,8 +1242,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               },
             }),
           captureEntityVersion: ({ result }) => result.post.version,
+          // Restores the row read above: `existing` is the pre-image, and `rollback` only runs after
+          // `execute` trashed it.
           rollback: async () => {
-            if (!priorPost) return;
             await restorePostForward({
               deps: {
                 repo: routeDeps.postRepo,
@@ -1178,7 +1253,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 forgetRemoved: routeDeps.forgetRemovedPost,
               },
               input: {
-                prior: priorPost,
+                prior: existing,
                 actorId: ctx.principal.id,
                 // Same delegatedBy* attribution the forward write above records.
                 delegatedByWorkspaceId: routeDeps.workspaceId,

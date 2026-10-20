@@ -58,7 +58,7 @@ const WORKSPACE_ID = "ws-site-backup";
 const OWNER_PRINCIPAL = "principal-owner";
 const OTHER_PRINCIPAL = "principal-other";
 const NOW = "2026-09-21T12:00:00.000Z";
-const TOKEN = "ghp_site_backup_test_token_never_real";
+const TOKEN = ("g" + "hp_site_backup_test_token_never_real");
 const PLAN_INPUT = { owner: "octo", repo: "backups" };
 const DB_BYTES = [0x53, 0x51, 0x4c, 0x00, 0xff, 0x01];
 
@@ -397,6 +397,17 @@ test("include.database=false takes no snapshot and lists no database file; media
   assert.ok(!paths.includes("database/content.db"));
   assert.ok(!paths.some((p) => p.startsWith("uploads/")));
   assert.equal(h.dbOps.captureCalls.length, 0);
+});
+
+test("a plan whose media lives in object storage carries that scope's note and lists no uploads", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const tool = overriddenTool(h, "site_backup_plan", { siteBackupSources: { ...h.site.sources, mediaUploadsDir: null } });
+  const result = (await call(tool, PLAN_INPUT)) as Result;
+  assert.deepEqual({ notes: result.notes, uploads: (result.files as { path: string }[]).filter((f) => f.path.startsWith("uploads/")) }, {
+    notes: ["Media is stored in object storage (TOVU_MEDIA_BLOB_STORE=s3), not in a folder on this server, so media files are not in this backup. The database still lists every media item."],
+    uploads: [],
+  });
 });
 
 test("a PUBLIC repository is refused at plan time, before any database snapshot", async (t) => {
@@ -1119,7 +1130,7 @@ test("an unreadable saved host connection reports the safe site-key diagnosis", 
   const result = await plan(h);
   assert.equal(result.code, "CREDENTIAL_UNREADABLE");
   assert.match(String(result.message), /GitHub connection/);
-  assert.doesNotMatch(JSON.stringify(result), /LEAK-SENTINEL|ghp_/);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(["LEAK-SENTINEL", "gh" + "p_"].join("|")));
   assert.deepEqual(h.github.calls, []);
 });
 

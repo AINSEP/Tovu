@@ -1,4 +1,4 @@
-import type { HttpClientPort } from "#src/platform/http/index";
+import type { HttpClientPort, HttpResponse } from "#src/platform/http/index";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
 import { buildChallengeMessage } from "./challenge.js";
@@ -129,6 +129,103 @@ function isNoSiteKeyBody(bodyText: string): boolean {
   }
 }
 
+/** The one "answered, but not a Tovu site" refusal, for a host already reduced to its name.
+ *  @complexity O(1). */
+function notATovuSite(site: string): PublishTrustHandshakeError {
+  return new PublishTrustHandshakeError(`${site} answered, but it does not look like a Tovu site.`, "not-a-tovu-site");
+}
+
+/** @complexity O(1). */
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value !== "";
+}
+
+/**
+ * Sends one handshake request through the guarded egress client.
+ *
+ * @throws {PublishTrustHandshakeError} `unreachable` when the transport itself fails.
+ * @complexity O(1) plus one round trip.
+ */
+async function sendHandshake(
+  deps: HandshakeClientDeps,
+  request: { method: "GET" | "POST"; baseUrl: string; path: string; body?: unknown },
+  site: string
+): Promise<HttpResponse> {
+  try {
+    return await deps.httpClient.send({
+      method: request.method,
+      url: `${request.baseUrl}${PUBLISH_TRUST_HANDSHAKE_BASE}${request.path}`,
+      headers: request.body === undefined ? {} : { "content-type": "application/json" },
+      ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+      timeoutMs: HANDSHAKE_TIMEOUT_MS,
+    });
+  } catch (err) {
+    throw new PublishTrustHandshakeError(
+      `${site} could not be reached: ${err instanceof Error ? err.message : String(err)}`,
+      "unreachable"
+    );
+  }
+}
+
+/**
+ * The owner-facing error a non-2xx status maps to, or `null` for a 2xx.
+ *
+ * @complexity O(n) in the body length (only a 503 body is read).
+ */
+function statusError(site: string, response: HttpResponse): PublishTrustHandshakeError | null {
+  if (response.status === 404) {
+    return new PublishTrustHandshakeError(
+      `${site} answered, but it does not look like a Tovu site. Check the address.`,
+      "not-a-tovu-site"
+    );
+  }
+  if (response.status === 401) {
+    // The destination refuses every handshake failure with one flat 401 on purpose, so this source
+    // genuinely cannot tell "no grant here" from "bad signature" — and must not guess. The sentence
+    // names the only action that resolves any of them.
+    return new PublishTrustHandshakeError(
+      `${site} doesn't recognise this computer yet. Connect it, then deploy the site once.`,
+      "not-connected"
+    );
+  }
+  if (response.status === 503 && isNoSiteKeyBody(response.bodyText)) {
+    // `handshake.ts` answers this when the destination has no usable site key. No retry fixes it,
+    // so the sentence names the fix instead of "try again".
+    return new PublishTrustHandshakeError(
+      `${site} has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
+      "refused"
+    );
+  }
+  if (response.status < 200 || response.status >= 300) {
+    return new PublishTrustHandshakeError(
+      `${site} refused to set up publishing right now. Try again in a moment.`,
+      "refused"
+    );
+  }
+  return null;
+}
+
+/**
+ * Parses a 2xx body as a JSON object.
+ *
+ * @throws {PublishTrustHandshakeError} `not-a-tovu-site` for non-JSON (quoting at most
+ *   {@link MAX_QUOTED_BODY} characters) or for JSON that is not an object.
+ * @complexity O(n) in the body length.
+ */
+function parseHandshakeBody(site: string, bodyText: string): Record<string, unknown> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    throw new PublishTrustHandshakeError(
+      `${site} answered, but it does not look like a Tovu site (${bodyText.slice(0, MAX_QUOTED_BODY)}).`,
+      "not-a-tovu-site"
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw notATovuSite(site);
+  return parsed as Record<string, unknown>;
+}
+
 /**
  * One handshake call, with every failure already turned into a sentence.
  *
@@ -142,68 +239,10 @@ async function callHandshake(
   request: { method: "GET" | "POST"; baseUrl: string; path: string; body?: unknown }
 ): Promise<Record<string, unknown>> {
   const site = siteNameOf(request.baseUrl);
-  let response;
-  try {
-    response = await deps.httpClient.send({
-      method: request.method,
-      url: `${request.baseUrl}${PUBLISH_TRUST_HANDSHAKE_BASE}${request.path}`,
-      headers: request.body === undefined ? {} : { "content-type": "application/json" },
-      ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
-      timeoutMs: HANDSHAKE_TIMEOUT_MS,
-    });
-  } catch (err) {
-    throw new PublishTrustHandshakeError(
-      `${site} could not be reached: ${err instanceof Error ? err.message : String(err)}`,
-      "unreachable"
-    );
-  }
-
-  if (response.status === 404) {
-    throw new PublishTrustHandshakeError(
-      `${site} answered, but it does not look like a Tovu site. Check the address.`,
-      "not-a-tovu-site"
-    );
-  }
-  if (response.status === 401) {
-    // The destination refuses every handshake failure with one flat 401 on purpose, so this source
-    // genuinely cannot tell "no grant here" from "bad signature" — and must not guess. The sentence
-    // names the only action that resolves any of them.
-    throw new PublishTrustHandshakeError(
-      `${site} doesn't recognise this computer yet. Connect it, then deploy the site once.`,
-      "not-connected"
-    );
-  }
-  if (response.status === 503 && isNoSiteKeyBody(response.bodyText)) {
-    // `handshake.ts` answers this when the destination has no usable site key. No retry fixes it,
-    // so the sentence names the fix instead of "try again".
-    throw new PublishTrustHandshakeError(
-      `${site} has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
-      "refused"
-    );
-  }
-  if (response.status < 200 || response.status >= 300) {
-    throw new PublishTrustHandshakeError(
-      `${site} refused to set up publishing right now. Try again in a moment.`,
-      "refused"
-    );
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(response.bodyText);
-  } catch {
-    throw new PublishTrustHandshakeError(
-      `${site} answered, but it does not look like a Tovu site (${response.bodyText.slice(0, MAX_QUOTED_BODY)}).`,
-      "not-a-tovu-site"
-    );
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new PublishTrustHandshakeError(
-      `${site} answered, but it does not look like a Tovu site.`,
-      "not-a-tovu-site"
-    );
-  }
-  return parsed as Record<string, unknown>;
+  const response = await sendHandshake(deps, request, site);
+  const refusal = statusError(site, response);
+  if (refusal !== null) throw refusal;
+  return parseHandshakeBody(site, response.bodyText);
 }
 
 /**
@@ -222,12 +261,7 @@ export async function fetchDestinationIdentity(
 ): Promise<DestinationIdentity> {
   const body = await callHandshake(deps, { method: "GET", baseUrl: input.baseUrl, path: "/identity" });
   const { installationId, workspaceId, origin } = body;
-  if (typeof installationId !== "string" || installationId === "" || typeof workspaceId !== "string" || workspaceId === "") {
-    throw new PublishTrustHandshakeError(
-      `${siteNameOf(input.baseUrl)} answered, but it does not look like a Tovu site.`,
-      "not-a-tovu-site"
-    );
-  }
+  if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite(siteNameOf(input.baseUrl));
   return { installationId, workspaceId, origin: typeof origin === "string" ? origin : input.baseUrl };
 }
 
@@ -257,14 +291,8 @@ export async function openPublishSession(
   const identity = await fetchDestinationIdentity(deps, input);
 
   const challenge = await callHandshake(deps, { method: "POST", baseUrl: input.baseUrl, path: "/challenge", body: {} });
-  const nonce = challenge.nonce;
-  const targetInstallationId = challenge.targetInstallationId;
-  if (typeof nonce !== "string" || nonce === "" || typeof targetInstallationId !== "string" || targetInstallationId === "") {
-    throw new PublishTrustHandshakeError(
-      `${siteNameOf(input.baseUrl)} answered, but it does not look like a Tovu site.`,
-      "not-a-tovu-site"
-    );
-  }
+  const { nonce, targetInstallationId } = challenge;
+  if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw notATovuSite(siteNameOf(input.baseUrl));
 
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: input.workspaceId });
   const signingKey = await derivePublishSigningKey({
@@ -288,19 +316,29 @@ export async function openPublishSession(
     body: { nonce, sourceInstallationId, generation, capabilities, signatureB64u },
   });
   const token = minted.token;
-  if (typeof token !== "string" || token === "") {
-    throw new PublishTrustHandshakeError(
-      `${siteNameOf(input.baseUrl)} answered, but it does not look like a Tovu site.`,
-      "not-a-tovu-site"
-    );
-  }
+  if (!isNonEmptyString(token)) throw notATovuSite(siteNameOf(input.baseUrl));
 
+  return sessionFrom({ token, minted, requested: capabilities, identity });
+}
+
+/**
+ * Builds the session from the session leg's body: a missing expiry reads as `""`, and the
+ * destination's capability list (string entries only) wins over what was requested when present.
+ *
+ * @complexity O(n) in the returned capability count.
+ */
+function sessionFrom({ token, minted, requested, identity }: {
+  token: string;
+  minted: Record<string, unknown>;
+  requested: readonly PublishingCapability[];
+  identity: DestinationIdentity;
+}): PublishSession {
   return {
     token,
     expiresAt: typeof minted.expiresAt === "string" ? minted.expiresAt : "",
     capabilities: Array.isArray(minted.capabilities)
       ? (minted.capabilities.filter((c) => typeof c === "string") as PublishingCapability[])
-      : capabilities,
+      : requested,
     identity,
   };
 }

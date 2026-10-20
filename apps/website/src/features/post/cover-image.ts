@@ -4,7 +4,7 @@
  * Kept host-side until Jini can publish a built CMS export without disrupting the live server.
  */
 import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
-import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
+import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 
 export interface CoverImagePost {
   title: string;
@@ -44,6 +44,16 @@ function object(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** TipTap image/media nodes with an attrs object are the only body cover occurrences. */
+function isMediaNode(node: Record<string, unknown>): node is Record<string, unknown> & { attrs: Record<string, unknown> } {
+  return (node.type === "image" || node.type === "media") && object(node.attrs);
+}
+
+/** Pushes children last-to-first so popping the stack visits them in document order. */
+function pushReversed<T, U>(stack: U[], items: readonly T[], wrap: (item: T) => U): void {
+  for (let i = items.length - 1; i >= 0; i--) stack.push(wrap(items[i]!));
+}
+
 /** A public rendition src can point back to a library id/slug; originals are never covers. */
 function renditionRef(src: string): string | undefined {
   const match = /^\/m\/([^/]+)\/[^/]+\.v\d+\/[^/?#]+(?:[?#].*)?$/.exec(src);
@@ -65,13 +75,19 @@ function* docCandidates(root: unknown): Generator<Candidate> {
   while (stack.length) {
     const node = stack.pop();
     if (Array.isArray(node)) {
-      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
+      pushReversed(stack, node, item => item);
       continue;
     }
     if (!object(node)) continue;
-    if ((node.type === "image" || node.type === "media") && object(node.attrs)) yield { ...candidate(node.attrs), bodyOccurrence: occurrence++ };
+    if (isMediaNode(node)) yield { ...candidate(node.attrs), bodyOccurrence: occurrence++ };
     if (Array.isArray(node.content)) stack.push(node.content);
   }
+}
+
+/** A media marker's library ref (id, else slug) with its alt, preferring the marker's own alt. */
+function markerCandidate(marker: EmbedMarker, attrs: Record<string, string>): Candidate | undefined {
+  const ref = marker.id ?? marker.config.slug;
+  return typeof ref === "string" ? candidate({ assetId: ref, alt: marker.config.alt ?? attrs.alt }) : undefined;
 }
 
 /** parse5 owns HTML semantics; the existing marker parser owns embed configuration.
@@ -87,12 +103,12 @@ function* htmlCandidates(html: string): Generator<Candidate> {
     const attrs = Object.fromEntries(node.attrs.map(({ name, value }) => [name, value]));
     const marker = markers.get(node.sourceCodeLocation?.startOffset ?? -1);
     if (marker?.type === "media") {
-      const ref = marker.id ?? marker.config.slug;
-      if (typeof ref === "string") yield candidate({ assetId: ref, alt: marker.config.alt ?? attrs.alt });
+      const image = markerCandidate(marker, attrs);
+      if (image) yield image;
       continue;
     }
     if (node.tagName === "img") yield candidate(attrs);
-    for (let i = node.childNodes.length - 1; i >= 0; i--) stack.push(node.childNodes[i]);
+    pushReversed(stack, node.childNodes, child => child);
   }
 }
 
@@ -113,6 +129,26 @@ function externalHttps(src: string | undefined): string | null {
     if (/\/workspaces\/[^/]+\/media\/[^/]+\/original\b/i.test(url.pathname)) return null;
     return src;
   } catch { return null; }
+}
+
+/** Known non-images are skipped; unknown MIME (null) follows the featured-image contract. */
+function isCoverMedia(media: CoverMedia | null): media is CoverMedia {
+  return media !== null && (media.contentType === null || media.contentType.startsWith("image/"));
+}
+
+/** The cover for one candidate, or null when it is unusable under the current options. */
+function candidateCover(
+  { image, alt }: { image: Candidate; alt: string },
+  optional: { mediaLookup: (required: { ref: string }) => CoverMedia | null; allowExternalHttps?: boolean },
+): CoverImage | null {
+  if (image.mediaRef) {
+    const media = optional.mediaLookup({ ref: image.mediaRef });
+    if (!isCoverMedia(media)) return null;
+    return { mediaId: media.id ?? image.mediaRef, alt, width: media.width, height: media.height, ...(image.bodyOccurrence !== undefined ? { bodyOccurrence: image.bodyOccurrence } : {}) };
+  }
+  if (!optional.allowExternalHttps) return null;
+  const url = externalHttps(image.src);
+  return url ? { url, alt, width: null, height: null } : null;
 }
 
 /** References needed by the cover policy, deduplicated before host metadata reads.
@@ -137,17 +173,46 @@ export function resolveCoverImage(
   optional: { mediaLookup: (required: { ref: string }) => CoverMedia | null; allowExternalHttps?: boolean },
 ): CoverImage | null {
   for (const image of candidates(post)) {
-    const alt = image.alt?.trim() ? image.alt : post.title;
-    if (image.mediaRef) {
-      const media = optional.mediaLookup({ ref: image.mediaRef });
-      if (!media || (media.contentType !== null && !media.contentType.startsWith("image/"))) continue;
-      return { mediaId: media.id ?? image.mediaRef, alt, width: media.width, height: media.height, ...(image.bodyOccurrence !== undefined ? { bodyOccurrence: image.bodyOccurrence } : {}) };
-    }
-    if (!optional.allowExternalHttps) continue;
-    const url = externalHttps(image.src);
-    if (url) return { url, alt, width: null, height: null };
+    const cover = candidateCover({ image, alt: image.alt?.trim() ? image.alt : post.title }, optional);
+    if (cover) return cover;
   }
   return null;
+}
+
+/** Pages, HTML bodies, hosts without the public transform, and an explicit
+ * hideCoverImageInBody: false all render the stored body as-is.
+ */
+function keepsStoredBody(post: CoverImagePost, hasPublicTransform: boolean): boolean {
+  const presentation = post.ext?.["post-presentation"];
+  return post.kind === "page" || post.bodyFormat !== "doc" || !hasPublicTransform ||
+    (object(presentation) && presentation.hideCoverImageInBody === false);
+}
+
+/** Copies the document without the selected image/media occurrence; the input is never mutated.
+ * @complexity O(n) time/space, iterative so imported nesting cannot overflow the stack.
+ */
+function withoutOccurrence({ body, selected }: { body: Record<string, unknown>; selected: number }): unknown {
+  const output: unknown[] = [];
+  const stack = [{ source: body as unknown, target: output }];
+  let occurrence = 0;
+  while (stack.length) {
+    const { source, target } = stack.pop()!;
+    if (Array.isArray(source)) {
+      const copy: unknown[] = [];
+      target.push(copy);
+      pushReversed(stack, source, item => ({ source: item, target: copy }));
+      continue;
+    }
+    if (!object(source)) { target.push(source); continue; }
+    if (isMediaNode(source) && occurrence++ === selected) continue;
+    const copy = { ...source };
+    target.push(copy);
+    if (!Array.isArray(source.content)) continue;
+    const content: unknown[] = [];
+    copy.content = content;
+    pushReversed(stack, source.content, item => ({ source: item, target: content }));
+  }
+  return output[0];
 }
 
 /** Project the body for public rendering and preview; storage and the editable document stay intact.
@@ -158,30 +223,8 @@ export function projectPostBody(
   { post }: { post: CoverImagePost },
   optional: { mediaLookup: (required: { ref: string }) => CoverMedia | null; hasPublicTransform: boolean },
 ): unknown {
-  const presentation = post.ext?.["post-presentation"];
-  if (post.kind === "page" || post.bodyFormat !== "doc" || !optional.hasPublicTransform ||
-      (object(presentation) && presentation.hideCoverImageInBody === false)) return post.bodyJson;
+  if (keepsStoredBody(post, optional.hasPublicTransform)) return post.bodyJson;
   const selected = resolveCoverImage({ post }, optional)?.bodyOccurrence;
   if (selected === undefined || !object(post.bodyJson)) return post.bodyJson;
-  const output: unknown[] = [];
-  const stack = [{ source: post.bodyJson as unknown, target: output }];
-  let occurrence = 0;
-  while (stack.length) {
-    const { source, target } = stack.pop()!;
-    if (Array.isArray(source)) {
-      const copy: unknown[] = [];
-      target.push(copy);
-      for (let i = source.length - 1; i >= 0; i--) stack.push({ source: source[i], target: copy });
-      continue;
-    }
-    if (!object(source)) { target.push(source); continue; }
-    if ((source.type === "image" || source.type === "media") && object(source.attrs) && occurrence++ === selected) continue;
-    const copy = { ...source };
-    target.push(copy);
-    if (!Array.isArray(source.content)) continue;
-    const content: unknown[] = [];
-    copy.content = content;
-    for (let i = source.content.length - 1; i >= 0; i--) stack.push({ source: source.content[i], target: content });
-  }
-  return output[0];
+  return withoutOccurrence({ body: post.bodyJson, selected });
 }

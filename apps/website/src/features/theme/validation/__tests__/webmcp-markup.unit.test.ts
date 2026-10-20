@@ -111,3 +111,26 @@ test('ordinary theme attributes that start with "tool" are not WebMCP annotation
   // BUG (fixed): any tool*/data-tool* prefix was refused, so a theme with a data-tooltip failed to install.
   assert.deepEqual(rules('<button data-tooltip="Copy" data-tooltip-placement="top" data-toolbar="main" data-toolkit="x" tooltip="t" class="toolbar">Copy</button>'), []);
 });
+
+test('one element breaking several rules reports them in rule-check order', () => {
+  assert.deepEqual(rules('<div data-tovu-agent toolname="bad name" toolautosubmit method="post" tooldesc="x"></div>'), [
+    'markup-tovu-agent-retired', 'markup-webmcp-placement', 'markup-webmcp-name', 'markup-webmcp-description', 'markup-webmcp-autosubmit', 'markup-webmcp-attribute',
+  ]);
+});
+
+test('a form with an empty toolname does not own parameters but still blocks secrets', () => {
+  // Parameters need a truthy toolname on their form; the secret and submitter checks only need it present.
+  assert.deepEqual(rules('<form toolname="" tooldescription="d"><input name="q" toolparamtitle="Q"></form>'), ['markup-webmcp-name', 'markup-webmcp-parameter']);
+  assert.deepEqual(rules('<form toolname="" tooldescription="d"><input type="password" name="p"></form>'), ['markup-webmcp-name', 'markup-webmcp-secret']);
+  assert.deepEqual(rules('<form toolname="" tooldescription="d"><button formaction="https://other.example">Send</button></form>'), ['markup-webmcp-name', 'markup-webmcp-target']);
+});
+
+test('form ownership: an empty form= falls back to the ancestor form; form= naming a non-form is no owner', () => {
+  assert.deepEqual(rules(FORM('<input form="" name="q" toolparamtitle="Q">')), []);
+  assert.deepEqual(rules('<div id="f" toolname="x"></div><input form="f" name="q" toolparamtitle="Q">'), ['markup-webmcp-placement', 'markup-webmcp-description', 'markup-webmcp-parameter']);
+});
+
+test('templated form actions and anchor names are accepted without grammar checks', () => {
+  assert.deepEqual(rules('<form toolname="x" tooldescription="d" action="{{ url }}"></form>'), []);
+  assert.deepEqual(rules('<a href="/" data-toolname="{{ n }}" data-tooldescription="d"></a><a href="/" data-toolname="{{ n }}" data-tooldescription="d"></a>'), []);
+});

@@ -845,6 +845,43 @@ function injectColorMode(html: string, defaultMode: string | undefined): string 
 }
 
 /**
+ * {@link renderStaticPage}'s token step: insert the theme's design tokens as a `<style>` block just
+ * before the exact sentinel {@link tokenStylesheetSentinel} picks for the theme's `apiVersion`. A page
+ * without that sentinel is returned unchanged with a warning naming it — tokens are never guessed in.
+ * @complexity O(n) in the page length.
+ */
+function injectTokenStylesheet(required: { html: string; theme: DiscoveredTheme; pageId: string }): string {
+  const { html, theme, pageId } = required;
+  const sentinel = tokenStylesheetSentinel(theme.manifest.apiVersion);
+  if (!html.includes(sentinel)) {
+    console.warn(
+      `[theme] static page '${theme.manifest.id}/${pageId}' is missing the exact token stylesheet sentinel; design tokens were not injected`
+    );
+    return html;
+  }
+  return html.replace(
+    sentinel,
+    () => `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n${sentinel}`
+  );
+}
+
+/**
+ * Warn (never fail) about relative asset references {@link rewriteAssetPaths} left alone — each one
+ * will 404 in the browser. The folders named follow the theme's `apiVersion`.
+ * @complexity O(n) in the page length.
+ */
+function warnUnrewrittenAssetPaths(required: { html: string; theme: DiscoveredTheme; pageId: string }): void {
+  const { html, theme, pageId } = required;
+  const apiVersion = theme.manifest.apiVersion;
+  const unrewrittenAssetPaths = findUnrewrittenAssetPaths(html, apiVersion);
+  if (unrewrittenAssetPaths.length === 0) return;
+  const assetFolders = apiVersion === 2 ? "../css//../scripts/" : "../css//../js/";
+  console.warn(
+    `[theme] static page '${theme.manifest.id}/${pageId}' has ${unrewrittenAssetPaths.length} unrewritten ${assetFolders} asset reference(s) that will 404 in the browser: ${unrewrittenAssetPaths.join(", ")}`
+  );
+}
+
+/**
  * Render one page of a `static`-tier theme for the live site. Returns `null` if the theme has no
  * page under that id (caller degrades to `fallbackBody()`, same REQ-10 contract every other tier
  * already follows for an unresolved route).
@@ -899,28 +936,9 @@ export function renderStaticPage(
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
-  const apiVersion = theme.manifest.apiVersion;
-  const sentinel = tokenStylesheetSentinel(apiVersion);
-
-  let html = source;
-  if (!source.includes(sentinel)) {
-    console.warn(
-      `[theme] static page '${theme.manifest.id}/${pageId}' is missing the exact token stylesheet sentinel; design tokens were not injected`
-    );
-  } else {
-    html = source.replace(
-      sentinel,
-      () => `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n${sentinel}`
-    );
-  }
-  html = rewriteAssetPaths(html, theme.manifest.id, apiVersion);
-  const unrewrittenAssetPaths = findUnrewrittenAssetPaths(html, apiVersion);
-  if (unrewrittenAssetPaths.length > 0) {
-    const assetFolders = apiVersion === 2 ? "../css//../scripts/" : "../css//../js/";
-    console.warn(
-      `[theme] static page '${theme.manifest.id}/${pageId}' has ${unrewrittenAssetPaths.length} unrewritten ${assetFolders} asset reference(s) that will 404 in the browser: ${unrewrittenAssetPaths.join(", ")}`
-    );
-  }
+  let html = injectTokenStylesheet({ html: source, theme, pageId });
+  html = rewriteAssetPaths(html, theme.manifest.id, theme.manifest.apiVersion);
+  warnUnrewrittenAssetPaths({ html, theme, pageId });
   html = injectColorMode(html, theme.manifest.defaultMode);
   html = expandPartials(html, theme);
   html = injectMenuEmbeds(html, menus ?? {});

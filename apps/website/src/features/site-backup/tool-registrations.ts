@@ -40,7 +40,7 @@ export const SITE_BACKUP_PUSH_TOOL_ID = "site_backup_push";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { isSourceControlProviderId, resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
-import type { SourceControlCredentialSetRepoPort } from "../source-control/types.js";
+import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
 import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
 import { SiteBackupPushJobs } from "./push-jobs.js";
@@ -410,19 +410,37 @@ async function resolveHostConnection(deps: SiteBackupToolDeps, providers: readon
   if (!repo) return null;
   for (const provider of providers) {
     if (!isSourceControlProviderId(provider.id)) continue;
-    let found;
-    try {
-      found = await resolveDefaultForSourceControl({ repo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: provider.id });
-    } catch (err) {
-      if (err instanceof SourceControlCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage(deps, `${provider.label} connection`) };
-      throw err;
-    }
-    if (!found || (requested !== undefined && requested !== found.label)) continue;
-    const { token } = found.connection;
-    const connection: CustomProviderConnectionInput = "username" in found.connection ? { token, username: found.connection.username } : { token };
-    return { ok: true, label: found.label, baseUrl: provider.apiOrigin, connection, provider };
+    const lookup = await findHostConnection({ deps, repo, provider, providerId: provider.id });
+    if (!lookup.ok) return lookup;
+    if (lookup.found && (requested === undefined || requested === lookup.found.label)) return hostCredential({ found: lookup.found, provider });
   }
   return null;
+}
+
+type HostConnection = NonNullable<Awaited<ReturnType<typeof resolveDefaultForSourceControl>>>;
+
+/** One host's default saved connection (or null); an unconfigured store is the safe CREDENTIAL_UNREADABLE diagnosis. */
+async function findHostConnection(required: {
+  deps: SiteBackupToolDeps;
+  repo: SourceControlCredentialSetRepoPort;
+  provider: SourceControlProvider;
+  providerId: SourceControlProviderId;
+}): Promise<{ ok: true; found: HostConnection | null } | Refusal> {
+  const { deps, provider } = required;
+  try {
+    return { ok: true, found: await resolveDefaultForSourceControl({ repo: required.repo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: required.providerId }) };
+  } catch (err) {
+    if (err instanceof SourceControlCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage(deps, `${provider.label} connection`) };
+    throw err;
+  }
+}
+
+/** A saved host connection as the backup's credential: its token, plus the username when one was saved. */
+function hostCredential(required: { found: HostConnection; provider: SourceControlProvider }): ResolvedBackupCredential {
+  const { found, provider } = required;
+  const { token } = found.connection;
+  const connection: CustomProviderConnectionInput = "username" in found.connection ? { token, username: found.connection.username } : { token };
+  return { ok: true, label: found.label, baseUrl: provider.apiOrigin, connection, provider };
 }
 
 /**
@@ -509,17 +527,29 @@ function optionalString(raw: Record<string, unknown>, field: string): string | u
 /** Every switch defaults to true; anything but a boolean for a known scope is refused. */
 function parseInclude(value: unknown): SiteBackupInclude {
   if (value === undefined) return { database: true, media: true, themes: true, plugins: true, settings: true };
+  const include = readIncludeSwitches({ raw: requireIncludeRecord({ value }) });
+  if (!SITE_BACKUP_SCOPES.some((scope) => include[scope])) throw new CustomCredentialValidationError("'include' switches everything off; there would be nothing to back up");
+  return include;
+}
+
+/** The `include` object itself: a plain object whose keys are all known scopes. */
+function requireIncludeRecord(required: { value: unknown }): Record<string, unknown> {
+  const { value } = required;
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new CustomCredentialValidationError("'include' must be an object of true/false switches");
   const raw = value as Record<string, unknown>;
   const unknownKeys = Object.keys(raw).filter((key) => !(SITE_BACKUP_SCOPES as readonly string[]).includes(key));
   if (unknownKeys.length > 0) throw new CustomCredentialValidationError(`'include' has unknown switch(es): ${unknownKeys.join(", ")} (known: ${SITE_BACKUP_SCOPES.join(", ")})`);
+  return raw;
+}
+
+/** Each scope's switch, true when absent; a non-boolean is refused by name. */
+function readIncludeSwitches(required: { raw: Record<string, unknown> }): SiteBackupInclude {
   const include = {} as Record<(typeof SITE_BACKUP_SCOPES)[number], boolean>;
   for (const scope of SITE_BACKUP_SCOPES) {
-    const flag = raw[scope];
+    const flag = required.raw[scope];
     if (flag !== undefined && typeof flag !== "boolean") throw new CustomCredentialValidationError(`'include.${scope}' must be true or false`);
     include[scope] = flag ?? true;
   }
-  if (!SITE_BACKUP_SCOPES.some((scope) => include[scope])) throw new CustomCredentialValidationError("'include' switches everything off; there would be nothing to back up");
   return include;
 }
 
@@ -631,28 +661,47 @@ async function handlePlan(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): 
   const prepared = await prepareContent(deps, sources, input.include, credential.provider);
   if (!prepared.ok) return { planned: false, code: prepared.code, message: prepared.message };
 
+  return planResult(await savePlan({ deps, ctx, sources, input, folderName, content: { credentialLabel: credential.label, owner, repo: repoName, folder, repository: repo.state, ...prepared.content } }));
+}
+
+/**
+ * Stores the checked plan under the caller's principal: stamps its creation time, the site's name,
+ * schema and version, and the default commit message when none was given.
+ */
+async function savePlan(required: {
+  deps: SiteBackupToolDeps;
+  ctx: ToolExecutionContext;
+  sources: SiteBackupSources;
+  input: ParsedPlanInput;
+  folderName: string;
+  content: Pick<SiteBackupPlan, "credentialLabel" | "owner" | "repo" | "folder" | "repository"> & PreparedContent;
+}): Promise<SiteBackupPlan> {
+  const { deps, input, content } = required;
   const createdAt = (deps.siteBackupNow?.() ?? new Date()).toISOString();
-  const siteName = await readSiteName(sources.siteDir);
-  const plan = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).save({
-    principalId: ctx.principal.id,
+  const siteName = await readSiteName(required.sources.siteDir);
+  return (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).save({
+    principalId: required.ctx.principal.id,
     workspaceId: deps.workspaceId,
     content: {
       target: { kind: "repository" },
-      credentialLabel: credential.label,
-      owner,
-      repo: repoName,
-      folder,
+      credentialLabel: content.credentialLabel,
+      owner: content.owner,
+      repo: content.repo,
+      folder: content.folder,
       commitMessage: input.commitMessage ?? `Tovu site backup: ${siteName} (${createdAt})`,
-      repository: repo.state,
+      repository: content.repository,
       include: input.include,
-      ...prepared.content,
-      site: { name: siteName, folderName },
+      database: content.database,
+      files: content.files,
+      skipped: content.skipped,
+      scopeNotes: content.scopeNotes,
+      totalBytes: content.totalBytes,
+      site: { name: siteName, folderName: required.folderName },
       schema: runtimeSchemaVersion(),
-      tovuVersion: sources.tovuVersion,
+      tovuVersion: required.sources.tovuVersion,
       createdAt,
     },
   });
-  return planResult(plan);
 }
 
 type PreparedContent = Pick<SiteBackupPlan, "database" | "files" | "skipped" | "scopeNotes" | "totalBytes">;
@@ -783,7 +832,7 @@ function inProgressResult(planId: string, progress: SiteBackupPushProgress, elap
  *
  * @complexity O(1) plan and job lookup; then see {@link pushPlannedBackup}.
  */
-async function handlePush(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDeps, ctx: ToolExecutionContext): Promise<PushResult> {
+async function handlePush(deps: SiteBackupToolDeps, ctx: ToolExecutionContext): Promise<PushResult> {
   const planId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "planId" });
   await requireBackupPermissions(deps, ctx);
   if (ctx.signal.aborted) return { pushed: false, cancelled: false, reason: "abandoned" };
@@ -814,6 +863,24 @@ const SITE_BACKUP_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: CustomCredentialValidationError, code: "SITE_BACKUP_INVALID_INPUT" },
 ];
 
+/** One share tool's effect once authorized: its exact input contract, then the backend call. */
+type ShareAction = (required: { backend: SiteShareBackend; raw: Record<string, unknown>; ctx: ToolExecutionContext }) => Promise<unknown>;
+
+const SHARE_ACTIONS: Record<"create" | "list" | "revoke", ShareAction> = {
+  list: async ({ backend, raw }) => {
+    if (Object.keys(raw).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_share_list takes no fields." });
+    return { shares: await backend.list({}) };
+  },
+  revoke: async ({ backend, raw }) => {
+    if (Object.keys(raw).some(key => key !== "shareId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only shareId is accepted." });
+    return await backend.revoke({ shareId: requireString({ input: raw, key: "shareId" }) });
+  },
+  create: async ({ backend, raw, ctx }) => {
+    if (Object.keys(raw).some(key => key !== "jobId") || raw.jobId !== undefined && (typeof raw.jobId !== "string" || !/^[0-9a-f-]{36}$/.test(raw.jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional share jobId is accepted." });
+    return await backend.create({ principalId: ctx.principal.id, signal: ctx.signal, ...(typeof raw.jobId === "string" ? { jobId: raw.jobId } : {}) });
+  },
+};
+
 /** Authorization stays on the existing backup contributor; backend effects are shared with HTTP. */
 async function handleShare(required: { deps: SiteBackupToolDeps; ctx: ToolExecutionContext; action: "create" | "list" | "revoke" }, _optional: Record<string, never> = {}): Promise<unknown> {
   const { deps, ctx, action } = required;
@@ -821,16 +888,7 @@ async function handleShare(required: { deps: SiteBackupToolDeps; ctx: ToolExecut
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: PUSH_PERMISSION }, { entityType: DOMAIN });
   if (!deps.siteShareBackend) return { ok: false, code: "UNAVAILABLE", message: "Site sharing requires a site folder and private storage." };
   try {
-    if (action === "list") {
-      if (Object.keys(raw).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_share_list takes no fields." });
-      return { shares: await deps.siteShareBackend.list({}) };
-    }
-    if (action === "revoke") {
-      if (Object.keys(raw).some(key => key !== "shareId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only shareId is accepted." });
-      return await deps.siteShareBackend.revoke({ shareId: requireString({ input: raw, key: "shareId" }) });
-    }
-    if (Object.keys(raw).some(key => key !== "jobId") || raw.jobId !== undefined && (typeof raw.jobId !== "string" || !/^[0-9a-f-]{36}$/.test(raw.jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional share jobId is accepted." });
-    return await deps.siteShareBackend.create({ principalId: ctx.principal.id, signal: ctx.signal, ...(typeof raw.jobId === "string" ? { jobId: raw.jobId } : {}) });
+    return await SHARE_ACTIONS[action]({ backend: deps.siteShareBackend, raw, ctx });
   } catch (error) {
     if (error instanceof SiteShareRefusal) return { ok: false, code: error.code, message: error.message };
     throw error;
@@ -842,12 +900,12 @@ async function handleShare(required: { deps: SiteBackupToolDeps; ctx: ToolExecut
  *
  * @complexity O(1) at registration.
  */
-export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, _surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     site_import_backup: ctx => handleImport({ deps, ctx, list: false }),
     site_import_list: ctx => handleImport({ deps, ctx, list: true }),
     [PLAN_TOOL_ID]: (ctx) => handlePlan(deps, ctx),
-    [SITE_BACKUP_PUSH_TOOL_ID]: (ctx) => handlePush(deps, surfaces, ctx),
+    [SITE_BACKUP_PUSH_TOOL_ID]: (ctx) => handlePush(deps, ctx),
     site_share_create: (ctx) => handleShare({ deps, ctx, action: "create" }),
     site_share_list: (ctx) => handleShare({ deps, ctx, action: "list" }),
     site_share_revoke: (ctx) => handleShare({ deps, ctx, action: "revoke" }),

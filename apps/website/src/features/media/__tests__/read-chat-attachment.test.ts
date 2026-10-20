@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
-import { lstat, mkdir, mkdtemp, open, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, open, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -473,4 +473,89 @@ test('read-chat-attachment: the video preview size cap refuses an owned file bef
   const accepted = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: BYTES.byteLength });
   assert.equal(accepted.ok, true);
   if (accepted.ok) assert.deepEqual(new Uint8Array(accepted.bytes), BYTES);
+});
+
+// ---------------------------------------------------------------------------
+// Branch pins: owner, size-cap and sidecar-path boundaries
+// ---------------------------------------------------------------------------
+
+test("read-chat-attachment: an empty caller id never matches a record whose owner is also empty", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged, { ownerId: "" });
+  assert.deepEqual(await read(staged, { ownerId: "" }), { ok: false, refusal: "not-owner" });
+});
+
+/** Writes raw sidecar JSON text, for numbers `JSON.stringify` cannot produce (an overflowing literal). */
+async function writeRawSidecar({ staged, sizeLiteral }: { staged: Staged; sizeLiteral: string }, _options = {}): Promise<void> {
+  const info = await lstat(staged.filePath);
+  await writeFile(resolve(staged.sidecarDirectory, "attachment_11111111-2222-3333-4444-555555555555.json"),
+    `{"id":${JSON.stringify(REF)},"filePath":${JSON.stringify(staged.filePath)},"name":"v.mp4","kind":"video","size":${sizeLiteral},` +
+    `"batchId":"${BATCH}","dev":${info.dev},"ino":${info.ino},"createdAt":1,"ownerId":"${OWNER}"}`);
+}
+
+test("read-chat-attachment: the size cap refuses a recorded size that overflows to Infinity", async (t) => {
+  const staged = await stage(t);
+  await writeRawSidecar({ staged, sizeLiteral: "1e999" });
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: 1_000_000 }),
+    { ok: false, refusal: "too-large" });
+});
+
+test("read-chat-attachment: the size cap refuses a recorded size that overflows to -Infinity", async (t) => {
+  const staged = await stage(t);
+  await writeRawSidecar({ staged, sizeLiteral: "-1e999" });
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: 1_000_000 }),
+    { ok: false, refusal: "too-large" });
+});
+
+test("read-chat-attachment: an upload root reached through a symlink is canonicalized before containment", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  const link = `${staged.uploadDirectory}-link`;
+  await symlink(staged.uploadDirectory, link);
+  t.after(() => rm(link, { force: true }));
+  const result = await readChatAttachmentForOwner({ uploadDirectory: link }, { ref: REF, ownerId: OWNER });
+  assert.equal(result.ok, true);
+});
+
+test("read-chat-attachment: the size cap refuses a negative recorded size", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged, { size: -1 });
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: 1_000_000 }),
+    { ok: false, refusal: "too-large" });
+});
+
+test("read-chat-attachment: without a cap, an implausible recorded size fails the integrity gate instead", async (t) => {
+  const staged = await stage(t);
+  await writeRawSidecar({ staged, sizeLiteral: "1e999" });
+  assert.deepEqual(await read(staged), { ok: false, refusal: "integrity" });
+});
+
+test("read-chat-attachment: an infinite cap cannot admit non-finite recorded metadata", async (t) => {
+  const staged = await stage(t);
+  await writeRawSidecar({ staged, sizeLiteral: "1e999" });
+  let opened = false;
+  const result = await readChatAttachmentForOwner({
+    uploadDirectory: staged.uploadDirectory,
+    openFile: async (filePath, flags) => { opened = true; return open(filePath, flags); },
+  }, { ref: REF, ownerId: OWNER, maxBytes: Infinity });
+  assert.deepEqual(result, { ok: false, refusal: "too-large" });
+  assert.equal(opened, false);
+});
+
+test("read-chat-attachment: no ref, however hostile, maps to a sidecar outside the sidecar directory", () => {
+  const sidecarDirectory = resolve("/uploads", ".records");
+  for (const ref of ["", ".", "..", "../../etc/passwd", "a/b", "a\\b", "x\0y", "attachment:..", ".json", "%2e%2e%2f"]) {
+    const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName(ref));
+    assert.equal(dirname(sidecarPath), sidecarDirectory, `ref ${JSON.stringify(ref)} escaped to ${sidecarPath}`);
+  }
+});
+
+test("read-chat-attachment: L033 retains the explicit sidecar-parent guard before loading records", async () => {
+  // The current filename mapper makes this refusal redundant. This is a source-preservation pin,
+  // not a claim of reachable branch coverage: the guard must survive future mapper changes.
+  const source = await readFile(new URL("../read-chat-attachment.ts", import.meta.url), "utf8");
+  const guard = source.indexOf('if (dirname(sidecarPath) !== sidecarDirectory) return refuse("malformed-ref");');
+  const load = source.indexOf("const loaded = await loadSidecar(", guard);
+  assert.ok(guard >= 0, "the independent sidecar-parent guard must remain explicit");
+  assert.ok(load > guard, "containment must be checked before reading the sidecar");
 });

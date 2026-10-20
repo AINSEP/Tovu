@@ -332,16 +332,21 @@ export async function applyDeclaredContentTypes(
   const created: string[] = [];
   const kept: string[] = [];
   const skipped: string[] = [];
+  const bucket = { created, keep: kept, "skip-tombstoned": skipped };
   for (const { decl, outcome } of plan.items) {
-    if (outcome === "keep") kept.push(decl.key);
-    else if (outcome === "skip-tombstoned") skipped.push(decl.key);
-    else {
-      const result = await ports.register({ workspaceId, key: decl.key, label: decl.label, fields: [...decl.fields], actorId: `plugin:${pluginId}` });
-      if (result.ok) created.push(decl.key);
-      else if (!(result.error instanceof ContentTypeAlreadyExistsError)) throw result.error;
-      else if ((await judgeLostRace({ ports, workspaceId, pluginId, decl, lost: result.error })) === "keep") kept.push(decl.key);
-      else skipped.push(decl.key);
-    }
+    const applied = outcome === "keep" || outcome === "skip-tombstoned" ? outcome : await createDeclared({ ports, workspaceId, pluginId, decl });
+    bucket[applied].push(decl.key);
   }
   return { created, kept, skipped };
+}
+
+/** Registers one planned type as `plugin:<id>`; a lost create race takes the judged winner's outcome. */
+async function createDeclared(
+  required: { ports: DeclaredContentTypePorts; workspaceId: string; pluginId: string; decl: DeclaredContentType }
+): Promise<"created" | "keep" | "skip-tombstoned"> {
+  const { ports, workspaceId, pluginId, decl } = required;
+  const result = await ports.register({ workspaceId, key: decl.key, label: decl.label, fields: [...decl.fields], actorId: `plugin:${pluginId}` });
+  if (result.ok) return "created";
+  if (!(result.error instanceof ContentTypeAlreadyExistsError)) throw result.error;
+  return judgeLostRace({ ports, workspaceId, pluginId, decl, lost: result.error });
 }

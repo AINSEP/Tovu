@@ -600,7 +600,7 @@ for (const missing of ["menu", "changeSets", "authorize", "outbox"] as const) {
     const deps: PublishContentDeps = missing === "menu" ? { ...wired, ports: {} } : { ...wired, [missing]: undefined };
     await assert.rejects(contributeMenusPublish().build(deps).repointReferences!({
       replacements: [{ entityType: "post", oldId: "old", newId: "new" }], skipIds: new Set(), principalId: "op", runId: "run",
-    }), /menu\.repointReferences\(\) requires PublishContentDeps/);
+    }), { message: "publish-content: menu.repointReferences() requires PublishContentDeps.ports.menu.repo, .changeSets, .authorize and .outbox — wire them from the real apply-loop composition root (features/publish-content/apply-loop.ts)." });
     assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: row.id }), row);
   });
 }
@@ -644,4 +644,34 @@ test("apply defaults omitted locations to an empty list", async () => {
     entity: packedEntity("incoming", state), expectedVersion: undefined, principalId: "op", idempotencyKey: "no-locations",
   });
   assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE_ID, id: "incoming" }))?.locations, []);
+});
+
+test("precheck reports a non-Error thrown while reading the doc as its string form", async () => {
+  const deps = makePublishDeps({ menuRepo: new InMemoryMenuRepo({}), navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) });
+  const doc = { type: "menu", version: 1, get items(): never { throw "items unreadable"; } };
+  assert.equal(await contributeMenusPublish().build(deps).precheck(packedEntity("incoming", menuState({ doc: doc as unknown as NavMenuDoc }))), "items unreadable");
+});
+
+const REPOINT_OLD_TO_NEW = { replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }], skipIds: new Set<string>(), principalId: "operator-1", runId: "run-1" };
+
+test("repointReferences gives a menu exactly two attempts when every write conflicts", async () => {
+  const menuRepo = new VersionRacingMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+  ]);
+  let authorizations = 0;
+  const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: ++authorizations > 0, reason: "test" }) });
+  await contributeMenusPublish().build(deps).repointReferences!(REPOINT_OLD_TO_NEW);
+  // executeCommand authorizes once per attempt, so this counts attempts.
+  assert.equal(authorizations, 2);
+});
+
+test("repointReferences reports the grant line when the retry after a conflict is denied", async () => {
+  const menuRepo = new VersionRacingMenuRepo([
+    menuRow({ id: "menu-header", ...menuState({ title: "Header", doc: { type: "menu", version: 1, items: [entryRefItem("item-1", "post-about")] } }) }),
+  ]);
+  let authorizations = 0;
+  const deps = makeRepointDeps({ menuRepo, authorize: async () => ({ allowed: ++authorizations === 1, reason: "second attempt denied" }) });
+  const result = await contributeMenusPublish().build(deps).repointReferences!(REPOINT_OLD_TO_NEW);
+  assert.equal(authorizations, 2);
+  assert.deepEqual(result, { changeSetIds: [], linksUpdated: 0, notUpdated: ["Menu links were not updated: this publishing grant doesn't cover menus."] });
 });

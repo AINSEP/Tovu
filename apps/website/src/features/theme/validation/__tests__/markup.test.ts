@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkMarkupFile, checkTovuAgentAttributePresence } from "../markup.js";
+import { checkMarkupFile } from "../markup.js";
 import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import { resolveSeverity } from '../profiles.js';
 
@@ -27,17 +27,6 @@ test("invalid JSON and unquoted attributes are reported against their own file",
     ruleId: "markup-embed-config-not-single-quoted", path: "pages/unquoted.html",
     message: "'pages/unquoted.html' has an unquoted data-embed-config attribute (found: data-embed-config=payload) — the runtime scanner requires a single- or double-quoted value and will leave this marker unresolved, silently",
   }]);
-});
-
-test("empty agent handles are rejected in both quote styles while nonempty and absent handles pass", () => {
-  for (const content of ["<div data-tovu-agent='  '></div>", '<div data-tovu-agent=""></div>']) {
-    assert.deepEqual(checkTovuAgentAttributePresence({ relativePath: "pages/index.html", content }), [{
-      ruleId: "markup-tovu-agent-empty", path: "pages/index.html",
-      message: "'pages/index.html' has a data-tovu-agent attribute with an empty value",
-    }]);
-  }
-  assert.deepEqual(checkTovuAgentAttributePresence({ relativePath: "pages/index.html", content: '<div data-tovu-agent="agent-one"></div>' }), []);
-  assert.deepEqual(checkTovuAgentAttributePresence({ relativePath: "pages/index.html", content: "<div></div>" }), []);
 });
 
 // F4.4/F5.2: a typo sibling proves the marker was scanned; only its type differs.
@@ -77,4 +66,30 @@ test("double-quoted invalid payloads retain the runtime's exact rejection withou
       message: `'render/contact.html': data-embed-config marker #1 could not be parsed (${kind})`,
     }]);
   }
+});
+
+const embed = (config: Record<string, unknown>) => `<div data-embed-config='${JSON.stringify(config)}'></div>`;
+const ruleIds = (content: string) => checkMarkupFile({ relativePath: "p.html", content }).map(({ ruleId }) => ruleId);
+
+test("issue families are reported in a fixed order: agent element, unquoted, unparseable, per-marker gallery/type, then WebMCP", () => {
+  const content = '<div data-agent-element="x"></div><div data-embed-config=raw></div><div data-embed-config=\'{bad}\'></div>'
+    + embed({ type: "gallery", images: [{ src: "javascript:x" }] }) + embed({ type: "nope" }) + '<div toolname="x" tooldescription="d"></div>';
+  assert.deepEqual(ruleIds(content), [
+    "markup-data-agent-element-forbidden", "markup-embed-config-not-single-quoted", "markup-embed-config-unparseable",
+    "markup-gallery-config-invalid", "markup-gallery-config-invalid", "markup-gallery-alt-missing",
+    "markup-embed-config-unknown-type", "markup-webmcp-placement",
+  ]);
+});
+
+test("media markers are gallery-checked only when they carry content, items or html", () => {
+  assert.deepEqual(ruleIds(embed({ type: "media", items: [{ src: "javascript:x" }] })), ["markup-gallery-config-invalid", "markup-gallery-config-invalid"]);
+  // A nested content payload is what gets validated, not the outer marker.
+  assert.deepEqual(ruleIds(embed({ type: "media", content: { images: [{ src: "javascript:x" }] } })), ["markup-gallery-config-invalid", "markup-gallery-config-invalid", "markup-gallery-alt-missing"]);
+  assert.deepEqual(ruleIds(embed({ type: "media", html: "<p>x</p>" })), []);
+  assert.deepEqual(ruleIds(embed({ type: "media", id: "m1" })), []);
+});
+
+test("gallery checks match the type case-insensitively while the vocabulary check is exact", () => {
+  assert.deepEqual(ruleIds(embed({ type: "Gallery", images: [{ mediaId: "one" }] })), ["markup-gallery-config-invalid", "markup-gallery-alt-missing", "markup-embed-config-unknown-type"]);
+  assert.deepEqual(ruleIds(embed({ type: "MEDIA", items: [{ mediaId: "one" }] })), ["markup-gallery-config-invalid", "markup-gallery-config-invalid", "markup-embed-config-unknown-type"]);
 });

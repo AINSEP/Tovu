@@ -128,6 +128,23 @@ function isBoundedString(value: unknown): value is string {
 }
 
 /**
+ * Validates one `publicKeys` entry on its own: an object with a bounded key string, then a
+ * non-negative integer generation. Extra properties are dropped, never carried.
+ *
+ * @returns The key, or a reason string.
+ * @complexity O(1).
+ */
+function parsePublicKeyEntry(entry: unknown): PublishTrustPublicKey | string {
+  if (typeof entry !== "object" || entry === null) return "each 'publicKeys' entry must be an object";
+  const { publicKeyB64u, generation } = entry as Record<string, unknown>;
+  if (!isBoundedString(publicKeyB64u)) return "each 'publicKeys' entry needs a 'publicKeyB64u' string";
+  if (typeof generation !== "number" || !Number.isInteger(generation) || generation < 0) {
+    return "each 'publicKeys' entry needs a non-negative integer 'generation'";
+  }
+  return { publicKeyB64u, generation };
+}
+
+/**
  * Validates the `publicKeys` array.
  *
  * @returns The keys, or a reason string. Duplicate generations are rejected rather than
@@ -142,14 +159,10 @@ function parsePublicKeys(raw: unknown): readonly PublishTrustPublicKey[] | strin
 
   const keys: PublishTrustPublicKey[] = [];
   for (const entry of raw) {
-    if (typeof entry !== "object" || entry === null) return "each 'publicKeys' entry must be an object";
-    const { publicKeyB64u, generation } = entry as Record<string, unknown>;
-    if (!isBoundedString(publicKeyB64u)) return "each 'publicKeys' entry needs a 'publicKeyB64u' string";
-    if (typeof generation !== "number" || !Number.isInteger(generation) || generation < 0) {
-      return "each 'publicKeys' entry needs a non-negative integer 'generation'";
-    }
-    if (keys.some((k) => k.generation === generation)) return `'publicKeys' repeats generation ${generation}`;
-    keys.push({ publicKeyB64u, generation });
+    const key = parsePublicKeyEntry(entry);
+    if (typeof key === "string") return key;
+    if (keys.some((k) => k.generation === key.generation)) return `'publicKeys' repeats generation ${key.generation}`;
+    keys.push(key);
   }
   return keys;
 }
@@ -198,14 +211,8 @@ export function parsePublishTrustGrant(raw: unknown): PublishTrustGrantParse {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("grant must be a JSON object");
   const doc = raw as Record<string, unknown>;
 
-  if (doc.version !== PUBLISH_TRUST_GRANT_VERSION) {
-    return fail(`unsupported grant version ${String(doc.version)}; this install implements version ${PUBLISH_TRUST_GRANT_VERSION}`);
-  }
-  if (!isBoundedString(doc.sourceInstallationId)) return fail("'sourceInstallationId' must be a non-empty string");
-  if (!isBoundedString(doc.workspaceId)) return fail("'workspaceId' must be a non-empty string");
-  if (!isBoundedString(doc.notAfter) || Number.isNaN(Date.parse(doc.notAfter))) {
-    return fail("'notAfter' must be an ISO-8601 timestamp");
-  }
+  const scalars = parseScalarFields(doc);
+  if (typeof scalars === "string") return fail(scalars);
 
   const publicKeys = parsePublicKeys(doc.publicKeys);
   if (typeof publicKeys === "string") return fail(publicKeys);
@@ -218,14 +225,35 @@ export function parsePublishTrustGrant(raw: unknown): PublishTrustGrantParse {
     ok: true,
     grant: {
       version: PUBLISH_TRUST_GRANT_VERSION,
-      sourceInstallationId: doc.sourceInstallationId,
+      sourceInstallationId: scalars.sourceInstallationId,
       publicKeys,
-      workspaceId: doc.workspaceId,
+      workspaceId: scalars.workspaceId,
       entityTypes,
       capabilities,
-      notAfter: doc.notAfter,
+      notAfter: scalars.notAfter,
     },
   };
+}
+
+/**
+ * Validates the document's scalar fields in a fixed order — version, source installation,
+ * workspace, expiry — so the first failing one is the reason.
+ *
+ * @complexity O(1) — every string is bounded by {@link MAX_FIELD_LENGTH}.
+ */
+function parseScalarFields(
+  doc: Record<string, unknown>
+): { sourceInstallationId: string; workspaceId: string; notAfter: string } | string {
+  if (doc.version !== PUBLISH_TRUST_GRANT_VERSION) {
+    return `unsupported grant version ${String(doc.version)}; this install implements version ${PUBLISH_TRUST_GRANT_VERSION}`;
+  }
+  const { sourceInstallationId, workspaceId, notAfter } = doc;
+  if (!isBoundedString(sourceInstallationId)) return "'sourceInstallationId' must be a non-empty string";
+  if (!isBoundedString(workspaceId)) return "'workspaceId' must be a non-empty string";
+  if (!isBoundedString(notAfter) || Number.isNaN(Date.parse(notAfter))) {
+    return "'notAfter' must be an ISO-8601 timestamp";
+  }
+  return { sourceInstallationId, workspaceId, notAfter };
 }
 
 /**

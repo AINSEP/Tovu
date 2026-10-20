@@ -22,6 +22,13 @@ export interface SiteImportRecord {
 }
 export interface SiteImportUpload { uploadId: string; principalId: string; createdAt: number; consumedBy?: string }
 const ID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+/** A staged upload is claimable for one hour after it is saved. */
+const UPLOAD_TTL_MS = 3600_000;
+/** The import id behind an `<id>.json` history record name; undefined for every other file. */
+function recordIdOf(name: string): string | undefined {
+  const id = name.slice(0, -5);
+  return name.endsWith(".json") && ID.test(id) ? id : undefined;
+}
 
 /** CMS import history and private staging. Jini owns atomic JSON replacement and locking.
  * No public list, caller-controlled filesystem path, or source URL in a filename.
@@ -40,10 +47,14 @@ export class SiteImportRegistry {
   private store(id: string, suffix: string) {
     return createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: this.file(id, suffix), notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } });
   }
-  get(required: { importId: string; principalId: string }, _options: Record<string, never> = {}): SiteImportRecord {
+  /** Reads one history record; an unreadable file is refused (with the caller's wording) and left in place. */
+  private readRecord(required: { importId: string; unreadable: string }): SiteImportRecord | undefined {
     const read = this.store(required.importId, ".json").read({});
-    if (read.state === "unreadable") throw new SiteShareRefusal({ code: "REGISTRY_UNREADABLE", message: "Import record is unreadable; it was left untouched." });
-    const row = read.state === "ok" ? read.value as SiteImportRecord : undefined;
+    if (read.state === "unreadable") throw new SiteShareRefusal({ code: "REGISTRY_UNREADABLE", message: required.unreadable });
+    return read.state === "ok" ? read.value as SiteImportRecord : undefined;
+  }
+  get(required: { importId: string; principalId: string }, _options: Record<string, never> = {}): SiteImportRecord {
+    const row = this.readRecord({ importId: required.importId, unreadable: "Import record is unreadable; it was left untouched." });
     if (!row || row.principalId !== required.principalId) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Import not found." });
     return row;
   }
@@ -52,10 +63,8 @@ export class SiteImportRegistry {
     fs.chmodSync(this.file(required.row.importId, ".json"), 0o600);
   }
   list(required: { principalId?: string }, _options: Record<string, never> = {}): SiteImportRecord[] {
-    return fs.readdirSync(this.directory).filter(name => ID.test(name.replace(/\.json$/, "")) && name.endsWith(".json")).flatMap(name => {
-      const id = name.slice(0, -5), read = this.store(id, ".json").read({});
-      if (read.state === "unreadable") throw new SiteShareRefusal({ code: "REGISTRY_UNREADABLE", message: "Import history is unreadable; it was left untouched." });
-      const row = read.state === "ok" ? read.value as SiteImportRecord : undefined;
+    return fs.readdirSync(this.directory).map(recordIdOf).filter(id => id !== undefined).flatMap(importId => {
+      const row = this.readRecord({ importId, unreadable: "Import history is unreadable; it was left untouched." });
       return row && (required.principalId === undefined || row.principalId === required.principalId) ? [row] : [];
     }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
@@ -65,32 +74,37 @@ export class SiteImportRegistry {
   getUpload(required: { uploadId: string; principalId: string }, _options: Record<string, never> = {}): SiteImportUpload {
     const read = this.store(required.uploadId, ".upload.json").read({});
     const row = read.state === "ok" ? read.value as SiteImportUpload : undefined;
-    if (!row || row.principalId !== required.principalId || row.createdAt + 3600_000 < Date.now()) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Upload not found or expired. Upload the ZIP again." });
+    if (!row || row.principalId !== required.principalId || row.createdAt + UPLOAD_TTL_MS < Date.now()) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Upload not found or expired. Upload the ZIP again." });
     return row;
   }
   /** One process-wide/disk-backed transfer lane bounds buffered memory and cross-process retries. */
   async exclusive<T>(required: { run: () => Promise<T> }, _options: Record<string, never> = {}): Promise<T> {
     return withFileLock({ lockPath: path.join(this.directory, ".import.lock"), run: required.run }, { staleMs: Infinity });
   }
+  /** Removes an upload (payload, then record) once it is past its one-hour claim window. */
+  private expireUpload(required: { id: string }): void {
+    if (!ID.test(required.id)) return;
+    const read = this.store(required.id, ".upload.json").read({});
+    if (read.state !== "ok" || (read.value as SiteImportUpload).createdAt + UPLOAD_TTL_MS >= Date.now()) return;
+    fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
+    fs.rmSync(this.file(required.id, ".upload.json"), { force: true });
+  }
+  /** Fails an owner setup past its deadline and discards its stage; history keeps the named failure. */
+  private expireOwnerSetup(required: { importId: string }): void {
+    const read = this.store(required.importId, ".json").read({});
+    if (read.state !== "ok") return;
+    const row = read.value as SiteImportRecord;
+    if (row.status === "needs-owner" && row.expiresAt < Date.now()) {
+      fs.rmSync(this.stagePath(row), { recursive: true, force: true });
+      this.put({ row: { ...row, status: "failed", error: "Owner setup expired. Import the archive again." } });
+    }
+  }
   /** Expired payloads are disposable; retain history with a named failure rather than dead setup. */
   expire(_required: Record<string, never>, _options: Record<string, never> = {}): void {
     for (const filename of fs.readdirSync(this.directory)) {
-      if (filename.endsWith(".upload.json")) {
-        const id = filename.slice(0, -12);
-        if (!ID.test(id)) continue;
-        const read = this.store(id, ".upload.json").read({});
-        if (read.state !== "ok" || (read.value as SiteImportUpload).createdAt + 3600_000 >= Date.now()) continue;
-        fs.rmSync(this.uploadPath({ uploadId: id }), { force: true });
-        fs.rmSync(this.file(id, ".upload.json"), { force: true });
-      } else if (filename.endsWith(".json") && ID.test(filename.slice(0, -5))) {
-        const read = this.store(filename.slice(0, -5), ".json").read({});
-        if (read.state !== "ok") continue;
-        const row = read.value as SiteImportRecord;
-        if (row.status === "needs-owner" && row.expiresAt < Date.now()) {
-          fs.rmSync(this.stagePath(row), { recursive: true, force: true });
-          this.put({ row: { ...row, status: "failed", error: "Owner setup expired. Import the archive again." } });
-        }
-      }
+      const importId = recordIdOf(filename);
+      if (filename.endsWith(".upload.json")) this.expireUpload({ id: filename.slice(0, -12) });
+      else if (importId !== undefined) this.expireOwnerSetup({ importId });
     }
   }
 }

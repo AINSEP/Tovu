@@ -131,3 +131,16 @@ test("defensive: a cyclic or absurdly deep tree stops at the depth cap instead o
   for (let i = 0; i < 500; i += 1) deepInline = { type: "span", content: [deepInline] };
   assert.deepEqual(tiptapToBlocks({ type: "paragraph", content: [deepInline] }), [{ kind: "text", text: "" }]);
 });
+
+test("an inline image inside a heading follows the heading block", () => {
+  const doc = { type: "doc", content: [{ type: "heading", attrs: { level: 3 }, content: [t("Logo "), { type: "mediaImage", attrs: { alt: "mark" } }] }] };
+  assert.deepEqual(tiptapToBlocks(doc), [{ kind: "heading", level: 3, text: "Logo " }, { kind: "image", alt: "mark" }]);
+});
+
+test("a block-level text node without string text yields nothing", () => {
+  assert.deepEqual(tiptapToBlocks({ type: "doc", content: [{ type: "text", text: 7 }] }), []);
+});
+
+test("a codeBlock is a text block", () => {
+  assert.deepEqual(tiptapToBlocks([{ type: "codeBlock", content: [t("const a = 1;")] }]), [{ kind: "text", text: "const a = 1;" }]);
+});

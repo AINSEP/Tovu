@@ -29,12 +29,21 @@ export function excludedSharePath(required: { path: string }, _optional: Record<
   return false;
 }
 
+/** True for a spelling some supported recipient filesystem rejects, rewrites or aliases. O(path). */
+function hasUnportableSpelling(required: { path: string }): boolean {
+  const p = required.path;
+  const parts = p.split("/");
+  return /[:%\x00-\x1f\x7f\\]/.test(p) || p.normalize("NFC") !== p || p.normalize("NFKC") !== p || /[<>"|?*]/.test(p) ||
+    parts.some(part => /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)) || parts.length > SHARE_LIMITS.maxPathSegments ||
+    parts.some(part => /[. ]$/.test(part));
+}
+
 /** A ZIP path has one canonical spelling on every supported recipient filesystem. O(path). */
 export function validateSharePath(required: { path: string }, _optional: Record<string, never> = {}): void {
   const p = required.path;
   // This one exact path is produced by trusted projection, never by a filesystem walk.
   const reason = p === "database/content.db" ? null : checkTreePath(p);
-  if (reason || /[:%\x00-\x1f\x7f\\]/.test(p) || p.normalize("NFC") !== p || p.normalize("NFKC") !== p || /[<>"|?*]/.test(p) || p.split("/").some(part => /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)) || p.split("/").length > SHARE_LIMITS.maxPathSegments || p.split("/").some(part => /[. ]$/.test(part))) {
+  if (reason || hasUnportableSpelling({ path: p })) {
     throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${p}' is unsafe${reason ? `: ${reason}` : "."}` });
   }
 }

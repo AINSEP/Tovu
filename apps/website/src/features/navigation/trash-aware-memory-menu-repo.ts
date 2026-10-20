@@ -71,19 +71,16 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
    */
   async save(record: NavMenuEntry, options: MenuSaveOptions = {}): Promise<void> {
     const existing = await this.inner.findById({ workspaceId: record.workspaceId, id: record.id });
-    if (existing && existing.status === "trash" && options.expectedVersion === undefined) return;
+    if (existing?.status === "trash" && options.expectedVersion === undefined) return;
+    await this.refuseSlugHeldInTrash({ record });
+    await saveRewrappingVersionConflict({ inner: this.inner, record, options });
+  }
 
+  /** @throws MenuConflictError when a different, trashed menu holds `record.slug`. @complexity O(n). */
+  private async refuseSlugHeldInTrash({ record }: { record: NavMenuEntry }): Promise<void> {
     const holder = await this.inner.findBySlug({ workspaceId: record.workspaceId, slug: record.slug });
     if (holder && holder.id !== record.id && holder.status === "trash") {
       throw new MenuConflictError({ message: `a menu with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
-    }
-    try {
-      await this.inner.save(record, options);
-    } catch (error) {
-      if (options.expectedVersion !== undefined && error instanceof MenuConflictError) {
-        throw new MenuVersionConflictError({ message: error.message }, { cause: error });
-      }
-      throw error;
     }
   }
 
@@ -111,6 +108,24 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
     await this.inner.save(row);
     if (priorStatus === null) this.priorStatus.delete(priorStatusKey(row));
     else this.priorStatus.set(priorStatusKey(row), priorStatus);
+  }
+}
+
+/**
+ * `inner.save`, with a plain `MenuConflictError` thrown under `expectedVersion` (the only conflict a
+ * compare-and-set `save` can throw) re-wrapped as `MenuVersionConflictError`, same message, as cause.
+ * @complexity O(1) beyond `inner.save`.
+ */
+async function saveRewrappingVersionConflict({ inner, record, options }: {
+  inner: MenuRepoPort; record: NavMenuEntry; options: MenuSaveOptions;
+}): Promise<void> {
+  try {
+    await inner.save(record, options);
+  } catch (error) {
+    if (options.expectedVersion !== undefined && error instanceof MenuConflictError) {
+      throw new MenuVersionConflictError({ message: error.message }, { cause: error });
+    }
+    throw error;
   }
 }
 

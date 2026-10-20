@@ -46,6 +46,12 @@ test("import still enforces insert-if-absent when its own identity appears durin
 });
 
 // F4.4/F6.3: each OCC guard alone can reject; deleting it would overwrite or create a row.
+const REFUSALS = {
+  "create-existing": { type: MenuConflictError, message: "menu 'incoming' already exists at this destination (version 4) but was published as new" },
+  "update-missing": { type: MenuNotFoundError, message: "menu 'incoming' was not found at this destination" },
+  "stale-update": { type: MenuConflictError, message: "menu 'incoming' was modified concurrently (expected version 3, found 4)" },
+  "slug-collision": { type: MenuConflictError, message: "slug 'occupied' already exists at this destination" },
+} as const;
 for (const scenario of ["create-existing", "update-missing", "stale-update", "slug-collision"] as const) {
   test(`import refuses ${scenario} before any row, binding or event changes`, async () => {
     const { deps, events } = harness();
@@ -55,14 +61,39 @@ for (const scenario of ["create-existing", "update-missing", "stale-update", "sl
     const before = await deps.repo.list({ workspaceId: "destination" });
     const record = menu({ workspaceId: "source", title: "Overwritten", slug: scenario === "slug-collision" ? "occupied" : "nav", locations: ["header"] });
     const expectedVersion = scenario === "create-existing" ? undefined : scenario === "stale-update" ? 3 : 4;
+    const refusal = REFUSALS[scenario];
     await assert.rejects(importMenuEntity({ deps, input: { workspaceId: "destination", record, expectedVersion } }),
-      scenario === "update-missing" ? MenuNotFoundError : MenuConflictError);
+      (error: unknown) => error instanceof Error && error.constructor === refusal.type && error.message === refusal.message);
     assert.deepEqual(await deps.repo.list({ workspaceId: "destination" }), before);
     assert.deepEqual(await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey: "header" }),
       { workspaceId: "destination", locationKey: "header", menuId: "neighbor", boundAt: NOW });
     assert.deepEqual(events, []);
   });
 }
+
+function recordSlugLookups(repo: InMemoryMenuRepo): string[] {
+  const slugLookups: string[] = [];
+  const findBySlug = repo.findBySlug.bind(repo);
+  repo.findBySlug = async (request) => { slugLookups.push(request.slug); return findBySlug(request); };
+  return slugLookups;
+}
+
+test("an update that keeps its slug never looks the slug up", async () => {
+  const { deps } = harness();
+  await deps.repo.save(menu());
+  const slugLookups = recordSlugLookups(deps.repo);
+  await importMenuEntity({ deps, input: { workspaceId: "destination", record: menu({ title: "Renamed" }), expectedVersion: 4 } });
+  assert.deepEqual(slugLookups, []);
+});
+
+test("an update that changes its slug looks the new slug up once and keeps the row's id", async () => {
+  const { deps } = harness();
+  await deps.repo.save(menu());
+  const slugLookups = recordSlugLookups(deps.repo);
+  const result = await importMenuEntity({ deps, input: { workspaceId: "destination", record: menu({ slug: "renamed" }), expectedVersion: 4 } });
+  assert.deepEqual(slugLookups, ["renamed"]);
+  assert.deepEqual([result.menu.id, result.menu.slug, result.menu.version], ["incoming", "renamed", 5]);
+});
 
 test("import drops only its own old bindings, retaining another menu's reassigned location", async () => {
   const { deps, events } = harness();

@@ -1,3 +1,8 @@
+import type { PublishTrustGrant } from "./grant.js";
+import { isGrantActive } from "./grant.js";
+import type { ProvisioningFileIo, PublishTrustResolution } from "./provisioning.js";
+import { findGrantForSource } from "./provisioning.js";
+
 /**
  * @file Zero-setup publishing auth — disconnecting a computer, without a deploy.
  *
@@ -28,11 +33,6 @@
  * content-loss outage; there is no second mount path whose omission can silently reconnect a
  * disconnected computer.
  */
-
-import type { PublishTrustGrant } from "./grant.js";
-import { isGrantActive } from "./grant.js";
-import type { ProvisioningFileIo, PublishTrustResolution } from "./provisioning.js";
-import { findGrantForSource } from "./provisioning.js";
 
 /** Most disconnections one destination keeps. Bounded like every other document in this feature; a
  *  list longer than the machine list it shadows means something is appending in a loop. */
@@ -111,18 +111,31 @@ export function parseRevocationDocument(text: string): RevocationRead {
 
   const revocations: PublishTrustRevocation[] = [];
   for (const entry of raw) {
-    if (typeof entry !== "object" || entry === null) return { ok: false, reason: "each revocation must be an object" };
-    const { sourceInstallationId, revokedAt, note } = entry as Record<string, unknown>;
-    if (!isBoundedString(sourceInstallationId)) return { ok: false, reason: "each revocation needs a 'sourceInstallationId'" };
-    if (!isBoundedString(revokedAt) || Number.isNaN(Date.parse(revokedAt))) {
-      return { ok: false, reason: "each revocation needs an ISO-8601 'revokedAt'" };
-    }
-    if (note !== undefined && note !== null && !isBoundedString(note)) {
-      return { ok: false, reason: "a revocation 'note' must be a non-empty string when present" };
-    }
-    revocations.push({ sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null });
+    const revocation = parseRevocationEntry(entry);
+    if (typeof revocation === "string") return { ok: false, reason: revocation };
+    revocations.push(revocation);
   }
   return { ok: true, revocations };
+}
+
+/**
+ * Validates one stored record in a fixed order — object, id, date, note — keeping only those three
+ * fields; an absent or null note becomes `null`.
+ *
+ * @returns The record, or a reason string.
+ * @complexity O(1) — every string is bounded by `MAX_FIELD_LENGTH`.
+ */
+function parseRevocationEntry(entry: unknown): PublishTrustRevocation | string {
+  if (typeof entry !== "object" || entry === null) return "each revocation must be an object";
+  const { sourceInstallationId, revokedAt, note } = entry as Record<string, unknown>;
+  if (!isBoundedString(sourceInstallationId)) return "each revocation needs a 'sourceInstallationId'";
+  if (!isBoundedString(revokedAt) || Number.isNaN(Date.parse(revokedAt))) {
+    return "each revocation needs an ISO-8601 'revokedAt'";
+  }
+  if (note !== undefined && note !== null && !isBoundedString(note)) {
+    return "a revocation 'note' must be a non-empty string when present";
+  }
+  return { sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null };
 }
 
 /** @complexity O(n) in the record count. */
@@ -219,6 +232,48 @@ export function admitPublish(input: {
 }
 
 // ---------------------------------------------------------------------------
+// The edits both adapters apply
+// ---------------------------------------------------------------------------
+
+/** One whole-list edit; both adapters apply the same two. */
+type RevocationEdit = (current: readonly PublishTrustRevocation[]) => readonly PublishTrustRevocation[];
+
+/**
+ * The revoke edit: append a record unless the computer is already listed, so a repeat disconnect
+ * keeps the FIRST timestamp and note.
+ *
+ * @complexity O(n) in the record count.
+ */
+function revokeEdit({ sourceInstallationId, nowIso, note }: Parameters<PublishTrustRevocationPort["revoke"]>[0]): RevocationEdit {
+  return (current) =>
+    isRevoked(current, sourceInstallationId)
+      ? current
+      : [...current, { sourceInstallationId, revokedAt: nowIso, note: note ?? null }];
+}
+
+/** The restore edit: drop every record for the computer. @complexity O(n) in the record count. */
+function restoreEdit({ sourceInstallationId }: Parameters<PublishTrustRevocationPort["restore"]>[0]): RevocationEdit {
+  return (current) => current.filter((revocation) => revocation.sourceInstallationId !== sourceInstallationId);
+}
+
+/**
+ * Applies `edit` to `current` under {@link MAX_REVOCATIONS}: the refusal, or the next list and
+ * whether it differs from `current`. Pure — the adapter decides whether and where to persist.
+ *
+ * @complexity O(n) in the record count (the edit and one JSON comparison).
+ */
+function planEdit({ current, edit }: {
+  current: readonly PublishTrustRevocation[];
+  edit: RevocationEdit;
+}): { ok: false; reason: string } | { ok: true; next: readonly PublishTrustRevocation[]; changed: boolean } {
+  const next = edit(current);
+  if (next.length > MAX_REVOCATIONS) {
+    return { ok: false, reason: `this site already lists ${MAX_REVOCATIONS} disconnected computers` };
+  }
+  return { ok: true, next, changed: JSON.stringify(next) !== JSON.stringify(current) };
+}
+
+// ---------------------------------------------------------------------------
 // The file-backed adapter
 // ---------------------------------------------------------------------------
 
@@ -238,32 +293,21 @@ export function createFileRevocations(deps: {
 
   const list = async (): Promise<RevocationRead> => parseRevocationDocument((await io.read(path)) ?? "");
 
-  const applyEdit = async (
-    edit: (current: readonly PublishTrustRevocation[]) => readonly PublishTrustRevocation[]
-  ): Promise<RevocationWrite> => {
+  const applyEdit = async (edit: RevocationEdit): Promise<RevocationWrite> => {
     const current = await list();
     if (!current.ok) return current;
 
-    const next = edit(current.revocations);
-    if (next.length > MAX_REVOCATIONS) {
-      return { ok: false, reason: `this site already lists ${MAX_REVOCATIONS} disconnected computers` };
-    }
-    const changed = JSON.stringify(next) !== JSON.stringify(current.revocations);
-    if (changed) await io.write(path, serializeRevocationDocument(next));
-    return { ok: true, revocations: next, changed };
+    const plan = planEdit({ current: current.revocations, edit });
+    if (!plan.ok) return plan;
+    if (plan.changed) await io.write(path, serializeRevocationDocument(plan.next));
+    return { ok: true, revocations: plan.next, changed: plan.changed };
   };
 
   return {
     path,
     list,
-    revoke: ({ sourceInstallationId, nowIso, note }) =>
-      applyEdit((current) =>
-        isRevoked(current, sourceInstallationId)
-          ? current
-          : [...current, { sourceInstallationId, revokedAt: nowIso, note: note ?? null }]
-      ),
-    restore: ({ sourceInstallationId }) =>
-      applyEdit((current) => current.filter((r) => r.sourceInstallationId !== sourceInstallationId)),
+    revoke: (input) => applyEdit(revokeEdit(input)),
+    restore: (input) => applyEdit(restoreEdit(input)),
   };
 }
 
@@ -276,27 +320,16 @@ export function createInMemoryRevocations(): PublishTrustRevocationPort {
   let current: readonly PublishTrustRevocation[] = [];
 
   const list = async (): Promise<RevocationRead> => ({ ok: true, revocations: current });
-  const applyEdit = async (
-    edit: (revocations: readonly PublishTrustRevocation[]) => readonly PublishTrustRevocation[]
-  ): Promise<RevocationWrite> => {
-    const next = edit(current);
-    if (next.length > MAX_REVOCATIONS) {
-      return { ok: false, reason: `this site already lists ${MAX_REVOCATIONS} disconnected computers` };
-    }
-    const changed = JSON.stringify(next) !== JSON.stringify(current);
-    if (changed) current = next;
-    return { ok: true, revocations: current, changed };
+  const applyEdit = async (edit: RevocationEdit): Promise<RevocationWrite> => {
+    const plan = planEdit({ current, edit });
+    if (!plan.ok) return plan;
+    if (plan.changed) current = plan.next;
+    return { ok: true, revocations: current, changed: plan.changed };
   };
 
   return {
     list,
-    revoke: ({ sourceInstallationId, nowIso, note }) =>
-      applyEdit((revocations) =>
-        isRevoked(revocations, sourceInstallationId)
-          ? revocations
-          : [...revocations, { sourceInstallationId, revokedAt: nowIso, note: note ?? null }]
-      ),
-    restore: ({ sourceInstallationId }) =>
-      applyEdit((revocations) => revocations.filter((revocation) => revocation.sourceInstallationId !== sourceInstallationId)),
+    revoke: (input) => applyEdit(revokeEdit(input)),
+    restore: (input) => applyEdit(restoreEdit(input)),
   };
 }
