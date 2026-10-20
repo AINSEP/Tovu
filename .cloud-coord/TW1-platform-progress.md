@@ -20,17 +20,31 @@ See lot table; worst per lot recorded as cyc/cog.
 | Lot | Files | Baseline worst cyc/cog | Status | After | Coverage | Commits |
 |---|---|---|---|---|---|---|
 | L023 | site-dir (10 files) | 30/54 (move-sites-home) | dispatched | | | |
-| L096 | secrets/vault-kinds | 30/32 | dispatched | | | |
-| L142 | db key-dependent-data, vault-credential-inventory | 20/20 | dispatched | | | |
-| L147 | db/sqlite journal, share-database | 14/16 | dispatched | | | |
-| L243 | db/repos change-set, external-mcp, publish-history | 12/- | dispatched | | | |
-| L265 | server-logs/log-file | 13/- | queued | | | |
-| L278 | oauth/endpoint-safety | 12/- | queued | | | |
+| L096 | secrets/vault-kinds | 30/32 | MERGED (verify OK, 97 tests) | 10/9 | 100/100/100 | 101043e1 |
+| L142 | db key-dependent-data, vault-credential-inventory | 20/20 | MERGED (verify OK, 37 tests) | 7/8 | 100/100/100 | b528df8d, 6749970c |
+| L147 | db/sqlite journal, share-database | 14/16 | MERGED (verify OK, 50 tests) | ≤10/≤10 | 100/100/100 | d609fc90, ab768c4c |
+| L243 | db/repos change-set, external-mcp, publish-history | 12/4 | MERGED (verify OK, 108 tests) | 10/6 | 100/100/100 | e30707a9, 239c8533, 79f03956 |
+| L265 | server-logs/log-file | 13/8 | MERGED (verify OK, 20 tests) | 9/8 | 100/100/100 | 98696795 |
+| L278 | oauth/endpoint-safety | 12/- | dispatched | | | |
 | L279 | site-dir product-root, site-trash (after L023) | 11/11 | queued | | | |
-| L114 | assistant (11 files) | 18/12 | queued | | | |
-| L275 | assistant/mcp-federation/registrations | 12/- | queued | | | |
+| L114 | assistant (11 files) | 18/12 | dispatched | | | |
+| L275 | assistant/mcp-federation/registrations | 12/- | dispatched | | | |
 
 ## Problems
-(none yet)
+- Pre-push hook (apps/desktop/scripts/hooks/pre-push) misfires on the FIRST push of a new branch from a worktree: `git diff HEAD @{push}` fails (no @{push}) so it runs desktop gates, which fail here (no electron). Fix used: push lot branches from the main checkout (`cd /home/user/Tovu && git push -u origin <lot-branch>`), where @{push} resolves and the hook correctly skips. Never --no-verify.
+- Root tsc/typecheck:tests failed only on missing `@tovu/sdk` dist → fixed by `npm run build` in packages/sdk (dist gitignored). Add to SETUP next wave.
+- Subagents shared a `tsc.done` marker name in the scratchpad → told later lots to use lot-specific marker names.
+
+## Bugs pinned (reported, not fixed)
+- L096 vault-meta-rules: normalization status wrapped in an array (e.g. ["conflict"]) is accepted (String() coercion).
+- L265 log-file: when the tail byte budget starts exactly on a line boundary, the first complete entry is dropped as "torn".
+- L147 share-database: final secret byte scan (requireShareSecretFree/redactSecretShapes, outside lot) misses a token glued to the previous text column (no word boundary).
+
+## Cross-area / out-of-scope flags
+- L096: keyring derive/deriveSigningSecret exist only for Jini's KeyringPort type (Jini change to drop).
+- L142: snapshotVaultCredentials counts a missing COUNT row as 0 (unreachable with real SQL; pinned).
+- L147: SiteShareRefusal has no `cause`; appendInterruptedRow ignores params.siteId; findNonTerminalForSite doc claims O(1) via index but filters in memory.
+- L147 error messages changed: "Invalid portable columns for 'X': its portability policy names a column the table does not declare."; "Cannot build portable plugin schema for '<pluginId>': …".
+- L147 added optional seams prepareSharePluginTables(…, {modules}), sanitizeShareDatabase(…, {statfs}) + exported StagingSpacePort type.
 
 ## Next
