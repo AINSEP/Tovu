@@ -4,14 +4,18 @@ type ComparisonRequest = { text: string; done: (error?: string) => void };
 
 /** Keep a pane's variant across real site navigation inside its same-origin comparison iframe. */
 export function readSiteChatComparisonVariant({ document }: { document: Document }, _options = {}): 'react' | 'vanilla' | null {
-  const own = document.getElementById('tovu-site-assistant-root')?.dataset.chatCompare;
-  if (own === 'react' || own === 'vanilla') return own;
+  const own = parseComparisonVariant({ value: document.getElementById('tovu-site-assistant-root')?.dataset.chatCompare });
+  if (own) return own;
   try {
     const view = document.defaultView;
     if (view?.parent.location.pathname !== '/__compare/site-chat') return null;
     const variant = view.frameElement?.getAttribute('data-chat-compare');
-    return variant === 'react' || variant === 'vanilla' ? variant : null;
+    return parseComparisonVariant({ value: variant });
   } catch { return null; } // Cross-origin embedding cannot opt into the admin comparison channel.
+}
+
+function parseComparisonVariant({ value }: { value: string | null | undefined }, _options = {}): 'react' | 'vanilla' | null {
+  return value === 'react' || value === 'vanilla' ? value : null;
 }
 
 /**

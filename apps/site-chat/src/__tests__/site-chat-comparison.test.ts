@@ -89,3 +89,39 @@ test('wcmp: navigating inside the vanilla comparison frame keeps its widget and 
   assert.deepEqual(assets, ['/site-chat/site-assistant-vanilla.js', '/site-chat/site-assistant-vanilla.css']);
   dom.window.close();
 });
+
+for (const variant of ['react', 'vanilla']) test(`comparison root ${variant} wins before reading the parent`, t => {
+  const f = fixture(variant);
+  t.after(() => f.dom.window.close());
+  Object.defineProperty(f.dom.window, 'parent', { get: () => { throw new Error('parent must not be read'); } });
+  assert.equal(readSiteChatComparisonVariant({ document: f.root.ownerDocument }), variant);
+});
+
+for (const parentPath of ['/ordinary', '/__compare/site-chat']) {
+  for (const variant of ['react', 'vanilla', 'invalid', '']) test(`comparison frame variant=${variant}, parent=${parentPath}`, t => {
+    const dom = new JSDOM('<iframe></iframe>', { url: `https://site.test${parentPath}` });
+    t.after(() => dom.window.close());
+    const frame = dom.window.document.querySelector('iframe')!;
+    if (variant) frame.setAttribute('data-chat-compare', variant);
+    const document = frame.contentDocument!;
+    document.body.innerHTML = '<div id="tovu-site-assistant-root" data-chat-compare="invalid"></div>';
+    assert.equal(readSiteChatComparisonVariant({ document }), parentPath === '/__compare/site-chat' && ['react', 'vanilla'].includes(variant) ? variant : null);
+    document.getElementById('tovu-site-assistant-root')!.remove();
+    assert.equal(readSiteChatComparisonVariant({ document }), parentPath === '/__compare/site-chat' && ['react', 'vanilla'].includes(variant) ? variant : null);
+  });
+}
+
+test('comparison rejects detached documents and comparison pages without a frame', t => {
+  const f = fixture();
+  t.after(() => f.dom.window.close());
+  assert.equal(readSiteChatComparisonVariant({ document: f.root.ownerDocument.implementation.createHTMLDocument() }), null);
+  f.dom.reconfigure({ url: 'https://site.test/__compare/site-chat' });
+  assert.equal(readSiteChatComparisonVariant({ document: f.root.ownerDocument }), null);
+});
+
+test('comparison catches cross-origin parent access without enabling a channel', t => {
+  const f = fixture('invalid');
+  t.after(() => f.dom.window.close());
+  Object.defineProperty(f.dom.window, 'parent', { get: () => { throw new f.dom.window.DOMException('Blocked parent', 'SecurityError'); } });
+  assert.equal(readSiteChatComparisonVariant({ document: f.root.ownerDocument }), null);
+});
