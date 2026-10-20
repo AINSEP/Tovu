@@ -11,12 +11,12 @@ import { directPageAction } from '../../contracts/headless/assistant-tool-approv
 
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({executionId:'exec',principal:{id:'owner'},run:{id:'run'},input,signal:new AbortController().signal});
-function fixture(id: string) {
+function fixture(id: string, options: Parameters<typeof applyToolApprovalPolicy>[1] = {}) {
   let calls = 0; let executed: unknown;
   const registration: ToolRegistration = {descriptor:{id,description:id,inputSchema:{type:'object'}},policy:{authorize:()=> 'allow'},handler:async context=>{calls++; executed=context.input; return {changed:true};}};
   const surfaces = {surfaceExchanges:createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })};
   const registry = createToolRegistry({});
-  registry.register(applyToolApprovalPolicy({registration,surfaces}));
+  registry.register(applyToolApprovalPolicy({registration,surfaces},options));
   return {surfaces,executor:createToolExecutor({registry}),calls:()=>calls,executed:()=>executed};
 }
 test('unclassified registration fails closed, regardless of readOnly hint', () => {
@@ -131,4 +131,44 @@ test('page fill runs directly without a reviewed click handle',()=>{
 test('source-control export commits ask because they can remove stale exported paths; dry runs are direct',()=>{
   assert.equal(approvalClassFor({toolId:'source_control_execute_commit',input:{dryRun:true}}),'edit');
   assert.equal(approvalClassFor({toolId:'source_control_execute_commit',input:{}}),'publish');
+});
+
+/** Starts a confirming call and resolves with the card's HTML once shown (or '' when the call settles first). */
+async function cardFor(f: ReturnType<typeof fixture>, toolId: string, input: unknown) {
+  let html = '';
+  let shown!: () => void;
+  const visible = new Promise<void>((resolve) => { shown = resolve; });
+  const pending = f.executor.execute({ toolId, principal: { id: 'owner' }, run: { id: 'run' }, input }, {
+    emitSurface: async (emission) => { html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text; shown(); },
+  });
+  await Promise.race([visible, pending]);
+  return { html, pending, exchangeId: html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1] ?? '' };
+}
+
+test('disclosed rows follow the Tool and Input rows, computed from the frozen call before asking', async () => {
+  const seen: unknown[] = [];
+  const f = fixture('publish_content_publish', { disclose: async ({ ctx: call }) => { seen.push(call.input); return [{ label: 'Account', value: 'alice@acme.test' }]; } });
+  const card = await cardFor(f, 'publish_content_publish', { id: 'post-1' });
+  const rows = [...card.html.matchAll(/<dt>([^<]+)<\/dt>/g)].map((match) => match[1]);
+  assert.deepEqual(rows, ['Tool', 'Input', 'Account']);
+  assert.match(card.html, /<dd>alice@acme\.test<\/dd>/);
+  assert.deepEqual(seen, [{ id: 'post-1' }]);
+  f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
+  assert.equal((await card.pending).status, 'completed');
+  assert.equal(f.calls(), 0);
+});
+
+test('a disclose failure refuses the call before any card or effect', async () => {
+  const f = fixture('publish_content_publish', { disclose: async () => { throw new Error('account lookup failed'); } });
+  const card = await cardFor(f, 'publish_content_publish', { id: 'post-1' });
+  try {
+    assert.equal(card.html, '', 'no card is shown');
+  } finally {
+    // A broken refusal parks on the card: cancel it so the failure is immediate, not an exchange timeout.
+    if (card.html !== '') f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
+  }
+  const result = await card.pending;
+  assert.equal(result.status, 'failed');
+  assert.match(String(result.error), /account lookup failed/);
+  assert.equal(f.calls(), 0);
 });

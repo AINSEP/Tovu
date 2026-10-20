@@ -271,3 +271,10 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
     assert.equal(isMcpUiToolCallAllowed(allowed), true, `${allowed} must be admitted`);
   }
 });
+
+test("security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused", () => {
+  assert.equal(isMcpUiToolCallPermitted("p_acme_office__append_rows", true), true);
+  for (const id of ["xp_acme__append", "p_acme__append/../x", "p_Acme__append", "p_acme__", "p_acme_append", "content_p_acme__x"]) {
+    assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
+  }
+});

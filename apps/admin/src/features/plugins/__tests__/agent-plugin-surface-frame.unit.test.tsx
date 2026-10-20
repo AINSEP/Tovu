@@ -215,11 +215,93 @@ describe("AgentPluginSurfaceFrame external links", () => {
   });
 });
 
+describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
+  // The nonce test spies on crypto; a failed assertion must not leak that spy.
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("shows the could-not-open notice instead of the frame when the bootstrap fails", async () => {
+    const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(async () => { throw new Error("401"); }) });
+    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    fireEvent.load(screen.getByTitle("Manage connection"));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Could not open this view. Close and reopen the plugin to try again."));
+    expect(screen.queryByTitle("Manage connection")).toBeNull();
+  });
+
+  it("ignores a message that arrives before the frame's first load, even a null-source one carrying this mount's nonce", async () => {
+    // Zero random bytes make this mount's nonce predictable, so the message below would pass the
+    // nonce check: only "no live frame yet" stops a null `source` from matching the missing frame.
+    vi.spyOn(globalThis.crypto, "getRandomValues").mockImplementation((array) => array);
+    const port = fakePort();
+    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
+    const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
+    deliver(request("0".repeat(32)), "null", null);
+    deliver(request("0".repeat(32)), "null", iframe.contentWindow);
+    await act(async () => { await Promise.resolve(); });
+    expect(port.action).not.toHaveBeenCalled();
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it("posts nothing when the view is closed before its bootstrap arrives", async () => {
+    let resolve: (value: AdminSurfaceBootstrap) => void = () => {};
+    const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(() => new Promise((done) => { resolve = done; })) });
+    const view = render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
+    const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
+    fireEvent.load(iframe);
+    view.unmount();
+    await act(async () => { resolve(BOOTSTRAP); });
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it("hands the plugin's refusal to the frame as that request's error", async () => {
+    const error = { code: "resource-missing", message: "Pick the file again.", retryable: false };
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({ ok: false, error })) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect(posted.mock.calls[1]).toEqual([{ protocol: "jini.admin-surface", version: 1, kind: "action-response", mountId: init.mountId, requestId: "req-1", ok: false, error }, "*"]);
+  });
+
+  it("answers an unreachable server with the host's own retryable error, never the failure's text", async () => {
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => { throw new Error("ECONNRESET db=prod secret-path"); }) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect((posted.mock.calls[1]![0] as { error: unknown }).error).toEqual({ code: "host-unavailable", message: "The admin page could not reach the server. Try again.", retryable: true });
+  });
+
+  it("never offers a sign-in link that is not a parseable URL", async () => {
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({ ok: true, result: null, hostSignIns: [{ authorizationUrl: "not a url", expiresAt }] })) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("link", { name: "Continue to sign-in" })).toBeNull();
+  });
+});
+
 describe("AgentPluginDetailsModal admin surfaces", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
   it("adds one view per contributed surface after Memory, titled by the plugin", async () => {
     const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
     const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
     render(<AgentPluginDetailsModal plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} surfacesPort={fakePort()} />);
+    await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
+  });
+
+  it("lists surfaces through the admin API when no port is injected", async () => {
+    // Recording fetch stub: the surfaces route answers one surface, the Memory tab its empty listing.
+    vi.stubGlobal("fetch", async (url: string) => {
+      const body = String(url).endsWith("/agent-plugins/acme-office/surfaces")
+        ? { surfaces: [SURFACE] }
+        : { pluginId: "acme-office", learned: [], notes: [], limits: { learned: 1048576, notes: 16384, files: 128 } };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
+    const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
+    render(<AgentPluginDetailsModal plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} />);
     await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
   });
 });
