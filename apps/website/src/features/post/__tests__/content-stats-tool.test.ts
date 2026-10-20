@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPostRepo, type PostRecord } from "../index.js";
-import { buildContentStatsRegistrations, contentStatsDerivedRisk, type ContentStatsToolDeps } from "../content-stats-tool.js";
+import { buildContentStatsRegistrations, contentStatsDerivedRisk, contributeContentStatsTools, type ContentStatsToolDeps } from "../content-stats-tool.js";
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
 const post = (id: string, text: string, overrides: Partial<PostRecord> = {}): PostRecord => ({ id, workspaceId: "ws", title: id, slug: id, kind: "post", status: "draft", bodyFormat: "doc", bodyHtml: null, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] }, updatedAt: "2026-10-01T00:00:00Z", version: 1, ...overrides });
@@ -105,4 +105,41 @@ test("a missing legacy blob refuses rather than inventing a media classification
   deps.mediaContentTypeStore.getMany = async () => new Map();
   deps.assetBlobRepo.list = async () => [];
   await assert.rejects(() => tool.handler(ctx()), { name: "ToolInputError", message: "content_stats: media blob 'image' is missing. Inspect the media library before retrying the count." });
+});
+
+test("tombstoned and widget_area content types are left out of the entry counts", async () => {
+  const { deps, tool } = harness();
+  deps.contentTypeRepo.listByWorkspace = async () => [{ key: "gone", status: "tombstone" }, { key: "widget_area", status: "active" }, { key: "recipe", status: "active" }];
+  const result = await tool.handler(ctx({ includeWordCounts: false })) as { entries: unknown };
+  assert.deepEqual(result.entries, [{ contentType: "recipe", total: 2, byStatus: { draft: 1, published: 1 } }]);
+});
+
+test("both optional sections denied are both named in omitted", async () => {
+  const { deps } = harness();
+  deps.authorize = async ({ permission }) => ({ allowed: permission === "content.read", reason: "fixture grant" });
+  const result = await buildContentStatsRegistrations(deps)[0]!.handler(ctx({ includeWordCounts: false })) as Record<string, unknown>;
+  assert.deepEqual(result.omitted, ["entries", "media"]);
+  assert.equal("entries" in result, false);
+  assert.equal("media" in result, false);
+});
+
+test("the contributor installs the stats builder under its own domain with the none risk map", () => {
+  const contributor = contributeContentStatsTools();
+  assert.equal(contributor.domain, "content-stats");
+  assert.equal(contributor.build, buildContentStatsRegistrations);
+  assert.equal(contributor.risk, contentStatsDerivedRisk);
+});
+
+test("an HTML-format page with no stored HTML counts zero words", async () => {
+  const { deps, tool } = harness();
+  deps.postRepo = new InMemoryPostRepo([post("blank", "ignored", { kind: "page", bodyFormat: "html", bodyHtml: null })]);
+  const result = await tool.handler(ctx()) as { pages: unknown };
+  assert.deepEqual(result.pages, { total: 1, byStatus: { draft: 1 }, words: { total: 0, average: 0, longest: [{ id: "blank", title: "blank", slug: "blank", words: 0 }] } });
+});
+
+test("longest defaults to five rows when omitted", async () => {
+  const { deps, tool } = harness();
+  deps.postRepo = new InMemoryPostRepo(["a", "b", "c", "d", "e", "f"].map(id => post(id, "word")));
+  const result = await tool.handler(ctx()) as { posts: { words: { longest: Array<{ id: string }> } } };
+  assert.deepEqual(result.posts.words.longest.map(row => row.id), ["a", "b", "c", "d", "e"]);
 });

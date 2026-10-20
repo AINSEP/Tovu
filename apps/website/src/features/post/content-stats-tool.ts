@@ -92,6 +92,52 @@ async function readMediaTypes(deps: ContentStatsToolDeps, assets: ReadonlyArray<
   return types;
 }
 
+/** Validates the optional knobs; omitted means the catalog defaults (true, 5).
+ * @throws {ToolInputError} If includeWordCounts is not a boolean or longest is not an integer 0..20.
+ */
+function parseStatsOptions(input: Record<string, unknown>): { includeWordCounts: boolean; longest: number } {
+  const includeWordCounts = input.includeWordCounts === undefined ? true : input.includeWordCounts;
+  const longest = input.longest === undefined ? 5 : input.longest;
+  if (typeof includeWordCounts !== "boolean") throw new ToolInputError({ message: "content_stats: includeWordCounts must be a boolean." });
+  if (typeof longest !== "number" || !Number.isInteger(longest) || longest < 0 || longest > 20) throw new ToolInputError({ message: "content_stats: longest must be an integer from 0 to 20." });
+  return { includeWordCounts, longest };
+}
+
+/** Counts entries per live, non-widget content type, sorted by key; types with no entries count zero.
+ * @complexity O(types log types + entries) time, O(types + entries) space; two bulk reads.
+ */
+async function summarizeEntries(deps: ContentStatsToolDeps, scope: { workspaceId: string }) {
+  const types = (await deps.contentTypeRepo.listByWorkspace(scope)).filter(type => type.status !== "tombstone" && type.key !== "widget" && type.key !== "widget_area");
+  const entries = await deps.entryRepo.listByWorkspace(scope);
+  const grouped = new Map<string, Array<{ status: string }>>();
+  for (const entry of entries) {
+    const group = grouped.get(entry.type) ?? [];
+    group.push(entry);
+    grouped.set(entry.type, group);
+  }
+  return types.sort((a, b) => a.key.localeCompare(b.key)).map(type => {
+    const rows = grouped.get(type.key) ?? [];
+    return { contentType: type.key, total: rows.length, byStatus: countStatuses(rows) };
+  });
+}
+
+/** Buckets active media by byte type (image/*, video/*, everything else).
+ * @throws {ToolInputError} From readMediaTypes when a legacy blob is missing.
+ * @complexity O(assets + missing blob bytes) time, O(assets) space.
+ */
+async function summarizeMedia(deps: ContentStatsToolDeps, scope: { workspaceId: string }) {
+  const assets = (await deps.mediaRepo.list(scope)).filter(asset => asset.status === "active");
+  const types = await readMediaTypes(deps, assets);
+  const media = { total: assets.length, images: 0, videos: 0, other: 0 };
+  for (const asset of assets) {
+    const mime = types.get(asset.source.sha256)!;
+    if (mime.startsWith("image/")) media.images++;
+    else if (mime.startsWith("video/")) media.videos++;
+    else media.other++;
+  }
+  return media;
+}
+
 /** Builds the read-only inventory tool. Bad options/denied content are ToolInputError refusals;
  * optional permissions omit sections. All inventory scans are complete, never sampled.
  * @example buildContentStatsRegistrations(deps)[0].handler(ctx)
@@ -100,11 +146,7 @@ async function readMediaTypes(deps: ContentStatsToolDeps, assets: ReadonlyArray<
 export function buildContentStatsRegistrations(deps: ContentStatsToolDeps): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "content-stats", catalogModule: "features/post/content-stats-tool.ts", catalog: indexCatalogById({ catalog: contentStatsAgentToolCatalog }), derivedRisk: contentStatsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     content_stats: async ctx => {
-      const input = requireInputRecord({ input: ctx.input });
-      const includeWordCounts = input.includeWordCounts === undefined ? true : input.includeWordCounts;
-      const longest = input.longest === undefined ? 5 : input.longest;
-      if (typeof includeWordCounts !== "boolean") throw new ToolInputError({ message: "content_stats: includeWordCounts must be a boolean." });
-      if (typeof longest !== "number" || !Number.isInteger(longest) || longest < 0 || longest > 20) throw new ToolInputError({ message: "content_stats: longest must be an integer from 0 to 20." });
+      const { includeWordCounts, longest } = parseStatsOptions(requireInputRecord({ input: ctx.input }));
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
       const scope = { workspaceId: deps.workspaceId };
       const posts = (await deps.postRepo.list(scope)).filter(post => !post.deletedAt);
@@ -113,32 +155,10 @@ export function buildContentStatsRegistrations(deps: ContentStatsToolDeps): Tool
         pages: summarizePosts(posts.filter(post => post.kind === "page"), includeWordCounts, longest),
       };
       const omitted: string[] = [];
-      if (await canRead(deps, ctx.principal.id, "admin.collections.read", "entry")) {
-        const types = (await deps.contentTypeRepo.listByWorkspace(scope)).filter(type => type.status !== "tombstone" && type.key !== "widget" && type.key !== "widget_area");
-        const entries = await deps.entryRepo.listByWorkspace(scope);
-        const grouped = new Map<string, Array<{ status: string }>>();
-        for (const entry of entries) {
-          const group = grouped.get(entry.type) ?? [];
-          group.push(entry);
-          grouped.set(entry.type, group);
-        }
-        result.entries = types.sort((a, b) => a.key.localeCompare(b.key)).map(type => {
-          const rows = grouped.get(type.key) ?? [];
-          return { contentType: type.key, total: rows.length, byStatus: countStatuses(rows) };
-        });
-      } else omitted.push("entries");
-      if (await canRead(deps, ctx.principal.id, "media.read", "media")) {
-        const assets = (await deps.mediaRepo.list(scope)).filter(asset => asset.status === "active");
-        const types = await readMediaTypes(deps, assets);
-        const media = { total: assets.length, images: 0, videos: 0, other: 0 };
-        for (const asset of assets) {
-          const mime = types.get(asset.source.sha256)!;
-          if (mime.startsWith("image/")) media.images++;
-          else if (mime.startsWith("video/")) media.videos++;
-          else media.other++;
-        }
-        result.media = media;
-      } else omitted.push("media");
+      if (await canRead(deps, ctx.principal.id, "admin.collections.read", "entry")) result.entries = await summarizeEntries(deps, scope);
+      else omitted.push("entries");
+      if (await canRead(deps, ctx.principal.id, "media.read", "media")) result.media = await summarizeMedia(deps, scope);
+      else omitted.push("media");
       if (omitted.length) result.omitted = omitted;
       return result;
     },
