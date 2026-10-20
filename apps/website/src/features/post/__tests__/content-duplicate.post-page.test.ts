@@ -167,6 +167,20 @@ test("explicit title, slug, and status overrides are honored when supplied", asy
   assert.equal(result.post.status, "published");
 });
 
+test("an overrides.status other than draft or published is refused before the source body is read", async () => {
+  // A bespoke-HTML source with no HTML store wired: reading its body would be refused with the
+  // missing-store error, so getting the status refusal proves the status check runs first.
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { bodyFormat: "html", bodyHtml: "<p>Landing</p>" });
+  const registrations = registrationsFor(deps);
+
+  await assert.rejects(
+    call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1", overrides: { status: "archived" } }),
+    { message: "status must be 'draft' or 'published'" },
+  );
+  assert.deepEqual((await postRepo.list({ workspaceId: WORKSPACE_ID })).map((row) => row.id), ["source-1"]);
+});
+
 test("resource:'page' rejects an actual kind:'post' row as not-found (disclosed asymmetry, matching content_post_get)", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { kind: "post" });

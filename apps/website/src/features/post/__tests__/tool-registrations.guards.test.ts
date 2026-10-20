@@ -2,7 +2,7 @@
  * @file Pins post tool branches the scenario suites do not reach: content_post_update's target
  * guards and unit-of-work rollback (a missing row or page-kind mismatch is not-found before any
  * write, an unavailable template is refused, a failed change-set record restores forward), the
- * create rollback, search option forwarding, the get kind guard and the hard excerpt cut.
+ * create and delete rollbacks, search option forwarding, the get kind guard and the hard excerpt cut.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,10 +13,12 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import type { ForgetRemovedPostFn, RemovePostFn } from "../post.js";
 import type { PostSearchQuery } from "../search.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, contributePostTools, type PostToolDeps } from "../tool-registrations.js";
 import { buildPostRecord } from "./post-record.fixture.js";
+import { removeVia } from "./remove-post-double.js";
 
 const WS = "workspace-1";
 
@@ -29,7 +31,12 @@ class RefusingChangeSetRepo extends InMemoryChangeSetRepo {
 
 function harness(
   changeSets: InMemoryChangeSetRepo = new InMemoryChangeSetRepo(),
-  optional: { postRepo?: InMemoryPostRepo; pluginBeforeSaveHook?: PostToolDeps["pluginBeforeSaveHook"] } = {},
+  optional: {
+    postRepo?: InMemoryPostRepo;
+    pluginBeforeSaveHook?: PostToolDeps["pluginBeforeSaveHook"];
+    removePost?: RemovePostFn;
+    forgetRemovedPost?: ForgetRemovedPostFn;
+  } = {},
 ) {
   const postRepo = optional.postRepo ?? new InMemoryPostRepo([buildPostRecord({ status: "draft" })]);
   const searches: PostSearchQuery[] = [];
@@ -46,8 +53,8 @@ function harness(
     postSearch: { search: async (query) => { searches.push(query); return []; } },
     pluginBeforeSaveHook: optional.pluginBeforeSaveHook ?? (async () => ({})),
     slugChangeCapture: () => undefined,
-    removePost: async () => ({ ok: false, reason: "not-found" }),
-    forgetRemovedPost: async () => {},
+    removePost: optional.removePost ?? (async () => ({ ok: false, reason: "not-found" })),
+    forgetRemovedPost: optional.forgetRemovedPost ?? (async () => {}),
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildPostRegistrations(deps, { surfaceExchanges });
@@ -162,4 +169,23 @@ test("content_post_search: omitted kind, status and limit are left for the searc
   const { searches, tool } = harness();
   await call(tool("content_post_search"), { query: "hello" });
   assert.deepEqual(searches.map((query) => ["kind", "status"].filter((key) => key in query)), [[]]);
+});
+
+test("content_post_delete: a failed change-set record restores the trashed post and forgets its Trash row", async () => {
+  const postRepo = new InMemoryPostRepo([buildPostRecord({ status: "draft" })]);
+  const forgotten: Parameters<ForgetRemovedPostFn>[0][] = [];
+  const forgetRemovedPost: ForgetRemovedPostFn = async (required) => { forgotten.push(required); };
+  const { tool } = harness(new RefusingChangeSetRepo(), { postRepo, removePost: removeVia(postRepo), forgetRemovedPost });
+  await assert.rejects(call(tool("content_post_delete"), { id: "post-1", kind: "post" }), { message: "change-set store unavailable" });
+  const restored = await postRepo.findById({ workspaceId: WS, id: "post-1" });
+  assert.deepEqual({ deletedAt: restored?.deletedAt, version: restored?.version }, { deletedAt: undefined, version: 3 });
+  assert.deepEqual(forgotten, [{ workspaceId: WS, id: "post-1" }]);
+});
+
+test("content_post_list: a body with no word break near the cut is cut hard at the per-row budget", async () => {
+  const word = "x".repeat(30_010);
+  const postRepo = new InMemoryPostRepo([buildPostRecord({ bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: word }] }] } })]);
+  const { tool } = harness(new InMemoryChangeSetRepo(), { postRepo });
+  const result = await call(tool("content_post_list"), { kind: "post" }) as { posts: Array<{ excerpt: string; bodyChars: number }> };
+  assert.deepEqual(result.posts.map(({ excerpt, bodyChars }) => ({ excerpt, bodyChars })), [{ excerpt: `${"x".repeat(30_000)}…`, bodyChars: 30_010 }]);
 });

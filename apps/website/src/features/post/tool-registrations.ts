@@ -405,13 +405,13 @@ async function resolveFeaturedImageInput(routeDeps: PostToolDeps, input: Record<
   return resolution.id;
 }
 
-/** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
- * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
  *  imported, the same "structurally typed, no `features/trash` import" convention
  *  {@link RemovePostFn}'s own doc already follows. */
 const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
 
+/** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
+ * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 function postCommandDeps(routeDeps: PostToolDeps) {
   return {
     clock: routeDeps.clock,
@@ -1067,14 +1067,18 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
         // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
         // `posts/update.ts`/`pages/update.ts`'s identical unit-of-work compensation.
-        let priorPost: PostRecord | null = null;
+        // `priorPost` and `merged` are declared without an initializer, so neither reader needs a
+        // null guard: `core/commands`'s `executeCommand` always awaits `captureInverse` first and
+        // calls `execute` only once it returned, and calls `rollback` only after `execute`
+        // succeeded — so both are always set by the time `execute`/`rollback` read them.
+        let priorPost: PostRecord;
         // The merged, fully-populated values `execute` below actually sends to `updatePost` — set
         // inside `captureInverse`, the only place `existing` (the fill-in source for an omitted
         // field) is available. `basisVersion` starts as whatever the caller sent and is upgraded to
         // `existing.version` there too, but ONLY for a partial patch with no caller-sent
         // `expectedVersion` — see that comment for why a full four-field call must NOT gain a basis
         // it never asked for.
-        let merged: { title: string; slug: string; bodyJson: JsonObject; status: PostStatus } | null = null;
+        let merged: { title: string; slug: string; bodyJson: JsonObject; status: PostStatus };
         let basisVersion = expectedVersion;
 
         const { result } = await executeCommand<{ post: PostRecord }>({
@@ -1117,10 +1121,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             },
             execute: () => {
               // `captureInverse` above always runs first (per `core/commands`'s own contract) and
-              // either throws or sets `merged` — this branch is unreachable in practice, the same
-              // guarantee `rollback`'s `if (!priorPost)` below relies on, kept here only to satisfy
-              // the type checker without a forbidden non-null assertion.
-              if (!merged) throw new PostNotFoundError(`post '${id}' was not found`);
+              // either throws or sets `merged` — see the declarations above.
               return updatePost({
                 deps: {
                   repo: routeDeps.postRepo,
@@ -1158,7 +1159,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             },
             captureEntityVersion: ({ result }) => result.post.version,
             rollback: async () => {
-              if (!priorPost) return;
               await restorePostForward({
                 deps: {
                   repo: routeDeps.postRepo,
@@ -1210,8 +1210,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
       assertFreshVersion(current, existing, kind);
 
-      let priorPost: PostRecord | null = null;
-
       const { result } = await executeCommand<{ post: PostRecord }>({
         deps: postCommandDeps(routeDeps),
         command: {
@@ -1226,7 +1224,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
           entityId: id,
           operation: "delete",
           captureInverse: async () => {
-            priorPost = existing;
             // The whole inverse of a soft delete is "clear the marker" — see
             // `core/commands/appliers.ts`'s `postDeleteReverter`.
             return { deletedAt: null };
@@ -1245,8 +1242,9 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
               },
             }),
           captureEntityVersion: ({ result }) => result.post.version,
+          // Restores the row read above: `existing` is the pre-image, and `rollback` only runs after
+          // `execute` trashed it.
           rollback: async () => {
-            if (!priorPost) return;
             await restorePostForward({
               deps: {
                 repo: routeDeps.postRepo,
@@ -1255,7 +1253,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 forgetRemoved: routeDeps.forgetRemovedPost,
               },
               input: {
-                prior: priorPost,
+                prior: existing,
                 actorId: ctx.principal.id,
                 // Same delegatedBy* attribution the forward write above records.
                 delegatedByWorkspaceId: routeDeps.workspaceId,
