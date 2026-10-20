@@ -8,7 +8,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDuplicateRoute } from "../duplicate.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
 
@@ -144,4 +144,50 @@ test("duplicate: an unexpected failure is a bare 500", async (t) => {
   const { status, json } = await post(t, failing, { body: { newName: "X" } });
   assert.equal(status, 500);
   assert.deepEqual(json, { error: "internal error" });
+});
+
+for (const newId of [undefined, "", null, 42]) {
+  test(`duplicate: newId ${JSON.stringify(newId)} uses the name-derived id`, async (t) => {
+    const { app, root } = buildApp();
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const { status, json } = await post(t, app, { body: { newName: "Pinned Copy", newId } });
+    assert.equal(status, 201);
+    assert.equal((json.theme as { id: string }).id, "pinned-copy");
+  });
+}
+
+for (const body of [[], { newName: null }, { newName: "" }]) {
+  test(`duplicate: ${JSON.stringify(body)} retains INVALID_NAME refusal`, async (t) => {
+    const { app, root } = buildApp();
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const { status, json } = await post(t, app, { body });
+    assert.equal(status, 400);
+    assert.equal(json.code, "INVALID_NAME");
+  });
+}
+
+test("duplicate: a non-string newName is stringified before validation", async (t) => {
+  const { app, root } = buildApp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const { status, json } = await post(t, app, { body: { newName: 123 } });
+  assert.equal(status, 201);
+  assert.equal((json.theme as { name: string }).name, "123");
+});
+
+
+test("duplicate: a missing source parameter is normalized to the empty id", async (t) => {
+  const { app, root } = buildApp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let status: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "test-principal" } },
+    status(value: number) { status = value; return res; },
+    json(value: unknown) { body = value; return res; },
+  };
+  await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/themes/:themeId/duplicate")(
+    { params: { workspaceId: WORKSPACE_ID }, body: { newName: "X" } }, res as never,
+  );
+  assert.equal(status, 404);
+  assert.equal((body as { code: string }).code, "SOURCE_NOT_FOUND");
 });
