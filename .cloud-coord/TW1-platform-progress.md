@@ -64,3 +64,4 @@ See lot table; worst per lot recorded as cyc/cog.
 ## Next
 All 10 lots merged. Remaining: whole website suite + admin suite on cloud/tw1-platform vs base (wt-base detached at origin/restructure/apps-website-phased).
 - L278: assertSafeProviderEndpoint / assertSafeUserFacingUrl (legacy testing/DB seam) have no production callers — owner decides on removal.
+- Whole suite (both base and head) leaks untracked files into the checkout: chat.db, content/themes/.preview-refresh.json, sites/tovu-dev/agent-plugins/ — pre-existing test-cleanup bug, removed after the run.
