@@ -47,6 +47,8 @@ export async function startFakeGoogle(required) {
   /** account + client → scopes granted so far, for `include_granted_scopes`. */
   const grants = new Map();
   const routes = new Map();
+  /** `[method, path prefix, handler]`, for resources whose path carries a variable (Sheets ranges). */
+  const prefixRoutes = [];
   const requests = [];
   let minted = 0;
   const behaviour = { rotateRefreshTokens: false, refreshError: undefined, revokeStatus: 200, revokeBody: {} };
@@ -118,7 +120,7 @@ export async function startFakeGoogle(required) {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     const routeKey = `${req.method} ${url.pathname}`;
     requests.push({ method: req.method, host: req.headers['x-fake-google-host'], path: url.pathname, query: url.searchParams, headers: req.headers, body });
-    const handler = routes.get(routeKey) ?? builtIn[routeKey];
+    const handler = routes.get(routeKey) ?? prefixRoutes.find(([method, prefix]) => method === req.method && url.pathname.startsWith(prefix))?.[2] ?? builtIn[routeKey];
     if (!handler) return sendJson(res, 404, { error: { code: 404, status: 'NOT_FOUND' } });
     const [status, value, headers] = await handler(req, body, url);
     return sendJson(res, status, value, headers);
@@ -138,6 +140,8 @@ export async function startFakeGoogle(required) {
     },
     /** Adds or replaces a resource handler: `(req, body, url) => [status, json, headers?]`. */
     route({ method, path }, handler) { routes.set(`${method} ${path}`, handler); },
+    /** Adds a handler for every path under `prefix` (exact routes win). */
+    routePrefix({ method, prefix }, handler) { prefixRoutes.push([method, prefix, handler]); },
     /**
      * The browser at Google's consent screen. Returns the callback query the redirect carries.
      * `grantScopes` lets a test untick a permission; `deny` cancels consent.
@@ -155,6 +159,7 @@ export async function startFakeGoogle(required) {
     /** Forget every code, token, grant and added route; restore default behaviour. */
     reset() {
       for (const map of [codes, refreshTokens, accessTokens, grants, routes]) map.clear();
+      prefixRoutes.length = 0;
       requests.length = 0;
       Object.assign(behaviour, { rotateRefreshTokens: false, refreshError: undefined, revokeStatus: 200, revokeBody: {} });
     },
