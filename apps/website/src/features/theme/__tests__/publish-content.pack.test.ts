@@ -4,6 +4,9 @@
  */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import fsPromises from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +17,8 @@ import { contentHash } from "#src/features/publish-content/content-hash";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { MAX_SECRET_SCAN_BYTES } from "#src/features/publish-content/file-tree-policy";
+import { MIGRATION_STAGING_DIR_PREFIX } from "../theme.js";
 
 function makeThemesDir(): string {
   return mkdtempSync(path.join(tmpdir(), "theme-publish-content-"));
@@ -298,4 +303,100 @@ test("the handlebars tier is never packed (deliberate narrowing per the plan)", 
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Boundary pins: discovery, walking and labels (behaviour pinned before the S-F3 complexity split)
+// ---------------------------------------------------------------------------
+
+/** A temp themes dir with the given `{relPath: text}` files, removed after the test. */
+function themesWith(t: { after: (fn: () => void) => void }, files: Record<string, string>): string {
+  const themesDir = makeThemesDir();
+  t.after(() => rmSync(themesDir, { recursive: true, force: true }));
+  for (const [rel, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(themesDir, rel)), { recursive: true });
+    writeFileSync(path.join(themesDir, rel), text);
+  }
+  return themesDir;
+}
+
+/** Replaces one `node:fs/promises` export for this test; the module under test reads the live binding. */
+function mockFs<K extends "readdir" | "lstat">(t: { mock: { method: typeof test.mock.method }; after: (fn: () => void) => void }, name: K, impl: (typeof fsPromises)[K]): void {
+  const mock = t.mock.method(fsPromises, name, impl);
+  syncBuiltinESMExports();
+  t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); });
+}
+
+const enoent = (p: string) => Object.assign(new Error(`ENOENT: ${p}`), { code: "ENOENT" });
+const eio = (p: string) => Object.assign(new Error(`EIO: ${p}`), { code: "EIO" });
+
+test("a tier path that is a file, not a folder, fails the pack with its own error", async (t) => {
+  const themesDir = themesWith(t, { static: "not a folder" });
+  await assert.rejects(packThemeFilesEntities({ themesDir }), { code: "ENOTDIR" });
+});
+
+test("trees across tiers sort by tier then id; migration staging dirs and loose tier files are not trees", async (t) => {
+  const themesDir = themesWith(t, {
+    "static/zeta/theme.json": "{}", "static/alpha/theme.json": "{}", "templated/beta/theme.json": "{}", "declarative/x/theme.json": "{}",
+    [`static/${MIGRATION_STAGING_DIR_PREFIX}alpha/theme.json`]: "{}", "static/loose.txt": "x",
+  });
+  const { entities, skipped } = await packThemeFilesEntities({ themesDir });
+  assert.deepEqual(entities.map((e) => e.id), ["declarative/x", "static/alpha", "static/zeta", "templated/beta"]);
+  assert.deepEqual(skipped, []);
+});
+
+test("a tree folder whose name is not a valid id is skipped with the address reason", async (t) => {
+  const themesDir = themesWith(t, { "static/Bad_Name/theme.json": "{}" });
+  assert.deepEqual(await packThemeFilesEntities({ themesDir }), { entities: [], skipped: [
+    { treeKey: "static/Bad_Name", reason: "Theme: static/Bad_Name was not published: 'static/Bad_Name' is not a valid theme tree address" },
+  ] });
+});
+
+test("a fifo inside a tree is never packed", async (t) => {
+  const themesDir = themesWith(t, { "static/basic/theme.json": "{}" });
+  execFileSync("mkfifo", [path.join(themesDir, "static/basic/pipe")]);
+  const { entities } = await packThemeFilesEntities({ themesDir });
+  assert.deepEqual((entities[0]!.state.files as { path: string }[]).map((f) => f.path), ["theme.json"]);
+});
+
+test("a file swapped for a symlink between readdir and lstat is dropped", async (t) => {
+  const themesDir = themesWith(t, { "static/basic/theme.json": "{}", "static/basic/css/a.css": "a{}" });
+  const link = path.join(themesDir, "link");
+  symlinkSync("/etc/passwd", link);
+  const realLstat = fsPromises.lstat;
+  mockFs(t, "lstat", ((p: string) => realLstat(p.endsWith("a.css") ? link : p)) as typeof fsPromises.lstat);
+  const { entities } = await packThemeFilesEntities({ themesDir });
+  assert.deepEqual((entities[0]!.state.files as { path: string }[]).map((f) => f.path), ["theme.json"]);
+});
+
+test("a sub-folder that vanishes mid-walk is treated as empty; any other readdir error fails the pack", async (t) => {
+  const themesDir = themesWith(t, { "static/basic/theme.json": "{}", "static/basic/css/a.css": "a{}" });
+  const realReaddir = fsPromises.readdir;
+  let failWith: ((p: string) => Error) | undefined = enoent;
+  mockFs(t, "readdir", (async (p: string, options?: unknown) => {
+    if (failWith && p.endsWith(`${path.sep}css`)) throw failWith(p);
+    return realReaddir(p, options as never);
+  }) as typeof fsPromises.readdir);
+  const { entities } = await packThemeFilesEntities({ themesDir });
+  assert.deepEqual((entities[0]!.state.files as { path: string }[]).map((f) => f.path), ["theme.json"]);
+  failWith = eio;
+  await assert.rejects(packThemeFilesEntities({ themesDir }), { code: "EIO" });
+});
+
+test("a theme.json over the scan cap is still read for its display label", async (t) => {
+  const big = JSON.stringify({ id: "basic", name: "Big Theme", pad: "a".repeat(MAX_SECRET_SCAN_BYTES) });
+  const themesDir = themesWith(t, { "static/basic/theme.json": big });
+  const { entities } = await packThemeFilesEntities({ themesDir });
+  assert.equal(entities[0]!.displayLabel, "Big Theme");
+});
+
+test("display labels: trimmed nonempty string names only; missing, malformed, null, non-string and blank names give none", async (t) => {
+  const themesDir = themesWith(t, {
+    "static/a/theme.json": '{"name":"  Trimmed  "}', "static/b/other.json": "{}", "static/c/theme.json": "{not json",
+    "static/d/theme.json": "null", "static/e/theme.json": '{"name":42}', "static/f/theme.json": '{"name":"   "}',
+  });
+  const { entities } = await packThemeFilesEntities({ themesDir });
+  assert.deepEqual(entities.map((e) => [e.id, e.displayLabel]), [
+    ["static/a", "Trimmed"], ["static/b", undefined], ["static/c", undefined], ["static/d", undefined], ["static/e", undefined], ["static/f", undefined],
+  ]);
 });
