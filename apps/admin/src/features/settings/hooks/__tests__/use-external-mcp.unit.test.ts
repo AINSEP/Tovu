@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@/lib/api";
+import type { ExternalMcpPort } from "../use-external-mcp.hooks";
 import { describeStoredCredentials, toAccessTokenWriteBody, useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
 
 /**
@@ -823,5 +824,83 @@ describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => 
       ok: false,
       message: "No se pudo contactar con el servidor.",
     });
+  });
+});
+
+
+describe("useExternalMcp — hosted token validation characterization (L294)", () => {
+  function setup({ locale = "en" }: { locale?: string }, _options = {}) {
+    const typedPort = {
+      listExternalMcpServers: vi.fn<ExternalMcpPort["listExternalMcpServers"]>(),
+      saveExternalMcpServer: vi.fn<ExternalMcpPort["saveExternalMcpServer"]>()
+        .mockResolvedValue({ server: server(), restartRequired: true }),
+      deleteExternalMcpServer: vi.fn<ExternalMcpPort["deleteExternalMcpServer"]>(),
+      probeExternalMcpServer: vi.fn<ExternalMcpPort["probeExternalMcpServer"]>(),
+    };
+    const hook = renderHook(() => useExternalMcpHook({ port: typedPort, useAdminLocaleHook: () => locale }));
+    return { ...hook, typedPort };
+  }
+
+  it.each([
+    { fields: {}, message: "Enter a token. Spaces alone are not a token." },
+    { fields: { accessToken: "" }, message: "Enter a token. Spaces alone are not a token." },
+    { fields: { accessToken: "   " }, message: "Enter a token. Spaces alone are not a token." },
+    { fields: { accessToken: "x".repeat(8193) }, message: "The token exceeds the 8192-character limit. Copy only the token." },
+    { fields: { accessToken: "café" }, message: "Hosted tokens must use visible ASCII characters (0x21–0x7E)." },
+    { fields: { accessToken: "two words" }, message: "Hosted tokens must use visible ASCII characters (0x21–0x7E)." },
+    { fields: { accessToken: "two\nlines" }, message: "Hosted tokens must use visible ASCII characters (0x21–0x7E)." },
+  ])("rejects invalid hosted credentials before any write: $message", async ({ fields, message }) => {
+    const { result, typedPort } = setup({});
+    await expect(result.current.dependencies.port.addSource({ fields: {
+      id: "remote", transport: "streamable_http", authMode: "static_env", ...fields,
+    } })).resolves.toEqual({ ok: false, message });
+    expect(typedPort.saveExternalMcpServer).not.toHaveBeenCalled();
+    expect(typedPort.probeExternalMcpServer).not.toHaveBeenCalled();
+    expect(result.current.restartRequired).toBe(false);
+  });
+
+  it("translates hosted credential rejection before saving", async () => {
+    const { result, typedPort } = setup({ locale: "es" });
+    await expect(result.current.dependencies.port.addSource({ fields: {
+      id: "remote", transport: "streamable_http", authMode: "static_env", accessToken: "",
+    } })).resolves.toEqual({ ok: false, message: "Introduce un token. Los espacios solos no son un token." });
+    expect(typedPort.saveExternalMcpServer).not.toHaveBeenCalled();
+  });
+
+  it.each(["  opaque-token  ", "x".repeat(8192)])("preserves valid token bytes for a default static_env hosted draft (case %#)", async (accessToken) => {
+    const { result, typedPort } = setup({});
+    await act(async () => {
+      await expect(result.current.dependencies.port.addSource({ fields: {
+        id: "remote", transport: "streamable_http", accessToken,
+      } })).resolves.toMatchObject({ ok: true });
+    });
+    expect(typedPort.saveExternalMcpServer).toHaveBeenCalledWith("remote", expect.objectContaining({
+      authMode: "static_env", accessToken,
+    }));
+  });
+
+  it.each([
+    { transport: "stdio", authMode: "static_env" },
+    { transport: "", authMode: "static_env" },
+    { transport: "streamable_http", authMode: "none" },
+    { transport: "streamable_http", authMode: "oauth" },
+  ])("skips hosted token validation for $transport / $authMode", async (fields) => {
+    const { result, typedPort } = setup({});
+    await act(async () => {
+      await expect(result.current.dependencies.port.addSource({ fields: {
+        id: "local-fs", ...fields,
+      } })).resolves.toMatchObject({ ok: true });
+    });
+    expect(typedPort.saveExternalMcpServer).toHaveBeenCalledOnce();
+  });
+
+  it("propagates unexpected credential access failures without saving", async () => {
+    const { result, typedPort } = setup({});
+    const failure = new Error("credential access failed");
+    await expect(result.current.dependencies.port.addSource({ fields: {
+      id: "remote", transport: "streamable_http", authMode: "static_env",
+      get accessToken(): string { throw failure; },
+    } })).rejects.toBe(failure);
+    expect(typedPort.saveExternalMcpServer).not.toHaveBeenCalled();
   });
 });

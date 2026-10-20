@@ -1,4 +1,4 @@
-import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage, assertCredentialToken, CredentialInputError } from "@/lib/credential-copy";
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage, credentialDraftError } from "@/lib/credential-copy";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -297,8 +297,8 @@ export function useExternalMcp(
           }
           // An untouched transport saves as STDIO; require a header token only for hosted rows.
           if (resolveExternalMcpEffectiveAuthMode(input.fields) === 'static_env' && resolveExternalMcpEffectiveTransport(input.fields) !== 'stdio') {
-            try { assertCredentialToken({ value: input.fields.accessToken, field: 'accessToken' }); }
-            catch (err) { if (err instanceof CredentialInputError) return { ok: false, message: translateCredentialMessage({ message: err.message, locale }) }; throw err; }
+            const tokenIssue = credentialDraftError({ value: fieldOrEmpty(input.fields, 'accessToken') }, { locale, required: true });
+            if (tokenIssue) return { ok: false, message: tokenIssue };
           }
           const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
