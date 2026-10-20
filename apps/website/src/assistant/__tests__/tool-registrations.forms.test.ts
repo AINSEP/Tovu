@@ -28,7 +28,8 @@ import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
-import type { FormDeliveryStatusPort } from "../../features/forms/delivery-status.js";
+import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "../../features/forms/delivery-status.js";
+import type { FormSubmissionsPullPort, FormSubmissionsPullResult } from "../../features/forms/import-remote-submissions.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -734,4 +735,80 @@ test("forms_delivery_status: a limit outside 1-50 or not an integer is refused b
   assert.deepEqual(limits, []);
   await wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext({}));
   assert.deepEqual(limits, [50], "an omitted limit reads the maximum");
+});
+
+const RETRYING_ROW: FormDeliveryStatusRow = { bindingId: "b1", adapterId: "sheets", formId: "f1", submissionId: "s1",
+  status: "retrying", attempts: 2, nextRetryAt: "2026-07-29T01:00:00.000Z", errorCode: "rate-limited" };
+
+test("forms_delivery_status: with submissionId, authorizes that submission and reads only its per-binding rows", async () => {
+  const { deps, authorizeCalls } = fakeRouteDeps();
+  const reads: unknown[] = [];
+  const formDeliveryStatus: FormDeliveryStatusPort = {
+    forSubmission: async (required) => { reads.push(["forSubmission", required]); return [RETRYING_ROW]; },
+    recentUnfinished: async (required, optional) => { reads.push(["recentUnfinished", required, optional]); return []; },
+  };
+  const out = await wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext({ submissionId: "s1" }));
+  assert.deepEqual(out, { deliveries: [RETRYING_ROW] });
+  assert.deepEqual(reads, [["forSubmission", { workspaceId: WORKSPACE_ID, submissionId: "s1" }]]);
+  assert.deepEqual({ entityType: authorizeCalls[0]?.entityType, entityId: authorizeCalls[0]?.entityId }, { entityType: "form_submission", entityId: "s1" });
+});
+
+test("forms_delivery_status: without submissionId, lists recent unfinished deliveries with the given limit", async () => {
+  const { deps, authorizeCalls } = fakeRouteDeps();
+  const reads: unknown[] = [];
+  const formDeliveryStatus: FormDeliveryStatusPort = {
+    forSubmission: async (required) => { reads.push(["forSubmission", required]); return []; },
+    recentUnfinished: async (required, optional) => { reads.push(["recentUnfinished", required, optional]); return [RETRYING_ROW]; },
+  };
+  const out = await wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext({ limit: 7 }));
+  assert.deepEqual(out, { deliveries: [RETRYING_ROW] });
+  assert.deepEqual(reads, [["recentUnfinished", { workspaceId: WORKSPACE_ID }, { limit: 7 }]]);
+  assert.equal("entityId" in (authorizeCalls[0] ?? {}), false, "a listing is not authorized against one submission");
+});
+
+test("forms_delivery_status: only the reported fields reach the model, whatever else a status row carries (security pin)", async () => {
+  const { deps } = fakeRouteDeps();
+  const secret = "s" + "k-" + "x".repeat(20);
+  // A row from a future repo shape: extra fields must be dropped by the tool's projection.
+  const wider = { ...RETRYING_ROW, answers: { email: "visitor@example.com" }, connectionRef: secret };
+  const formDeliveryStatus: FormDeliveryStatusPort = { forSubmission: async () => [wider], recentUnfinished: async () => [wider] };
+  for (const input of [{ submissionId: "s1" }, {}]) {
+    const out = await wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext(input));
+    assert.deepEqual(out, { deliveries: [RETRYING_ROW] });
+  }
+});
+
+test("forms_delivery_status: without the composed status port it says it is unavailable and what to do", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(() => wired("forms_delivery_status", deps).handler(executionContext({})),
+    (error: unknown) => error instanceof ToolInputError
+      && (error as Error).message === "Form delivery status is not available on this site's server. Restart the site, then try again.");
+});
+
+test("forms_delivery_status: the catalog declares it read-only under the submissions read permission, limit 1-50", () => {
+  const entry = catalogEntry("forms_delivery_status");
+  assert.deepEqual({ sideEffects: entry.sideEffects, authorization: entry.authorization }, { sideEffects: "none", authorization: { permission: "admin.forms.submissions.read" } });
+  const limit = (entry.inputSchema as { properties: Record<string, { minimum?: number; maximum?: number }> }).properties.limit;
+  assert.deepEqual([limit?.minimum, limit?.maximum], [1, 50]);
+});
+
+test("forms_pull_submissions: returns the pull's per-form counts and totals unchanged", async () => {
+  const { deps } = fakeRouteDeps();
+  const report: FormSubmissionsPullResult = {
+    message: "Imported 2 new form submissions from 1 published site.", destinations: [], ran: true,
+    forms: [{ formId: "f1", formSlug: "contact", imported: 2, alreadyImported: 1, unmapped: 0, failed: 1 }],
+    totals: { imported: 2, alreadyImported: 1, unmapped: 0, failed: 1 },
+  };
+  const formSubmissionsPull: FormSubmissionsPullPort = { pull: async () => report };
+  assert.deepEqual(await wired("forms_pull_submissions", { ...deps, formSubmissionsPull }).handler(executionContext({})), report);
+});
+
+test("forms_pull_submissions: a pull refused by the receiver lease reports ran: false with its reason", async () => {
+  const { deps } = fakeRouteDeps();
+  const refused: FormSubmissionsPullResult = {
+    message: "A pull of this host is already running.", destinations: [], ran: false, reason: "already-running",
+    forms: [], totals: { imported: 0, alreadyImported: 0, unmapped: 0, failed: 0 },
+  };
+  const formSubmissionsPull: FormSubmissionsPullPort = { pull: async () => refused };
+  assert.deepEqual(await wired("forms_pull_submissions", { ...deps, formSubmissionsPull }).handler(executionContext({})), refused);
 });

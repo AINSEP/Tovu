@@ -6,7 +6,8 @@ import Database from "better-sqlite3";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables } from "#src/platform/db/migration/manifest";
-import { collectTransferTables, countPartialExclusions } from "../copy-engine.js";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { collectTransferTables, countPartialExclusions, planSnapshotTables } from "../copy-engine.js";
 import { EXCLUDED_CORE_TABLES, SECRET_COLUMN_PATTERN } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
 
@@ -73,4 +74,16 @@ test("a copy carries form delivery plans and job index rows with their outbox ro
     ["form_receiver_pulls", false],
   ]);
   assert.equal(EXCLUDED_CORE_TABLES.form_receiver_pulls, "running-lock");
+});
+
+test("a copy plan names the receiver pull lease as left out because it is a lock held by the running site", () => {
+  const db = openContentDb(":memory:");
+  try {
+    db.$client.prepare("INSERT INTO form_receiver_pulls (workspace_id, receiver_key, lease_token, lease_expires_at, last_started_at) VALUES ('ws', 'host:https://r.example', 't', '2026-10-20T12:06:15.000Z', '2026-10-20T12:00:00.000Z')").run();
+    const { leftOut } = planSnapshotTables(openSqliteSnapshotSource(db.$client.serialize()));
+    assert.deepEqual(leftOut.filter(entry => entry.table === "form_receiver_pulls"),
+      [{ table: "form_receiver_pulls", reason: "locks held by the running site are not copied" }]);
+  } finally {
+    db.$client.close();
+  }
 });

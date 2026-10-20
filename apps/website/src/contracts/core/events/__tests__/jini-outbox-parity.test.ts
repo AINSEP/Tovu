@@ -4,6 +4,8 @@ import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
+import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { outboxFor } from "#src/platform/db/repos/outbox-repo";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox, startOutboxDrainer, toEnqueueOnlyOutbox } from "../index.js";
 
 const NOW = "2026-10-07T00:00:00.000Z";
@@ -158,3 +160,28 @@ test("only the explicitly started serving drainer executes effects; inline drain
   assert.deepEqual(received, [event]);
   assert.deepEqual((await outbox.claimPending({ batchSize: 20, nowIso: NOW })).map((row) => row.event), [second]);
 });
+
+// F9C made the SQL outbox ignore outcomes for settled rows. A timeout returns the row to `pending`
+// (not settled), and Jini's `recordOverrun` then lets the handler's late outcome replace that record:
+// this pins that the late success still settles the row, so it is not delivered a second time at
+// the lease horizon. A guard on `status = 'processing'` alone would break exactly this.
+for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
+  test(`kysely/${each.name}: a timed-out attempt's late success still settles the row its timeout returned to pending`, async () => {
+    const kernel = each.make();
+    const outbox = outboxFor(kernel);
+    const bus = new InMemoryEventBus();
+    const finish = deferred();
+    let runs = 0;
+    await bus.subscribe({ eventName: event.name, handler: async () => { runs += 1; await finish.promise; } });
+    await outbox.enqueue(event);
+    const status = async () => (await kernel.run((db) => db.selectFrom("outbox_events").select("status").where("id", "=", event.id).executeTakeFirstOrThrow())).status;
+
+    assert.equal(await processOutbox({ outbox, bus, clock: { nowMs: () => Date.parse(NOW) } }, { deliveryTimeoutMs: 20 }), 1);
+    assert.equal(await status(), "pending", "the timeout records a retry at the lease horizon");
+    finish.resolve();
+    for (let tick = 0; tick < 100 && (await status()) !== "delivered"; tick += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(await status(), "delivered");
+    assert.deepEqual(await outbox.claimPending({ batchSize: 20, nowIso: "2099-01-01T00:00:00.000Z" }), []);
+    assert.equal(runs, 1);
+  });
+}
