@@ -145,7 +145,7 @@ async function pullOne(
   const committed: RemoteImportResult[] = [];
   try {
     const pulled = await pullFromFormDestination({ module, scope, destination, kit,
-      importPage: ({ items, destinationKey }) => importCounted({ forms, committed, items, run: () => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
+      importPage: ({ items, destinationKey }) => importCounted({ forms, committed, items, importPage: () => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
         receipts: deps.receipts, outbox: deps.outbox, clock: deps.clock, idGen: deps.idGen }, workspaceId, destinationKey, items }) }) });
     return { report: { ...base, ...sumPages({ pages: pulled.pages }), pulled: pulled.pulled, acknowledged: pulled.acknowledged, hasMore: pulled.hasMore }, forms: [...forms.values()] };
   } catch (error) {
@@ -162,12 +162,12 @@ async function pullOne(
  * it is read again next time).
  * @throws whatever the import throws. @complexity O(rows). */
 async function importCounted(
-  required: { forms: Map<string, SlugPullCounts>; committed: RemoteImportResult[]; items: readonly RemoteSubmissionInput[]; run: () => Promise<RemoteImportResult> },
+  required: { forms: Map<string, SlugPullCounts>; committed: RemoteImportResult[]; items: readonly RemoteSubmissionInput[]; importPage: () => Promise<RemoteImportResult> },
   _optional: Record<string, never> = {},
 ): Promise<RemoteImportResult> {
   const { forms, items } = required;
   try {
-    const page = await required.run();
+    const page = await required.importPage();
     required.committed.push(page);
     for (const counts of page.forms) addCounts({ forms, counts: { ...counts, failed: 0 } });
     return page;
