@@ -41,6 +41,8 @@ import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -1042,4 +1044,231 @@ test('an owner delete executes through the assembled BYOK guard only after the c
   assert.notEqual(result.isError, true, textOf(result));
   assert.equal(cards, 1);
   assert.equal(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: 'echo-server' }), null);
+});
+
+// ---------------------------------------------------------------------------
+// BRANCH PINS (L114 code-health): every branch of `byok-tool-surface.ts` the cases above leave
+// unexercised, pinned against the pre-refactor code so the complexity split is provably
+// behaviour-identical. Each fake tool below is registered on the surface's own registry and is
+// read-only + always-allowed, so the only thing under test is how this module maps its output.
+// ---------------------------------------------------------------------------
+
+function registerOutputTool(s: ReturnType<typeof surface>, id: string, output: unknown, extra: Partial<ToolRegistration["descriptor"]> = {}): void {
+  s.registry.register({
+    descriptor: { id, description: `Branch pin output probe ${id}`, readOnly: true, inputSchema: { type: "object" }, ...extra },
+    policy: { authorize: () => "allow" },
+    handler: async () => output,
+  });
+}
+
+async function runOutputTool(output: unknown): Promise<{ readonly content: string | readonly ByokToolResultBlock[]; readonly isError?: boolean }> {
+  const s = surface();
+  registerOutputTool(s, "branch_pin_output_probe", output);
+  return s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_output_probe" }));
+}
+
+test("a tool's plain-string output reaches the model verbatim, not JSON-quoted", async () => {
+  assert.deepEqual(await runOutputTool("plain words"), { content: "plain words" });
+});
+
+test("a tool's undefined output reaches the model as the JSON text null", async () => {
+  assert.deepEqual(await runOutputTool(undefined), { content: "null" });
+});
+
+test("a text-only content envelope stays one JSON string — only an image earns content blocks", async () => {
+  const output = { content: [{ type: "text", text: "only words" }] };
+  assert.deepEqual(await runOutputTool(output), { content: JSON.stringify(output) });
+});
+
+test("a content envelope with a non-object block stays one JSON string", async () => {
+  const output = { content: [{ type: "image", mimeType: "image/png", data: "AAAA" }, "loose"] };
+  assert.deepEqual(await runOutputTool(output), { content: JSON.stringify(output) });
+});
+
+test("a content envelope with an unknown block type stays one JSON string, image or not", async () => {
+  const output = { content: [{ type: "image", mimeType: "image/png", data: "AAAA" }, { type: "audio", data: "AAAA" }] };
+  assert.deepEqual(await runOutputTool(output), { content: JSON.stringify(output) });
+});
+
+test("an image block missing its data stays one JSON string", async () => {
+  const output = { content: [{ type: "image", mimeType: "image/png" }] };
+  assert.deepEqual(await runOutputTool(output), { content: JSON.stringify(output) });
+});
+
+test("a text block whose text is not a string stays one JSON string", async () => {
+  const output = { content: [{ type: "image", mimeType: "image/png", data: "AAAA" }, { type: "text", text: 7 }] };
+  assert.deepEqual(await runOutputTool(output), { content: JSON.stringify(output) });
+});
+
+test("an output whose content is not an array stays one JSON string", async () => {
+  const output = { content: "not blocks" };
+  assert.deepEqual(await runOutputTool(output), { content: JSON.stringify(output) });
+});
+
+test("execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix", async () => {
+  const s = surface();
+  registerOutputTool(s, "branch_pin_output_probe", {});
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_output_probe", input: "[1,2]" }));
+  assert.deepEqual(result, { content: "'input' parsed as JSON but is not an object — send a JSON object of the tool's input fields.", isError: true });
+});
+
+test("execute_delegated_tool refuses an array input by naming it an array", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1] }));
+  assert.deepEqual(result, { content: "'input' must be a JSON object of the tool's input fields, not an array.", isError: true });
+});
+
+test("execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: 5 }));
+  assert.deepEqual(result, { content: "'toolId' is required and must be a non-empty string.", isError: true });
+});
+
+test("describe_tool with a non-string id is refused, naming the argument", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: 5 }));
+  assert.deepEqual(result, { content: "'id' is required and must be a non-empty string.", isError: true });
+});
+
+test("describe_tool with a blank id is refused, naming the argument", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "   " }));
+  assert.deepEqual(result, { content: "'id' is required and must be a non-empty string.", isError: true });
+});
+
+test("a meta-tool call whose input is not an object is read as no arguments at all", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("search_tools", "query as a bare string"));
+  assert.deepEqual(result, { content: "'query' is required and must be a non-empty string.", isError: true });
+});
+
+test("search_tools falls back to the default limit for a non-numeric limit", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "content", limit: "many" }));
+  assert.equal((JSON.parse(textOf(result)) as { hits: unknown[] }).hits.length, 10);
+});
+
+// The composed executor wires no `onConfirm` delegate, so a descriptor-level `requiresConfirmation`
+// tool parks until the caller's signal ends it; `mapToolExecutionResult`'s "confirmation-denied"
+// message is never produced through this surface. No registered tool sets the flag today.
+test("a descriptor-confirmation tool parks until the turn's signal aborts, then reads as cancelled (reported, not fixed)", async () => {
+  const s = surface();
+  registerOutputTool(s, "branch_pin_confirm_probe", { ran: true }, { requiresConfirmation: true });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 50);
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_confirm_probe" }), controller.signal);
+  clearTimeout(timer);
+  assert.deepEqual(result, { content: 'tool "branch_pin_confirm_probe" was cancelled', isError: true });
+});
+
+test("registerFederationPresets runs exactly once, while the surface is built", () => {
+  let calls = 0;
+  createByokToolSurface(fakeRouteDeps(), { installExtensions: false, contributions, registerFederationPresets: () => { calls += 1; } });
+  assert.equal(calls, 1);
+});
+
+test("prepareGuidance is handed to the executor and consulted for a guidance-capable tool", async () => {
+  const consulted: string[] = [];
+  const s = createByokToolSurface(fakeRouteDeps(), { installExtensions: false, contributions, prepareGuidance: async ({ tool }) => { consulted.push(tool.id); return ""; } });
+  registerOutputTool(s, "branch_pin_guided_probe", { ok: true }, { metadata: { guidanceCapabilities: ["ui-design"] } });
+  await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_guided_probe" }));
+  assert.deepEqual(consulted, ["branch_pin_guided_probe"]);
+});
+
+test("with no federation, an mcp__ id the registry does not know is reported as an unknown tool", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__ghost__tool" }));
+  assert.equal(result.isError, true);
+  assert.equal(textOf(result), 'ToolExecutor: unknown tool "mcp__ghost__tool". Use search_tools to find a valid tool id.');
+});
+
+test("an installed-skills refresh that reports a change makes a tool it registered searchable on the next call", async () => {
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async (registry) => {
+    Object.assign(registry, { refreshInstalledSkills: async () => {
+      if (!s.registry.has({ toolId: "branch_pin_refreshed_skill" })) {
+        s.registry.register({ descriptor: { id: "branch_pin_refreshed_skill", description: "Zyxwv refreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
+      }
+      return true;
+    } });
+  } });
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Zyxwv refreshed skill probe" }));
+  assert.equal((JSON.parse(textOf(result)) as { hits: Array<{ id: string }> }).hits[0]?.id, "branch_pin_refreshed_skill");
+});
+
+// The catalog re-seeds itself whenever the registry revision moves (`buildToolCatalogQuery`), so a
+// refresh that registers a tool yet reports `false` still surfaces it — the explicit rebuild in
+// `executeMetaTool` is belt-and-braces, not the only path.
+test("an installed-skills refresh that reports no change still leaves a tool it registered searchable", async () => {
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async (registry) => {
+    Object.assign(registry, { refreshInstalledSkills: async () => {
+      if (!s.registry.has({ toolId: "branch_pin_unrefreshed_skill" })) {
+        s.registry.register({ descriptor: { id: "branch_pin_unrefreshed_skill", description: "Qxjvb unrefreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
+      }
+      return false;
+    } });
+  } });
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Qxjvb unrefreshed skill probe" }));
+  assert.equal((JSON.parse(textOf(result)) as { hits: Array<{ id: string }> }).hits[0]?.id, "branch_pin_unrefreshed_skill");
+});
+
+/** A typed OAuth service double: only `tokenResolver` is reachable from federation's roster read;
+ *  every flow method refuses loudly so an unexpected call fails the test instead of passing silently. */
+function fakeExternalMcpOAuth(resolved: string[]): ExternalMcpOAuthService {
+  const unused = async (): Promise<never> => { throw new Error("this OAuth flow method is outside the BYOK federation pin"); };
+  return {
+    beginConnect: unused, completeAuthorizationCallback: unused, pollDeviceAuthorization: unused, disconnect: unused, reportAuthFailure: unused,
+    tokenResolver: { resolveAccessToken: async ({ serverId }) => { resolved.push(serverId); return "oauth-token-pin"; } },
+  };
+}
+
+test("BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
+    workspaceId: FEDERATION_WORKSPACE, serverId: "oauth-server", label: "OAuth", transport: "stdio", authMode: "oauth", enabled: true,
+    command: "npx", args: "-y oauth-mcp", allowedToolNames: "echo", writeAllowedToolNames: "", principalId: "principal-federation-surface", env: "",
+    oauth: { providerId: "pin-provider", grant: "authorization_code", clientId: "pin-client", scopes: "read", tokenEnvName: "PIN_TOKEN" },
+  });
+  const stored = await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: "oauth-server" });
+  assert.ok(stored);
+  await repo.upsert({ ...stored, oauthStatus: "connected" });
+  const resolved: string[] = [];
+  const launched: ResolvedFederatedConnection[] = [];
+  const s = createByokToolSurface({ ...federationRouteDeps(repo, sealer), externalMcpOAuth: fakeExternalMcpOAuth(resolved) }, { contributions,
+    federationConnect: async (connection) => { launched.push(connection); return new InMemoryMcpSession({ tools: [{ name: "echo", inputSchema: { type: "object" } }] }); } });
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(resolved, ["oauth-server"]);
+  assert.equal(launched.length, 1);
+  assert.match(JSON.stringify(launched[0]), /oauth-token-pin/);
+});
+
+test("BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
+    workspaceId: FEDERATION_WORKSPACE, serverId: "oauth-server", label: "OAuth", transport: "stdio", authMode: "oauth", enabled: true,
+    command: "npx", args: "-y oauth-mcp", allowedToolNames: "echo", writeAllowedToolNames: "", principalId: "principal-federation-surface", env: "",
+    oauth: { providerId: "pin-provider", grant: "authorization_code", clientId: "pin-client", scopes: "read", tokenEnvName: "PIN_TOKEN" },
+  });
+  const stored = await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: "oauth-server" });
+  assert.ok(stored);
+  await repo.upsert({ ...stored, oauthStatus: "connected" });
+  const launched: ResolvedFederatedConnection[] = [];
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
+    federationConnect: async (connection) => { launched.push(connection); return new InMemoryMcpSession({ tools: [] }); } });
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(launched, []);
+});
+
+test("BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+  const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
+    federationConnect: async (connection) => new InMemoryMcpSession({ tools: [{ name: connection.config.connectionId === "echo-server" ? "echo" : "wobble", description: "Plexquorn wobble probe", inputSchema: { type: "object" } }] }) });
+  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
+    workspaceId: FEDERATION_WORKSPACE, serverId: "wobble-server", label: "Wobble", transport: "stdio", enabled: true,
+    command: "npx", args: "-y wobble-mcp", allowedToolNames: "wobble", writeAllowedToolNames: "", principalId: "principal-federation-surface", env: "",
+  });
+  const reloaded = await s.federation?.reload();
+  assert.deepEqual(reloaded?.newlyAdmittedConnectionIds, ["wobble-server"]);
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Plexquorn wobble probe" }));
+  assert.match(textOf(result), /mcp__wobble-server__wobble/);
 });
