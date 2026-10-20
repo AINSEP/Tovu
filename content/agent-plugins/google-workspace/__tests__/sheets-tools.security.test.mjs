@@ -73,6 +73,7 @@ before(async () => {
       http: { fetch: (target, init) => fake.fetch(target, init) },
       limiter: { check: async () => ({ allowed: true }) },
       artifacts: { write: async () => { throw new Error('no artifacts in this test'); } },
+      state: { get: async ({ key }) => (key === 'products' ? { sheets: true } : null) },
     }),
   });
   assert.deepEqual(projection.sync({ loaded, refusals: [] }).refusals, []);

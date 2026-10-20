@@ -5,13 +5,13 @@
  * A copy is not idempotent: a lost answer is `uncertain-outcome` and is never replayed.
  */
 import { copyFile } from '../../lib/drive-files.mjs';
-import { googleClientFor, resourceLines } from '../../lib/sheets-client.mjs';
+import { sheetsClientFor, resourceLines } from '../../lib/sheets-client.mjs';
 
 export default {
   /** @param {{ input: { connectionRef: string, spreadsheetId: string, title: string, parentFolderId?: string }, capabilities: object, signal?: AbortSignal }} call */
   async invoke({ input, capabilities, signal }) {
     const copied = await copyFile(
-      { client: googleClientFor({ capabilities }), connectionRef: input.connectionRef, fileId: input.spreadsheetId, name: input.title },
+      { client: sheetsClientFor({ capabilities }), connectionRef: input.connectionRef, fileId: input.spreadsheetId, name: input.title },
       { ...(input.parentFolderId ? { parentId: input.parentFolderId } : {}), ...(signal ? { signal } : {}) },
     );
     return { spreadsheetId: copied.fileId, title: copied.name, url: copied.url };

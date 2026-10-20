@@ -27,6 +27,8 @@ Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
    consent page opens in the system browser. See [connection](references/connection.md).
 3. Check who is signed in with `p_google_workspace__account_info { connectionRef }` and name that
    account before you change anything.
+4. Sheets itself starts **off**: until the person turns Sheets on in the Google Workspace panel,
+   every Sheets tool answers `product-disabled`. Ask them to turn it on there; chat cannot.
 
 Load [connection](references/connection.md) for sign-in, products and account actions,
 [sheets](references/sheets.md) before any spreadsheet work, [form delivery](references/form-delivery.md)

@@ -12,7 +12,9 @@
 import { DRIVE_FILES_URL } from '../../lib/drive-files.mjs';
 import { pathSegment } from '../../lib/http.mjs';
 import { SPREADSHEET_MIME_TYPE } from '../../lib/picker-selection.mjs';
+import { assertProductEnabled } from '../../lib/product-state.mjs';
 import { checkedFileId, clientFor } from '../../lib/sheets-admin-common.mjs';
+import { SHEETS_PRODUCT_ID } from '../../lib/sheets-client.mjs';
 import { GoogleWorkspaceError } from '../../lib/request-policy.mjs';
 
 const WAITING = Object.freeze({
@@ -23,7 +25,11 @@ const WAITING = Object.freeze({
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    if (input.spreadsheetId === undefined) return WAITING;
+    if (input.spreadsheetId === undefined) {
+      // Sends nothing to Google, but pointing at the picker is still a Sheets action: it is gated too.
+      await assertProductEnabled({ state: capabilities.state, productId: SHEETS_PRODUCT_ID });
+      return WAITING;
+    }
     const id = checkedFileId({ id: input.spreadsheetId });
     const file = await clientFor({ capabilities }).request({
       connectionRef: input.connectionRef, url: `${DRIVE_FILES_URL}/${pathSegment({ value: id })}`, kind: 'read', query: { fields: 'id,name,mimeType,trashed' },

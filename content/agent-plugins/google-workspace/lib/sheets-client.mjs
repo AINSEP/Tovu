@@ -10,12 +10,17 @@
  * - values are written `RAW` unless the caller explicitly asks for `USER_ENTERED`, so text a
  *   visitor typed never becomes a formula;
  * - reads return at most 500 rows, 5,000 cells and 64 KiB, with an explicit continuation range
- *   instead of a silent partial; mutation payloads stay under 1 MiB.
+ *   instead of a silent partial; mutation payloads stay under 1 MiB;
+ * - every request a Sheets tool sends first checks that the Sheets product is on
+ *   ({@link sheetsClientFor}), so turning Sheets off blocks every Sheets tool at once.
  */
 import { createGoogleClient, pathSegment } from './http.mjs';
+import { assertProductEnabled } from './product-state.mjs';
 import { GoogleWorkspaceError } from './request-policy.mjs';
 
 export const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+/** The `products.json` id every Sheets tool belongs to (its tools are named `sheets_*`). */
+export const SHEETS_PRODUCT_ID = 'sheets';
 export const DEFAULT_VALUE_INPUT_OPTION = 'RAW';
 
 /** §D starting bounds. Batch reads share ONE output budget across all their ranges. */
@@ -56,13 +61,33 @@ export function sheetsUrl(required, optional = {}) {
  */
 export function sendSheetsRequest(required, _optional = {}) {
   const { input, capabilities, signal } = required.call;
-  return googleClientFor({ capabilities }).request({ connectionRef: input.connectionRef, ...required.request }, signal ? { signal } : {});
+  return sheetsClientFor({ capabilities }).request({ connectionRef: input.connectionRef, ...required.request }, signal ? { signal } : {});
 }
 
 /** The shared Google client over one call's host capabilities. @complexity O(1). */
 export function googleClientFor(required, _optional = {}) {
   const { capabilities } = required;
   return createGoogleClient({ http: capabilities.http, connections: capabilities.connections }, { limiter: capabilities.limiter });
+}
+
+/**
+ * The Google client a Sheets tool uses: each request first checks that the Sheets product is on in
+ * the plugin's settings (`capabilities.state`), then goes through the shared client. Checked per
+ * request, so turning Sheets off also stops a multi-request call (an export) part way, before the
+ * next request is sent.
+ * @param {{ capabilities: { http: object, connections: object, limiter?: object, state?: { get(input: { key: string }): Promise<unknown> } } }} required
+ * @throws {GoogleWorkspaceError} `product-disabled` from `request` while Sheets is off.
+ * @complexity O(1) to build; each request adds one state read.
+ */
+export function sheetsClientFor(required, _optional = {}) {
+  const { capabilities } = required;
+  const client = googleClientFor({ capabilities });
+  return {
+    async request(request, options = {}) {
+      await assertProductEnabled({ state: capabilities.state, productId: SHEETS_PRODUCT_ID });
+      return client.request(request, options);
+    },
+  };
 }
 
 /** The spreadsheet field mask: the caller's, else the default (plus cell values when grid data is asked for). @complexity O(1). */

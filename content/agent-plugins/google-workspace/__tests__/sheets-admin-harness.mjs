@@ -28,6 +28,8 @@ export const WORKSPACE = 'ws-1';
 export const CONNECTION = 'conn-google-1';
 export const SPREADSHEET = 'sheet1234567890abcdef';
 export const TOKEN = `fake-access-${randomBytes(12).toString('hex')}`;
+/** Plugin settings with the Sheets product on (products are off until the panel turns them on). */
+export const SHEETS_ON = Object.freeze({ get: async ({ key }) => (key === 'products' ? { sheets: true } : null) });
 
 /** The plugin's declared tools, loaded the way the host loader loads them. */
 export async function loadPluginTools() {
@@ -70,7 +72,7 @@ export async function bootPluginTools({ fake }) {
   const items = await loadPluginTools();
   const registered = await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, authorize: async () => ({ allowed: true, reason: 'test' }),
-    host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) } },
+    host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) }, state: () => SHEETS_ON },
     isActive: async () => true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });
@@ -98,5 +100,6 @@ export function directCapabilities({ fake }, optional = {}) {
     http: { fetch: (target, init) => fake.fetch(target, init) },
     limiter: { check: async () => ({ allowed: true }) },
     artifacts: { write: optional.writeArtifact ?? (async () => { throw new Error('no artifact store in this test'); }) },
+    state: optional.state ?? SHEETS_ON,
   };
 }

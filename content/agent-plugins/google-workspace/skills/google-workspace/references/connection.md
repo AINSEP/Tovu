@@ -14,8 +14,14 @@
 Each product (v1: Sheets) is turned on separately, and turning it on is a separate step from
 granting its permissions. Sheets needs only `drive.file`, which the first sign-in already grants.
 
-- Turning a product **off** stops its tools and its form deliveries straight away. It does **not**
-  sign the account out or revoke anything at Google.
+- Every product starts **off**. Until the person turns Sheets on in the Google Workspace panel,
+  every Sheets tool answers `product-disabled` ("turn it on in the Google Workspace panel") and
+  sends nothing to Google. Tell the person to enable Sheets there; you cannot turn it on from chat.
+  Checking which account is connected (`account_info`) works while every product is off.
+- Turning a product **off** stops its tools at once (even a call that is part way through stops
+  before its next request to Google) and pauses its form deliveries: submissions stay saved in Tovu
+  and are delivered after it is turned on again. It does **not** sign the account out or revoke
+  anything at Google.
 - On the **desktop app**, adding a product that needs a new permission means signing in again and
   approving the full list (installed apps cannot add permissions one at a time).
 - On a **hosted site**, Google adds the new permission to the existing ones.

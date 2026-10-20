@@ -23,7 +23,7 @@ const EXISTING = {
   'network-error': [true, 'retry-later', 'Tovu could not reach Google. Check the connection and retry later.'],
   'uncertain-outcome': [false, 'review-outcome', 'Google did not confirm whether the change was applied. Check the spreadsheet before trying again.'],
   'unexpected-response': [false, 'report', 'Google returned a response Tovu does not understand. Report this to the plugin author.'],
-  'product-disabled': [false, 'enable-product', 'This Google product is turned off for the plugin. Turn it on in the Google Workspace plugin, then retry.'],
+  'product-disabled': [false, 'enable-product', 'This Google product is turned off. Turn it on in the Google Workspace panel, then retry; the Google sign-in is kept.'],
   'destination-unavailable': [true, 'retry-later', 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.'],
 };
 

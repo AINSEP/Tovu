@@ -13,7 +13,7 @@
 | `service-unavailable` / `network-error` | Google could not be reached. | Retry later. |
 | `uncertain-outcome` | Google did not say whether a change was applied. | Ask the person to check the spreadsheet before retrying. Never repeat it automatically. |
 | `invalid-request` | Google rejected the request (bad range, tab or values). | Fix the request. |
-| `product-disabled` | The product is turned off. | Turn it on in the Google Workspace plugin. |
+| `product-disabled` | The product (Sheets) is turned off; products start off. | Ask the person to turn Sheets on in the Google Workspace panel, then retry. The sign-in is kept. |
 
 **"Disconnected locally; Google revocation pending"** means Tovu stopped using the account but Google
 did not confirm removing access. Retry disconnect later, or remove Tovu at

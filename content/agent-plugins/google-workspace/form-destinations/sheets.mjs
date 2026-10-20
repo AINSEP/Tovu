@@ -162,7 +162,9 @@ export default {
    * @param {{ kit: { fetch(url: string, init: RequestInit, options: { timeoutMs: number }): Promise<Response> }, credential: { token: string }, form: { slug: string, fields: readonly { name: string, label?: string }[] }, submission: { id: string, answers: Readonly<Record<string, unknown>>, submittedAt: string }, binding: { connectionRef: string, config: Readonly<Record<string, unknown>> }, idempotencyKey?: string }} required
    * @param {{ productEnabled?: () => boolean | Promise<boolean>, limiter?: { check(input: { key: string }): Promise<{ allowed: boolean, retryAfterSeconds?: number }> } }} [optional]
    *   Host ports the delivery contract does not carry yet (wired with the forms fan-out): the
-   *   Sheets product flag (absent = off) and the plugin's quota limiter (the tools' budgets).
+   *   Sheets product flag (absent = off; build it with `productEnabledReader` from
+   *   `lib/product-state.mjs` over the host's plugin-state reader, the same gate the tools use) and
+   *   the plugin's quota limiter (the tools' budgets).
    * @returns {Promise<{ ok: true, reference?: string } | { ok: false, error: { code: string, retryable: boolean, retryAfterMs?: number, outcome?: 'not-applied' | 'unknown' } }>}
    */
   async deliver(required, optional = {}) {
