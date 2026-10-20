@@ -18,6 +18,10 @@
       "callbackFields": [
         { "name": "picked_file_ids", "maxLength": 4096 }
       ],
+      "budgets": [
+        { "scope": "connection", "perMinute": 45 },
+        { "scope": "instance", "perMinute": 240 }
+      ],
       "clients": {
         "web": { "clientIdEnv": "TOVU_GOOGLE_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_GOOGLE_OAUTH_WEB_CLIENT_SECRET" },
         "desktop": { "clientIdEnv": "TOVU_GOOGLE_OAUTH_DESKTOP_CLIENT_ID", "clientSecretEnv": "TOVU_GOOGLE_OAUTH_DESKTOP_CLIENT_SECRET" }
