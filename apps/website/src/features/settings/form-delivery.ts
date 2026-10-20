@@ -1,5 +1,4 @@
 import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
-import type { JsonValue } from "@jini-ai/core/primitives";
 import { ensureSettingDefinitions, getEffective, SCOPE_BIT, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 /**
@@ -82,14 +81,16 @@ export async function readFormDeliveryBindings(
 }
 
 /**
- * One settings write: a `core.forms.deliveryBindings` value is replaced by its validated, cleaned
- * form; any other setting passes through unchanged. Pure.
+ * One settings write: a `core.forms.deliveryBindings` value is checked against every binding rule;
+ * any other setting passes through unchanged. Pure. The value is stored as written: for JSON input
+ * the parsed bindings hold exactly the same fields and values (unknown fields are refused, not
+ * dropped), so there is no cleaned form to substitute.
  * @throws ValueValidationFailedError for any rule {@link parseFormDeliveryBindings} enforces.
  * @complexity {@link parseFormDeliveryBindings} for this setting, O(1) otherwise.
  */
 export function enforceFormDeliveryBindingsWrite(input: SetValueRequired["input"]): SetValueRequired["input"] {
-  if (input.namespace !== NAMESPACE || input.key !== BINDINGS_KEY) return input;
-  return { ...input, value: parseFormDeliveryBindings({ value: input.value }) as unknown as JsonValue };
+  if (input.namespace === NAMESPACE && input.key === BINDINGS_KEY) parseFormDeliveryBindings({ value: input.value });
+  return input;
 }
 
 /**
