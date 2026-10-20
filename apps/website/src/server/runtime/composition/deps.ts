@@ -2105,6 +2105,9 @@ async function composeSiteRouteDeps(
     vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }),
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
     env: process.env, derivedPublicOrigin,
+  }, {
+    // A plugin's destination screen saves its own adapter's form-delivery bindings (an admin action).
+    deliveryBindings: { settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, forms: formDefinitionRepo, newBindingId: () => idGen.newId() },
   });
   // Boot load of plugin admin-surface handlers (each surface open reloads them too; see handlers.ts).
   const adminSurfaceHandlersReady = agentPluginConnections.adminSurfaceHost.refresh().then(() => {}, (error: unknown) => {

@@ -1282,6 +1282,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       workspaceId: seededWorkspace.id, loadContributions: agentPluginLifecycle.loadPluginContributions, vaultRepo: new InMemoryVaultRepo({}),
       keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
       env: process.env, derivedPublicOrigin,
+    }, {
+      deliveryBindings: { settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, forms: formDefinitionRepo, newBindingId: () => idGen.newId() },
     }),
     executionSettingsReady,
     settingsUiTabsReady,

@@ -3,7 +3,12 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
+import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
+import type { SetValueRequired } from "@jini-ai/core/settings";
+
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
+import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
+import { readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "#src/features/api-connections/host";
@@ -14,6 +19,7 @@ import { createAgentPluginAdminSurfaceHandlers, type AgentPluginAdminSurfaceHand
 import { createAdminSurfaceCapabilities } from "#src/features/agent-plugins/admin-surfaces/capabilities";
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
+import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 
@@ -26,7 +32,8 @@ import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
  * The connection port is built ONCE and shared, so a tool call and a surface action see the same
  * ownership rule (a ref must be declared by the calling plugin in this workspace) and the same
  * limiter budget. Surfaces additionally get account actions by connection id, the plugin's settings
- * store (read-write; tools read the same store) and public config. Nothing here names a provider.
+ * store (read-write; tools read the same store), public config and, when the site passes its form
+ * settings, the plugin's own form-delivery bindings. Nothing here names a provider.
  */
 
 /**
@@ -72,12 +79,29 @@ export interface AgentPluginConnectionsComposition {
   readonly adminSurfaceHost: AgentPluginAdminSurfaceHandlers;
 }
 
+/** What the admin-surface `deliveryBindings` port writes through: the site's settings ledger and its forms. */
+export interface AgentPluginDeliveryBindingsDeps {
+  /** The settings write deps; every write goes through the host chokepoint, authorized for the admin. */
+  readonly settings: SetValueRequired["deps"];
+  readonly forms: Pick<FormDefinitionRepoPort, "list">;
+  readonly newBindingId: () => string;
+}
+
+/** `core.forms/deliveryBindings` through its owner's read and typed write. @complexity O(1) to build. */
+function formDeliveryBindingsStore(settings: SetValueRequired["deps"]): FormDeliveryBindingsStore {
+  return {
+    read: ({ workspaceId }) => readFormDeliveryBindings({ settingsRepo: settings.repo, workspaceId }),
+    write: async ({ workspaceId, callerPrincipalId, value }) => { await writeFormDeliveryBindings({ deps: settings, workspaceId, callerPrincipalId, value }); },
+  };
+}
+
 /**
  * Builds the shared connection port and the three seams over it.
  * @param required.customCredentialRepo - The site's saved custom credentials (an admin's own OAuth client lives there).
  * @param required.http - The site's guarded outbound HTTP client (OAuth, plugin hooks and plugin tools all use it).
  * @param required.env - Host configuration plugin client names resolve in (`process.env` in production).
  * @param required.derivedPublicOrigin - The listener origin, for the hosted callback when `TOVU_PUBLIC_URL` is unset.
+ * @param optional.deliveryBindings - The site's settings and forms; absent, surfaces get no `deliveryBindings`.
  * @complexity O(1); every lookup is deferred to call time.
  */
 export function composeAgentPluginConnections(
@@ -88,7 +112,7 @@ export function composeAgentPluginConnections(
     readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
     readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
   },
-  _optional: Record<string, never> = {},
+  optional: { readonly deliveryBindings?: AgentPluginDeliveryBindingsDeps } = {},
 ): AgentPluginConnectionsComposition {
   const { workspaceId, loadContributions, clock, http, env } = required;
   const runtime = resolveApiConnectionRuntime({ env });
@@ -112,13 +136,20 @@ export function composeAgentPluginConnections(
   // token a handler obtained must be withheld from a tool's output too, and the reverse.
   const issuedTokens = createIssuedTokenMemories();
   const signIns = createIssuedSignInCollector();
+  const delivery = optional.deliveryBindings;
+  const deliveryBindingsFor = delivery && ((scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined }) => createSurfaceDeliveryBindings({
+    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore(delivery.settings),
+    declaredConnectionIds: async ({ pluginId }) => (await host.listConnections({ pluginId })).map((connection) => connection.descriptor.connectionId),
+    contributedAdapterIds: async ({ workspaceId: scopeWorkspaceId, pluginId }) => (await loadFormDestinationRegistry({ workspaceId: scopeWorkspaceId }, { loadContributions })).list()
+      .filter((destination) => destination.pluginId === pluginId).map((destination) => destination.descriptor.id),
+  }));
   const capabilities = createAdminSurfaceCapabilities({
     tools, publicConfig: createAdminSurfacePublicConfig({ env }),
     stateFor: (scope) => host.pluginState.forPlugin(scope),
     connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId }) => createSurfaceConnections({
       host, pluginId, workspaceId: scopeWorkspaceId, principalId, onSignInIssued: (issued) => signIns.record(issued),
     }),
-  });
+  }, deliveryBindingsFor ? { deliveryBindingsFor } : {});
   return {
     apiConnections: { host },
     agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens },
