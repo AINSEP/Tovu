@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "destinations": [
+    { "id": "acme-office-rows", "label": "Acme table rows", "module": "destinations/rows.mjs" }
+  ]
+}

@@ -12,6 +12,22 @@
         "additionalProperties": false,
         "properties": { "connectionRef": { "type": "string" } }
       }
+    },
+    {
+      "name": "append_row",
+      "description": "Append one row to a named Acme table.",
+      "effect": "write",
+      "module": "tools/append-row.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "table", "values"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": { "type": "string" },
+          "table": { "type": "string", "maxLength": 100 },
+          "values": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 1000 } }
+        }
+      }
     }
   ]
 }
