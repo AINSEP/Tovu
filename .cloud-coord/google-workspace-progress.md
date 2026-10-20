@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME (2026-10-20 06:18Z).
+Status: PHASE A — Jini G1–G5 + G1b + G5b + G6-vault-kind merged; Tovu G7 + G8 merged; G6 fixed, G6b wiring running (07:25Z). Next: G6 merge → G9 + G10 (parallel) → G11/G12/G13 → G14.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -33,11 +33,11 @@ Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME 
 | G3 | MERGED | cloud/google-workspace-G3 (Jini) | 00a1b4cb | @jini-ai/oauth/loopback-receiver; oauth suite 313/313; cx max 9; 1 RED survivor (!consumed gap guard) → phase C |
 | G4 | MERGED | cloud/google-workspace-G4 (Jini) | pushed | agent-plugins/lifecycle/tools; 16 tests + 7 char pins; cx ≤9; plugins suite 442/443 — the 1 failure (install.unit 'lock creation rethrows faults') is env (runs as root), untouched file |
 | G5 | MERGED | cloud/google-workspace-G5 (Jini) | pushed | agent-plugins/admin-surfaces (+/client); 70 tests; 31 RED checks; cx ≤9 |
-| G6 | VERIFY RED → fix running | cloud/google-workspace-G6 (Tovu 3d496ff19); Jini part merged 7846710b | — | slice works (27/27 own tests) but migration 0020 breaks tool-registrations.contracts (fresh content bootstrap behind CONTENT_MIGRATIONS, 29 fails; 35/35 base) + vendor word in a comment → fix subagent. Wiring (deps/app, connect deps, public route, G7 accessor, G14 port) owed in G6b after G7/G8 merge. Subagent hit 280k tokens. |
-| G7 | VERIFY RED → fix running | cloud/google-workspace-G7 (502bd6813) | — | 16/16 own, tsc+typecheck:tests 0, cx unchanged vs base; importer run 628/629: federation-runtime-wiring 'surfaceExchanges is not defined' (10/10 on base) → fix subagent. Subagent hit 276k tokens. |
-| G8 | VERIFY RED → fix running | cloud/google-workspace-G8 (a7c4bc090) | — | own 8+17 pass, root+admin tsc 0, cx ≤7, vendor clean; route-modules 'agent-plugins' route pin not updated (forms-admin case fails on base too) + i18n strings missing → fix subagent. |
-| G1b | running (Jini fix lot) | cloud/google-workspace-G1b | | installCredential persists without lease (G2 refuses; Tovu workaround in vault-stores.ts); clientKind derived from authMethod (installed-app client needing a non-confidential secret) |
-| G5b | running (Jini fix lot) | cloud/google-workspace-G5b | | no seam for plugin-supplied admin-surface action handlers/bootstrap data (G8 finding; needed by G9/G13) |
+| G6 | fix pushed (386d1db0c: fresh 0020 bootstrap op, 0020 now re-creates dropped MCP-identity trigger + pin, vendor wording); G6b WIRING running | cloud/google-workspace-G6 | — | G6b: adapt to G1b/G5b, wire service/connect deps/public callback, executable-tool host ports, admin-surface handler host. 12 real-Postgres tests not runnable here; postgres-baseline publish_history text-vs-jsonb fails on base too. |
+| G7 | MERGED 3987044d4 | cloud/google-workspace-G7 (c951d4204 fix: daemon-catalog test harness binds surfaceExchanges) | 3987044d4 | importers 643/643, root tsc 0, typecheck:tests 0, inventory OK, boundaries 1069=base, architecture same 3 hard fails as base (API surface 660→661). Coord coverage: register 87.7/80/87.5, approval 79.7/66.7/100, host-capabilities 78.5/90/90 (phase C). cx: new ≤9; touched pre-existing fns unchanged vs base. |
+| G8 | MERGED 02c8b43ce | cloud/google-workspace-G8 (fixes f64cf5e3c route pin, d8cc64d43 i18n 21 locales, ec280be35 non-array listing) | 02c8b43ce | website importers 104/105 (forms-admin route pin = base failure), admin plugins+assistant 396/396, AgentPlugins 12/12, root+admin tsc 0, cx ≤7, vendor clean; boundaries 1070 (+1: new test deep-imports platform/site-dir test helper, same as existing tests — phase B), architecture API surface →663. |
+| G1b | MERGED (Jini 3f0cfe90) | cloud/google-workspace-G1b (549d7d87) | 3f0cfe90 | fenced token-store install() (no lease) for install/stageSwitch; explicit clientKind dep; vault label=key (fixed G2 bug: staged switch always collided). api-connections 60 tests pass, tsc no new errors, guard 26, cx clean. |
+| G5b | MERGED (Jini b633dd94) | cloud/google-workspace-G5b (ca28a268) | b633dd94 | createAdminSurfaceHandlerHost + defineAdminSurfaceHandlerContribution (same trust gate as G4). agent-plugins 49 files pass, tsc 0, guard 26; added lifecycle/contribution-loader.ts + tools/capabilities.ts to jini.isolation.shared (no runtime imports; accepted, phase B review). Jini integrations + agent-plugins rebuilt 07:20. |
 | G9–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
@@ -47,6 +47,9 @@ Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME 
 pending (G9)
 
 ## Bugs + security findings pinned
+- G1b: oauth/src/token-endpoint.ts:55 puts provider `error` string unbounded into OAuthError.message → ApiConnectionError text (Low). G2 label=connectionId collision (fixed in G1b).
+- G5b: bootstrap data deliberately not token-scanned (hosted Picker needs a short-lived access token; schema-checked, no-store) — matches owner decision; it is the connection's own token, not down-scoped. Handler/bootstrap calls have no deadline/signal (phase B fix). Per-call token scan cannot catch a token cached across calls (pinned, reported). trusted-plugin-files.ts:146 raw import error text in refusal line (may hold abs paths). Node module cache: changed module at same path not re-imported until restart.
+- G6 fix: 0020 SQLite rebuild had dropped the secrets_vault_mcp_identity trigger (fixed + pinned before merge).
 - G7 (a) Jini plugins/host tool-contributions.ts:21 sets requiresConfirmation for destructive/non-direct tools but Tovu executor has no confirm delegate → park forever; hits existing site executable plugin tools (capability-tool-registrations.ts:503) and their 30 s timeoutMs would cut a human confirmation (reported, not fixed). G7 adapter strips the flag and uses approval cards. (b) no per-plugin outbound host allow-list for plugin HTTP (phase B decision). (c) executable tools gated on admin.assistant.use (phase B decision). Gated-mutation owner (watermarked local DB mutations) fits no v1 op → not used (phase B confirm).
 - G6: hosted callback rebuilds redirect URI from resolvePublicOrigin(req) — mismatched proxy/Host fails closed. runAgentPluginConnect 18/15 unchanged vs base.
 - G8: public surface-files route reveals active plugins + their static surface files (by design: sandboxed scripts send no cookie); CSRF compares Origin to Host (proxy rewriting Host fails closed).
