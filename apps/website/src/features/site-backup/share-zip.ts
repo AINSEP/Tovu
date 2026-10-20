@@ -1,10 +1,71 @@
 import { createHash } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
-import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH } from "./sources.js";
+import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH, type PlannedDiskFile } from "./sources.js";
 import type { SiteSharePlanContent } from "./plan-store.js";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import { requireShareSecretFree, claimSharePath } from "./share-file-policy.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
+
+type ShareZipEntry = { readonly path: string; readonly content: Buffer };
+type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress };
+/** The picked Files handed to Jini's encoder and the manifest inventory, in the same order. */
+interface CollectedShareEntries { readonly files: File[]; readonly inventory: { path: string; bytes: number; sha256: string }[] }
+
+/** Buffered media/documents first, then the sanitized database projection when the plan has one. O(entries). */
+function inMemoryEntries(required: { plan: SiteSharePlanContent }): ShareZipEntry[] {
+  const { plan } = required;
+  return [...(plan.bufferedFiles ?? []), ...(plan.database ? [{ path: SITE_BACKUP_DATABASE_PATH, content: plan.database.bytes }] : [])];
+}
+
+/** Claims the manifest path and every entry path in one archive-wide alias set before any content is read. */
+function claimArchivePaths(required: { entries: readonly { path: string }[] }): void {
+  const aliases = new Map<string, string>(), fileAliases = new Set<string>();
+  claimSharePath({ path: SITE_BACKUP_MANIFEST_PATH, directory: false, aliases, files: fileAliases });
+  for (const file of required.entries) claimSharePath({ path: file.path, directory: false, aliases, files: fileAliases });
+}
+
+/** Abort-checks and secret-scans one entry, then records its picked File, inventory row and progress. O(entry bytes). */
+function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEntries }, optional: ShareZipProgressOptions = {}): void {
+  const { entry, collected } = required;
+  optional.signal?.throwIfAborted();
+  requireShareSecretFree({ path: entry.path, bytes: entry.content });
+  // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
+  // This assertion preserves the bytes without allocating a second Uint8Array.
+  const picked = new File([entry.content as BlobPart], entry.path.split("/").at(-1)!);
+  // Jini's picker encoder strips the selected folder's name. Supply that same picker contract
+  // explicitly so archive paths keep their first scope segment (database/, uploads/, themes/).
+  Object.defineProperty(picked, "webkitRelativePath", { value: `share/${entry.path}` });
+  collected.files.push(picked);
+  collected.inventory.push({ path: entry.path, bytes: entry.content.length, sha256: createHash("sha256").update(entry.content).digest("hex") });
+  if (optional.progress) { optional.progress.filesDone++; optional.progress.bytesDone += entry.content.length; }
+}
+
+/** Reads each planned disk file in order and adds it; refuses PLAN_STALE when one changed since the plan. */
+async function addDiskFiles(required: { files: readonly PlannedDiskFile[]; collected: CollectedShareEntries }, optional: ShareZipProgressOptions = {}): Promise<void> {
+  for (const file of required.files) {
+    const loaded = await readPlannedFile(file);
+    if (!loaded.ok) throw new SiteShareRefusal({ code: "PLAN_STALE", message: loaded.message });
+    addEntry({ entry: { path: file.path, content: loaded.bytes }, collected: required.collected }, optional);
+  }
+}
+
+/** The manifest File over the final inventory; refused when it exceeds 2 MiB or, counted in, the v1 caps. */
+function buildManifestFile(required: { plan: SiteSharePlanContent; inventory: CollectedShareEntries["inventory"] }): File {
+  const manifest = Buffer.from(buildSiteBackupManifest({ ...required.plan, files: required.inventory }));
+  if (manifest.length > SHARE_LIMITS.maxManifestBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share manifest exceeds 2 MiB." });
+  checkShareLimits({ files: [...required.inventory, { path: SITE_BACKUP_MANIFEST_PATH, bytes: manifest.length }] });
+  return new File([manifest], SITE_BACKUP_MANIFEST_PATH);
+}
+
+/** Encodes the picked Files with Jini, reporting its size/count failures as the v1 archive cap. */
+async function encodeShareZip(required: { files: readonly File[]; zip: typeof zipFolderFiles }): Promise<Buffer> {
+  // Jini adds ZIP header overhead to the same archive cap before allocating the final File.
+  try { return Buffer.from(await (await required.zip({ files: required.files, maxBytes: SHARE_LIMITS.maxArchiveBytes })).arrayBuffer()); }
+  catch (error) {
+    if (error instanceof Error && /limit|large|many/i.test(error.message)) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB ZIP archive cap." });
+    throw error;
+  }
+}
 
 /**
  * The ZIP target of the common backup content plan. Calls Jini's buffered binary-safe encoder;
@@ -12,44 +73,16 @@ import type { SiteBackupPushProgress } from "./push-engine.js";
  * @throws SiteShareRefusal for stale files, unsafe aliases, secrets, cancellation, and v1 caps.
  * @complexity O(payload bytes + paths²), at most 2,000 paths; O(payload bytes) memory, bounded to 300 MiB.
  */
-export async function buildShareZip(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: { signal?: AbortSignal; progress?: SiteBackupPushProgress } = {}): Promise<Buffer> {
+export async function buildShareZip(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions = {}): Promise<Buffer> {
   const { plan } = required;
-  const memory = [...(plan.bufferedFiles ?? []), ...(plan.database ? [{ path: SITE_BACKUP_DATABASE_PATH, content: plan.database.bytes }] : [])];
+  const memory = inMemoryEntries({ plan });
   const sizes = [...plan.files, ...memory.map(file => ({ path: file.path, bytes: file.content.length }))];
   checkShareLimits({ files: sizes, totalBytes: plan.totalBytes });
-  const aliases = new Map<string, string>(), fileAliases = new Set<string>();
-  claimSharePath({ path: SITE_BACKUP_MANIFEST_PATH, directory: false, aliases, files: fileAliases });
-  for (const file of sizes) claimSharePath({ path: file.path, directory: false, aliases, files: fileAliases });
-  const files: File[] = [];
-  const inventory: { path: string; bytes: number; sha256: string }[] = [];
-  const add = (entry: { path: string; content: Buffer }) => {
-    optional.signal?.throwIfAborted();
-    requireShareSecretFree({ path: entry.path, bytes: entry.content });
-    // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
-    // This assertion preserves the bytes without allocating a second Uint8Array.
-    const picked = new File([entry.content as BlobPart], entry.path.split("/").at(-1)!);
-    // Jini's picker encoder strips the selected folder's name. Supply that same picker contract
-    // explicitly so archive paths keep their first scope segment (database/, uploads/, themes/).
-    Object.defineProperty(picked, "webkitRelativePath", { value: `share/${entry.path}` });
-    files.push(picked);
-    inventory.push({ path: entry.path, bytes: entry.content.length, sha256: createHash("sha256").update(entry.content).digest("hex") });
-    if (optional.progress) { optional.progress.filesDone++; optional.progress.bytesDone += entry.content.length; }
-  };
-  for (const entry of memory) add(entry);
-  for (const file of plan.files) {
-    const loaded = await readPlannedFile(file);
-    if (!loaded.ok) throw new SiteShareRefusal({ code: "PLAN_STALE", message: loaded.message });
-    add({ path: file.path, content: loaded.bytes });
-  }
-  const manifest = Buffer.from(buildSiteBackupManifest({ ...plan, files: inventory }));
-  if (manifest.length > SHARE_LIMITS.maxManifestBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share manifest exceeds 2 MiB." });
-  checkShareLimits({ files: [...inventory, { path: SITE_BACKUP_MANIFEST_PATH, bytes: manifest.length }] });
-  files.push(new File([manifest], SITE_BACKUP_MANIFEST_PATH));
+  claimArchivePaths({ entries: sizes });
+  const collected: CollectedShareEntries = { files: [], inventory: [] };
+  for (const entry of memory) addEntry({ entry, collected }, optional);
+  await addDiskFiles({ files: plan.files, collected }, optional);
+  collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));
   optional.signal?.throwIfAborted();
-  // Jini adds ZIP header overhead to the same archive cap before allocating the final File.
-  try { return Buffer.from(await (await required.zip({ files, maxBytes: SHARE_LIMITS.maxArchiveBytes })).arrayBuffer()); }
-  catch (error) {
-    if (error instanceof Error && /limit|large|many/i.test(error.message)) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the v1 300 MiB ZIP archive cap." });
-    throw error;
-  }
+  return encodeShareZip({ files: collected.files, zip: required.zip });
 }

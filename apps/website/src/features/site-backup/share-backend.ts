@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import type { prepareShareContent } from "./share-preparation.js";
-import { SiteBackupPlanStore, type SiteSharePlanContent } from "./plan-store.js";
-import { SiteBackupPushJobs } from "./push-jobs.js";
+import type { SiteBackupPushProgress } from "./push-engine.js";
+import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jobs.js";
 import { buildShareZip } from "./share-zip.js";
 import { createSiteShare, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord } from "./share-registry.js";
@@ -22,7 +22,15 @@ function view(row: SiteShareRecord): SiteShareView {
   return { ...publicFields, downloadUrl: `/api/admin/v1/workspaces/${encodeURIComponent(row.site)}/site-shares/${row.shareId}/download` };
 }
 
-/** Reuses backup plans/jobs. Only one bounded, buffered preparation runs per site at a time. */
+/** What a create caller sees for one wait: the finished share, a cancellation, or in-flight progress. */
+function createOutcome(required: { waited: PushJobWait<SiteShareRecord>; jobId: string }): unknown {
+  const { waited } = required;
+  if (waited.state === "done") return { ...view(waited.result), ...(waited.result.url ? {} : { message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." }) };
+  if (waited.state === "abandoned") throw new SiteShareRefusal({ code: "CANCELLED", message: "Share export was cancelled." });
+  return { jobId: required.jobId, phase: waited.progress.filesTotal ? "archive-or-upload" : "preparing", progress: waited.progress };
+}
+
+/** Reuses backup jobs and the common backup plan content. Only one bounded, buffered preparation runs per site at a time. */
 export function createSiteShareBackend(required: {
   registry: SiteShareRegistry;
   site: string;
@@ -31,40 +39,37 @@ export function createSiteShareBackend(required: {
   delivery: (required: { provider?: string; binding?: string }) => Promise<ShareDelivery | undefined>;
 }, _optional: Record<string, never> = {}): SiteShareBackend {
   const jobs = new SiteBackupPushJobs<SiteShareRecord>();
-  const plans = new SiteBackupPlanStore<SiteSharePlanContent>({ maxPlans: 1 });
   let active: string | null = null;
+  /** Prepares, archives and delivers one share under a ten-minute bound; always frees the site's lane. */
+  const exportShare = async (signal: AbortSignal, progress: SiteBackupPushProgress): Promise<SiteShareRecord> => {
+    try {
+      const bounded = AbortSignal.any([signal, AbortSignal.timeout(10 * 60 * 1000)]);
+      const content = await required.prepare({ signal: bounded });
+      // Progress's readonly totals describe one job; set once after preparation completes.
+      Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
+      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress });
+      const delivery = await required.delivery({});
+      bounded.throwIfAborted();
+      return await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded });
+    } finally { active = null; }
+  };
+  /** Starts a new export job, refusing a resume of an unknown job and a second export on this site. */
+  const startExport = (startRequired: { key: PushJobKey; resumedJobId: string | undefined }) => {
+    const { key } = startRequired;
+    if (startRequired.resumedJobId) throw new SiteShareRefusal({ code: "JOB_NOT_FOUND", message: "Share job expired or belongs to another principal. Create a new export." });
+    if (active) throw new SiteShareRefusal({ code: "BUSY", message: "Another share export is running for this site. Wait for it to finish." });
+    active = key.planId;
+    return jobs.start(key, { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, exportShare);
+  };
   return {
     registry: required.registry,
     async create(input, options = {}) {
       input.signal.throwIfAborted();
       const jobId = input.jobId ?? randomUUID();
       const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site };
-      let job = jobs.find(key);
-      if (!job) {
-        if (input.jobId) throw new SiteShareRefusal({ code: "JOB_NOT_FOUND", message: "Share job expired or belongs to another principal. Create a new export." });
-        if (active) throw new SiteShareRefusal({ code: "BUSY", message: "Another share export is running for this site. Wait for it to finish." });
-        active = jobId;
-        const progress = { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 };
-        job = jobs.start(key, progress, async (signal, progress) => {
-          try {
-            const bounded = AbortSignal.any([signal, AbortSignal.timeout(10 * 60 * 1000)]);
-            const content = await required.prepare({ signal: bounded });
-            const saved = plans.save({ ...key, content });
-            const taken = plans.take({ ...key, planId: saved.planId });
-            if (!taken.ok) throw new SiteShareRefusal({ code: "PLAN_EXPIRED", message: "Share preparation expired. Create a new export." });
-            // Progress's readonly totals describe one job; set once after preparation completes.
-            Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
-            const archive = await buildShareZip({ plan: taken.plan, zip: required.zip }, { signal: bounded, progress });
-            const delivery = await required.delivery({});
-            bounded.throwIfAborted();
-            return await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded });
-          } finally { active = null; }
-        });
-      }
+      const job = jobs.find(key) ?? startExport({ key, resumedJobId: input.jobId });
       const waited = await jobs.wait(job, { signal: input.signal, budgetMs: options.waitMs ?? 1500 });
-      if (waited.state === "done") return { ...view(waited.result), ...(waited.result.url ? {} : { message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." }) };
-      if (waited.state === "abandoned") throw new SiteShareRefusal({ code: "CANCELLED", message: "Share export was cancelled." });
-      return { jobId, phase: waited.progress.filesTotal ? "archive-or-upload" : "preparing", progress: waited.progress };
+      return createOutcome({ waited, jobId });
     },
     list: async () => (await required.registry.list({ site: required.site })).map(view),
     async revoke(input) {
