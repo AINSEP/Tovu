@@ -33,9 +33,11 @@ Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME 
 | G3 | MERGED | cloud/google-workspace-G3 (Jini) | 00a1b4cb | @jini-ai/oauth/loopback-receiver; oauth suite 313/313; cx max 9; 1 RED survivor (!consumed gap guard) → phase C |
 | G4 | MERGED | cloud/google-workspace-G4 (Jini) | pushed | agent-plugins/lifecycle/tools; 16 tests + 7 char pins; cx ≤9; plugins suite 442/443 — the 1 failure (install.unit 'lock creation rethrows faults') is env (runs as root), untouched file |
 | G5 | MERGED | cloud/google-workspace-G5 (Jini) | pushed | agent-plugins/admin-surfaces (+/client); 70 tests; 31 RED checks; cx ≤9 |
-| G6 | running (re-dispatched 06:35Z) | cloud/google-workspace-G6 (Tovu); Jini part merged | Jini 7846710b (vault kind api-connection; platform vault.service 21/21, tsc 0, guard 26=base) | Tovu needs migration 0020 for secrets_vault_kind CHECK |
-| G7 | running (re-dispatched 06:35Z; nothing had been pushed) | cloud/google-workspace-G7 (Tovu) | | |
-| G8 | running (re-dispatched 06:35Z from 3cd9d157 char pins) | cloud/google-workspace-G8 (Tovu) | | |
+| G6 | VERIFY RED → fix running | cloud/google-workspace-G6 (Tovu 3d496ff19); Jini part merged 7846710b | — | slice works (27/27 own tests) but migration 0020 breaks tool-registrations.contracts (fresh content bootstrap behind CONTENT_MIGRATIONS, 29 fails; 35/35 base) + vendor word in a comment → fix subagent. Wiring (deps/app, connect deps, public route, G7 accessor, G14 port) owed in G6b after G7/G8 merge. Subagent hit 280k tokens. |
+| G7 | VERIFY RED → fix running | cloud/google-workspace-G7 (502bd6813) | — | 16/16 own, tsc+typecheck:tests 0, cx unchanged vs base; importer run 628/629: federation-runtime-wiring 'surfaceExchanges is not defined' (10/10 on base) → fix subagent. Subagent hit 276k tokens. |
+| G8 | VERIFY RED → fix running | cloud/google-workspace-G8 (a7c4bc090) | — | own 8+17 pass, root+admin tsc 0, cx ≤7, vendor clean; route-modules 'agent-plugins' route pin not updated (forms-admin case fails on base too) + i18n strings missing → fix subagent. |
+| G1b | running (Jini fix lot) | cloud/google-workspace-G1b | | installCredential persists without lease (G2 refuses; Tovu workaround in vault-stores.ts); clientKind derived from authMethod (installed-app client needing a non-confidential secret) |
+| G5b | running (Jini fix lot) | cloud/google-workspace-G5b | | no seam for plugin-supplied admin-surface action handlers/bootstrap data (G8 finding; needed by G9/G13) |
 | G9–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
@@ -45,6 +47,9 @@ Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME 
 pending (G9)
 
 ## Bugs + security findings pinned
+- G7 (a) Jini plugins/host tool-contributions.ts:21 sets requiresConfirmation for destructive/non-direct tools but Tovu executor has no confirm delegate → park forever; hits existing site executable plugin tools (capability-tool-registrations.ts:503) and their 30 s timeoutMs would cut a human confirmation (reported, not fixed). G7 adapter strips the flag and uses approval cards. (b) no per-plugin outbound host allow-list for plugin HTTP (phase B decision). (c) executable tools gated on admin.assistant.use (phase B decision). Gated-mutation owner (watermarked local DB mutations) fits no v1 op → not used (phase B confirm).
+- G6: hosted callback rebuilds redirect URI from resolvePublicOrigin(req) — mismatched proxy/Host fails closed. runAgentPluginConnect 18/15 unchanged vs base.
+- G8: public surface-files route reveals active plugins + their static surface files (by design: sandboxed scripts send no cookie); CSRF compares Origin to Host (proxy rewriting Host fails closed).
 - Jini `pnpm guard` has 26 violations on base general-work (311851df); lots add none.
 - G2: no vault kind fits OAuth rows (Tovu secrets_vault_kind CHECK) → Tovu migration 0020 + platform VAULT_KINDS edit needed (G6). refresh.ts markNeedsReauthBestEffort swallows refused stale mark (reported). Lease 30s must exceed token timeout 15s.
 - G3: agent-runtime/src/providers/oauth-callback-server.ts:134 non-constant-time state, :198 any host bind, :239 echoes provider error (reported). oauth endpoint-safety.ts:40 allowLoopbackHttp also allows http loopback token endpoints (reported). Wrong-state request consumes the one callback (by design, DoS of one attempt).
@@ -53,7 +58,7 @@ pending (G9)
 - G5: host must post init only on first load; surface scripts served ACAO:* must be public static; frame-ancestors 'self' assumes same origin.
 
 ## Needs Chrome visual check locally
-none yet
+- G8: plugin surface frame tab, CSP 'self' module scripts inside sandboxed frame, frame height, both status messages.
 
 ## Problems
 - Resume: `git pull --rebase` flattened the Jini G6 merge commit into a linear commit (7846710b); coordinator now uses `git pull --rebase=merges` and so do subagents.
