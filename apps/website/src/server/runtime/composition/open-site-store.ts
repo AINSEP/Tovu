@@ -167,7 +167,7 @@ async function openPgliteSiteStore(
     await owner?.close();
   };
   try {
-    if (owner === undefined) await waitForPgliteSocket(socketPath, optional.pgliteClientWaitMs ?? PGLITE_CLIENT_WAIT_MS);
+    if (owner === undefined) await waitForPgliteSocket({ socketPath }, { waitMs: optional.pgliteClientWaitMs });
   } catch (err) {
     await stopOwner();
     throw err;
@@ -189,8 +189,12 @@ async function openPgliteSiteStore(
 }
 
 /** Polls for the owner's socket file; the owner creates it only once it accepts connections. */
-async function waitForPgliteSocket(socketPath: string, waitMs: number): Promise<void> {
-  const deadline = Date.now() + waitMs;
+async function waitForPgliteSocket(
+  required: { socketPath: string },
+  optional: { waitMs?: number } = {}
+): Promise<void> {
+  const { socketPath } = required;
+  const deadline = Date.now() + (optional.waitMs ?? PGLITE_CLIENT_WAIT_MS);
   while (!existsSync(socketPath)) {
     if (Date.now() >= deadline) {
       throw new StorageNotAvailableError(

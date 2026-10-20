@@ -114,15 +114,7 @@ export async function sealConnectionStringForNewSite(required: {
  */
 export async function readSealedConnectionString(required: { siteDir: string }, optional: { sealer?: SecretSealerPort } = {}): Promise<string> {
   const target = path.join(required.siteDir, STORAGE_SECRET_FILENAME);
-  let file: StorageSecretFile;
-  try {
-    file = JSON.parse(fs.readFileSync(target, "utf8")) as StorageSecretFile;
-  } catch (err) {
-    const missing = (err as NodeJS.ErrnoException).code === "ENOENT";
-    throw new StorageSecretError(
-      missing ? `this site stores its Postgres connection string sealed in ${target}, which does not exist` : `${target} is not valid JSON`
-    );
-  }
+  const file = readStorageSecretFile({ target });
   const sealed = file?.sealed;
   if (file?.version !== 1 || typeof sealed?.ciphertext !== "string" || typeof sealed.nonce !== "string") {
     throw new StorageSecretError(`${target} is not a sealed connection string (version 1)`);
@@ -133,6 +125,22 @@ export async function readSealedConnectionString(required: { siteDir: string }, 
   } catch {
     // The sealer's own error may describe the key; it is replaced, never passed on.
     throw new StorageSecretError(`${target} does not open with this site's key (a different site key, or the file was changed)`);
+  }
+}
+
+/** Read failures keep the same redacted, path-only diagnostics as malformed JSON. */
+function readStorageSecretFile(
+  required: { target: string },
+  _optional: Record<string, never> = {}
+): StorageSecretFile {
+  const { target } = required;
+  try {
+    return JSON.parse(fs.readFileSync(target, "utf8")) as StorageSecretFile;
+  } catch (err) {
+    const missing = (err as NodeJS.ErrnoException).code === "ENOENT";
+    throw new StorageSecretError(
+      missing ? `this site stores its Postgres connection string sealed in ${target}, which does not exist` : `${target} is not valid JSON`
+    );
   }
 }
 
