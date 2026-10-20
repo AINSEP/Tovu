@@ -26,6 +26,7 @@ import {
   InMemoryAssetBlobRepo,
   InMemoryBlobStore,
   InMemoryVersionedMediaRepo,
+  MediaConflictError,
   type AssetBlobRecord,
   type MediaRecord,
 } from "#src/features/media/index";
@@ -335,4 +336,104 @@ test("importMediaEntity translates a slug acquired during the write window into 
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 });
   assert.ok(blob, "append-only blobs written before the slug race remain reclaimable");
   assert.deepEqual(await deps.blobStore.get({ storageKey: blob.storageKey }), HELLO_BYTES);
+});
+
+// ---------------------------------------------------------------------------
+// Branch pins: every refusal and bookkeeping branch, asserted by its exact result
+// ---------------------------------------------------------------------------
+
+function importInput(overrides: Partial<Parameters<typeof importMediaEntity>[0]["input"]> = {}) {
+  return { workspaceId: WORKSPACE_ID, record: makeMediaRecord(), bytes: HELLO_BYTES, blobCreatedByPrincipal: "importer", baseVersion: null, ...overrides };
+}
+
+test("importMediaEntity: an empty slug skips the slug lookup entirely and imports", async () => {
+  const deps = makeDeps();
+  let slugReads = 0;
+  deps.mediaRepo.findBySlug = async () => { slugReads++; return null; };
+  const result = await importMediaEntity({ deps, input: importInput({ record: makeMediaRecord({ slug: "" }) }) });
+  assert.deepEqual([result, slugReads], [{ status: "imported", id: "source-asset-1", blobWritten: true }, 0]);
+});
+
+test("importMediaEntity: a create against an existing row is an early conflict naming its version", async () => {
+  const deps = makeDeps();
+  await deps.mediaRepo.save(makeMediaRecord({ version: 4 }));
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput() }),
+    { status: "conflict", reason: "expected no existing row, found version 4" });
+});
+
+test("importMediaEntity: an update whose row is gone is an early conflict", async () => {
+  const deps = makeDeps();
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput({ baseVersion: 3 }) }),
+    { status: "conflict", reason: "expected version 3, but the row is gone" });
+  assert.equal(await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 }), null);
+});
+
+test("importMediaEntity: an update against a different version is an early conflict naming both", async () => {
+  const deps = makeDeps();
+  await deps.mediaRepo.save(makeMediaRecord({ version: 2 }));
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput({ baseVersion: 3 }) }),
+    { status: "conflict", reason: "expected version 3, found version 2" });
+});
+
+test("importMediaEntity: an update keeps the destination createdAt and bumps the version past its basis", async () => {
+  const deps = makeDeps();
+  await deps.mediaRepo.save(makeMediaRecord({ version: 2, createdAt: "2025-05-05T00:00:00.000Z" }));
+  let written: MediaRecord | undefined;
+  deps.mediaRepo.saveIfVersion = async ({ record }) => { written = record; return { applied: true }; };
+  await importMediaEntity({ deps, input: importInput({ record: makeMediaRecord({ createdAt: "2026-01-01T00:00:00.000Z" }), baseVersion: 2 }) });
+  assert.deepEqual([written?.createdAt, written?.version, written?.updatedAt], ["2025-05-05T00:00:00.000Z", 3, "2026-09-18T00:00:00.000Z"]);
+});
+
+test("importMediaEntity: an update of a legacy row with no recorded creator keeps it honestly unknown", async () => {
+  const deps = makeDeps();
+  const { createdBy: _dropped, ...legacy } = makeMediaRecord({ version: 1 });
+  deps.mediaRepo.findById = async () => legacy;
+  let written: MediaRecord | undefined;
+  deps.mediaRepo.saveIfVersion = async ({ record }) => { written = record; return { applied: true }; };
+  await importMediaEntity({ deps, input: importInput({ baseVersion: 1 }) });
+  assert.equal(written?.createdBy, null);
+});
+
+test("importMediaEntity: a create that loses the insert race reports the winner's version", async () => {
+  const deps = makeDeps();
+  deps.mediaRepo.insertIfAbsent = async (row) => { await deps.mediaRepo.save({ ...row, version: 7 }); return { applied: false }; };
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput() }),
+    { status: "conflict", reason: "expected no existing row, found version 7" });
+});
+
+test("importMediaEntity: a create refused with no row to re-read reports the id as in use", async () => {
+  const deps = makeDeps();
+  deps.mediaRepo.insertIfAbsent = async () => ({ applied: false });
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput() }),
+    { status: "conflict", reason: "expected no existing row, but the id is already in use" });
+});
+
+test("importMediaEntity: an update that loses the version race reports the newer version", async () => {
+  const deps = makeDeps();
+  await deps.mediaRepo.save(makeMediaRecord({ version: 1 }));
+  deps.mediaRepo.saveIfVersion = async ({ record }) => { await deps.mediaRepo.save({ ...record, version: 5 }); return { applied: false }; };
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput({ baseVersion: 1 }) }),
+    { status: "conflict", reason: "expected version 1, found version 5" });
+});
+
+test("importMediaEntity: an update refused while the re-read matches its basis (ABA) is still a conflict", async () => {
+  const deps = makeDeps();
+  await deps.mediaRepo.save(makeMediaRecord({ version: 1 }));
+  deps.mediaRepo.saveIfVersion = async () => ({ applied: false });
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput({ baseVersion: 1 }) }),
+    { status: "conflict", reason: "expected version 1, but a concurrent write landed first" });
+});
+
+test("importMediaEntity: a slug race whose holder cannot be re-read names it unknown", async () => {
+  const deps = makeDeps();
+  deps.mediaRepo.insertIfAbsent = async () => { throw new MediaConflictError({ message: "slug taken" }); };
+  assert.deepEqual(await importMediaEntity({ deps, input: importInput() }),
+    { status: "blocked", code: "slug-taken", reason: "slug 'a-photo' is already held by a different media ('unknown')" });
+});
+
+test("importMediaEntity: a write failure other than a slug conflict is rethrown unchanged", async () => {
+  const deps = makeDeps();
+  const failure = new Error("disk full");
+  deps.mediaRepo.insertIfAbsent = async () => { throw failure; };
+  await assert.rejects(importMediaEntity({ deps, input: importInput() }), (err: unknown) => err === failure);
 });

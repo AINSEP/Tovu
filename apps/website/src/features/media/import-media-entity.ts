@@ -201,20 +201,15 @@ async function writeMediaRowConditionally(
   return { status: "conflict", reason };
 }
 
-/**
- * Imports one media entity, preserving its source `id`. See this file's header for the full safety
- * case and the bug this exists to prevent.
- *
- * @complexity O(1) — a fixed, small number of repo/store calls; no iteration over caller-controlled
- *   collections.
- */
-export async function importMediaEntity(required: {
-  readonly deps: ImportMediaEntityDeps;
-  readonly input: ImportMediaEntityInput;
-}): Promise<ImportMediaEntityResult> {
-  const { deps, input } = required;
-  const { workspaceId, record, bytes, blobCreatedByPrincipal, baseVersion } = input;
+type ImportRefusal = Exclude<ImportMediaEntityResult, { status: "imported" }>;
 
+/**
+ * The missing-blob decision, then safety property 1. Returns the bytes, now proven to match the
+ * record's claim, or the refusal.
+ *
+ * @complexity O(bytes) for the one hash comparison.
+ */
+function checkedBytes({ record, bytes }: { record: MediaRecord; bytes: Uint8Array | null }, _options = {}): { bytes: Uint8Array } | ImportRefusal {
   if (bytes === null) {
     return {
       status: "blocked",
@@ -235,16 +230,18 @@ export async function importMediaEntity(required: {
       reason: `bytes do not hash to the claimed sha256 '${record.source.sha256}'`,
     };
   }
+  return { bytes };
+}
 
-  const [existingById, slugHolder] = await Promise.all([
-    deps.mediaRepo.findById({ workspaceId, id: record.id }),
-    // Media's `slug` is nullable/optional in practice (pre-backfill rows), unlike `post`'s — an
-    // empty slug has nothing to collide on, so it skips this check entirely rather than blocking
-    // (contrast `features/post/publish-content.ts`'s `precheck`, where an empty slug DOES block,
-    // because `post.slug` is `NOT NULL` and always meaningful there).
-    record.slug ? deps.mediaRepo.findBySlug({ workspaceId, slug: record.slug }) : Promise.resolve(null),
-  ]);
-
+/**
+ * Safety properties 5 (compare-and-set basis) then 2 (slug collision), both before any write.
+ *
+ * @complexity O(1).
+ */
+function basisRefusal(
+  { record, baseVersion, existingById, slugHolder }: { record: MediaRecord; baseVersion: number | null; existingById: MediaRecord | null; slugHolder: MediaRecord | null },
+  _options = {}
+): ImportRefusal | null {
   // Safety property 5 (compare-and-set basis) — checked before the slug check, so a caller whose
   // basis is already stale gets `conflict` (this row changed on the destination) rather than a
   // `blocked`/`slug-taken` that describes a state the caller was never even importing against.
@@ -259,42 +256,64 @@ export async function importMediaEntity(required: {
       reason: `slug '${record.slug}' is already held by a different media ('${slugHolder.id}')`,
     };
   }
+  return null;
+}
 
-  // Safety property 3 (write-once source.sha256) — reuses the library's own guard rather than
-  // re-deriving it; see this file's header for why.
-  let resolvedSource;
+/**
+ * Safety property 3 (write-once source.sha256) — reuses the library's own guard rather than
+ * re-deriving it; see this file's header for why. Only its own refusal becomes a result.
+ *
+ * @complexity O(1).
+ */
+function writeOnceSource({ record, existingById }: { record: MediaRecord; existingById: MediaRecord | null }, _options = {}): { source: MediaRecord["source"] } | ImportRefusal {
   try {
-    resolvedSource = resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 });
+    return { source: resolveWriteOnceSource({ existing: existingById?.source, requestedSha256: record.source.sha256 }) };
   } catch (error) {
     if (error instanceof MediaSourceImmutableError) {
       return { status: "blocked", code: "precondition", reason: error.message };
     }
     throw error;
   }
+}
 
-  // Safety property 4 (never re-stamp an existing blob's attribution) — `assetBlobRepo.save` is
-  // reached only on the "no existing row" branch.
+/**
+ * Safety property 4 (never re-stamp an existing blob's attribution) — `assetBlobRepo.save` is
+ * reached only on the "no existing row" branch.
+ *
+ * @returns whether this call wrote the blob bytes and its `asset_blobs` row.
+ * @complexity O(1) — one lookup, plus one store put and one row save for a new blob.
+ */
+async function ensureAssetBlob(
+  { deps, input, bytes }: { deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; bytes: Uint8Array },
+  _options = {}
+): Promise<boolean> {
+  const { workspaceId, record } = input;
   const existingBlob = await deps.assetBlobRepo.findByHash({ workspaceId, sha256: record.source.sha256 });
-  let blobWritten = false;
-  if (!existingBlob) {
-    const { storageKey } = await deps.blobStore.putIfAbsent({ workspaceId, sha256: record.source.sha256, bytes });
-    const newBlob: AssetBlobRecord = {
-      id: deps.idGen.newId(),
-      workspaceId,
-      sha256: record.source.sha256,
-      storageKey,
-      createdByPrincipal: blobCreatedByPrincipal,
-      createdAt: deps.clock.nowIso(),
-      status: "active",
-    };
-    await deps.assetBlobRepo.save(newBlob);
-    blobWritten = true;
-  }
+  if (existingBlob) return false;
+  const { storageKey } = await deps.blobStore.putIfAbsent({ workspaceId, sha256: record.source.sha256, bytes });
+  const newBlob: AssetBlobRecord = {
+    id: deps.idGen.newId(),
+    workspaceId,
+    sha256: record.source.sha256,
+    storageKey,
+    createdByPrincipal: input.blobCreatedByPrincipal,
+    createdAt: deps.clock.nowIso(),
+    status: "active",
+  };
+  await deps.assetBlobRepo.save(newBlob);
+  return true;
+}
 
-  const row: MediaRecord = {
+/** The destination row: the SOURCE record under its own id, with destination-local bookkeeping. */
+function importedRow(
+  { deps, input, existingById, source }: { deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; existingById: MediaRecord | null; source: MediaRecord["source"] },
+  _options = {}
+): MediaRecord {
+  const { workspaceId, record, blobCreatedByPrincipal, baseVersion } = input;
+  return {
     ...record,
     workspaceId,
-    source: resolvedSource,
+    source,
     version: (baseVersion ?? 0) + 1,
     // createdAt is write-once, same convention `posts.createdByPrincipalId`/`createdAt` establish
     // (`platform/db/schema.sqlite.ts`) — an existing row keeps its own; a brand-new row takes the source's.
@@ -304,6 +323,42 @@ export async function importMediaEntity(required: {
     createdBy: existingById ? existingById.createdBy ?? null : blobCreatedByPrincipal,
     updatedAt: deps.clock.nowIso(),
   };
+}
+
+/**
+ * Imports one media entity, preserving its source `id`. See this file's header for the full safety
+ * case and the bug this exists to prevent.
+ *
+ * @complexity O(1) — a fixed, small number of repo/store calls; no iteration over caller-controlled
+ *   collections.
+ */
+export async function importMediaEntity(required: {
+  readonly deps: ImportMediaEntityDeps;
+  readonly input: ImportMediaEntityInput;
+}): Promise<ImportMediaEntityResult> {
+  const { deps, input } = required;
+  const { workspaceId, record, baseVersion } = input;
+
+  const checked = checkedBytes({ record, bytes: input.bytes });
+  if (!("bytes" in checked)) return checked;
+
+  const [existingById, slugHolder] = await Promise.all([
+    deps.mediaRepo.findById({ workspaceId, id: record.id }),
+    // Media's `slug` is nullable/optional in practice (pre-backfill rows), unlike `post`'s — an
+    // empty slug has nothing to collide on, so it skips this check entirely rather than blocking
+    // (contrast `features/post/publish-content.ts`'s `precheck`, where an empty slug DOES block,
+    // because `post.slug` is `NOT NULL` and always meaningful there).
+    record.slug ? deps.mediaRepo.findBySlug({ workspaceId, slug: record.slug }) : Promise.resolve(null),
+  ]);
+
+  const basisProblem = basisRefusal({ record, baseVersion, existingById, slugHolder });
+  if (basisProblem) return basisProblem;
+
+  const resolved = writeOnceSource({ record, existingById });
+  if (!("source" in resolved)) return resolved;
+
+  const blobWritten = await ensureAssetBlob({ deps, input, bytes: checked.bytes });
+  const row = importedRow({ deps, input, existingById, source: resolved.source });
 
   // Safety property 5 (compare-and-set write) — the version compare traveled INTO this write via
   // `baseVersion`; see this function's own header and `writeMediaRowConditionally`'s doc.
