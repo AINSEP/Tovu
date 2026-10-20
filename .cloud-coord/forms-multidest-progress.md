@@ -32,8 +32,8 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 | F1 | MERGED (Jini) | d6998d71 | ff to d6998d71 (pull --rebase flattened the --no-ff merge; later merges use --rebase=merges) | personas OK; cx max 9/5; tsc OK; outbox 45/45 + importers (infra 4, cms seo 52); worker/policy 100/100/100/100 (coordinator rerun); guard = base (26 pre-existing); RED 12/12; WIP: kept shape, dropped throw-wedge (fallback to default policy, logged) |
 | F2 | MERGED (Jini) | 57688b37 | 40ee5379 | personas OK; cx max 7/4; tsc OK; cms/forms 400/400; errors.ts 100% (coordinator rerun), deliver-job 50% branch (phase A pins only); guard = base; no vendor names; cms rebuilt; contract ratified → Tovu `.cloud-coord/forms-multidest-contract.md` |
 | F3 | MERGED (Tovu) | a7a9a734 | 0ff24f5e | personas OK (programmer+tdd+database); RESUMED coordinator re-verified: cx 0 over 9; root tsc 0; typecheck:tests 0; F3 tests + migration/outbox/fresh-db importers 179/179 (Postgres INCLUDED); form-delivery-repo.ts 100 line / 98.31 branch / 100 fn, 0019 100/100/100 (coordinator rerun); repo checks = base (boundaries 1069→1070 errors: +1 instance of the repo-wide `isolated-catalog-home` test-helper deep import, 623 on base; architecture + outbox-bridge fail identically on base). F3 note: binding validation (F4) must reject duplicate bindingIds (ux_form_delivery_jobs_binding would abort the plan transaction). |
-| F4 | waiting F1, F3 | | | |
-| F5 | waiting F3 | | | |
+| F4 | running (wt-F4, opus-high, dispatched 06:5xZ after resume) | | | |
+| F5 | running (wt-F5, opus-high, parallel with F4) | | | |
 | F6 | waiting F4, F5 | | | |
 | F7 | — | | | |
 | F8 | — | | | |
