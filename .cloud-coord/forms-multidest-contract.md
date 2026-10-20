@@ -4,7 +4,6 @@ Status: RATIFIED by the coordinator 2026-10-20 (drafted by lot F2). Jini side: `
 (Jini `cloud/forms-multidest` @ 40ee5379), exported from `@jini-ai/cms/forms`. Section 2 is the Tovu adapter ABI
 lot F4 adds to `apps/website/src/features/form-destinations/types.ts`. Section 9 deviations from the brief/WIP are accepted.
 Phase-B review point: a first attempt in flight (`processing`, attempts 1) currently reads `retrying`.
-(section 2) is the shape F4 adds to `apps/website/src/features/form-destinations/types.ts`.
 
 ## 1. Jini generic types (`@jini-ai/cms/forms`)
 
