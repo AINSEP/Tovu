@@ -61,3 +61,20 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
   budget is declared here but enforced only at the host profile until the host accepts
   plugin-declared budgets.
 - Per-workspace product on/off state, Picker, Sheets tools and the delivery adapter are later lots.
+
+## Sheets admin tools (`tools/sheets-admin/`, lot G12)
+
+Eleven tools for tabs, sorting, filters, filter views, formatting, named and protected ranges,
+developer metadata, raw batch updates, CSV export and opening a picked file; see
+`tools/sheets-admin/README.md`. Their helpers:
+
+| Module | Exports |
+|---|---|
+| `lib/sheets-admin-request-kinds.mjs` | `REQUEST_KINDS` (the reviewed batchUpdate inventory: effect, replay class, required fields), `checkRequests`, `describeRequests`, batch bounds. |
+| `lib/sheets-admin-common.mjs` | `spreadsheetUrl`, `checkedFileId`, `clientFor`, `getSpreadsheet`, `runBatchUpdate`, `boundedOutput`, `spreadsheetLine`, `tabsOf`, `MAX_OUTPUT_BYTES`. |
+| `lib/sheets-admin-ranges.mjs` | `columnLetters`, `gridRangeLabel`, `parseA1Range`. |
+| `lib/sheets-admin-csv.mjs` | `planChunks`, `encodeCsv`, export bounds. |
+
+`request-policy.mjs` gained four plugin-side codes (`invalid-input`, `limit-exceeded`,
+`unsupported-request`, `wrong-file-type`) and an optional plugin-composed `detail` on
+`GoogleWorkspaceError`.

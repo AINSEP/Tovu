@@ -39,3 +39,12 @@ Every failure has a `code`, a plain `message`, `retryable`, `outcome` and a `nex
 next action; do not retry on your own when `retryable` is false. When `outcome` is `"unknown"` (for
 example `uncertain-outcome`), the change may already be in the spreadsheet: ask the person to look
 before trying again. Never repeat an append, create or copy just because the answer was lost.
+
+## Tabs, filters, formatting and raw batch updates
+
+The Sheets reference also covers tab changes, sorting, filters and filter views, formatting, named
+and protected ranges, developer metadata, raw batch updates (and which request kinds are allowed),
+CSV export and opening a picked spreadsheet (`sheets_open_existing`). Errors `limit-exceeded`
+(narrow the request), `unsupported-request` (use a listed request kind), `invalid-input` (fix the id,
+range or option) and `wrong-file-type` (pick a spreadsheet) are raised by Tovu before anything is
+sent to Google.
