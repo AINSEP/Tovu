@@ -3,7 +3,7 @@
 Status: RATIFIED by the coordinator 2026-10-20 (drafted by lot F2). Jini side: `packages/cms/src/forms/delivery/`
 (Jini `cloud/forms-multidest` @ 40ee5379), exported from `@jini-ai/cms/forms`. Section 2 is the Tovu adapter ABI
 lot F4 adds to `apps/website/src/features/form-destinations/types.ts`. Section 9 deviations from the brief/WIP are accepted.
-Phase-B review point: a first attempt in flight (`processing`, attempts 1) currently reads `retrying`.
+Phase B (F8 M2, fixed in Jini F9J): a first attempt in flight now reads `pending`.
 
 ## 1. Jini generic types (`@jini-ai/cms/forms`)
 
@@ -122,9 +122,10 @@ key), `adapter-unavailable` (host could not load the adapter or it has no `deliv
 |---|---|---|---|
 | `delivered` | `completed` | null | null |
 | `failed` | `failed` | null | safe code of `lastError` |
-| `pending`/`processing`, attempts 0 | `pending` | null | safe code if any |
+| `pending`, attempts 0 | `pending` | null | safe code if any |
+| `processing`, attempts ≤ 1 (first try in flight; the claim increments attempts before it runs) | `pending` | null | safe code if any |
 | `pending`, attempts ≥ 1 | `retrying` | `nextAttemptAt` | safe code of `lastError` |
-| `processing`, attempts ≥ 1 | `retrying` | null (in flight) | safe code of `lastError` |
+| `processing`, attempts ≥ 2 | `retrying` | null (in flight) | safe code of `lastError` |
 
 `lastError` is re-sanitised (worker timeout text becomes `delivery-failed`). Tovu's repo calls this
 function; it keeps no status table of its own.
