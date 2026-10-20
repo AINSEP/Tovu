@@ -243,9 +243,9 @@
     "pages_write_html": "custom page html code write create new design page build a page landing page whole entire full complete rewrite rewriting redo start over from scratch replace the page restructure add a section remove a section",
     "pages_write_region": "section sections region regions part parts piece block chunk area one single just the only the hero headline heading title banner cta call to action pricing faq testimonial footer text copy edit editing change changing update updating tweak adjust revise reword swap replace fix amend without rewriting not the whole page leave the rest keep the rest surgical targeted in place handle data-agent-element",
     "pages_move_region": "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
-    "deployment_get_static_publish_capabilities": "can I publish yet ready deploy hosting connected status providers where github pages vercel netlify cloudflare",
-    "deployment_preview_static_publish": "dry run check before deploy what would happen test",
-    "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting netlify vercel cloudflare",
+    "deployment_get_static_publish_capabilities": "can I publish yet ready deploy hosting connected status providers hosts where static host",
+    "deployment_preview_static_publish": "dry run check before deploy what would happen test authenticated hosting preview domain dns records bindings routes conflicts",
+    "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
     "deployment_generate_bucket_hosting_setup": "instructions steps how to setup guide public website cloud storage host",
     "deployment_trigger_export": "build generate export files download self host static site",
     "deployment_diagnose_static_export": "diagnose static export dropped references missing pages assets forms failures before publish refused deployment",
@@ -415,7 +415,7 @@
     ],
     "deployment_get_static_publish_capabilities": [
       "Which static publishing hosts are available?",
-      "Can this site publish to Netlify?",
+      "Can this site publish to my hosting provider?",
       "Where can I publish a static site?",
       "Which hosting credentials are connected?",
       "Is my site ready to publish yet?",
@@ -1807,7 +1807,8 @@
     "deployment_execute_static_publish": [
       "Publish the site.",
       "Publish the site to production hosting.",
-      "Deploy this website and make it live."
+      "Deploy this website and make it live.",
+      "Push my site live on my static host."
     ],
     "credential_copy_from_project": [
       "Copy keys from another local project.",

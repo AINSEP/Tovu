@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
+import { KNOWN_GAPS } from "./fixtures/tool-search-known-gaps.js";
 
 /**
  * @file Regression guard for the 2026-10-01 tool-search eval
@@ -34,16 +35,6 @@ const RETIRED_SAVES = new Set(["custom_credential_create", "custom_credential_se
 const REQUESTS: readonly OperatorRequest[] = JSON.parse(
   readFileSync(path.join(import.meta.dirname, "fixtures", "tool-search-operator-requests.json"), "utf8"),
 ).map((c: OperatorRequest) => ({ ...c, expect: c.expect.map(id => RETIRED_SAVES.has(id) ? "credential_save" : id) }));
-
-/** Requests still outside the top 3 after the 2026-10-01 additions, and why. Remove an id once it passes. */
-const KNOWN_GAPS: ReadonlyMap<string, string> = new Map([
-  ["pg-04", "typo 'delte': exact-token index, the model's query rewrite fixes it"],
-  ["fm-07", "typo 'submisions': same"],
-  ["nl-03", "typo 'newsleter': same"],
-  ["md-02", "alt text for images ranks the media read card first; the update tool is 4th"],
-  ["mn-05", "menus have no delete tool of their own; trash_item reaches them but ranks 10th"],
-  ["dp-05", "'netlify' is a vendor word; core tool metadata names no hosting vendor (owner rule), so the active hosting plugin's discovery keywords answer it, outside this core-only catalog"],
-]);
 
 const SEARCH_LIMIT = 20;
 const TOP_N = 3;
