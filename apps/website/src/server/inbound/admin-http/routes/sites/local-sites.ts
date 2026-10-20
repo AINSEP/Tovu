@@ -18,6 +18,12 @@ const STATUS: Record<string, number> = { VALIDATION_ERROR: 400, SITE_CONFIRM_REQ
   SITE_ALREADY_EXISTS: 409, SITE_PATH_UNSAFE: 409, SITE_STOP_FAILED: 409 };
 const PREFIX = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 
+function respondToLifecycleError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+  const code = error instanceof LocalSiteError ? error.code : "INTERNAL_ERROR";
+  // Never serialize an effect's raw error: child/connection errors can contain credentials.
+  res.status(STATUS[code] ?? 500).json({ code, error: code });
+}
+
 function lifecycleHandler(deps: LocalSitesRouteDeps, action: (req: Request, base: string, supervisor: LocalSiteSupervisorPort) => Promise<unknown>) {
   return async (req: Request, res: Response) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
@@ -31,9 +37,7 @@ function lifecycleHandler(deps: LocalSitesRouteDeps, action: (req: Request, base
       const result = await action(req, gate.switcherBase, deps.localSiteSupervisor);
       res.status(200).json(result ?? { ok: true });
     } catch (error) {
-      const code = error instanceof LocalSiteError ? error.code : "INTERNAL_ERROR";
-      // Never serialize an effect's raw error: child/connection errors can contain credentials.
-      res.status(STATUS[code] ?? 500).json({ code, error: code });
+      respondToLifecycleError({ res, error });
     }
   };
 }
