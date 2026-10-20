@@ -46,7 +46,10 @@ digest at seed time, which the executable trust gate checks before any module lo
 - Errors carry a fixed message per code, never Google's text (it echoes ranges and values).
 - `kind: 'write'` (append, create, copy) with an unknown outcome is `uncertain-outcome` and never
   retried; reads and idempotent writes retry with jittered backoff that honours Retry-After.
-- Revocation is confirmed only by Google's 200.
+- Revocation is confirmed only by Google's 200 (or `invalid_token`: already revoked); a failed
+  revoke throws `provider-unreachable` or `provider-refused` for the host to record.
+- A 401 is sent once more at once with a freshly read token (an access token can expire in
+  flight); only a second 401 is `reconnect-required`. Tools and form delivery share this.
 - The budgets declared in `tovu-connections.json` (45/min per account, 240/min per instance) are
   charged by the host on every token read; its refusal (`rate-limited`) becomes `quota-delay` with
   the host's `retryAfterMs` and `outcome: 'not-applied'`, and follows the same inline backoff rules

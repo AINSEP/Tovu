@@ -614,7 +614,8 @@ for (const [status, body, code, retryable, nextAction] of FAILURES) {
   test(`error mapping: HTTP ${status} ${JSON.stringify(body.error?.errors ?? body.error?.details ?? '')} → ${code}`, async () => {
     serve('GET', `${BASE}/values/Leads`, body, status);
     await assert.rejects(callTool('sheets_values_get', { spreadsheetId: SHEET, range: 'Leads' }), { name: 'GoogleWorkspaceError', code, retryable, nextAction, outcome: 'not-applied' });
-    assert.equal(fake.requests.length, 1);
+    // A 401 is sent once more with a fresh token before it counts as reconnect-required.
+    assert.equal(fake.requests.length, status === 401 ? 2 : 1);
   });
 }
 

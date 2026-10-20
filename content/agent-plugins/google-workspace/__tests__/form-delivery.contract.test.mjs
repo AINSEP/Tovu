@@ -341,7 +341,6 @@ const batches = () => sheetsRequests().filter((request) => request.path.endsWith
 
 /** `[status, Google body, contract code, retryable]` for a failure on the first request (the tab read). */
 const FAILURE_CODES = [
-  [401, undefined, 'authorization-required', false],
   [403, { error: { code: 403, errors: [{ reason: 'insufficientPermissions' }] } }, 'authorization-required', false],
   [403, { error: { code: 403 } }, 'resource-not-granted', false],
   [403, { error: { code: 403, errors: [{ reason: 'domainPolicy' }] } }, 'resource-not-granted', false],
@@ -371,6 +370,16 @@ test('failure mapping: a refused append (400) is mapping-invalid and is not re-s
   assert.deepEqual(await deliver(job()), { ok: false, error: { code: 'mapping-invalid', retryable: false, outcome: 'not-applied' } });
   // tab, header row, markers, dedupe scan, column batch, append: no second tab read for a re-scan.
   assert.equal(sheetsRequests().filter((request) => request.method === 'GET' && request.path === PREFIX).length, 1);
+});
+
+test('a single 401 is retried once with a freshly read token and the row is delivered', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  sheets.failNext = { status: 401 };
+  let reads = 0;
+  const credential = { baseUrl: '', getAccessToken: async () => { reads += 1; return TOKEN; } };
+  assert.equal((await deliver({ ...job(), credential })).ok, true);
+  assert.equal(appends().length, 1);
+  assert.equal(reads, sheetsRequests().length);
 });
 
 test('OAuth credential: a host credential with getAccessToken is asked for a fresh token before every Google request', async () => {
