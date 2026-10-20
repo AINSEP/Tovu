@@ -21,7 +21,9 @@ test("trash hides a menu from live reads, preserves its exact row, and refuses s
   assert.deepEqual(await repo.list({ workspaceId: "ws" }), []);
   assert.deepEqual(await repo.findByIdIncludingTrashed(lookup), menu({ status: "trash", version: 8 }));
   assert.deepEqual(await repo.findAnyById(lookup), { ...menu({ status: "trash", version: 8 }), priorStatus: "draft" });
-  await assert.rejects(repo.save(menu({ id: "m2" })), MenuConflictError);
+  await assert.rejects(repo.save(menu({ id: "m2" })), (error: unknown) => error instanceof MenuConflictError
+    && !(error instanceof MenuVersionConflictError)
+    && error.message === "a menu with slug 'nav' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug");
   assert.equal(await repo.findAnyById({ workspaceId: "ws", id: "m2" }), null);
   assert.equal(await repo.findAnyById({ workspaceId: "other", id: "m1" }), null);
   await repo.save(menu({ id: "foreign", workspaceId: "other" }));
@@ -125,12 +127,17 @@ test("a live slug conflict passes through without being replaced by a Trash-spec
   assert.deepEqual(await repo.list({ workspaceId: "ws" }), [menu()]);
 });
 
-for (const expectedVersion of [null, 7]) {
+const TRASHED_CAS_REFUSALS = new Map<number | null, string>([
+  [null, "menu 'm1' already exists (expected no menu, found version 7)"],
+  [7, "menu 'm1' was modified concurrently (expected version 7, found none)"],
+]);
+for (const [expectedVersion, message] of TRASHED_CAS_REFUSALS) {
   test(`a trashed menu refuses compare-and-set ${expectedVersion} without losing its restore state`, async () => {
     const repo = new TrashAwareInMemoryMenuRepo({});
     const trashed = { ...menu({ status: "trash" }), priorStatus: "draft" as const };
     await repo.saveAny(trashed);
-    await assert.rejects(repo.save(menu({ title: "Revived" }), { expectedVersion }), MenuVersionConflictError);
+    await assert.rejects(repo.save(menu({ title: "Revived" }), { expectedVersion }),
+      (error: unknown) => error instanceof MenuVersionConflictError && error.message === message);
     assert.deepEqual(await repo.findAnyById({ workspaceId: "ws", id: "m1" }), trashed);
   });
 }
