@@ -78,3 +78,25 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
   process.on("unhandledRejection", handler);
   return () => process.off("unhandledRejection", handler);
 }
+
+/** Report a rejected Tovu boot and terminate, including when stderr itself fails.
+ * A boot failure leaves index.ts's reserved listener serving 503 forever, so it cannot use the
+ * request-time rejection guard's log-and-continue policy. Dependencies are injectable for unit tests.
+ * The raw reason rides along so an unexpected composition failure keeps its stack in server.log.
+ * @param error The rejected startup reason; Error messages and non-Error reasons are retained.
+ * @returns Never in production; the injected exit port may return in tests.
+ * @complexity O(n) time/space in diagnostic length; one log and one exit.
+ */
+export function reportFatalBootFailure(
+  { error }: { error: unknown },
+  { log = console.error, exit = (code: number) => process.exit(code) }: {
+    log?: (message: string, reason: unknown) => void; exit?: (code: number) => void;
+  } = {},
+): void {
+  try {
+    const reason = error instanceof Error ? error.message : String(error);
+    log(`[boot] Tovu failed to start: ${reason.replace(/\s+/g, " ")}. Restart Tovu after resolving this error; if the site is running in another app, stop it there first.`, error);
+  } finally {
+    exit(1);
+  }
+}

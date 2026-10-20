@@ -22,7 +22,7 @@ import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readines
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
-import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
+import { installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
@@ -267,8 +267,8 @@ async function main(): Promise<void> {
   // Fixes a live-found crash (2026-08-16, `process-error-guards.ts`'s own header has the full
   // account): an unhandled async rejection anywhere beneath an Express 4 route handler used to take
   // down this ENTIRE process, not just the one request that triggered it. Placed first — before any
-  // boot step below has a chance to reject unguarded — so the guard covers boot itself, not only
-  // requests served after `app.listen()`.
+  // boot step below can trigger background work. main()'s own rejection is fatal and caught at
+  // the entrypoint below; this guard protects request-time and background rejections only.
   installUnhandledRejectionGuard();
   if (!useMemory) pinDefaultSiteRoot({}, {});
   // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
@@ -498,4 +498,4 @@ async function main(): Promise<void> {
 // process-group-detachment, and stdio-piping behavior this function used to, unchanged — see that
 // file's own header for the full rationale on each.
 
-void main();
+void main().catch((error: unknown) => reportFatalBootFailure({ error }));
