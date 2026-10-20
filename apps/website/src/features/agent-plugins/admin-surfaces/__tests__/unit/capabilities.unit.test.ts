@@ -1,12 +1,12 @@
 /**
  * @file Unit tests for `capabilities.ts`: an admin-surface call gets the tool port's http, limiter
- * and (only when bound) artifacts, plus surface-only connections, state and public config, each
- * scoped to the call. Typed fakes; nothing provider-specific.
+ * and (only when bound) artifacts, plus surface-only connections, state, public config and (only
+ * when the site binds form delivery) delivery bindings, each scoped to the call. Typed fakes; nothing provider-specific.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { AdminSurfaceConnections, AdminSurfacePublicConfig, AdminSurfaceState } from '@jini-ai/agent-plugins/admin-surfaces';
+import type { AdminSurfaceConnections, AdminSurfaceDeliveryBindings, AdminSurfacePublicConfig, AdminSurfaceState } from '@jini-ai/agent-plugins/admin-surfaces';
 import type { AgentPluginToolCapabilities, AgentPluginToolCapabilityScope } from '@jini-ai/agent-plugins/lifecycle/tools';
 
 import { createAdminSurfaceCapabilities } from '../../capabilities.js';
@@ -76,4 +76,18 @@ test('public config is the one site-wide port, the same for every call', () => {
   const { port } = build(false);
   assert.equal(port(SCOPE).publicConfig, publicConfig);
   assert.equal(port({ ...SCOPE, pluginId: 'other-plugin' }).publicConfig, publicConfig);
+});
+
+test('no delivery bindings port bound: the surface gets no deliveryBindings capability at all', () => {
+  assert.equal(Object.hasOwn(build(false).port(SCOPE), 'deliveryBindings'), false);
+});
+
+test('a delivery bindings port bound: each call gets the port built for its full scope', () => {
+  const deliveryBindings: AdminSurfaceDeliveryBindings = { list: unused('list'), save: unused('save'), remove: unused('remove') };
+  const scopes: AgentPluginToolCapabilityScope[] = [];
+  const port = createAdminSurfaceCapabilities({
+    tools: () => toolCapabilities(false), connectionsFor: () => connections, stateFor: () => state, publicConfig,
+  }, { deliveryBindingsFor: (scope) => { scopes.push(scope); return deliveryBindings; } });
+  assert.equal(port(SCOPE).deliveryBindings, deliveryBindings);
+  assert.deepEqual(scopes, [SCOPE]);
 });

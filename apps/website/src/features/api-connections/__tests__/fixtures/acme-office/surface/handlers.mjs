@@ -7,7 +7,10 @@
  * `save-last-token` try to return or store it in a later call, which the host must refuse.
  * Across seams: `whoami` also hands its token to the tool module (`rememberToken`), and `tool-token`
  * returns the token a TOOL kept; the host's one shared token memory must withhold both.
- * `host-kind` echoes the host kind the handler host was built with.
+ * `host-kind` echoes the host kind the handler host was built with. `list-bindings`, `save-binding`
+ * and `remove-binding` manage its form-delivery bindings through the host's `deliveryBindings`; the
+ * surface also declares `acme-office-ghost`, an adapter the plugin does NOT contribute, which the host
+ * must refuse.
  */
 import { lastToken as toolToken, rememberToken } from "../tools/whoami.mjs";
 
@@ -56,6 +59,20 @@ export default {
     async 'save-last-token'({ capabilities }) {
       await capabilities.state.set({ key: "cached", value: { token: lastToken } });
       return { saved: true };
+    },
+    async 'list-bindings'({ capabilities }) {
+      return { json: JSON.stringify(await capabilities.deliveryBindings.list()) };
+    },
+    async 'save-binding'({ input, capabilities }) {
+      const saved = await capabilities.deliveryBindings.save({
+        ...(input.bindingId === undefined ? {} : { bindingId: input.bindingId }), adapterId: input.adapterId, connectionId: input.connectionId, enabled: true,
+        ...(input.formSlugs === undefined ? {} : { formIds: input.formSlugs }), config: { table: input.table, accountId: input.accountId },
+      });
+      return { json: JSON.stringify(saved) };
+    },
+    async 'remove-binding'({ input, capabilities }) {
+      await capabilities.deliveryBindings.remove({ bindingId: input.bindingId });
+      return { removed: true };
     },
     async disconnect({ capabilities, context }) {
       const outcome = await capabilities.connections.disconnect({ connectionId: context.connectionIds[0] });

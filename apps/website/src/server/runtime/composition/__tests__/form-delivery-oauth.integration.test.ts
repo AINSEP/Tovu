@@ -4,7 +4,11 @@
  * -> planner -> outbox child job -> OAuth connection port -> plugin adapter -> the fake provider's
  * table API. Also: a replayed event adds nothing, an account switch after planning never moves a
  * frozen job to the new account, a sign-in the provider stopped honouring is `authorization-required`
- * with the job kept, and a saved custom credential still resolves behind the OAuth port. The
+ * with the job kept, and a saved custom credential still resolves behind the OAuth port.
+ * G14c: the plugin's own admin surface saves the binding through the host's `deliveryBindings`
+ * port (written to `core.forms/deliveryBindings` as the admin) and that binding delivers; the host
+ * refuses an adapter the plugin declares but does not contribute, and never lets the surface reach
+ * another adapter's binding. The
  * google-workspace plugin's twin is `content/agent-plugins/google-workspace/__tests__/
  * form-delivery.e2e.test.mjs`. Only the fake's hosts resolve (127.0.0.1); any other host throws.
  */
@@ -21,7 +25,7 @@ import type { HttpClientPort } from "@jini-ai/core/primitives";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { FormDestinationKit } from "#src/features/form-destinations/index";
-import { createOAuthDeliverySite, WORKSPACE, type Consent, type OAuthDeliverySite } from "./form-delivery-oauth.fixture.js";
+import { createOAuthDeliverySite, FORM_ID, WORKSPACE, type Consent, type OAuthDeliverySite } from "./form-delivery-oauth.fixture.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN = "acme-office";
@@ -209,4 +213,52 @@ test("a job of another workspace is never served by this site's OAuth host: no c
   const other = `${WORKSPACE}-other`;
   await assert.rejects(site.deliver({ workspaceId: other, job }), (error: unknown) => error instanceof FormDeliveryError && error.code === "authorization-required" && !error.retryable);
   assert.deepEqual(provider.rows, []);
+});
+
+// --- G14c: the plugin's admin surface owns its bindings ---------------------------------------------
+
+const saveBinding = (site: OAuthDeliverySite, payload: Record<string, unknown>) =>
+  site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "save-binding", payload: { adapterId: ADAPTER, connectionId: "account", table: "Leads", accountId: "acct-alice", ...payload } });
+
+test("end to end: the surface saves a binding (connection id and form slug in, ref and form row id stored) and a submission delivers through it", async () => {
+  const site = await createOAuthDeliverySite({ loadContributions, http, kit, env });
+  const connectionRef = await site.connect({ pluginId: PLUGIN, consent: consentAs("alice") });
+  const saved = await saveBinding(site, { formSlugs: ["contact"] });
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  const view = JSON.parse((saved as { result: { json: string } }).result.json) as Record<string, unknown>;
+  assert.deepEqual(view, { bindingId: view.bindingId, adapterId: ADAPTER, connectionId: "account", enabled: true, formIds: ["contact"], config: { table: "Leads", accountId: "acct-alice" } });
+  assert.deepEqual(await site.bindings(), [{ bindingId: view.bindingId, adapterId: ADAPTER, connectionRef, enabled: true, formIds: [FORM_ID], config: { table: "Leads", accountId: "acct-alice" } }]);
+
+  await site.submit({ submissionId: "sub-1", answers: { email: "ada@example.test" } });
+  await site.drain();
+  await site.drain();
+  assert.deepEqual(site.jobsFor({ submissionId: "sub-1" }).map((row) => row.status), ["delivered"]);
+  assert.deepEqual(provider.rows.map((row) => [row.table, row.account]), [["Leads", "alice"]]);
+});
+
+test("security: an adapter the surface declares but the plugin does not contribute is refused (adapter-not-owned); nothing stored", async () => {
+  const site = await createOAuthDeliverySite({ loadContributions, http, kit, env });
+  await site.connect({ pluginId: PLUGIN, consent: consentAs("alice") });
+  const outcome = await saveBinding(site, { adapterId: "acme-office-ghost" });
+  assert.deepEqual(outcome.ok ? null : outcome.error.code, "adapter-not-owned");
+  assert.deepEqual(await site.bindings(), []);
+});
+
+test("security: another adapter's binding is invisible to the surface and can be neither overwritten nor removed", async () => {
+  const { site, connectionRef } = await connectedSite();
+  const foreign = { bindingId: "x1", adapterId: "other-rows", connectionRef, enabled: true, config: { table: "Theirs" } };
+  await site.bind({ bindings: [foreign] });
+  const listed = await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "list-bindings" });
+  assert.deepEqual(listed, { ok: true, result: { json: "[]" } });
+  assert.equal((await saveBinding(site, { bindingId: "x1" })).ok, false);
+  assert.equal((await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "remove-binding", payload: { bindingId: "x1" } })).ok, false);
+  assert.deepEqual(await site.bindings(), [foreign]);
+});
+
+test("the surface lists and removes its own binding; the removal reaches the stored setting", async () => {
+  const { site } = await connectedSite();
+  const listed = await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "list-bindings" });
+  assert.deepEqual(listed.ok && JSON.parse((listed.result as { json: string }).json), [{ bindingId: "b1", adapterId: ADAPTER, connectionId: "account", enabled: true, config: { table: "Leads", accountId: "acct-alice" } }]);
+  assert.deepEqual(await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "remove-binding", payload: { bindingId: "b1" } }), { ok: true, result: { removed: true } });
+  assert.deepEqual(await site.bindings(), []);
 });

@@ -8,6 +8,7 @@
       "handlerModule": "surface/handlers.mjs",
       "connections": [{ "id": "account", "startParams": ["pick_mode"], "callbackFields": ["picked_ids"] }],
       "publicConfig": ["TOVU_ACME_CHOOSER_APP_ID"],
+      "deliveryAdapters": ["acme-office-rows", "acme-office-ghost"],
       "actions": [
         {
           "name": "whoami",
@@ -62,6 +63,20 @@
           "name": "disconnect",
           "input": { "type": "object", "properties": {} },
           "result": { "type": "object", "properties": { "state": { "type": "string" }, "revocation": { "type": "string" } }, "required": ["state", "revocation"] }
+        },
+        { "name": "list-bindings", "input": { "type": "object", "properties": {} }, "result": { "type": "object", "properties": { "json": { "type": "string" } }, "required": ["json"] } },
+        {
+          "name": "save-binding",
+          "input": { "type": "object", "properties": {
+            "bindingId": { "type": "string", "maxLength": 64 }, "adapterId": { "type": "string", "maxLength": 64 }, "connectionId": { "type": "string", "maxLength": 64 },
+            "formSlugs": { "type": "array", "items": { "type": "string", "maxLength": 64 }, "maxItems": 8 },
+            "table": { "type": "string", "maxLength": 64 }, "accountId": { "type": "string", "maxLength": 64 } }, "required": ["adapterId", "connectionId", "table", "accountId"] },
+          "result": { "type": "object", "properties": { "json": { "type": "string" } }, "required": ["json"] }
+        },
+        {
+          "name": "remove-binding",
+          "input": { "type": "object", "properties": { "bindingId": { "type": "string", "maxLength": 64 } }, "required": ["bindingId"] },
+          "result": { "type": "object", "properties": { "removed": { "type": "boolean" } }, "required": ["removed"] }
         }
       ]
     }

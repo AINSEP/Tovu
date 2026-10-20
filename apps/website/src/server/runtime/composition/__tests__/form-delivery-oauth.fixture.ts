@@ -1,7 +1,8 @@
 import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
-import { FORM_DELIVERY_EVENT, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryJob, type FormDeliveryPlan,
+import { FORM_DELIVERY_EVENT, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryBinding, type FormDeliveryJob, type FormDeliveryPlan,
   type FormDeliveryPlanPort } from "@jini-ai/cms/forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
+import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution, type AdminSurfaceActionOutcome } from "@jini-ai/agent-plugins/admin-surfaces";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
@@ -11,12 +12,13 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
+import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { InMemoryKeyring as CustomCredentialKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer as CustomCredentialSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { loadFormDestinationRegistry, type FormDestinationKit } from "#src/features/form-destinations/index";
-import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { createSettingsPrincipalLookup, ensureFormDeliverySettings, readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 import { composeFormDelivery } from "../form-delivery.js";
 import { composeFormDeliveryDeliverer } from "../form-delivery-deliverer.js";
@@ -119,6 +121,10 @@ export interface OAuthDeliverySite {
   setPluginSetting(required: { pluginId: string; key: string; value: Record<string, boolean> }): Promise<void>;
   /** Saves `core.forms/deliveryBindings` through the validating writer. */
   bind(required: { bindings: readonly Record<string, unknown>[] }): Promise<void>;
+  /** The stored `core.forms/deliveryBindings` list, as delivery planning reads it. */
+  bindings(): Promise<readonly FormDeliveryBinding[]>;
+  /** One admin-surface action as the admin route runs it: the composition's handler host (reloaded first) behind Jini's dispatcher. */
+  surfaceAction(required: { pluginId: string; surfaceId: string; action: string; payload?: unknown }, optional?: { principalId?: string }): Promise<AdminSurfaceActionOutcome>;
   /** A saved custom credential (the static connection kind); returns its id. */
   saveCustomCredential(required: { label: string; baseUrl: string; worksFor: readonly string[]; token: string }): Promise<string>;
   /** Stores a submission of the contact form and enqueues its `form.submission.received` event. */
@@ -151,15 +157,17 @@ export async function createOAuthDeliverySite(required: {
   const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
   let next = 0;
   const idGen = { newId: () => `id-${(next += 1)}` };
-  const connections = composeAgentPluginConnections({
-    workspaceId: WORKSPACE, loadContributions: required.loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer, customCredentialRepo,
-    clock, http: required.http, env: { ...required.env, TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL }, derivedPublicOrigin: undefined,
-  });
-  const { host } = connections.apiConnections;
   const settingsRepo = new InMemorySettingsRepo();
   const principals = createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) });
   await ensureFormDeliverySettings({ deps: { settingsRepo, clock, ids: idGen, principals }, systemPrincipalId: "system" });
+  const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test owner" });
+  const settings = { repo: settingsRepo, clock, ids: idGen, authorize, principals };
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+  const connections = composeAgentPluginConnections({
+    workspaceId: WORKSPACE, loadContributions: required.loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer, customCredentialRepo,
+    clock, http: required.http, env: { ...required.env, TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL }, derivedPublicOrigin: undefined,
+  }, { deliveryBindings: { settings, forms: formDefinitionRepo, newBindingId: () => idGen.newId() } });
+  const { host } = connections.apiConnections;
   const formSubmissionRepo = new InMemoryFormSubmissionRepo();
   await formDefinitionRepo.create({ id: FORM_ID, workspaceId: WORKSPACE, name: "Contact", slug: FORM_SLUG, status: "active", version: 1, createdAt: T0, updatedAt: T0,
     notify: { enabled: false, recipients: [] },
@@ -176,7 +184,6 @@ export async function createOAuthDeliverySite(required: {
   });
   await composeFormDelivery({ bus, plans: enqueueingPlans(outbox, jobs), settingsRepo, formDefinitionRepo, formSubmissionRepo, deliver, idGen, clock }).start();
 
-  const authorize: AuthorizeFn = async () => ({ allowed: true, reason: "test owner" });
   const received = (submissionId: string): DomainEvent => ({ id: idGen.newId(), name: "form.submission.received", workspaceId: WORKSPACE, occurredAt: clock.nowIso(),
     aggregateId: submissionId, payload: { submissionId, formDefinitionId: FORM_ID } });
 
@@ -199,7 +206,16 @@ export async function createOAuthDeliverySite(required: {
     },
     async setPluginSetting({ pluginId, key, value }) { await host.pluginState.forPlugin({ workspaceId: WORKSPACE, pluginId }).set({ key, value }); },
     async bind({ bindings }) {
-      await writeFormDeliveryBindings({ deps: { repo: settingsRepo, clock, ids: idGen, authorize, principals }, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
+      await writeFormDeliveryBindings({ deps: settings, workspaceId: WORKSPACE, callerPrincipalId: "owner", value: bindings });
+    },
+    bindings: () => readFormDeliveryBindings({ settingsRepo, workspaceId: WORKSPACE }),
+    async surfaceAction({ pluginId, surfaceId, action, payload = {} }, optional = {}) {
+      await connections.adminSurfaceHost.refresh();
+      const surfaces = await required.loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) });
+      const surface = surfaces.items.find((item) => item.plugin.pluginId === pluginId && item.descriptor.id === surfaceId);
+      if (!surface) throw new Error(`plugin ${pluginId} has no surface ${surfaceId}: ${surfaces.refusals.join("; ")}`);
+      const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface.descriptor, handlers: connections.adminSurfaceHost.handlersFor({ pluginId, surfaceId }) });
+      return dispatcher.dispatch({ action, payload, context: { workspaceId: WORKSPACE, principalId: optional.principalId ?? ADMIN, pluginId, surfaceId } });
     },
     async saveCustomCredential({ label, baseUrl, worksFor, token }) {
       const saved = await createCustomCredential({ repo: customCredentialRepo, sealer: customSealer, keyring: customKeyring, clock, idGen },
