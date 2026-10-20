@@ -143,6 +143,13 @@ interface PlannedFile {
   bytes: number;
 }
 
+/** What {@link planThemeCopy} accumulates: every file and folder to create, and the total bytes. */
+interface ThemeCopyPlan {
+  files: PlannedFile[];
+  dirs: string[];
+  bytes: number;
+}
+
 /**
  * Walk the source folder and plan the copy, refusing — before a single byte is written — anything
  * the theme store would not hold: a symlink anywhere (never followed, never copied: a link is how a
@@ -151,41 +158,65 @@ interface PlannedFile {
  * `.trash/` is skipped: soft-deleted files are not part of the theme.
  * @complexity O(n) in the source's file count, one `lstat` each.
  */
-function planThemeCopy(sourceDir: string): { files: PlannedFile[]; dirs: string[]; bytes: number } {
-  const files: PlannedFile[] = [];
-  const dirs: string[] = [];
-  let bytes = 0;
+function planThemeCopy(sourceDir: string): ThemeCopyPlan {
+  const plan: ThemeCopyPlan = { files: [], dirs: [], bytes: 0 };
+  planThemeFolder({ plan, absDir: sourceDir, relDir: "", depth: 0 });
+  return plan;
+}
 
-  const visit = (absDir: string, relDir: string, depth: number): void => {
-    if (depth > MAX_WALK_DEPTH) {
-      throw new DuplicateThemeError("TOO_LARGE", `source theme is nested deeper than ${MAX_WALK_DEPTH} folders ('${relDir}')`);
-    }
-    for (const entry of readdirSync(absDir).sort()) {
-      const relativePath = relDir ? `${relDir}/${entry}` : entry;
-      if (relativePath === TRASH_DIR_NAME) continue;
-      const stat = lstatSync(join(absDir, entry));
-      if (stat.isSymbolicLink()) {
-        throw new DuplicateThemeError("SYMLINK", `source theme contains a symbolic link ('${relativePath}'); themes with links cannot be duplicated`);
-      }
-      if (stat.isDirectory()) {
-        dirs.push(relativePath);
-        visit(join(absDir, entry), relativePath, depth + 1);
-        continue;
-      }
-      if (!stat.isFile()) continue;
-      bytes += stat.size;
-      files.push({ relativePath, bytes: stat.size });
-      if (files.length > MAX_LISTED_FILES) {
-        throw new DuplicateThemeError("TOO_LARGE", `source theme has more than ${MAX_LISTED_FILES} files`);
-      }
-      if (bytes > MAX_DUPLICATE_THEME_BYTES) {
-        throw new DuplicateThemeError("TOO_LARGE", `source theme is larger than ${MAX_DUPLICATE_THEME_BYTES} bytes`);
-      }
-    }
-  };
+/**
+ * Plan one folder of the copy (depth-first, sorted), recursing through {@link planThemeEntry}.
+ * @throws {DuplicateThemeError} `TOO_LARGE` past {@link MAX_WALK_DEPTH}, plus every entry refusal.
+ * @complexity O(e) in the folder's entry count, plus the recursion.
+ */
+function planThemeFolder(required: { plan: ThemeCopyPlan; absDir: string; relDir: string; depth: number }): void {
+  const { absDir, relDir, depth } = required;
+  if (depth > MAX_WALK_DEPTH) {
+    throw new DuplicateThemeError("TOO_LARGE", `source theme is nested deeper than ${MAX_WALK_DEPTH} folders ('${relDir}')`);
+  }
+  for (const entry of readdirSync(absDir).sort()) {
+    const relativePath = relDir ? `${relDir}/${entry}` : entry;
+    if (relativePath === TRASH_DIR_NAME) continue;
+    planThemeEntry({ plan: required.plan, absPath: join(absDir, entry), relativePath, depth });
+  }
+}
 
-  visit(sourceDir, "", 0);
-  return { files, dirs, bytes };
+/**
+ * Plan one folder entry: refuse a symlink, recurse into a folder, record a regular file, and skip
+ * anything else (FIFOs, sockets, devices are not theme content).
+ * @throws {DuplicateThemeError} `SYMLINK`, or a {@link planThemeFolder} / {@link addPlannedFile} refusal.
+ * @complexity O(1) plus the recursion for a folder.
+ */
+function planThemeEntry(required: { plan: ThemeCopyPlan; absPath: string; relativePath: string; depth: number }): void {
+  const { plan, absPath, relativePath, depth } = required;
+  const stat = lstatSync(absPath);
+  if (stat.isSymbolicLink()) {
+    throw new DuplicateThemeError("SYMLINK", `source theme contains a symbolic link ('${relativePath}'); themes with links cannot be duplicated`);
+  }
+  if (stat.isDirectory()) {
+    plan.dirs.push(relativePath);
+    planThemeFolder({ plan, absDir: absPath, relDir: relativePath, depth: depth + 1 });
+    return;
+  }
+  if (stat.isFile()) addPlannedFile({ plan, file: { relativePath, bytes: stat.size } });
+}
+
+/**
+ * Record one file in the plan, refusing once the plan passes {@link MAX_LISTED_FILES} files or
+ * {@link MAX_DUPLICATE_THEME_BYTES} bytes.
+ * @throws {DuplicateThemeError} `TOO_LARGE`.
+ * @complexity O(1).
+ */
+function addPlannedFile(required: { plan: ThemeCopyPlan; file: PlannedFile }): void {
+  const { plan, file } = required;
+  plan.bytes += file.bytes;
+  plan.files.push(file);
+  if (plan.files.length > MAX_LISTED_FILES) {
+    throw new DuplicateThemeError("TOO_LARGE", `source theme has more than ${MAX_LISTED_FILES} files`);
+  }
+  if (plan.bytes > MAX_DUPLICATE_THEME_BYTES) {
+    throw new DuplicateThemeError("TOO_LARGE", `source theme is larger than ${MAX_DUPLICATE_THEME_BYTES} bytes`);
+  }
 }
 
 /**
@@ -205,7 +236,7 @@ function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name:
     throw new DuplicateThemeError("BAD_MANIFEST", `source theme '${identity.source.manifest.id}' has a theme.json that is not a JSON object`);
   }
   const record = manifest as Record<string, unknown>;
-  const sourceVersion = String(record.version ?? identity.source.manifest.version ?? "0.0.0");
+  const sourceVersion = String(record.version ?? identity.source.manifest.version);
   record.id = identity.id;
   record.name = identity.name;
   record.version = DUPLICATE_INITIAL_VERSION;
@@ -224,10 +255,12 @@ function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name:
  * @complexity O(b) time and O(m) space for total copied bytes b and largest file size m, bounded by
  * the already-checked copy plan.
  */
-function rewriteCopiedAssetPaths(
-  required: { stagingDir: string; files: readonly PlannedFile[]; sourceThemeId: string; targetThemeId: string },
-  _optional: Record<string, never> = {}
-): void {
+function rewriteCopiedAssetPaths(required: {
+  stagingDir: string;
+  files: readonly PlannedFile[];
+  sourceThemeId: string;
+  targetThemeId: string;
+}): void {
   const { stagingDir, files, sourceThemeId, targetThemeId } = required;
   for (const file of files) {
     if (fileGroup(file.relativePath, undefined) === "asset" && fileExtension(file.relativePath) !== ".svg") continue;
