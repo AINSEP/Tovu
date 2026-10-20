@@ -1,4 +1,4 @@
-import type { FormDestinationAddress, FormDestinationKit, FormDestinationModule, RemoteFormSubmission } from "./types.js";
+import type { FormDestinationAddress, FormDestinationKit, FormDestinationModule, FormDestinationPage, RemoteFormSubmission } from "./types.js";
 
 /**
  * @file Pulls a form destination's pending submissions into Tovu, page by page, and acknowledges
@@ -60,24 +60,42 @@ export async function pullFromFormDestination<R extends { readonly committedIds:
   const destinationKey = formDestinationKey({ scope, url: destination.url });
   const report = { destinationKey, pulled: 0, acknowledged: 0, hasMore: false, pages: [] as R[] };
   try {
-    let after = 0;
-    for (let page = 0; page < maxPages; page += 1) {
-      // Out of time: the rows still waiting are the next pull's, exactly as when the page cap stops.
-      if (now() >= budgetEndsMs) break;
-      const batch = await pull.call(module, { kit, destination }, { after, limit });
-      report.hasMore = batch.hasMore;
-      if (batch.items.length === 0) break;
-      report.pulled += batch.items.length;
-      const imported = await importPage({ items: batch.items, destinationKey });
-      report.pages.push(imported);
-      report.acknowledged += await acknowledgeCommitted({ acknowledge: (ids) => ack.call(module, { kit, destination, ids }), committedIds: imported.committedIds });
-      after = batch.nextAfter;
-      if (!batch.hasMore) break;
-    }
+    await pullPages({ report, maxPages, outOfTime: () => now() >= budgetEndsMs,
+      pullPage: (after) => pull.call(module, { kit, destination }, { after, limit }),
+      importPage: (items) => importPage({ items, destinationKey }),
+      acknowledge: (ids) => ack.call(module, { kit, destination, ids }) });
   } catch (error) {
     throw pullStopped({ error, destination });
   }
   return report;
+}
+
+/** The page loop: pull, import, acknowledge, until the host has no more rows, `maxPages`, or
+ * `outOfTime`. Fills `report`; `hasMore` stays as the last page said when the cap or the clock stops
+ * the loop. @throws whatever a step throws. @complexity O(maxPages) steps. */
+async function pullPages<R extends { readonly committedIds: readonly string[] }>(required: {
+  report: { pulled: number; acknowledged: number; hasMore: boolean; pages: R[] };
+  maxPages: number;
+  outOfTime: () => boolean;
+  pullPage: (after: number) => Promise<FormDestinationPage>;
+  importPage: (items: readonly RemoteFormSubmission[]) => Promise<R>;
+  acknowledge: (ids: readonly string[]) => Promise<{ readonly acknowledged: number }>;
+}): Promise<void> {
+  const { report } = required;
+  let after = 0;
+  for (let page = 0; page < required.maxPages; page += 1) {
+    // Out of time: the rows still waiting are the next pull's, exactly as when the page cap stops.
+    if (required.outOfTime()) break;
+    const batch = await required.pullPage(after);
+    report.hasMore = batch.hasMore;
+    if (batch.items.length === 0) break;
+    report.pulled += batch.items.length;
+    const imported = await required.importPage(batch.items);
+    report.pages.push(imported);
+    report.acknowledged += await acknowledgeCommitted({ acknowledge: required.acknowledge, committedIds: imported.committedIds });
+    after = batch.nextAfter;
+    if (!batch.hasMore) break;
+  }
 }
 
 /** The caller's kit with every request's timeout capped at {@link FORM_PULL_REQUEST_TIMEOUT_MS} and at
