@@ -32,7 +32,7 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 | F1 | MERGED (Jini) | d6998d71 | ff to d6998d71 (pull --rebase flattened the --no-ff merge; later merges use --rebase=merges) | personas OK; cx max 9/5; tsc OK; outbox 45/45 + importers (infra 4, cms seo 52); worker/policy 100/100/100/100 (coordinator rerun); guard = base (26 pre-existing); RED 12/12; WIP: kept shape, dropped throw-wedge (fallback to default policy, logged) |
 | F2 | MERGED (Jini) | 57688b37 | 40ee5379 | personas OK; cx max 7/4; tsc OK; cms/forms 400/400; errors.ts 100% (coordinator rerun), deliver-job 50% branch (phase A pins only); guard = base; no vendor names; cms rebuilt; contract ratified → Tovu `.cloud-coord/forms-multidest-contract.md` |
 | F3 | MERGED (Tovu) | a7a9a734 | 0ff24f5e | personas OK (programmer+tdd+database); RESUMED coordinator re-verified: cx 0 over 9; root tsc 0; typecheck:tests 0; F3 tests + migration/outbox/fresh-db importers 179/179 (Postgres INCLUDED); form-delivery-repo.ts 100 line / 98.31 branch / 100 fn, 0019 100/100/100 (coordinator rerun); repo checks = base (boundaries 1069→1070 errors: +1 instance of the repo-wide `isolated-catalog-home` test-helper deep import, 623 on base; architecture + outbox-bridge fail identically on base). F3 note: binding validation (F4) must reject duplicate bindingIds (ux_form_delivery_jobs_binding would abort the plan transaction). |
-| F4 | running (wt-F4, opus-high, dispatched 06:5xZ after resume) | | | |
+| F4 | VERIFY RED → fix subagent running on lot branch | 171984865 | (local merge undone, never pushed) | personas OK; 10 commits, 28 files +1064/-21; subagent 323k tokens / 138 tool calls (OVER the 300k ceiling: recorded); cx: no new/worsened function (pre-existing over-9: site-title-write set 11, app.ts createRouteDeps 10 / createApp 15, deps.ts openCompositionStore 22 / composeSiteRouteDeps 36 — identical on base); root tsc 0; typecheck:tests 0; 275 lot+importer files: 3703 pass / 5 fail — 4 environmental (database-transfer postgres expects host 'localhost' vs PGHOST=/tmp; theme-colour-contract missing content tokens.json) also fail on base; 1 REAL: cross-site-read-catalog (forms_delivery_status needs formDeliveryStatus, not supplied to peer sites) → fix lot F7a. architecture API surface 661 vs base 660 (+1, deps.ts → form-delivery-repo). |
 | F5 | running (wt-F5, opus-high, parallel with F4) | | | |
 | F6 | waiting F4, F5 | | | |
 | F7 | — | | | |
@@ -49,6 +49,10 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 F4 + F5 in parallel.
 
 ## Review notes for phase B / F8
+- SECURITY (F4 finding b, coordinator-confirmed): Jini `core/settings/agent-write-denylist.ts` confirmation list holds only core.privacy + core.instructions.custom, so the assistant's `settings_set_value` can write `core.forms.deliveryBindings` (and `core.forms.receiver`) without a human confirmation card → a prompt-injected agent could add a binding that copies every submission to another installed destination/saved connection. Fix needs a Jini core/settings change (outside this build's Jini scope) or a host-side rule: OWNER DECISION.
+- F4: planner throw (missing submission) retries the whole form.submission.received row and re-runs email/webhook handlers (pre-existing bus semantics).
+- F4: `enforceFormDeliveryBindingsWrite` uses `as unknown as JsonValue` (settings/form-delivery.ts:90).
+- F4: the settings chokepoint validates before authorizing (rule text only, never values).
 - Tovu `InMemoryEventBus.publish` runs handlers serially; the first throw skips later handlers and retries the whole `form.submission.received` row (planning is idempotent; email/webhook handlers re-run on retry — pre-existing semantics).
 - Status: first in-flight attempt (`processing`, attempts 1) reads `retrying`.
 - Outbox `lastError` stores `error.message` verbatim (F1 note) — delivery path only ever throws FormDeliveryError(code).
