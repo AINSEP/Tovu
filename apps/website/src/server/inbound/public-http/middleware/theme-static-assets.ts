@@ -108,7 +108,8 @@ export function registerThemeStaticAssets(
         }
       }
 
-      serveStatic(themeDir, preview ? { cacheControl: false, etag: false, lastModified: false } : {})(req, res, (err?: unknown) => (err ? next(err) : serveFrom(index + 1)));
+      // Explicit dotfiles policy makes send check every segment; its legacy default allows hidden directories.
+      serveStatic(themeDir, { dotfiles: "deny", ...(preview ? { cacheControl: false, etag: false, lastModified: false } : {}) })(req, res, (err?: unknown) => (err ? next(err) : serveFrom(index + 1)));
     };
     serveFrom(0);
   });

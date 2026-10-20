@@ -26,9 +26,13 @@ import { createApp } from "#src/server/runtime/composition/app";
  *      new `templated`-tier theme's own assets now resolving instead of 404ing.
  */
 
-function withTempApp(fn: (baseUrl: string) => Promise<void>, roots: readonly string[]): Promise<void> {
+function withTempApp(
+  fn: (baseUrl: string) => Promise<void>,
+  roots: readonly string[],
+  options: Pick<Parameters<typeof registerThemeStaticAssets>[1], "isAuthenticatedPreviewRevision"> = {},
+): Promise<void> {
   const app = express();
-  registerThemeStaticAssets(app, { themeRoots: roots });
+  registerThemeStaticAssets(app, { themeRoots: roots, ...options });
   // Answer static fallthrough without changing headers, as the middleware contract allows.
   // Express's default finalhandler replaces CSP with its own policy for its error document.
   app.use((_req, res) => res.status(404).type("text/plain").send("not found"));
@@ -83,6 +87,33 @@ test("registerThemeStaticAssets: serves a file from the first root that has it",
     assert.equal(await resB.text(), "body{color:blue}");
   }, [rootA, rootB]);
 });
+
+for (const prefix of ["/theme-assets", "/theme-preview-assets/rev-1"]) {
+  test(`registerThemeStaticAssets: ${prefix} refuses hidden files and directories`, async (t) => {
+    const root = makeThemeFixture("hidden", {
+      "theme-one/.git/config": "private repository configuration",
+      "theme-one/css/.hidden/main.css": "body{color:red}",
+      "theme-one/.well-known/assetlinks.json": "[]",
+      "theme-one/css/.env": "private environment",
+      "theme-one/css/main.css": "body{color:blue}",
+    });
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+
+    await withTempApp(async (baseUrl) => {
+      for (const asset of [".git/config", "%2egit/config", "css/.hidden/main.css", "css/%2ehidden%2fmain.css", ".well-known/assetlinks.json", "css/.env"]) {
+        for (const method of ["GET", "HEAD"]) {
+          const res = await fetch(`${baseUrl}${prefix}/theme-one/${asset}`, { method });
+          // serve-static's normal fallthrough turns a denied dotfile into our site's 404.
+          assert.equal(res.status, 404, `${method} ${asset}`);
+          assert.equal(await res.text(), method === "HEAD" ? "" : "not found");
+        }
+      }
+      const visible = await fetch(`${baseUrl}${prefix}/theme-one/css/main.css`);
+      assert.equal(visible.status, 200);
+      assert.equal(await visible.text(), "body{color:blue}");
+    }, [root], { isAuthenticatedPreviewRevision: () => true });
+  });
+}
 
 test("registerThemeStaticAssets: a theme id present under both roots resolves to the FIRST root (documented tie-break)", async (t) => {
   const rootA = makeThemeFixture("first", { "same-id/marker.txt": "from-first-root" });
