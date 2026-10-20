@@ -143,6 +143,7 @@ test("exactly the three write-service.ts operations plus the two submission read
     "forms_create_definition",
     "forms_get_submission",
     "forms_list_submissions",
+    "forms_pull_submissions",
     "forms_set_definition_status",
     "forms_update_definition",
   ]);
@@ -349,7 +350,7 @@ test("every SELF-ENFORCING Forms tool has a known input fixture — a newly wire
   // in their authorize() call, so they get their own dedicated block further down instead, mirroring
   // how tool-registrations.authorization.test.ts splits collections_content_type_list out.
   const { deps } = fakeRouteDeps();
-  const selfEnforcing = [...formsRegistrations(deps).keys()].filter((id) => id !== "forms_list_submissions" && id !== "forms_get_submission");
+  const selfEnforcing = [...formsRegistrations(deps).keys()].filter((id) => !["forms_list_submissions", "forms_get_submission", "forms_pull_submissions"].includes(id));
   assert.deepEqual(selfEnforcing.sort(), Object.keys(TOOL_INPUTS).sort());
 });
 
@@ -665,4 +666,35 @@ test('delegated normalization: real forms persist for array and single-object ba
   assert.match(visible.output.results[0].error, /Send only 'slug'/);
   assert.equal(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'bad' }), null);
   assert.ok(await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: 'next' }));
+});
+
+// ---------------------------------------------------------------------------
+// forms_pull_submissions — the composed form destination pull (RouteDeps.formSubmissionsPull)
+// ---------------------------------------------------------------------------
+
+test("forms_pull_submissions: authorizes admin.forms.manage first, then returns the pull's own report", async () => {
+  const { deps, authorizeCalls, order } = fakeRouteDeps();
+  const calls: unknown[][] = [];
+  (deps as unknown as Record<string, unknown>).formSubmissionsPull = { pull: async (...args: unknown[]) => { order.push("pull"); calls.push(args); return { message: "Imported 1 new form submission from 1 published site.", destinations: [] }; } };
+  const out = await wired("forms_pull_submissions", deps).handler(executionContext({ targetId: "host-a" }));
+  assert.deepEqual(out, { message: "Imported 1 new form submission from 1 published site.", destinations: [] });
+  assert.deepEqual(order, ["authorize", "pull"]);
+  assert.deepEqual({ permission: authorizeCalls[0]?.permission, entityType: authorizeCalls[0]?.entityType }, { permission: "admin.forms.manage", entityType: "form_submission" });
+  assert.deepEqual(calls, [[{ workspaceId: WORKSPACE_ID }, { targetId: "host-a" }]]);
+  await wired("forms_pull_submissions", deps).handler(executionContext({}));
+  assert.deepEqual(calls[1], [{ workspaceId: WORKSPACE_ID }, {}]);
+});
+
+test("forms_pull_submissions: a denied principal never reaches the host", async () => {
+  const { deps } = fakeRouteDeps({ allow: false });
+  let pulls = 0;
+  (deps as unknown as Record<string, unknown>).formSubmissionsPull = { pull: async () => { pulls += 1; return { message: "", destinations: [] }; } };
+  await assert.rejects(() => wired("forms_pull_submissions", deps).handler(executionContext({})), /FORMS_FORBIDDEN: /);
+  assert.equal(pulls, 0);
+});
+
+test("forms_pull_submissions: without the composed port it says it is unavailable and what to do", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(() => wired("forms_pull_submissions", deps).handler(executionContext({})),
+    (error: unknown) => error instanceof ToolInputError && /not available on this site's server\. Restart the site, then try again\./.test((error as Error).message));
 });

@@ -304,4 +304,18 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
       properties: { formId: FORM_ID_SCHEMA, submissionId: SUBMISSION_ID_SCHEMA },
     },
   },
+  {
+    name: "forms_pull_submissions",
+    description:
+      "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "admin.forms.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        targetId: { type: "string", minLength: 1, maxLength: 64, description: "Optional hosting target id to pull from that target only. Omit to pull from every hosting target that receives forms." },
+      },
+    },
+  },
 ];

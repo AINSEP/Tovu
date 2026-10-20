@@ -56,6 +56,19 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  "forms_pull_submissions": {
+    search: {
+      keywords: "form submissions pull import fetch sync bring new entries signups waitlist hosting host waiting",
+      queries: [
+        "Pull the new form submissions from the host.",
+        "Are there new signups waiting at the hosting provider? Bring them in.",
+        "Import the waitlist entries people submitted on the live static export.",
+        "Sync form entries from our hosting into the admin.",
+        "Fetch the latest form responses that are waiting at the host.",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "forms_set_definition_status": {
     search: {
       keywords: "form enable disable turn off retire deactivate activate",

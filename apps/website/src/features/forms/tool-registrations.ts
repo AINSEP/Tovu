@@ -22,6 +22,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { formsAgentToolCatalog } from "./agent-tools.js";
+import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
 import { deriveAvailableFormSlug } from "@jini-ai/cms/forms";
 import { formSlugPolicy } from "./index.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
@@ -70,6 +71,8 @@ export interface FormsToolDeps {
   outbox: OutboxPort;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
+  /** `RouteDeps.formSubmissionsPull`: absent outside the real site composition. */
+  formSubmissionsPull?: FormSubmissionsPullPort;
 }
 
 /**
@@ -92,6 +95,9 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   ["forms_list_submissions", "none"],
   // -> formSubmissionRepo.findById: one read, no write of any kind.
   ["forms_get_submission", "none"],
+  // -> formSubmissionsPull.pull: host reads, then per row receipt + submission + outbox in one
+  //    transaction, then an acknowledgement to the host for the committed rows.
+  ["forms_pull_submissions", "mutates-durable-state"],
 ]);
 
 /**
@@ -397,6 +403,21 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         throw new FormSubmissionNotFoundError({ message: `submission '${submissionId}' was not found` });
       }
       return { submission: toFormSubmissionView(submission) };
+    },
+
+    forms_pull_submissions: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const targetId = optionalString({ input, key: "targetId" });
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        permission: "admin.forms.manage",
+      }, { entityType: "form_submission" });
+      if (!routeDeps.formSubmissionsPull) {
+        throw new ToolInputError({ message: "Pulling form submissions is not available on this site's server. Restart the site, then try again." });
+      }
+      return routeDeps.formSubmissionsPull.pull({ workspaceId: routeDeps.workspaceId }, targetId ? { targetId } : {});
     },
   };
 

@@ -416,6 +416,11 @@
         "forms_get_submission"
       ]
     },
+    "POST /api/admin/v1/workspaces/:workspaceId/forms/submissions/pull": {
+      "tools": [
+        "forms_pull_submissions"
+      ]
+    },
     "DELETE /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
       "chatless": "intentional:sets which folder the chat's own file tools may read; a security boundary the owner sets, not the model"
     },

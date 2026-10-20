@@ -60,7 +60,8 @@ import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-crede
 import type { DatabaseDestinationStorePort } from "../../features/database-transfer/destination-store.js";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
-import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
+import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
+import type { FormSubmissionsPullPort } from "../../features/forms/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { CredentialSchemeRule } from "../../features/custom-credentials/auth-schemes.js";
@@ -699,6 +700,12 @@ export interface FormsDeps {
   formSubmissionRepo: FormSubmissionRepoPort;
   /** Moves a submission to the Trash — `bindRemoveEntity(trash, "form_submission")` at composition. */
   removeFormSubmission: RemoveFormSubmissionFn;
+  /** Pulls submissions a published static site stored at its host (`composeFormSubmissions`). Optional:
+   *  only the real composition wires it; absent, the pull tool and route say it is unavailable. */
+  formSubmissionsPull?: FormSubmissionsPullPort;
+  /** The publish-side half of the same composition: active forms plus the receiver key. Absent,
+   *  publishing carries no forms (the old behavior). */
+  formDestination?: StaticPublishFormDestinationPort;
 }
 
 /**

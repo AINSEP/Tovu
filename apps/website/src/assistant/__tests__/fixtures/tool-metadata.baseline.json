@@ -126,6 +126,7 @@
     "comments_get_settings": "comment settings configuration config current rules how comments work",
     "comments_update_settings": "comment settings configure change require approval turn on off limit rate moderation rules",
     "forms_list_submissions": "form submitted submissions contact responses replies entries messages people sent enquiries",
+    "forms_pull_submissions": "form submissions pull import fetch sync bring new entries signups waitlist hosting host waiting",
     "forms_get_submission": "form submission response reply entry message detail",
     "forms_list_definitions": "forms contact form list existing built",
     "forms_create_definition": "form contact form build create new fields",
@@ -897,6 +898,13 @@
       "Who submitted this form and when?",
       "I want to see all the responses to our survey form.",
       "Show me the IP addresses on recent form submissions."
+    ],
+    "forms_pull_submissions": [
+      "Pull the new form submissions from the host.",
+      "Are there new signups waiting at the hosting provider? Bring them in.",
+      "Import the waitlist entries people submitted on the live static export.",
+      "Sync form entries from our hosting into the admin.",
+      "Fetch the latest form responses that are waiting at the host."
     ],
     "forms_get_submission": [
       "Can you pull up the full details of one specific form submission?",
@@ -2444,6 +2452,10 @@
     },
     "forms_list_submissions": {
       "class": "read",
+      "confirmation": "direct"
+    },
+    "forms_pull_submissions": {
+      "class": "edit",
       "confirmation": "direct"
     },
     "forms_set_definition_status": {

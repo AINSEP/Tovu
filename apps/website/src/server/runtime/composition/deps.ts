@@ -75,6 +75,8 @@ import { type ContentKernel, contentKernel } from "#src/platform/db/content-kern
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
+import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";
+import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -2593,6 +2595,17 @@ async function composeSiteRouteDeps(
   // Keep the boot-tail contract used by shutdown. Legacy credentials are folded once by 0012;
   // recurring copies would resurrect a credential deleted from the vault.
   routeDeps.legacyPublishCredentialsReady = widgetAdoptionReady;
+
+  // Form destinations: a published static site's host stores submissions; publishing hands it the
+  // active forms and a receiver key, and the pull imports what it stored (`form-submissions.ts`).
+  const formSubmissions = composeFormSubmissions({
+    formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
+    receipts: new SqlFormSubmissionReceiptRepo(kernel), outbox, bus, clock, idGen,
+    credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
+    loadDeployTargets: routeDeps.loadDeployTargets,
+  }, { observability });
+  routeDeps.formDestination = formSubmissions.destination;
+  routeDeps.formSubmissionsPull = formSubmissions.pull;
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });

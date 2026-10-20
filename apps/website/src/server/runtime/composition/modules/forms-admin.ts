@@ -6,6 +6,7 @@ import { registerAdminFormsGetRoute } from "#src/server/inbound/admin-http/route
 import { registerAdminFormsGetSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/get-submission";
 import { registerAdminFormsListRoute } from "#src/server/inbound/admin-http/routes/forms/list";
 import { registerAdminFormsListSubmissionsRoute } from "#src/server/inbound/admin-http/routes/forms/list-submissions";
+import { registerAdminFormsPullSubmissionsRoute } from "#src/server/inbound/admin-http/routes/forms/pull-submissions";
 import { registerAdminFormsUpdateRoute } from "#src/server/inbound/admin-http/routes/forms/update";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -13,8 +14,8 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-041) — the `forms-admin` server module (SPEC-010 Forms, Tier-1
  * sample plugin's admin HTTP surface).
  *
- * Owns all 7 admin registrations (list/create/get-by-id/update/list-submissions/get-submission/
- * delete-submission) — moved here verbatim from `app.ts`'s `createApp()`, same registrar function
+ * Owns the admin registrations (list/create/get-by-id/update/authoring/list-submissions/get-submission/
+ * delete-submission, and pull-submissions for form destinations) — moved here verbatim from `app.ts`'s `createApp()`, same registrar function
  * bodies, no behavior change, same relative order.
  *
  * Named distinctly from `src/server/modules/forms.ts` (SPEC-031, already existing), which owns
@@ -33,6 +34,7 @@ export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle
       registerAdminFormsListSubmissionsRoute(app, deps);
       registerAdminFormsGetSubmissionRoute(app, deps);
       registerAdminFormsDeleteSubmissionRoute(app, deps);
+      registerAdminFormsPullSubmissionsRoute(app, deps);
     },
   };
 }
