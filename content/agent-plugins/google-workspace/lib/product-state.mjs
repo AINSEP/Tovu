@@ -11,7 +11,8 @@
  * Google Workspace panel writes and tools and form delivery may only read) hold
  * `products: { "<productId>": true }`. A product is OFF unless that value is exactly `true`
  * (fail closed: no settings, no reader, or any other value). Turning a product off blocks its
- * tools and pauses its form delivery; it never revokes the Google authorization.
+ * tools and refuses its form deliveries as retryable (the forms retry policy re-tries them for about
+ * a day, then marks them failed); it never revokes the Google authorization.
  */
 import catalog from '../products.json' with { type: 'json' };
 import { GoogleWorkspaceError } from './request-policy.mjs';

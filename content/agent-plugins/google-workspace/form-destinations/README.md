@@ -14,8 +14,8 @@ method (see the forms-multidest delivery contract, §2–§3).
   from `binding.connectionRef`; it is used only in the `authorization` header.
 - `optional`: `{ state? }` — the host's read-only reader of this plugin's settings (the store the
   connection panel writes). Unless it holds `products.sheets === true` (no reader counts as off),
-  delivery refuses as `adapter-unavailable`, retryable: Sheets off pauses deliveries, it never
-  enables them by default.
+  delivery refuses as `adapter-unavailable`, retryable: while Sheets is off a job is retried within
+  the forms retry policy (about 8 attempts over about a day), then marked failed; no reader never enables delivery.
 - `credential.getAccessToken()` (OAuth connections): one fresh token per Google request, so the
   host's declared budgets count every request and the frozen account is re-checked each time.
 - Returns a `FormDeliveryResult`; it never throws.

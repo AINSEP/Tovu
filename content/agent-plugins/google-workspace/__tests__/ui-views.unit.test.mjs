@@ -34,10 +34,10 @@ test('connection view: connected without an account label still says connected, 
   assert.equal(connectionSummary({ connection: { status: 'connected' } }).heading, 'Connected as a Google account');
 });
 
-test('connection view: reconnect-required says waiting submissions are kept and offers reconnect or disconnect', () => {
+test('connection view: reconnect-required says deliveries fail and are not re-sent after reconnecting, and offers reconnect or disconnect', () => {
   const summary = connectionSummary({ connection: { status: 'reconnect-required' } });
   assert.equal(summary.heading, 'Reconnect required');
-  assert.match(summary.detail, /Form submissions waiting to be delivered are kept/);
+  assert.match(summary.detail, /Form deliveries fail while it is like this and stay listed as failed; they are not sent again after you reconnect/);
   assert.deepEqual(actions(summary), ['reconnect', 'disconnect']);
 });
 
@@ -56,9 +56,9 @@ test('reassignment message: an unticked destination is named as still using the 
   assert.equal(reassignmentMessage({ reassignment: { moved: [], failed: [] }, destinations: [{ formSlug: 'contact' }] }), 'Switched account. Still using the old account (deliveries fail until you choose the spreadsheet again in Form destinations): contact.');
 });
 
-test('product rows: off is a paused setting that keeps the sign-in, with a turn-on toggle and no grant button', () => {
+test('product rows: off says deliveries are retried for about a day then fail (never "paused"), keeps the sign-in, with a turn-on toggle and no grant button', () => {
   const [row] = productRows({ products: [{ ...SHEETS, enabled: false, granted: true }], connection: { status: 'connected' } });
-  assert.deepEqual(row, { id: 'sheets', label: 'Google Sheets', enabled: false, note: 'Off. Its tools and form deliveries are paused; the Google sign-in and its permissions are kept.', toggleLabel: 'Turn Google Sheets on', grant: false });
+  assert.deepEqual(row, { id: 'sheets', label: 'Google Sheets', enabled: false, note: 'Off. Its tools stop. Its form deliveries are retried for about a day, then marked failed. The Google sign-in and its permissions are kept.', toggleLabel: 'Turn Google Sheets on', grant: false });
 });
 
 test('product rows: on while not connected asks to connect, with no grant button', () => {

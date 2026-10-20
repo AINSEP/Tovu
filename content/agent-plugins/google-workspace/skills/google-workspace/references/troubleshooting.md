@@ -3,7 +3,7 @@
 | Code | What happened | What to do |
 |---|---|---|
 | `not-connected` | No Google account is connected. | Connect Google Workspace. |
-| `reconnect-required` | Google no longer accepts the saved sign-in (expired, revoked or the password changed). Undelivered form submissions are kept. | Reconnect with the same account, then retry once. |
+| `reconnect-required` | Google no longer accepts the saved sign-in (expired, revoked or the password changed). Form deliveries fail at once and stay listed as failed; they are not re-sent after reconnecting. | Reconnect with the same account, then retry once. |
 | `account-changed` | The connection now uses another account than the one shown when the change was confirmed. | Review the account and confirm again. |
 | `missing-permission` | The person did not allow a permission this needs. | Reconnect and allow every listed permission. |
 | `file-not-granted` | Tovu was never given this file (often a pasted link), or it was removed or trashed. Google answered "not found". | Choose the file again with the picker, or create a new spreadsheet. |

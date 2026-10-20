@@ -160,7 +160,8 @@ const SHEETS_PRODUCT = 'sheets';
 
 /** One delivery attempt; throws for every failure (mapped by the caller). @complexity O(rowCount / chunk) requests. */
 async function deliverRow(required, optional) {
-  // Retryable: turning Sheets off pauses deliveries, it does not fail them.
+  // Retryable, but not a pause: the forms retry policy re-tries it (about 8 attempts over about a
+  // day) and then marks the job failed.
   // Off unless the plugin's own settings say Sheets is on: no state reader never enables delivery.
   if (!(await isProductEnabled({ state: optional.state, productId: SHEETS_PRODUCT }))) throw new DeliveryRefusal({ code: 'adapter-unavailable', retryable: true });
   const { spreadsheetId, tab: tabConfig } = targetFor(required);

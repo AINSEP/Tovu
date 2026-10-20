@@ -30,7 +30,7 @@ const button = (action, label) => ({ action, label });
 const STATES = Object.freeze({
   disconnected: () => ({ heading: 'Not connected', detail: 'Connect a Google account to let Tovu work with the spreadsheets you choose or create. Tovu asks only for access to files you pick or it creates.', buttons: [button('connect', 'Connect Google account')] }),
   connected: ({ accountLabel }) => ({ heading: `Connected as ${accountLabel ?? 'a Google account'}`, detail: 'Reconnect keeps this account and its settings. Switch account asks you to confirm the new account before anything changes.', buttons: [button('reconnect', 'Reconnect'), button('switch', 'Switch account'), button('disconnect', 'Disconnect and revoke')] }),
-  'reconnect-required': () => ({ heading: 'Reconnect required', detail: 'Google no longer accepts the saved sign-in. Form submissions waiting to be delivered are kept; reconnect the same account to continue.', buttons: [button('reconnect', 'Reconnect'), button('disconnect', 'Disconnect and revoke')] }),
+  'reconnect-required': () => ({ heading: 'Reconnect required', detail: 'Google no longer accepts the saved sign-in. Form deliveries fail while it is like this and stay listed as failed; they are not sent again after you reconnect. Reconnect the same account so new submissions are delivered.', buttons: [button('reconnect', 'Reconnect'), button('disconnect', 'Disconnect and revoke')] }),
   'revocation-pending': () => ({ heading: REVOCATION_PENDING_TEXT, detail: REVOCATION_TEXT.pending, buttons: [button('retry-revocation', 'Retry Google revocation'), button('connect', 'Connect again')] }),
 });
 
@@ -82,7 +82,7 @@ export function reassignmentMessage(required, _optional = {}) {
 
 /** A product's state line: on/off is a setting; Google's permission is a separate fact. @complexity O(1). */
 function productNote(product, connected) {
-  if (!product.enabled) return 'Off. Its tools and form deliveries are paused; the Google sign-in and its permissions are kept.';
+  if (!product.enabled) return 'Off. Its tools stop. Its form deliveries are retried for about a day, then marked failed. The Google sign-in and its permissions are kept.';
   if (!connected) return 'On. Connect a Google account to use it.';
   return product.granted ? 'On. Google has granted the permission it needs.' : 'On, but Google has not granted its permission yet. Grant it to use this product.';
 }

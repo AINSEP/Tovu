@@ -34,9 +34,9 @@ function hostRetryAfter(cause) {
 
 /**
  * A fresh access token from the host, read right before the request that uses it. A host refusal
- * becomes the matching safe error (`invalid_grant` surfaces here as `reconnect-required`, and
- * nothing undelivered is dropped); any other host error passes through unchanged, since host
- * errors never carry secrets.
+ * becomes the matching safe error (`invalid_grant` surfaces here as `reconnect-required`; a form
+ * delivery then fails at once and stays listed as failed); any other host error passes through
+ * unchanged, since host errors never carry secrets.
  * @complexity O(1) plus the host's token read.
  */
 export async function accessTokenFor(required, _optional = {}) {

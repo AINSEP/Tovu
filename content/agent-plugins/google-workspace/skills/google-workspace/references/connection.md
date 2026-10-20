@@ -23,9 +23,10 @@ granting its permissions. Sheets needs only `drive.file`, which the first sign-i
   sends nothing to Google. Tell the person to enable Sheets there; you cannot turn it on from chat.
   Checking which account is connected (`account_info`) works while every product is off.
 - Turning a product **off** stops its tools at once (even a call that is part way through stops
-  before its next request to Google) and pauses its form deliveries: submissions stay saved in Tovu
-  and are delivered after it is turned on again. It does **not** sign the account out or revoke
-  anything at Google.
+  before its next request to Google). Its form deliveries are retried for about a day (about 8
+  attempts) and then marked failed; submissions stay saved in Tovu, but a delivery that already
+  failed is not sent again when the product is turned back on. It does **not** sign the account
+  out or revoke anything at Google.
 - On the **desktop app**, adding a product that needs a new permission means signing in again and
   approving the full list (installed apps cannot add permissions one at a time).
 - On a **hosted site**, Google adds the new permission to the existing ones.

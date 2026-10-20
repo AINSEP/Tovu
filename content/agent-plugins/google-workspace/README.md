@@ -67,6 +67,12 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
+- Form-delivery retry window: product-off (`adapter-unavailable`) and quota (`rate-limited`)
+  refusals are retried within the site's forms retry policy (about 8 attempts over about a day),
+  then the job fails; authorization failures (`authorization-required`) fail at once and stay as
+  failed jobs, with no automatic re-send after a reconnect. Owner decision pending on longer holds
+  (for example a `paused` outcome resumed by turning the product on or reconnecting).
+
 - Products are read from the plugin's settings and default to OFF; the connection panel writes them,
   and the host hands form delivery the same settings (read-only) as `optional.state`.
 - The Form destinations panel saves each form's choice as the form's delivery binding through the

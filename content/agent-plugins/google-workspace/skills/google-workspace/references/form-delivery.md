@@ -18,8 +18,10 @@ removing the destination there stops new rows (rows already written stay in the 
   meaning: editing a field's label, renaming a header, or inserting or moving columns keeps each
   field's answers in its own column. Deleting a column removes its tag; the field then gets a new
   column.
-- Every submission stays saved in Tovu, whatever happens to the spreadsheet. If Google is slow or
-  asks Tovu to slow down, deliveries wait and resume.
+- Every submission stays saved in Tovu, whatever happens to the spreadsheet. A delivery that cannot
+  go through yet (Google slow or asking Tovu to slow down, Google unavailable, Sheets turned off) is
+  retried about 8 times over about a day; after that it is marked failed and is not sent again.
+  A sign-in problem (`authorization-required`) fails the delivery at once.
 - Delivery is **at least once with best-effort dedupe**: before every append Tovu looks for the
   submission id in the `_tovu_submission_id` column (and looks again if Google's answer was lost),
   so a retry normally does not add a duplicate. A duplicate is still possible in rare cases (for
@@ -29,7 +31,8 @@ removing the destination there stops new rows (rows already written stay in the 
 - Deleting a submission in Tovu does **not** delete its row in the spreadsheet. When the person
   turns this destination on, tell them: "Rows already sent to Google Sheets stay in the spreadsheet
   if you delete the submission in Tovu."
-- Turning Sheets off pauses deliveries; it does not lose them.
+- Turning Sheets off does not pause deliveries indefinitely: they are retried for about a day, then
+  marked failed. Turn Sheets back on within that window.
 
 ## When a delivery fails
 
@@ -40,7 +43,7 @@ removing the destination there stops new rows (rows already written stay in the 
 | `configuration-invalid` | The destination does not name a tab for this form, or the tab was deleted. | Choose the tab again in the destination settings. |
 | `mapping-invalid` | The columns cannot be matched: `_tovu_submission_id` or `_tovu_submitted_at` is missing from row 1, a header appears twice, two fields share a label, or one field's hidden column tag appears on two columns (another tool copied it). | Repair the headers in row 1 (or give the fields distinct labels); for a doubled tag, delete the extra column. |
 | `destination-limit` | The tab has more than 50,000 rows, too many to check for duplicates. | Point the form at a new tab or spreadsheet. |
-| `rate-limited` | Google asked Tovu to slow down. | Nothing; it retries after the wait. |
+| `rate-limited` | Google asked Tovu to slow down. | Usually nothing; it retries after the wait, for about a day at most. |
 | `outcome-unknown` | Google did not confirm the append and the row was not found. | Nothing; the next try checks again before appending. |
-| `adapter-unavailable` | Sheets is turned off for the plugin. | Turn Sheets on; waiting deliveries resume. |
-| `delivery-failed` | Google was unavailable or answered unexpectedly. | Usually nothing; it retries. |
+| `adapter-unavailable` | Sheets is turned off for the plugin. | Turn Sheets on. Deliveries still being retried (about a day) then go through; older ones stay failed. |
+| `delivery-failed` | Google was unavailable or answered unexpectedly. | Usually nothing; it retries for about a day, then the delivery stays failed. |
