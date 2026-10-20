@@ -15,7 +15,7 @@ import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthor
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ToolContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   forbiddenRule,
@@ -60,8 +60,6 @@ import {
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: newsletterAgentToolCatalog });
@@ -304,7 +302,31 @@ const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   },
 ];
 
-export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }): ToolRegistration[] {
+async function resendPendingSubscriptionConfirmation(
+  { deps, subscriptionId, signal }: { deps: NewsletterToolDeps; subscriptionId: string; signal: AbortSignal },
+  _options: Record<string, never> = {},
+) {
+  try {
+    const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+    // Constant acknowledgement for missing subscriptions, missing contacts and non-pending records.
+    if (!subscription || subscription.status !== "pending") return { delivered: true, mailDeliveryAvailable: true };
+    const contact = await deps.newsletterSubscriberDirectory.getContact({ workspaceId: deps.workspaceId, subscriberId: subscription.subscriberId });
+    if (signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+    if (contact) {
+      await issueConfirmationToken({
+        deps: toConfirmationDeps(deps),
+        input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
+      });
+    }
+  } catch {
+    // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
+    // Keep diagnostics free of addresses, tokens and provider endpoints.
+    console.error("[newsletter] confirmation request could not be processed; inspect mail configuration");
+  }
+  return { delivered: true, mailDeliveryAvailable: true };
+}
+
+export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces?: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     newsletter_list_campaigns: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -493,24 +515,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces:
       if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const currentDriver = deps.mailer.capabilities().driver;
       if (currentDriver === "console" || currentDriver === "memory") return mailOff;
-      try {
-        const subscription = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
-        // Constant acknowledgement for missing subscriptions, missing contacts and non-pending records.
-        if (!subscription || subscription.status !== "pending") return { delivered: true, mailDeliveryAvailable: true };
-        const contact = await deps.newsletterSubscriberDirectory.getContact({ workspaceId: deps.workspaceId, subscriberId: subscription.subscriberId });
-        if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
-        if (contact) {
-          await issueConfirmationToken({
-            deps: toConfirmationDeps(deps),
-            input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
-          });
-        }
-      } catch {
-        // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
-        // Keep diagnostics free of addresses, tokens and provider endpoints.
-        console.error("[newsletter] confirmation request could not be processed; inspect mail configuration");
-      }
-      return { delivered: true, mailDeliveryAvailable: true };
+      return resendPendingSubscriptionConfirmation({ deps, subscriptionId, signal: ctx.signal });
     },
   };
 
