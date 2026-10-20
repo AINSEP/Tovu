@@ -24,7 +24,7 @@ import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts
 import { createBootSessionTokenStore, redeemBootSessionToken } from "#src/features/identity/boot-session-token";
 import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
-import { callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
+import { callerMayManageUserTrash, principalHoldsBuiltinAdminRole, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
 import { canPublishToLive } from "#src/features/publish-content/live-site-policy";
 
 /**
@@ -496,9 +496,36 @@ export async function redeemOwnerBootSession(
   return principal;
 }
 
-/** Registers login/logout/me and the loopback boot exchange before the admin session gate. */
+/** Told after an owner or admin signs in. Only the serving app passes one (its automatic form pull);
+ * `signedIn` must return at once: it runs after the session cookie is set and is never awaited. */
+export interface AdminSignInPort {
+  signedIn(required?: Record<string, never>, optional?: Record<string, never>): void;
+}
+
+/** The site's owner (an unconstrained `*` holder) or a holder of the built-in `admin` role — the
+ * identity feature's two role classifiers, never a permission string, so a custom role that was
+ * granted broad permissions does not count. @complexity Owner check first; role lookup only if not.
+ */
+async function isOwnerOrBuiltinAdmin({ deps, principalId }: { deps: SessionAuthDeps; principalId: string }, _optional = {}): Promise<boolean> {
+  const authDeps = authServiceDepsFrom(deps);
+  if (await principalHoldsOwnerWildcard({ deps: authDeps, workspaceId: deps.workspaceId, principalId })) return true;
+  return principalHoldsBuiltinAdminRole({ deps: authDeps, workspaceId: deps.workspaceId, principalId });
+}
+
+/** After a successful sign-in, tells `port` when the principal is the owner or an admin. Returns at
+ * once: the role lookup runs in the background, and its failure (or the port's) is logged without
+ * any identity detail and never reaches the sign-in response. @complexity O(1) here. */
+function signalAdminSignIn({ deps, principalId, port }: { deps: SessionAuthDeps; principalId: string; port: AdminSignInPort | undefined }, _optional = {}): void {
+  if (!port) return;
+  void isOwnerOrBuiltinAdmin({ deps, principalId })
+    .then((eligible) => { if (eligible) port.signedIn(); })
+    .catch(() => console.warn("[admin-auth] post-sign-in form pull check failed; sign-in is unaffected"));
+}
+
+/** Registers login/logout/me and the loopback boot exchange before the admin session gate.
+ * `onAdminSignIn` hears every owner/admin sign-in: password login and both boot-session exchanges. */
 export function registerAuthRoutes(app: Express, deps: RouteDeps,
-  { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+  { localOwnerSignIn = bootLocalOwnerSignIn, onAdminSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy; onAdminSignIn?: AdminSignInPort } = {},
 ): void {
   // REQ-14/AC-18: LOGIN_STRICT (10 req/60s per client IP) brute-force guard on
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
@@ -544,6 +571,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       // Credentials succeeded; revoke both superseded bearers before clearing/replacing cookies.
       await revokeRequestSessions({ deps, req });
       setSessionCookie(res, rawToken, session.expiresAt);
+      signalAdminSignIn({ deps, principalId: principal.id, port: onAdminSignIn });
       res.json({ user: { id: principal.id, username } });
     } catch (err) {
       if (err instanceof AuthInvalidCredentialsError) {
@@ -598,7 +626,9 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     }
     try {
       const principal = await redeemOwnerBootSession({ deps, res, token: req.body?.token });
-      if (principal) res.json({ user: { id: principal.id } });
+      if (!principal) return;
+      signalAdminSignIn({ deps, principalId: principal.id, port: onAdminSignIn });
+      res.json({ user: { id: principal.id } });
     } catch (error) { next(error); }
   });
 
@@ -628,7 +658,9 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       const principal = await redeemOwnerBootSession({ deps, res, token: store.mint() }, {
         redeem: store.redeem, cookieName: localSessionCookieName(req),
       });
-      if (principal) res.json({ user: { id: principal.id } });
+      if (!principal) return;
+      signalAdminSignIn({ deps, principalId: principal.id, port: onAdminSignIn });
+      res.json({ user: { id: principal.id } });
     } catch (error) { next(error); }
   });
 
