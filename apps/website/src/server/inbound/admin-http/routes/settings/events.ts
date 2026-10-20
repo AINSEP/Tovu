@@ -72,6 +72,7 @@ import { createThemePreviewFeed, readThemePreviewRefresh } from "#src/features/t
 import {
   collectChangedNamespaces,
   type ChangeFeedViewer,
+  type ChangeFeedBatch,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express, Request, Response } from "express";
@@ -275,6 +276,26 @@ function runChangeFeed(required: Admission & {
     res.end();
   };
 
+  /** Write one visible batch, checking the current grant again after the ledger reads. */
+  const emitSettingsChange = (batch: ChangeFeedBatch, _optional: Record<string, never> = {}): void => {
+    if (closed || !access.settings || batch.namespaces.length === 0) return;
+
+    // Emit the WORKSPACE-scoped position, not the internal `cursor`.
+    //
+    // `cursor` is advanced to the global ledger head so this connection can
+    // skip past other tenants' rows, but the id is the one part of the frame
+    // a subscriber can read. Emitting the global head would let a tab watch
+    // its own event ids jump and count another workspace's write volume — a
+    // metadata channel that only exists because the ledger is shared. The
+    // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
+    // from it re-examines rows already examined, which the workspace
+    // predicate makes cheap, and cannot skip anything.
+    lastEmittedId = Math.max(lastEmittedId, batch.cursor);
+    res.write(`id: ${lastEmittedId}\n`);
+    res.write("event: settings-changed\n");
+    res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
+  };
+
   /**
    * One poll. Never throws: a transient read failure must not tear down a subscription the client
    * would then reconnect anyway, and `cursor` is left untouched so the same window is re-examined
@@ -314,22 +335,7 @@ function runChangeFeed(required: Admission & {
       // rows and re-walk them on every tick for the life of the connection.
       const examined = revisions.length < REVISION_PAGE_SIZE ? ledgerHead : batch.cursor;
       cursor = Math.max(cursor, examined, batch.cursor);
-      if (closed || !access.settings || batch.namespaces.length === 0) return;
-
-      // Emit the WORKSPACE-scoped position, not the internal `cursor`.
-      //
-      // `cursor` is advanced to the global ledger head so this connection can
-      // skip past other tenants' rows, but the id is the one part of the frame
-      // a subscriber can read. Emitting the global head would let a tab watch
-      // its own event ids jump and count another workspace's write volume — a
-      // metadata channel that only exists because the ledger is shared. The
-      // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
-      // from it re-examines rows already examined, which the workspace
-      // predicate makes cheap, and cannot skip anything.
-      lastEmittedId = Math.max(lastEmittedId, batch.cursor);
-      res.write(`id: ${lastEmittedId}\n`);
-      res.write("event: settings-changed\n");
-      res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
+      emitSettingsChange(batch);
     } catch (error) {
       console.error("[settings] change feed poll failed", error);
     } finally {

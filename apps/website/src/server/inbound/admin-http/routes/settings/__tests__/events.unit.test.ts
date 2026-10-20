@@ -398,15 +398,19 @@ test("revoking settings.read but keeping theme.set keeps the stream and stops le
   assert.equal(h.ledger.pageReads.length, reads);
 });
 
-test("an authorizer error during re-authorization is logged and does not end the stream", async (t) => {
+test("an authorizer error during re-authorization is logged and closes the stream", async (t) => {
   const errors = t.mock.method(console, "error", () => {});
   const h = await open(t);
   h.control.failAuthorize = true;
   await h.advance(30_000);
-  assert.equal(h.res.ended, false);
+  assert.equal(h.res.ended, true);
   const reauthErrors = errors.mock.calls.filter((call) => call.arguments[0] === "[settings] change feed re-authorization failed");
   assert.equal(reauthErrors.length, 1);
   assert.equal((reauthErrors[0]!.arguments[1] as Error).message, "authorizer unavailable");
+  h.ledger.rows = [revision(11)];
+  h.ledger.head = 11;
+  await h.advance(1_000);
+  assert.equal(h.res.frames.includes("id: 11\n"), false);
 });
 
 test("a stream closed while re-authorization is in flight is not ended again", async (t) => {
@@ -452,4 +456,73 @@ test("an empty feedTimers object falls back to the global interval functions", a
   const h = await open(t, { deps: { feedTimers: {} } });
   await h.advance(1_000);
   assert.deepEqual(h.ledger.pageReads, [10]);
+});
+
+// ---- TW4 emission characterization: recorded before extracting the wire writer ----
+
+test("a settings frame contains only visible namespace names and the examined workspace id", async (t) => {
+  const h = await open(t, { query: { afterRevision: "0" }, prepare: (ledger) => {
+    ledger.head = 50;
+    ledger.rows = [revision(2), revision(3, { scope: "user", principalId: "other" }), revision(4, { settingId: "s-mail" })];
+  } });
+  await h.advance(1_000);
+  assert.deepEqual(h.res.frames, [CONNECTED, "id: 4\n", "event: settings-changed\n", 'data: {"namespaces":["site.theme","site.mail"]}\n\n']);
+});
+
+test("an unresolvable batch advances the cursor without emitting an empty settings frame", async (t) => {
+  const h = await open(t, { query: { afterRevision: "0" }, prepare: (ledger) => {
+    ledger.rows = [revision(3, { settingId: "missing" })];
+  } });
+  await h.advance(1_000);
+  await h.advance(1_000);
+  assert.deepEqual(h.res.frames, [CONNECTED]);
+  assert.deepEqual(h.ledger.pageReads, [0, 10]);
+});
+
+test("revoking settings access during a held poll suppresses its frame while preview keeps the stream open", async (t) => {
+  let release!: () => void;
+  const h = await open(t, {
+    grants: ["settings.read", "theme.set"], query: { themePreview: "1", afterRevision: "0" },
+    prepare: (ledger) => {
+      ledger.rows = [revision(3)];
+      ledger.hold = new Promise<void>((resolve) => { release = resolve; });
+    },
+  });
+  await h.advance(1_000);
+  h.grants.delete("settings.read");
+  await h.advance(29_000);
+  const frames = [...h.res.frames];
+  release();
+  await flush();
+  assert.equal(h.res.ended, false);
+  assert.deepEqual(h.res.frames, frames);
+  assert.equal(h.res.frames.some((frame) => frame.startsWith("id:")), false);
+});
+
+test("closing the response during a held visible batch suppresses all settings frame writes", async (t) => {
+  let release!: () => void;
+  const h = await open(t, { query: { afterRevision: "0" }, prepare: (ledger) => {
+    ledger.rows = [revision(3)];
+    ledger.hold = new Promise<void>((resolve) => { release = resolve; });
+  } });
+  await h.advance(1_000);
+  h.res.emit("close");
+  release();
+  await flush();
+  assert.deepEqual(h.res.frames, [CONNECTED]);
+});
+
+test("a definition namespace change keeps emitting the cached old namespace (reported, not fixed)", async (t) => {
+  const h = await open(t, { query: { afterRevision: "0" }, prepare: (ledger) => {
+    ledger.rows = [revision(3)];
+  } });
+  await h.advance(1_000);
+  h.ledger.namespaces.set("s-theme", "site.renamed");
+  h.ledger.rows.push(revision(11, { entityKind: "definition", scope: null, op: "alias" }));
+  h.ledger.head = 11;
+  await h.advance(1_000);
+  assert.deepEqual(h.res.frames.filter((frame) => frame.startsWith("data:")), [
+    'data: {"namespaces":["site.theme"]}\n\n', 'data: {"namespaces":["site.theme"]}\n\n',
+  ]);
+  assert.deepEqual(h.ledger.definitionReads, ["s-theme"]);
 });
