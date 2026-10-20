@@ -15,12 +15,13 @@ import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-ht
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 import { registerPublishContentImportRoutes } from "../import.js";
-import { BASE, routeApp, routeDeps } from "./route-fixture.js";
+import { BASE, recordingAuthorize, routeApp, routeDeps } from "./route-fixture.js";
 
 /**
  * @file Pins the `import.ts` arms the ceremony suites leave to other files: the API-key refusal of
- * overwrite ticks on `plan` and `execute`, empty ticks passing for an API key, and a raw-row plan
- * whose staged bundle is gone by the time the value preview reads it.
+ * overwrite ticks on `plan` and `execute`, empty ticks passing for an API key, a raw-row plan
+ * whose staged bundle is gone by the time the value preview reads it, the `confirm`/`execute`
+ * refusals (the execute authorization pre-check and both catch arms) and an unknown run id.
  */
 
 const API_KEY_OVERWRITE_403 = {
@@ -97,4 +98,44 @@ test("a raw-row plan whose staged bundle is gone by preview time answers the pla
   const body = result.body as { backstopPreview?: unknown; details: { rows: Array<{ entityType: string }> } };
   assert.equal(body.backstopPreview, undefined);
   assert.deepEqual(body.details.rows.map((row) => row.entityType), ["raw-row"]);
+});
+
+/** Route deps whose gateway `authorize()` answers `allowed` for every principal and permission,
+ *  with reason `fixture`, so a refusal's text is fixed by the test rather than by the composition's
+ *  identity seed. */
+function gatewayDecides(allowed: boolean) {
+  const base = routeDeps();
+  const authorize = recordingAuthorize(allowed);
+  return { authorize, deps: routeDeps({ gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: base.clock, idGen: base.idGen, authorize }) } }) };
+}
+
+const DENIED_APPLY = { error: "principal 'owner' is not authorized for 'publish_content.apply' (fixture)", code: "NOT_AUTHORIZED" };
+
+test("import/confirm answers a gateway refusal through the import error mapping: the exact 403", async () => {
+  const { deps } = gatewayDecides(false);
+  const result = await dispatchJsonRequest(routeApp(registerPublishContentImportRoutes, deps), "POST", `${BASE}/import/confirm`, { planId: "p-1", planHash: "h-1" });
+  assert.deepEqual(result, { status: 403, body: DENIED_APPLY });
+});
+
+test("import/execute refuses a principal without publish_content.apply with the exact 403 NOT_AUTHORIZED", async () => {
+  const { deps } = gatewayDecides(false);
+  const result = await dispatchJsonRequest(routeApp(registerPublishContentImportRoutes, deps), "POST", `${BASE}/import/execute`, { bundleId: "b-1", confirmationToken: "t-1" });
+  assert.deepEqual(result, { status: 403, body: DENIED_APPLY });
+});
+
+test("import/execute's pre-check denial stops before the gateway's own execute re-authorizes", async () => {
+  const { deps, authorize } = gatewayDecides(false);
+  await dispatchJsonRequest(routeApp(registerPublishContentImportRoutes, deps), "POST", `${BASE}/import/execute`, { bundleId: "b-1", confirmationToken: "t-1" });
+  assert.deepEqual(authorize.asked, ["publish_content.apply"]);
+});
+
+test("import/execute answers a gateway failure after the pre-check through the import error mapping", async () => {
+  const { deps } = gatewayDecides(true);
+  const result = await dispatchJsonRequest(routeApp(registerPublishContentImportRoutes, deps), "POST", `${BASE}/import/execute`, { bundleId: "b-1", confirmationToken: "t-1" });
+  assert.deepEqual(result, { status: 409, body: { error: "confirmation token was not found", code: "TOKEN_EXPIRED" } });
+});
+
+test("GET .../runs/:runId for a run this workspace never recorded is the exact 404 RUN_NOT_FOUND", async () => {
+  const result = await dispatchJsonRequest(routeApp(registerPublishContentImportRoutes, routeDeps()), "GET", `${BASE}/runs/run-1`);
+  assert.deepEqual(result, { status: 404, body: { error: "publish-content run was not found", code: "RUN_NOT_FOUND" } });
 });

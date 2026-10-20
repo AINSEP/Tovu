@@ -5,6 +5,8 @@ import Database from "better-sqlite3";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { InMemoryPublishContentBundleRepo, type StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
+import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
+import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -16,8 +18,8 @@ import { BASE, routeApp, routeDeps } from "./route-fixture.js";
 /**
  * @file Pins every `bundle-create.ts` arm the bundles/validation/trust-gate suites leave open:
  * each envelope refusal in check order, the manual-send (backstop) gate for a publishing
- * credential, the destination-host and audit-storage checks, a missing principal and a failing
- * stage.
+ * credential, the destination-host and audit-storage checks, a missing principal, a failing
+ * stage, and an entity of a registered type sent at a `schemaVersion` this instance does not speak.
  */
 
 const BUNDLES = `${BASE}/bundles`;
@@ -158,4 +160,33 @@ test("a manual send with installed audit storage, the right address and a backst
   const app = routeApp(registerPublishContentBundleCreateRoute, routeDeps({ contentKernel: sqliteKernel(t, true), publishContentBundleRepo: new InMemoryPublishContentBundleRepo() }), { publishTrust: BACKSTOP_GRANT });
   const result = await dispatchJsonRequest(app, "POST", BUNDLES, envelope({ entities: [rawRow("one")] }));
   assert.equal(result.status, 201, JSON.stringify(result.body));
+});
+
+/** Registers the real raw-row contributor (it speaks `schemaVersion` 1) for this one test. */
+function registerRawRowType(t: TestContext): void {
+  resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
+  registerPublishContentContributor(contributeRawRowPublish());
+}
+
+test("POST .../bundles refuses an entity of a registered type at another schemaVersion with the exact 400", async (t) => {
+  registerRawRowType(t);
+  const app = routeApp(registerPublishContentBundleCreateRoute, routeDeps());
+  assert.deepEqual(await dispatchJsonRequest(app, "POST", BUNDLES, envelope({ entities: [{ ...rawRow("one"), schemaVersion: 2 }] })), {
+    status: 400, body: { error: "unsupported schemaVersion 2 for entity type 'raw-row'; this instance supports 1" },
+  });
+});
+
+test("POST .../bundles checks schemaVersion before the publishing grant: a version mismatch is the 400, not the grant's 403", async (t) => {
+  registerRawRowType(t);
+  const app = routeApp(registerPublishContentBundleCreateRoute, routeDeps(), { publishTrust: { ...BACKSTOP_GRANT, entityTypes: [] } });
+  assert.deepEqual(await dispatchJsonRequest(app, "POST", BUNDLES, envelope({ entities: [{ ...rawRow("one"), schemaVersion: 2 }] })), {
+    status: 400, body: { error: "unsupported schemaVersion 2 for entity type 'raw-row'; this instance supports 1" },
+  });
+});
+
+test("POST .../bundles lets an entity of a registered type at its own schemaVersion through to the next gate", async (t) => {
+  registerRawRowType(t);
+  const app = routeApp(registerPublishContentBundleCreateRoute, routeDeps());
+  // A human session reaches the backstop gate's 403 only once the schemaVersion check has passed.
+  assert.deepEqual(await dispatchJsonRequest(app, "POST", BUNDLES, envelope({ entities: [rawRow("one")] })), { status: 403, body: BACKSTOP_NOT_GRANTED });
 });
