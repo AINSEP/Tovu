@@ -58,18 +58,6 @@ interface ProbeTarget {
  *  transport, disabled row, stale authorization) — none of them is exceptional. */
 type ProbeTargetResolution = { readonly ok: true; readonly target: ProbeTarget } | { readonly ok: false; readonly status: number; readonly body: Record<string, unknown> };
 
-/** `true` only for the fixed prose {@link resolveProbeTarget}'s failure branch and
- *  `external-mcp-oauth.ts`'s `ExternalMcpReauthRequiredError` share today — see this file's header
- *  on the residual race this covers: a row whose STORED status is `"connected"` but whose live token
- *  refresh fails with an invalid grant during this exact probe call. The common case (a row already
- *  parked `needs_reauth`) never reaches this function — {@link refuseBeforeResolving} catches the
- *  stored status directly, before `readEnabledExternalMcpConfigs` is ever called. A future wording
- *  change in either source string would silently widen this to the generic 502 branch instead of
- *  409, never the other direction — the safer failure mode for a coupling this loose. */
-function looksLikeReauthFailure(reason: string): boolean {
-  return reason.includes("authorization expired or was revoked");
-}
-
 /** Refuses a `stdio` row (D-7), a disabled row, and the common `needs_reauth` case, all from the
  *  record alone — before any credential is ever resolved. Split out of {@link resolveProbeTarget}
  *  purely to keep that function's complexity under the shop ceiling.
@@ -107,7 +95,15 @@ function refuseBeforeResolving(record: ExternalMcpServerRecord, serverId: string
  *  the shop ceiling.
  *  @complexity O(1) given the caller already located `failure`. */
 function respondToResolutionFailure(serverId: string, reason: string): Extract<ProbeTargetResolution, { ok: false }> {
-  if (looksLikeReauthFailure(reason)) {
+  /** `true` only for the fixed prose {@link resolveProbeTarget}'s failure branch and
+   *  `external-mcp-oauth.ts`'s `ExternalMcpReauthRequiredError` share today — see this file's header
+   *  on the residual race this covers: a row whose STORED status is `"connected"` but whose live token
+   *  refresh fails with an invalid grant during this exact probe call. The common case (a row already
+   *  parked `needs_reauth`) never reaches this function — {@link refuseBeforeResolving} catches the
+   *  stored status directly, before `readEnabledExternalMcpConfigs` is ever called. A future wording
+   *  change in either source string would silently widen this to the generic 502 branch instead of
+   *  409, never the other direction — the safer failure mode for a coupling this loose. */
+  if (reason.includes("authorization expired or was revoked")) {
     return {
       ok: false,
       status: 409,
@@ -156,6 +152,17 @@ async function resolveProbeTarget(deps: ExternalMcpProbeServiceDeps, serverId: s
   return { ok: true, target: { federationConfig: resolved.config, launch: resolved.launch } };
 }
 
+/** Recognizes the probe's supported opaque HTTP and typed MCP authentication failures. */
+function isProbeAuthFailure({ error }: { error: unknown }, _options = {}): boolean {
+  const status = error && typeof error === 'object' ? (error as { status?: unknown; statusCode?: unknown }).status ?? (error as { statusCode?: unknown }).statusCode : undefined;
+  return status === 401 || status === 403 || error instanceof McpAuthFailedError || (error instanceof McpProtocolError && /with HTTP (401|403)$/.test(error.message));
+}
+
+/** Only real Error instances and recognized protocol messages count as timeouts. */
+function isProbeTimeoutFailure({ error }: { error: unknown }, _options = {}): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError' || (error instanceof McpProtocolError && /request (?:timed out|was aborted)/.test(error.message)));
+}
+
 /** Connects once, lists, describes, and closes — the `finally` is the whole safety story for the
  *  outbound session, matching W-002's own framing in the implementation outline. Split out of the
  *  route handler purely to keep it under the shop ceiling.
@@ -169,9 +176,8 @@ async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTa
   } catch (err) {
     // Report the failed connection without logging upstream errors that may contain credentials.
     // Upstream bodies/errors may contain credentials; only the closed category crosses this boundary.
-    const status = err && typeof err === 'object' ? (err as { status?: unknown; statusCode?: unknown }).status ?? (err as { statusCode?: unknown }).statusCode : undefined;
-    const auth = status === 401 || status === 403 || err instanceof McpAuthFailedError || (err instanceof McpProtocolError && /with HTTP (401|403)$/.test(err.message));
-    const timeout = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError' || (err instanceof McpProtocolError && /request (?:timed out|was aborted)/.test(err.message)));
+    const auth = isProbeAuthFailure({ error: err });
+    const timeout = isProbeTimeoutFailure({ error: err });
     return { ok: false, kind: auth ? 'auth' : timeout ? 'timeout' : 'unreachable' };
   } finally {
     await session?.close({}).catch(() => undefined);

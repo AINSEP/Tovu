@@ -18,6 +18,23 @@ interface AdmissionsUnavailable {
   readonly body: { readonly error: string; readonly code: "AGENT_DAEMON_UNAVAILABLE" };
 }
 
+/** Validates the daemon report's array fields and preserves its optional wire shape. */
+function relayAdmissionsReport(
+  { parsed }: { parsed: { connections: unknown; configFailures?: unknown } },
+  _options = {},
+): { readonly ok: true; readonly connections: unknown; readonly configFailures?: unknown } {
+  if (!Array.isArray(parsed.connections) || (parsed.configFailures !== undefined && !Array.isArray(parsed.configFailures))) {
+    throw new Error("invalid admissions report");
+  }
+  // `configFailures` is carried through only when the upstream actually sent it — true verbatim
+  // relay, matching this route's own "treats the body as unknown and relays it VERBATIM" doc, and
+  // what keeps an older daemon build (or a stand-in test double) that predates this field producing
+  // the exact same wire shape it always has, rather than gaining a `configFailures: []` it never sent.
+  return parsed.configFailures !== undefined
+    ? { ok: true, connections: parsed.connections, configFailures: parsed.configFailures }
+    : { ok: true, connections: parsed.connections };
+}
+
 /** Fetches the daemon's admissions report over the same authenticated channel
  *  `assistant-daemon-client.ts` uses (`getAgentDaemonUrl()` + a bearer token read from
  *  `AGENT_DAEMON_TOKEN_ENV_VAR`), collapsing every way that can fail — no token configured, refused
@@ -52,16 +69,7 @@ export async function fetchDaemonAdmissions(options: {
       return { ok: false, body: { error: "the agent daemon could not report what it admitted", code: "AGENT_DAEMON_UNAVAILABLE" } };
     }
     const parsed = (await upstream.json()) as { connections: unknown; configFailures?: unknown };
-    if (!Array.isArray(parsed.connections) || (parsed.configFailures !== undefined && !Array.isArray(parsed.configFailures))) {
-      throw new Error("invalid admissions report");
-    }
-    // `configFailures` is carried through only when the upstream actually sent it — true verbatim
-    // relay, matching this route's own "treats the body as unknown and relays it VERBATIM" doc, and
-    // what keeps an older daemon build (or a stand-in test double) that predates this field producing
-    // the exact same wire shape it always has, rather than gaining a `configFailures: []` it never sent.
-    return parsed.configFailures !== undefined
-      ? { ok: true, connections: parsed.connections, configFailures: parsed.configFailures }
-      : { ok: true, connections: parsed.connections };
+    return relayAdmissionsReport({ parsed });
   } catch {
     // Only fixed metadata is logged; daemon credentials and raw upstream messages stay private.
     // eslint-disable-next-line no-console
