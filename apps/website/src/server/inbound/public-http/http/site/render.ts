@@ -415,17 +415,33 @@ function safeImageSrc(value: JsonValue | undefined): string | null {
   if (typeof value !== "string") return null;
   const src = value.trim();
   const absolute = /^https?:\/\/[^\s/$.?#][^\s]*$/i.test(src);
-  if (!absolute && (!src || /[\s\\]|^[a-z][a-z\d+.-]*:|^\/\//i.test(src))) return null;
-  let parsed: URL;
+  if (!absolute && !isPlainRelativeImageSrc(src)) return null;
+  const parsed = parseImageSrc(src);
+  return parsed && isPublicImageUrl(parsed, absolute) ? src : null;
+}
+
+/** {@link safeImageSrc}'s shape gate for a non-absolute `src`: non-empty, no whitespace or
+ *  backslash, no scheme, not protocol-relative. @complexity O(src.length). */
+function isPlainRelativeImageSrc(src: string): boolean {
+  return src.length > 0 && !/[\s\\]|^[a-z][a-z\d+.-]*:|^\/\//i.test(src);
+}
+
+/** WHATWG-parses `src` against the fixed resolution base; `null` when the parser rejects it. */
+function parseImageSrc(src: string): URL | null {
   try {
-    parsed = new URL(src, SAFE_HREF_RESOLUTION_BASE);
+    return new URL(src, SAFE_HREF_RESOLUTION_BASE);
   } catch {
     return null;
   }
-  if (!absolute && parsed.origin !== SAFE_HREF_RESOLUTION_ORIGIN) return null;
-  if (ADMIN_MEDIA_ORIGINAL_PATH.test(parsed.pathname)) return null;
-  if (parsed.username || parsed.password) return null;
-  return src;
+}
+
+/** {@link safeImageSrc}'s checks on the PARSED URL: a relative `src` must stay on the resolution
+ *  origin (the parser strips leading control characters, so `"\u0001//evil.example"` resolves
+ *  off-site), never the admin original-media route, never credentials. @complexity O(1). */
+function isPublicImageUrl(parsed: URL, absolute: boolean): boolean {
+  if (!absolute && parsed.origin !== SAFE_HREF_RESOLUTION_ORIGIN) return false;
+  if (ADMIN_MEDIA_ORIGINAL_PATH.test(parsed.pathname)) return false;
+  return !parsed.username && !parsed.password;
 }
 
 /**
@@ -649,6 +665,11 @@ const PLAUSIBLE_MEDIA_REF_ID_PATTERN = /^[^\s/]+$/;
 
 function isPlausibleMediaRefId(value: string): boolean {
   return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
+}
+
+/** `value` when it is a string passing {@link isPlausibleMediaRefId}; `undefined` otherwise. */
+function plausibleMediaRefId(value: JsonValue | undefined): string | undefined {
+  return typeof value === "string" && isPlausibleMediaRefId(value) ? value : undefined;
 }
 
 /**
@@ -1416,15 +1437,21 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
   // discipline for an image URL: an allowlist, not a ban. Anything it rejects still degrades to
   // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
   const legacySrc = safeImageSrc(attrs.src);
-  if (legacySrc) {
-    const extras: Record<string, string> = {};
-    for (const name of ["title", "width", "height"]) {
-      const value = attrs[name];
-      if (typeof value === "string" || typeof value === "number") extras[name] = String(value);
-    }
-    return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}"${formatHtmlAttributes(extras)} loading="lazy" />`;
+  if (legacySrc !== null) {
+    return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}"${formatHtmlAttributes(legacyImageExtras(attrs))} loading="lazy" />`;
   }
   return mediaPlaceholder({ label: alt || "Image" });
+}
+
+/** A LEGACY `src`-only image node's optional `title`/`width`/`height`, each kept only when it is a
+ *  string or number (stringified; {@link formatHtmlAttributes} escapes them). @complexity O(1). */
+function legacyImageExtras(attrs: JsonObject): Record<string, string> {
+  const extras: Record<string, string> = {};
+  for (const name of ["title", "width", "height"]) {
+    const value = attrs[name];
+    if (typeof value === "string" || typeof value === "number") extras[name] = String(value);
+  }
+  return extras;
 }
 
 /**
@@ -1470,32 +1497,45 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
 function renderDocMedia(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const alt = typeof attrs.alt === "string" ? attrs.alt : "";
-  const assetId = typeof attrs.assetId === "string" && isPlausibleMediaRefId(attrs.assetId) ? attrs.assetId : undefined;
+  const assetId = plausibleMediaRefId(attrs.assetId);
   if (!assetId) return mediaPlaceholder({ label: alt || "Media" });
 
-  const nodeCssClass = typeof attrs.cssClass === "string" ? attrs.cssClass : null;
-  const nodeHtmlAttributes = typeof attrs.htmlAttributes === "string" ? attrs.htmlAttributes : null;
-
+  const nodeStyle = mediaNodeStyle(attrs);
   const meta = deps.mediaAssetMetadata.get(assetId);
-  if (meta?.contentType?.startsWith("video/")) {
-    return renderVideoTag({
-      urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }),
-      alt,
-      width: meta.width,
-      height: meta.height,
-      cssClass: mediaNodeStyleOverride(nodeCssClass, meta.cssClass),
-      htmlAttributes: mediaNodeStyleOverride(nodeHtmlAttributes, meta.htmlAttributes),
-    });
-  }
+  const player = meta ? renderDocMediaPlayer({ assetId, alt, meta, nodeStyle }) : null;
+  return player ?? tryRenderRefImage(attrs, alt, deps, nodeStyle) ?? mediaPlaceholder({ label: alt || "Media" });
+}
 
-  if (meta?.contentType?.startsWith("audio/")) {
-    return renderVideoTag({ kind: "audio", urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }), alt,
-      width: null, height: null, cssClass: mediaNodeStyleOverride(nodeCssClass, meta.cssClass),
-      htmlAttributes: mediaNodeStyleOverride(nodeHtmlAttributes, meta.htmlAttributes) });
-  }
+/** A `media` node's own `cssClass`/`htmlAttributes` (any string, empty included; `null` otherwise),
+ *  the per-node half of {@link mediaNodeStyleOverride}'s precedence. @complexity O(1). */
+function mediaNodeStyle(attrs: JsonObject): { cssClass: string | null; htmlAttributes: string | null } {
+  return {
+    cssClass: typeof attrs.cssClass === "string" ? attrs.cssClass : null,
+    htmlAttributes: typeof attrs.htmlAttributes === "string" ? attrs.htmlAttributes : null,
+  };
+}
 
-  const refImage = tryRenderRefImage(attrs, alt, deps, { cssClass: nodeCssClass, htmlAttributes: nodeHtmlAttributes });
-  return refImage ?? mediaPlaceholder({ label: alt || "Media" });
+/** {@link renderDocMedia}'s video/audio dispatch on the asset's sniffed `contentType`: a native
+ *  player with the node's style winning per field over the asset's; `null` for every other type
+ *  (the caller then tries the ref image). Audio never carries width/height. @complexity O(n) in the
+ *  winning `htmlAttributes` length (one allowlist parse inside {@link renderVideoTag}). */
+function renderDocMediaPlayer(
+  { assetId, alt, meta, nodeStyle }: {
+    assetId: string;
+    alt: string;
+    meta: MediaAssetRenderMeta;
+    nodeStyle: { cssClass: string | null; htmlAttributes: string | null };
+  },
+): string | null {
+  const style = {
+    urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }),
+    alt,
+    cssClass: mediaNodeStyleOverride(nodeStyle.cssClass, meta.cssClass),
+    htmlAttributes: mediaNodeStyleOverride(nodeStyle.htmlAttributes, meta.htmlAttributes),
+  };
+  if (meta.contentType?.startsWith("video/")) return renderVideoTag({ ...style, width: meta.width, height: meta.height });
+  if (meta.contentType?.startsWith("audio/")) return renderVideoTag({ kind: "audio", ...style, width: null, height: null });
+  return null;
 }
 
 function renderDocYoutube(node: JsonObject): string {
@@ -1580,8 +1620,9 @@ function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefine
   const ir = placementId ? deps.inlineResolved.get(placementId) : undefined;
   const widgetHtml = renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
 
-  const nodeCssClass = typeof attrs.cssClass === "string" && attrs.cssClass ? attrs.cssClass : null;
-  const nodeHtmlAttributes = typeof attrs.htmlAttributes === "string" && attrs.htmlAttributes ? attrs.htmlAttributes : null;
+  // Each field counts only when it is a NON-EMPTY string (`str` maps any other type to "").
+  const nodeCssClass = str(attrs.cssClass) || null;
+  const nodeHtmlAttributes = str(attrs.htmlAttributes) || null;
   if (!nodeCssClass && !nodeHtmlAttributes) return widgetHtml;
 
   const parsedAttributes = resolveEmbedHtmlAttributes(nodeHtmlAttributes);
@@ -1847,39 +1888,85 @@ export function renderHtmlPageBody(
 ): string {
   const postAuthor = options.postAuthor;
   const byline = postAuthor ? postAuthorForContentHeader({ html, post: postAuthor }) : "";
-  return substituteHtmlEmbeds({ html: html, resolve: (ref, occurrence) => {
-    if (!isPageEmbedType({ type: ref.type })) return undefined;
-    // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
-    // current entity to resolve against at all — e.g. the static theme's own `index.html`, whose
-    // `{"type":"content","header":false}` marker names no id because D2's `finishStaticTierDocument`
-    // runs this stage over assembled HTML, not a per-entity render. Leave it exactly as authored
-    // (return `undefined`, `substituteMarkers`' own "leave as written" contract) instead of
-    // degrading to the REQ-28 placeholder, which is the right answer only when an id/slug WAS
-    // named but failed to resolve.
-    if ((ref.type === "content" || ref.type === "post") && ref.id === null && ref.slug === null) return undefined;
-    const lookupKey = (ref as PageHtmlEmbedRef & { placementKey?: string }).placementKey ?? ref.id ?? ref.slug;
-    const resolvedIr = lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined;
-    // Deleted/missing widget ids must not leave raw markers or placeholder markup on the public site.
-    if (ref.type === "widget" && resolvedIr === undefined) return "";
-    const ir = resolvedIr ?? HTML_EMBED_PLACEHOLDER_IR;
-    const formIr = ir.componentId === "contact-form" && ref.mode === "html"
-      ? { ...ir, props: { ...ir.props, mode: "html" } } : ir;
-    // Attach only to the current entity, never to another post explicitly embedded in its template.
-    const isCurrentPost = postAuthor && (ref.id !== null ? ref.id === postAuthor.id : ref.slug === postAuthor.slug);
-    const authorIr = ref.type === "content" && formIr.componentId === "post-content" && isCurrentPost
-      ? { ...formIr, props: { ...formIr.props, postAuthorByline: byline } } : formIr;
-    const currentPost = options.postPresentation;
-    let presented = authorIr;
-    if (currentPost && (ref.type === "content" || ref.type === "post") && authorIr.componentId === "post-content" &&
-        (ref.id !== null ? ref.id === currentPost.id : ref.slug === currentPost.slug)) {
-      const metadata = readMediaAssetMetadata(authorIr.props.mediaAssetMetadata);
-      presented = { ...authorIr, props: { ...authorIr.props, bodyJson: projectPostBody({ post: { ...currentPost, bodyJson: authorIr.props.bodyJson } }, {
-        mediaLookup: ({ ref: mediaRef }) => metadata.get(mediaRef) ?? null,
-        hasPublicTransform: readMediaTransformVersions(authorIr.props.mediaTransformVersions).has("public"),
-      }) as JsonValue } };
-    }
-    return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(presented, ref), ref, occurrence));
-  } });
+  return substituteHtmlEmbeds({ html: html, resolve: (ref, occurrence) =>
+    resolvePageBodyEmbed({ ref, occurrence, resolved, byline }, options) });
+}
+
+type PageBodyRenderOptions = Parameters<typeof renderHtmlPageBody>[2];
+
+/** {@link renderHtmlPageBody}'s per-marker resolution (see that function's doc for the full
+ *  contract): `undefined` leaves the marker as authored, `""` drops it, anything else replaces it.
+ *  @complexity O(1) per marker plus {@link renderWidgetIr}'s own work. */
+function resolvePageBodyEmbed(
+  { ref, occurrence, resolved, byline }: {
+    ref: PageHtmlEmbedRef;
+    occurrence: EmbedOccurrence;
+    resolved: ResolveHtmlPageEmbedsResult | undefined;
+    byline: string;
+  },
+  { postAuthor, postPresentation }: NonNullable<PageBodyRenderOptions> = {},
+): string | undefined {
+  if (!isPageEmbedType({ type: ref.type })) return undefined;
+  // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
+  // current entity to resolve against at all — e.g. the static theme's own `index.html`, whose
+  // `{"type":"content","header":false}` marker names no id because D2's `finishStaticTierDocument`
+  // runs this stage over assembled HTML, not a per-entity render. Leave it exactly as authored
+  // (return `undefined`, `substituteMarkers`' own "leave as written" contract) instead of
+  // degrading to the REQ-28 placeholder, which is the right answer only when an id/slug WAS
+  // named but failed to resolve.
+  if (isPostEntityRef(ref) && ref.id === null && ref.slug === null) return undefined;
+  const resolvedIr = lookupPageEmbedIr(ref, resolved);
+  // Deleted/missing widget ids must not leave raw markers or placeholder markup on the public site.
+  if (ref.type === "widget" && resolvedIr === undefined) return "";
+  const formIr = withHtmlFormMode(resolvedIr ?? HTML_EMBED_PLACEHOLDER_IR, ref);
+  const authorIr = withCurrentPostByline(formIr, { ref, postAuthor, byline });
+  const presented = withPresentedPostBody(authorIr, { ref, post: postPresentation });
+  return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(presented, ref), ref, occurrence));
+}
+
+/** A `"content"` or `"post"` marker — the two types that name a post entity. */
+function isPostEntityRef(ref: PageHtmlEmbedRef): boolean {
+  return ref.type === "content" || ref.type === "post";
+}
+
+/** Whether `ref` names `entity`: by id when the marker carries one, by slug otherwise. */
+function refNamesEntity(ref: PageHtmlEmbedRef, entity: { id: string; slug: string }): boolean {
+  return ref.id !== null ? ref.id === entity.id : ref.slug === entity.slug;
+}
+
+/** The resolved IR for `ref`, keyed the way the resolvers key it: placement key, then id, then slug
+ *  (see {@link renderHtmlPageBody}'s "Lookup key" note). */
+function lookupPageEmbedIr(ref: PageHtmlEmbedRef, resolved: ResolveHtmlPageEmbedsResult | undefined): WidgetRenderIR | undefined {
+  const lookupKey = ref.placementKey ?? ref.id ?? ref.slug;
+  return lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined;
+}
+
+/** A contact form embedded with `"mode":"html"` renders as an HTML-mode form; anything else is
+ *  returned unchanged. */
+function withHtmlFormMode(ir: WidgetRenderIR, ref: PageHtmlEmbedRef): WidgetRenderIR {
+  return ir.componentId === "contact-form" && ref.mode === "html"
+    ? { ...ir, props: { ...ir.props, mode: "html" } } : ir;
+}
+
+/** Puts `byline` on the post-content header of the CURRENT post's `"content"` marker only. */
+function withCurrentPostByline(
+  ir: WidgetRenderIR,
+  { ref, postAuthor, byline }: { ref: PageHtmlEmbedRef; postAuthor: NonNullable<PageBodyRenderOptions>["postAuthor"]; byline: string },
+): WidgetRenderIR {
+  // Attach only to the current entity, never to another post explicitly embedded in its template.
+  if (ref.type !== "content" || ir.componentId !== "post-content" || !postAuthor || !refNamesEntity(ref, postAuthor)) return ir;
+  return { ...ir, props: { ...ir.props, postAuthorByline: byline } };
+}
+
+/** Projects the presented post's body (cover-image handling) into a `"content"`/`"post"` marker that
+ *  names that same post; every other marker is returned unchanged. @complexity O(body size). */
+function withPresentedPostBody(ir: WidgetRenderIR, { ref, post }: { ref: PageHtmlEmbedRef; post: PostRecord | undefined }): WidgetRenderIR {
+  if (!post || !isPostEntityRef(ref) || ir.componentId !== "post-content" || !refNamesEntity(ref, post)) return ir;
+  const metadata = readMediaAssetMetadata(ir.props.mediaAssetMetadata);
+  return { ...ir, props: { ...ir.props, bodyJson: projectPostBody({ post: { ...post, bodyJson: ir.props.bodyJson } }, {
+    mediaLookup: ({ ref: mediaRef }) => metadata.get(mediaRef) ?? null,
+    hasPublicTransform: readMediaTransformVersions(ir.props.mediaTransformVersions).has("public"),
+  }) as JsonValue } };
 }
 
 /**
@@ -2542,8 +2629,8 @@ function normalizeMediaDimensions(props: JsonObject): {
 }
 
 function renderWidgetMediaImage(props: JsonObject): string {
-  const assetId = props.assetId;
-  if (typeof assetId !== "string" || !isPlausibleMediaRefId(assetId)) {
+  const assetId = plausibleMediaRefId(props.assetId);
+  if (!assetId) {
     return renderWidgetPlaceholder();
   }
   const { width, height, cssClass, htmlAttributes, markerAttributes, controls } = normalizeMediaDimensions(props);
@@ -2560,9 +2647,9 @@ function renderWidgetMediaImage(props: JsonObject): string {
     return renderVideoTag({ urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
-  const transformName = props.transformName;
+  const transformName = plausibleMediaRefId(props.transformName);
   const version = props.version;
-  if (typeof transformName !== "string" || typeof version !== "number" || !isPlausibleMediaRefId(transformName)) {
+  if (!transformName || typeof version !== "number") {
     return renderWidgetPlaceholder();
   }
   return renderImageTag({ urlKey, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
@@ -3461,6 +3548,17 @@ export interface RenderSiteRequired {
   liquidTemplateIdOverride?: string;
 }
 
+/** {@link buildSiteRenderContext}'s widget fields: no regions and no inline widgets when the caller
+ *  resolved none. Spread in place so `ctx`'s key order is unchanged. */
+function siteWidgetContext(
+  widgets: RenderSiteRequired["widgets"],
+): Pick<SiteRenderContext, "widgetRegions" | "widgetInlineResolved"> {
+  return {
+    widgetRegions: widgets?.regions ?? {},
+    widgetInlineResolved: widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
+  };
+}
+
 /** {@link renderSite}'s own `ctx` construction, pulled out so the four `??`/`?.` defaulting
  *  expressions are counted once here instead of against the top-level dispatcher's budget. */
 function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext {
@@ -3473,8 +3571,7 @@ function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext
     products: required.products ?? [],
     product: required.product,
     themeName: required.theme?.manifest.name ?? null,
-    widgetRegions: required.widgets?.regions ?? {},
-    widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
+    ...siteWidgetContext(required.widgets),
     mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
     mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
     assignedTerms: required.assignedTerms ?? EMPTY_ASSIGNED_TERMS,
