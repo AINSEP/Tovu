@@ -1571,3 +1571,14 @@ test("R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied", "the run itself must still complete despite the repoint pass failing");
 });
+
+test("TW2 pins a missing packed entity as blocked without a write", async () => {
+  const f = makeHarness();
+  const packed = packedFrom(makePost({ id: "missing-packed" }));
+  const report = await plan(f.publishContentDeps, f.baselineRepo, SOURCE_PRINCIPAL_ID, [packed]);
+  const bundleId = await stage(f.bundleRepo, f.clock, []);
+  const result = await f.applyPort.applyReport({ report, bundleId, principalId: OPERATOR_PRINCIPAL_ID, restorePointId: "restore" });
+  assert.equal(result.report?.rows[0]?.outcome, "blocked");
+  assert.match(result.report?.rows[0]?.reason ?? "", /internal inconsistency/);
+  assert.deepEqual(result.changeSetIds, []);
+});

@@ -49,3 +49,16 @@ test("file review returns changed byte checksums and sizes without leaking conte
   const denied = await buildBackstopPreview({ entities: [{ ...entity, id: ".env" }], backstop, workspaceId: "ws" });
   assert.equal(reads, 0); assert.equal(denied[0].after, null); assert.ok(denied[0].unavailableReason);
 });
+
+test("TW2 pins unavailable ports, covered addresses, read failures and unrelated entities", async () => {
+  const backstop: BackstopPorts = { coveredTables: [], coveredRoots: [] };
+  const file = { ...entity, entityType: "raw-file", id: "extras/page.html", state: { path: "extras/page.html", size: 0, sha256: "digest", mode: 0o644 } };
+  const preview = async (item: PackedEntity, port = backstop) => (await buildBackstopPreview({ entities: [item], backstop: port, workspaceId: "ws" }))[0];
+  assert.equal((await preview(entity)).unavailableReason, "Live row values are not available.");
+  assert.equal((await preview(file)).unavailableReason, "Live file values are not available.");
+  assert.equal((await preview(entity, { ...backstop, coveredTables: ["P_BANNER"] })).unavailableReason, "This table already publishes normally.");
+  assert.equal((await preview(file, { ...backstop, coveredRoots: ["EXTRAS/"] })).unavailableReason, "This file already publishes normally.");
+  const failing = ports(null); failing.rows!.read = unused;
+  assert.equal((await preview(entity, failing)).unavailableReason, "These values could not be inspected safely. Check again before sending.");
+  assert.deepEqual(await buildBackstopPreview({ entities: [{ ...entity, entityType: "post" }], backstop, workspaceId: "ws" }), []);
+});
