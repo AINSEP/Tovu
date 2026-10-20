@@ -1818,3 +1818,93 @@ it("restoring without a recoverable draft leaves the loaded working copy unchang
   expect(result.current.recoverableDraft).toBeNull();
   expect(port.updatePostCalls).toEqual([]);
 });
+
+describe("usePostEditor — remaining boundaries", () => {
+  it("handleFilePaste skips a file whose upload fails and still inserts the others", async () => {
+    let call = 0;
+    const port = createFakePostEditorPort({ post: POST });
+    port.uploadMedia = vi.fn(async () => {
+      call += 1;
+      if (call === 1) throw new Error("first upload failed");
+      return { media: UPLOADED_MEDIA };
+    });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    const editor = result.current.editor!;
+    const bad = new File(["bytes"], "bad.png", { type: "image/png" });
+    const good = new File(["bytes"], "good.png", { type: "image/png" });
+
+    handleFilePaste(port, editor, [bad, good]);
+
+    await waitFor(() => expect(port.uploadMedia).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
+      const inserted = json.content?.filter((node) => node.type === "media") ?? [];
+      expect(inserted.map((node) => node.attrs?.alt)).toEqual(["good.png"]);
+    });
+  });
+
+  it("a key other than Escape leaves the expanded preview open", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+    act(() => result.current.setView("preview"));
+    act(() => result.current.togglePreviewExpanded());
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    });
+
+    expect(result.current.previewExpanded).toBe(true);
+  });
+
+  it("a save that fails before any row has loaded reports the error and parks no local backup", async () => {
+    const port = createFakePostEditorPort({ post: POST, getPostError: "boom" });
+    port.updatePost = async () => { throw new ApiError("session expired", 401); };
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.error).toBe("boom"));
+
+    await act(async () => { await result.current.save(); });
+
+    expect(result.current.error).toBe("session expired");
+    expect(result.current.post).toBeNull();
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("restoring a parked draft whose author is null clears the byline name and keeps the loaded toggle", async () => {
+    const autosave = {
+      bodyFormat: "doc" as const, bodyJson: POST.bodyJson, title: POST.title, slug: POST.slug,
+      baseVersion: POST.version, savedAt: "2026-10-09T01:00:00Z", savedByPrincipalId: "fake-principal", author: null,
+    };
+    const port = createFakePostEditorPort({ post: { ...POST, author: "admin", showAuthor: true }, autosave });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+    await waitFor(() => expect(result.current.author).toBe("admin"));
+
+    act(() => result.current.restoreRecoveredDraft());
+
+    expect(result.current.author).toBe("");
+    expect(result.current.showAuthor).toBe(true);
+    expect(result.current.recoverableDraft).toBeNull();
+  });
+
+  it("a settling save keeps a showAuthor toggle made while it was in flight", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const update = port.updatePost.bind(port);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    port.updatePost = async (target, patch) => { await gate; return update(target, patch); };
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setShowAuthor(true));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.save(); });
+    act(() => result.current.setShowAuthor(false));
+
+    await act(async () => { release(); await pending; });
+
+    expect(port.post.showAuthor).toBe(true);
+    expect(result.current.showAuthor).toBe(false);
+    expect(result.current.dirty).toBe(true);
+  });
+});
