@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE A — Jini G1–G5 + G1b + G5b + G6-vault-kind merged; Tovu G7 + G8 merged; G6 fixed, G6b wiring running (07:25Z). Next: G6 merge → G9 + G10 (parallel) → G11/G12/G13 → G14.
+Status: PHASE A — G1–G8 + G1b/G5b/G6b merged. G9 (neutrality proof) + G10 (plugin skeleton) + G7fix (process-root-parity harness) running since ~08:20Z. Next: G11/G12/G13 after G10; G14 last.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -33,12 +33,15 @@ Status: PHASE A — Jini G1–G5 + G1b + G5b + G6-vault-kind merged; Tovu G7 + G
 | G3 | MERGED | cloud/google-workspace-G3 (Jini) | 00a1b4cb | @jini-ai/oauth/loopback-receiver; oauth suite 313/313; cx max 9; 1 RED survivor (!consumed gap guard) → phase C |
 | G4 | MERGED | cloud/google-workspace-G4 (Jini) | pushed | agent-plugins/lifecycle/tools; 16 tests + 7 char pins; cx ≤9; plugins suite 442/443 — the 1 failure (install.unit 'lock creation rethrows faults') is env (runs as root), untouched file |
 | G5 | MERGED | cloud/google-workspace-G5 (Jini) | pushed | agent-plugins/admin-surfaces (+/client); 70 tests; 31 RED checks; cx ≤9 |
-| G6 | fix pushed (386d1db0c: fresh 0020 bootstrap op, 0020 now re-creates dropped MCP-identity trigger + pin, vendor wording); G6b WIRING running | cloud/google-workspace-G6 | — | G6b: adapt to G1b/G5b, wire service/connect deps/public callback, executable-tool host ports, admin-surface handler host. 12 real-Postgres tests not runnable here; postgres-baseline publish_history text-vs-jsonb fails on base too. |
+| G6 | MERGED bd7911055 (incl. G6b wiring) | cloud/google-workspace-G6 (6ed229ec7) | bd7911055 | G6b: clientKind, fenced install (workaround removed), unique vault labels, desktop loopback http allowed desktop-only (real bug found), composition in deps/app/agent-plugin-connections.ts, callback GET /api/agent-plugins/connections/oauth/callback, executable-tool host ports + G5b handler host wired; one 240/min limiter profile (plugin budgets TODO). Coord verify: 94 tests pass (forms-admin base fail only), root tsc/typecheck:tests 0, inventory OK, boundaries 1070 (=post-G8), cx unchanged vs base on touched fns, vendor clean. Coverage (subagent): handlers 100/71/80, agent-plugin-connections 100/64/100, host 99/78/95 (phase C). G6b subagent hit 307k tokens (over the 300k ceiling — recorded). Untracked test artifacts (chat.db, sites/tovu-dev/agent-plugins/) left in wt-G6. |
 | G7 | MERGED 3987044d4 | cloud/google-workspace-G7 (c951d4204 fix: daemon-catalog test harness binds surfaceExchanges) | 3987044d4 | importers 643/643, root tsc 0, typecheck:tests 0, inventory OK, boundaries 1069=base, architecture same 3 hard fails as base (API surface 660→661). Coord coverage: register 87.7/80/87.5, approval 79.7/66.7/100, host-capabilities 78.5/90/90 (phase C). cx: new ≤9; touched pre-existing fns unchanged vs base. |
 | G8 | MERGED 02c8b43ce | cloud/google-workspace-G8 (fixes f64cf5e3c route pin, d8cc64d43 i18n 21 locales, ec280be35 non-array listing) | 02c8b43ce | website importers 104/105 (forms-admin route pin = base failure), admin plugins+assistant 396/396, AgentPlugins 12/12, root+admin tsc 0, cx ≤7, vendor clean; boundaries 1070 (+1: new test deep-imports platform/site-dir test helper, same as existing tests — phase B), architecture API surface →663. |
 | G1b | MERGED (Jini 3f0cfe90) | cloud/google-workspace-G1b (549d7d87) | 3f0cfe90 | fenced token-store install() (no lease) for install/stageSwitch; explicit clientKind dep; vault label=key (fixed G2 bug: staged switch always collided). api-connections 60 tests pass, tsc no new errors, guard 26, cx clean. |
 | G5b | MERGED (Jini b633dd94) | cloud/google-workspace-G5b (ca28a268) | b633dd94 | createAdminSurfaceHandlerHost + defineAdminSurfaceHandlerContribution (same trust gate as G4). agent-plugins 49 files pass, tsc 0, guard 26; added lifecycle/contribution-loader.ts + tools/capabilities.ts to jini.isolation.shared (no runtime imports; accepted, phase B review). Jini integrations + agent-plugins rebuilt 07:20. |
-| G9–G16 | pending | | | |
+| G7fix | running | cloud/google-workspace-G7fix | | process-root-parity 'surfaceExchanges is not defined' (G7 harness gap; 7/7 on base) — branch currently RED on this one test |
+| G9 | running | cloud/google-workspace-G9 (both) | | |
+| G10 | running | cloud/google-workspace-G10 | | |
+| G11–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
 (phase C)
@@ -64,6 +67,8 @@ pending (G9)
 - G8: plugin surface frame tab, CSP 'self' module scripts inside sandboxed frame, frame height, both status messages.
 
 ## Problems
+- Known base failures (also fail on origin/restructure/apps-website-phased): route-modules 'forms-admin'; commerce-strip-parity (2); postgres-baseline publish_history text-vs-jsonb; real-Postgres tests not runnable in the container.
+- Several subagents ran past the 200k hand-off point (G6 280k, G7 276k, G6b 307k > ceiling).
 - Resume: `git pull --rebase` flattened the Jini G6 merge commit into a linear commit (7846710b); coordinator now uses `git pull --rebase=merges` and so do subagents.
 
 ## Next
