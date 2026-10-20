@@ -196,3 +196,69 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
   });
 
 }
+
+/** One sqlite seed footer whose items walk every repair branch; the stored JSON is pinned byte for byte. */
+async function repairOneSeedFooter(items: readonly unknown[]): Promise<{ converted: number; docJson: string; version: number }> {
+  const kernel = freshSqliteContentKernel();
+  try {
+    await seedWorkspaces(kernel, ["ws"]);
+    await kernel.run(db => db.insertInto("posts").values((["about", "faq"] as const).map((slug) => ({
+      id: `${slug}-page`, workspace_id: "ws", title: slug, slug, kind: "page", status: "published",
+      body_json: "{}", body_html: null, updated_at: "2026-10-04", version: 1, seo_ext_json: null, deleted_at: null,
+      template_choice: null, overrides_theme_page: null, member_access_json: null, autosave_json: null,
+      created_by_principal_id: null, created_at: null,
+    }))).execute());
+    await kernel.run(db => db.insertInto("menus").values({
+      id: "menu-footer-nav", workspace_id: "ws", slug: "footer-nav", title: "Footer", status: "published",
+      doc_json: JSON.stringify({ type: "menu", version: 1, items }), locations_json: "[]", updated_at: "2026-10-04", version: 1,
+    }).execute());
+    const { converted } = await migrateFooterPageLinks({ kernel }, { now: () => "2026-10-17T12:00:00.000Z" });
+    const row = await kernel.run(db => db.selectFrom("menus").select(["doc_json", "version"]).where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow());
+    return { converted, docJson: row.doc_json, version: row.version };
+  } finally { await kernel.close(); }
+}
+
+const UNTOUCHED_ITEMS = [
+  { id: "menu-item-1", label: "About", target: { kind: "url", href: "/faq" } },
+  { id: "menu-item-2", label: "Contact", target: { kind: "url", href: "/contact" } },
+  { id: "menu-item-4", label: "Not FAQ", target: { kind: "url", href: "/faq" } },
+  { id: "authored", label: "About", target: { kind: "url", href: "/about" } },
+  { id: "menu-item-about", label: "About", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/kept" } },
+  { id: "menu-item-docs", label: "Docs", target: { kind: "entryRef", entryId: "not-a-page" } },
+  { id: "menu-item-articles", label: "Articles", target: { kind: "route", route: "home" } },
+  { id: "menu-item-5", target: { kind: "url", href: "/terms-of-service" } },
+];
+
+test("footer repair leaves every author-owned or unmatched item byte-identical and writes nothing", async () => {
+  const result = await repairOneSeedFooter(UNTOUCHED_ITEMS);
+  assert.deepEqual(result, { converted: 0, docJson: JSON.stringify({ type: "menu", version: 1, items: UNTOUCHED_ITEMS }), version: 1 });
+});
+
+test("footer repair converts each repairable seed shape, recursing into children, in stored key order", async () => {
+  const result = await repairOneSeedFooter([
+    { id: "menu-item-1", label: "About", attrs: { cssClass: "x" }, target: { kind: "url", href: "/about" }, children: [] },
+    { id: "menu-item-4", label: "FAQ", target: { kind: "entryRef", entryId: "faq-page", entryType: "page", extra: "dropped" } },
+    { id: "menu-item-about", label: "About", target: { kind: "entryRef", entryId: "about-page", entryType: "post", lastKnownHref: "/snapshot" } },
+    { target: { kind: "url", href: "/" }, id: "parent", children: [
+      { id: "menu-item-about", label: "About", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "" } },
+    ] },
+  ]);
+  assert.equal(result.converted, 4);
+  assert.equal(result.version, 2);
+  assert.equal(result.docJson, JSON.stringify({ type: "menu", version: 1, items: [
+    { id: "menu-item-1", label: "About", attrs: { cssClass: "x" }, target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/about" }, children: [] },
+    { id: "menu-item-4", label: "FAQ", target: { kind: "entryRef", entryId: "faq-page", entryType: "page", lastKnownHref: "/faq" } },
+    { id: "menu-item-about", label: "About", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/snapshot" } },
+    { target: { kind: "url", href: "/" }, id: "parent", children: [
+      { id: "menu-item-about", label: "About", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/about" } },
+    ] },
+  ] }));
+});
+
+test("an unlabelled item whose id is an Object.prototype key is treated as a seed (reported, not fixed)", async () => {
+  const result = await repairOneSeedFooter([{ id: "constructor", target: { kind: "entryRef", entryId: "about-page" } }]);
+  assert.equal(result.converted, 1);
+  assert.equal(result.docJson, JSON.stringify({ type: "menu", version: 1, items: [
+    { id: "constructor", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/about" } },
+  ] }));
+});

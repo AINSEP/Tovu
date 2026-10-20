@@ -117,10 +117,55 @@ export const contributeMenusPublish = (): PublishContentContributor =>
     extend: ({ deps }) => menuReferenceMethods(deps),
   });
 
+type RepointOutcome =
+  | { kind: "written"; changeSetId: string; count: number }
+  | { kind: "not-updated"; message: string }
+  | { kind: "no-op" };
+
+/** Every port `repointReferences()` writes through. */
+interface RepointPorts {
+  menuRepo: MenuRepoPort;
+  changeSets: ChangeSetRepoPort;
+  authorize: AuthorizeFn;
+  outbox: OutboxPort;
+}
+
+interface RepointMenuInput extends RepointPorts {
+  menuId: string;
+  replacementByOldId: ReadonlyMap<string, MenuRepointReplacement>;
+  principalId: string;
+  runId: string;
+}
+
+const MAX_REPOINT_ATTEMPTS = 2;
+
+/** The ports `repointReferences()` needs, or one wiring error naming all of them. @complexity O(1). */
+function requireRepointPorts(deps: PublishContentDeps): RepointPorts {
+  const menuRepo = deps.ports.menu?.repo;
+  const { changeSets, authorize, outbox } = deps;
+  if (!menuRepo || !changeSets || !authorize || !outbox) {
+    throw new Error(
+      "publish-content: menu.repointReferences() requires PublishContentDeps.ports.menu.repo, " +
+        ".changeSets, .authorize and .outbox — wire them from the real apply-loop composition root " +
+        "(features/publish-content/apply-loop.ts)."
+    );
+  }
+  return { menuRepo, changeSets, authorize, outbox };
+}
+
+/** The operator-facing {@link RepointResult.notUpdated} line for a failed final attempt; any other error is rethrown. */
+function notUpdatedOutcome({ err, menu }: { err: unknown; menu: NavMenuEntry }): RepointOutcome {
+  if (err instanceof MenuConflictError) {
+    return { kind: "not-updated", message: `Menu '${menu.title}' was not updated: it changed during publish.` };
+  }
+  if (err instanceof ForbiddenError) {
+    return { kind: "not-updated", message: "Menu links were not updated: this publishing grant doesn't cover menus." };
+  }
+  throw err; // a genuine fault — never swallowed
+}
+
 /** R3 (`plan-publish-repoint-menus-2026-09-24.md`): find and repoint menu links to retired rows. */
 function menuReferenceMethods(deps: PublishContentDeps) {
-  const entityType = "menu";
-
   /**
    * R3 (`plan-publish-repoint-menus-2026-09-24.md` §2.1/§2.2) — read-only: every live menu with at
    * least one item, at any depth, whose `entryRef.entryId` is one of `ids`. Delegates the tree walk
@@ -164,21 +209,12 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     principalId: string;
     runId: string;
   }): Promise<RepointResult> {
-    const menuRepo = deps.ports.menu?.repo;
-    const { changeSets, authorize, outbox } = deps;
-    if (!menuRepo || !changeSets || !authorize || !outbox) {
-      throw new Error(
-        `publish-content: ${entityType}.repointReferences() requires PublishContentDeps.ports.menu.repo, ` +
-          ".changeSets, .authorize and .outbox — wire them from the real apply-loop composition root " +
-          "(features/publish-content/apply-loop.ts)."
-      );
-    }
-
+    const ports = requireRepointPorts(deps);
     const replacementByOldId = new Map<string, MenuRepointReplacement>(
       input.replacements.map((replacement) => [replacement.oldId, { newId: replacement.newId, entityType: replacement.entityType }] as const)
     );
 
-    const menus = await menuRepo.list({ workspaceId: deps.workspaceId });
+    const menus = await ports.menuRepo.list({ workspaceId: deps.workspaceId });
     const changeSetIds: string[] = [];
     let linksUpdated = 0;
     const notUpdated: string[] = [];
@@ -188,10 +224,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
       if (repointMenuItems(menu.doc.items, replacementByOldId).count === 0) continue;
 
       const outcome = await repointOneMenu({
-        menuRepo,
-        changeSets,
-        authorize,
-        outbox,
+        ...ports,
         menuId: menu.id,
         replacementByOldId,
         principalId: input.principalId,
@@ -225,83 +258,78 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * @complexity O(1) repo calls per attempt (bounded at 2 attempts) plus `repointMenuItems`'s own O(n)
    * tree walk (n = this one menu's item count) and `executeCommand`'s own cost.
    */
-  async function repointOneMenu(input: {
-    menuRepo: MenuRepoPort;
-    changeSets: ChangeSetRepoPort;
-    authorize: AuthorizeFn;
-    outbox: OutboxPort;
-    menuId: string;
-    replacementByOldId: ReadonlyMap<string, MenuRepointReplacement>;
-    principalId: string;
-    runId: string;
-  }): Promise<
-    { kind: "written"; changeSetId: string; count: number } | { kind: "not-updated"; message: string } | { kind: "no-op" }
-  > {
-    const MAX_ATTEMPTS = 2;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      const menu = await input.menuRepo.findById({ workspaceId: deps.workspaceId, id: input.menuId });
-      if (!menu) return { kind: "no-op" }; // vanished since the snapshot — nothing left to repoint
+  async function repointOneMenu(
+    input: RepointMenuInput,
+    { attemptsLeft = MAX_REPOINT_ATTEMPTS }: { attemptsLeft?: number } = {},
+  ): Promise<RepointOutcome> {
+    const menu = await input.menuRepo.findById({ workspaceId: deps.workspaceId, id: input.menuId });
+    if (!menu) return { kind: "no-op" }; // vanished since the snapshot — nothing left to repoint
 
-      const repointed = repointMenuItems(menu.doc.items, input.replacementByOldId);
-      if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
+    const repointed = repointMenuItems(menu.doc.items, input.replacementByOldId);
+    if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
 
-      const writeDeps = { repo: input.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: input.outbox };
-      // The version `execute` wrote, so `rollback` can put the prior tree back under OCC.
-      let writtenVersion: number | null = null;
-      try {
-        const { changeSetId } = await executeCommand({
-          deps: { clock: deps.clock, idGen: deps.idGen, changeSets: input.changeSets, outbox: input.outbox, authorize: input.authorize },
-          command: {
-            workspaceId: deps.workspaceId,
-            actor: { id: input.principalId, kind: "user" },
-            summary: `Repoint menu '${menu.title}' links after publish run ${input.runId}`,
-            permission: "admin.menus.update",
-            idempotencyKey: `publish-content:v1:repoint:${input.runId}:${menu.id}`,
-          },
-          mutation: {
-            entityType: "menu",
-            entityId: menu.id,
-            operation: "update",
-            captureInverse: async () => ({ items: menu.doc.items } as unknown as JsonObject),
-            execute: async () => {
-              const written = await updateMenuTree({
-                deps: writeDeps,
-                input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: menu.version, items: repointed.items },
-              });
-              writtenVersion = written.menu.version;
-              return written;
-            },
-            captureEntityVersion: ({ result }) => result.menu.version,
-            // Compensating undo when the change-set record fails AFTER the write landed (INV-01: no
-            // mutation without a record) — same role as `retire()`'s `rollback` in
-            // `features/post/publish-content.ts`. Without it the menu stays repointed with no History
-            // entry to revert, while the caller reports the links as not updated.
-            rollback: async () => {
-              if (writtenVersion === null) return;
-              await updateMenuTree({
-                deps: writeDeps,
-                input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: writtenVersion, items: menu.doc.items },
-              });
-            },
-          },
-        });
-        return { kind: "written", changeSetId, count: repointed.count };
-      } catch (err) {
-        if (err instanceof MenuConflictError) {
-          if (attempt >= MAX_ATTEMPTS) {
-            return { kind: "not-updated", message: `Menu '${menu.title}' was not updated: it changed during publish.` };
-          }
-          continue; // one retry, against a fresh read at the top of the loop
-        }
-        if (err instanceof ForbiddenError) {
-          return { kind: "not-updated", message: "Menu links were not updated: this publishing grant doesn't cover menus." };
-        }
-        throw err; // a genuine fault — never swallowed
+    try {
+      const changeSetId = await writeRepointedMenu({ input, menu, items: repointed.items });
+      return { kind: "written", changeSetId, count: repointed.count };
+    } catch (err) {
+      if (err instanceof MenuConflictError && attemptsLeft > 1) {
+        return repointOneMenu(input, { attemptsLeft: attemptsLeft - 1 }); // one retry, against a fresh read
       }
+      return notUpdatedOutcome({ err, menu });
     }
-    // Unreachable: the loop above always returns within MAX_ATTEMPTS iterations. Kept for TypeScript's
-    // control-flow analysis, which cannot see that the last iteration always returns or continues.
-    throw new Error("publish-content: menu.repointOneMenu() exhausted its retry loop without returning");
+  }
+
+  /**
+   * Writes `items` over `menu` through `updateMenuTree`, inside `executeCommand` so the write is one
+   * revertible, audited change set; resolves to that change set's id.
+   * @complexity O(1) repo calls plus `executeCommand`'s own cost.
+   */
+  async function writeRepointedMenu({ input, menu, items }: {
+    input: RepointMenuInput;
+    menu: NavMenuEntry;
+    items: NavMenuDoc["items"];
+  }): Promise<string> {
+    const writeDeps = { repo: input.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: input.outbox };
+    // The version `execute` wrote, so `rollback` can put the prior tree back under OCC. The gateway
+    // calls `rollback` only after `execute` has resolved (`CommandMutation.rollback`'s contract), so
+    // this is always assigned by then.
+    let writtenVersion: number;
+    const { changeSetId } = await executeCommand({
+      deps: { clock: deps.clock, idGen: deps.idGen, changeSets: input.changeSets, outbox: input.outbox, authorize: input.authorize },
+      command: {
+        workspaceId: deps.workspaceId,
+        actor: { id: input.principalId, kind: "user" },
+        summary: `Repoint menu '${menu.title}' links after publish run ${input.runId}`,
+        permission: "admin.menus.update",
+        idempotencyKey: `publish-content:v1:repoint:${input.runId}:${menu.id}`,
+      },
+      mutation: {
+        entityType: "menu",
+        entityId: menu.id,
+        operation: "update",
+        captureInverse: async () => ({ items: menu.doc.items } as unknown as JsonObject),
+        execute: async () => {
+          const written = await updateMenuTree({
+            deps: writeDeps,
+            input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: menu.version, items },
+          });
+          writtenVersion = written.menu.version;
+          return written;
+        },
+        captureEntityVersion: ({ result }) => result.menu.version,
+        // Compensating undo when the change-set record fails AFTER the write landed (INV-01: no
+        // mutation without a record) — same role as `retire()`'s `rollback` in
+        // `features/post/publish-content.ts`. Without it the menu stays repointed with no History
+        // entry to revert, while the caller reports the links as not updated.
+        rollback: async () => {
+          await updateMenuTree({
+            deps: writeDeps,
+            input: { workspaceId: deps.workspaceId, id: menu.id, expectedVersion: writtenVersion, items: menu.doc.items },
+          });
+        },
+      },
+    });
+    return changeSetId;
   }
 
   return { referencesTo, repointReferences };
