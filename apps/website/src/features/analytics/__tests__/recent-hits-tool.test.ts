@@ -94,3 +94,50 @@ test("the analytics contributor builds its read-only recent-hits tool with the s
     deviceClass: "desktop", browserFamily: "Firefox", eventName: "click",
   }] });
 });
+
+test("recent-hit validation rejects each invalid option before authorization or reading", async () => {
+  const { deps, tool } = harness();
+  deps.authorize = async () => assert.fail("invalid options must not authorize");
+  deps.analyticsSink.list = async () => assert.fail("invalid options must not read");
+  const cases: Array<{ input: unknown; message: string }> = [
+    { input: { limit: "5" }, message: "limit must be a finite integer." },
+    { input: { limit: null }, message: "limit must be a finite integer." },
+    { input: { limit: NaN }, message: "limit must be a finite integer." },
+    { input: { limit: Infinity }, message: "limit must be a finite integer." },
+    { input: { limit: -Infinity }, message: "limit must be a finite integer." },
+    { input: { limit: 1.5 }, message: "limit must be a finite integer." },
+    { input: { path: null }, message: "path must be a string." },
+    { input: { path: 1 }, message: "path must be a string." },
+    { input: { summarize: null }, message: "summarize must be a boolean." },
+    { input: { summarize: "true" }, message: "summarize must be a boolean." },
+    { input: { limit: "bad", path: 1, summarize: 1 }, message: "limit must be a finite integer." },
+    { input: { path: 1, summarize: 1 }, message: "path must be a string." },
+  ];
+  for (const { input, message } of cases) {
+    await assert.rejects(() => tool.handler(ctx(input)), { name: "ToolInputError", message: `analytics_list_recent_hits: ${message}` });
+  }
+});
+
+test("valid options preserve defaulting, clamping, empty paths and explicit summary booleans", async () => {
+  const { deps, tool } = harness();
+  const reads: Array<{ limit?: number } | undefined> = [];
+  deps.analyticsSink.list = async input => { reads.push(input); return []; };
+  for (const input of [{}, { limit: undefined, path: undefined, summarize: undefined }, { limit: -10, path: "", summarize: false }, { limit: 501, path: "/a", summarize: true }]) {
+    const result = await tool.handler(ctx(input));
+    const expected = input.summarize
+      ? { hits: [], summary: { hits: 0, byPath: [], byReferrerHost: [], byDeviceClass: {} } }
+      : { hits: [] };
+    assert.deepEqual(result, expected);
+  }
+  assert.deepEqual(reads, [{ limit: 100 }, { limit: 100 }, { limit: 1 }, { limit: 500 }]);
+});
+
+test("recent-hit reads await authorization and propagate unclassified sink failures unchanged", async () => {
+  const { deps, tool } = harness();
+  const calls: string[] = [];
+  deps.authorize = async () => { calls.push("authorize"); return { allowed: true, reason: "fixture grant" }; };
+  const failure = new Error("sink unavailable");
+  deps.analyticsSink.list = async () => { calls.push("read"); throw failure; };
+  await assert.rejects(() => tool.handler(ctx()), error => error === failure);
+  assert.deepEqual(calls, ["authorize", "read"]);
+});

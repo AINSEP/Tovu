@@ -29,6 +29,17 @@ function topTen(values: Array<string | null>) {
   return [...counts].sort(([a, ac], [b, bc]) => bc - ac || (a ?? "").localeCompare(b ?? "")).slice(0, 10);
 }
 
+function validateRecentHitsOptions(
+  { input }: { input: Record<string, unknown> },
+  _options: Record<string, never> = {},
+): number {
+  const requested = input.limit === undefined ? 100 : input.limit;
+  if (typeof requested !== "number" || !Number.isFinite(requested) || !Number.isInteger(requested)) throw new ToolInputError({ message: "analytics_list_recent_hits: limit must be a finite integer." });
+  if (input.path !== undefined && typeof input.path !== "string") throw new ToolInputError({ message: "analytics_list_recent_hits: path must be a string." });
+  if (input.summarize !== undefined && typeof input.summarize !== "boolean") throw new ToolInputError({ message: "analytics_list_recent_hits: summarize must be a boolean." });
+  return requested;
+}
+
 /** Returns a bounded recent window and optional summary of that exact filtered window.
  * @throws {ToolInputError} For invalid options or denied analytics.read; sink failures propagate.
  * @example buildAnalyticsRegistrations(deps)[0].handler(ctx)
@@ -38,10 +49,7 @@ export function buildAnalyticsRegistrations(deps: AnalyticsToolDeps): ToolRegist
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "analytics", catalogModule: "features/analytics/agent-tools.ts", catalog: indexCatalogById({ catalog: analyticsAgentToolCatalog }), derivedRisk: analyticsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     analytics_list_recent_hits: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      const requested = input.limit === undefined ? 100 : input.limit;
-      if (typeof requested !== "number" || !Number.isFinite(requested) || !Number.isInteger(requested)) throw new ToolInputError({ message: "analytics_list_recent_hits: limit must be a finite integer." });
-      if (input.path !== undefined && typeof input.path !== "string") throw new ToolInputError({ message: "analytics_list_recent_hits: path must be a string." });
-      if (input.summarize !== undefined && typeof input.summarize !== "boolean") throw new ToolInputError({ message: "analytics_list_recent_hits: summarize must be a boolean." });
+      const requested = validateRecentHitsOptions({ input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "analytics.read" }, { entityType: "analytics-hit" });
       const window = await deps.analyticsSink.list({ limit: Math.max(1, Math.min(500, requested)) });
       const hits = window.filter(hit => input.path === undefined || hit.path === input.path).map(safeHit);
