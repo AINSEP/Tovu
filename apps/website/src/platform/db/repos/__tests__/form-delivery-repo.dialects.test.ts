@@ -55,6 +55,30 @@ describeEachDialect(
       assert.deepEqual(replayA, a, "workspace A still reads its own stored plan");
     });
 
+    /** Each job row of `workspaceId`: id, outbox status, last error and the frozen answers. */
+    const jobRows = async (ctx: { kernel: ContentKernel }, workspaceId: string) =>
+      (await ctx.kernel.run(db => db.selectFrom("outbox_events").select(["id", "status", "last_error", "event_json"]).where("workspace_id", "=", workspaceId).orderBy("id").execute()))
+        .map(row => [row.id, row.status, row.last_error, (JSON.parse(row.event_json) as { payload: { snapshot: { submission: { answers: unknown } } } }).payload.snapshot.submission.answers]);
+
+    test("a purged submission's jobs lose their answers and the unfinished ones fail, in its own workspace only", async () => {
+      const ctx = make();
+      await plan(ctx, "wa", ["b1", "b2"]);
+      await plan(ctx, "wb", ["b3"]);
+      await ctx.outbox.markDelivered({ id: "wa-job-1" });
+      await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
+      assert.deepEqual(await jobRows(ctx, "wa"), [["wa-job-1", "delivered", null, {}], ["wa-job-2", "failed", "delivery-failed", {}]]);
+      assert.deepEqual(await jobRows(ctx, "wb"), [["wb-job-1", "pending", null, { email: "a@example.com" }]], "the same submission id in another workspace is untouched");
+    });
+
+    test("a purged form scrubs the jobs of every submission planned for it", async () => {
+      const ctx = make();
+      await plan(ctx, "wa", ["b1"]);
+      await plan(ctx, "wb", ["b3"]);
+      await ctx.repo.scrubPurged({ workspaceId: "wb", purged: { formId: "form-wb" } });
+      assert.deepEqual(await jobRows(ctx, "wb"), [["wb-job-1", "failed", "delivery-failed", {}]]);
+      assert.deepEqual(await jobRows(ctx, "wa"), [["wa-job-1", "pending", null, { email: "a@example.com" }]]);
+    });
+
     test("status reads for workspace B list only workspace B's jobs", async () => {
       const ctx = make();
       await plan(ctx, "wa", ["b1"]);

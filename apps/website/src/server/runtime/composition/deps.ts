@@ -1519,7 +1519,12 @@ async function composeSiteRouteDeps(
   const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: kernel, workspaceId });
   const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId });
   const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
+  // Built here (stateless over `kernel`) because a form or submission purge scrubs its frozen
+  // delivery jobs; the delivery wiring further down reuses the same instance.
+  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
   const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
+    ["form_submission", { afterPurge: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: { submissionId: entityId } }) }],
+    ["form", { afterPurge: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: { formId: entityId } }) }],
     [
       "widget",
       {
@@ -2624,7 +2629,6 @@ async function composeSiteRouteDeps(
   // Durable delivery of each new submission to the `core.forms/deliveryBindings` destinations: one
   // outbox child job per binding, its credential resolved fresh per attempt, status read back from
   // the same rows. The integrations module starts the subscriptions once per bus.
-  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
   routeDeps.formDeliveryStatus = formDeliveryRepo;
   routeDeps.formDelivery = composeFormDelivery({
     bus, plans: formDeliveryRepo, settingsRepo, idGen, clock,
