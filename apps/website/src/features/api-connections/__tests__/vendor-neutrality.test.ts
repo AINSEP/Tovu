@@ -41,13 +41,19 @@ const SEAMS = [
 ];
 
 /**
- * Lines that predate the feature and use "picker" as the plain English word for a UI list of tools
- * (not the provider's file picker). Matched by exact text, so any NEW hit, even in this file, still
- * fails; an entry whose line is reworded makes the test fail until the entry is removed.
+ * Lines that may name the vocabulary, matched by exact text, so any NEW hit, even in this file, still
+ * fails; an entry whose line is reworded makes the test fail until the entry is removed:
+ * - `federate-mcp.ts` predates the feature and uses "picker" as the plain English word for a UI list
+ *   of tools (not the provider's file picker);
+ * - `bundled-inactive-gating.integration.test.ts` pins which BUNDLED plugins ship switched off, so it
+ *   must name the bundled plugin's id; that names a plugin, not provider behaviour in the seam.
  */
 const ALLOWED = new Set([
   'apps/website/src/features/agent-plugins/federate-mcp.ts: * like an operator-typed one: the same allowlist/"may write" tool picker, the same enable toggle,',
   "apps/website/src/features/agent-plugins/federate-mcp.ts: *    execution. The operator ticks tools in Settings → External MCP's picker, which already lets",
+  'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    // google-workspace (2026-10-20) ships disabled until its products and sign-in are reviewed.',
+  'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    assert.deepEqual([...bundledIds].sort(), ["composio", "google-workspace", "higgsfield-media", "jev", "site-compliance", "supabase"]);',
+  'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    for (const expected of ["supabase", "google-workspace"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);',
 ]);
 
 /** Every scannable file under `target` (a file or a folder), skipping installs and build output. */
