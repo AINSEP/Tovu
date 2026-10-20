@@ -126,7 +126,7 @@ function resolveMediaTree({ root, visit }: { root: DefaultTreeAdapterMap['docume
     }
     if ('tagName' in node) {
       elements.push(node);
-      for (const child of node.childNodes) stack.push({ node: child, parent: node });
+      node.childNodes.forEach(child => stack.push({ node: child, parent: node }));
     }
   }
   pruneMediaChildren({ elements, dropped });
