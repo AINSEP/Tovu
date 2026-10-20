@@ -61,6 +61,31 @@ function readMeta(siteDir: string): Record<string, unknown> {
   }
 }
 
+/** Refuse unsupported storage and missing data before acquiring any handles. O(1). */
+function requirePgliteDataDir({ siteDir, meta }: { siteDir: string; meta: Record<string, unknown> }, _options = {}): string {
+  const from = parseSiteStorage(meta.storage);
+  if (from.kind !== "pglite") {
+    const hint = from.kind === "sqlite" ? "; a SQLite site moves with the database transfer tools" : "";
+    throw new ValidationError(`storage move: this site is stored on ${from.kind}, not pglite${hint}`);
+  }
+  const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
+  if (!fs.existsSync(dataDir)) throw new ValidationError(`storage move: the site's PGlite data dir ${dataDir} does not exist`);
+
+  return dataDir;
+}
+
+/** Translate only the shared owner's running-site refusal; other failures propagate. O(1). */
+function lockStoppedSite({ dataDir }: { dataDir: string }, _options = {}): () => void {
+  try {
+    return acquireOwnerLock(dataDir);
+  } catch (err) {
+    if (err instanceof PgliteOwnerLockedError) {
+      throw new ValidationError(`storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it`);
+    }
+    throw err;
+  }
+}
+
 /**
  * Moves the PGlite site in `siteDir` onto the Postgres database `connectionString` names (see this
  * file's header for the order).
@@ -74,23 +99,8 @@ function readMeta(siteDir: string): Record<string, unknown> {
 export async function moveSiteStorage(required: MoveSiteStorageRequired, optional: MoveSiteStorageOptional = {}): Promise<MoveSiteStorageResult> {
   const { siteDir, connectionString, secretRef } = required;
   const meta = readMeta(siteDir);
-  const from = parseSiteStorage(meta.storage);
-  if (from.kind !== "pglite") {
-    const hint = from.kind === "sqlite" ? "; a SQLite site moves with the database transfer tools" : "";
-    throw new ValidationError(`storage move: this site is stored on ${from.kind}, not pglite${hint}`);
-  }
-  const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  if (!fs.existsSync(dataDir)) throw new ValidationError(`storage move: the site's PGlite data dir ${dataDir} does not exist`);
-
-  let release: () => void;
-  try {
-    release = acquireOwnerLock(dataDir);
-  } catch (err) {
-    if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it`);
-    }
-    throw err;
-  }
+  const dataDir = requirePgliteDataDir({ siteDir, meta });
+  const release = lockStoppedSite({ dataDir });
   let source: StorageKernel<unknown> | undefined;
   let target: StorageKernel<unknown> | undefined;
   try {

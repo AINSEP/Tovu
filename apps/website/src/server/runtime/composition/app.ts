@@ -1821,16 +1821,24 @@ export interface CreateAppOptions {
   consentAudit?: true;
 }
 
-export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
-  // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
-  // runs more than once per process: every test that calls it directly, and every
-  // `routeDeps.createSiteApp()` the exporter and site-inspection make. Resetting here — before this
-  // invocation registers its own SEO `page.head` hook below — keeps the registry scoped to
-  // whichever `createApp()` call runs most recently, so a stale seeded hook can never keep folding
-  // into a live request's `<head>` alongside the real one. See `resetPageHeadRegistry`'s own doc for
-  // the full trace.
-  resetPageHeadRegistry();
-  const app = express();
+/** Track the existing tool-surface pass for the app/store lifetime. O(1) time and space. */
+function trackByokBootWork(
+  { routeDeps, byokAssistantModule }: { routeDeps: RouteDeps; byokAssistantModule: ReturnType<typeof createAssistantByokModule> },
+  options: CreateAppOptions = {},
+): void {
+  // Track serving apps too: they share the same store lifetime as export/inspection apps.
+  const bootWork = byokAssistantModule.toolSurface.ready;
+  const pendingBootWork = siteAppBootWorkByDeps.get(routeDeps);
+  pendingBootWork?.add(bootWork);
+  void bootWork.then(() => pendingBootWork?.delete(bootWork), () => pendingBootWork?.delete(bootWork));
+  options.onBootWork?.(byokAssistantModule.toolSurface.ready);
+}
+
+/** Install the ordered public request guards before any normal routes. O(1) setup. */
+function applyPublicMiddleware(
+  { app, routeDeps }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps },
+  options: CreateAppOptions = {},
+): void {
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
   applyTrustProxy(app);
   applyDevCors(app);
@@ -1862,6 +1870,19 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
   app.use(parsePublicJsonBody);
+}
+
+export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
+  // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
+  // runs more than once per process: every test that calls it directly, and every
+  // `routeDeps.createSiteApp()` the exporter and site-inspection make. Resetting here — before this
+  // invocation registers its own SEO `page.head` hook below — keeps the registry scoped to
+  // whichever `createApp()` call runs most recently, so a stale seeded hook can never keep folding
+  // into a live request's `<head>` alongside the real one. See `resetPageHeadRegistry`'s own doc for
+  // the full trace.
+  resetPageHeadRegistry();
+  const app = express();
+  applyPublicMiddleware({ app, routeDeps }, options);
   registerPluginContributionRoutes({ app, deps: routeDeps, auth: createPluginRouteAuthPorts({ deps: routeDeps }) });
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
@@ -2138,12 +2159,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
   const byokAssistantModule = createAssistantByokModule(routeDeps);
-  // Track serving apps too: they share the same store lifetime as export/inspection apps.
-  const bootWork = byokAssistantModule.toolSurface.ready;
-  const pendingBootWork = siteAppBootWorkByDeps.get(routeDeps);
-  pendingBootWork?.add(bootWork);
-  void bootWork.then(() => pendingBootWork?.delete(bootWork), () => pendingBootWork?.delete(bootWork));
-  options.onBootWork?.(byokAssistantModule.toolSurface.ready);
+  trackByokBootWork({ routeDeps, byokAssistantModule }, options);
 
   // Roster-change fan-out (S6, 2026-09-24): this web-server process holds two federation runtimes
   // — the agent daemon (a separate process, reached over HTTP) and BYOK's own in-process
@@ -2170,16 +2186,18 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
 
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
-  if (adminAssistantEnabled) mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
+  if (adminAssistantEnabled) {
+    mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
 
-  // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
-  // module because nothing here is proxied: run execution belongs to the daemon (that is where run
-  // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
-  // workspace scoping already work. The daemon can restart or be replaced without touching it.
-  if (adminAssistantEnabled) mountRoutes(app, createAssistantChatsModule(routeDeps, {
-    recoverInterrupted: options.recoverAssistantChatRuns,
-    onBootWork: options.onBootWork,
-  }));
+    // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
+    // module because nothing here is proxied: run execution belongs to the daemon (that is where run
+    // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
+    // workspace scoping already work. The daemon can restart or be replaced without touching it.
+    mountRoutes(app, createAssistantChatsModule(routeDeps, {
+      recoverInterrupted: options.recoverAssistantChatRuns,
+      onBootWork: options.onBootWork,
+    }));
+  }
 
   // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share
@@ -2197,14 +2215,16 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // this can be a second, independent composition rather than a daemon-process change. Routes only —
   // the module itself (and its `toolSurface`) was already built above, so
   // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
-  if (adminAssistantEnabled) mountRoutes(app, byokAssistantModule);
+  if (adminAssistantEnabled) {
+    mountRoutes(app, byokAssistantModule);
 
-  // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
-  // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
-  // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
-  // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
-  // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-  if (adminAssistantEnabled) mountRoutes(app, createAssistantAgUiModule(routeDeps));
+    // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
+    // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
+    // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
+    // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
+    // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
+    mountRoutes(app, createAssistantAgUiModule(routeDeps));
+  }
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/

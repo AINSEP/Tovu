@@ -259,3 +259,49 @@ test('batch shared site and collapsed content_read dispatch reach B through the 
   assert.match(JSON.stringify(result), /B post/);
   assert.equal(f.audits.length, 3);
 });
+
+for (const bounds of [{ maxSites: 0 }, { maxSites: 1.5 }, { idleMs: 0 }, { idleMs: Infinity }]) {
+  test(`L058a invalid peer bounds ${JSON.stringify(bounds)} refuse before discovery`, () => {
+    assert.throws(() => createPeerSiteReads({ currentSiteDir: '/unused' }, bounds), { message: 'Invalid peer cache bounds' });
+  });
+}
+test('L058a concurrent cold opens share one bag; unregistered tools refuse; current and closed resolutions stay distinct', async t => {
+  const f = await peerFixture(t);
+  let builds = 0;
+  const required = { siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
+    buildRegistrations: () => { builds++; return inspection(async () => 'B'); } };
+  const [first, second] = await Promise.all([f.peer.resolve(required), f.peer.resolve(required)]);
+  assert.notEqual(first, 'current'); assert.notEqual(second, 'current');
+  assert.equal(builds, 1);
+  assert.equal(f.contentHandles.length, 2);
+  await assert.rejects(f.peer.resolve({ ...required, toolId: 'missing' }), { message: "This tool can't read another site." });
+  assert.equal(await f.peer.resolve({ ...required, siteName: 'A' }), 'current');
+  await f.peer.close();
+  await assert.rejects(f.peer.resolve(required), { message: 'Cross-site reads are closed.' });
+  if (first !== 'current') await assert.rejects(first.handler(context()), { message: 'This site read expired. Try again.' });
+});
+test('L058a busy bags resist eviction and close drains the active handler', async t => {
+  const f = await peerFixture(t);
+  await f.addSite('C');
+  const port = createPeerSiteReads({ currentSiteDir: f.a.dir }, { ...f.options, maxSites: 1 });
+  t.after(() => port.close());
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const required = { siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
+    buildRegistrations: () => inspection(async () => { await gate; return 'done'; }) };
+  const selected = await port.resolve(required);
+  assert.notEqual(selected, 'current');
+  if (selected === 'current') return;
+  const reading = selected.handler(context());
+  try {
+    await assert.rejects(port.resolve({ ...required, siteName: 'C' }), { message: 'Other-site reads are busy. Try again.' });
+    let closed = false;
+    const closing = port.close().then(() => { closed = true; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(closed, false);
+    release();
+    assert.equal(await reading, 'done');
+    await closing;
+    assert.ok(f.chatHandles.every(handle => !handle.open));
+  } finally { release(); await reading; }
+});

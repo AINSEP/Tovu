@@ -14,28 +14,39 @@ const TYPE_CODES: Record<DnsRecordType, number> = { A: 1, AAAA: 28, CNAME: 5, MX
 const DNS_UNAVAILABLE = "domain_lookup_dns: the public DNS resolver could not answer. Try again later; no DNS conclusion was reached.";
 /** Refusals contain no raw resolver response or internal transport error detail. */
 function dnsUnavailable(): ToolInputError { return new ToolInputError({ message: DNS_UNAVAILABLE }); }
+type DnsAnswer = { type: number; name: string; data: string; TTL: number };
+/** Validate bounded record fields before interpreting address data; invalid shapes refuse. O(1). */
+function readAnswerFields({ row }: { row: Record<string, unknown> }, _options = {}): DnsAnswer {
+  if (typeof row.type !== "number" || typeof row.name !== "string" || typeof row.data !== "string" || row.data.length > 4096) throw dnsUnavailable();
+  if (typeof row.TTL !== "number" || !Number.isInteger(row.TTL) || row.TTL < 0) throw dnsUnavailable();
+  return row as DnsAnswer;
+}
 /** Validates untrusted record shape and address class; bounded DNS strings are returned only as data. */
 function readAnswer(answer: unknown): { type: number; value: string; ttl: number } {
   if (typeof answer !== "object" || answer === null) throw dnsUnavailable();
-  const row = answer as Record<string, unknown>;
-  if (typeof row.type !== "number" || typeof row.name !== "string" || typeof row.data !== "string" || row.data.length > 4096 || typeof row.TTL !== "number" || !Number.isInteger(row.TTL) || row.TTL < 0) throw dnsUnavailable();
-  let value = row.data;
-  if (row.type === 1 || row.type === 28) {
-    if (isIP(row.data) !== (row.type === 1 ? 4 : 6)) throw dnsUnavailable();
-    value = row.type === 28 ? new URL(`https://[${row.data}]/`).hostname.slice(1, -1) : row.data;
+  const valid = readAnswerFields({ row: answer as Record<string, unknown> });
+  let value = valid.data;
+  if (valid.type === 1 || valid.type === 28) {
+    if (isIP(valid.data) !== (valid.type === 1 ? 4 : 6)) throw dnsUnavailable();
+    value = valid.type === 28 ? new URL(`https://[${valid.data}]/`).hostname.slice(1, -1) : valid.data;
     if (classifyAddress(value) !== "public") throw new ToolInputError({ message: "domain_lookup_dns: public DNS returned a non-public address. Internal addresses cannot be inspected with this tool." });
   }
-  return { type: row.type, value, ttl: row.TTL };
+  return { type: valid.type, value, ttl: valid.TTL };
+}
+/** Preserve truncation/status precedence before inspecting answer records. O(1). */
+function readDnsEnvelope({ payload }: { payload: unknown }, _options = {}): Record<string, unknown> {
+  if (typeof payload !== "object" || payload === null) throw dnsUnavailable();
+  const body = payload as Record<string, unknown>;
+  if (body.TC === true) throw dnsUnavailable();
+  if (body.Status !== 3 && body.Status !== 0) throw dnsUnavailable();
+  return body;
 }
 /** Parses a capped public DoH response. No-data/NXDOMAIN remain distinct from failures. O(answers). */
 function readDnsResponse(bodyText: string, type: DnsRecordType): DnsQuery {
   let payload: unknown;
   try { payload = JSON.parse(bodyText); } catch { throw dnsUnavailable(); }
-  if (typeof payload !== "object" || payload === null) throw dnsUnavailable();
-  const body = payload as Record<string, unknown>;
-  if (body.TC === true) throw dnsUnavailable();
+  const body = readDnsEnvelope({ payload });
   if (body.Status === 3) return { type, status: "not-found", records: [] };
-  if (body.Status !== 0) throw dnsUnavailable();
   const raw = body.Answer ?? [];
   if (!Array.isArray(raw) || raw.length > 50) throw dnsUnavailable();
   const records = raw.map(readAnswer).filter(row => row.type === TYPE_CODES[type]).map(({ value, ttl }) => ({ value, ttl }));

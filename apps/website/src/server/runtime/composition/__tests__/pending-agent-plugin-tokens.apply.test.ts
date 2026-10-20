@@ -97,7 +97,8 @@ test("an import that throws keeps only that token for the next boot, still seale
   assert.deepEqual(Object.keys(kept.tokens), ["supabase"]);
   assert.equal(fs.statSync(target()).mode & 0o777, 0o600);
   assert.equal(logs.warn.length, 1);
-  assert.match(logs.warn[0] ?? "", /could not connect 'supabase' .*\(will retry next start\): store unavailable/);
+  assert.match(logs.warn[0] ?? "", /could not connect 'supabase' .*\(will retry next start\)\./);
+  assert.equal(logs.warn[0]!.includes("store unavailable"), false);
   assert.ok(!logs.warn.join("").includes(TOKEN));
 
   // The next boot retries the kept token and then deletes the file.
@@ -168,4 +169,36 @@ test("production onboarding writer round-trips multiple tokens through a freshly
   assert.deepEqual(calls.sort(), [["other", "distinct-other-site-key"], ["supabase", TOKEN]]);
   assert.deepEqual(logs.warn, []);
   assert.equal(fs.existsSync(target()), false);
+});
+
+test('L058a mixed batch drops unopened tokens, retains failed imports, and handles both saved outcomes', async () => {
+  await writePending({ bad: 'bad', retry: 'retry', saved: 'saved', off: 'off', connected: 'connected' });
+  const file = JSON.parse(fs.readFileSync(target(), 'utf8')) as { tokens: Record<string, unknown> };
+  file.tokens.bad = {};
+  fs.writeFileSync(target(), JSON.stringify(file));
+  const calls: string[] = [];
+  const { logs, log } = recorder();
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async id => {
+    calls.push(id);
+    if (id === 'retry') throw 'retry later';
+    if (id === 'off') return 'saved-left-off';
+    if (id === 'connected') return 'already-connected';
+    return 'saved';
+  } }, log);
+  assert.deepEqual(calls, ['retry', 'saved', 'off', 'connected']);
+  assert.deepEqual(Object.keys((JSON.parse(fs.readFileSync(target(), 'utf8')) as { tokens: object }).tokens), ['retry']);
+  assert.equal(logs.info.length, 2);
+  assert.equal(logs.warn.length, 2);
+  assert.match(logs.warn[1]!, /will retry next start/);
+  assert.equal(logs.warn[1]!.includes("retry later"), false);
+});
+
+test('L058a importer errors never expose tokens and retain the import for retry', async () => {
+  const token = ['fixture', 'credential', 'value'].join('-');
+  await writePending({ plugin: token });
+  const { logs, log } = recorder();
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => { throw new Error(token); } }, log);
+  assert.equal(JSON.stringify(logs).includes(token), false);
+  assert.match(logs.warn[0]!, /will retry next start/);
+  assert.deepEqual(Object.keys((JSON.parse(fs.readFileSync(target(), 'utf8')) as { tokens: object }).tokens), ['plugin']);
 });

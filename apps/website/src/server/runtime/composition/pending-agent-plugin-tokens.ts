@@ -118,25 +118,40 @@ export async function applyPendingAgentPluginTokens(
   }
   const remaining: Record<string, SealedSecret> = {};
   for (const [pluginId, sealed] of Object.entries(file?.tokens ?? {})) {
-    let token: string;
-    try {
-      token = await required.sealer.open({ sealed }, { aad: pendingTokenAad(pluginId) });
-    } catch {
-      log.warn(`[agent-plugins] the access token saved for '${pluginId}' when this site was created does not open with this site's key; it was dropped. Connect '${pluginId}' from chat instead.`);
-      continue;
-    }
-    try {
-      const outcome = await required.importToken(pluginId, token);
-      if (outcome === "saved") log.info(`[agent-plugins] connected '${pluginId}' with the access token given when this site was created.`);
-      if (outcome === "saved-left-off") log.info(`[agent-plugins] saved the access token given for '${pluginId}' when this site was created; it stays off because an operator turned it off.`);
-    } catch (err) {
-      remaining[pluginId] = sealed;
-      log.warn(`[agent-plugins] could not connect '${pluginId}' with the access token given when this site was created (will retry next start): ${err instanceof Error ? err.message : String(err)}`);
-    }
+    if (await applyPendingToken({ required, log, pluginId, sealed })) remaining[pluginId] = sealed;
   }
   if (Object.keys(remaining).length === 0) {
     fs.rmSync(target, { force: true });
     return;
   }
   writePendingTokensFile(required.siteDir, { version: 1, tokens: remaining });
+}
+
+/** Handle one sealed credential; true retains it for retry, false consumes it. O(1) plus import I/O. */
+async function applyPendingToken(
+  { required, log, pluginId, sealed }: {
+    required: Parameters<typeof applyPendingAgentPluginTokens>[0];
+    log: PendingTokenLog;
+    pluginId: string;
+    sealed: SealedSecret;
+  },
+  _options = {},
+): Promise<boolean> {
+  let token: string;
+  try {
+    token = await required.sealer.open({ sealed }, { aad: pendingTokenAad(pluginId) });
+  } catch {
+    log.warn(`[agent-plugins] the access token saved for '${pluginId}' when this site was created does not open with this site's key; it was dropped. Connect '${pluginId}' from chat instead.`);
+    return false;
+  }
+  try {
+    const outcome = await required.importToken(pluginId, token);
+    if (outcome === "saved") log.info(`[agent-plugins] connected '${pluginId}' with the access token given when this site was created.`);
+    if (outcome === "saved-left-off") log.info(`[agent-plugins] saved the access token given for '${pluginId}' when this site was created; it stays off because an operator turned it off.`);
+  } catch {
+    // Importer failures may echo the token; retain retry state without logging their text.
+    log.warn(`[agent-plugins] could not connect '${pluginId}' with the access token given when this site was created (will retry next start).`);
+    return true;
+  }
+  return false;
 }

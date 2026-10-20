@@ -152,3 +152,21 @@ test("an expired injected deadline stops the guarded TLS probe before DNS or tra
   assert.equal(connections, 0);
   assert.equal(dnsLookups, lookupsBefore);
 });
+
+// L058a pins: shape checks apply even to records outside the requested type.
+for (const answer of [null, 1, {}, { type: '1', name: 'example.com', data: '8.8.8.8', TTL: 1 },
+  { type: 1, name: 1, data: '8.8.8.8', TTL: 1 }, { type: 1, name: 'example.com', data: 1, TTL: 1 },
+  ...['1', 1.5, -1, null].map(TTL => ({ type: 16, name: 'example.com', data: 'text', TTL }))]) {
+  test(`L058a DNS rejects malformed answer ${JSON.stringify(answer)}`, async () => {
+    await assert.rejects(createPublicDnsResolver(clientReturning({ Status: 0, Answer: [answer] }).client)
+      .query({ domain: 'example.com', type: 'A' }), { name: 'ToolInputError' });
+  });
+}
+for (const body of [null, 3, { Status: 0, Answer: null }, { Status: 3, TC: true }]) {
+  test(`L058a DNS envelope ${JSON.stringify(body)} keeps current status precedence`, async () => {
+    const query = createPublicDnsResolver(clientReturning(body).client).query({ domain: 'example.com', type: 'A' });
+    if (body !== null && typeof body === 'object' && body.Status === 0) {
+      assert.deepEqual(await query, { type: 'A', status: 'no-data', records: [] });
+    } else await assert.rejects(query, { name: 'ToolInputError' });
+  });
+}

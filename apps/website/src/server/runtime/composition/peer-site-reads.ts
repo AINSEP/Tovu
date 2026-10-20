@@ -276,6 +276,11 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     ? Reflect.get(target, field, receiver) : field === 'then' ? undefined : unavailable({ field: String(field) }) }) as unknown as AssistantToolRegistryDeps;
 }
 
+/** Reject invalid cache bounds before registry access or database opens. O(1). */
+function validatePeerCacheBounds({ maxSites, idleMs }: { maxSites: number; idleMs: number }, _options = {}): void {
+  if (!Number.isInteger(maxSites) || maxSites < 1 || !Number.isFinite(idleMs) || idleMs <= 0) throw new TypeError('Invalid peer cache bounds');
+}
+
 /** Resolve safe registry names and cache at most maxSites write-free peer bags.
  * @param required.currentSiteDir - The boot-selected active site, never request input.
  * @param optional - Workspace/open/clock/timer ports and small LRU bounds for hermetic tests.
@@ -289,7 +294,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
   maxSites = 3, idleMs = 5 * 60_000, now = Date.now, schedule = setTimeout,
 }: { workspace?: SitesWorkspace; localHost?: boolean; openContent?: typeof openSqliteFileKernel; openChat?: typeof openNativeSqlite;
   maxSites?: number; idleMs?: number; now?: () => number; schedule?: typeof setTimeout } = {}): PeerSiteReads {
-  if (!Number.isInteger(maxSites) || maxSites < 1 || !Number.isFinite(idleMs) || idleMs <= 0) throw new TypeError('Invalid peer cache bounds');
+  validatePeerCacheBounds({ maxSites, idleMs });
   const cache = new Map<string, PeerBag>();
   const running = new Set<Promise<unknown>>();
   let closed = false;
@@ -326,6 +331,57 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     }, idleMs);
     entry.timer.unref();
   };
+  /** Open and compose one read-only peer; failed provisional opens close all acquired handles.
+   * @complexity O(t + f) for t registrations and f theme files, plus bounded schema/owner reads. */
+  const openPeer = async ({ source, paths, request }: {
+    source: RegisteredSiteSource;
+    paths: ReturnType<typeof resolveSiteDatabasePaths>;
+    request: Parameters<PeerSiteReads['resolve']>[0];
+  }, _options = {}): Promise<PeerBag> => {
+    const kernel = openContent<ContentDatabase>(paths.contentDbPath, { readOnly: true });
+    let chat: ReturnType<typeof openChat> | undefined, journal: ReturnType<typeof openContent<JournalDatabase>> | undefined;
+    try {
+      const introspection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath: paths.contentDbPath });
+      const schema = await introspection.getSchemaState(), pendingMigrations = await introspection.listPendingMigrations();
+      if (schema.status === 'behind' || pendingMigrations.items.length > 0) throw new ToolInputError({ message: `Open ${source.name} in Tovu once to upgrade it.` });
+      if (schema.status !== 'in-sync') throw new ToolInputError({ message: 'This site has an unsupported database schema. Open it in Tovu first.' });
+      const workspaceId = (await resolveWorkspace({ kernel })).id;
+      // Users are site-local: never reuse the caller's principal or infer ownership from username/email.
+      const owners = await kernel.query<{ principal_id: string }>(sql`SELECT DISTINCT u.principal_id
+        FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
+        JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
+        WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
+      if (owners.length !== 1) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
+      if (!fs.existsSync(paths.chatDbPath)) throw new ToolInputError({ message: "This site's chat database is missing. Open the site in Tovu first." });
+      const chatOptions = { readonly: true, fileMustExist: true, timeout: 5000 };
+      chat = openChat(paths.chatDbPath, chatOptions);
+      const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
+      if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
+      journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
+      const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owners[0]!.principal_id, workspaceId });
+      const registrations = new Map(request.buildRegistrations(deps).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
+      const peerChat = chat, peerJournal = journal;
+      const entry: PeerBag = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owners[0]!.principal_id } }),
+        close: async () => { try { peerChat.close(); } finally { try { await peerJournal?.close(); } finally { await kernel.close(); } } } };
+      return entry;
+    } catch (error) {
+      await Promise.allSettled([Promise.resolve().then(() => chat?.close()), journal?.close(), kernel.close()]);
+      throw error;
+    }
+  };
+  /** Expire idle bags, then evict the least recently used idle bag only for a cold open. O(cache size). */
+  const cachedOrMakeRoom = async ({ key }: { key: string }, _options = {}): Promise<PeerBag | undefined> => {
+    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove(id, entry);
+    const entry = cache.get(key);
+    if (entry) return entry;
+    while (cache.size >= maxSites) {
+      const candidate = [...cache].find(([, bag]) => bag.busy === 0);
+      if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
+      const [id, oldest] = candidate;
+      await remove(id, oldest);
+    }
+    return undefined;
+  };
   const resolve: PeerSiteReads['resolve'] = required => {
     const work = pending.then(async () => {
       assertLocal();
@@ -339,46 +395,12 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
         if (resolveSiteStorage(source.dir).kind !== 'sqlite') throw new ToolInputError({ message: 'Only local SQLite sites can be read.' });
         const paths = resolveSiteDatabasePaths({ dir: source.dir }, { workspace: catalog(), reserveIdentity: false });
         const key = `${source.siteId}:${paths.contentDbPath}`;
-        for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove(id, entry);
-        let entry = cache.get(key);
+        let entry = await cachedOrMakeRoom({ key });
         if (!entry) {
-          while (cache.size >= maxSites) {
-            const candidate = [...cache].find(([, bag]) => bag.busy === 0);
-            if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
-            const [id, oldest] = candidate;
-            await remove(id, oldest);
-          }
-          const kernel = openContent<ContentDatabase>(paths.contentDbPath, { readOnly: true });
-          let chat: ReturnType<typeof openChat> | undefined, journal: ReturnType<typeof openContent<JournalDatabase>> | undefined;
-          try {
-            const introspection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath: paths.contentDbPath });
-            const schema = await introspection.getSchemaState(), pendingMigrations = await introspection.listPendingMigrations();
-            if (schema.status === 'behind' || pendingMigrations.items.length > 0) throw new ToolInputError({ message: `Open ${source.name} in Tovu once to upgrade it.` });
-            if (schema.status !== 'in-sync') throw new ToolInputError({ message: 'This site has an unsupported database schema. Open it in Tovu first.' });
-            const workspaceId = (await resolveWorkspace({ kernel })).id;
-            // Users are site-local: never reuse the caller's principal or infer ownership from username/email.
-            const owners = await kernel.query<{ principal_id: string }>(sql`SELECT DISTINCT u.principal_id
-              FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
-              JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
-              WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
-            if (owners.length !== 1) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
-            if (!fs.existsSync(paths.chatDbPath)) throw new ToolInputError({ message: "This site's chat database is missing. Open the site in Tovu first." });
-            const chatOptions = { readonly: true, fileMustExist: true, timeout: 5000 };
-            chat = openChat(paths.chatDbPath, chatOptions);
-            const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
-            if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
-            journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
-            const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owners[0]!.principal_id, workspaceId });
-            const registrations = new Map(required.buildRegistrations(deps).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
-            const peerChat = chat, peerJournal = journal;
-            entry = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owners[0]!.principal_id } }),
-              close: async () => { try { peerChat.close(); } finally { try { await peerJournal?.close(); } finally { await kernel.close(); } } } };
-            cache.set(key, entry);
-          } catch (error) {
-            await Promise.allSettled([Promise.resolve().then(() => chat?.close()), journal?.close(), kernel.close()]);
-            throw error;
-          }
+          entry = await openPeer({ source, paths, request: required });
+          cache.set(key, entry);
         }
+
         touch(key, entry);
         const registration = entry.registrations.get(required.toolId);
         if (!registration) throw new ToolInputError({ message: "This tool can't read another site." });
