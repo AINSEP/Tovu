@@ -5,7 +5,7 @@ import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-a
 import { ToolInputError, buildDomainRegistrations, decorateWithSchema, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
-import { buildUIToolResult, type UIResource } from "./mcp-ui.js";
+import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
 import { askOnce, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 /**
@@ -230,16 +230,6 @@ function buildAskChoiceFormSurface(
   });
 }
 
-/** Narrows the renderer's unknown package boundary without casting a required presentation port. */
-function isAskChoiceUiResource(ui: unknown): ui is UIResource {
-  if (typeof ui !== "object" || ui === null || !("type" in ui) || ui.type !== "resource" || !("resource" in ui)) return false;
-  const resource = ui.resource;
-  return typeof resource === "object" && resource !== null
-    && "uri" in resource && typeof resource.uri === "string" && resource.uri.startsWith("ui://")
-    && "mimeType" in resource && (resource.mimeType === "text/html" || resource.mimeType === "text/html;profile=mcp-app" || resource.mimeType === "text/html+skybridge")
-    && "text" in resource && typeof resource.text === "string";
-}
-
 const askChoiceMessages: AskChoiceMessages = {
   forgedAnswer: ASK_CHOICE_FORGED_ANSWER_MESSAGE,
   pending: "A question has been shown to the administrator. NOTHING HAS BEEN ANSWERED YET. Their " +
@@ -305,10 +295,7 @@ export function buildAskChoiceRegistrations(
   const surfaceExchanges = askChoiceExchanges({ surfaces });
   const presentation: AskChoicePresentation = {
     render: buildAskChoiceFormSurface,
-    buildResult: ({ modelText, ui }) => {
-      if (!isAskChoiceUiResource(ui)) throw new Error("ask-choice renderer returned an invalid UI resource");
-      return { ...buildUIToolResult({ modelText, ui }) };
-    },
+    buildResult: askChoiceToolResult,
   };
   const tool = createAskChoiceTool({
     toolId: ASK_CHOICE_TOOL_ID,
