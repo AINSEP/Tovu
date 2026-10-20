@@ -21,7 +21,7 @@ import type { PanelRouteContext } from '../../panels';
 
 const pickerConsumer = defineAdminModule({ id: 'host-editors', requires: { mediaPicker: mediaPickerToken }, pages: {} });
 type HostModulePageProps = ModulePageProps & { params?: Readonly<Record<string, unknown>> };
-interface ModuleBinding { Provider: ComponentType<{ admin: AdminInstance; children: ReactNode }>; loadingContent?: ReactNode; pages: Readonly<Record<string, { Page: LazyExoticComponent<ComponentType<HostModulePageProps>>; tabs: Readonly<Record<string, LazyExoticComponent<ComponentType<TabViewProps>>>> }>> }
+interface ModuleBinding { Provider: ComponentType<{ admin: AdminInstance; children: ReactNode }>; pages: Readonly<Record<string, { Page: LazyExoticComponent<ComponentType<HostModulePageProps>>; tabs: Readonly<Record<string, LazyExoticComponent<ComponentType<TabViewProps>>>> }>> }
 type Runtime = { permissionKey: string; admin: AdminInstance; bindings: Record<string, ModuleBinding>; picker: MediaPickerPort; overlays: ReturnType<typeof createOverlayController> };
 export const AdminModulesContext = createContext<Runtime | null>(null);
 /** Compose the host modules and their ports; optional domain ports/locale hooks are DI seams.
@@ -59,21 +59,26 @@ export interface ModulePanelProps { moduleId: string; pageId: string; route: Pan
 // Tovu mounts Jini Media beside the legacy page until parity sign-off. The package still
 // describes `/media`, so tab changes must use the host mount or they switch renderers.
 const MODULE_PAGE_PATHS: Readonly<Record<string, string>> = { 'media.library': '/media/new' };
+/** A page needs both its React binding and the scope's description (path, tabs). */
+function resolveModulePage({ runtime, moduleId, pageId }: { runtime: Runtime; moduleId: string; pageId: string }) {
+  const binding = runtime.bindings[moduleId];
+  const description = runtime.admin.describe().pages.find(page => page.id === `${moduleId}.${pageId}`);
+  const view = binding?.pages[pageId];
+  if (!view || !description) throw new Error(`Admin module page unavailable: ${moduleId}.${pageId} has no bound page or is not described by the host admin scope; check the module and page ids`);
+  return { binding, view, description };
+}
 /** One bridge absorbs the legacy route context and the new module/page/tab shape.
  * Future modules supply bindings in the root scope and reuse this adapter. */
 export function useModulePanel(props: ModulePanelProps, { loadingContent }: { loadingContent?: ReactNode } = {}) {
   const runtime = useContext(AdminModulesContext);
   if (!runtime) return { content: loadingContent ?? createElement('p', { role: 'status' }, 'Loading admin modules…') };
-  const binding = runtime.bindings[props.moduleId];
-  const description = runtime.admin.describe().pages.find(page => page.id === `${props.moduleId}.${props.pageId}`);
-  const view = binding?.pages[props.pageId];
-  if (!view || !description) throw new Error(`Admin module page unavailable: ${props.moduleId}.${props.pageId}`);
+  const { binding, view, description } = resolveModulePage({ runtime, moduleId: props.moduleId, pageId: props.pageId });
   const onTabChange = ({ tab }: { tab: string }) => {
     const query = new URLSearchParams(props.route.query); query.set('tab', tab);
     navigate(`${MODULE_PAGE_PATHS[description.id] ?? description.path}?${query}`, { replace: true });
   };
   return { content: createElement(binding.Provider, { admin: runtime.admin, children:
-    createElement(Suspense, { fallback: binding.loadingContent ?? loadingContent ?? createElement('p', { role: 'status' }, 'Loading media…') },
+    createElement(Suspense, { fallback: loadingContent ?? createElement('p', { role: 'status' }, 'Loading media…') },
       props.contributions, createElement(view.Page, { tabs: view.tabs, description, requestedTab: props.route.query.get('tab') ?? undefined, onTabChange, ...(props.params === undefined ? {} : { params: props.params }) })) }) };
 }
 // Host-owned contribution keeps publish behavior out of the reusable media module.

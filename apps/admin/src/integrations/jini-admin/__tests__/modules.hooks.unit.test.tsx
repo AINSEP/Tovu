@@ -22,8 +22,9 @@ type Runtime = NonNullable<ReturnType<typeof useAdminModules>>;
 function reportsRuntime(): Runtime {
   const reports = defineAdminModule({ id: 'reports', pages: { overview: { path: '/reports', label: 'Reports', tabs: { daily: { label: 'Daily' }, weekly: { label: 'Weekly' } } } } });
   const admin = createAdmin({ modules: [reports], ports: {} });
-  function Page({ requestedTab, onTabChange, description }: ModulePageProps) {
-    return <div><p>{`${description.id} tab=${requestedTab ?? 'none'}`}</p><button type="button" onClick={() => onTabChange?.({ tab: 'weekly' })}>Weekly</button></div>;
+  function Page(props: ModulePageProps & { params?: Readonly<Record<string, unknown>> }) {
+    const { requestedTab, onTabChange, description } = props;
+    return <div><p>{`${description.id} tab=${requestedTab ?? 'none'}`}</p><p>{`params=${'params' in props ? JSON.stringify(props.params) : 'absent'}`}</p><button type="button" onClick={() => onTabChange?.({ tab: 'weekly' })}>Weekly</button></div>;
   }
   const binding = {
     Provider: ({ children }: { children: ReactNode }) => <section aria-label="reports provider">{children}</section>,
@@ -124,14 +125,14 @@ describe('useModulePanel', () => {
     ['an unknown page of a bound module', 'reports', 'missing'],
   ])('throws for %s', (_label, moduleId, pageId) => {
     expect(() => renderHook(() => useModulePanel({ moduleId, pageId, route: route() }), { wrapper: withRuntime(reportsRuntime()) }))
-      .toThrow(`Admin module page unavailable: ${moduleId}.${pageId}`);
+      .toThrow(`Admin module page unavailable: ${moduleId}.${pageId} has no bound page or is not described by the host admin scope; check the module and page ids`);
   });
 
   it('throws when a binding exists but the scope does not describe the page', () => {
     const runtime = reportsRuntime();
     const hidden = { ...runtime, admin: createAdmin({ modules: [], ports: {} }) };
     expect(() => renderHook(() => useModulePanel({ moduleId: 'reports', pageId: 'overview', route: route() }), { wrapper: withRuntime(hidden) }))
-      .toThrow('Admin module page unavailable: reports.overview');
+      .toThrow('Admin module page unavailable: reports.overview has no bound page or is not described by the host admin scope; check the module and page ids');
   });
 
   it('mounts the page inside its provider and contributions, passing the requested tab', async () => {
@@ -150,6 +151,31 @@ describe('useModulePanel', () => {
     render(<>{result.current.content}</>);
     expect(screen.getByRole('status')).toHaveTextContent('Loading media…');
     expect(await screen.findByText('reports.overview tab=none')).toBeInTheDocument();
+  });
+
+  it('renders the caller loading content before the scope exists', () => {
+    const { result } = renderHook(() => useModulePanel({ moduleId: 'reports', pageId: 'overview', route: route() }, { loadingContent: <p role="status">Loading reports…</p> }));
+    render(<>{result.current.content}</>);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading reports…');
+  });
+
+  it('renders the caller loading content while the page module loads', async () => {
+    const { result } = renderHook(() => useModulePanel({ moduleId: 'reports', pageId: 'overview', route: route() }, { loadingContent: <p role="status">Loading reports…</p> }), { wrapper: withRuntime(reportsRuntime()) });
+    render(<>{result.current.content}</>);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading reports…');
+    expect(await screen.findByText('reports.overview tab=none')).toBeInTheDocument();
+  });
+
+  it('passes route params to the page when given', async () => {
+    const { result } = renderHook(() => useModulePanel({ moduleId: 'reports', pageId: 'overview', route: route(), params: { reportId: 'r1' } }), { wrapper: withRuntime(reportsRuntime()) });
+    render(<>{result.current.content}</>);
+    expect(await screen.findByText('params={"reportId":"r1"}')).toBeInTheDocument();
+  });
+
+  it('omits the params prop entirely when none are given', async () => {
+    const { result } = renderHook(() => useModulePanel({ moduleId: 'reports', pageId: 'overview', route: route() }), { wrapper: withRuntime(reportsRuntime()) });
+    render(<>{result.current.content}</>);
+    expect(await screen.findByText('params=absent')).toBeInTheDocument();
   });
 
   it('navigates a tab change to the module page path, keeping other query values and history length', async () => {
