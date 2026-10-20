@@ -1,0 +1,31 @@
+import { resolveCustomCredentialByLabel, type CustomCredentialResolveDeps } from "#src/features/custom-credentials/index";
+import type { FormDeliveryConnectionPort } from "./types.js";
+
+/**
+ * @file The connection port this build ships: a binding's `connectionRef` is the stable id of a
+ * saved custom credential. The vault owner opens entries by label only, so the label is looked up
+ * from the id, and the opened entry's id is checked again: a rename between the two reads could
+ * otherwise hand this binding another account's secret. An OAuth connection kind is a second
+ * `FormDeliveryConnectionPort`, not a change here.
+ */
+
+/**
+ * Builds the port. Every call reads the vault afresh, so a rotated or deleted credential applies to
+ * the next attempt; nothing is cached or written anywhere.
+ * @returns null when no entry with that id exists in `workspaceId` or the label now names another
+ *   entry; the vault's own errors (e.g. an unconfigured site key) propagate.
+ * @complexity One id read plus one label scan over the workspace's saved credentials and one open.
+ */
+export function createCustomCredentialConnectionPort(
+  required: { credentials: CustomCredentialResolveDeps },
+  _optional: Record<string, never> = {},
+): FormDeliveryConnectionPort {
+  const { credentials } = required;
+  return async ({ workspaceId, connectionRef }) => {
+    const record = await credentials.repo.findById({ workspaceId, id: connectionRef });
+    if (!record) return null;
+    const saved = await resolveCustomCredentialByLabel(credentials, { workspaceId, label: record.label });
+    if (saved?.id !== connectionRef) return null;
+    return { token: saved.connection.token, baseUrl: saved.baseUrl, ...(saved.connection.username ? { username: saved.connection.username } : {}) };
+  };
+}
