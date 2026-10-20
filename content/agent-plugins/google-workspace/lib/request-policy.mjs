@@ -39,6 +39,9 @@ const SAFE_ERRORS = Object.freeze({
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off for the plugin. Turn it on in the Google Workspace plugin, then retry.' },
   'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
+  // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
+  'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
+  'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },
 });
 
 /** A failure a person can act on. `outcome` says whether the request may have changed anything. */
