@@ -751,17 +751,7 @@ export async function deletePost(
       if (removed.reason === "not-found") throw new PostNotFoundError(`post '${input.id}' was not found`);
       throw new PostConflictError(`post '${input.id}' changed while it was being deleted`);
     }
-    return deps.repo.appendRevision({
-      postId: post.id,
-      workspaceId: post.workspaceId,
-      seq: post.version,
-      op: "delete",
-      stateJson: post,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      recordedAt: post.updatedAt,
-    });
+    return appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
   });
 
   await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
@@ -879,17 +869,7 @@ export async function retirePostForReplacement(
 
   const { post, id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     await deps.repo.save(renamed);
-    await deps.repo.appendRevision({
-      postId: renamed.id,
-      workspaceId: renamed.workspaceId,
-      seq: renamed.version,
-      op: "update",
-      stateJson: renamed,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      recordedAt: renamed.updatedAt,
-    });
+    await appendPostRevision({ repo: deps.repo, post: renamed, op: "update", attribution: input });
 
     // `expectedVersion` here is the CAS basis `remove` compares against the row's version RIGHT NOW
     // — which is `renamed.version`, since the rename above already landed inside this same
@@ -910,17 +890,7 @@ export async function retirePostForReplacement(
     }
 
     const trashed: PostRecord = { ...renamed, deletedAt: renamed.updatedAt, version: renamed.version + 1 };
-    const deleteRevision = await deps.repo.appendRevision({
-      postId: trashed.id,
-      workspaceId: trashed.workspaceId,
-      seq: trashed.version,
-      op: "delete",
-      stateJson: trashed,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      recordedAt: trashed.updatedAt,
-    });
+    const deleteRevision = await appendPostRevision({ repo: deps.repo, post: trashed, op: "delete", attribution: input });
     return { post: trashed, id: deleteRevision.id, previousId: deleteRevision.previousId };
   });
 
@@ -997,6 +967,37 @@ export const DEFAULT_BODY_JSON: JsonObject = { type: "doc", content: [] };
  *  rather than left blank, so `post_revisions.actor_id NOT NULL` never has a "whose write was
  *  this" gap. */
 export const SYSTEM_ACTOR_ID = "system";
+
+/** Who a revision is attributed to; an absent actor is {@link SYSTEM_ACTOR_ID}, absent delegation `null`. */
+interface RevisionAttribution {
+  actorId?: string;
+  delegatedByWorkspaceId?: UUID | null;
+  delegatedById?: UUID | null;
+}
+
+/**
+ * Appends the revision for a record write just made — the one ledger call shape every write path
+ * shares. `seq` and `recordedAt` come from the written record itself (see {@link PostRevisionInput}).
+ * @complexity O(1) — one repo call.
+ */
+function appendPostRevision(
+  required: { repo: PostRepoPort; post: PostRecord; op: PostRevisionOp; attribution: RevisionAttribution },
+  optional: { restoredFrom?: string | null } = {}
+): Promise<PostRevisionAppendResult> {
+  const { repo, post, op, attribution } = required;
+  return repo.appendRevision({
+    postId: post.id,
+    workspaceId: post.workspaceId,
+    seq: post.version,
+    op,
+    stateJson: post,
+    actorId: attribution.actorId ?? SYSTEM_ACTOR_ID,
+    delegatedByWorkspaceId: attribution.delegatedByWorkspaceId ?? null,
+    delegatedById: attribution.delegatedById ?? null,
+    ...optional,
+    recordedAt: post.updatedAt,
+  });
+}
 
 /**
  * SPEC-005 CIC U-004-B1/F1 — runs the optional `content.entry.beforeSave` hook and resolves to the
@@ -1347,6 +1348,43 @@ function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
 }
 
 /**
+ * The byline a new post is saved with: the caller's validated credit, else (only for an omitted
+ * credit) the creating account's username. Both values are validated before the account read.
+ * @throws {PostValidationError} From the author/showAuthor normalizers.
+ * @complexity O(1) — at most one account lookup.
+ */
+async function resolveCreateByline(
+  required: { deps: CreatePostDeps; input: CreatePostInput },
+  _optional: Record<string, never> = {}
+): Promise<{ author: string | null; showAuthor: boolean }> {
+  const { deps, input } = required;
+  const author = normalizePostAuthor({ author: input.author });
+  const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor }) ?? false;
+  if (input.author !== undefined) return { author, showAuthor };
+  // Resolve once, only for an omitted credit. A later account rename never rewrites a byline.
+  const account = input.actorId && deps.authorAccounts
+    ? await deps.authorAccounts.findByPrincipalId({ workspaceId: input.workspaceId, principalId: input.actorId })
+    : null;
+  return { author: normalizePostAuthor({ author: account?.username }), showAuthor };
+}
+
+/**
+ * A new post's slug: the caller's explicit one (a LIVE holder is a conflict), else one derived
+ * from `title` past LIVE holders. Either way a TRASHED holder is returned for the caller to move aside.
+ * @throws {PostConflictError} When the explicit slug is live elsewhere, or the derived search is exhausted.
+ * @complexity O(1) explicit; O(n) derived, n bounded at 999 by the shared naming helper.
+ */
+async function resolveCreateSlug(
+  required: { repo: PostRepoPort; input: CreatePostInput; title: string; explicitSlug: string | undefined },
+  _optional: Record<string, never> = {}
+): Promise<{ slug: string; trashedHolder: PostRecord | null }> {
+  const { repo, input, title, explicitSlug } = required;
+  if (explicitSlug === undefined) return availablePostSlug({ repo, workspaceId: input.workspaceId, title, kind: input.kind ?? "post" });
+  const trashedHolder = await trashedSlugHolderOrConflict(repo, { workspaceId: input.workspaceId, slug: explicitSlug });
+  return { slug: explicitSlug, trashedHolder };
+}
+
+/**
  * Creates a post. Caller-supplied `slug`/`bodyJson`/`status` are validated (via
  * `resolveCreateFields`) and used when present (SPEC-002 api.spec.md §4); each falls back to its
  * documented default when absent:
@@ -1380,23 +1418,10 @@ export async function createPost(
     featuredMediaId: normalizeFeaturedMediaId(input.featuredMediaId),
   });
 
-  const author = normalizePostAuthor({ author: input.author });
-  const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
-  // Resolve once, only for an omitted credit. A later account rename never rewrites a byline.
-  const account = input.author === undefined && input.actorId && deps.authorAccounts
-    ? await deps.authorAccounts.findByPrincipalId({ workspaceId: input.workspaceId, principalId: input.actorId })
-    : null;
-
-  let slug: string;
+  const byline = await resolveCreateByline({ deps, input });
   // A slug only a trashed row holds is free (see `trashedSlugHolderOrConflict`); that row is moved
   // aside inside the write transaction below, before this post is saved onto its slug.
-  let trashedHolder: PostRecord | null;
-  if (explicitSlug !== undefined) {
-    trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug: explicitSlug });
-    slug = explicitSlug;
-  } else {
-    ({ slug, trashedHolder } = await availablePostSlug({ repo: deps.repo, workspaceId: input.workspaceId, title, kind: input.kind ?? "post" }));
-  }
+  const { slug, trashedHolder } = await resolveCreateSlug({ repo: deps.repo, input, title, explicitSlug });
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
   // repo.save() below. A new entry has no prior ext, so the draft's ext starts empty.
@@ -1433,8 +1458,7 @@ export async function createPost(
     // value. See `PostRecord.createdByPrincipalId`'s own doc for the full contract.
     createdByPrincipalId: input.actorId ?? null,
     createdAt: now,
-    author: input.author === undefined ? normalizePostAuthor({ author: account?.username }) : author,
-    showAuthor: showAuthor ?? false,
+    ...byline,
     ...scheduleFields,
     ...(ext !== undefined ? { ext } : {}),
   };
@@ -1445,17 +1469,7 @@ export async function createPost(
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await deps.repo.save(post);
-    return deps.repo.appendRevision({
-      postId: post.id,
-      workspaceId: post.workspaceId,
-      seq: post.version,
-      op: "create",
-      stateJson: post,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      recordedAt: post.updatedAt,
-    });
+    return appendPostRevision({ repo: deps.repo, post, op: "create", attribution: input });
   });
   // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
   // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
@@ -1465,6 +1479,11 @@ export async function createPost(
     await emitStatusTransitionEvent(deps.outbox, "draft", post.status, post);
   }
   return { post, revisionId, previousRevisionId };
+}
+
+/** Refuses a present, non-boolean flag. @throws {PostValidationError} `<name> must be a boolean`. */
+function assertOptionalBoolean(required: { value: unknown; name: string }): void {
+  if (required.value !== undefined && typeof required.value !== "boolean") throw new PostValidationError(`${required.name} must be a boolean`);
 }
 
 /**
@@ -1478,8 +1497,8 @@ function validateUpdatePostInput(
   existing: PostRecord
 ): { title: string; slug: string } {
   const title = input.title.trim();
-  if (input.slugFromTitle !== undefined && typeof input.slugFromTitle !== "boolean") throw new PostValidationError("slugFromTitle must be a boolean");
-  if (input.hideCoverImageInBody !== undefined && typeof input.hideCoverImageInBody !== "boolean") throw new PostValidationError("hideCoverImageInBody must be a boolean");
+  assertOptionalBoolean({ value: input.slugFromTitle, name: "slugFromTitle" });
+  assertOptionalBoolean({ value: input.hideCoverImageInBody, name: "hideCoverImageInBody" });
   const slug = input.slugFromTitle === true ? existing.slug : (input.slug ?? "").trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");
@@ -1771,6 +1790,12 @@ export async function hasPostBeenPublished({ post }: { post: PostRecord }, { rep
   return post.status === "published" || (await repo.listRevisions({ workspaceId: post.workspaceId, postId: post.id })).some(revision => revision.stateJson.status === "published");
 }
 
+/** The derived-slug exhaustion refusal; `onExhausted` throws it as a PostConflictError, so the
+ * naming helper's own plain-Error fallback never fires. */
+function slugTakenMessage({ base }: { base: string }): string {
+  return `slug '${base}' already exists`;
+}
+
 /** Reuse the platform collision search with post numbering from 1 and page numbering from 2. */
 async function availablePostSlug(required: { repo: PostRepoPort; workspaceId: UUID; title: string; kind: PostKind; selfId?: UUID }, _optional: Record<string, never> = {}) {
   let trashedHolder: PostRecord | null = null;
@@ -1783,9 +1808,50 @@ async function availablePostSlug(required: { repo: PostRepoPort; workspaceId: UU
       return !!holder && holder.id !== required.selfId && !isTrashed(holder);
     },
     withSuffix: ({ base, suffix }) => `${base}-${required.kind === "post" ? suffix - 1 : suffix}`,
-    exhaustionMessage: ({ base }) => `slug '${base}' already exists`,
-  }, { maxAttempts: 999, onExhausted: ({ base }) => { throw new PostConflictError(`slug '${base}' already exists`); } });
+    exhaustionMessage: slugTakenMessage,
+  }, { maxAttempts: 999, onExhausted: ({ base }) => { throw new PostConflictError(slugTakenMessage({ base })); } });
   return { slug, trashedHolder };
+}
+
+/**
+ * Whether a `slugFromTitle` rename re-derives the slug: only for a changed title on a never-published
+ * post whose slug is still the automatic one. Pages and published URLs keep their address.
+ * @complexity O(1), plus one revision-ledger read when every cheaper condition holds.
+ */
+async function followsTitleSlug(
+  required: { repo: PostRepoPort; input: UpdatePostInput; existing: PostRecord; title: string },
+  _optional: Record<string, never> = {}
+): Promise<boolean> {
+  const { repo, input, existing, title } = required;
+  if (input.slugFromTitle !== true || title === existing.title || existing.kind !== "post" || !isAutomaticPostSlug(existing)) return false;
+  return !(await hasPostBeenPublished({ post: existing }, { repo }));
+}
+
+/** Records an explicit `hideCoverImageInBody` choice in the post-presentation ext namespace,
+ * keeping that namespace's other keys; `undefined` leaves the ext as merged. @complexity O(keys). */
+function withCoverPresentation(required: { ext: JsonObject | undefined; hideCoverImageInBody: boolean | undefined }): JsonObject | undefined {
+  const { ext, hideCoverImageInBody } = required;
+  if (hideCoverImageInBody === undefined) return ext;
+  return { ...ext, "post-presentation": { ...(ext?.["post-presentation"] as JsonObject ?? {}), hideCoverImageInBody } };
+}
+
+/**
+ * The hook/slug check can await another writer. A no-op has no CAS UPDATE to reject a stale
+ * basis, so observe the live row again inside the same transaction before returning it.
+ * @returns the live row when it still matches `post`'s saved content, else `null` (write it).
+ * @throws {PostNotFoundError} When the row vanished or was trashed meanwhile.
+ * @throws {PostVersionConflictError} When the caller's expectedVersion has gone stale.
+ * @complexity O(n) comparison for n body/ext JSON values; one repo read.
+ */
+async function unchangedLiveRow(
+  required: { repo: PostRepoPort; input: UpdatePostInput; post: PostRecord },
+  _optional: Record<string, never> = {}
+): Promise<PostRecord | null> {
+  const { repo, input, post } = required;
+  const current = await repo.findById({ workspaceId: input.workspaceId, id: input.id });
+  if (!current || isTrashed(current)) throw new PostNotFoundError(`post '${input.id}' was not found`);
+  assertExpectedVersion(current, input.expectedVersion);
+  return isDeepStrictEqual(savedPostContent(current), savedPostContent(post)) ? current : null;
 }
 
 /**
@@ -1815,7 +1881,7 @@ export async function updatePost(
   normalizeFeaturedMediaId(input.featuredMediaId);
   normalizePostAuthor({ author: input.author });
   normalizeShowPostAuthor({ showAuthor: input.showAuthor });
-  if (input.slugFromTitle === true && title !== existing.title && existing.kind === "post" && isAutomaticPostSlug(existing) && !(await hasPostBeenPublished({ post: existing }, { repo: deps.repo }))) {
+  if (await followsTitleSlug({ repo: deps.repo, input, existing, title })) {
     slug = (await availablePostSlug({ repo: deps.repo, workspaceId: input.workspaceId, title, kind: "post", selfId: existing.id })).slug;
   }
   const trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug }, { selfId: input.id });
@@ -1835,10 +1901,7 @@ export async function updatePost(
     bodyJson: existing.bodyFormat === "html" ? existing.bodyJson : input.bodyJson,
     ext: (existing.ext ?? {}) as Readonly<Record<string, Readonly<Record<string, unknown>>>>,
   });
-  let ext = mergeExt(existing.ext, extPatch);
-  if (input.hideCoverImageInBody !== undefined) {
-    ext = { ...ext, "post-presentation": { ...(ext?.["post-presentation"] as JsonObject ?? {}), hideCoverImageInBody: input.hideCoverImageInBody } };
-  }
+  const ext = withCoverPresentation({ ext: mergeExt(existing.ext, extPatch), hideCoverImageInBody: input.hideCoverImageInBody });
 
   const post = buildUpdatedPost(existing, input, { title, slug }, ext, clockNowIso({ clock: deps.clock }));
 
@@ -1849,29 +1912,13 @@ export async function updatePost(
   // `PostNotFoundError` reach the caller exactly as they did before this change.
   const result = await deps.repo.transaction(async () => {
     if (isDeepStrictEqual(savedPostContent(existing), savedPostContent(post))) {
-      // The hook/slug check can await another writer. A no-op has no CAS UPDATE to reject a stale
-      // basis, so observe the live row again inside the same transaction before returning it.
-      const current = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-      if (!current || isTrashed(current)) throw new PostNotFoundError(`post '${input.id}' was not found`);
-      assertExpectedVersion(current, input.expectedVersion);
-      if (isDeepStrictEqual(savedPostContent(current), savedPostContent(post))) {
-        return { post: current, revisionId: null, previousRevisionId: null };
-      }
+      const current = await unchangedLiveRow({ repo: deps.repo, input, post });
+      if (current) return { post: current, revisionId: null, previousRevisionId: null };
     }
     if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
     await captureSlugChange(deps.slugChangeCapture, existing, post, input.actorId ?? SYSTEM_ACTOR_ID);
-    const { id: revisionId, previousId: previousRevisionId } = await deps.repo.appendRevision({
-      postId: post.id,
-      workspaceId: post.workspaceId,
-      seq: post.version,
-      op: "update",
-      stateJson: post,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      recordedAt: post.updatedAt,
-    });
+    const { id: revisionId, previousId: previousRevisionId } = await appendPostRevision({ repo: deps.repo, post, op: "update", attribution: input });
     return { post, revisionId, previousRevisionId };
   });
   if (result.revisionId !== null) await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
@@ -2006,18 +2053,7 @@ export async function restorePostForward(
     // unrecorded mutation with another.
     const { applied } = await deps.repo.saveIfVersion({ record: restored, ifVersion: current.version });
     if (!applied) return null;
-    const appended = await deps.repo.appendRevision({
-      postId: restored.id,
-      workspaceId: restored.workspaceId,
-      seq: restored.version,
-      op: "restore",
-      stateJson: restored,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      restoredFrom,
-      recordedAt: restored.updatedAt,
-    });
+    const appended = await appendPostRevision({ repo: deps.repo, post: restored, op: "restore", attribution: input }, { restoredFrom });
     // Inside the transaction, not after it: on SQLite both writes run on the one connection this
     // transaction already opened, so the marker and the index row move together or not at all. A
     // compensation that can itself half-fail is not a compensation.
@@ -2312,6 +2348,53 @@ export interface ImportPostEntityInput {
 }
 
 /**
+ * The fail-closed target checks {@link importPostEntity} runs before any write: a create must find
+ * no row, and an update must find a live row of the same kind.
+ * @throws {PostVersionConflictError} When a create finds an existing row.
+ * @throws {PostConflictError} When the existing row is trashed or of another kind.
+ * @complexity O(1).
+ */
+function assertImportTarget(required: { input: ImportPostEntityInput; existing: PostRecord | null }): void {
+  const { input, existing } = required;
+  // The caller's basis and the destination's reality must agree BEFORE anything is written. A
+  // create whose row already exists would otherwise upsert straight over it (`persistUpdatedPost`
+  // falls through to an unconditional `save()` when no basis is supplied), silently winning a race
+  // the whole `expectedVersion` mechanism exists to lose. Mirrors `import-media-entity.ts`'s own
+  // "expected no existing row, found version N" guard.
+  if (input.expectedVersion === undefined && existing) {
+    throw new PostVersionConflictError(
+      `post '${input.record.id}' already exists at this destination (version ${existing.version}) but was published as new`,
+      0,
+      existing.version
+    );
+  }
+
+  if (existing) {
+    // A trashed destination row is NOT an update target. Overwriting it with a live source record
+    // would silently resurrect content an operator here deliberately binned; restoring it is a
+    // separate, deliberate act (revert the delete change set).
+    if (isTrashed(existing)) {
+      throw new PostConflictError(
+        `post '${input.record.id}' is in the trash at this destination — restore it before publishing over it`
+      );
+    }
+    if (existing.kind !== input.record.kind) {
+      throw new PostConflictError(
+        `post '${input.record.id}' is a '${existing.kind}' at this destination but a '${input.record.kind}' at the source — kind is fixed at creation`
+      );
+    }
+    // D2 (2026-09-24 owner decision, publish-types-plan §6): a body-format difference (doc -> html
+    // loses the Tiptap document, html -> doc loses `body_html` — see `resolveUpdateBodyFields`'s doc
+    // for the real incident that concern originally documented) used to refuse here outright. The
+    // owner has since decided publishing should REPLACE the destination's body wholesale instead,
+    // the same as it already replaces every other content field this function carries verbatim —
+    // `importPostEntity` spreads `record` over `existing` in full, so no partial merge of the two formats is
+    // possible either way. `contributePostPublish`'s `precheck` no longer blocks this either (its own
+    // doc has the matching removal); this is the second half of that same change.
+  }
+}
+
+/**
  * Replicates ONE post/page row from another instance, preserving every content field verbatim.
  *
  * ## Why this is a third function rather than a wider `createPost`/`updatePost`
@@ -2359,42 +2442,7 @@ export async function importPostEntity(required: {
 
   const existing = await deps.repo.findById({ workspaceId, id: record.id });
 
-  // The caller's basis and the destination's reality must agree BEFORE anything is written. A
-  // create whose row already exists would otherwise upsert straight over it (`persistUpdatedPost`
-  // falls through to an unconditional `save()` when no basis is supplied), silently winning a race
-  // the whole `expectedVersion` mechanism exists to lose. Mirrors `import-media-entity.ts`'s own
-  // "expected no existing row, found version N" guard.
-  if (input.expectedVersion === undefined && existing) {
-    throw new PostVersionConflictError(
-      `post '${record.id}' already exists at this destination (version ${existing.version}) but was published as new`,
-      0,
-      existing.version
-    );
-  }
-
-  if (existing) {
-    // A trashed destination row is NOT an update target. Overwriting it with a live source record
-    // would silently resurrect content an operator here deliberately binned; restoring it is a
-    // separate, deliberate act (revert the delete change set).
-    if (isTrashed(existing)) {
-      throw new PostConflictError(
-        `post '${record.id}' is in the trash at this destination — restore it before publishing over it`
-      );
-    }
-    if (existing.kind !== record.kind) {
-      throw new PostConflictError(
-        `post '${record.id}' is a '${existing.kind}' at this destination but a '${record.kind}' at the source — kind is fixed at creation`
-      );
-    }
-    // D2 (2026-09-24 owner decision, publish-types-plan §6): a body-format difference (doc -> html
-    // loses the Tiptap document, html -> doc loses `body_html` — see `resolveUpdateBodyFields`'s doc
-    // for the real incident that concern originally documented) used to refuse here outright. The
-    // owner has since decided publishing should REPLACE the destination's body wholesale instead,
-    // the same as it already replaces every other content field this function carries verbatim —
-    // `record` below is spread over `existing` in full, so no partial merge of the two formats is
-    // possible either way. `contributePostPublish`'s `precheck` no longer blocks this either (its own
-    // doc has the matching removal); this is the second half of that same change.
-  }
+  assertImportTarget({ input, existing });
 
   await assertSlugAvailableForUpdate(deps.repo, workspaceId, record.slug, record.id);
 
@@ -2429,17 +2477,7 @@ export async function importPostEntity(required: {
 
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
-    return deps.repo.appendRevision({
-      postId: post.id,
-      workspaceId: post.workspaceId,
-      seq: post.version,
-      op: existing ? "update" : "create",
-      stateJson: post,
-      actorId: input.actorId ?? SYSTEM_ACTOR_ID,
-      delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
-      delegatedById: input.delegatedById ?? null,
-      recordedAt: post.updatedAt,
-    });
+    return appendPostRevision({ repo: deps.repo, post, op: existing ? "update" : "create", attribution: input });
   });
 
   // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
