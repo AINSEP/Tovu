@@ -50,7 +50,8 @@ async function choose(bootstrap) {
     status = failureText(error);
   }
   waiting = false;
-  await refresh(bootstrap);
+  // A failed refresh must still re-render: the last render showed Choose disabled (waiting).
+  await refresh(bootstrap).catch((error) => { status = failureText(error); render(bootstrap); });
 }
 
 /**
