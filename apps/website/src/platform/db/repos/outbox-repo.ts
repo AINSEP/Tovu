@@ -46,7 +46,7 @@ const CLAIMABLE_STATUSES = ["pending", "processing"];
  * and transactional callers so an audit event can be inserted atomically with its domain
  * writes, using the identical row shape rather than a copy or an independent enqueue.
  */
-export function outboxEventValues(event: DomainEvent) {
+export function outboxEventValues(event: DomainEvent<object>) {
   return {
     id: event.id,
     workspace_id: event.workspaceId,
