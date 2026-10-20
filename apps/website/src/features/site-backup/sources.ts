@@ -189,28 +189,42 @@ async function addFile(sink: WalkSink, input: { absPath: string; relPath: string
  * @complexity O(entries under `absDir`) filesystem calls; recursion depth is the folder depth.
  */
 async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
-  if (sink.profile === "share") {
-    if (excludedSharePath({ path: input.relDir })) return;
-    const info = await sink.fileSystem.lstat(input.absDir).catch(err => isMissing(err) ? null : Promise.reject(err));
-    if (!info) return;
-    if (!info.isDirectory() || info.isSymbolicLink()) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses linked or special directory '${input.relDir}'.` });
-    validateSharePath({ path: input.relDir });
-  }
+  if (sink.profile === "share" && !(await enterShareDirectory({ sink, absDir: input.absDir, relDir: input.relDir }))) return;
   const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
   for (const entry of entries) {
-    // Finder writes .DS_Store into any folder it opens; it is junk, never content, so drop it before the share refusal list sees it.
-    if (entry.name === ".DS_Store") continue;
-    if (sink.profile === "share" && excludedSharePath({ path: `${input.relDir}/${entry.name}` })) continue;
-    if (IGNORED_NAMES.has(entry.name) || input.excludeTopLevel?.has(entry.name)) continue;
-    const absPath = path.join(input.absDir, entry.name);
-    const relPath = `${input.relDir}/${entry.name}`;
-    if (entry.isSymbolicLink()) {
-      sink.skipped.push({ path: relPath, reason: SYMLINK_REASON });
-    } else if (entry.isDirectory()) {
-      await walkTree(sink, { absDir: absPath, relDir: relPath, scope: input.scope });
-    } else {
-      await addFile(sink, { absPath, relPath, scope: input.scope });
-    }
+    if (skippedWalkEntry({ sink, relDir: input.relDir, name: entry.name }, { excludeTopLevel: input.excludeTopLevel })) continue;
+    await walkEntry({ sink, entry, absDir: input.absDir, relDir: input.relDir, scope: input.scope });
+  }
+}
+
+/** Share profile: a private folder is not entered, a missing one is empty, a linked or special one refuses. */
+async function enterShareDirectory(required: { sink: WalkSink; absDir: string; relDir: string }): Promise<boolean> {
+  if (excludedSharePath({ path: required.relDir })) return false;
+  const info = await required.sink.fileSystem.lstat(required.absDir).catch(err => isMissing(err) ? null : Promise.reject(err));
+  if (!info) return false;
+  if (!info.isDirectory() || info.isSymbolicLink()) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses linked or special directory '${required.relDir}'.` });
+  validateSharePath({ path: required.relDir });
+  return true;
+}
+
+function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: string }, optional: { excludeTopLevel?: ReadonlySet<string> | undefined }): boolean {
+  const { name } = required;
+  // Finder writes .DS_Store into any folder it opens; it is junk, never content, so drop it before the share refusal list sees it.
+  if (name === ".DS_Store") return true;
+  if (required.sink.profile === "share" && excludedSharePath({ path: `${required.relDir}/${name}` })) return true;
+  return IGNORED_NAMES.has(name) || optional.excludeTopLevel?.has(name) === true;
+}
+
+async function walkEntry(required: { sink: WalkSink; entry: Dirent; absDir: string; relDir: string; scope: SiteBackupScope }): Promise<void> {
+  const { sink, entry, scope } = required;
+  const absPath = path.join(required.absDir, entry.name);
+  const relPath = `${required.relDir}/${entry.name}`;
+  if (entry.isSymbolicLink()) {
+    sink.skipped.push({ path: relPath, reason: SYMLINK_REASON });
+  } else if (entry.isDirectory()) {
+    await walkTree(sink, { absDir: absPath, relDir: relPath, scope });
+  } else {
+    await addFile(sink, { absPath, relPath, scope });
   }
 }
 
@@ -258,50 +272,67 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
  */
 async function walkAgentPlugins(sink: WalkSink, layout: AgentPluginLayout): Promise<void> {
   for (const entry of await readdirOrEmpty(layout.workspacesDir, sink.fileSystem)) {
-    const absWorkspace = path.join(layout.workspacesDir, entry.name);
-    if (entry.isSymbolicLink()) {
-      sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: SYMLINK_REASON });
-      continue;
-    }
-    if (!entry.isDirectory()) continue;
-    let workspace;
-    try {
-      workspace = layout.forWorkspace(entry.name);
-    } catch {
-      workspace = null;
-    }
-    // A folder the installer could never have written (an invalid id, or one that only resolves
-    // after case-folding to a different folder) is reported rather than walked under a guessed shape.
-    if (workspace === null || workspace.root !== absWorkspace) {
-      sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: "not a workspace folder the plugin installer writes" });
-      continue;
-    }
-    for (const name of PLUGIN_WORKSPACE_FILES) {
-      const absPath = path.join(workspace.root, name);
-      await addFile(sink, { absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
-    }
-    await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
-    for (const pluginEntry of await readdirOrEmpty(workspace.root, sink.fileSystem)) {
-      if (PLUGIN_WORKSPACE_FILES.has(pluginEntry.name) || (!pluginEntry.isDirectory() && !pluginEntry.isSymbolicLink())) continue;
-      let pluginRoot: string;
-      try {
-        pluginRoot = workspace.pluginRootDir({ pluginId: pluginEntry.name });
-      } catch {
-        continue; // `staging/`, `packages/`, `data/` and anything not named like a plugin id.
-      }
-      if (pluginEntry.isSymbolicLink()) {
-        sink.skipped.push({ path: agentPluginsRelPath(layout, pluginRoot), reason: SYMLINK_REASON });
-        continue;
-      }
-      const pluginId = pluginEntry.name;
-      for (const absDir of [
-        workspace.pluginPackagesDir({ pluginId }),
-        workspace.pluginMemoryDir({ pluginId, kind: "learned" }),
-        workspace.pluginMemoryDir({ pluginId, kind: "notes" }),
-      ]) {
-        await walkOwnedDir(sink, { layout, baseDir: pluginRoot, absDir });
-      }
-    }
+    const workspace = installerWorkspace({ sink, layout, entry });
+    if (workspace) await walkPluginWorkspace({ sink, layout, workspace });
+  }
+}
+
+type PluginWorkspace = ReturnType<AgentPluginLayout["forWorkspace"]>;
+
+/** The workspace folder `entry` names, or `null` (reported when it is a link or a foreign folder). */
+function installerWorkspace(required: { sink: WalkSink; layout: AgentPluginLayout; entry: Dirent }): PluginWorkspace | null {
+  const { sink, layout, entry } = required;
+  const absWorkspace = path.join(layout.workspacesDir, entry.name);
+  if (entry.isSymbolicLink()) {
+    sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: SYMLINK_REASON });
+    return null;
+  }
+  if (!entry.isDirectory()) return null;
+  let workspace;
+  try {
+    workspace = layout.forWorkspace(entry.name);
+  } catch {
+    workspace = null;
+  }
+  // A folder the installer could never have written (an invalid id, or one that only resolves
+  // after case-folding to a different folder) is reported rather than walked under a guessed shape.
+  if (workspace === null || workspace.root !== absWorkspace) {
+    sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: "not a workspace folder the plugin installer writes" });
+    return null;
+  }
+  return workspace;
+}
+
+async function walkPluginWorkspace(required: { sink: WalkSink; layout: AgentPluginLayout; workspace: PluginWorkspace }): Promise<void> {
+  const { sink, layout, workspace } = required;
+  for (const name of PLUGIN_WORKSPACE_FILES) {
+    const absPath = path.join(workspace.root, name);
+    await addFile(sink, { absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
+  }
+  await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
+  for (const pluginEntry of await readdirOrEmpty(workspace.root, sink.fileSystem)) await walkInstalledPlugin({ sink, layout, workspace, pluginEntry });
+}
+
+async function walkInstalledPlugin(required: { sink: WalkSink; layout: AgentPluginLayout; workspace: PluginWorkspace; pluginEntry: Dirent }): Promise<void> {
+  const { sink, layout, workspace, pluginEntry } = required;
+  if (PLUGIN_WORKSPACE_FILES.has(pluginEntry.name) || (!pluginEntry.isDirectory() && !pluginEntry.isSymbolicLink())) return;
+  let pluginRoot: string;
+  try {
+    pluginRoot = workspace.pluginRootDir({ pluginId: pluginEntry.name });
+  } catch {
+    return; // `staging/`, `packages/`, `data/` and anything not named like a plugin id.
+  }
+  if (pluginEntry.isSymbolicLink()) {
+    sink.skipped.push({ path: agentPluginsRelPath(layout, pluginRoot), reason: SYMLINK_REASON });
+    return;
+  }
+  const pluginId = pluginEntry.name;
+  for (const absDir of [
+    workspace.pluginPackagesDir({ pluginId }),
+    workspace.pluginMemoryDir({ pluginId, kind: "learned" }),
+    workspace.pluginMemoryDir({ pluginId, kind: "notes" }),
+  ]) {
+    await walkOwnedDir(sink, { layout, baseDir: pluginRoot, absDir });
   }
 }
 
@@ -323,33 +354,50 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   const sink: WalkSink = { files: [], skipped: [], fileSystem: optional.fileSystem ?? WALK_FILE_SYSTEM, ...(optional.profile ? { profile: optional.profile } : {}) };
   const scopeNotes: Partial<Record<SiteBackupScope, string>> = {};
 
-  if (include.media) {
-    if (sources.mediaUploadsDir === null) scopeNotes.media = MEDIA_IN_OBJECT_STORAGE_NOTE;
-    else await walkTree(sink, { absDir: sources.mediaUploadsDir, relDir: "uploads", scope: "media", excludeTopLevel: new Set(["chat-attachments"]) });
-  }
+  if (include.media) await collectMediaScope({ sink, sources, scopeNotes });
   if (include.themes) await walkTree(sink, { absDir: sources.themesDir, relDir: "themes", scope: "themes" });
-  if (include.plugins) {
-    if (optional.profile === "share") {
-      for (const root of [sources.agentPlugins.root, sources.agentPlugins.workspacesDir]) {
-        const info = await sink.fileSystem.lstat(root).catch(err => isMissing(err) ? null : Promise.reject(err));
-        if (info && (!info.isDirectory() || info.isSymbolicLink())) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: "Share refuses a linked plugin root." });
-      }
-    }
-    await walkAgentPlugins(sink, sources.agentPlugins);
-    await walkTree(sink, { absDir: sources.skillsDir, relDir: "skills", scope: "plugins" });
-  }
-  if (optional.profile === "share") {
-    if (include.plugins) await walkTree(sink, { absDir: path.join(sources.siteDir, "plugins"), relDir: "plugins", scope: "plugins" });
-    if (include.themes) await walkTree(sink, { absDir: path.join(sources.siteDir, "overrides"), relDir: "overrides", scope: "themes" });
-  }
+  if (include.plugins) await collectPluginScope({ sink, sources });
+  if (sink.profile === "share") await collectShareOnlyTrees({ sink, sources, include });
   if (include.settings) {
     for (const name of ["config.json", ".site-meta.json"]) {
       await addFile(sink, { absPath: path.join(sources.siteDir, name), relPath: `settings/${name}`, scope: "settings" });
     }
   }
 
-  sink.files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  sink.files.sort(byPath);
   return { files: sink.files, skipped: sink.skipped, scopeNotes };
+}
+
+/** Code-unit order: -1, 0 or 1, the same as `a < b ? -1 : a > b ? 1 : 0`. */
+function byPath(a: { path: string }, b: { path: string }): number {
+  return Number(a.path > b.path) - Number(a.path < b.path);
+}
+
+/** The uploads folder, minus chat attachments; object-storage media is noted, never silently empty. */
+async function collectMediaScope(required: { sink: WalkSink; sources: SiteBackupSources; scopeNotes: Partial<Record<SiteBackupScope, string>> }): Promise<void> {
+  const { mediaUploadsDir } = required.sources;
+  if (mediaUploadsDir === null) required.scopeNotes.media = MEDIA_IN_OBJECT_STORAGE_NOTE;
+  else await walkTree(required.sink, { absDir: mediaUploadsDir, relDir: "uploads", scope: "media", excludeTopLevel: new Set(["chat-attachments"]) });
+}
+
+/** Installed agent plugins and skills; a share first refuses a linked or special plugin root. */
+async function collectPluginScope(required: { sink: WalkSink; sources: SiteBackupSources }): Promise<void> {
+  const { sink, sources } = required;
+  if (sink.profile === "share") {
+    for (const root of [sources.agentPlugins.root, sources.agentPlugins.workspacesDir]) {
+      const info = await sink.fileSystem.lstat(root).catch(err => isMissing(err) ? null : Promise.reject(err));
+      if (info && (!info.isDirectory() || info.isSymbolicLink())) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: "Share refuses a linked plugin root." });
+    }
+  }
+  await walkAgentPlugins(sink, sources.agentPlugins);
+  await walkTree(sink, { absDir: sources.skillsDir, relDir: "skills", scope: "plugins" });
+}
+
+/** Site-local plugin packages and theme overrides travel only in a share. */
+async function collectShareOnlyTrees(required: { sink: WalkSink; sources: SiteBackupSources; include: SiteBackupInclude }): Promise<void> {
+  const { sink, sources, include } = required;
+  if (include.plugins) await walkTree(sink, { absDir: path.join(sources.siteDir, "plugins"), relDir: "plugins", scope: "plugins" });
+  if (include.themes) await walkTree(sink, { absDir: path.join(sources.siteDir, "overrides"), relDir: "overrides", scope: "themes" });
 }
 
 export type DatabaseSnapshotResult = { ok: true; bytes: Buffer; watermarkAtCapture: number } | { ok: false; message: string; logDetail?: string };

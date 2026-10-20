@@ -665,3 +665,45 @@ test("share collection omits only private runtime files and includes overrides a
   assert.equal(paths(result.files).includes("themes/static/demo/.env.local"), false);
   assert.equal(result.files.some(file => /\/memory\//.test(file.path)), false);
 });
+
+test("share collection silently omits a plugin workspace whose own name is a private path", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  write(path.join(site.root, "agent-plugins/ws/chat.db/activations.json"), "{}");
+  write(path.join(site.root, "agent-plugins/ws/chat.db/packages/sha256/d9/plugin.json"), "{}");
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, { profile: "share" });
+  assert.equal(result.files.some(file => file.path.includes("chat.db")), false);
+  assert.ok(paths(result.files).includes("agent-plugins/ws/workspace-local/activations.json"));
+});
+test("share collection with no agent-plugins folder at all collects only skills", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  rmSync(path.join(site.root, "agent-plugins"), { recursive: true });
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, { profile: "share" });
+  assert.deepEqual(paths(result.files), ["skills/ws/workspace-local/incident-response/SKILL.md"]);
+});
+test("a snapshot larger than the caller's byte cap is refused and its artifact removed", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const dbOps = new FakeDbOps(site.root);
+  assert.deepEqual(await captureDatabaseSnapshot({ dbOps, scopeId: "ws-1" }, { maxBytes: 5 }), { ok: false, message: "Database snapshot exceeds the v1 300 MiB share cap." });
+  assert.equal(existsSync(dbOps.artifactPath!), false);
+});
+test("a snapshot within the caller's byte cap is read back", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  const result = await captureDatabaseSnapshot({ dbOps: new FakeDbOps(site.root), scopeId: "ws-1" }, { maxBytes: 6 });
+  assert.deepEqual(result.ok && [...result.bytes], [0x53, 0x51, 0x4c, 0x00, 0xff, 0x01]);
+});
+test("a share manifest names the share profile and its sanitization version", () => {
+  const manifest = JSON.parse(buildSiteBackupManifest({ profile: "share", createdAt: "2026-10-16T00:00:00Z", tovuVersion: "1", schema: { index: 1, tag: "one" },
+    site: { name: "Shared", folderName: "shared" }, database: { watermarkAtCapture: 3 }, include: ALL, scopeNotes: {}, files: [] }));
+  assert.deepEqual([manifest.profile, manifest.sanitizationVersion, manifest.database], ["share", 1, { path: "database/content.db", engine: "sqlite", watermarkAtCapture: 3 }]);
+});
+test("collected files come back sorted by path in code-unit order", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  write(path.join(site.root, "themes/static/demo/B.html"), "b");
+  const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true, settings: true } });
+  assert.deepEqual(result.files.map(file => file.path), ["settings/.site-meta.json", "settings/config.json", "themes/static/demo/B.html", "themes/static/demo/index.html"]);
+});
+test("share collection refuses a regular file standing where a scope folder belongs", async t => {
+  const site = makeSite(); t.after(site.cleanup);
+  rmSync(site.sources.themesDir, { recursive: true }); write(site.sources.themesDir, "not a folder");
+  await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share" }), { code: "UNSAFE_FILE", message: "Share refuses linked or special directory 'themes'." });
+});
