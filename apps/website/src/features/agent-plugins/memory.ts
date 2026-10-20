@@ -45,8 +45,7 @@ export function withAgentPluginStateLock<T>(required: { workspaceRoot: string; p
   return withPluginStateLock({ ...effects, ...required });
 }
 
-/** The web boot owns the site tree, including workspaces the current request is not serving. */
-export async function migrateSiteAgentPluginLayouts(required: { layout: AgentPluginLayout; workspaceId: string }, _optional = {}) {
+async function discoverSiteWorkspaceIds(required: { layout: AgentPluginLayout; workspaceId: string }, _optional = {}) {
   const ids = new Set([required.workspaceId]);
   try {
     for (const entry of await filesystem.readdir(path.join(required.layout.root, "ws"), { withFileTypes: true })) {
@@ -58,6 +57,12 @@ export async function migrateSiteAgentPluginLayouts(required: { layout: AgentPlu
   } catch (error) {
     if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ENOENT") throw error;
   }
+  return ids;
+}
+
+/** The web boot owns the site tree, including workspaces the current request is not serving. */
+export async function migrateSiteAgentPluginLayouts(required: { layout: AgentPluginLayout; workspaceId: string }, _optional = {}) {
+  const ids = await discoverSiteWorkspaceIds(required);
   let active = { complete: false, moved: 0 };
   for (const workspaceId of ids) {
     const result = await migrateAgentPluginLayout({ layout: required.layout, workspaceId });

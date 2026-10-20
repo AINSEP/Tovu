@@ -26,6 +26,13 @@ const MAX_TOKEN_LENGTH = 4096;
 
 export const NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR = "'agentPluginTokens' must map plugin ids to token strings";
 
+function isValidTokenEntry(
+  { pluginId, value }: { pluginId: string; value: string },
+  _optional = {},
+): boolean {
+  return PLUGIN_ID_PATTERN.test(pluginId) && value.length <= MAX_TOKEN_LENGTH;
+}
+
 /**
  * `{ [pluginId]: token }`, trimmed, blanks dropped. `null`/`undefined` is "none given".
  * @complexity O(n) in the entry count (bounded).
@@ -36,8 +43,9 @@ export function parseNewSiteAgentPluginTokens(raw: unknown): { ok: true; tokens:
   if (typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > MAX_AGENT_PLUGIN_TOKENS) return invalid;
   const tokens: Record<string, string> = {};
   for (const [pluginId, value] of Object.entries(raw)) {
-    if (!PLUGIN_ID_PATTERN.test(pluginId) || typeof value !== "string" || value.length > MAX_TOKEN_LENGTH) return invalid;
-    if (value.trim() !== "") tokens[pluginId] = value.trim();
+    if (typeof value !== "string" || !isValidTokenEntry({ pluginId, value })) return invalid;
+    const token = value.trim();
+    if (token !== "") tokens[pluginId] = token;
   }
   return { ok: true, tokens };
 }
