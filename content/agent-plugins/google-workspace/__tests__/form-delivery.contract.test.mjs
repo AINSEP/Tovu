@@ -198,7 +198,20 @@ test('product disabled (or no product reader wired): adapter-unavailable, retrya
   const refused = { ok: false, error: { code: 'adapter-unavailable', retryable: true, outcome: 'not-applied' } };
   assert.deepEqual(await deliver(job(), { productEnabled: async () => false }), refused);
   assert.deepEqual(await deliver(job(), {}), refused);
+  assert.deepEqual(await deliver(job(), { productEnabled: async () => undefined }), refused);
   assert.equal(fake.requests.length, 0);
+});
+
+test('an unexpected host error is a retryable delivery-failed whose text is dropped', async () => {
+  const result = await deliver(job(), { productEnabled: () => { throw new Error(`reader failed for ${TOKEN}`); } });
+  assert.deepEqual(result, { ok: false, error: { code: 'delivery-failed', retryable: true } });
+});
+
+test('existing columns in another order: each value lands under its own header', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: ['Email', '_tovu_submitted_at', 'Name', '_tovu_submission_id'] } }]);
+  const config = { spreadsheetId: BOOK, tabs: { contact: { sheetId: TAB_ID, columns: [{ field: 'name', header: 'Name' }, { field: 'email', header: 'Email' }] } } };
+  assert.equal((await deliver(job({ config }))).ok, true);
+  assert.deepEqual(sheets.rowsOf(TAB_ID)[1], ['ada@example.test', '2026-10-20T10:00:00.000Z', 'Ada', 'sub-1']);
 });
 
 test('reconnect required: Google refusing the token is authorization-required, not retried, nothing appended', async () => {

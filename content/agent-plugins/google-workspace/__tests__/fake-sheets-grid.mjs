@@ -9,9 +9,13 @@
  * row, and value reads omit trailing blanks. Requests without the expected access token get 401.
  */
 
-/** `'Tab ''x'''!A2:B9` → `{ title, c1, r1, c2, r2 }` (0-based columns, 1-based rows; open ends undefined). */
+/**
+ * `'Tab ''x'''!A2:B9` → `{ title, c1, r1, c2, r2 }` (0-based columns, 1-based rows; open ends
+ * undefined); undefined for a range that is not quoted this way (Google answers 400).
+ */
 function parseRange(raw) {
   const match = /^'((?:[^']|'')*)'!(.*)$/.exec(raw);
+  if (!match) return undefined;
   const title = match[1].replaceAll("''", "'");
   const [start, end = start] = match[2].split(':');
   const cell = (text) => {
@@ -94,7 +98,7 @@ export function installSheetsGrid(required) {
   function values(req, body, url) {
     const [encoded, method] = url.pathname.slice(`${prefix}/values/`.length).split(':');
     const range = parseRange(decodeURIComponent(encoded));
-    const tab = byTitle(range.title);
+    const tab = range && byTitle(range.title);
     if (!tab) return [400, { error: { code: 400, status: 'INVALID_ARGUMENT' } }];
     if (req.method === 'GET') return [200, { range: decodeURIComponent(encoded), majorDimension: 'ROWS', values: readValues(tab, range) }];
     const payload = JSON.parse(body);
