@@ -26,18 +26,32 @@ export function desktopProjectPaths({ homeDir, appData, env, platform }: {
  */
 export function relocateDesktopProjects({ value, from, to }: { value: unknown; from: string; to: string }, _options = {}): unknown {
   if (value === undefined) return undefined;
+  const state = desktopCatalog({ value });
+  if (state.projects.some((row) => isProjectRow(row) && row.siteDir === to) && state.projects.some((row) => isProjectRow(row) && row.siteDir === from)) throw new Error("Desktop move target is already tracked.");
+  return { ...state, projects: state.projects.map((row) => isProjectRow(row) && row.siteDir === from ? { ...row, siteDir: to } : row),
+    ...(state.dismissed ? { dismissed: [...new Set(state.dismissed.map((dir) => dir === from ? to : dir))] } : {}),
+  };
+}
+
+interface DesktopCatalog { projects: unknown[]; dismissed?: string[]; [field: string]: unknown }
+
+/** @throws When the catalog is not an object with a projects array and string dismissals. */
+function desktopCatalog({ value }: { value: unknown }): DesktopCatalog {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Desktop projects catalog is invalid.");
   const state = value as { projects?: unknown; dismissed?: unknown };
-  if (!Array.isArray(state.projects) ||
-    (state.dismissed !== undefined && (!Array.isArray(state.dismissed) || !state.dismissed.every((dir) => typeof dir === "string")))) throw new Error("Desktop projects catalog is invalid.");
-  // Match desktop's reader: unusable rows are invisible to the app, so retain their bytes'
-  // values instead of making unrelated damage block a valid site's explicit relocation.
-  const validRow = (row: unknown): row is { siteDir: string; createdAt: string } =>
-    !!row && typeof row === "object" && typeof (row as { siteDir?: unknown }).siteDir === "string" && typeof (row as { createdAt?: unknown }).createdAt === "string";
-  if (state.projects.some((row) => validRow(row) && row.siteDir === to) && state.projects.some((row) => validRow(row) && row.siteDir === from)) throw new Error("Desktop move target is already tracked.");
-  return { ...state, projects: state.projects.map((row) => validRow(row) && row.siteDir === from ? { ...row, siteDir: to } : row),
-    ...(Array.isArray(state.dismissed) ? { dismissed: [...new Set(state.dismissed.map((dir) => dir === from ? to : dir))] } : {}),
-  };
+  if (!Array.isArray(state.projects) || !validDismissals(state.dismissed)) throw new Error("Desktop projects catalog is invalid.");
+  return state as DesktopCatalog;
+}
+
+/** Dismissal tombstones are optional, but when present every entry is a folder path. */
+function validDismissals(dismissed: unknown): boolean {
+  return dismissed === undefined || (Array.isArray(dismissed) && dismissed.every((dir) => typeof dir === "string"));
+}
+
+// Match desktop's reader: unusable rows are invisible to the app, so retain their bytes'
+// values instead of making unrelated damage block a valid site's explicit relocation.
+function isProjectRow(row: unknown): row is { siteDir: string; createdAt: string } {
+  return !!row && typeof row === "object" && typeof (row as { siteDir?: unknown }).siteDir === "string" && typeof (row as { createdAt?: unknown }).createdAt === "string";
 }
 
 /** Build the product's reference participants for the shared locked relocation transaction. */
