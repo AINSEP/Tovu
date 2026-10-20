@@ -148,11 +148,17 @@ export function parseDeployConfigsFile(raw: string): { readonly ok: true; readon
 /** One generator entry, or the reason it is invalid. @complexity O(1). */
 function parseDescriptor(entry: unknown, at: string): DeployConfigGeneratorDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, module } = entry;
+  const { id, module } = entry;
   if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !GENERATOR_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
-  if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
+  const label = readGeneratorLabel({ label: entry.label });
+  if (label === undefined) return `${at}.label must be a non-empty string`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
   return { id, label, module };
+}
+
+/** Keep label bounds and blank detection together without normalizing the stored label. */
+function readGeneratorLabel({ label }: { label: unknown }, _options = {}): string | undefined {
+  return typeof label === "string" && label.trim() !== "" && label.length <= MAX_LABEL_LENGTH ? label : undefined;
 }
 
 /** @complexity O(g). */

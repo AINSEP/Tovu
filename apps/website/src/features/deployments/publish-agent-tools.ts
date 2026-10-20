@@ -725,12 +725,20 @@ function readCredentialHints(raw: Record<string, unknown>, descriptor: DeployTar
       const takes = fields.length > 0 ? `It takes: ${fields.map((candidate) => candidate.name).join(", ")}.` : "It takes none.";
       throw new ToolInputError({ message: `'${key}' is not a credential field of ${descriptor.id}. ${takes}` });
     }
-    if (field.secret === true || key === descriptor.credential?.tokenField) throw new ToolInputError({ message: `'${key}' is secret: the person types it into the form, never into the chat.` });
-    if (typeof value !== "string") throw new ToolInputError({ message: `'${key}' must be a string.` });
-    assertCredentialFreeField({ value, field: key });
-    if (value.trim() !== "") hints[key] = value;
+    const hint = readCredentialHint({ key, value, field, tokenField: descriptor.credential?.tokenField });
+    if (hint.trim() !== "") hints[key] = hint;
   }
   return hints;
+}
+
+/** Validate a declared chat hint before allowing it into a credential form. */
+function readCredentialHint({ key, value, field, tokenField }: {
+  key: string; value: unknown; field: DeployTargetCredentialSpec["fields"][number]; tokenField: string | undefined;
+}, _options = {}): string {
+  if (field.secret === true || key === tokenField) throw new ToolInputError({ message: `'${key}' is secret: the person types it into the form, never into the chat.` });
+  if (typeof value !== "string") throw new ToolInputError({ message: `'${key}' must be a string.` });
+  assertCredentialFreeField({ value, field: key });
+  return value;
 }
 
 /** The propose-credential form, built from the host's credential spec. Posts back on cancel rather
@@ -837,13 +845,31 @@ async function saveProposeCredential(required: {
         cache: deps.publishCredentialVerificationCache, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) },
         loadDeployTargets: deployTargetsLoader(deps), observability: deps.observability, fetchFn: deps.fetchFn,
       }, { workspaceId: deps.workspaceId, id: saveResult.credentialId });
-      connection = verification?.status === 'valid' ? 'connected' : verification?.status === 'invalid' ? 'auth' : verification?.message === credentialText({ id: 'timeout' }) ? 'timeout' : 'unreachable';
+      connection = credentialConnectionStatus({ verification });
     }
   } catch { connection = 'unreachable'; }
   const hint = formatCredentialHint({ hint: saveResult.tokenHint, locale });
   return { saved: true as const, providerId: targetId, connected: connection === 'connected', connection,
     tokenHint: saveResult.tokenHint, message: `${hint ? `${hint}. ` : ''}${credentialText({ id: connection, locale })}` };
 
+}
+
+/** Translate verification into the credential card's existing connection vocabulary. */
+function credentialConnectionStatus({ verification }: {
+  verification: Awaited<ReturnType<typeof verifyPublishCredentialById>>;
+}, _options = {}): 'connected' | 'auth' | 'timeout' | 'unreachable' {
+  if (verification?.status === 'valid') return 'connected';
+  if (verification?.status === 'invalid') return 'auth';
+  return verification?.message === credentialText({ id: 'timeout' }) ? 'timeout' : 'unreachable';
+}
+
+/** Consent remains a fail-closed preflight before credential reads or publishing. */
+async function checkToolPublishConsent({ deps, principalId }: {
+  deps: StaticPublishToolDeps; principalId: string;
+}, _options = {}) {
+  return deps.siteConsent
+    ? await deps.siteConsent.deploymentCheck({ principalId, permission: 'deployments.publish' })
+    : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
 }
 
 /**
@@ -1009,9 +1035,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       if (!plan.ok) {
         throw new ToolInputError({ message: `deployment_execute_static_publish: ${plan.message}` });
       }
-      const consent = deps.siteConsent
-        ? await deps.siteConsent.deploymentCheck({ principalId: ctx.principal.id, permission: 'deployments.publish' })
-        : deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent readiness is unavailable. No publish was started.' }] });
+      const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) return { published: false, cancelled: false, ...consent };
 
       if (config.customDomain && loaded.module.preview) {

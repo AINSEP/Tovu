@@ -1,5 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
+import { deploymentRefusal } from "../../consent/service.js";
 import { credentialSaveCatalog } from "../../custom-credentials/credential-save-tool.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -1926,4 +1927,61 @@ test("static publish tool returns consent choices before export or provider writ
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const result = await call(tool(buildRegistrations(deps, surfaceExchanges), 'deployment_execute_static_publish'), { input: { target: 'vercel', projectName: 'consent-test' } }) as { published: boolean; code: string };
   assert.equal(result.published, false); assert.equal(result.code, 'CONSENT_REVIEW_REQUIRED');
+});
+
+for (const scenario of ['saved', 'connected', 'auth', 'timeout', 'unreachable', 'throws'] as const) {
+  test(`L210 post-save probe preserves ${scenario} connection outcome`, async () => {
+    const { deps } = fakeDeps();
+    const host: LoadedDeployTarget = {
+      pluginId: 'pin-host',
+      descriptor: { id: 'pin-host', label: 'Pin Host', module: 'host.mjs', configFields: [],
+        credential: { vendorId: 'pin-host', tokenField: 'token', fields: [{ name: 'token', label: 'Token', required: true, secret: true }] } },
+      module: { create: () => assert.fail('must not publish'),
+        ...(scenario === 'saved' ? {} : { verifyCredential: async () => {
+          if (scenario === 'throws') throw new Error('probe failed');
+          if (scenario === 'connected') return { ok: true as const };
+          if (scenario === 'auth') return { ok: false as const, reason: 'rejected' as const };
+          return { ok: false as const, reason: 'unreachable' as const, ...(scenario === 'timeout' ? { statusCode: 408 } : {}) };
+        } }) },
+    };
+    deps.loadDeployTargets = async () => ({ get: id => id === 'pin-host' ? host : undefined, list: () => [host], refusals: [] });
+    const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+    const { pending, exchangeId } = await raiseCredentialForm(tool(buildRegistrations(deps, exchanges), 'credential_save'), { target: 'pin-host' });
+    exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: 'fixture_token_1234' } }, { toolId: 'credential_save' });
+    const result = await pending as { saved: boolean; connected: boolean; connection: string; message: string };
+    assert.equal(result.saved, true);
+    assert.equal(result.connected, scenario === 'connected');
+    assert.equal(result.connection, scenario === 'throws' ? 'unreachable' : scenario);
+    assert.doesNotMatch(result.message, /fixture_token_1234/);
+    assert.equal(exchanges.size(), 0);
+  });
+}
+
+test('L210 credential hints reject secret and invalid values before displaying a form', async () => {
+  const { deps } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = tool(buildRegistrations(deps, exchanges), 'credential_save');
+  for (const [hint, message] of [
+    [{ secretAccessKey: 'placeholder' }, "'secretAccessKey' is secret: the person types it into the form, never into the chat."],
+    [{ bucket: 42 }, "'bucket' must be a string."],
+  ] as const) {
+    await assert.rejects(call(registration, { input: { target: 's3-compatible', ...hint } }),
+      (error: unknown) => error instanceof ToolInputError && error.message === message);
+  }
+  const { pending, exchangeId, html } = await raiseCredentialForm(registration, { target: 's3-compatible', bucket: '  ', region: ' eu-west-1 ' });
+  assert.ok(html.includes(' eu-west-1 '));
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: 'credential_save' });
+  await pending;
+  assert.equal(exchanges.size(), 0);
+});
+
+for (const available of [true, false]) test(`L210 execute consent refusal preserves service availability ${available}`, async () => {
+  const { deps } = fakeDeps();
+  const refusal = deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'Consent refused.' }] });
+  deps.siteConsent = available ? { deploymentCheck: async () => refusal } : undefined;
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const result = await call(tool(buildRegistrations(deps, exchanges), 'deployment_execute_static_publish'), { input: { target: 'netlify', projectName: 'pin-site' } }) as { published: boolean; cancelled: boolean; code: string };
+  assert.equal(result.published, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.code, 'CONSENT_REVIEW_REQUIRED');
 });
