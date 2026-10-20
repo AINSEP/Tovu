@@ -17,7 +17,7 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 | Lot | Area | Baseline worst cyc/cog | Violations | Status | After | Coverage | Commits |
 |---|---|---|---|---|---|---|---|
 | L003 | site-backup A | 86/72 | 21 | running (01:20) | | | |
-| L011 | theme | 67/92 | 17 | dispatched | | | |
+| L011 | theme | 67/92 | 17 | part 1 merged (3/7 files); part 2 running | webmcp-markup, markup, publish-content ≤10 | 100/100/100 on those 3 | f973d835, 6f470424 |
 | L033 | media | 34/22 | 16 | dispatched | | | |
 | L064 | plugin-runtime | 34/42 | 11 | dispatched | | | |
 | L068 | post | 24/18 | 17 | dispatched | | | |
@@ -27,6 +27,10 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 | L115 | navigation | 21/17 | 8 | queued | | | |
 
 ## Problems / notes
+- SETUP GAP: `@tovu/sdk` (packages/sdk) dist is not built by `npm ci`; without it root/tests typecheck show ~14/39 errors and an integration test fails. Fix: `cd packages/sdk && npx tsc -p tsconfig.json` in the main checkout (worktrees see it through the node_modules symlink). After that root + tests typecheck are clean (0 errors).
+- Desktop pre-push hook runs on the first push of a branch with no upstream (`@{push}` unresolved); L011 subagent used `--no-verify` once. Next waves: tell subagents the hook is harmless and that it can take a while; don't bypass.
+- Coverage tip (L011): add `--enable-source-maps` to the coverage command, or the uncovered line numbers are wrong.
+- L011 part 1 verify: eslint 0, 181/181 tests (validation/__tests__ + publish-content.*), root + tests tsc 0. Removed the exported legacy `checkTovuAgentAttributePresence` (only its own test called it); its history comment moved to webmcp-markup.ts.
 
 ## Next
 - Coordinator dispatched L003, L011, L033, L064, L068 in parallel at ~01:20 UTC (opus-high subagents, brief file + inline context/persona rules).
