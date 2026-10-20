@@ -131,10 +131,11 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
       assert.equal(response.headers.get("cache-control"), "no-store");
     },
   });
-  assert.deepEqual(result, { status: "connected" });
+  // H1: the result hands chat the opaque ref the plugin's tools take; nothing else.
+  const { connectionRef } = result;
+  assert.deepEqual(result, { status: "connected", connectionRef: deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" }) });
   assert.ok(!callbackPage.includes(accessToken) && !callbackPage.includes(refreshToken));
 
-  const connectionRef = deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" });
   assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
   // The push kit's host allowlist is the connection's declared API origin, never empty.
@@ -220,7 +221,7 @@ test("security: a desktop public client's provider-issued secret reaches only th
       logs.push(await response.text());
     },
   });
-  assert.deepEqual(result, { status: "connected" });
+  assert.equal(result.status, "connected");
   assert.equal(lastTokenForm.get("client_secret"), secret, "sent as client_secret_post to the token endpoint");
   assert.equal(new URL(signInUrl).searchParams.get("prompt"), "consent", "the public client's fixed parameters apply");
   assert.ok(!signInUrl.includes(secret), "never in the browser's authorization URL");

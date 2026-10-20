@@ -34,7 +34,6 @@ import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools";
-import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
@@ -176,11 +175,17 @@ function consentRedirect(authorizationUrl: string, extraFields: Readonly<Record<
 }
 
 const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-const connectionRef = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: "account" });
+/** Connects and returns the opaque ref `agent_plugin_connect` hands the model (H1: never derived here). */
+async function connectForRef(composition: Awaited<ReturnType<typeof compose>>): Promise<string> {
+  const { status, connectionRef } = await connectHosted(composition);
+  assert.equal(status, "connected");
+  assert.equal(typeof connectionRef, "string");
+  return connectionRef;
+}
 
 test("vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition", async () => {
   const composition = await compose();
-  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  const connectionRef = await connectForRef(composition);
 
   const registry = createToolRegistry({});
   const { refusals } = await registerAgentPluginExecutableTools({
@@ -203,7 +208,7 @@ test("vertical slice: connect -> public callback -> executable tool call -> admi
 
 test("vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it", async () => {
   const composition = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_ACME_CHOOSER_APP_ID: "app-123" });
-  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  await connectForRef(composition);
   const context = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account" };
   await composition.adminSurfaceHost.bootstrapData({ context });
   const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
@@ -232,17 +237,19 @@ test("vertical slice: a surface reads status, starts a pick sign-in, takes its c
 
 test("security: the shared connection port refuses another workspace's target and reads no account for it", async () => {
   const composition = await compose();
-  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  const connectionRef = await connectForRef(composition);
   const { connections } = composition.agentPluginTools;
   assert.equal((await connections.readAccount({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionRef }))?.displayName, "Ada");
   await assert.rejects(connections.getAccessToken({ workspaceId: "ws-2", pluginId: PLUGIN, connectionRef }), { code: "connection-not-found", message: /not available to this plugin/ });
   assert.equal(await connections.readAccount({ workspaceId: "ws-2", pluginId: PLUGIN, connectionRef }), null);
   assert.equal(await connections.readAccount({ workspaceId: WORKSPACE, pluginId: "other-plugin", connectionRef }), null);
+  // H1: the ref chat now receives is still refused for any plugin that does not declare it.
+  await assert.rejects(connections.getAccessToken({ workspaceId: WORKSPACE, pluginId: "other-plugin", connectionRef }), { code: "connection-not-found", message: /not available to this plugin/ });
 });
 
 test("security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)", async () => {
   const composition = await compose();
-  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  const connectionRef = await connectForRef(composition);
   const registry = createToolRegistry({});
   await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration,
@@ -284,7 +291,7 @@ test("security: desktop admits only its plaintext loopback redirect, and complet
       await fetch(consentRedirect(signInUrl));
     },
   });
-  assert.deepEqual(connected, { status: "connected" });
+  assert.equal(connected.status, "connected");
   assert.match(redirectUri, /^http:\/\/127\.0\.0\.1:\d+\//);
   const hosted = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) });
   const service = hosted.apiConnections.host.serviceFor({ connection, redirectUri });
@@ -304,7 +311,7 @@ const formKit: FormDestinationKit = {
 test("vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery", async () => {
   appended.length = 0;
   const composition = await compose();
-  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  const connectionRef = await connectForRef(composition);
   const stored = await composition.vaultRepo.list({ workspaceId: WORKSPACE, kind: "api-connection", ownerKey: "tovu", principalId: null });
   assert.ok(stored.some((row) => row.sealed !== null), "the token set is in the vault, sealed");
   assert.ok(!JSON.stringify(stored).includes(accessToken) && !JSON.stringify(stored).includes(refreshToken), "no plaintext token in any vault row");

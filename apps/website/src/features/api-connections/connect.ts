@@ -16,7 +16,7 @@ import type { ApiConnectionHost } from "./host.js";
  * and it reads `connected`. Desktop: an ephemeral 127.0.0.1 loopback listener (Jini's installed-app
  * receiver) catches the redirect and this call completes it itself. The card's link opens in the
  * system browser through the desktop shell's existing external-link policy, so nothing here launches
- * a browser. Results carry a status only, never a token, code or URL. At most one desktop listener
+ * a browser. Results carry a status and the opaque `connectionRef` only, never a token, code or URL. At most one desktop listener
  * per connection is pending: a newer sign-in closes the previous one.
  */
 
@@ -28,7 +28,12 @@ export interface ApiConnectionConnectDeps {
   readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
 
-export type ApiConnectionConnectStatus = { readonly status: "connected" | "waiting-for-sign-in" };
+/**
+ * `connectionRef` is the opaque, plugin-scoped key the plugin's tools take as input. It is not a
+ * secret: the host refuses it for any plugin that does not declare the connection in this workspace.
+ * Returned in both states so a later call can use it once the person finishes signing in.
+ */
+export type ApiConnectionConnectStatus = { readonly status: "connected" | "waiting-for-sign-in"; readonly connectionRef: string };
 
 interface ConnectRun {
   readonly deps: ApiConnectionConnectDeps;
@@ -205,8 +210,9 @@ export async function runApiConnectionConnect(
   const { connection } = required;
   const scopeSetIds = await (required.deps.scopeSetIds?.({ pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId }) ?? Promise.resolve([]));
   const status = await host.statusOf({ connection });
+  const { connectionRef } = status;
   const wanted = await host.requestedScopes({ connection, scopeSetIds });
-  if (status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected" };
+  if (status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected", connectionRef };
   const connected = host.runtime === "desktop" ? await connectDesktop(required, scopeSetIds) : await connectHosted(required, scopeSetIds);
-  return { status: connected ? "connected" : "waiting-for-sign-in" };
+  return { status: connected ? "connected" : "waiting-for-sign-in", connectionRef };
 }
