@@ -28,7 +28,7 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 
 ## Problems / notes
 - SETUP GAP: `@tovu/sdk` (packages/sdk) dist is not built by `npm ci`; without it root/tests typecheck show ~14/39 errors and an integration test fails. Fix: `cd packages/sdk && npx tsc -p tsconfig.json` in the main checkout (worktrees see it through the node_modules symlink). After that root + tests typecheck are clean (0 errors).
-- Desktop pre-push hook runs on the first push of a branch with no upstream (`@{push}` unresolved); L011 subagent used `--no-verify` once. Next waves: tell subagents the hook is harmless and that it can take a while; don't bypass.
+- Desktop pre-push hook runs its gates (which fail: no electron installed) whenever `@{push}` is unresolved, i.e. a new branch with no upstream. FIX USED: coordinator pre-creates `origin/cloud/tw1-features-<LOT>` at the base commit and sets the worktree branch upstream to it, so the hook takes its "no apps/desktop changes" skip path. Do this for every new lot worktree. Never use --no-verify (L011 part 1 did once, before this fix).
 - Coverage tip (L011): add `--enable-source-maps` to the coverage command, or the uncovered line numbers are wrong.
 - L011 part 1 verify: eslint 0, 181/181 tests (validation/__tests__ + publish-content.*), root + tests tsc 0. Removed the exported legacy `checkTovuAgentAttributePresence` (only its own test called it); its history comment moved to webmcp-markup.ts.
 
