@@ -22,18 +22,27 @@ function binding(bindingId: string): FormDeliveryBinding {
   return { bindingId, adapterId: `adapter-${bindingId}`, connectionRef: `conn-${bindingId}`, enabled: true, config: {} };
 }
 
-/** A real plan from the Jini planner, so the stored rows have the shape production writes. */
-function plan(make: { repo: SqlFormDeliveryRepo }, workspaceId: string, bindingIds: readonly string[]): Promise<FormDeliveryPlan> {
+/**
+ * A real plan from the Jini planner, so the stored rows have the shape production writes. Job ids
+ * are `<workspace>-job-<n>` for submission `s1` and `<workspace>-<submission>-job-<n>` otherwise;
+ * `nowIso` is the jobs' created time (the order `recentUnfinished` lists them in).
+ */
+function plan(
+  make: { repo: SqlFormDeliveryRepo }, workspaceId: string, bindingIds: readonly string[],
+  optional: { submissionId?: string; nowIso?: string } = {},
+): Promise<FormDeliveryPlan> {
+  const { submissionId = "s1", nowIso = T0 } = optional;
+  const prefix = submissionId === "s1" ? workspaceId : `${workspaceId}-${submissionId}`;
   let next = 0;
   return planFormDeliveries({
-    workspaceId, submissionId: "s1", formId: `form-${workspaceId}`,
+    workspaceId, submissionId, formId: `form-${workspaceId}`,
     deps: {
       plans: make.repo,
       bindings: async () => bindingIds.map(binding),
       snapshot: async () => ({ form: { slug: "contact", fields: [{ name: "email", required: true }] },
-        submission: { id: "s1", answers: { email: "a@example.com" }, submittedAt: T0 } }),
-      newId: () => `${workspaceId}-job-${(next += 1)}`,
-      nowIso: () => T0,
+        submission: { id: submissionId, answers: { email: "a@example.com" }, submittedAt: nowIso } }),
+      newId: () => `${prefix}-job-${(next += 1)}`,
+      nowIso: () => nowIso,
     },
   });
 }
@@ -122,6 +131,34 @@ describeEachDialect(
       assert.deepEqual(await ctx.repo.forSubmission({ workspaceId: "wb", submissionId: "s1" }), []);
       const rebuilt = await plan(ctx, "wb", []);
       assert.deepEqual(rebuilt.jobs, [], "the refused attempts left no plan behind, so a correct build is stored");
+    });
+
+    test("a built plan or child job for another submission of the same workspace is refused", async () => {
+      const ctx = make();
+      const forS1 = await plan(ctx, "wa", ["b1"]);
+      await assert.rejects(ctx.repo.once({ workspaceId: "wa", submissionId: "s2", build: async () => forS1 }),
+        /Form delivery plan refused: the built plan is for workspace wa, submission s1, not workspace wa, submission s2/);
+      const smuggled = { ...forS1, submissionId: "s2", jobs: forS1.jobs.map(job => ({ ...job, id: "smuggled" })) };
+      await assert.rejects(ctx.repo.once({ workspaceId: "wa", submissionId: "s2", build: async () => smuggled }),
+        /Form delivery plan refused: child job smuggled is for workspace wa, submission s1, not workspace wa, submission s2/);
+      assert.deepEqual(await ctx.repo.forSubmission({ workspaceId: "wa", submissionId: "s2" }), []);
+    });
+
+    test("a per-submission status read lists only that submission's bindings, ordered by binding id", async () => {
+      const ctx = make();
+      await plan(ctx, "wa", ["b2", "b1"]);
+      await plan(ctx, "wa", ["b3"], { submissionId: "s2" });
+      assert.deepEqual((await ctx.repo.forSubmission({ workspaceId: "wa", submissionId: "s1" })).map(row => [row.submissionId, row.bindingId]),
+        [["s1", "b1"], ["s1", "b2"]]);
+    });
+
+    test("the recent listing leaves out completed deliveries, lists the newest first and honours its limit", async () => {
+      const ctx = make();
+      await plan(ctx, "wa", ["b1", "b2"]);
+      await plan(ctx, "wa", ["b3"], { submissionId: "s2", nowIso: at(1_000) });
+      await ctx.outbox.markDelivered({ id: "wa-job-1" });
+      assert.deepEqual((await ctx.repo.recentUnfinished({ workspaceId: "wa" })).map(row => row.bindingId), ["b3", "b2"]);
+      assert.deepEqual((await ctx.repo.recentUnfinished({ workspaceId: "wa" }, { limit: 1 })).map(row => row.bindingId), ["b3"]);
     });
 
     test("a status read returns only an allowlisted error code, never the raw outbox error text", async () => {
