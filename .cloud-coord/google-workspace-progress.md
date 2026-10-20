@@ -1,12 +1,16 @@
 # google-workspace cloud build — progress
 
-Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 running.
+Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME (2026-10-20 06:18Z).
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
 - Base check OK: form-destinations/registry.ts + agent-plugins/connect-tool.ts present on origin/restructure/apps-website-phased.
 - `origin/cloud/forms-multidest`: does NOT exist (ls-remote empty) at start. G14 will build against the brief contract unless it appears.
 - Jini proof pushed on `cloud/google-workspace` (from origin/general-work).
+
+## Resume log
+- 2026-10-20 06:18Z: fresh coordinator resumed (previous coordinator + subagents died at 05:46Z on account usage limit). Container is new: Node 24.22.0 re-installed to ~/.local/node24, AI-Dev-Shop re-cloned, Jini + Tovu re-installed/built, worktrees recreated. Coordinator re-loaded software-architect, code-inspection, security skills.md.
+- Pushed lot work found at resume: Jini `cloud/google-workspace-G6` 00b05e13 (platform `api-connection` vault kind); Tovu `cloud/google-workspace-G8` 3cd9d157 (AgentPluginDetailsModal characterization pins); G7: nothing pushed. Fresh subagents continue from those branches.
 
 ## Personas
 - Coordinator loaded: software-architect, code-inspection, security skills.md (all three).
