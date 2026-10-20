@@ -204,7 +204,9 @@ test("classifyAddress: IPv6 loopback and unspecified are exact single addresses,
   assert.equal(classifyAddress("::"), "reserved"); // unspecified address
   assert.equal(classifyAddress("::0"), "reserved");
   assert.equal(classifyAddress("::0.0.0.0"), "reserved"); // deprecated IPv4-compatible notation
-  assert.equal(classifyAddress("::2"), "public"); // one past unspecified/loopback — not special
+  // `::2` sits in the deprecated IPv4-compatible block ::/96 (embedded 0.0.0.2), so Jini classifies it by
+  // that embedded IPv4 address — reserved — whatever the spelling (`::0.0.0.2` and `::2` are the same bytes).
+  assert.equal(classifyAddress("::2"), "reserved");
 });
 
 test("classifyAddress: IPv6 link-local fe80::/10 boundaries are exact, not off-by-one", () => {
@@ -249,13 +251,11 @@ test("classifyAddress: IPv4-mapped IPv6 normalizes regardless of ::-compression,
 });
 
 test("classifyAddress: a near-miss IPv6 literal that merely resembles a mapped address is NOT force-mapped", () => {
-  // `::ffff:0:7f00:1` looks superficially like another spelling of `::ffff:7f00:1` (127.0.0.1
-  // mapped), but per RFC 4291 group expansion it is a genuinely different 128-bit value: the
-  // explicit "0" group after "ffff" pushes "ffff" itself to group index 4, not the index-5 position
-  // the ::ffff:0:0/96 prefix requires. Blindly pattern-matching on the "::ffff:" substring would
-  // wrongly force-map this to 127.0.0.1; the group-based parser must reject it and fall through to
-  // ordinary (non-special) classification instead.
-  assert.equal(classifyAddress("::ffff:0:7f00:1"), "public");
+  // `::ffff:0:7f00:1` is NOT the IPv4-mapped spelling of 127.0.0.1 (::ffff:0:0/96 puts "ffff" at group 4,
+  // not 5), but it IS the IPv4-translated block ::ffff:0:0:0/96 (RFC 2765/6052), which embeds 127.0.0.1.
+  // Jini classifies on the canonical 16 bytes and judges every embedded-IPv4 form by that IPv4 address,
+  // so this is loopback — treating it as public was an SSRF gap the W2 cloud wave pinned.
+  assert.equal(classifyAddress("::ffff:0:7f00:1"), "loopback");
 });
 
 test("classifyAddress: IPv6 multicast ff00::/8 is treated as reserved (blocked), mirroring IPv4 multicast, exact boundaries", () => {
