@@ -42,7 +42,7 @@ handler runs; a plugin disabled during confirmation is refused.
 | export | what it is |
 |---|---|
 | `registerAgentPluginExecutableTools(required)` | Loads, projects and registers; returns `{ refusals, dispose }`. |
-| `AgentPluginExecutableToolHost` | The ports the composition root binds: `loadContributions`, `connections`, `http`, `limiter`, optional `artifacts`. |
+| `AgentPluginExecutableToolHost` | The ports the composition root binds: `loadContributions`, `connections`, `http`, `limiter`, `state` (the plugin settings reader, `api-connections/plugin-state.ts`), optional `artifacts`. Tools get `state.get` only. |
 | `AGENT_PLUGIN_TOOLS_FILENAME` | `tovu-agent-tools.json`. |
 | `createAgentPluginToolCapabilities(required, optional)` | Tovu's `AgentPluginToolCapabilitiesPort`. |
 | `AgentPluginConnectionAccess` | Port over the API-connection service: `readAccount`, `getAccessToken(…, { expectedAccountId })`. |

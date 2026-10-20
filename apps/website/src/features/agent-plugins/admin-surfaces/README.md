@@ -33,7 +33,10 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 | `findAdminSurface`, `readSurfaceFile`, `adminSurfaceFileUrl` | `surfaces.ts` | lookup by id, contained read with headers, the public file URL |
 | `AdminSurfaceHost`, `NO_ADMIN_SURFACE_HOST` | `surfaces.ts` | the port that supplies action handlers and bootstrap data (none by default) |
 | `isSameOriginAdminWrite` | `same-origin.ts` | the CSRF gate for the two POST routes |
-| `createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities })` | `handlers.ts` | the real `AdminSurfaceHost`: plugin `handlerModule`s through Jini's handler host, plus `refresh()` |
+| `createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns })` | `handlers.ts` | the real `AdminSurfaceHost`: plugin `handlerModule`s through Jini's handler host, plus `refresh()` |
+| `createAdminSurfaceCapabilities({ tools, connectionsFor, stateFor, publicConfig })` | `capabilities.ts` | Tovu's `AdminSurfaceCapabilitiesPort`: the tool port's `http`/`limiter`/`artifacts` plus surface-only `connections`, `state`, `publicConfig` |
+| `createIssuedSignInCollector()` | `issued-sign-ins.ts` | per-request registry (AsyncLocalStorage) of the https sign-in links the connections port issued; the action route returns them as `hostSignIns` |
+| `createAdminSurfacePublicConfig({ env })` | `public-config.ts` | `publicConfig.get({ name })` from host config; secret-shaped names refused; unset → `null` |
 
 ## Extension points
 
@@ -42,10 +45,24 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 - Action handlers and bootstrap data come from an `AdminSurfaceHost` passed as
   `AgentPluginsRouteDeps.adminSurfaceHost`. Both composition roots pass `handlers.ts`'s host (built
   in `server/runtime/composition/agent-plugin-connections.ts`), so a plugin answers its own declared
-  actions with a `handlerModule` (`.mjs`, admitted by the executable trust gate). Its handlers get the
-  executable-tool capability port: the same connection ownership rule, guarded HTTP and limiter as
-  the plugin's tools. Without a handler module, a declared action answers `action-unavailable` and
-  bootstrap data is `null`.
+  actions with a `handlerModule` (`.mjs`, admitted by the executable trust gate). Its handlers get
+  `capabilities.ts`'s port: the plugin's tools' guarded HTTP and limiter, plus
+  - `connections` by connection id (`api-connections/surface-connections.ts`): the host resolves the
+    id to its own ref for the scope's plugin and workspace (anything else is one refusal), account
+    actions need the signed-in admin, `begin` passes declared start parameters through, `disconnect`
+    reports `revoked` / `revocation-pending` / `not-needed` verbatim, and `takeCallbackFields` reads
+    the host's consume-once inbox the public callback filled (owner plugin only; attempt id = a
+    digest of the OAuth state);
+  - `state`: the plugin's settings (`api-connections/plugin-state.ts`), read-write here and
+    read-only for its tools (and later form delivery), keyed by plugin and workspace;
+  - `publicConfig`: the declared public names, from host config.
+  Without a handler module, a declared action answers `action-unavailable` and bootstrap data is `null`.
+- Sign-in links: the sandboxed frame cannot open popups, so a handler's `begin` result is opened by
+  the HOST page. The connections port reports every link it issued to `issued-sign-ins.ts`; the
+  action route returns those (and only those, only on success) as `hostSignIns`; the admin frame
+  hook keeps them per mount until opened or expired and renders "Continue to sign-in" as a new tab
+  with `rel="noopener noreferrer"` (the desktop shell sends it to the system browser). A URL in the
+  plugin's own result is never opened.
 - Handler modules load at boot (`deps.ts`) and again before every surface bootstrap. The admin frame
   always asks for its bootstrap when a surface opens, so a plugin enabled since the last load answers
   on the next open, whichever process or writer enabled it; disabling is enforced per request by the

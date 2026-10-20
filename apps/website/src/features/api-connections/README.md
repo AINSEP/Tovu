@@ -16,9 +16,11 @@ names no provider.
 | `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
 | `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
-| `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. |
-| `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort` (unwired until the forms fan-out, G14). |
-| `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, cookie-less, rate-limited, renders the shared fixed-copy callback page. |
+| `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. `startApiConnectionSignIn` is the shared start (declared start parameters; desktop completion returns the declared callback fields). |
+| `surface-connections.ts` | The admin-surface `connections` port by connection id (status, begin, confirm/cancel switch, disconnect with verbatim revocation, `takeCallbackFields`), and `callbackAttemptId` (digest of the OAuth state). |
+| `plugin-state.ts` | Plugin settings: JSON per key, per workspace + plugin, sealed rows in the same vault kind (no migration); 128 keys and 16 KiB per value; `forPlugin` (surfaces, read-write) and `readerFor` (tools, form delivery: `get` only). |
+| `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort` (unwired until the forms fan-out, G14b): the token plus the connection's declared `apiOrigins` as `baseUrl` (first) and `additionalHosts` (the rest). |
+| `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, cookie-less, rate-limited, renders the shared fixed-copy callback page; after a successful exchange it deposits the declared callback fields in `host.callbackInbox`. |
 
 ## The plugin side
 
@@ -28,11 +30,17 @@ names no provider.
   "authorizationEndpoint": "https://…", "tokenEndpoint": "https://…",
   "authorizationParams": { "public": {}, "confidential": {} }, "startParams": [], "callbackFields": [],
   "budgets": [{ "scope": "connection", "perMinute": 45 }, { "scope": "instance", "perMinute": 240 }],
+  "scopeSets": ["files"], "apiOrigins": ["https://api.example.com"],
   "clients": {
     "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET", "redirectOrigins": ["https://…"] },
     "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }
   } } ] }
 ```
+
+`scopeSets` (optional, at most 16 ids) lists the scope-set ids the plugin's `resolveScopes` accepts,
+so a surface's `status` can report which are granted. `apiOrigins` (optional, at most 8 bare
+`https://` origins) is where the plugin's API calls with this connection go; form delivery allows
+exactly those hosts. Neither reaches Jini's descriptor.
 
 `createHooks({ http })` returns Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`,
 `revoke`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`). The web
@@ -86,8 +94,9 @@ and puts it on `RouteDeps`:
 
 1. `RouteDeps.apiConnections = { host }`: `agent_plugin_connect` reads it, and the `agent-plugins`
    server module registers the public callback (`GET /api/agent-plugins/connections/oauth/callback`).
-2. `RouteDeps.agentPluginTools.connections` and the admin-surface handlers' capabilities use
-   `host.toolConnections`.
+2. `RouteDeps.agentPluginTools.connections` uses `host.toolConnections`; admin-surface handlers get
+   `surface-connections.ts` over the same host (by connection id), `host.pluginState` (tools read
+   the same store) and public config (`agent-plugins/admin-surfaces/capabilities.ts`).
 3. Runtime: desktop when the server runs under the desktop shell's Electron Node
    (`ELECTRON_RUN_AS_NODE=1`), hosted otherwise. Desktop's OAuth guard admits the plaintext
    `http://127.0.0.1` redirect (the transport still refuses private addresses). The hosted callback
