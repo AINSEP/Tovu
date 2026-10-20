@@ -97,14 +97,13 @@ test("without an interactive channel the sign-in card cannot be shown and the ca
   });
 });
 
-// connect.ts's hosted branch calls `host.serviceFor` before its `asToolError` wrap, so this refusal
-// escapes as the raw ApiConnectionError (safe, actionable message) instead of the ToolInputError
-// its doc promises. Pinned as observed; connect.ts is outside this lot.
-test("an unconfigured sign-in client refuses with its safe, actionable message, as a raw ApiConnectionError (reported, not fixed)", async () => {
+// Encodes C3's fix: connect.ts's hosted branch used to call `host.serviceFor` outside its
+// `asToolError` wrap, so this refusal escaped as a raw ApiConnectionError.
+test("an unconfigured sign-in client refuses as a ToolInputError carrying the safe, actionable message under the tool prefix", async () => {
   // No client id configured for this runtime.
   await assert.rejects(connect(await compose({ TOVU_PUBLIC_URL: "https://site.acme-test.invalid" })), {
-    name: "ApiConnectionError", code: "descriptor-invalid",
-    message: "Acme Office is not set up on this site: its sign-in client is not configured. Ask the operator to configure it, then retry.",
+    name: "ToolInputError",
+    message: "agent_plugin_connect: Acme Office is not set up on this site: its sign-in client is not configured. Ask the operator to configure it, then retry.",
   });
 });
 
