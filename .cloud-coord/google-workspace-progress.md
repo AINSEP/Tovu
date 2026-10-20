@@ -125,3 +125,6 @@ Findings: .cloud-coord/google-workspace-phaseB-tovu.md (4 High, 7 Medium, 7 Low)
 - M6 quotas: host budgets are the single limiter layer (plugin limiter layer removed); 'instance' = per Tovu site instance (not per workspace).
 - L6 BYO OAuth client: NOT deferrable — OWNER DECISIONS require it as an advanced option via existing secure credential capture → lot B4.
 Planned lots: B3 (Tovu generic: H1, M1, M3, M4, L5, L7 generic parts), B3p (plugin: H2, H4, M2, M5, M6, M7, L1–L4, L6, L7 fields=*), B4 (BYO client), then G13b (connection panel + Picker + destination panel).
+
+## End of build — Jini (2026-10-20, Jini cloud/google-workspace @ 381583e6)
+- platform 1170 pass / 7 fail / 6 skip — the 7 (fs verified-directory-move ×6, verified-file-relocation ×1, EXDEV cross-device) FAIL IDENTICALLY on base origin/general-work (container fs); oauth 368/368; integrations 1155/1155; agent-plugins 978 pass / 2 skipped (pre-existing skips); cms 2667/2668 (video-frames.ffmpeg chmod-as-root, same as forms-multidest end-of-build); infra 64/64; pnpm guard 26 (= base).
