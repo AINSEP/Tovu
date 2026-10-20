@@ -6,6 +6,14 @@ import { installSkill, setSkillEnabled, uninstallSkill, SkillInputError } from "
 import { loadInstalledSkillToolSources, buildSkillToolRegistrations } from "#src/features/skills/tool-registrations";
 import type { SkillsRouteRegistrar } from "./deps.js";
 
+function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): fields is Record<string, unknown> & { files: { path: string; contentBase64: string }[] } {
+  return Array.isArray(fields.files) && fields.files.every(f =>
+    f && typeof f === "object"
+    && typeof f.path === "string"
+    && typeof f.contentBase64 === "string"
+    && Object.keys(f).every(key => ["path", "contentBase64"].includes(key)));
+}
+
 function installationInput(body: unknown, workspaceId: string): SkillInstallInput {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
   const fields = body as Record<string, unknown>;
@@ -14,7 +22,7 @@ function installationInput(body: unknown, workspaceId: string): SkillInstallInpu
   if (sources.length !== 1 || Object.keys(fields).some(key => !["confirmed", "githubUrl", "files", "archiveBase64"].includes(key))) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
   if (typeof fields.githubUrl === "string") return { workspaceId, githubUrl: fields.githubUrl };
   if (typeof fields.archiveBase64 === "string") return { workspaceId, archiveBase64: fields.archiveBase64 };
-  if (Array.isArray(fields.files) && fields.files.every(f => f && typeof f === "object" && typeof f.path === "string" && typeof f.contentBase64 === "string" && Object.keys(f).every(key => ["path", "contentBase64"].includes(key)))) return { workspaceId, files: fields.files };
+  if (hasUploadedSkillFiles(fields)) return { workspaceId, files: fields.files };
   throw new SkillInputError({ message: "Skill source has invalid fields." });
 }
 

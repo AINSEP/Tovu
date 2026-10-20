@@ -52,3 +52,40 @@ test("permission denial prevents installation", () => harness(async (call, siteL
   assert.deepEqual(res.body, { error: "principal 'owner' is not authorized for 'admin.assistant.use' (test)", code: "FORBIDDEN", details: { permission: "admin.assistant.use", reason: "test" } });
   assert.deepEqual(await listManagedSkills(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local" })), []);
 }, false));
+
+const sourceError = "Choose exactly one source: GitHub URL, files, or ZIP.";
+const confirmationError = "Confirm the skill installation first.";
+const fieldsError = "Skill source has invalid fields.";
+const installationRefusals: { name: string; body: unknown; error: string }[] = [
+  ...[undefined, null, false, 0, "files", []].map(body => ({ name: `non-object body ${JSON.stringify(body)}`, body, error: sourceError })),
+  ...[undefined, false, "true", 1].map(confirmed => ({ name: `confirmation ${JSON.stringify(confirmed)}`, body: { ...payload, confirmed }, error: confirmationError })),
+  { name: "confirmation precedes source validation", body: {}, error: confirmationError },
+  { name: "no source", body: { confirmed: true }, error: sourceError },
+  { name: "undefined source", body: { confirmed: true, files: undefined }, error: sourceError },
+  { name: "unknown top-level field", body: { ...payload, extra: true }, error: sourceError },
+  { name: "GitHub and archive sources", body: { confirmed: true, githubUrl: "invalid", archiveBase64: "!" }, error: sourceError },
+  { name: "files and archive sources", body: { ...payload, archiveBase64: "!" }, error: sourceError },
+  { name: "non-string GitHub source", body: { confirmed: true, githubUrl: null }, error: fieldsError },
+  { name: "non-string archive source", body: { confirmed: true, archiveBase64: 1 }, error: fieldsError },
+  { name: "non-array files", body: { confirmed: true, files: {} }, error: fieldsError },
+  ...[null, false, 0, "file", {}, { path: 1, contentBase64: "" }, { path: "SKILL.md", contentBase64: 1 }, { ...payload.files[0], extra: true }].map(file => ({
+    name: `invalid uploaded entry ${JSON.stringify(file)}`, body: { confirmed: true, files: [file] }, error: fieldsError,
+  })),
+  { name: "invalid entry after valid entry", body: { confirmed: true, files: [...payload.files, null] }, error: fieldsError },
+  { name: "empty file array reaches installer validation", body: { confirmed: true, files: [] }, error: "A skill must contain 1–256 files." },
+  { name: "GitHub string reaches installer validation", body: { confirmed: true, githubUrl: "invalid" }, error: "Use an HTTPS GitHub repository URL, optionally ending in /tree/ref/skill-folder." },
+  { name: "archive string reaches installer validation", body: { confirmed: true, archiveBase64: "!" }, error: "Skill upload must use valid base64." },
+];
+for (const scenario of installationRefusals) {
+  test(`installation input refuses ${scenario.name} without persistence`, () => harness(async (call, siteLayouts) => {
+    const res = await call("post", "", scenario.body);
+    assert.equal(res.code, 400);
+    assert.deepEqual(res.body, { error: scenario.error, code: "VALIDATION_ERROR" });
+    assert.deepEqual(await listManagedSkills(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local" })), []);
+  }));
+}
+test("an undefined alternative source does not prevent a confirmed file installation", () => harness(async (call) => {
+  const res = await call("post", "", { ...payload, githubUrl: undefined, archiveBase64: undefined });
+  assert.equal(res.code, 201);
+  assert.deepEqual(res.body, { skill: { toolId: "skill_check_ownership", name: "check-ownership", description: "Check who owns a record.", enabled: true, source: "uploaded" } });
+}));
