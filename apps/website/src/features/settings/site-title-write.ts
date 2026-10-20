@@ -52,13 +52,18 @@ export async function set(required: SetValueRequired, optional: {
     workspaceId: required.input.scope === "global" ? null : required.input.workspaceId ?? null,
   }) : null;
   if (definition?.namespace === "site.assistant" && definition.key === "public_enabled") {
-    const workspaceId = required.input.workspaceId;
-    // Missing policy fails closed, including direct callers outside the composed HTTP server.
-    if (!workspaceId || !await optional.canEnablePublicAssistant?.({ workspaceId })) {
-      throw new ValueValidationFailedError("Save a usable provider key and a model in AI Assistant before enabling the public assistant.");
-    }
+    await requirePublicAssistantReadiness({ workspaceId: required.input.workspaceId }, optional);
   }
   // Form delivery bindings are validated here too, so no host write path can store a list that
   // planning would refuse or a secret in a binding's config (`form-delivery.ts`).
   return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) });
+}
+
+/** Host readiness is independent of the generic settings writer's scope authorization. */
+async function requirePublicAssistantReadiness({ workspaceId }: { workspaceId: string | undefined },
+  optional: NonNullable<Parameters<typeof set>[1]>): Promise<void> {
+  // Missing policy fails closed, including direct callers outside the composed HTTP server.
+  if (!workspaceId || !await optional.canEnablePublicAssistant?.({ workspaceId })) {
+    throw new ValueValidationFailedError("Save a usable provider key and a model in AI Assistant before enabling the public assistant.");
+  }
 }

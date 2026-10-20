@@ -1,6 +1,6 @@
 import { ToolInputError } from "@jini-ai/core";
 import { getEffective, resolveDefinitionRaw } from "@jini-ai/core/settings";
-import { validateRuntimeSelection } from "@jini-ai/agent-runtime";
+import { type DetectedAgent, validateRuntimeSelection } from "@jini-ai/agent-runtime";
 import type { SettingsToolDeps } from "./tool-registrations.js";
 
 /** These coordinates already belong to the composer ledger; no parallel selection store. */
@@ -18,7 +18,9 @@ export function isChatExecutionSetting({ namespace, key }: { namespace: string; 
  * @complexity O(agents + models + efforts), three effective reads, one inherited read on clear, and one shared inventory read.
  */
 export async function prepareChatExecutionWrite({ deps, request }: {
-  deps: Pick<SettingsToolDeps, "settingsRepo" | "workspaceId" | "assistantAgentInventory" | "authorize">;
+  deps: Pick<SettingsToolDeps, "settingsRepo" | "workspaceId" | "authorize"> & {
+    assistantAgentInventory?: Pick<NonNullable<SettingsToolDeps["assistantAgentInventory"]>, "listAssistantAgents" | "listDetectedAssistantAgents">;
+  };
   request: { namespace: string; key: string; scope: string; value?: unknown; ctx: { principal: { id: string } }; toolId: string };
 }, _options = {}): Promise<string | null> {
   // The settings owner follows aliases. Bind policy to that canonical coordinate as well.
@@ -39,11 +41,25 @@ export async function prepareChatExecutionWrite({ deps, request }: {
   if (request.toolId === "settings_set_value" && request.value === "" && axis !== 0) {
     return JSON.stringify({ previous: snapshot[axis], selection: { [key]: "" } });
   }
+  const resulting = await resultingSelection({ deps, request, key, snapshot, axis });
+  return bindChatSelection({ deps, resulting, snapshot });
+}
+
+/** Resolve a clear against inherited settings, rather than treating it as an empty override. */
+async function resultingSelection({ deps, request, key, snapshot, axis }:
+  Parameters<typeof prepareChatExecutionWrite>[0] & { key: string; snapshot: unknown[]; axis: number }, _options = {}): Promise<unknown[]> {
   const inherited = request.toolId === "settings_clear_value" ? await getEffective({ repo: deps.settingsRepo }, {
     namespace: "core.execution", key, scopeContext: { workspaceId: deps.workspaceId },
   }) : null;
   const resulting: unknown[] = [...snapshot];
   resulting[axis] = request.toolId === "settings_clear_value" ? inherited?.value ?? "" : request.value;
+  return resulting;
+}
+
+/** Validate and bind the same live inventory that the composer uses. */
+async function bindChatSelection({ deps, resulting, snapshot }: {
+  deps: Parameters<typeof prepareChatExecutionWrite>[0]["deps"]; resulting: unknown[]; snapshot: unknown[];
+}, _options = {}): Promise<string> {
   const [agentId, modelId, effort] = resulting;
   if (typeof agentId !== "string" || !agentId) throw new ToolInputError({ message: "Set core.execution localCli.agentId at scope='user' first, using an available agent from the chat picker." });
   // The composition root owns the live picker inventory; never fall back to another runtime.
@@ -55,9 +71,15 @@ export async function prepareChatExecutionWrite({ deps, request }: {
   // Check the resulting selection together: a new model must also support the saved effort.
   const refusal = validateRuntimeSelection({ agents, agentId, modelId: modelId as string, effort: effort as string });
   if (refusal) throw new ToolInputError({ message: refusal });
+  return JSON.stringify({ previous: snapshot, selection: { agentId, modelId, effort },
+    resolvedDefaultModel: resolvedDefaultModel({ agents, agentId, modelId }) });
+}
+
+function resolvedDefaultModel({ agents, agentId, modelId }: {
+  agents: DetectedAgent[]; agentId: string; modelId: unknown;
+}, _options = {}): string | null {
   const agent = agents.find(candidate => candidate.id === agentId);
   // Bind Default's concrete resolution too: a native config change must require a new card.
   const resolvedModel = !modelId || modelId === "default" ? agent?.defaultModelResolution : undefined;
-  return JSON.stringify({ previous: snapshot, selection: { agentId, modelId, effort },
-    resolvedDefaultModel: resolvedModel?.status === "resolved" ? resolvedModel.id : null });
+  return resolvedModel?.status === "resolved" ? resolvedModel.id : null;
 }

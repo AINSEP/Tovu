@@ -125,3 +125,39 @@ test("REQ-08 leaves a non-string title to the definition schema's own rejection"
     return true;
   });
 });
+
+for (const policy of ["missing", "deny", "allow", "throw"] as const) {
+  test(`public assistant enable policy ${policy} is enforced before persistence`, async (t) => {
+    const ledger = await makeLedger();
+    await ensureSettingDefinitions(ledger, { namespace: "site.assistant", ownerKind: "site", workspaceId: WORKSPACE_ID,
+      definitions: [{ key: "public_enabled", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }],
+      systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+    let calls = 0;
+    const optional = policy === "missing" ? {} : { canEnablePublicAssistant: async ({ workspaceId }: { workspaceId: string }) => {
+      assert.equal(workspaceId, WORKSPACE_ID);
+      calls++;
+      if (policy === "throw") throw new Error("policy unavailable");
+      return policy === "allow";
+    } };
+    const required = { deps: { repo: ledger.settingsRepo, clock, ids, authorize: allowAll, principals: ledger.principals },
+      input: { namespace: "site.assistant", key: "public_enabled", scope: "workspace" as const, workspaceId: WORKSPACE_ID,
+        value: true, callerPrincipalId: OWNER_PRINCIPAL_ID } };
+    const before = await revisionCount(ledger);
+    if (policy === "allow") {
+      assert.equal((await set(required, optional)).value, true);
+      assert.equal(await storedValue(ledger, required.input), true);
+    } else {
+      await assert.rejects(set(required, optional), policy === "throw" ? /policy unavailable/ : /usable provider key and a model/);
+      assert.equal(await revisionCount(ledger), before);
+    }
+    assert.equal(calls, policy === "missing" ? 0 : 1);
+    assert.equal((await set({ ...required, input: { ...required.input, value: false } }, optional)).value, false);
+    assert.equal(calls, policy === "missing" ? 0 : 1, "disabling does not consult enable policy");
+    const definition = await ledger.settingsRepo.findActiveDefinition({ namespace: "site.assistant", key: "public_enabled", workspaceId: WORKSPACE_ID });
+    assert.ok(definition);
+    // A repository port that resolves a definition still cannot authorize a workspace-less enable.
+    t.mock.method(ledger.settingsRepo, "findActiveDefinition", async () => definition);
+    await assert.rejects(set({ ...required, input: { ...required.input, workspaceId: undefined } }, optional), /usable provider key and a model/);
+    assert.equal(calls, policy === "missing" ? 0 : 1, "missing workspace fails before policy");
+  });
+}
