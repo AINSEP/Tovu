@@ -75,6 +75,29 @@ test("an undeclared partial slot keeps its authored fallback; a missing declared
   assert.equal(expandPartials(`<main><div data-embed-config='{"type":"partial","id":"nav"}'>Fallback</div></main>`, makeTheme({ partials: {} })), "<main></main>");
 });
 
+/** A `theme.json` slot whose `source` omits `.html` (`parseSlots` accepts any string) — the partial id is the source as written. */
+function extensionlessSlotTheme(): DiscoveredTheme {
+  return makeTheme({
+    manifest: { ...makeTheme().manifest, slots: { nav: { source: "nav", variants: { compact: "nav-compact" } } } },
+    partials: { nav: "<nav>Main Nav</nav>", "nav-compact": "<nav>Compact</nav>", "nav-tight": "<nav>Tight</nav>" },
+  });
+}
+
+test("expandPartials resolves a slot whose source has no .html extension to the partial of the same id", () => {
+  const html = `<main><div data-embed-config='{"type":"partial","id":"nav"}'></div></main>`;
+  assert.equal(expandPartials(html, extensionlessSlotTheme()), "<main><nav>Main Nav</nav></main>");
+});
+
+test("expandPartials resolves an extensionless explicit variant source to the partial of the same id", () => {
+  const html = `<main><div data-embed-config='{"type":"partial","id":"nav","variant":"compact"}'></div></main>`;
+  assert.equal(expandPartials(html, extensionlessSlotTheme()), "<main><nav>Compact</nav></main>");
+});
+
+test("expandPartials builds the <stem>-<variant> convention from an extensionless slot source", () => {
+  const html = `<main><div data-embed-config='{"type":"partial","id":"nav","variant":"tight"}'></div></main>`;
+  assert.equal(expandPartials(html, extensionlessSlotTheme()), "<main><nav>Tight</nav></main>");
+});
+
 test("standalone partial previews inject both token sets and rewrite their assets", () => {
   const theme = makeTheme({
     manifest: { ...makeTheme().manifest, apiVersion: 2 },
