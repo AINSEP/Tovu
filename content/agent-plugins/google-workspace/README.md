@@ -67,14 +67,18 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 - Products are read from the plugin's settings and default to OFF; only the connection panel (G13)
   writes them, so until it ships every Sheets tool answers `product-disabled`. The host does not yet
   pass delivery a `productEnabled` port (G14b wires `productEnabledReader` over its plugin-state reader).
-- Connection panel and Picker surfaces (G13) are blocked on host seams; only the server-side selection
-  checks ship. An admin-surface handler receives the executable-tool capabilities only
-  (`connections.getAccessToken`, `http`, `limiter`, `artifacts`), so it cannot: read its connection's
-  status or `connectionRef`; start connect / reconnect / switch account, confirm or cancel a switch, or
-  disconnect (revoke); start a desktop sign-in with `DESKTOP_PICKER_START_PARAMS` and receive the
-  `picked_file_ids` callback field (the host's connect path passes no start params and drops
-  `callbackFields`); persist the verified selection or product flags; or read the public Picker
-  config (`TOVU_GOOGLE_PICKER_API_KEY`, `TOVU_GOOGLE_PICKER_APP_ID`, names only).
+- Connection panel and Picker surfaces (G13) are not built yet: `ui/connection-panel.html` is a
+  placeholder and `lib/picker-selection.mjs` is called only by `sheets_open_existing` and tests. The
+  host seams they need now exist (G6d): an admin-surface handler gets its connections (status,
+  `connectionRef`, sign-in start), plugin state (read and write),
+  public config, and the desktop sign-in's start params plus the `picked_file_ids` callback field.
+  The Picker's public config names are `TOVU_GOOGLE_PICKER_BROWSER_KEY` and
+  `TOVU_GOOGLE_PICKER_APP_ID` (the public-config port reads only `_APP_ID`, `_CLIENT_ID`,
+  `_BROWSER_KEY` and `_PUBLIC_KEY` names; placeholders, never real values).
+- Quotas: the per-account (45/min) and per-instance (240/min) budgets declared in
+  `tovu-connections.json` are implemented by the host and charged on every token read; there is no
+  plugin-side limiter. Form delivery is charged once per delivery until it reads a token per
+  request (G14b).
 
 ## Sheets admin tools (`tools/sheets-admin/`, lot G12)
 
