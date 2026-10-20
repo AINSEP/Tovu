@@ -201,3 +201,27 @@ test("the default filesystem reader returns null for an absent log pair", (t) =>
   assert.equal(readLogFileTail({ filePath: path.join(dir, "missing.log") }), null);
   assert.equal(nodeLogFileFs.readTail(path.join(dir, "missing.log"), 100), null);
 });
+
+test("through the real filesystem: rotation renames the full file to .1 and starts a fresh current file", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-rotate-logs-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "logs", "server.log");
+  const sink = createRotatingLogFileSink({ filePath: file }, { maxBytes: lineBytes * 2 });
+  for (let seq = 1; seq <= 3; seq += 1) sink.write(entry(seq));
+  const seqs = (p: string) => fs.readFileSync(p, "utf8").trimEnd().split("\n").map(l => JSON.parse(l).seq);
+  assert.deepEqual({ rotated: seqs(`${file}.1`), current: seqs(file) }, { rotated: [1, 2], current: [3] });
+});
+
+test("an empty current file contributes nothing and leaves the whole byte budget to the rotated file", () => {
+  const mem = memoryFs();
+  mem.files.set("/l/server.log.1", [1, 2].map(seq => `${JSON.stringify(entry(seq))}\n`).join(""));
+  mem.files.set("/l/server.log", "");
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: lineBytes * 2 }), [entry(1), entry(2)]);
+});
+
+test("a byte budget that starts exactly on a line boundary still drops that whole first line (reported, not fixed)", () => {
+  const mem = memoryFs();
+  mem.files.set("/l/server.log", [1, 2, 3].map(seq => `${JSON.stringify(entry(seq))}\n`).join(""));
+  // Entry 2 is fully inside the 2-line budget, but the reader always treats an over-budget tail's first line as torn.
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: lineBytes * 2 }), [entry(3)]);
+});
