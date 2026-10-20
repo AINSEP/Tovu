@@ -10,6 +10,9 @@ import {
 } from "../external-mcp-connection-source.js";
 import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../external-mcp-store.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 
 /**
  * @file RED-first coverage for `external-mcp-connection-source.ts`'s two new pieces (design-byok
@@ -129,4 +132,16 @@ test("buildExternalMcpFederationDeps wires onAuthFailed to oauth.reportAuthFailu
   const authError = new Error("401");
   await assert.rejects(() => deps.onAuthFailed?.("server-1", authError as never) ?? Promise.resolve(), authError);
   assert.deepEqual(calls, [{ connectionId: "server-1", error: authError }]);
+});
+
+test("buildExternalMcpFederationDeps leaves confirmCall unset without a surface exchange store, so writes fail closed", () => {
+  const deps = buildExternalMcpFederationDeps(testSiteLayoutContext({ authorize: allow, workspaceId: WORKSPACE, repo: new InMemoryExternalMcpServerRepo() }));
+  assert.equal("confirmCall" in deps, false);
+});
+
+test("buildExternalMcpFederationDeps wires a per-call confirmer when a surface exchange store is supplied", () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
+    idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const deps = buildExternalMcpFederationDeps(testSiteLayoutContext({ authorize: allow, workspaceId: WORKSPACE, repo: new InMemoryExternalMcpServerRepo(), surfaceExchanges }));
+  assert.equal(typeof deps.confirmCall, "function");
 });

@@ -130,3 +130,47 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("without an injected resolver the real manifest lookup runs and an unseeded plugin gets no read names", async () => {
+  const deps = await harness();
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, log: "[t05]" }));
+  const result = await source.resolve();
+  assert.deepEqual([...result.find((c) => c.config.connectionId === "remote")!.config.readOnlyRemoteNames!], []);
+});
+
+for (const [name, thrown, detail] of [["an Error", new Error("manifest unavailable"), "manifest unavailable"], ["a non-Error value", "disk gone", "disk gone"]] as const) {
+  test(`a plugin resolver throwing ${name} logs the server and the failure detail`, async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const deps = await harness();
+    const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, log: "[t05]",
+      resolvePluginReadOnlyRemoteNames: async () => { throw thrown; },
+    }));
+    await source.resolve();
+    assert.deepEqual(warn.mock.calls.map((call) => call.arguments),
+      [[`[t05] mcp-federation: plugin read declarations for 'remote' unavailable — ${detail}`]]);
+  });
+}
+
+test("a roster read rejecting with a non-Error value logs it and resolves to no connections", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const deps = await harness();
+  const repo = { ...deps.repo, listByWorkspaceId: () => Promise.reject("locked"), findByServerId: deps.repo.findByServerId.bind(deps.repo),
+    upsert: deps.repo.upsert.bind(deps.repo), deleteByServerId: deps.repo.deleteByServerId.bind(deps.repo),
+    tryClaimOAuthRefreshLease: deps.repo.tryClaimOAuthRefreshLease.bind(deps.repo), releaseOAuthRefreshLease: deps.repo.releaseOAuthRefreshLease.bind(deps.repo) };
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, repo, workspaceId, log: "[t05]" }));
+  assert.deepEqual(await source.resolve(), []);
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments),
+    [["[t05] mcp-federation: the stored external-MCP roster could not be read, continuing without it — locked"]]);
+});
+
+test("a plugin-provisioned stdio server is never sent to manifest resolution", async () => {
+  const deps = await harness();
+  await saveExternalMcpServer(deps, { workspaceId, serverId: "local", label: "Local", transport: "stdio", authMode: "none",
+    enabled: true, url: "", command: "node", args: "", allowedToolNames: "inspect", writeAllowedToolNames: "", principalId: "owner", provisionedByPluginId: pluginId });
+  const serverIds: string[] = [];
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, log: "[t05]",
+    resolvePluginReadOnlyRemoteNames: async (input) => { serverIds.push(input.serverId); return new Set(); },
+  }));
+  await source.resolve();
+  assert.deepEqual(serverIds, ["remote"]);
+});
