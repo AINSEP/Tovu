@@ -59,11 +59,18 @@ export function createOAuthFormDeliveryConnectionPort(
   },
   _optional: Record<string, never> = {},
 ): FormDeliveryConnectionPort {
-  return async ({ workspaceId, connectionRef, adapterId }, optional = {}) => {
+  /** The host and owning plugin when this port owns the ref (the adapter's plugin declares it here). */
+  async function owner(workspaceId: string, connectionRef: string, adapterId: string) {
     const host = required.hostFor({ workspaceId });
     const pluginId = host ? await required.adapterPluginId({ workspaceId, adapterId }) : null;
     const declared = host && pluginId ? await host.declaredFor({ pluginId, connectionRef }) : undefined;
-    if (!host || !pluginId || !declared) return null;
+    return host && pluginId && declared ? { host, pluginId, declared } : null;
+  }
+
+  return async ({ workspaceId, connectionRef, adapterId }, optional = {}) => {
+    const owned = await owner(workspaceId, connectionRef, adapterId);
+    if (!owned) return null;
+    const { host, pluginId, declared } = owned;
     const frozen = optional.expectedAccountId === undefined ? {} : { expectedAccountId: optional.expectedAccountId };
     const read = () => host.accessTokensFor({ pluginId }).getAccessToken({ connectionRef }, frozen);
     const token = await read();
