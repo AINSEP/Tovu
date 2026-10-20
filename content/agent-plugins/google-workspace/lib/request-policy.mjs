@@ -36,6 +36,7 @@ const SAFE_ERRORS = Object.freeze({
   // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
   'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
   'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },
+  'export-unavailable': { retryable: false, nextAction: 'read-in-chat', message: 'Saving a CSV file is not available on this site. Nothing was read from Google; read the values in chat instead (sheets_values_get or sheets_values_batch_get).' },
   'unsupported-request': { retryable: false, nextAction: 'fix-request', message: 'The batch contains a request kind Google Workspace tools do not support (only reviewed, generally available Sheets request kinds are allowed). Remove it and retry; nothing was sent to Google.' },
 });
 

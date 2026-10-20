@@ -11,7 +11,8 @@
  *   and only to the https origins the calling plugin's connections declare (`apiOrigins`), so a URL
  *   built from tool input can never carry the plugin's bearer token to another host.
  * - limiter: the real http-kit limiter, keyed per workspace and plugin so budgets never mix.
- * - artifacts: an optional writer; absent, writes refuse with a next step.
+ * - artifacts: an optional writer; absent, the capability is absent too (Jini's port is optional), so a
+ *   tool can check for it before doing work it could not save.
  * - state: the plugin's own settings, read-only (`get` alone), from the store its admin surface
  *   writes, keyed by the same plugin and workspace.
  * Nothing here names a provider.
@@ -61,7 +62,6 @@ export interface FrozenConnectionAccounts {
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const IDLE_TIMEOUT_MS = 30_000;
 
-export const ARTIFACTS_UNAVAILABLE_MESSAGE = 'Saving a file from a plugin tool is not available on this site yet. Ask for the data in chat instead.';
 export const HTTPS_ONLY_MESSAGE = 'Plugin tools may only call https:// addresses. Report this to the plugin author.';
 export const UNDECLARED_ORIGIN_MESSAGE = 'Plugin tools may only call the API addresses their plugin declares. Report this to the plugin author.';
 export const RESPONSE_TOO_LARGE_MESSAGE = 'The service returned more data than a plugin tool may read at once. Request a smaller range and retry.';
@@ -118,7 +118,7 @@ function declaredOriginsHttp(http: HttpClientPort, origins: () => Promise<readon
  * @param required.frozen - Accounts frozen by the confirmation step.
  * @param required.state - The plugin settings reader, scoped here to the calling plugin and workspace.
  * @param required.apiOrigins - The calling plugin's declared API origins; its HTTP reaches no other host.
- * @param optional.artifacts - File writer; omitted, `artifacts.write` refuses.
+ * @param optional.artifacts - File writer; omitted, the `artifacts` capability is omitted.
  * @complexity O(1) per call; each capability is one delegated call.
  */
 export function createAgentPluginToolCapabilities(
@@ -129,6 +129,7 @@ export function createAgentPluginToolCapabilities(
   optional: { readonly artifacts?: AgentPluginArtifactWriter } = {},
 ): AgentPluginToolCapabilitiesPort {
   const { connections, limiter, frozen, state, apiOrigins } = required;
+  const writer = optional.artifacts;
   return ({ pluginId, workspaceId, signal }): AgentPluginToolCapabilities => ({
     connections: { async getAccessToken({ connectionRef }) {
       const expectedAccountId = frozen.lookup({ signal, connectionRef });
@@ -137,10 +138,7 @@ export function createAgentPluginToolCapabilities(
     http: declaredOriginsHttp(required.http, () => apiOrigins({ workspaceId, pluginId })),
     // NUL cannot appear in a workspace or plugin id, so one plugin's key can never name another's budget.
     limiter: { check: ({ key }) => limiter.check({ key: `${workspaceId}\u0000${pluginId}\u0000${key}` }) },
-    artifacts: { async write(input) {
-      if (!optional.artifacts) throw new Error(ARTIFACTS_UNAVAILABLE_MESSAGE);
-      return optional.artifacts.write({ ...input, workspaceId, pluginId });
-    } },
+    ...(writer === undefined ? {} : { artifacts: { write: (input) => writer.write({ ...input, workspaceId, pluginId }) } }),
     // A fresh object with `get` alone: whatever the store exposes, a tool can never write through it.
     state: { get: (input) => state({ workspaceId, pluginId }).get(input) },
   });

@@ -5,6 +5,8 @@
  *
  * Exists because chat output is bounded (64 KiB) while a tab is not: the export reads the tab in
  * bounded chunks, encodes CSV locally, and refuses — never truncates — anything over its bounds.
+ * A host without an artifact store passes no `artifacts` capability; the export refuses before any
+ * Google read then, so nothing is fetched for a file that could never be saved.
  */
 import { getSpreadsheet, sheetsClientFor, sheetsUrl, tabsOf } from '../../lib/sheets-client.mjs';
 import { encodeCsv, planChunks } from '../../lib/sheets-admin-csv.mjs';
@@ -53,6 +55,7 @@ function fileNameFor(title) {
 
 export default {
   async invoke({ input, capabilities, signal }) {
+    if (!capabilities.artifacts) throw new GoogleWorkspaceError({ code: 'export-unavailable' });
     const client = sheetsClientFor({ capabilities });
     const properties = await readTab(client, input, signal);
     const chunks = planChunks({ title: properties.title, area: areaOf(input, properties) });

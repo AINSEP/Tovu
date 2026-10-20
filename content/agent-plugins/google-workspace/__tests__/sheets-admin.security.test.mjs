@@ -172,6 +172,10 @@ test('errors: a Google failure that echoes the token and cell contents becomes a
   }
 });
 
+test('export: a host with no artifact store is refused with export-unavailable before anything is read from Google', async () => {
+  await refusedBeforeGoogle(run(exportCsv, { sheetId: 3 }, { withoutArtifacts: true }), 'export-unavailable');
+});
+
 test('export bounds: a tab over 20,000 grid rows is refused after the metadata read, before any values read', async () => {
   fake.route({ method: 'GET', path: `/v4/spreadsheets/${SPREADSHEET}` }, () => [200, { sheets: [{ properties: { sheetId: 3, title: 'Big', gridProperties: { rowCount: 20_001, columnCount: 1 } } }] }]);
   await assert.rejects(run(exportCsv, { sheetId: 3 }), { code: 'limit-exceeded' });

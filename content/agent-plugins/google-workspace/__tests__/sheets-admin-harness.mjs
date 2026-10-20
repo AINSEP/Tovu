@@ -99,13 +99,18 @@ export async function startConfirmingCall(booted, toolId, input) {
   return { pending, rows, answer };
 }
 
-/** The capabilities one module call receives, straight over the fake (for module-level pins). */
+/**
+ * The capabilities one module call receives, straight over the fake (for module-level pins).
+ * `withoutArtifacts: true` leaves `artifacts` out, as a host with no artifact store does.
+ */
 export function directCapabilities({ fake }, optional = {}) {
-  return {
+  const capabilities = {
     connections: { getAccessToken: async () => TOKEN },
     http: { fetch: (target, init) => fake.fetch(target, init) },
     limiter: { check: async () => ({ allowed: true }) },
     artifacts: { write: optional.writeArtifact ?? (async () => { throw new Error('no artifact store in this test'); }) },
     state: optional.state ?? SHEETS_ON,
   };
+  if (optional.withoutArtifacts) delete capabilities.artifacts;
+  return capabilities;
 }

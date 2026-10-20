@@ -106,7 +106,8 @@ is rows 2-10, columns A-D.
   not a spreadsheet.
 - `sheets_export_csv` reads at most 20,000 rows and 100,000 cells and writes at most 4 MiB. A bigger
   tab is refused (`limit-exceeded`), never cut short: export a range instead. It returns a file
-  reference, not the data.
+  reference, not the data. On a site that cannot save files it refuses with `export-unavailable`
+  before reading anything; read the values in chat instead.
   Text that starts with `=`, `+`, `-`, `@` (or a tab or line break) is written with a leading `'`,
   so a spreadsheet app opening the file shows it as text instead of running it as a formula (a
   visitor could have typed one into a form). The trade-off: with the default formatted values, a

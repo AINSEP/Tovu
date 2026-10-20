@@ -15,6 +15,7 @@
 | `invalid-request` | Google received the request and rejected it (bad range, tab or values). Nothing changed. | Fix the request. |
 | `invalid-input` | Tovu refused the request before sending it: a spreadsheet id, range, field mask or option is not valid for the tool. Nothing was sent to Google. | Fix the id, range or option. |
 | `limit-exceeded` | The request or its answer is larger than the tool allows. Nothing was cut short. | Ask for a smaller range, fewer rows or fewer entries. |
+| `export-unavailable` | This site cannot save files from plugin tools, so a CSV export cannot be offered. Nothing was read. | Read the values in chat (`sheets_values_get`) instead. |
 | `unsupported-request` | A raw batch holds a request kind Tovu does not allow. Nothing was sent. | Remove it, or use a listed kind (see the Sheets reference). |
 | `not-a-spreadsheet` / `invalid-selection` | The chosen file is not a Google Sheets spreadsheet, or the picker returned something unusable. | Choose a spreadsheet again with the picker. |
 | `unexpected-response` | Google answered in a way Tovu does not understand. | Report it; do not retry in a loop. |

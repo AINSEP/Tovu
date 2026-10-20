@@ -34,7 +34,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 | `AdminSurfaceHost`, `NO_ADMIN_SURFACE_HOST` | `surfaces.ts` | the port that supplies action handlers and bootstrap data (none by default) |
 | `isSameOriginAdminWrite` | `same-origin.ts` | the CSRF gate for the two POST routes |
 | `createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns })` | `handlers.ts` | the real `AdminSurfaceHost`: plugin `handlerModule`s through Jini's handler host, plus `refresh()` |
-| `createAdminSurfaceCapabilities({ tools, connectionsFor, stateFor, publicConfig })` | `capabilities.ts` | Tovu's `AdminSurfaceCapabilitiesPort`: the tool port's `http`/`limiter`/`artifacts` plus surface-only `connections`, `state`, `publicConfig` |
+| `createAdminSurfaceCapabilities({ tools, connectionsFor, stateFor, publicConfig })` | `capabilities.ts` | Tovu's `AdminSurfaceCapabilitiesPort`: the tool port's `http`/`limiter`/`artifacts` (when the tool port has one) plus surface-only `connections`, `state`, `publicConfig` |
 | `createIssuedSignInCollector()` | `issued-sign-ins.ts` | per-request registry (AsyncLocalStorage) of the https sign-in links the connections port issued; the action route returns them as `hostSignIns` |
 | `createAdminSurfacePublicConfig({ env })` | `public-config.ts` | `publicConfig.get({ name })` from host config; secret-shaped names refused; unset → `null` |
 
