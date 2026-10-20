@@ -373,22 +373,33 @@ async function resolveTurnInputsOrRespond(
     return null;
   }
 
-  if (body.attachmentIds !== undefined) {
-    if (!Array.isArray(body.attachmentIds) || body.attachmentIds.length > 10 ||
-      body.attachmentIds.some(ref => typeof ref !== "string" || !ref)) {
+  if (!await attachTurnMessagesOrRespond({ attachmentIds: body.attachmentIds, messages, principalId: authed.id, routeDeps, res })) return null;
+  return { messages, principal: { id: authed.id }, credential };
+}
+
+/** Validates attachment references and adds the owner-scoped byte preparation to the newest message.
+ * Invalid or unavailable attachments stop the request before SSE begins; omitted references do nothing.
+ * At most ten references are passed to the existing attachment preparation owner.
+ * @complexity O(attachment bytes) preparation, with at most ten references; mutates the last message. */
+async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalId, routeDeps, res }: {
+  attachmentIds: unknown; messages: ByokChatMessage[]; principalId: string; routeDeps: RouteDeps; res: Response;
+}, _options: Record<string, never> = {}): Promise<boolean> {
+  if (attachmentIds !== undefined) {
+    if (!Array.isArray(attachmentIds) || attachmentIds.length > 10 ||
+      attachmentIds.some(ref => typeof ref !== "string" || !ref)) {
       res.status(400).json({ error: "Invalid message attachments", code: "VALIDATION_ERROR" });
-      return null;
+      return false;
     }
     try {
-      const prepared = await prepareByokMessageAttachments({ refs: body.attachmentIds, principalId: authed.id, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
+      const prepared = await prepareByokMessageAttachments({ refs: attachmentIds, principalId, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
       const last = messages[messages.length - 1]!;
       messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
     } catch {
       res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
-      return null;
+      return false;
     }
   }
-  return { messages, principal: { id: authed.id }, credential };
+  return true;
 }
 
 export function createAssistantByokModule(
@@ -452,6 +463,63 @@ export function createAssistantByokModule(
     },
   };
 
+  /** Loads explicit picks independently, so one unavailable plugin cannot discard the others.
+   * Returns the ordered prompt suffix and whether any pick failed; failures never escape.
+   * @complexity One sequential lifecycle resolution per pinned reference; O(guidance bytes) space. */
+  async function loadPinnedPluginGuidance({ pinned }: { pinned: string[] }, _options: Record<string, never> = {}): Promise<{ prefix: string; skippedPinned: boolean }> {
+    let skippedPinned = false;
+    let prefix = "";
+    for (const pluginId of pinned) {
+      // Explicit attachments bypass relevance matching, but a failed attachment must not end a run
+      // or discard guidance from the other picks. The lifecycle still enforces activation and trust.
+      try {
+        const resolved = await resolveAgentPluginRefs([pluginId], routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
+        if (resolved.ok) prefix += `\n\n${resolved.promptPrefix}`;
+        else skippedPinned = true;
+      } catch { skippedPinned = true; }
+    }
+    return { prefix, skippedPinned };
+  }
+
+  /** Starts the existing automatic plugin lifecycle and appends its guidance; failure leaves the prompt intact.
+   * Emits consent/usage surfaces through this turn's response and logs a preflight failure.
+   * @complexity One automatic-use preparation; candidate discovery/ranking belongs to that owner. */
+  async function appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system }: {
+    run: { id: string }; principal: Principal; conversationId: string;
+    pluginBody: { agentPluginState?: unknown; userPrompt?: unknown }; messages: ByokChatMessage[];
+    pinned: string[]; abort: AbortController; res: Response; system: string;
+  }, _options: Record<string, never> = {}): Promise<string> {
+    try {
+      const guidance = await automaticPluginRuns.start({ runId: run.id, context: {
+        principal, conversationId, state: readChatAgentPluginState({ value: pluginBody.agentPluginState }),
+        query: typeof pluginBody.userPrompt === 'string' ? pluginBody.userPrompt.slice(0, 16000) : messages[messages.length - 1]?.content ?? '', pinned, signal: abort.signal,
+        emitSurface: async emission => { sse(res, 'agent', toWireSurfacePayload(emission, `agent-plugins:${run.id}`)); },
+        publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
+      } });
+      if (guidance) system += `\n\n${guidance}`;
+    } catch { console.warn('[agent-plugins] automatic BYOK preflight unavailable'); }
+
+    return system;
+  }
+
+  /** Composes pinned and automatic guidance before provider planning; plugin failures remain fail-soft.
+   * Registers response-close cleanup and returns the augmented prompt.
+   * @complexity O(pinned references + guidance bytes), plus the automatic lifecycle's preparation. */
+  async function preparePluginGuidance({ req, res, run, principal, messages, abort, system }: {
+    req: Request; res: Response; run: { id: string }; principal: Principal; messages: ByokChatMessage[]; abort: AbortController; system: string;
+  }, _options: Record<string, never> = {}): Promise<string> {
+    // Preflight uses the same catalog/consent/guidance owner as CLI, before the provider plans.
+    const pluginBody = (req.body ?? {}) as { conversationId?: unknown; agentPluginState?: unknown; pluginRefIds?: unknown; userPrompt?: unknown };
+    const conversationId = typeof pluginBody.conversationId === 'string' ? pluginBody.conversationId : undefined;
+    const pinned = Array.isArray(pluginBody.pluginRefIds) ? pluginBody.pluginRefIds.filter((id): id is string => typeof id === 'string') : [];
+    const { prefix, skippedPinned } = await loadPinnedPluginGuidance({ pinned });
+    system += prefix;
+    if (skippedPinned) sse(res, 'agent', { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' });
+    res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
+    if (!conversationId) return system;
+    return appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system });
+  }
+
   async function handleTurn(req: Request, res: Response): Promise<void> {
     const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
     if (!inputs) return;
@@ -489,33 +557,7 @@ export function createAssistantByokModule(
       if (!res.writableEnded) abort.abort();
     });
 
-    // Preflight uses the same catalog/consent/guidance owner as CLI, before the provider plans.
-    const pluginBody = (req.body ?? {}) as { conversationId?: unknown; agentPluginState?: unknown; pluginRefIds?: unknown; userPrompt?: unknown };
-    const conversationId = typeof pluginBody.conversationId === 'string' ? pluginBody.conversationId : undefined;
-    const pinned = Array.isArray(pluginBody.pluginRefIds) ? pluginBody.pluginRefIds.filter((id): id is string => typeof id === 'string') : [];
-    let skippedPinned = false;
-    for (const pluginId of pinned) {
-      // Explicit attachments bypass relevance matching, but a failed attachment must not end a run
-      // or discard guidance from the other picks. The lifecycle still enforces activation and trust.
-      try {
-        const resolved = await resolveAgentPluginRefs([pluginId], routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId), 'inject');
-        if (resolved.ok) system += `\n\n${resolved.promptPrefix}`;
-        else skippedPinned = true;
-      } catch { skippedPinned = true; }
-    }
-    if (skippedPinned) sse(res, 'agent', { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' });
-    res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
-    if (conversationId) {
-      try {
-        const guidance = await automaticPluginRuns.start({ runId: run.id, context: {
-          principal, conversationId, state: readChatAgentPluginState({ value: pluginBody.agentPluginState }),
-          query: typeof pluginBody.userPrompt === 'string' ? pluginBody.userPrompt.slice(0, 16000) : messages[messages.length - 1]?.content ?? '', pinned, signal: abort.signal,
-          emitSurface: async emission => { sse(res, 'agent', toWireSurfacePayload(emission, `agent-plugins:${run.id}`)); },
-          publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
-        } });
-        if (guidance) system += `\n\n${guidance}`;
-      } catch { console.warn('[agent-plugins] automatic BYOK preflight unavailable'); }
-    }
+    system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system });
 
     // Dispatches against the META-tool set, not the raw catalog: `call.name` is one of
     // `search_tools`/`describe_tool`/`execute_delegated_tool`, and a real tool id arrives as the
