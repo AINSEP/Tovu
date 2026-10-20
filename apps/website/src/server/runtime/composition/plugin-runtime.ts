@@ -329,18 +329,6 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
     }
     const { manifest, entryPath, attachmentSource } = target;
-    // Tier 2 (ADR-024 §3/§4): the plugin's code must never be imported into this process. Its
-    // import seam probes it in a fresh worker and hands `loadPlugin()` a proxy whose filter is an
-    // RPC; supplied as `loadPlugin()`'s required `importModule` port, so integrity + sdkRange
-    // still run first (CIC U-001). Only a built-in reaches here as tier-2: discovery marks a site
-    // tier-2 package invalid (the worker is no sandbox yet). Were site tier-2 ever allowed, its worker
-    // would need the seam's `resolveWorkerEntry` pointed at the integrity-checked module snapshot,
-    // since an injected worker seam bypasses the host's default snapshot importer.
-    const workerImporter = manifest.tier === "tier-2"
-      ? createTier2ImportSeam({ ...pluginHostBinding, manifest, runCall: tier2CallRunner })
-      : undefined;
-    const importModule = target.importModule;
-
     // The SDK backing (content.read/extend bound to the running filter, single declared beforeSave
     // filter) is shared with the Tier-2 worker — see `invocation-core-deps.ts`.
     const invocation = pluginHostBinding.createInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
@@ -350,11 +338,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
 
     // CIC U-001: Jini invokes this required port only AFTER integrity/sdkRange checks. A site
     // target takes the contained immutable snapshot; built-in seams retain their original path.
-    const moduleImporter = manifest.tier === "tier-2"
-      ? workerImporter!
-      : createPluginModuleImporter({ manifest, source: record.source }, {
-          ...(importModule === undefined ? {} : { importModule }),
-        });
+    const moduleImporter = resolveRuntimeImporter({ target, record });
     const result = await loadPlugin(
       { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter,
         browserProviderApprovals: required.browserProviderApprovals ?? [],
@@ -381,11 +365,36 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     if (manifest.hooks.includes(HOOK_CONTENT_ENTRY_BEFORE_SAVE) && filter === null) {
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_NOT_ATTACHED");
     }
+    publishPluginAttachment({ pluginId, manifest, attachmentSource, filter, contributions,
+      providers: result.browserProviders ?? [], version: record.version });
+  }
+
+  function resolveRuntimeImporter({ target, record }: { target: PluginLoadTarget; record: PluginDiscoveryRecord }, _options = {}) {
+    // Tier 2 (ADR-024 §3/§4): the plugin's code must never be imported into this process. Its
+    // import seam probes it in a fresh worker and hands `loadPlugin()` a proxy whose filter is an
+    // RPC; supplied as `loadPlugin()`'s required `importModule` port, so integrity + sdkRange
+    // still run first (CIC U-001). Only a built-in reaches here as tier-2: discovery marks a site
+    // tier-2 package invalid (the worker is no sandbox yet). Were site tier-2 ever allowed, its worker
+    // would need the seam's `resolveWorkerEntry` pointed at the integrity-checked module snapshot,
+    // since an injected worker seam bypasses the host's default snapshot importer.
+    return target.manifest.tier === "tier-2"
+      ? createTier2ImportSeam({ ...pluginHostBinding, manifest: target.manifest, runCall: tier2CallRunner })
+      : createPluginModuleImporter({ manifest: target.manifest, source: record.source }, {
+          ...(target.importModule === undefined ? {} : { importModule: target.importModule }),
+        });
+  }
+
+  function publishPluginAttachment({ pluginId, manifest, attachmentSource, filter, contributions, providers, version }: {
+    pluginId: string; manifest: PluginManifest; attachmentSource: AttachmentSource;
+    filter: Parameters<typeof attachLoadedPlugin>[0]["filter"] | null;
+    contributions: ReturnType<ReturnType<typeof createPluginContributionCapture>["seal"]>;
+    providers: readonly AdmittedBrowserProvider[]; version: string;
+  }, _options = {}): void {
     if (filter === null) {
       pluginContributions.replace({ contributions });
-      retainBrowserProviders({ pluginId, providers: result.browserProviders ?? [] });
+      retainBrowserProviders({ pluginId, providers });
       hookRegistry.detach({ pluginId });
-      loadedVersions.set(pluginId, record.version);
+      loadedVersions.set(pluginId, version);
       return;
     }
 
@@ -398,8 +407,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         declaredFields: manifest.fields,
       });
       pluginContributions.replace({ contributions });
-      retainBrowserProviders({ pluginId, providers: result.browserProviders ?? [] });
-      loadedVersions.set(pluginId, record.version);
+      retainBrowserProviders({ pluginId, providers });
+      loadedVersions.set(pluginId, version);
     } catch (error) {
       hookRegistry.detach({ pluginId });
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_ATTACH_FAILED", { cause: error });
@@ -443,7 +452,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     return quarantined;
   }
 
-  async function attachEnabledPluginsAtBoot(): Promise<void> {
+  async function initializeBootDefaults(_required: Record<string, never>, _options = {}) {
     // Serialize first-boot defaults with boot attachment. Existing disabled/quarantined rows win.
     const initialized = await initializeBundledPlugins({
       deps: { clock, repo: activationRepo, discovery: required.bundledEnabledIds?.length ? await discoverPlugins().catch((error: unknown) => {
@@ -453,6 +462,11 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       input: { workspaceId: required.workspaceId, pluginIds: required.bundledEnabledIds ?? [] },
     });
     for (const failure of initialized.failed) console.warn(`[plugin-runtime] bundled initialization failed for '${failure.pluginId}'`, failure.error);
+    return initialized;
+  }
+
+  async function attachEnabledPluginsAtBoot(): Promise<void> {
+    const initialized = await initializeBootDefaults({}, {});
     const records = await activationRepo.listAll();
     const enabledHere = records.filter(
       (record) => record.workspaceId === required.workspaceId && record.enabled
@@ -476,23 +490,27 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       return;
     }
     for (const record of enabledHere) {
-      if (quarantined.has(record.pluginId)) continue;
-      if (initialized.enabled.includes(record.pluginId)) continue; // The initializer already attached it.
-      try {
-        if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
-        const discovered = discovery.find((candidate) => candidate.id === record.pluginId);
-        if (!discovered) throw new PluginLoadError(record.pluginId, "PLUGIN_EXPORT_INVALID");
-        // A tier-1 plugin has no code to re-attach; its declared types were stored at enable.
-        if (discovered.manifest?.tier === "tier-1") continue;
-        await attachPlugin(record.pluginId, discovered);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[plugin-runtime] boot re-attach failed for '${record.pluginId}': ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
+      // The initializer already attached it.
+      if (quarantined.has(record.pluginId) || initialized.enabled.includes(record.pluginId)) continue;
+      await reattachBootPlugin({ pluginId: record.pluginId, discovery });
+    }
+  }
+
+  async function reattachBootPlugin({ pluginId, discovery }: { pluginId: string; discovery: readonly PluginDiscoveryRecord[] }, _options = {}): Promise<void> {
+    try {
+      if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
+      const discovered = discovery.find((candidate) => candidate.id === pluginId);
+      if (!discovered) throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
+      // A tier-1 plugin has no code to re-attach; its declared types were stored at enable.
+      if (discovered.manifest?.tier === "tier-1") return;
+      await attachPlugin(pluginId, discovered);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[plugin-runtime] boot re-attach failed for '${pluginId}': ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -545,13 +563,53 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         return host.withInstallIdentity({ candidate: { id: preview.publisherId ?? `unknown/${preview.id}`, localId: preview.id, family: "site-runtime" }, run });
       },
   };
-  const pluginSource = installDir === undefined || pluginInstaller === undefined ? undefined : createPluginSourceService({
-    ...pluginHostBinding, installDir, installer: pluginInstaller, policy: pluginSourcePolicy,
-    pruneVersions: ({ id }) => pruneSitePluginVersions({ id, installDir, repo: activationRepo }),
-    builtInIds: sources.map(source => source.manifest.id),
-    // readDefinedPlugin accepts this SDK wrapper ABI; no package imports are needed from an
-    // external site's Documents folder. Owner: full server access for now. TODO: sandbox tier-3.
-    scaffoldEntry: `export default { definition: { setup(sdk) {
+  async function reloadActivation({ row, id, discovery }: {
+    row: Awaited<ReturnType<PluginActivationRepoPort["listAll"]>>[number]; id: string; discovery: readonly PluginDiscoveryRecord[];
+  }, _options = {}): Promise<void> {
+    const here = row.workspaceId === required.workspaceId;
+    try {
+      await setPluginEnabled({ deps: { clock, repo: activationRepo, discovery,
+        onEnabled: here ? onPluginEnabled : async () => {}, onDisabled: here ? onPluginDisabled : () => {} },
+        input: { workspaceId: row.workspaceId, pluginId: id, enabled: true } });
+    } catch (error) {
+      if (here) await restoreReloadedPlugin({ id, workspaceId: row.workspaceId });
+      throw error;
+    }
+  }
+
+  async function assertReloadApproved({ id, enabledCount, discovery }: {
+    id: string; enabledCount: number; discovery: readonly PluginDiscoveryRecord[];
+  }, _options = {}): Promise<void> {
+    // Consent gap (2026-10-12): a re-seal that widens what a running plugin can reach waits for
+    // the owner. Thrown here, the source service reports it as reloadError and keeps every
+    // retained version; the approved version keeps running until plugins_set_enabled is confirmed.
+    const next = discovery.find(record => record.id === id)?.manifest;
+    const added = enabledCount > 0 && next ? addedPluginCapabilities({ approved: await pluginSource?.readApproval({ id }, {}), next: pluginCapabilitySet({ manifest: next }) }) : [];
+    if (added.length > 0) throw new Error(`PLUGIN_APPROVAL_REQUIRED: this version adds ${added.join(', ')}. The approved version keeps running; ask the owner to approve it by enabling it again with plugins_set_enabled.`);
+  }
+
+  async function restoreReloadedPlugin({ id, workspaceId }: { id: string; workspaceId: string }, _options = {}): Promise<void> {
+    // setPluginEnabled already restored the old activation row. Re-enter the same loader
+    // to pin its retained bytes, rather than turning a working plugin off for a bad update.
+    try { await onPluginEnabled(id); }
+    catch (rollbackError) {
+      console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, rollbackError);
+      onPluginDisabled(id);
+      await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId: id, workspaceId, consecutiveFailures: 0, reason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.' } });
+    }
+  }
+
+  const pluginSource = composeSourceService({}, {});
+
+  function composeSourceService(_required: Record<string, never>, _options = {}): PluginSourcePort | undefined {
+    if (installDir === undefined || pluginInstaller === undefined) return undefined;
+    return createPluginSourceService({
+      ...pluginHostBinding, installDir, installer: pluginInstaller, policy: pluginSourcePolicy,
+      pruneVersions: ({ id }) => pruneSitePluginVersions({ id, installDir, repo: activationRepo }),
+      builtInIds: sources.map(source => source.manifest.id),
+      // readDefinedPlugin accepts this SDK wrapper ABI; no package imports are needed from an
+      // external site's Documents folder. Owner: full server access for now. TODO: sandbox tier-3.
+      scaffoldEntry: `export default { definition: { setup(sdk) {
   /* Register declared content filters here.
    * To add the examples below, declare capabilities http.route.register and tools.register,
    * and contributes: { routes: ['GET /hello'], tools: ['echo'] } in tovu.plugin.json.
@@ -561,41 +619,20 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
    * sdk.widgets.add({ name: '<declared-widget-name>', render: () => '<strong>Hello</strong>' });
    */
 } } };\n`,
-    reload: async ({ id }) => {
-      const enabled = (await activationRepo.listAll()).filter(row => row.pluginId === id && row.enabled);
-      const discovery = await discoverPlugins();
-      // Consent gap (2026-10-12): a re-seal that widens what a running plugin can reach waits for
-      // the owner. Thrown here, the source service reports it as reloadError and keeps every
-      // retained version; the approved version keeps running until plugins_set_enabled is confirmed.
-      const next = discovery.find(record => record.id === id)?.manifest;
-      const added = enabled.length > 0 && next ? addedPluginCapabilities({ approved: await pluginSource?.readApproval({ id }, {}), next: pluginCapabilitySet({ manifest: next }) }) : [];
-      if (added.length > 0) throw new Error(`PLUGIN_APPROVAL_REQUIRED: this version adds ${added.join(', ')}. The approved version keeps running; ask the owner to approve it by enabling it again with plugins_set_enabled.`);
-      // Load here before publishing active pointers to other processes. Their existing poll sees
-      // a version change and re-enters the same validated loader, replacing module snapshots.
-      enabled.sort((a, b) => Number(b.workspaceId === required.workspaceId) - Number(a.workspaceId === required.workspaceId));
-      for (const row of enabled) {
-        const here = row.workspaceId === required.workspaceId;
-        try {
-          await setPluginEnabled({ deps: { clock, repo: activationRepo, discovery,
-            onEnabled: here ? onPluginEnabled : async () => {}, onDisabled: here ? onPluginDisabled : () => {} },
-            input: { workspaceId: row.workspaceId, pluginId: id, enabled: true } });
-        } catch (error) {
-          if (here) {
-            // setPluginEnabled already restored the old activation row. Re-enter the same loader
-            // to pin its retained bytes, rather than turning a working plugin off for a bad update.
-            try { await onPluginEnabled(id); }
-            catch (rollbackError) {
-              console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, rollbackError);
-              onPluginDisabled(id);
-              await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId: id, workspaceId: row.workspaceId, consecutiveFailures: 0, reason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.' } });
-            }
-          }
-          throw error;
+      reload: async ({ id }) => {
+        const enabled = (await activationRepo.listAll()).filter(row => row.pluginId === id && row.enabled);
+        const discovery = await discoverPlugins();
+        await assertReloadApproved({ id, enabledCount: enabled.length, discovery });
+        // Load here before publishing active pointers to other processes. Their existing poll sees
+        // a version change and re-enters the same validated loader, replacing module snapshots.
+        enabled.sort((a, b) => Number(b.workspaceId === required.workspaceId) - Number(a.workspaceId === required.workspaceId));
+        for (const row of enabled) {
+          await reloadActivation({ row, id, discovery });
         }
-      }
-      return enabled.some(row => row.workspaceId === required.workspaceId);
-    },
-  });
+        return enabled.some(row => row.workspaceId === required.workspaceId);
+      },
+    });
+  }
 
   return {
     browserProviders: () => ({ generation: browserGeneration, providers: [...browserProviders.values()].flat() }),

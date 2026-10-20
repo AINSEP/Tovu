@@ -66,3 +66,19 @@ test("PGlite: a composition failing after the open releases the owner lock, so t
   });
   await next.close();
 });
+
+test("L005: failure on a supplied client store releases users without closing the caller's kernels", async (t) => {
+  const siteDir = path.join(parent, "supplied-client");
+  await initSite({ dir: siteDir, name: "Supplied client" });
+  const dbPath = path.join(siteDir, "content.db");
+  const store = await openSiteStore({ storage: { kind: "sqlite" }, dbPath, chatDbPath: path.join(siteDir, "chat.db"), role: "client" });
+  const backend = process.env.TOVU_MEDIA_BLOB_STORE;
+  process.env.TOVU_MEDIA_BLOB_STORE = "l005-invalid";
+  t.after(() => { if (backend === undefined) delete process.env.TOVU_MEDIA_BLOB_STORE; else process.env.TOVU_MEDIA_BLOB_STORE = backend; });
+  try {
+    await assert.rejects(createSiteRouteDeps(dbPath, { store, workspaceId: "caller-workspace", storeRole: "client", themesDir: path.join(siteDir, "themes") }));
+    assert.ok(store.sqliteDb);
+    assert.equal(sqliteClientOf(store.sqliteDb).open, true);
+    assert.equal(sqliteConnectionOf(store.chat)?.open, true);
+  } finally { await store.close(); }
+});

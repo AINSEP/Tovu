@@ -11,7 +11,7 @@ import { sql } from "kysely";
 import type { Clock } from "@jini-ai/core/primitives";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { AesGcmSecretSealer, credentialTokenHint, type KeyringPort, type SiteKeyHandle, type SecretSealerPort } from "@jini-ai/platform/secrets";
-import { buildVaultAad, VaultError, VAULT_KINDS, type VaultKind, type VaultMeta, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, VaultError, VAULT_KINDS, type VaultKind, type VaultMeta, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
@@ -40,17 +40,24 @@ class RowBlocked extends Error {
 /** Original context is host metadata, structurally checked before calling an old codec. */
 export function legacyContext({ record }: { record: VaultRecord }): VaultLegacyContext | null {
   if (record.meta.legacyAad === undefined) return null;
-  const value = record.meta.legacyAad;
-  const migration = record.meta.migration;
-  if (value === null || typeof value !== "object" || Array.isArray(value) ||
-    migration === null || typeof migration !== "object" || Array.isArray(migration) || migration?.mappedId !== record.id ||
-    typeof value.table !== "string" || typeof value.workspaceId !== "string" || typeof value.id !== "string" ||
-    typeof value.aadVersion !== "number" ||
+  const value = legacyMetadataObject({ value: record.meta.legacyAad });
+  const migration = legacyMetadataObject({ value: record.meta.migration });
+  if (migration.mappedId !== record.id || !hasLegacyIdentityFields({ value }) ||
     ![value.principalId, value.provider, value.serverId].every(field => field === null || typeof field === "string") ||
     ["table", "workspaceId", "id", "principalId", "provider", "serverId", "aadVersion"].some(key => migration[key] !== value[key])) {
     throw new RowBlocked("invalid-meta");
   }
   return value as unknown as VaultLegacyContext;
+}
+
+function legacyMetadataObject({ value }: { value: unknown }, _options = {}): VaultMeta {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new RowBlocked("invalid-meta");
+  return value as VaultMeta;
+}
+
+function hasLegacyIdentityFields({ value }: { value: VaultMeta }, _options = {}): boolean {
+  return typeof value.table === "string" && typeof value.workspaceId === "string" &&
+    typeof value.id === "string" && typeof value.aadVersion === "number";
 }
 
 /** Resolve a moved legacy row's exact target scope. A taken label means the moved row is a
@@ -75,7 +82,25 @@ async function targetGroup({ input, record, provider }: { input: VaultBootInput;
  * No failed row is written with new ciphertext. Metadata-only rows need no key.
  * @complexity O(payload + metadata + target group size) time/space, at most two opens and one seal.
  */
-async function normalizedRecord({ input, record, legacy, previous = input.sealer }: { input: VaultBootInput; record: VaultRecord; legacy: VaultLegacyContext; previous?: Pick<SecretSealerPort, "open"> }): Promise<VaultRecord | null> {
+async function normalizedRecord({ input, record, legacy, previous = input.sealer }: LegacyRecordInput): Promise<VaultRecord | null> {
+  const provider = normalizationProvider({ input, record, legacy });
+  const group = await targetGroup({ input, record, provider });
+  if (group === null) return null;
+  const { plaintext, key } = await openLegacyRecord({ input, record, legacy, previous });
+  const { normalized, meta: parsedMeta } = parseLegacyRecord({ input, record, legacy, plaintext });
+  let meta = parsedMeta;
+  if (meta.migration !== null && typeof meta.migration === "object" && !Array.isArray(meta.migration)) {
+    meta = { ...meta, migration: { ...meta.migration, mappedLabel: group.label, mappedProvider: normalized.provider } };
+  }
+  const replacement: VaultRecord = { ...record, ...group, provider: normalized.provider, meta,
+    revision: record.revision + 1, updatedAt: new Date(input.clock.nowMs()).toISOString(), last4: null, tokenLength: null };
+  await sealNormalizedRecord({ input, replacement, normalized, key });
+  return replacement;
+}
+
+type LegacyRecordInput = { input: VaultBootInput; record: VaultRecord; legacy: VaultLegacyContext; previous?: Pick<SecretSealerPort, "open"> };
+
+function normalizationProvider({ input, record, legacy }: LegacyRecordInput, _options = {}): string | null {
   let provider = record.provider;
   if (record.sealed && legacy.table === "publish_credential_sets") {
     // The catalog owns provider reassignment; detect duplicates without opening their ciphertext.
@@ -86,8 +111,10 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
       throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
     }
   }
-  const group = await targetGroup({ input, record, provider });
-  if (group === null) return null;
+  return provider;
+}
+
+async function openLegacyRecord({ input, record, legacy, previous = input.sealer }: LegacyRecordInput, _options = {}): Promise<{ plaintext: string | null; key: SiteKeyHandle }> {
   let plaintext: string | null = null;
   let key!: SiteKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
   if (record.sealed) {
@@ -98,6 +125,10 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
     // Even an empty envelope must not erase an unsupported or mismatched lineage marker.
     try { legacyVaultAad({ record, legacy }); } catch { throw new RowBlocked("invalid-meta"); }
   }
+  return { plaintext, key };
+}
+
+function parseLegacyRecord({ input, record, legacy, plaintext }: LegacyRecordInput & { plaintext: string | null }, _options = {}) {
   let normalized: ReturnType<typeof normalizeLegacyVaultPayload>;
   let meta: VaultMeta;
   try {
@@ -107,11 +138,12 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
   } catch (error) {
     throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
   }
-  if (meta.migration !== null && typeof meta.migration === "object" && !Array.isArray(meta.migration)) {
-    meta = { ...meta, migration: { ...meta.migration, mappedLabel: group.label, mappedProvider: normalized.provider } };
-  }
-  const replacement: VaultRecord = { ...record, ...group, provider: normalized.provider, meta,
-    revision: record.revision + 1, updatedAt: new Date(input.clock.nowMs()).toISOString(), last4: null, tokenLength: null };
+  return { normalized, meta };
+}
+
+async function sealNormalizedRecord({ input, replacement, normalized, key }: {
+  input: VaultBootInput; replacement: VaultRecord; normalized: ReturnType<typeof normalizeLegacyVaultPayload>; key: SiteKeyHandle;
+}, _options = {}): Promise<void> {
   if (normalized.payload !== null) {
     const payloadText = JSON.stringify(normalized.payload);
     const aad = buildVaultAad(replacement);
@@ -125,7 +157,6 @@ async function normalizedRecord({ input, record, legacy, previous = input.sealer
       replacement.tokenLength = hint.length;
     }
   }
-  return replacement;
 }
 
 /** CAS the whole normalization result, or delete a moved duplicate when after is null.
@@ -142,14 +173,20 @@ async function saveNormalized({ input, before, after }: { input: VaultBootInput;
     if (rows.length !== 1) throw new RowBlocked("conflict");
     return;
   }
+  const envelope = normalizedEnvelope({ record: after });
   const rows = await input.kernel.query<{ id: string }>(sql`UPDATE secrets_vault SET
     provider=${after.provider}, label=${after.label}, is_default=${input.kernel.dialect === "sqlite" ? Number(after.isDefault) : after.isDefault},
-    sealed_key_id=${after.sealed?.keyId ?? null}, sealed_ciphertext=${after.sealed?.ciphertext ?? null},
-    sealed_nonce=${after.sealed?.nonce ?? null}, sealed_alg=${after.sealed?.alg ?? null},
+    sealed_key_id=${envelope.keyId}, sealed_ciphertext=${envelope.ciphertext},
+    sealed_nonce=${envelope.nonce}, sealed_alg=${envelope.alg},
     last4=${after.last4}, token_length=${after.tokenLength}, meta=${JSON.stringify(after.meta)},
     revision=${after.revision}, updated_at=${after.updatedAt}
     WHERE workspace_id=${before.workspaceId} AND id=${before.id} AND revision=${before.revision} RETURNING id`);
   if (rows.length !== 1) throw new RowBlocked("conflict");
+}
+
+function normalizedEnvelope({ record }: { record: VaultRecord }, _options = {}) {
+  return { keyId: record.sealed?.keyId ?? null, ciphertext: record.sealed?.ciphertext ?? null,
+    nonce: record.sealed?.nonce ?? null, alg: record.sealed?.alg ?? null };
 }
 
 /** Safe flag-only CAS leaves ciphertext, legacy identity and other metadata intact for recovery. */
@@ -184,46 +221,7 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
         { rows: 0, envelopes: 0, attempted: 0, succeeded: 0, dropped: 0, blocked: 0, legacyRemaining: 0, unopenable: 0 }])) as VaultBootReport["kinds"] };
       const identities = await input.kernel.query<{ id: string }>(sql`SELECT id FROM secrets_vault WHERE workspace_id=${input.workspaceId} ORDER BY id`);
       for (const { id } of identities) {
-        let record = await repo.find({ workspaceId: input.workspaceId, id });
-        if (!record) throw new RowBlocked("conflict");
-        const coverage = report.kinds[record.kind];
-        coverage.rows += 1;
-        if (record.sealed) coverage.envelopes += 1;
-        const hasLegacy = record.meta.legacyAad !== undefined;
-        if (hasLegacy) coverage.attempted += 1;
-        try {
-          const legacy = legacyContext({ record });
-          if (legacy) {
-            const after = await normalizedRecord({ input, record, legacy });
-            await saveNormalized({ input, before: record, after });
-            if (after === null) { coverage.dropped += 1; continue; }
-            record = after;
-            coverage.succeeded += 1;
-          } else {
-            // Ordinary feature reads have no legacy fallback; readiness proves that exact path.
-            const { normalization: _flag, ...meta } = record.meta;
-            try { input.registry.metaParsers[record.kind]({ meta, provider: record.provider }); } catch { throw new RowBlocked("invalid-meta"); }
-            if (record.sealed) {
-              try { await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
-              try {
-                const payload = JSON.parse(await input.sealer.open({ sealed: record.sealed }, { aad: buildVaultAad(record) }));
-                if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new RowBlocked("unopenable");
-              }
-              catch { throw new RowBlocked("unopenable"); }
-            }
-            if (record.meta.normalization !== undefined) await input.kernel.execute(sql`UPDATE secrets_vault
-              SET meta=${JSON.stringify(meta)}, revision=revision+1 WHERE workspace_id=${record.workspaceId} AND id=${record.id} AND revision=${record.revision}`);
-          }
-        } catch (error) {
-          if (!(error instanceof RowBlocked) && !(error instanceof Error && error.name === "VaultError")) throw error;
-          const reason = error instanceof RowBlocked ? error.reason
-            : error instanceof VaultError && error.code === "conflict" ? "conflict" : "invalid-meta";
-          await flagRecord({ input, record, reason });
-          coverage.blocked += 1;
-          if (hasLegacy) coverage.legacyRemaining += 1;
-          if (reason === "unopenable" || reason === "missing-key") coverage.unopenable += 1;
-          report.flagged.push({ id, kind: record.kind, reason });
-        }
+        await normalizeBootRow({ input, repo, report, id });
       }
       report.green = report.flagged.length === 0 && Object.values(report.kinds).every(kind => kind.legacyRemaining === 0 && kind.unopenable === 0);
       return report;
@@ -233,6 +231,66 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
   } finally {
     await releaseOperationLock({ deps, input: { siteId: input.siteId, handle: acquired.value } });
   }
+}
+
+async function validateCurrentRecord({ input, record }: { input: VaultBootInput; record: VaultRecord }, _options = {}): Promise<void> {
+  // Ordinary feature reads have no legacy fallback; readiness proves that exact path.
+  const { normalization: _flag, ...meta } = record.meta;
+  try { input.registry.metaParsers[record.kind]({ meta, provider: record.provider }); } catch { throw new RowBlocked("invalid-meta"); }
+  if (record.sealed) {
+    try { await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
+    try {
+      const payload = JSON.parse(await input.sealer.open({ sealed: record.sealed }, { aad: buildVaultAad(record) }));
+      if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new RowBlocked("unopenable");
+    }
+    catch { throw new RowBlocked("unopenable"); }
+  }
+  if (record.meta.normalization !== undefined) await input.kernel.execute(sql`UPDATE secrets_vault
+    SET meta=${JSON.stringify(meta)}, revision=revision+1 WHERE workspace_id=${record.workspaceId} AND id=${record.id} AND revision=${record.revision}`);
+}
+
+async function normalizeBootRow({ input, repo, report, id }: {
+  input: VaultBootInput; repo: Pick<VaultRepoPort, "find">; report: VaultBootReport; id: string;
+}, _options = {}): Promise<void> {
+  let record = await repo.find({ workspaceId: input.workspaceId, id });
+  if (!record) throw new RowBlocked("conflict");
+  const coverage = report.kinds[record.kind];
+  coverage.rows += 1;
+  if (record.sealed) coverage.envelopes += 1;
+  const hasLegacy = record.meta.legacyAad !== undefined;
+  if (hasLegacy) coverage.attempted += 1;
+  try {
+    const legacy = legacyContext({ record });
+    if (legacy) {
+      const after = await normalizedRecord({ input, record, legacy });
+      await saveNormalized({ input, before: record, after });
+      if (after === null) { coverage.dropped += 1; return; }
+      record = after;
+      coverage.succeeded += 1;
+    } else {
+      await validateCurrentRecord({ input, record });
+    }
+  } catch (error) {
+    await reportBlockedRow({ input, record, error, coverage, hasLegacy, report, id });
+  }
+}
+
+function blockedRowReason({ error }: { error: unknown }, _options = {}): BlockReason {
+  return error instanceof RowBlocked ? error.reason
+    : error instanceof VaultError && error.code === "conflict" ? "conflict" : "invalid-meta";
+}
+
+async function reportBlockedRow({ input, record, error, coverage, hasLegacy, report, id }: {
+  input: VaultBootInput; record: VaultRecord; error: unknown; coverage: VaultKindCoverage;
+  hasLegacy: boolean; report: VaultBootReport; id: string;
+}, _options = {}): Promise<void> {
+  if (!(error instanceof RowBlocked) && !(error instanceof Error && error.name === "VaultError")) throw error;
+  const reason = blockedRowReason({ error });
+  await flagRecord({ input, record, reason });
+  coverage.blocked += 1;
+  if (hasLegacy) coverage.legacyRemaining += 1;
+  if (reason === "unopenable" || reason === "missing-key") coverage.unopenable += 1;
+  report.flagged.push({ id, kind: record.kind, reason });
 }
 
 /** Host wiring shared by folder boot and direct composition; both await it before consumers.

@@ -879,6 +879,47 @@ function createSiteDisplayNameSource(dbPath: string, siteDir?: string): SiteDisp
   return createLiveSiteDisplayName({ dir: resolveSiteDirForDatabase({ dbPath, siteDir }) });
 }
 
+/** Resolve the served site's key candidates and retain its root for vault contribution discovery.
+ * @complexity O(1), one site-metadata read; never reads or creates key material. */
+function compositionSiteKeySources({ dbPath, runtimeMode, siteDir }: {
+  dbPath: string; runtimeMode: ReturnType<typeof resolveRuntimeMode>; siteDir: string | undefined;
+}, _options = {}) {
+  // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
+  // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
+  // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
+  // resolveSiteDirForDatabase(...) : undefined` shares the site-root resolution used by
+  // `createSiteDisplayNameSource` above, so a `:memory:` boot (no site directory at all) correctly
+  // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
+  // that root; its parent must never establish the key's identity.
+  // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
+  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir }) : undefined;
+  const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
+  const sources = siteKeySources({
+    mode: runtimeMode,
+    env: process.env,
+    home: homedir(),
+    cwd: process.cwd(),
+    siteKeyId: siteKeyIdForKeyring,
+  });
+  return { siteDirForKeyring, sources };
+}
+
+function compositionApprovalOverrides({ overrides }: { overrides: Partial<CreateSiteRouteDepsOverrides> }, _options = {}) {
+  return {
+    ...(overrides.nativeApprovalMemory ? { nativeApprovalMemory: overrides.nativeApprovalMemory } : {}),
+    ...(overrides.approvalIdentityForRun ? { approvalIdentityForRun: overrides.approvalIdentityForRun } : {}),
+  };
+}
+
+function prepareCompositionStorage({ dbPath, overrides }: {
+  dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>;
+}, _options = {}) {
+  const anchor = isInMemoryDbPath(dbPath) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir });
+  const storage = resolveSiteStorage(anchor);
+  if (!isInMemoryDbPath(dbPath) && storage.kind === "sqlite" && !overrides.db) mkdirSync(dirname(dbPath), { recursive: true });
+  return storage;
+}
+
 /**
  * What a composition hands its store's `onClose`: the disposer a `register*`/`subscribe` call
  * returned, or the promise of one (`EventBusPort.subscribe` is async), so every registration goes
@@ -906,19 +947,17 @@ type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
  */
 async function openCompositionStore(
   dbPath: string,
-  overrides?: Partial<CreateSiteRouteDepsOverrides>
+  overrides: Partial<CreateSiteRouteDepsOverrides> = {}
 ): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (registration: StoreCloseRegistration) => void; beforeClose: (drain: () => Promise<void>) => void }> {
-  const anchor = isInMemoryDbPath(dbPath) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides?.siteBinding?.dir });
-  const storage = resolveSiteStorage(anchor);
-  if (!isInMemoryDbPath(dbPath) && storage.kind === "sqlite" && !overrides?.db) mkdirSync(dirname(dbPath), { recursive: true });
+  const storage = prepareCompositionStorage({ dbPath, overrides });
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
-  const role = overrides?.storeRole ?? "owner";
-  const supplied = overrides?.store;
+  const role = overrides.storeRole ?? "owner";
+  const supplied = overrides.store;
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
-  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: overrides?.chatDbPath ?? defaultChatDbPath(dbPath), role }, { db: overrides?.db, ...(overrides?.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
-  const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat, overrides?.chatExpirySweep);
+  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: overrides.chatDbPath ?? defaultChatDbPath(dbPath), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
+  const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat, overrides.chatExpirySweep);
   // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
   // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
   const stopSubmissionIpSweep = role === "owner"
@@ -939,7 +978,7 @@ async function openCompositionStore(
       await opened.close();
     },
   };
-  overrides?.onStoreOpened?.(store);
+  overrides.onStoreOpened?.(store);
   return {
     store,
     release: supplied === undefined ? store.close : stopStoreUsers,
@@ -1079,7 +1118,7 @@ export async function createSiteRouteDeps(
 async function composeSiteRouteDeps(
   dbPath: string,
   opened: { store: SiteStore; onStoreClose: (registration: StoreCloseRegistration) => void; beforeStoreClose: (drain: () => Promise<void>) => void },
-  overrides?: Partial<CreateSiteRouteDepsOverrides>
+  overrides: Partial<CreateSiteRouteDepsOverrides> = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
   const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
@@ -1120,7 +1159,7 @@ async function composeSiteRouteDeps(
   // an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
   // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
   // unhandled ("The database connection is not open") on top of the operator's real config error.
-  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });
+  const resolvedUploadsDir = overrides.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });
   const blobStore = resolveBlobStore(resolvedUploadsDir, { observability });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
@@ -1142,23 +1181,27 @@ async function composeSiteRouteDeps(
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
   // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
-  const chatDbPath = overrides?.chatDbPath ?? defaultChatDbPath(dbPath);
+  const chatDbPath = overrides.chatDbPath ?? defaultChatDbPath(dbPath);
   const chat = store.chat;
   instrumentStorageKernel({ kernel: chat, observability });
-  // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
-  // the rows an already-deployed `content.db` was holding, and nothing anywhere reported that.
-  // Every such conversation is intact but unread, because the stores no longer look in that file.
-  // This counts them and prints one warning naming the counts and the migration script —
-  // read-only, and completely silent (one bounded `count(*)` per table) on the already-migrated
-  // boot. It deliberately does NOT migrate: `applyChatSplit` deletes from content.db after
-  // copying, and its own header requires a backup first — see `chat-orphan-check.ts`'s header for
-  // the rejected alternatives. A warning only: a failure is logged, never fatal.
-  // SQLite only: a Postgres/PGlite site never had chat rows in its content tables.
-  if (store.storage.kind === "sqlite") {
-    await warnOnOrphanedChatRows({ contentDb: kernel, contentDbPath: dbPath, chatDbPath }).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
-    });
+  await warnCompositionChatOrphans({}, {});
+
+  async function warnCompositionChatOrphans(_required: Record<string, never>, _options = {}): Promise<void> {
+    // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
+    // the rows an already-deployed `content.db` was holding, and nothing anywhere reported that.
+    // Every such conversation is intact but unread, because the stores no longer look in that file.
+    // This counts them and prints one warning naming the counts and the migration script —
+    // read-only, and completely silent (one bounded `count(*)` per table) on the already-migrated
+    // boot. It deliberately does NOT migrate: `applyChatSplit` deletes from content.db after
+    // copying, and its own header requires a backup first — see `chat-orphan-check.ts`'s header for
+    // the rejected alternatives. A warning only: a failure is logged, never fatal.
+    // SQLite only: a Postgres/PGlite site never had chat rows in its content tables.
+    if (store.storage.kind === "sqlite") {
+      await warnOnOrphanedChatRows({ contentDb: kernel, contentDbPath: dbPath, chatDbPath }).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(`warnOnOrphanedChatRows failed at boot: ${(err as Error).message}`);
+      });
+    }
   }
   // Posts written before migration 0022 existed — and the demo content `prepareContentStore` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
@@ -1301,7 +1344,7 @@ async function composeSiteRouteDeps(
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
-  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides?.siteBinding?.dir);
+  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
@@ -1468,28 +1511,32 @@ async function composeSiteRouteDeps(
   const REPO_ROOT = resolveCheckoutRoot();
   const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
   const originBoot = planOriginBoot({ now: clock.nowIso() });
-  // The boot write is async (storage kernel); the origin repo's reads wait for it (`after`).
-  let originReady: Promise<unknown> = Promise.resolve();
-  if (originBoot.kind === "configured") {
-    originReady = registerConfiguredOrigin({ db: kernel, workspaceId: workspaceId, origin: originBoot.origin });
-  } else if (originBoot.kind === "dev-seed") {
-    originReady = seedDevCapabilityOrigin({
-      db: kernel,
-      seed: {
-        workspaceId: workspaceId,
-        origin: createVerifiedOrigin({
-          scheme: devCapabilityScheme,
-          host: "localhost",
-          port: 3000,
-          verifiedAt: clock.nowIso(),
-          source: "dev-capability",
-        }),
-        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
-        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
-        // `example.com` target every integrations fixture/test in this repo already uses.
-        egressAllowlist: ["example.com"],
-      },
-    });
+  const originReady = registerBootOrigin({}, {});
+
+  function registerBootOrigin(_required: Record<string, never>, _options = {}): Promise<unknown> {
+    // The boot write is async (storage kernel); the origin repo's reads wait for it (`after`).
+    if (originBoot.kind === "configured") {
+      return registerConfiguredOrigin({ db: kernel, workspaceId: workspaceId, origin: originBoot.origin });
+    } else if (originBoot.kind === "dev-seed") {
+      return seedDevCapabilityOrigin({
+        db: kernel,
+        seed: {
+          workspaceId: workspaceId,
+          origin: createVerifiedOrigin({
+            scheme: devCapabilityScheme,
+            host: "localhost",
+            port: 3000,
+            verifiedAt: clock.nowIso(),
+            source: "dev-capability",
+          }),
+          // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
+          // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
+          // `example.com` target every integrations fixture/test in this repo already uses.
+          egressAllowlist: ["example.com"],
+        },
+      });
+    }
+    return Promise.resolve();
   }
   const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(kernel, { after: originReady }) });
   const redirectRepo = SqliteRedirectRepo({ store: kernel }, {});
@@ -1792,23 +1839,7 @@ async function composeSiteRouteDeps(
   // returns, only when it is first read.
   const runtimeMode = resolveRuntimeMode();
 
-  // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
-  // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
-  // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
-  // resolveSiteDirForDatabase(...) : undefined` shares the site-root resolution used by
-  // `createSiteDisplayNameSource` above, so a `:memory:` boot (no site directory at all) correctly
-  // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
-  // that root; its parent must never establish the key's identity.
-  // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
-  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir: overrides?.siteBinding?.dir }) : undefined;
-  const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
-  const siteKeySourcesList = siteKeySources({
-    mode: runtimeMode,
-    env: process.env,
-    home: homedir(),
-    cwd: process.cwd(),
-    siteKeyId: siteKeyIdForKeyring,
-  });
+  const { siteDirForKeyring, sources: siteKeySourcesList } = compositionSiteKeySources({ dbPath, runtimeMode, siteDir: overrides.siteBinding?.dir });
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
@@ -1946,24 +1977,30 @@ async function composeSiteRouteDeps(
   // `site_backup_push`'s large uploads: see `SITE_BACKUP_EGRESS_POLICY`'s own doc.
   const siteBackupHttpClient = createDefaultHttpClient(SITE_BACKUP_EGRESS_POLICY, { observability });
 
-  // `features/media-import`'s `media_import_from_url` needs its own guarded `HttpClientPort` — a
-  // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See
-  // `routes/types.ts`'s `mediaImportHttpClient` doc and `MEDIA_IMPORT_EGRESS_POLICY`'s own doc for
-  // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
-  const outboundTestOrigins = overrides?.outboundTestOrigins ?? [];
-  const mediaImportHttpClient = createTestOriginHttpClientFactory({ allowedOrigins: outboundTestOrigins })(MEDIA_IMPORT_EGRESS_POLICY, { observability });
+  const { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeContentHttpClients({}, {});
 
-  // `features/publish-content`'s outbound push/pull leg needs its own guarded `HttpClientPort` — a
-  // FOURTH instance. It is the only one whose policy is built rather than imported as a literal,
-  // because it is the only one with an operator-configurable `devHostAllowlist`: a legitimate
-  // publish peer may sit on a private network (Railway/Render internal DNS, an AWS VPC, two Tovus
-  // behind one VPS firewall), and `TOVU_PUBLISH_CONTENT_DEV_HOSTS` is the plain env var that says
-  // so on every platform. Unset means "every peer must resolve to a public address", the safe
-  // default. See `createPublishContentPeerEgressPolicy`'s own doc.
-  const publishContentPeerHttpClient = resolvePublishContentPeerHttpClient({}, {
-    ...(overrides?.publishContentPeerHttpClient ? { client: overrides.publishContentPeerHttpClient } : {}),
-    createClient: (policy) => createDefaultHttpClient(policy, { observability }),
-  });
+  function composeContentHttpClients(_required: Record<string, never>, _options = {}) {
+    // `features/media-import`'s `media_import_from_url` needs its own guarded `HttpClientPort` — a
+    // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See
+    // `routes/types.ts`'s `mediaImportHttpClient` doc and `MEDIA_IMPORT_EGRESS_POLICY`'s own doc for
+    // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
+    const outboundTestOrigins = overrides.outboundTestOrigins ?? [];
+    const mediaImportHttpClient = createTestOriginHttpClientFactory({ allowedOrigins: outboundTestOrigins })(MEDIA_IMPORT_EGRESS_POLICY, { observability });
+
+    // `features/publish-content`'s outbound push/pull leg needs its own guarded `HttpClientPort` — a
+    // FOURTH instance. It is the only one whose policy is built rather than imported as a literal,
+    // because it is the only one with an operator-configurable `devHostAllowlist`: a legitimate
+    // publish peer may sit on a private network (Railway/Render internal DNS, an AWS VPC, two Tovus
+    // behind one VPS firewall), and `TOVU_PUBLISH_CONTENT_DEV_HOSTS` is the plain env var that says
+    // so on every platform. Unset means "every peer must resolve to a public address", the safe
+    // default. See `createPublishContentPeerEgressPolicy`'s own doc.
+    const publishContentPeerHttpClient = resolvePublishContentPeerHttpClient({}, {
+      ...(overrides.publishContentPeerHttpClient ? { client: overrides.publishContentPeerHttpClient } : {}),
+      createClient: (policy) => createDefaultHttpClient(policy, { observability }),
+    });
+
+    return { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient };
+  }
 
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
   // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(kernel)` — both
@@ -2095,11 +2132,15 @@ async function composeSiteRouteDeps(
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
   const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
-  // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
-  // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
-  // that would re-read the cert/key PEM files off disk for no reason, since the scheme is the only
-  // part of that resolution this needs. Hoisted so the plugin connection seams share it.
-  const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${devCapabilityScheme}://localhost:${Number(process.env.PORT ?? 3000)}`;
+  const derivedPublicOrigin = resolveCompositionPublicOrigin({}, {});
+
+  function resolveCompositionPublicOrigin(_required: Record<string, never>, _options = {}): string {
+    // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
+    // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
+    // that would re-read the cert/key PEM files off disk for no reason, since the scheme is the only
+    // part of that resolution this needs. Hoisted so the plugin connection seams share it.
+    return process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${devCapabilityScheme}://localhost:${Number(process.env.PORT ?? 3000)}`;
+  }
   // Plugin API connections, executable plugin-tool ports and admin-surface handlers share one
   // connection port and one sealed vault (kind `api-connection`, migration 0020).
   const agentPluginConnections = composeAgentPluginConnections({
@@ -2194,8 +2235,7 @@ async function composeSiteRouteDeps(
     agentSessions: createSqliteAgentSessionStore(chat),
     // G3 "Allow for this chat": with the conversation, over the same sidecar handle.
     conversationToolApprovals: createSqliteConversationToolApprovalStore(chat),
-    ...(overrides?.nativeApprovalMemory ? { nativeApprovalMemory: overrides.nativeApprovalMemory } : {}),
-    ...(overrides?.approvalIdentityForRun ? { approvalIdentityForRun: overrides.approvalIdentityForRun } : {}),
+    ...compositionApprovalOverrides({ overrides }),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -2681,73 +2721,81 @@ async function composeSiteRouteDeps(
     // A boot pass can start another app (for example during export); drain until none remain.
     while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);
   });
-  if (routeDeps.siteBackupSources) {
-    try {
-      // App-data / mounted SQLite locations own persistence, even when the site source is ephemeral.
-      const shareDirectory = resolve(process.env.TOVU_SHARE_STORAGE_DIR || join(isInMemoryDbPath(dbPath) ? resolvedSiteBinding.dir : dirname(dbPath), "ops", "shares"));
-      mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
-      const physicalShares = realpathSync(shareDirectory);
-      const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
-      if (physicalShares === (existsSync(resolvedSiteBinding.dir) ? realpathSync(resolvedSiteBinding.dir) : resolve(resolvedSiteBinding.dir)) || contentRoots.some(root => {
-        const physicalRoot = existsSync(root) ? realpathSync(root) : resolve(root);
-        return physicalShares === physicalRoot || physicalShares.startsWith(physicalRoot + sep);
-      })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside served content folders.");
-      const registry = new SiteShareRegistry({ directory: physicalShares });
-      const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
-        dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
-      // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
-      // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
-      routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
-        prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore }, { signal }),
-        delivery: selection => resolveShareDelivery({
-          http: guardedOutboundHttpClient,
-          peer: async () => {
-            const rows = await routeDeps.publishContentPeerRepo.listByWorkspace({ workspaceId });
-            const connected = selectConnectedDestination(rows);
-            if (!connected || selection.binding !== undefined && selection.binding !== connected.baseUrl) return undefined;
-            const credential = await resolvePublishDestinationCredential({ repo: routeDeps.publishContentPeerRepo,
-              sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, httpClient: publishContentPeerHttpClient },
-            { workspaceId, id: connected.id });
-            return { credential, httpClient: publishContentPeerHttpClient };
-          },
-          ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {
-            runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
-          } : {}),
-          s3: async () => {
-            const module = (await routeDeps.loadDeployTargets(workspaceId)).get("s3-compatible")?.module;
-            if (!module?.createArtifactStore) return undefined;
-            const resolved = await credentials.resolve({ workspaceId, target: "s3-compatible" });
-            if (!resolved.ok) return undefined;
-            // A new default connection must never turn revocation into deletion in another bucket.
-            // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
-            const storageBinding = JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
-            // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
-            // A normal publish's kit remains unchanged, including its observability.
-            const kit = createDeployHostKit({});
-            const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
-              const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
-              return new Response(null, { status: response.status, headers: response.headers });
-            } };
-            return { provider: "s3-compatible", binding: storageBinding, store: module.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
-          },
-        }, selection),
-      });
-    } catch (error) {
-      console.error("[site-share] Private share storage unavailable; sharing is disabled:", error);
-      routeDeps.siteShareBackend = undefined;
+  configureSiteSharing({}, {});
+
+  function configureSiteSharing(_required: Record<string, never>, _options = {}): void {
+    if (routeDeps.siteBackupSources) {
+      try {
+        // App-data / mounted SQLite locations own persistence, even when the site source is ephemeral.
+        const shareDirectory = resolve(process.env.TOVU_SHARE_STORAGE_DIR || join(isInMemoryDbPath(dbPath) ? resolvedSiteBinding.dir : dirname(dbPath), "ops", "shares"));
+        mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
+        const physicalShares = realpathSync(shareDirectory);
+        const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
+        if (physicalShares === (existsSync(resolvedSiteBinding.dir) ? realpathSync(resolvedSiteBinding.dir) : resolve(resolvedSiteBinding.dir)) || contentRoots.some(root => {
+          const physicalRoot = existsSync(root) ? realpathSync(root) : resolve(root);
+          return physicalShares === physicalRoot || physicalShares.startsWith(physicalRoot + sep);
+        })) throw new Error("TOVU_SHARE_STORAGE_DIR must be private and outside served content folders.");
+        const registry = new SiteShareRegistry({ directory: physicalShares });
+        const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
+          dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
+        // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
+        // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
+        routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
+          prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore }, { signal }),
+          delivery: selection => resolveShareDelivery({
+            http: guardedOutboundHttpClient,
+            peer: async () => {
+              const rows = await routeDeps.publishContentPeerRepo.listByWorkspace({ workspaceId });
+              const connected = selectConnectedDestination(rows);
+              if (!connected || selection.binding !== undefined && selection.binding !== connected.baseUrl) return undefined;
+              const credential = await resolvePublishDestinationCredential({ repo: routeDeps.publishContentPeerRepo,
+                sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, httpClient: publishContentPeerHttpClient },
+              { workspaceId, id: connected.id });
+              return { credential, httpClient: publishContentPeerHttpClient };
+            },
+            ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {
+              runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
+            } : {}),
+            s3: async () => {
+              const module = (await routeDeps.loadDeployTargets(workspaceId)).get("s3-compatible")?.module;
+              if (!module?.createArtifactStore) return undefined;
+              const resolved = await credentials.resolve({ workspaceId, target: "s3-compatible" });
+              if (!resolved.ok) return undefined;
+              // A new default connection must never turn revocation into deletion in another bucket.
+              // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
+              const storageBinding = JSON.stringify([resolved.bucket, resolved.region, resolved.endpoint ?? "", resolved.publicUrl]);
+              // Reuse the plugin's signing/PUT/DELETE owner; pin only the anonymous verification hop.
+              // A normal publish's kit remains unchanged, including its observability.
+              const kit = createDeployHostKit({});
+              const shareKit = { ...kit, fetch: async (url: string, init: RequestInit, options: { timeoutMs: number }) => {
+                const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
+                return new Response(null, { status: response.status, headers: response.headers });
+              } };
+              return { provider: "s3-compatible", binding: storageBinding, store: module.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+            },
+          }, selection),
+        });
+      } catch (error) {
+        console.error("[site-share] Private share storage unavailable; sharing is disabled:", error);
+        routeDeps.siteShareBackend = undefined;
+      }
     }
   }
-  const importBase = switcherBaseForBinding(resolvedSiteBinding);
-  const importSupervisor = isSiteSwitcherEnabled() ? localSiteSupervisorForHost({ binding: resolvedSiteBinding }) : undefined;
-  if (importBase !== null && importSupervisor) {
-    const workspace = createSitesWorkspace({}, { cwd: importBase });
-    // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
-    const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
-    const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
-    routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
-      startSite: input => importSupervisor.start(input),
-      setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
-    }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
+  configureSiteImports({}, {});
+
+  function configureSiteImports(_required: Record<string, never>, _options = {}): void {
+    const importBase = switcherBaseForBinding(resolvedSiteBinding);
+    const importSupervisor = isSiteSwitcherEnabled() ? localSiteSupervisorForHost({ binding: resolvedSiteBinding }) : undefined;
+    if (importBase !== null && importSupervisor) {
+      const workspace = createSitesWorkspace({}, { cwd: importBase });
+      // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
+      const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
+      const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
+      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+        startSite: input => importSupervisor.start(input),
+        setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
+      }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
+    }
   }
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
   return routeDeps;

@@ -364,62 +364,113 @@ export function legacyVaultAad({ record, legacy }: { record: VaultRecord; legacy
   _options: VaultOptions = {}): string | undefined {
   if (legacy.workspaceId !== record.workspaceId || !Number.isInteger(legacy.aadVersion) ||
     legacy.aadVersion < 0 || legacy.aadVersion > 1) throw new VaultError({ code: "context" });
+  const decode = legacyAadDecoders.get(legacy.table);
+  if (!decode) throw new VaultError({ code: "context" });
+  return decode({ record, legacy });
+}
+
+type LegacyAadInput = { record: VaultRecord; legacy: VaultLegacyContext };
+
+function decodeSiteAssistantCredentials({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
   const input = { workspaceId: legacy.workspaceId, id: legacy.id };
-  switch (legacy.table) {
-    case "site_assistant_credentials":
-      if (record.kind === "site-assistant") return legacy.aadVersion === 0 ? undefined : buildSiteAssistantCredentialAad(input);
-      break;
-    case "admin_execution_credentials":
-      if (record.kind === "personal-execution" && legacy.principalId === record.principalId && legacy.principalId !== null) {
-        return legacy.aadVersion === 0 ? undefined : buildExecutionCredentialAad({ ...input, principalId: legacy.principalId });
-      }
-      break;
-    case "media_provider_credentials":
-      if (record.kind === "media-provider" && legacy.provider === record.provider && legacy.provider !== null) {
-        return legacy.aadVersion === 0 ? undefined : buildMediaProviderCredentialAad({ ...input, providerId: legacy.provider });
-      }
-      break;
-    case "secrets_vault_custom_v1":
-      if (record.kind === "vendor" && record.meta.credentialType === "custom" && record.ownerKey === "tovu" &&
-        record.provider === null && record.principalId === null && record.binding === null && legacy.provider === null &&
-        legacy.principalId === null && legacy.serverId === null && legacy.id === record.id && legacy.aadVersion === 1) {
-        // Pin the former vault encoding, not the active builder's future version.
-        return formatAad({ kind: "secrets-vault", version: "v1", parts: [JSON.stringify([
-          record.workspaceId, record.id, "custom", "tovu", null, null,
-        ])] });
-      }
-      break;
-    case "custom_credential_sets":
-      if ((record.kind === "custom" || (record.kind === "vendor" && record.meta.credentialType === "custom")) && legacy.aadVersion === 1) return buildCustomCredentialAad(input);
-      break;
-    case "publish_content_peers":
-      if (record.kind === "publish-peer" && legacy.aadVersion === 1) return buildPublishContentPeerAad({ ...input, aadVersion: legacy.aadVersion });
-      break;
-    case "database_transfer_destinations":
-      if (record.kind === "database-destination" && legacy.aadVersion === 1) return buildDatabaseDestinationAad(input);
-      break;
-    case "vendor_credential_sets":
-      if (record.kind === "vendor" && legacy.provider === record.provider && legacy.provider !== null && legacy.aadVersion === 1) {
-        return buildVendorCredentialAad({ ...input, vendorId: legacy.provider });
-      }
-      break;
-    case "source_control_credential_sets":
-      if (record.kind === "source-control" && legacy.provider === record.provider && legacy.provider !== null && legacy.aadVersion === 1) {
-        return buildSourceControlCredentialAad({ ...input, providerId: legacy.provider });
-      }
-      break;
-    case "publish_credential_sets":
-      if (record.kind === "vendor" && legacy.provider !== null && legacy.aadVersion === 1) return buildPublishCredentialAad({ ...input, providerId: legacy.provider });
-      break;
-    case "external_mcp_servers":
-      if (legacy.serverId === record.ownerKey && legacy.serverId !== null && (record.kind === "mcp-env" || record.kind === "mcp-auth")) {
-        if (legacy.aadVersion === 0) return undefined;
-        const identity = { workspaceId: legacy.workspaceId, serverId: legacy.serverId };
-        return record.kind === "mcp-env" ? buildExternalMcpEnvAad(identity) : buildExternalMcpOAuthAad(identity);
-      }
+  if (record.kind === "site-assistant") return legacy.aadVersion === 0 ? undefined : buildSiteAssistantCredentialAad(input);
+  throw new VaultError({ code: "context" });
+}
+
+function decodeAdminExecutionCredentials({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "personal-execution" && legacy.principalId === record.principalId && legacy.principalId !== null) {
+    return legacy.aadVersion === 0 ? undefined : buildExecutionCredentialAad({ ...input, principalId: legacy.principalId });
   }
   throw new VaultError({ code: "context" });
 }
+
+function decodeMediaProviderCredentials({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "media-provider" && legacy.provider === record.provider && legacy.provider !== null) {
+    return legacy.aadVersion === 0 ? undefined : buildMediaProviderCredentialAad({ ...input, providerId: legacy.provider });
+  }
+  throw new VaultError({ code: "context" });
+}
+
+function isFormerCustomVaultIdentity({ record }: Pick<LegacyAadInput, "record">, _options: VaultOptions = {}): boolean {
+  return record.kind === "vendor" && record.meta.credentialType === "custom" && record.ownerKey === "tovu" && record.provider === null;
+}
+
+function decodeSecretsVaultCustomV1({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  if (isFormerCustomVaultIdentity({ record }) &&
+    record.principalId === null && record.binding === null && legacy.provider === null &&
+    legacy.principalId === null && legacy.serverId === null && legacy.id === record.id && legacy.aadVersion === 1) {
+    // Pin the former vault encoding, not the active builder's future version.
+    return formatAad({ kind: "secrets-vault", version: "v1", parts: [JSON.stringify([
+      record.workspaceId, record.id, "custom", "tovu", null, null,
+    ])] });
+  }
+  throw new VaultError({ code: "context" });
+}
+
+function decodeCustomCredentialSets({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if ((record.kind === "custom" || (record.kind === "vendor" && record.meta.credentialType === "custom")) && legacy.aadVersion === 1) return buildCustomCredentialAad(input);
+  throw new VaultError({ code: "context" });
+}
+
+function decodePublishContentPeers({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "publish-peer" && legacy.aadVersion === 1) return buildPublishContentPeerAad({ ...input, aadVersion: legacy.aadVersion });
+  throw new VaultError({ code: "context" });
+}
+
+function decodeDatabaseTransferDestinations({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "database-destination" && legacy.aadVersion === 1) return buildDatabaseDestinationAad(input);
+  throw new VaultError({ code: "context" });
+}
+
+function decodeVendorCredentialSets({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "vendor" && legacy.provider === record.provider && legacy.provider !== null && legacy.aadVersion === 1) {
+    return buildVendorCredentialAad({ ...input, vendorId: legacy.provider });
+  }
+  throw new VaultError({ code: "context" });
+}
+
+function decodeSourceControlCredentialSets({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "source-control" && legacy.provider === record.provider && legacy.provider !== null && legacy.aadVersion === 1) {
+    return buildSourceControlCredentialAad({ ...input, providerId: legacy.provider });
+  }
+  throw new VaultError({ code: "context" });
+}
+
+function decodePublishCredentialSets({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  const input = { workspaceId: legacy.workspaceId, id: legacy.id };
+  if (record.kind === "vendor" && legacy.provider !== null && legacy.aadVersion === 1) return buildPublishCredentialAad({ ...input, providerId: legacy.provider });
+  throw new VaultError({ code: "context" });
+}
+
+function decodeExternalMcpServers({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
+  if (legacy.serverId === record.ownerKey && legacy.serverId !== null && (record.kind === "mcp-env" || record.kind === "mcp-auth")) {
+    if (legacy.aadVersion === 0) return undefined;
+    const identity = { workspaceId: legacy.workspaceId, serverId: legacy.serverId };
+    return record.kind === "mcp-env" ? buildExternalMcpEnvAad(identity) : buildExternalMcpOAuthAad(identity);
+  }
+  throw new VaultError({ code: "context" });
+}
+
+const legacyAadDecoders = new Map<string, (input: LegacyAadInput, options?: VaultOptions) => string | undefined>(Object.entries({
+  site_assistant_credentials: decodeSiteAssistantCredentials,
+  admin_execution_credentials: decodeAdminExecutionCredentials,
+  media_provider_credentials: decodeMediaProviderCredentials,
+  secrets_vault_custom_v1: decodeSecretsVaultCustomV1,
+  custom_credential_sets: decodeCustomCredentialSets,
+  publish_content_peers: decodePublishContentPeers,
+  database_transfer_destinations: decodeDatabaseTransferDestinations,
+  vendor_credential_sets: decodeVendorCredentialSets,
+  source_control_credential_sets: decodeSourceControlCredentialSets,
+  publish_credential_sets: decodePublishCredentialSets,
+  external_mcp_servers: decodeExternalMcpServers,
+}));
 
 /** Resolve the target provider and legacy token field from the host catalog without crypto.
  * Callers pass publish_credential_sets rows only.
@@ -434,6 +485,32 @@ export function legacyTargetProvider(
   const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider! });
   if (!spec) throw new Error("VAULT_CATALOG_UNAVAILABLE");
   return { provider: spec.vendorId, tokenField: spec.tokenField };
+}
+
+function parseLegacyPayload({ plaintext }: { plaintext: string }, _options: VaultOptions = {}): VaultMeta {
+  const payload = JSON.parse(plaintext) as VaultMeta;
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new VaultError({ code: "invalid-record" });
+  return payload;
+}
+
+function isCustomPayload({ record, meta }: { record: VaultRecord; meta: VaultMeta }, _options: VaultOptions = {}): boolean {
+  return record.kind === "custom" || (record.kind === "vendor" && meta.credentialType === "custom");
+}
+
+function moveCustomUsername({ payload, meta }: { payload: VaultMeta; meta: VaultMeta }, _options: VaultOptions = {}): void {
+  if (payload.username !== undefined) {
+    // A saved column value wins. A NULL column never meant a clear: the legacy clear re-sealed
+    // without the username, and the old read fell back to the sealed copy (`column ?? sealed`).
+    // NULL + sealed username is an un-backfilled row, so the sealed login moves to metadata.
+    if ((meta.username === undefined || meta.username === null) && typeof payload.username === "string" && payload.username !== "") {
+      meta.username = payload.username;
+    }
+    delete payload.username;
+  }
+}
+
+function legacyHint({ token, kind }: { token: unknown; kind: VaultRecord["kind"] }, _options: VaultOptions = {}): { hintToken?: string } {
+  return typeof token === "string" && !["mcp-env", "mcp-auth"].includes(kind) ? { hintToken: token } : {};
 }
 
 /** Host-specific historical payload shapes. Plain tokens become sealed JSON; secrets remain sealed.
@@ -453,18 +530,9 @@ export function normalizeLegacyVaultPayload(
     return { payload: { apiKey: plaintext }, meta, provider, hintToken: plaintext };
   }
   if (record.kind === "database-destination") return { payload: { connectionString: plaintext }, meta, provider };
-  const payload = JSON.parse(plaintext) as VaultMeta;
-  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new VaultError({ code: "invalid-record" });
-  const isCustom = record.kind === "custom" || (record.kind === "vendor" && meta.credentialType === "custom");
-  if (isCustom && payload.username !== undefined) {
-    // A saved column value wins. A NULL column never meant a clear: the legacy clear re-sealed
-    // without the username, and the old read fell back to the sealed copy (`column ?? sealed`).
-    // NULL + sealed username is an un-backfilled row, so the sealed login moves to metadata.
-    if ((meta.username === undefined || meta.username === null) && typeof payload.username === "string" && payload.username !== "") {
-      meta.username = payload.username;
-    }
-    delete payload.username;
-  }
+  const payload = parseLegacyPayload({ plaintext });
+  const isCustom = isCustomPayload({ record, meta });
+  if (isCustom) moveCustomUsername({ payload, meta });
   let tokenField = isCustom ? "token" : policy.tokenField({ kind: record.kind, provider });
   if (legacy.table === "publish_credential_sets") {
     const target = legacyTargetProvider({ record, legacy, policy });
@@ -476,7 +544,7 @@ export function normalizeLegacyVaultPayload(
   // JSON remains byte-equivalent in meaning for MCP (including schemaVersion), vendor and source
   // payloads. Only the explicitly classified custom username and publish discriminator move.
   const token = tokenField === undefined ? undefined : payload[tokenField];
-  return { payload, meta, provider, ...(typeof token === "string" && !["mcp-env", "mcp-auth"].includes(record.kind) ? { hintToken: token } : {}) };
+  return { payload, meta, provider, ...legacyHint({ token, kind: record.kind }) };
 }
 
 // Additional historical rationale retained during S5 retirement.
