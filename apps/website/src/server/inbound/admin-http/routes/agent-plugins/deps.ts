@@ -43,6 +43,12 @@ export interface AgentPluginsRouteDeps {
   siteAssistantSecretKeyring: RouteDeps["siteAssistantSecretKeyring"];
   /** The shared lifecycle owner, optionally bound to host effects for this surface. */
   setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
+  /** Admin surfaces (`admin-surfaces.ts`, 2026-10-20): admission and contained reads go through
+   *  the lifecycle owner; `adminSurfaceSource` replaces that pair in tests, `adminSurfaceHost`
+   *  supplies action handlers and bootstrap data (none by default). */
+  agentPluginLifecycle: Pick<RouteDeps["agentPluginLifecycle"], "loadPluginContributions" | "readTrustedPluginFile">;
+  readonly adminSurfaceSource?: import("#src/features/agent-plugins/admin-surfaces/surfaces").AdminSurfaceSource;
+  readonly adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/surfaces").AdminSurfaceHost;
 }
 
 export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;

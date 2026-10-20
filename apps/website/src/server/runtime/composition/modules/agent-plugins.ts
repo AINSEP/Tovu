@@ -3,6 +3,8 @@ import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/ro
 import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
 import { registerAgentPluginsListRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/list";
 import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/set-enabled";
+import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
+import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -22,6 +24,9 @@ import type { ServerModuleHandle } from "./types.js";
  * `AgentPluginsRouteDeps` slice; see `set-enabled.ts`'s own header for why that mutation is
  * `authorizeOrRespond`-gated rather than `executeCommand`-wrapped, and what that costs.
  * `AGENT_PLUGIN_INSTALL_ZIP` (2026-10-06) is the "Add a plugin" upload; see `install.ts`.
+ * Plugin-owned admin surfaces (2026-10-20): the session-gated list/bootstrap/action routes in
+ * `admin-surfaces.ts`, and the PUBLIC surface-files route (see its header for why it carries no
+ * session), which therefore must not sit under `/api/admin`.
  */
 export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
@@ -32,6 +37,8 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerAgentPluginFilesRoute(app, deps);
       registerAgentPluginInstallRoute(app, deps);
       registerAgentPluginMemoryRoutes(app, deps);
+      registerAgentPluginAdminSurfaceRoutes(app, deps);
+      registerAdminSurfaceFilesRoute(app, deps);
     },
   };
 }
