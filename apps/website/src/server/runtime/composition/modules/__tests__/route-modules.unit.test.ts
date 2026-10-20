@@ -64,6 +64,12 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/agent-plugins/install/zip`,
       `GET ${W}/agent-plugins/:pluginId/memory`,
       `PUT ${W}/agent-plugins/:pluginId/memory`,
+      // Plugin-owned admin surfaces: the three session-gated admin routes, then the PUBLIC files
+      // route (a sandboxed frame's module fetches carry no cookie, so it sits outside /api/admin).
+      `GET ${W}/agent-plugins/:pluginId/surfaces`,
+      `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/bootstrap`,
+      `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/actions`,
+      "GET /api/agent-plugin-surfaces/v1/:pluginId/:surfaceId/*",
     ],
   },
   { name: "analytics", create: () => createAnalyticsModule(noDeps), routes: [`GET ${W}/analytics/recent-hits`] },
