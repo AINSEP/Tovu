@@ -75,16 +75,15 @@ export function siblingColumns(column: string): { keyId: string; nonce: string; 
   return { keyId: `${prefix}sealed_key_id`, nonce: `${prefix}sealed_nonce`, alg: `${prefix}sealed_alg` };
 }
 /** Shared restore-artifact classification for inventory and the key-minting gate. */
-export function isVaultRestoreArtifact({ table }: { table: string }, _options = {}): boolean {
+export function isVaultRestoreArtifact({ table }: { table: string }): boolean {
   return table.startsWith("_vault_backup_");
 }
 /** Catalog truth, in code-unit order. O(t) catalog reads for t live tables. */
 export async function discoverSealedColumns(kernel: ContentKernel): Promise<DiscoveredSealedColumn[]> {
-  const catalog = kernel as unknown as StorageKernel<unknown>;
   const refs: DiscoveredSealedColumn[] = [];
-  for (const table of (await listTables(catalog)).sort()) {
+  for (const table of (await listTables(kernel)).sort()) {
     if (isVaultRestoreArtifact({ table })) continue;
-    const columns = await listColumns(catalog, table);
+    const columns = await listColumns(kernel, table);
     const tableColumns = new Set(columns.map(column => column.name));
     for (const column of columns) {
       if (column.name.endsWith(SEALED_COLUMN_SUFFIX)) refs.push({ table, column: column.name, tableColumns, notNull: column.notNull });
@@ -92,12 +91,13 @@ export async function discoverSealedColumns(kernel: ContentKernel): Promise<Disc
   }
   return refs;
 }
+interface VaultScope { workspace_id: string; kind: VaultQuery["kind"]; owner_key: string; principal_id: string | null }
 /** Use the owning Jini adapter's row decoding, one read per kind/owner/principal group, never per row. */
 async function readVault({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: DiscoveredSealedColumn }): Promise<{
   values: VaultCredentialValue[]; metadataOnly: SealedCredentialInventory["metadataOnly"];
 }> {
   const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
-  const scopes = await deps.kernel.query<{ workspace_id: string; kind: VaultQuery["kind"]; owner_key: string; principal_id: string | null }>(sql`
+  const scopes = await deps.kernel.query<VaultScope>(sql`
     SELECT DISTINCT workspace_id,kind,owner_key,principal_id FROM secrets_vault ORDER BY workspace_id,kind,owner_key`);
   const values: VaultCredentialValue[] = [];
   const metadataOnly: Array<SealedCredentialInventory["metadataOnly"][number]> = [];
@@ -106,43 +106,85 @@ async function readVault({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: Dis
       // The kind and ID are safe handles. Never trust arbitrary metadata or a legacy label here.
       const identity = { workspaceId: record.workspaceId, rowId: record.id, label: `${record.kind} (${record.id})` };
       if (!record.sealed) { metadataOnly.push(identity); continue; }
-      let aad: string | undefined;
-      let reason: SealedCredentialUnknownReason | null = null;
-      try {
-        if (deps.aadFor) aad = deps.aadFor({ record });
-        else if (record.meta.legacyAad !== undefined) reason = "unrecognized-aad-version";
-        else aad = buildVaultAad(record);
-      } catch { reason = "unrecognized-aad-version"; }
-      values.push({ ref, record, sealed: record.sealed, ciphertext: record.sealed.ciphertext, aad, reason,
+      values.push({ ref, record, sealed: record.sealed, ciphertext: record.sealed.ciphertext, ...selectVaultAad({ deps, record }),
         entry: { ...identity, table: ref.table, column: ref.column, sealedKeyId: record.sealed.keyId } });
     }
   }
   return { values, metadataOnly };
 }
+/**
+ * Exactly one AAD per sealed vault record: the host codec's choice when it has one, else Jini's.
+ * A legacy AAD with no codec, or any throw while choosing, is an unknown lineage, never an error.
+ *
+ * @complexity O(1).
+ */
+function selectVaultAad({ deps, record }: { deps: VaultCredentialKeyDeps; record: VaultRecord }): Pick<VaultCredentialValue, "aad" | "reason"> {
+  try {
+    if (deps.aadFor) return { aad: deps.aadFor({ record }), reason: null };
+    if (record.meta.legacyAad !== undefined) return { aad: undefined, reason: "unrecognized-aad-version" };
+    return { aad: buildVaultAad(record), reason: null };
+  } catch { return { aad: undefined, reason: "unrecognized-aad-version" }; }
+}
 /** Device codes still have a live owner. Other catalog columns remain visible but unclassified. */
 async function readOther({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: DiscoveredSealedColumn }): Promise<VaultCredentialValue[]> {
   const siblings = siblingColumns(ref.column);
   const optional = (name: string) => ref.tableColumns.has(name) ? sql.id(name) : sql`NULL`;
-  const device = ref.table === "oauth_device_authorizations" && ref.column === "sealed_ciphertext" &&
-    ref.tableColumns.has("workspace_id") && ref.tableColumns.has("server_id");
+  const device = isDeviceCodeColumn({ ref });
   const rows = await deps.kernel.query<Record<string, unknown>>(sql`SELECT ${sql.id(ref.column)} AS ciphertext,
     ${optional(siblings.keyId)} AS key_id, ${optional(siblings.nonce)} AS nonce, ${optional(siblings.alg)} AS alg,
     ${device ? sql.id("workspace_id") : sql`NULL`} AS workspace_id,
     ${device ? sql.id("server_id") : sql`NULL`} AS server_id FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
-  return rows.map(row => {
-    const sealed = [row.key_id, row.ciphertext, row.nonce, row.alg].every(value => typeof value === "string")
-      ? { keyId: row.key_id as string, ciphertext: row.ciphertext as string, nonce: row.nonce as string, alg: row.alg as string } : null;
-    const identity = device && typeof row.workspace_id === "string" && typeof row.server_id === "string"
-      ? { workspaceId: row.workspace_id, serverId: row.server_id } : undefined;
-    return { ref, sealed, ciphertext: String(row.ciphertext),
-      guard: Object.fromEntries([[ref.column, row.ciphertext], [siblings.keyId, row.key_id], [siblings.nonce, row.nonce], [siblings.alg, row.alg]]
-        .filter(([column]) => ref.tableColumns.has(column as string))), ...(identity ? { device: identity } : {}),
-      aad: identity ? deviceAad(identity.workspaceId, identity.serverId) : undefined,
-      reason: !sealed ? "incomplete-sealed-row" : identity ? null : "no-descriptor",
-      entry: { table: ref.table, column: ref.column, workspaceId: identity?.workspaceId ?? null,
-        rowId: identity?.serverId ?? null, label: identity ? `Pending device sign-in (${identity.serverId})` : `Unclassified ${ref.table}.${ref.column}`,
-        sealedKeyId: typeof row.key_id === "string" ? row.key_id : null } };
-  });
+  return rows.map(row => otherValue({ ref, siblings, row, identity: device ? deviceIdentity({ row }) : undefined }));
+}
+/** The retained device-code store's own envelope column, with the identity columns its AAD needs. */
+function isDeviceCodeColumn({ ref }: { ref: DiscoveredSealedColumn }): boolean {
+  return ref.table === "oauth_device_authorizations" && ref.column === "sealed_ciphertext" &&
+    ref.tableColumns.has("workspace_id") && ref.tableColumns.has("server_id");
+}
+/** A device row's owner, only when both identity values are strings. */
+function deviceIdentity({ row }: { row: Record<string, unknown> }): { workspaceId: string; serverId: string } | undefined {
+  return typeof row.workspace_id === "string" && typeof row.server_id === "string"
+    ? { workspaceId: row.workspace_id, serverId: row.server_id } : undefined;
+}
+/** The quad as an envelope only when all four values are strings; anything partial is no envelope. */
+function sealedQuad({ row }: { row: Record<string, unknown> }): SealedSecret | null {
+  return [row.key_id, row.ciphertext, row.nonce, row.alg].every(value => typeof value === "string")
+    ? { keyId: row.key_id as string, ciphertext: row.ciphertext as string, nonce: row.nonce as string, alg: row.alg as string } : null;
+}
+/**
+ * One device-code or unknown-column row as a snapshot value. The guard keeps only the quad columns
+ * the table really has; only a device identity selects an AAD and a classified verdict.
+ *
+ * @complexity O(1).
+ */
+function otherValue({ ref, siblings, row, identity }: {
+  ref: DiscoveredSealedColumn; siblings: ReturnType<typeof siblingColumns>; row: Record<string, unknown>;
+  identity: { workspaceId: string; serverId: string } | undefined;
+}): VaultCredentialValue {
+  const sealed = sealedQuad({ row });
+  return { ref, sealed, ciphertext: String(row.ciphertext),
+    guard: Object.fromEntries([[ref.column, row.ciphertext], [siblings.keyId, row.key_id], [siblings.nonce, row.nonce], [siblings.alg, row.alg]]
+      .filter(([column]) => ref.tableColumns.has(column as string))), ...(identity ? { device: identity } : {}),
+    aad: identity ? deviceAad(identity.workspaceId, identity.serverId) : undefined,
+    reason: !sealed ? "incomplete-sealed-row" : identity ? null : "no-descriptor",
+    entry: otherEntry({ ref, row, identity }) };
+}
+/** The safe identity of a device-code or unknown-column row: ids and a fixed label, never row payloads. */
+function otherEntry({ ref, row, identity }: {
+  ref: DiscoveredSealedColumn; row: Record<string, unknown>; identity: { workspaceId: string; serverId: string } | undefined;
+}): VaultCredentialValue["entry"] {
+  return { table: ref.table, column: ref.column, workspaceId: identity?.workspaceId ?? null,
+    rowId: identity?.serverId ?? null, label: identity ? `Pending device sign-in (${identity.serverId})` : `Unclassified ${ref.table}.${ref.column}`,
+    sealedKeyId: typeof row.key_id === "string" ? row.key_id : null };
+}
+/** Non-null envelope values across `refs`, one COUNT per column; a missing count row counts as zero. O(columns) reads. */
+async function countSealedRows({ deps, refs }: { deps: VaultCredentialKeyDeps; refs: readonly DiscoveredSealedColumn[] }): Promise<number> {
+  let count = 0;
+  for (const ref of refs) {
+    const [row] = await deps.kernel.query<{ count: number | string }>(sql`SELECT COUNT(*) AS count FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
+    count += Number(row?.count ?? 0);
+  }
+  return count;
 }
 /** One consistent snapshot; count first and refuse truncation. O(catalog + groups + rows) reads/storage. */
 export async function snapshotVaultCredentials(deps: VaultCredentialKeyDeps,
@@ -151,11 +193,7 @@ export async function snapshotVaultCredentials(deps: VaultCredentialKeyDeps,
   if (!Number.isSafeInteger(maxEntries) || maxEntries < 1) throw new RangeError("maxEntries must be a positive integer");
   return deps.kernel.transaction(async () => {
     const refs = await discoverSealedColumns(deps.kernel);
-    let count = 0;
-    for (const ref of refs) {
-      const [row] = await deps.kernel.query<{ count: number | string }>(sql`SELECT COUNT(*) AS count FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
-      count += Number(row?.count ?? 0);
-    }
+    const count = await countSealedRows({ deps, refs });
     if (count > maxEntries) throw new SealedCredentialInventoryLimitError({ sealedRows: count, maxEntries });
     const snapshot: VaultCredentialSnapshot = { values: [], metadataOnly: [], columns: [] };
     for (const ref of refs) {
@@ -170,7 +208,7 @@ export async function snapshotVaultCredentials(deps: VaultCredentialKeyDeps,
   });
 }
 /** Exactly one selected AAD; failures are safe verdicts, never crypto error strings. */
-export async function opensVaultCredential({ value, sealer }: { value: VaultCredentialValue; sealer: VaultCredentialKeyDeps["sealer"] }, _options = {}): Promise<boolean> {
+export async function opensVaultCredential({ value, sealer }: { value: VaultCredentialValue; sealer: VaultCredentialKeyDeps["sealer"] }): Promise<boolean> {
   if (value.reason || !value.sealed) return false;
   try { await sealer.open({ sealed: value.sealed }, { aad: value.aad }); return true; } catch { return false; }
 }
@@ -183,31 +221,64 @@ async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: 
     return await deps.sealer.open({ sealed }, { aad }) === plaintext ? sealed.alg : null;
   } catch { return null; }
 }
+/** Whether a key source exists, the active key when it can be read, and the algorithm its probe proved. */
+interface ActiveKeyCheck { present: boolean; key: SiteKeyHandle | null; alg: string | null }
+/**
+ * Reads the active key once, only when a source exists, and probes it. Never mints a key and never
+ * surfaces a keyring or crypto error: an unreadable key is a null key.
+ *
+ * @complexity O(1) keyring reads and one probe.
+ */
+async function checkActiveKey({ deps }: { deps: SealedCredentialInventoryDeps }): Promise<ActiveKeyCheck> {
+  const present = deps.hasSiteKeySource();
+  let key: SiteKeyHandle | null = null;
+  if (present) { try { key = await deps.keyring.activeKey({}); } catch { /* Safe unknown verdict below. */ } }
+  const alg = key ? await probe({ deps, key }) : null;
+  return { present, key, alg };
+}
+/**
+ * The first reason, in precedence order, that a row cannot be opened under the active key, or the
+ * key to open it with: snapshot reason, no key source, unusable key, then algorithm mismatch.
+ *
+ * @complexity O(1).
+ */
+function readyKeyFor({ value, check }: { value: VaultCredentialValue; check: ActiveKeyCheck }):
+  { key: SiteKeyHandle } | { reason: SealedCredentialUnknownReason } {
+  if (value.reason) return { reason: value.reason };
+  if (!check.present) return { reason: "no-site-key" };
+  if (!check.key || !check.alg) return { reason: "active-key-unavailable" };
+  if (value.sealed?.alg !== check.alg) return { reason: "unsupported-alg" };
+  return { key: check.key };
+}
+/**
+ * One row's verdict. A failed open re-probes the key, so a key that broke mid-scan reports unknown
+ * rather than "does not open".
+ *
+ * @complexity O(1) opens plus at most one probe.
+ */
+async function verdictFor({ deps, value, check }: { deps: SealedCredentialInventoryDeps; value: VaultCredentialValue; check: ActiveKeyCheck }):
+  Promise<Pick<SealedCredentialEntry, "opensUnderActiveKey" | "unknownReason">> {
+  const ready = readyKeyFor({ value, check });
+  if ("reason" in ready) return { opensUnderActiveKey: "unknown", unknownReason: ready.reason };
+  const opens = await opensVaultCredential({ value, sealer: deps.sealer });
+  if (!opens && await probe({ deps, key: ready.key }) === null) return { opensUnderActiveKey: "unknown", unknownReason: "active-key-unavailable" };
+  return { opensUnderActiveKey: opens, unknownReason: null };
+}
+/** Per-verdict totals over the entries. O(n). */
+function tallyVerdicts({ entries }: { entries: readonly SealedCredentialEntry[] }): SealedCredentialInventory["totals"] {
+  return { sealed: entries.length, opens: entries.filter(row => row.opensUnderActiveKey === true).length,
+    doesNotOpen: entries.filter(row => row.opensUnderActiveKey === false).length,
+    unknown: entries.filter(row => row.opensUnderActiveKey === "unknown").length };
+}
 /** Read-only safe inventory; no key derivation without an existing source, no plaintext output. */
 export async function inventoryVaultCredentials(deps: SealedCredentialInventoryDeps,
   options: SealedCredentialInventoryOptions = {},
 ): Promise<SealedCredentialInventory> {
   const snapshot = await snapshotVaultCredentials(deps, options);
-  const present = deps.hasSiteKeySource();
-  let key: SiteKeyHandle | null = null;
-  if (present) { try { key = await deps.keyring.activeKey({}); } catch { /* Safe unknown verdict below. */ } }
-  const alg = key ? await probe({ deps, key }) : null;
+  const check = await checkActiveKey({ deps });
   const entries: SealedCredentialEntry[] = [];
-  for (const value of snapshot.values) {
-    let reason = value.reason;
-    let opens: OpensUnderActiveKey = "unknown";
-    if (!reason && !present) reason = "no-site-key";
-    if (!reason && (!key || !alg)) reason = "active-key-unavailable";
-    if (!reason && value.sealed?.alg !== alg) reason = "unsupported-alg";
-    if (!reason) {
-      opens = await opensVaultCredential({ value, sealer: deps.sealer });
-      if (!opens && key && await probe({ deps, key }) === null) { opens = "unknown"; reason = "active-key-unavailable"; }
-    }
-    entries.push({ ...value.entry, opensUnderActiveKey: opens, unknownReason: reason });
-  }
-  return { activeKeyId: key?.keyId ?? null, columns: snapshot.columns, entries, metadataOnly: snapshot.metadataOnly,
+  for (const value of snapshot.values) entries.push({ ...value.entry, ...await verdictFor({ deps, value, check }) });
+  return { activeKeyId: check.key?.keyId ?? null, columns: snapshot.columns, entries, metadataOnly: snapshot.metadataOnly,
     legacySealed: snapshot.values.filter(value => value.record?.meta.legacyAad !== undefined).length,
-    totals: { sealed: entries.length, opens: entries.filter(row => row.opensUnderActiveKey === true).length,
-      doesNotOpen: entries.filter(row => row.opensUnderActiveKey === false).length,
-      unknown: entries.filter(row => row.opensUnderActiveKey === "unknown").length } };
+    totals: tallyVerdicts({ entries }) };
 }
