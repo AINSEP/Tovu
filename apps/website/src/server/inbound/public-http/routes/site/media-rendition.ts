@@ -111,10 +111,6 @@ function resolveTransformSpec(
  *  anonymous visitors with a year-long immutable CDN header. A legacy `src`-only node still
  *  contributes nothing, matching `render.ts`'s own `image` case, which never reads `src` at all once
  *  a ref shape exists. */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
   // An explicit stack, not recursion: a stored document's nesting depth is attacker/import-controlled
   // and a 5000-deep list overflowed the call stack here (GET /:slug -> 500) before `render.ts`'s own
@@ -284,23 +280,39 @@ async function scanEntriesForAsset(
   aliases: ReadonlySet<string>
 ): Promise<AssetReferenceScan> {
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
-  const needsWidgets = entries.some(entry => isLiveReferrerCandidate(entry) && !collectPlacedWidgetMediaKeys({ bodyJson: entry.bodyJson, bodyHtml: entry.bodyHtml }).readable);
-  const savedWidgets = deps.entryRepo && needsWidgets ? new Map<string, Record<string, unknown>>() : undefined;
-  if (deps.entryRepo && savedWidgets) {
-    for (const row of await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }, { type: 'widget' })) {
-      if ((row as typeof row & { deletedAt?: string | null }).deletedAt != null) continue;
-      try {
-        const payload = parseWidgetInstancePayload({ fieldsJson: row.fieldsJson });
-        if (payload.status !== 'active') continue;
-        savedWidgets.set(row.id, payload.config);
-        savedWidgets.set(row.slug, payload.config);
-      } catch { /* Malformed widgets do not render; they cannot serve an asset. */ }
-    }
-  }
+  const savedWidgets = await loadSavedWidgetConfigs(deps, entries);
   const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases, savedWidgets) }));
   const pick = (want: EntryRelation): PostRecord[] =>
     classified.filter((candidate) => candidate.relation === want).map((candidate) => candidate.entry);
   return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
+}
+
+type SavedWidgetRow = Awaited<ReturnType<NonNullable<MediaRenditionRouteDeps["entryRepo"]>["listByWorkspace"]>>[number];
+
+/** Indexes one saved widget's config under both its id and its slug, when it is live and active. */
+function addActiveWidgetConfig(savedWidgets: Map<string, Record<string, unknown>>, row: SavedWidgetRow): void {
+  if ((row as typeof row & { deletedAt?: string | null }).deletedAt != null) return;
+  try {
+    const payload = parseWidgetInstancePayload({ fieldsJson: row.fieldsJson });
+    if (payload.status !== 'active') return;
+    savedWidgets.set(row.id, payload.config);
+    savedWidgets.set(row.slug, payload.config);
+  } catch { /* Malformed widgets do not render; they cannot serve an asset. */ }
+}
+
+/** Saved widget configs (by id and slug), loaded only when an entry repo exists AND some live
+ *  entry places a widget whose media this scan cannot read from the entry body alone; otherwise
+ *  `undefined`, so {@link scanEntryAssets} never pays for the widget listing.
+ *  @complexity O(p) over entries plus O(w) over the workspace's saved widgets. */
+async function loadSavedWidgetConfigs(
+  deps: Pick<MediaRenditionRouteDeps, "workspaceId" | "entryRepo">,
+  entries: readonly PostRecord[]
+): Promise<Map<string, Record<string, unknown>> | undefined> {
+  const needsWidgets = entries.some(entry => isLiveReferrerCandidate(entry) && !collectPlacedWidgetMediaKeys({ bodyJson: entry.bodyJson, bodyHtml: entry.bodyHtml }).readable);
+  if (!deps.entryRepo || !needsWidgets) return undefined;
+  const savedWidgets = new Map<string, Record<string, unknown>>();
+  for (const row of await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }, { type: 'widget' })) addActiveWidgetConfig(savedWidgets, row);
+  return savedWidgets;
 }
 
 /** {@link resolveAssetAliases}'s result: the full alias set to gate on, plus the resolved record
@@ -459,6 +471,7 @@ async function resolveMediaAccessDecision(
  * always-string-or-undefined param shape. Isolated purely to keep the two nullish-coalescing
  * defaults out of the handler's own branch count (each `??` costs a cyclomatic-complexity point
  * just like a default-parameter assignment does) — no behavior beyond a straight string read.
+ * {@link registerMediaOriginalVideoRoute} reads only `assetId` through it, so both routes share one fallback.
  */
 function readRenditionRouteParams(req: Request): { assetId: string; transformSpec: string } {
   return {
@@ -544,42 +557,50 @@ async function sendMediaRenditionResult(
     }
     res
       .status(200)
-      // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
-      // request's session cookie), so it must never be handed either of the two ungated,
-      // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
-      // public/shared cache would be served this same cached response.
-      //
-      // Ungated (the overwhelming common case) still splits in two (S2b): `assetId` (the raw
-      // request segment) equals `access.record.id` only when the request spelled the asset by its
-      // immutable id, which keeps the original year-long immutable header. Any other spelling —
-      // the current slug, or a retired one now falling back through slug history — gets the short
-      // TTL, since only an id can never come to mean a different asset.
-      .set(
-        "Cache-Control",
-        access.gated ? PRIVATE_NO_STORE : access.record?.id === assetId ? IMMUTABLE_PUBLIC : SLUG_KEYED_PUBLIC
-      )
+      .set("Cache-Control", renditionCacheControl(access, assetId))
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
   } catch (err) {
-    if (err instanceof ImageTransformUnavailableError) {
-      // The transform is valid and generation was allowed, but the real pixel-operation
-      // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
-      // `image-transformer.sharp.ts`). Service-unavailable, not a routine 404/410/500.
-      res.status(503).set("Cache-Control", "no-store").json({ error: err.message });
-      return;
-    }
-    if (err instanceof ImageSourceCorruptError) {
-      // The asset and transform are both valid, but the STORED bytes cannot actually be
-      // decoded/re-encoded by the pixel pipeline (a corrupt or codec-rejected blob — see that
-      // error's own doc for how bytes can pass this package's upload allowlist and its
-      // magic-byte sniff while still failing here). A data condition on this one asset, not a
-      // server fault — 422, never the opaque catch-all 500, and never cached (a future fix to
-      // the stored blob must not stay masked by a long-lived negative cache entry).
-      res.status(422).set("Cache-Control", "no-store").json({ error: "source image could not be processed" });
-      return;
-    }
-    res.status(500).json({ error: "internal error" });
+    sendRenditionFailure(res, err);
   }
+}
+
+/** The `Cache-Control` for an ALLOWED 200 rendition. @complexity O(1). */
+function renditionCacheControl(access: { gated: boolean; record: MediaRecord | null }, assetId: string): string {
+  // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
+  // request's session cookie), so it must never be handed either of the two ungated,
+  // shared/CDN-facing headers below — the next, possibly unentitled, visitor to hit a
+  // public/shared cache would be served this same cached response.
+  //
+  // Ungated (the overwhelming common case) still splits in two (S2b): `assetId` (the raw
+  // request segment) equals `access.record.id` only when the request spelled the asset by its
+  // immutable id, which keeps the original year-long immutable header. Any other spelling —
+  // the current slug, or a retired one now falling back through slug history — gets the short
+  // TTL, since only an id can never come to mean a different asset.
+  if (access.gated) return PRIVATE_NO_STORE;
+  return access.record?.id === assetId ? IMMUTABLE_PUBLIC : SLUG_KEYED_PUBLIC;
+}
+
+/** Maps a failure while resolving/generating a rendition to its HTTP response. @complexity O(1). */
+function sendRenditionFailure(res: Response, err: unknown): void {
+  if (err instanceof ImageTransformUnavailableError) {
+    // The transform is valid and generation was allowed, but the real pixel-operation
+    // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
+    // `image-transformer.sharp.ts`). Service-unavailable, not a routine 404/410/500.
+    res.status(503).set("Cache-Control", "no-store").json({ error: err.message });
+    return;
+  }
+  if (err instanceof ImageSourceCorruptError) {
+    // The asset and transform are both valid, but the STORED bytes cannot actually be
+    // decoded/re-encoded by the pixel pipeline (a corrupt or codec-rejected blob — see that
+    // error's own doc for how bytes can pass this package's upload allowlist and its
+    // magic-byte sniff while still failing here). A data condition on this one asset, not a
+    // server fault — 422, never the opaque catch-all 500, and never cached (a future fix to
+    // the stored blob must not stay masked by a long-lived negative cache entry).
+    res.status(422).set("Cache-Control", "no-store").json({ error: "source image could not be processed" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
 }
 
 export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, deps) => {
@@ -639,7 +660,7 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  */
 export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (app, deps) => {
   app.get("/m/:assetId/original", async (req, res) => {
-    const assetId = String(req.params.assetId ?? "");
+    const { assetId } = readRenditionRouteParams(req);
 
     try {
       const access = await resolveMediaAccessDecision(deps, req, assetId);
