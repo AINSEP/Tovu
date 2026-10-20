@@ -1,4 +1,4 @@
-import nodeFs, { existsSync } from "node:fs";
+import nodeFs, { type Dirent, existsSync } from "node:fs";
 import { join } from "node:path";
 import { isGeneratedThemePath, MAX_LISTED_FILES, MAX_WALK_DEPTH } from "./theme-files.js";
 
@@ -32,27 +32,64 @@ export function themePreviewImage(
  */
 export function themeContentVersion(
   { dir }: { dir: string },
-  { fs = nodeFs }: { fs?: Pick<typeof nodeFs, "statSync" | "readdirSync"> } = {},
+  { fs = nodeFs }: { fs?: ContentWalkFs } = {},
 ): number {
-  let newest = 0;
-  let visited = 0;
-  const walk = (absolute: string, relative: string, depth: number): void => {
-    newest = Math.max(newest, fs.statSync(absolute).mtimeMs);
-    if (depth >= MAX_WALK_DEPTH) return;
-    for (const entry of fs.readdirSync(absolute, { withFileTypes: true })) {
-      if (++visited > MAX_LISTED_FILES) return;
-      const child = relative ? `${relative}/${entry.name}` : entry.name;
-      if (child === "screenshots" || isGeneratedThemePath(child)) continue;
-      if (entry.isDirectory()) walk(join(absolute, entry.name), child, depth + 1);
-      else if (entry.isFile()) newest = Math.max(newest, fs.statSync(join(absolute, entry.name)).mtimeMs);
-    }
-  };
+  const walk: ContentWalk = { fs, newest: 0, visited: 0 };
   try {
-    walk(dir, "", 0);
+    walkThemeContent({ walk, absolute: dir, relative: "", depth: 0 });
   } catch {
     // A folder missing or removed mid-walk: report what was seen; `0` keeps any capture current.
   }
-  return newest;
+  return walk.newest;
+}
+
+/** The `node:fs` surface {@link themeContentVersion} reads through (a port, for tests). */
+type ContentWalkFs = Pick<typeof nodeFs, "statSync" | "readdirSync">;
+
+/** Running state of one {@link themeContentVersion} walk: the newest mtime so far and entries seen. */
+interface ContentWalk {
+  fs: ContentWalkFs;
+  newest: number;
+  visited: number;
+}
+
+/**
+ * Fold one folder's mtime into the walk, then its entries (stopping past {@link MAX_LISTED_FILES}
+ * entries in total) unless the folder sits at {@link MAX_WALK_DEPTH}.
+ * @throws Whatever `fs` throws; {@link themeContentVersion} absorbs it.
+ * @complexity O(e) in the folder's entry count, plus the recursion.
+ */
+function walkThemeContent(required: { walk: ContentWalk; absolute: string; relative: string; depth: number }): void {
+  const { walk, absolute, depth } = required;
+  walk.newest = Math.max(walk.newest, walk.fs.statSync(absolute).mtimeMs);
+  if (depth >= MAX_WALK_DEPTH) return;
+  for (const entry of walk.fs.readdirSync(absolute, { withFileTypes: true })) {
+    walk.visited += 1;
+    if (walk.visited > MAX_LISTED_FILES) return;
+    visitThemeContentEntry({ ...required, entry });
+  }
+}
+
+/**
+ * One entry of a {@link walkThemeContent} folder: skip `screenshots/` and generated output, recurse
+ * into a folder, fold in a regular file's mtime, ignore anything else.
+ * @complexity O(1) plus the recursion for a folder.
+ */
+function visitThemeContentEntry(required: {
+  walk: ContentWalk;
+  absolute: string;
+  relative: string;
+  depth: number;
+  entry: Dirent;
+}): void {
+  const { walk, absolute, relative, depth, entry } = required;
+  const child = relative ? `${relative}/${entry.name}` : entry.name;
+  if (child === "screenshots" || isGeneratedThemePath(child)) return;
+  if (entry.isDirectory()) {
+    walkThemeContent({ walk, absolute: join(absolute, entry.name), relative: child, depth: depth + 1 });
+    return;
+  }
+  if (entry.isFile()) walk.newest = Math.max(walk.newest, walk.fs.statSync(join(absolute, entry.name)).mtimeMs);
 }
 
 /**
