@@ -22,6 +22,8 @@ import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
+import { runApiConnectionConnect, type ApiConnectionConnectDeps, type ApiConnectionConnectStatus } from "../api-connections/connect.js";
+import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 
 /**
  * @file agent_plugin_connect connects any OAuth-authenticated Agent Plugin's account through
@@ -35,7 +37,9 @@ import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
  * PARKS the call — polling the row for `oauth.status === "connected"` — until either the human
  * finishes signing in or a bounded wait elapses. It never returns a token, a URL, or a row id in its
  * own result: only `{ status: "connected" }` or the resumable `{ status: "waiting-for-sign-in" }`
- * (the plan's skill calls this again on "done" rather than looping on its own).
+ * (the plan's skill calls this again on "done" rather than looping on its own). A plugin-declared API
+ * connection's result also carries its opaque `connectionRef`, because that plugin's tools take it as
+ * input and chat has no other way to learn it; the host refuses it for every other plugin.
  *
  * ## Why polling, not `exchange.receive()`
  *
@@ -197,6 +201,8 @@ export interface AgentPluginConnectToolDeps {
   /** Injectable for tests, so a fixture plugin needs no real install on disk. A real composition
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
+  /** Plugin-declared OAuth API connections (`tovu-connections.json`). Absent: only MCP servers connect. */
+  readonly apiConnections?: ApiConnectionConnectDeps;
 }
 
 const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
@@ -207,7 +213,9 @@ const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
   "Shows the human a card with a sign-in link and parks until they finish. Returns { status: 'connected' } once the " +
     "sign-in completes, or { status: 'waiting-for-sign-in' } if nobody finished within a few minutes — call this again " +
     "with the same pluginId once the human says they're back; never loop on your own.",
-  "Never returns a token, a URL, or any row id — only a status. Refused with a plain error if the plugin declares no " +
+  "For a plugin that declares its own API connection, the result also carries connectionRef: pass it unchanged as " +
+    "connectionRef to that plugin's tools (it is an opaque reference, not a secret, and works only for that plugin).",
+  "Never returns a token, a URL, or any row id — only a status (and that connectionRef). Refused with a plain error if the plugin declares no " +
     "OAuth-authenticated MCP server, or if it declares more than one still-unconnected one (connect those one at a time).",
 ].join(" ");
 
@@ -293,7 +301,7 @@ export async function runAgentPluginConnect(
   ctx: ToolExecutionContext,
   pluginId: string,
   optional: ToolExecutionOptions = {},
-): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
+): Promise<{ readonly status: "connected" | "waiting-for-sign-in"; readonly connectionRef?: string }> {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
 
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId: id, agentPluginLayout: routeDeps.agentPluginLayout }));
@@ -305,9 +313,7 @@ export async function runAgentPluginConnect(
   const oauthServerKeys = Object.entries(plugin.servers)
     .filter(([, config]) => isOAuthServer(config))
     .map(([serverKey]) => serverKey);
-  if (oauthServerKeys.length === 0) {
-    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
-  }
+  if (oauthServerKeys.length === 0) return connectDeclaredApiConnectionOrRefuse(routeDeps, surfaces, ctx, pluginId, optional);
   if (!routeDeps.externalMcpOAuth) {
     throw new Error("agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.");
   }
@@ -371,5 +377,53 @@ export async function runAgentPluginConnect(
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
     exchange.close({});
+  }
+}
+
+/**
+ * The API-connection branch (or the original "nothing to connect" refusal): same card and parked wait as the MCP
+ * branch, plus the opaque `connectionRef` the plugin's tools take, over Jini's api-connections lifecycle instead of an external-MCP row. One declared
+ * connection per call, for the same reason the MCP branch takes one pending server.
+ * @throws {ToolInputError} More than one declared connection, or a sign-in refusal (safe message).
+ * @throws {Error} No interactive channel to show the sign-in card on.
+ * @complexity One sign-in round trip bounded by `waitTimeoutMs`.
+ */
+async function connectDeclaredApiConnectionOrRefuse(
+  routeDeps: AgentPluginConnectToolDeps,
+  surfaces: AssistantSurfaceDeps,
+  ctx: ToolExecutionContext,
+  pluginId: string,
+  optional: ToolExecutionOptions,
+): Promise<ApiConnectionConnectStatus> {
+  const declared: readonly DeclaredApiConnection[] = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
+  if (declared.length === 0) {
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
+  }
+  if (declared.length > 1) {
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
+  }
+  const pluginDisplayName = titleCaseFromPluginId(pluginId);
+  let exchange: ReturnType<AssistantSurfaceDeps["surfaceExchanges"]["open"]> | undefined;
+  const closeOnAbort = () => exchange?.close({});
+  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    const result = await runApiConnectionConnect({
+      deps: routeDeps.apiConnections!, connection: declared[0], actorId: ctx.principal.id, signal: ctx.signal,
+      pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+      showSignIn: async ({ signInUrl }) => {
+        const emitSurface = optional.emitSurface;
+        if (!emitSurface) throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
+        exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
+        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) } } });
+      },
+    });
+    if (result.status === "connected" && exchange) {
+      // A human-visible card update failing must never turn a real connection into a tool failure.
+      await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "connected" }) } } }).catch(() => undefined);
+    }
+    return result;
+  } finally {
+    ctx.signal.removeEventListener("abort", closeOnAbort);
+    exchange?.close({});
   }
 }

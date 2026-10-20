@@ -58,6 +58,12 @@ export const EXTENSION_TOOL_APPROVAL_POLICY = {
   'plugin-capability-result': { class: 'read', confirmation: 'direct' },
   'plugin-memory-read': { class: 'read', confirmation: 'direct' },
   'plugin-memory-write': { class: 'edit', confirmation: 'direct' },
+  // Executable Agent Plugin tools act on an external account. The plugin's declared effect may only
+  // add friction: a read runs directly, a write leaves this site and asks, a destructive change asks
+  // as a delete (danger styling). The host adds the affected-resource disclosure to the card.
+  'agent-plugin-read': { class: 'read', confirmation: 'direct' },
+  'agent-plugin-write': { class: 'publish', confirmation: 'policy' },
+  'agent-plugin-destructive': { class: 'delete', confirmation: 'policy' },
 } as const satisfies Readonly<Record<string, ToolApprovalPolicy>>;
 export function withExtensionApprovalPolicy(
   { registration, family }: { registration: ToolRegistration; family: keyof typeof EXTENSION_TOOL_APPROVAL_POLICY }, _optional = {},

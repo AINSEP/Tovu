@@ -45,10 +45,11 @@
   },
   "apps/website/src/platform/db/sqlite/fresh-content-db.ts": {
     "$client": 1,
-    "prepare": 4,
-    "sqlite-catalog": 2,
+    "pragma": 2,
+    "prepare": 6,
+    "sqlite-catalog": 4,
     "sqlite-json": 2,
-    "sync-terminal": 2,
+    "sync-terminal": 4,
     "sync-transaction": 1
   },
   "apps/website/src/platform/site-dir/move-sites-home.ts": {

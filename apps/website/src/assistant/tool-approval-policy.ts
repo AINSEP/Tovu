@@ -3,6 +3,7 @@ import { requireHumanConfirm, notConfirmedResult } from '../contracts/core/human
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, approvalClassAsks, directPageAction, toolApprovalPolicyFor } from '../contracts/headless/assistant-tool-approval-policy.js';
 import { approvalText } from '../contracts/core/approval-i18n.js';
+import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.
  * Jini owns the generic registration wrapper; retain the CMS table in Tovu.
@@ -23,7 +24,12 @@ export function approvalClassFor({ toolId, input }: { toolId: string; input: unk
 
 export function applyToolApprovalPolicy(
   { registration, surfaces }: { registration: ToolRegistration; surfaces: AssistantSurfaceDeps },
-  { localeFor = async () => 'en' }: { localeFor?: (ctx: ToolExecutionContext) => Promise<string> } = {},
+  { localeFor = async () => 'en', disclose }: {
+    localeFor?: (ctx: ToolExecutionContext) => Promise<string>;
+    /** Extra rows for the card, computed from the frozen call before asking (e.g. the account and
+     *  the resources an external tool would change). A throw refuses the call before any effect. */
+    disclose?: (required: { ctx: ToolExecutionContext }) => Promise<readonly SurfaceDetail[]>;
+  } = {},
 ): ToolRegistration {
   const toolId = registration.descriptor.id;
   const policy = toolApprovalPolicyFor({ registration });
@@ -36,9 +42,10 @@ export function applyToolApprovalPolicy(
     describe: async ({ ctx, class: actionClass }) => {
       let locale = 'en';
       try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
+      const disclosed = disclose ? await disclose({ ctx }) : [];
       return {
       toolId, errorCode: 'TOOL_APPROVAL', title: approvalText({ locale, key: 'Confirm action?' }),
-      details: [{ label: approvalText({ locale, key: 'Tool' }), value: toolId }, { label: approvalText({ locale, key: 'Input' }), value: JSON.stringify(ctx.input ?? {}, null, 2) }],
+      details: [{ label: approvalText({ locale, key: 'Tool' }), value: toolId }, { label: approvalText({ locale, key: 'Input' }), value: JSON.stringify(ctx.input ?? {}, null, 2) }, ...disclosed],
       danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing',
       confirmLabel: approvalText({ locale, key: 'Confirm' }), cancelLabel: approvalText({ locale, key: 'Cancel' }),
       };

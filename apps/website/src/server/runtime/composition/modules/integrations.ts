@@ -25,6 +25,9 @@ import type { ServerModuleHandle } from "./types.js";
  */
 export interface IntegrationsModuleDeps {
   bus: EventBusPort;
+  /** Durable form delivery to the site's delivery bindings (`composition/form-delivery.ts`), a
+   *  second consumer of `form.submission.received` beside the webhook fan-out. Absent: not wired. */
+  formDelivery?: { start(): Promise<void> };
   webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
   webhookDeliveryRepo: WebhookDeliveryRepoPort;
   idGen: IdGeneratorPort;
@@ -60,6 +63,9 @@ export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerMo
           });
         },
       });
+      // After the webhook fan-out: the bus runs an event's handlers in subscription order and stops
+      // at the first that throws, so a delivery planner that throws can no longer cost the webhook.
+      void deps.formDelivery?.start();
     },
   };
 }

@@ -45,7 +45,7 @@ export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";
 /**
  * Closed, Tovu-authored vocabulary for why an OAuth callback failed. A provider's own response text
  * (its `error`, `error_description`, or anything else it sent) is NEVER a member of this type and
- * must never become one — a caller maps a caught failure onto one of these six fixed values before
+ * must never become one — a caller maps a caught failure onto one of these fixed values before
  * this file ever sees it. See `routes/external-mcp/oauth-callback.ts`'s classifier for the mapping
  * from `OAuthError.code` / error class to reason.
  */
@@ -55,7 +55,8 @@ export type OAuthCallbackFailureReason =
   | "state_expired"
   | "provider_denied"
   | "exchange_failed"
-  | "server_unknown";
+  | "server_unknown"
+  | "account_unchanged";
 
 /** One fixed heading/body pair. Every failure reason shares the same heading the page has always
  *  used — `admin-external-mcp-oauth-routes.test.ts` already pins `/Couldn’t finish connecting/` for
@@ -70,6 +71,7 @@ const FAILURE_BODY: Record<OAuthCallbackFailureReason, string> = {
   provider_denied: "The request was declined on the provider’s side. Approve the request on their consent screen, then try again from Tovu.",
   exchange_failed: "Something went wrong finishing the connection. Close this window and try again from Tovu.",
   server_unknown: "This connection could not be found. Close this window and check Settings → External MCP.",
+  account_unchanged: "This account is already connected to Tovu, so there is nothing to switch. Close this window and use Reconnect in Tovu instead.",
 };
 
 export interface CallbackPageOptions {

@@ -5,6 +5,7 @@ import type { Express } from "express";
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
 import { createApp } from "./app.js";
+import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
@@ -26,6 +27,10 @@ import { createApp } from "./app.js";
  * webhook fan-out, newsletter batches, redirect hits) onto `routeDeps.bus` synchronously, and only
  * then does the drainer start. A drainer started first could mark rows delivered with no handlers
  * attached, the same loss this fix closes in the daemon.
+ *
+ * The automatic form pull (`form-pull-triggers.ts`) follows the same two rules: it imports
+ * submissions and enqueues their events, so its startup pull runs only after `createApp` attached
+ * the subscribers, and only a serving process pulls — at startup and on owner/admin sign-in.
  */
 
 /**
@@ -35,7 +40,8 @@ import { createApp } from "./app.js";
  *   drainer, and its pre-bound `sweepTrash` feeds the sweeper.
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
- * @returns the Express app, background handles (stop all at shutdown), and
+ * @returns the Express app, background handles (stop all at shutdown; `formPullTrigger.stop` waits
+ *   for a running pull), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
  *   (`CreateAppOptions.onBootWork`). A caller that closes the store awaits these first.
  * @complexity O(1) beyond `createApp`.
@@ -43,9 +49,10 @@ import { createApp } from "./app.js";
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; bootWork: Promise<void>[] } {
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
-  const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work) });
+  const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
+  const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs }
@@ -66,5 +73,7 @@ export function createServingApp(
     }
   );
   const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
-  return { app, outboxDrainer, trashSweeper, themeWatcher, bootWork };
+  // After `createApp`: the pulled submissions' events need their subscribers attached.
+  formPull.pullNow();
+  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, bootWork };
 }

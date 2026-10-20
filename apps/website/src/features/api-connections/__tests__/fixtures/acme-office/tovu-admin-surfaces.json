@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "surfaces": [
+    {
+      "id": "account",
+      "title": "Acme account",
+      "entry": "surface/index.html",
+      "handlerModule": "surface/handlers.mjs",
+      "connections": [{ "id": "account", "startParams": ["pick_mode"], "callbackFields": ["picked_ids"] }],
+      "publicConfig": ["TOVU_ACME_CHOOSER_APP_ID"],
+      "deliveryAdapters": ["acme-office-rows", "acme-office-ghost"],
+      "actions": [
+        {
+          "name": "whoami",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "status",
+          "input": { "type": "object", "properties": {} },
+          "result": {
+            "type": "object",
+            "properties": {
+              "state": { "type": "string" },
+              "accountLabel": { "type": "string" },
+              "grantedScopeSetIds": { "type": "array", "items": { "type": "string" } },
+              "appId": { "type": "string" }
+            },
+            "required": ["state", "grantedScopeSetIds"]
+          }
+        },
+        {
+          "name": "begin-pick",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "attemptId": { "type": "string" } }, "required": ["attemptId"] }
+        },
+        {
+          "name": "take-pick",
+          "input": { "type": "object", "properties": { "attemptId": { "type": "string", "maxLength": 128 } }, "required": ["attemptId"] },
+          "result": { "type": "object", "properties": { "saved": { "type": "boolean" } }, "required": ["saved"] }
+        },
+        {
+          "name": "last-token",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "tool-token",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "host-kind",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "save-last-token",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "saved": { "type": "boolean" } }, "required": ["saved"] }
+        },
+        {
+          "name": "disconnect",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "state": { "type": "string" }, "revocation": { "type": "string" } }, "required": ["state", "revocation"] }
+        },
+        { "name": "list-bindings", "input": { "type": "object", "properties": {} }, "result": { "type": "object", "properties": { "json": { "type": "string" } }, "required": ["json"] } },
+        {
+          "name": "save-binding",
+          "input": { "type": "object", "properties": {
+            "bindingId": { "type": "string", "maxLength": 64 }, "adapterId": { "type": "string", "maxLength": 64 }, "connectionId": { "type": "string", "maxLength": 64 },
+            "formSlugs": { "type": "array", "items": { "type": "string", "maxLength": 64 }, "maxItems": 8 },
+            "table": { "type": "string", "maxLength": 64 }, "accountId": { "type": "string", "maxLength": 64 } }, "required": ["adapterId", "connectionId", "table", "accountId"] },
+          "result": { "type": "object", "properties": { "json": { "type": "string" } }, "required": ["json"] }
+        },
+        {
+          "name": "remove-binding",
+          "input": { "type": "object", "properties": { "bindingId": { "type": "string", "maxLength": 64 } }, "required": ["bindingId"] },
+          "result": { "type": "object", "properties": { "removed": { "type": "boolean" } }, "required": ["removed"] }
+        }
+      ]
+    }
+  ]
+}

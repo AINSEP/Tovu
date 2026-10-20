@@ -61,7 +61,7 @@ import type { DatabaseDestinationStorePort } from "../../features/database-trans
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
-import type { FormSubmissionsPullPort } from "../../features/forms/index.js";
+import type { FormDeliveryStatusPort, FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { CredentialSchemeRule } from "../../features/custom-credentials/auth-schemes.js";
@@ -703,6 +703,14 @@ export interface FormsDeps {
   /** Pulls submissions a published static site stored at its host (`composeFormSubmissions`). Optional:
    *  only the real composition wires it; absent, the pull tool and route say it is unavailable. */
   formSubmissionsPull?: FormSubmissionsPullPort;
+  /** The same composition's automatic pull. Only `createServingApp` runs it (startup and owner/admin
+   *  sign-in); absent, nothing is pulled automatically. */
+  formSubmissionsAutoPull?: FormsAutoPullPort;
+  /** Durable delivery of new submissions to the `core.forms/deliveryBindings` destinations
+   *  (`composeFormDelivery`); the integrations module starts it once per bus. Absent: no delivery. */
+  formDelivery?: { start(required?: Record<string, never>, optional?: Record<string, never>): Promise<void> };
+  /** Per-binding delivery status for `forms_delivery_status`. Absent: the tool says it is unavailable. */
+  formDeliveryStatus?: FormDeliveryStatusPort;
   /** The publish-side half of the same composition: active forms plus the receiver key. Absent,
    *  publishing carries no forms (the old behavior). */
   formDestination?: StaticPublishFormDestinationPort;
@@ -1376,6 +1384,16 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   /** Site-bound export operation shared by tools and authenticated routes. */
   siteShareBackend?: import("#src/features/site-backup/share-backend").SiteShareBackend;
   siteImportBackend?: import("#src/features/site-backup/import-backend").SiteImportBackend;
+  /**
+   * Plugin-facing host seams over one shared connection port, built by
+   * `server/runtime/composition/agent-plugin-connections.ts` in both composition roots: the
+   * plugin-declared API connections (`agent_plugin_connect` + the public OAuth callback), the
+   * executable plugin-tool host ports, and the plugin-supplied admin-surface handlers. Optional so a
+   * hand-built test bag without them keeps every one of the three families off.
+   */
+  apiConnections?: import("#src/features/api-connections/connect").ApiConnectionConnectDeps;
+  agentPluginTools?: import("#src/features/agent-plugins/executable-tools/register").AgentPluginExecutableToolHost;
+  adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/handlers").AgentPluginAdminSurfaceHandlers;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`

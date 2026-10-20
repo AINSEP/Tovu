@@ -68,5 +68,10 @@ export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: bo
   // Destructive/publish policy cards may answer a parked call, never execute a new call via this endpoint.
   // An exchange-only constraint does not itself admit an otherwise unlisted callback.
   if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return answersAnExchange || !nativeToolMetadata.exchangeOnlyIds.has(toolName);
-  return answersAnExchange && toolName.startsWith(FEDERATED_TOOL_ID_PREFIX);
+  // Plugin tools (`p_<plugin>__<tool>`) park on the same principal-bound exchange when they ask;
+  // only the click answering that parked call is accepted, never a fresh execution.
+  return answersAnExchange && (toolName.startsWith(FEDERATED_TOOL_ID_PREFIX) || PLUGIN_TOOL_ID.test(toolName));
 }
+
+/** The plugin tool contract's namespaced id shape (`pluginToolIdFor` in `@jini-ai/plugins/host`). */
+const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;

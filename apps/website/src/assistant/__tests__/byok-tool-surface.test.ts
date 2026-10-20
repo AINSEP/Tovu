@@ -25,7 +25,9 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import type { ByokToolResultBlock } from "../byok-provider-turn.js";
@@ -1271,4 +1273,13 @@ test("BYOK federation: a reload that admits a new server makes its tools searcha
   assert.deepEqual(reloaded?.newlyAdmittedConnectionIds, ["wobble-server"]);
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Plexquorn wobble probe" }));
   assert.match(textOf(result), /mcp__wobble-server__wobble/);
+});
+
+test("BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport", async () => {
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const seen: unknown[] = [];
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async (_registry, deps) => { seen.push(deps.surfaces?.surfaceExchanges); } });
+  await s.ready;
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0], store, "the same store the surface's MCP-UI answers are delivered to");
 });

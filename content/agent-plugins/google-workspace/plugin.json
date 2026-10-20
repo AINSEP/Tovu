@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "google-workspace",
+  "version": "0.1.0",
+  "description": "Connects one Google account to Tovu with Google's own sign-in, then works with the Google files the person picks or Tovu creates (the drive.file permission, never the whole Drive). v1 ships Google Sheets: chat tools for spreadsheets and a form destination that appends submissions as rows. Products are turned on separately; turning one off stops its tools and deliveries without revoking the sign-in.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Google Workspace",
+      "summary": "Sign in with Google once, then let Tovu work with the spreadsheets you choose or create.",
+      "id": "tovu/google-workspace",
+      "provides": [
+        "api-connection:google-workspace",
+        "form-destination:google-sheets"
+      ]
+    }
+  },
+  "keywords": [
+    "google-workspace",
+    "google",
+    "google-sheets",
+    "sheets",
+    "spreadsheet",
+    "google-drive",
+    "oauth",
+    "sign-in",
+    "form-destination:google-sheets",
+    "form-submissions"
+  ]
+}

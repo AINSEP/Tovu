@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "name": "whoami",
+      "description": "Read the name of the account the connection is signed in as.",
+      "effect": "read",
+      "module": "tools/whoami.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "connectionRef"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "append_row",
+      "description": "Append one row to a named Acme table.",
+      "effect": "write",
+      "module": "tools/append-row.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "connectionRef",
+          "table",
+          "values"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "values": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "selection",
+      "description": "Read the table chosen on the plugin's settings screen.",
+      "effect": "read",
+      "module": "tools/selection.mjs",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    },
+    {
+      "name": "last_token",
+      "description": "Return the token an earlier whoami call kept (a deliberately buggy fixture tool).",
+      "effect": "read",
+      "module": "tools/last-token.mjs",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    }
+  ]
+}

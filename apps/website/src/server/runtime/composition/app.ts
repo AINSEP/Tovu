@@ -6,6 +6,8 @@ import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/syst
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
+import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
 import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
@@ -273,6 +275,7 @@ import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/s
 import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import { createCommentsModerationModule } from "./modules/comments-moderation.js";
 import { createCoreModule } from "./modules/core.js";
+import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import { createFormsModule } from "./modules/forms.js";
 import { createMenusModule } from "./modules/menus.js";
 import { createWidgetsModule } from "./modules/widgets.js";
@@ -1121,6 +1124,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
+  // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
+  // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
+  // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
+  const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory: createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) }),
     workspaceId: seededWorkspace.id,
@@ -1269,6 +1276,15 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     externalMcpOAuthDevices,
     derivedPublicOrigin,
+    // Same three plugin seams as `deps.ts`, over an in-memory vault. Handler modules load on the
+    // first surface bootstrap rather than at this hermetic root's construction (no boot disk read).
+    ...composeAgentPluginConnections({
+      workspaceId: seededWorkspace.id, loadContributions: agentPluginLifecycle.loadPluginContributions, vaultRepo: new InMemoryVaultRepo({}),
+      keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
+      env: process.env, derivedPublicOrigin,
+    }, {
+      deliveryBindings: { settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, forms: formDefinitionRepo, newBindingId: () => idGen.newId() },
+    }),
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
@@ -1581,9 +1597,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
     vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo({}),
-    // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
-    // `routes/types.ts`'s `customCredentialSetRepo` doc.
-    customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
+    customCredentialSetRepo,
     // `features/custom-credentials`'s two agent tools need a guarded `HttpClientPort` — see
     // `routes/types.ts`'s `customCredentialsHttpClient` doc. `createDefaultHttpClient` performs no
     // I/O until a request is actually sent, so building a real one here (rather than a fake) keeps
@@ -1762,6 +1776,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   startModule(
     createIntegrationsModule({
       bus: routeDeps.bus,
+      formDelivery: routeDeps.formDelivery,
       webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
       webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
       idGen: routeDeps.idGen,
@@ -1781,6 +1796,9 @@ export interface CreateAppOptions {
    * close does not land under those reads. Never rejects (the pass is fail-open).
    */
   onBootWork?: (work: Promise<void>) => void;
+  /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
+   *  apps never pass it, so signing in to them pulls nothing. */
+  onAdminSignIn?: AdminSignInPort;
   /**
    * Render the site's pages through this theme id instead of the stored active one, for every request
    * this app serves. Only `RouteDeps.createSiteApp({ themeId })` sets it, for a throwaway loopback app
@@ -1848,7 +1866,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // registered together in that order so login is never caught by its own
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
   // inbound/admin-http/dev-auth.ts.
-  mountRoutes(app, createCoreModule(routeDeps));
+  mountRoutes(app, createCoreModule(routeDeps, { onAdminSignIn: options.onAdminSignIn }));
   const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/

@@ -142,6 +142,15 @@ export const EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP: RateLimitProfile = {
   burst: 5,
 };
 
+/** Public sandbox surface assets: limit directory/contribution scans before looking up a file.
+ * Separate from callback exchanges; allows normal multi-file surface loads and plugin tab changes.
+ */
+export const ADMIN_SURFACE_FILES_PER_IP: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 240,
+  burst: 60,
+};
+
 /**
  * Build a fixed-window counter for `profile`, driven by `clock` instead of
  * `Date.now()` so tests can move time forward deterministically instead of

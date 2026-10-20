@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "destinations": [
+    { "id": "acme-office-ghost", "label": "Ghost rows", "module": "ghost.mjs" }
+  ]
+}

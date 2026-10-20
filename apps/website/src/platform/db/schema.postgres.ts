@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 74
+ * Tables: 77
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -293,6 +293,34 @@ export const formDefinitions = pgTable("form_definitions", {
 }, (t) => [
     uniqueIndex("form_definitions_workspace_slug_unique").on(t.workspaceId, t.slug),
     index("idx_form_definitions_workspace").on(t.workspaceId),
+  ]);
+
+export const formDeliveryJobs = pgTable("form_delivery_jobs", {
+  jobId: text("job_id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  submissionId: text("submission_id").notNull(),
+  bindingId: text("binding_id").notNull(),
+  adapterId: text("adapter_id").notNull(),
+}, (t) => [
+    uniqueIndex("ux_form_delivery_jobs_binding").on(t.workspaceId, t.submissionId, t.bindingId),
+  ]);
+
+export const formDeliveryPlans = pgTable("form_delivery_plans", {
+  workspaceId: text("workspace_id").notNull(),
+  submissionId: text("submission_id").notNull(),
+  formId: text("form_id").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.submissionId] }),
+  ]);
+
+export const formReceiverPulls = pgTable("form_receiver_pulls", {
+  workspaceId: text("workspace_id").notNull(),
+  receiverKey: text("receiver_key").notNull(),
+  leaseToken: text("lease_token"),
+  leaseExpiresAt: text("lease_expires_at"),
+  lastStartedAt: text("last_started_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.receiverKey] }),
   ]);
 
 export const formSubmissionRemoteReceipts = pgTable("form_submission_remote_receipts", {
@@ -896,7 +924,7 @@ export const secretsVault = pgTable("secrets_vault", {
     primaryKey({ columns: [t.workspaceId, t.id] }),
     foreignKey({ name: "secrets_vault_workspace_id_fkey", columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     foreignKey({ name: "secrets_vault_principal_id_fkey", columns: [t.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
-    check("secrets_vault_kind", sql`kind IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth')`),
+    check("secrets_vault_kind", sql`kind IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth','api-connection')`),
     check("secrets_vault_revision", sql`revision > 0`),
     check("secrets_vault_token_length", sql`token_length IS NULL OR token_length >= 0`),
     check("secrets_vault_meta", sql`jsonb_typeof(meta) = 'object'`),

@@ -35,3 +35,26 @@ for (const ok of [true, false]) {
     });
   }
 }
+
+// Characterization pin (before the api-connection account-unchanged reason): each existing reason
+// keeps its exact copy, and a failure without a reason renders the exchange_failed copy.
+const EXISTING_FAILURE_COPY = {
+  rate_limited: "Too many attempts too quickly. Wait a moment, then try connecting again from Tovu.",
+  no_state: "This page wasn’t reached from a connection Tovu started, so there’s nothing to finish here. Close this window and start again from Tovu.",
+  state_expired: "This connection attempt is no longer valid — it may have expired, already been used, or been started from another window. Close this window and try again from Tovu.",
+  provider_denied: "The request was declined on the provider’s side. Approve the request on their consent screen, then try again from Tovu.",
+  exchange_failed: "Something went wrong finishing the connection. Close this window and try again from Tovu.",
+  server_unknown: "This connection could not be found. Close this window and check Settings → External MCP.",
+} as const;
+
+for (const [reason, copy] of Object.entries(EXISTING_FAILURE_COPY)) {
+  test(`callback page failure copy is unchanged for ${reason}`, () => {
+    const html = renderOAuthCallbackPage({ ok: false, messageType: "tovu:external-mcp-connected", reason: reason as keyof typeof EXISTING_FAILURE_COPY });
+    assert.ok(html.includes("<title>Couldn’t finish connecting</title>"));
+    assert.ok(html.includes(copy), `copy for ${reason}`);
+  });
+}
+
+test("callback page failure without a reason renders the exchange_failed copy", () => {
+  assert.ok(renderOAuthCallbackPage({ ok: false, messageType: "tovu:external-mcp-connected" }).includes(EXISTING_FAILURE_COPY.exchange_failed));
+});

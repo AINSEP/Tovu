@@ -592,6 +592,47 @@ export const formSubmissionRemoteReceipts = sqliteTable(
 );
 
 /**
+ * `form_delivery_plans` / `form_delivery_jobs` (migration 0019): one plan per (workspace,
+ * submission) once delivery was planned, plus one row per child outbox job. Status is NOT stored
+ * here: it is derived from the job's `outbox_events` row, which also holds the frozen payload. See
+ * `repos/form-delivery-repo.ts`.
+ */
+export const formDeliveryPlans = sqliteTable(
+  "form_delivery_plans",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    submissionId: text("submission_id").notNull(),
+    formId: text("form_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.submissionId] })]
+);
+
+export const formDeliveryJobs = sqliteTable(
+  "form_delivery_jobs",
+  {
+    jobId: text("job_id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    submissionId: text("submission_id").notNull(),
+    bindingId: text("binding_id").notNull(),
+    adapterId: text("adapter_id").notNull(),
+  },
+  (table) => [uniqueIndex("ux_form_delivery_jobs_binding").on(table.workspaceId, table.submissionId, table.bindingId)]
+);
+
+/** `form_receiver_pulls` (migration 0019): the per-receiver pull lease shared by manual and automatic pulls. */
+export const formReceiverPulls = sqliteTable(
+  "form_receiver_pulls",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    receiverKey: text("receiver_key").notNull(),
+    leaseToken: text("lease_token"),
+    leaseExpiresAt: text("lease_expires_at"),
+    lastStartedAt: text("last_started_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.receiverKey] })]
+);
+
+/**
  * Redirects (SPEC-009, ADR-033 §2). Core-owned tables reusing ADR-022's write-
  * chokepoint discipline (single write chokepoint, append-only revisions, ULIDs)
  * WITHOUT modelling rules as `entries` (they are operational routing state, not
@@ -1785,7 +1826,7 @@ export const secretsVault = sqliteTable("secrets_vault", {
   // Postgres schema carries the same names.
   foreignKey({ name: "secrets_vault_workspace_id_fkey", columns: [table.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
   foreignKey({ name: "secrets_vault_principal_id_fkey", columns: [table.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
-  check("secrets_vault_kind", sql`${table.kind} IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth')`),
+  check("secrets_vault_kind", sql`${table.kind} IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth','api-connection')`),
   check("secrets_vault_revision", sql`${table.revision} > 0`),
   check("secrets_vault_token_length", sql`${table.tokenLength} IS NULL OR ${table.tokenLength} >= 0`),
   check("secrets_vault_meta", sql`json_valid(${table.meta}) AND json_type(${table.meta}) = 'object'`),

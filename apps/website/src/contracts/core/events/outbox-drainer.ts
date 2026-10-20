@@ -2,6 +2,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
+import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
 
 /**
  * @file Background outbox drainer: the one owner that delivers outbox rows in a site-serving process.
@@ -50,5 +51,5 @@ export function startOutboxDrainer(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
   optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void } = {}
 ): OutboxDrainer {
-  return startJiniOutboxDrainer(outboxWorkerArgs(required), optional);
+  return startJiniOutboxDrainer(outboxWorkerArgs(required), { ...optional, retryPolicyForEvent: outboxRetryPolicyForEvent });
 }

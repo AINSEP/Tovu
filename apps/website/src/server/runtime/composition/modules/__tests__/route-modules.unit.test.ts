@@ -56,7 +56,9 @@ const noDeps = {} as never;
 const CASES: readonly ModuleCase[] = [
   {
     name: "agent-plugins",
-    create: () => createAgentPluginsModule(noDeps),
+    // With API connections composed (both real roots do), so their public callback is listed too;
+    // registration still reads nothing from the host.
+    create: () => createAgentPluginsModule({ apiConnections: { host: {} } } as never),
     routes: [
       `GET ${W}/agent-plugins`,
       `PATCH ${W}/agent-plugins/:pluginId`,
@@ -64,6 +66,16 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/agent-plugins/install/zip`,
       `GET ${W}/agent-plugins/:pluginId/memory`,
       `PUT ${W}/agent-plugins/:pluginId/memory`,
+      // Plugin-owned admin surfaces: the three session-gated admin routes, then the PUBLIC files
+      // route (a sandboxed frame's module fetches carry no cookie, so it sits outside /api/admin).
+      `GET ${W}/agent-plugins/:pluginId/surfaces`,
+      `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/bootstrap`,
+      `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/actions`,
+      "GET /api/agent-plugin-surfaces/v1/:pluginId/:surfaceId/*",
+      // Session-gated: a hosted sign-in link binds the starting browser, then redirects to the provider.
+      `GET ${W}/agent-plugins/connections/sign-in/:handoffId`,
+      // PUBLIC: plugin-declared API connections' hosted OAuth callback (session-less by necessity).
+      "GET /api/agent-plugins/connections/oauth/callback",
     ],
   },
   { name: "analytics", create: () => createAnalyticsModule(noDeps), routes: [`GET ${W}/analytics/recent-hits`] },

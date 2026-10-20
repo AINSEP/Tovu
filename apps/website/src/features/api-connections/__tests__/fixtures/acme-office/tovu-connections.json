@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "connections": [
+    {
+      "id": "account",
+      "module": "lib/connection.mjs",
+      "label": "Acme Office",
+      "authorizationEndpoint": "https://auth.acme.test/authorize",
+      "tokenEndpoint": "https://auth.acme.test/token",
+      "authorizationParams": {
+        "public": {
+          "prompt": "consent"
+        },
+        "confidential": {
+          "access_type": "offline"
+        }
+      },
+      "startParams": [
+        {
+          "name": "pick_mode",
+          "maxLength": 16
+        }
+      ],
+      "callbackFields": [
+        {
+          "name": "picked_ids",
+          "maxLength": 256
+        }
+      ],
+      "budgets": [
+        {
+          "scope": "connection",
+          "perMinute": 45
+        }
+      ],
+      "scopeSets": [
+        "tables"
+      ],
+      "apiOrigins": [
+        "https://api.acme.test"
+      ],
+      "byoClient": true,
+      "clients": {
+        "web": {
+          "clientIdEnv": "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID",
+          "clientSecretEnv": "TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET"
+        },
+        "desktop": {
+          "clientIdEnv": "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_ID",
+          "clientSecretEnv": "TOVU_ACME_OFFICE_OAUTH_DESKTOP_CLIENT_SECRET"
+        }
+      }
+    }
+  ]
+}
