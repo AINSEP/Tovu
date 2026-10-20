@@ -132,7 +132,10 @@ function claimLoopbackSlot(host: ApiConnectionHost, connection: DeclaredApiConne
   return () => { if (slots.get(key) === listening) slots.delete(key); };
 }
 
-async function startDesktopSignIn(required: SignInRequest, optional: SignInOptions): Promise<ApiConnectionSignInStart> {
+/** A desktop start always carries its own completion (the loopback callback, redeemed here). */
+type DesktopSignInStart = ApiConnectionSignInStart & { readonly completion: Promise<CompletedAuthorization | null> };
+
+async function startDesktopSignIn(required: SignInRequest, optional: SignInOptions): Promise<DesktopSignInStart> {
   const { host, connection, actorId, intent, scopeSetIds } = required;
   const listening = new AbortController();
   const stop = (): void => listening.abort();
@@ -163,11 +166,13 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
 
 async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): Promise<boolean> {
   const { host } = run.deps;
-  const service = host.serviceFor({ connection: run.connection });
   const connectionRef = deriveApiConnectionKey({ workspaceId: host.workspaceId, pluginId: run.connection.pluginId, connectionId: run.connection.descriptor.connectionId });
   const readGeneration = createApiConnectionGenerationReader({ records: host.records });
   const startGeneration = await readGeneration({ key: connectionRef });
   const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }).catch(asToolError);
+  // Built only after the start: building it first threw its setup refusals (no callback origin, no
+  // client secret) raw, past the `ToolInputError` mapping above.
+  const service = host.serviceFor({ connection: run.connection });
   await run.showSignIn({ signInUrl: start.authorizationUrl });
   return waitForCallback(run, service, { connectionRef, startGeneration, readGeneration });
 }
@@ -183,11 +188,13 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   const stop = (): void => listening.abort();
   run.signal.addEventListener("abort", stop, { once: true });
   try {
-    const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
+    // `runApiConnectionConnect` takes this path only for a desktop host, so the desktop start is
+    // called directly and its completion is always present (no "no completion" case to handle).
+    const start = await startDesktopSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
       timeoutMs: run.waitTimeoutMs, signal: listening.signal,
     }).catch(asToolError);
     await run.showSignIn({ signInUrl: start.authorizationUrl });
-    return (await (start.completion ?? Promise.resolve(null)).catch(asToolError)) !== null;
+    return (await start.completion.catch(asToolError)) !== null;
   } finally {
     run.signal.removeEventListener("abort", stop);
     stop();
