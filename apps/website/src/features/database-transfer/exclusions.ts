@@ -9,13 +9,14 @@
  * silently.
  */
 
-export type TransferExclusionReason = "login" | "saved-key" | "temporary" | "secret-setting";
+export type TransferExclusionReason = "login" | "saved-key" | "temporary" | "secret-setting" | "running-lock";
 
 export const TRANSFER_EXCLUSION_REASON_TEXT: Readonly<Record<TransferExclusionReason, string>> = {
   login: "logins (password hashes, sessions and sign-in links) are not copied",
   "saved-key": "saved keys and credentials are not copied",
   temporary: "short-lived confirmation data is not copied",
   "secret-setting": "settings marked secret, and their history, are not copied",
+  "running-lock": "locks held by the running site are not copied",
 };
 
 /** SQL table name -> why it is left out. */
@@ -41,6 +42,18 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
   source_control_credential_sets: "saved-key",
   vendor_credential_sets: "saved-key",
   gated_mutation_tokens: "temporary",
+  // Migration 0019 (2026-10-20). The receiver pull lease is per-process runtime state: a copied
+  // unexpired lease would make the copy answer "already running" to a manual pull until it ran out
+  // (`FORM_PULL_LEASE_MS`, form-destinations/pull.ts), and its last start time would skip the copy's
+  // first automatic pull. Leaving it out loses nothing: no row means "never pulled", and the copied
+  // `form_submission_remote_receipts` ledger is what keeps a pull from importing a submission twice.
+  // Its sibling tables `form_delivery_plans` and `form_delivery_jobs` ARE copied, deliberately: they
+  // hold ids only (the frozen job payload, answers included, lives in `outbox_events`, which a copy
+  // carries), and a copy reads one snapshot, so plans, job index rows and their outbox rows arrive
+  // together. Leaving the plans behind would let a replayed `form.submission.received` plan again on
+  // the copy and enqueue a second job per binding next to the copied one (a duplicate delivery);
+  // leaving the job index behind would hide the copied jobs from the delivery status reads.
+  form_receiver_pulls: "running-lock",
 };
 
 /** A column name that holds (or seals) a secret: `sealed_*`, `*_sealed_*`, `password*`, `*_token_hash`, `key_hash`. */
