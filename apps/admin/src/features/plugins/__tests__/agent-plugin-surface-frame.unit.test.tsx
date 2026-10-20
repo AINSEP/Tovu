@@ -1,6 +1,6 @@
 import { act, fireEvent, waitFor } from "@testing-library/react";
 import { render, screen } from "@/__tests__/fetch-query-render";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminSurfaceActionOutcome, AdminSurfaceBootstrap } from "@jini-ai/agent-plugins/admin-surfaces";
 import { AgentPluginSurfaceFrame } from "../AgentPluginSurfaceFrame";
 import { AgentPluginDetailsModal } from "../AgentPluginDetailsModal";
@@ -13,7 +13,8 @@ import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
  * scripts only; `init` (carrying the bootstrap) is posted once, only into the frame's first
  * document; the message gate ignores anything not from this mount's frame, origin and nonce;
  * undeclared actions are refused without a server call; answers never go to a navigated frame;
- * only server-issued https sign-in links are offered (new tab, no opener) and never reach the frame.
+ * only server-issued https sign-in links are offered (new tab, no opener) and never reach the frame;
+ * a surface's open-link opens only its declared https link origins (new tab, no opener), from this mount only.
  * Plus the modal tab that mounts a contributed surface. Typed fake port, acme-style ids.
  */
 
@@ -37,8 +38,8 @@ function fakePort(overrides: Partial<AgentPluginSurfacesPort> = {}) {
 }
 
 /** Renders the frame, fires its first load and returns the frame window's postMessage spy and the mount nonce. */
-async function mounted(port: AgentPluginSurfacesPort) {
-  render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+async function mounted(port: AgentPluginSurfacesPort, surface: AgentPluginSurfaceSummary = SURFACE) {
+  render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={surface} port={port} t={identity} />);
   const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
   const frameWindow = iframe.contentWindow!;
   const posted = vi.spyOn(frameWindow, "postMessage").mockImplementation(() => {});
@@ -51,6 +52,12 @@ async function mounted(port: AgentPluginSurfacesPort) {
 function request(mountId: string, action = "save-selection", payload: unknown = { resourceId: "r1" }) {
   return { protocol: "jini.admin-surface", version: 1, kind: "action-request", mountId, requestId: "req-1", action, payload };
 }
+
+function openLink(mountId: string, url: string) {
+  return { protocol: "jini.admin-surface", version: 1, kind: "open-link", mountId, requestId: "link-1", url };
+}
+
+const LINKING: AgentPluginSurfaceSummary = { ...SURFACE, linkOrigins: ["https://accounts.acme.test"] };
 
 function deliver(data: unknown, origin: string, source: Window | null) {
   act(() => { window.dispatchEvent(new MessageEvent("message", { data, origin, source })); });
@@ -157,6 +164,54 @@ describe("AgentPluginSurfaceFrame", () => {
     deliver(request(init.mountId), "null", frameWindow);
     await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole("link", { name: "Continue to sign-in" })).toBeNull();
+  });
+});
+
+describe("AgentPluginSurfaceFrame external links", () => {
+  // A failed assertion must not leave window.open spied for the next test.
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("opens a declared https link once, as a new tab without opener or referrer, and answers the frame", async () => {
+    const opened = vi.spyOn(window, "open").mockImplementation(() => null);
+    const port = fakePort();
+    const { frameWindow, posted, init } = await mounted(port, LINKING);
+    deliver(openLink(init.mountId, "https://accounts.acme.test/connections"), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect(opened.mock.calls).toEqual([["https://accounts.acme.test/connections", "_blank", "noopener,noreferrer"]]);
+    expect(posted.mock.calls[1]).toEqual([{ protocol: "jini.admin-surface", version: 1, kind: "action-response", mountId: init.mountId, requestId: "link-1", ok: true, result: null }, "*"]);
+    expect(port.action).not.toHaveBeenCalled();
+  });
+
+  it("refuses an undeclared origin and a non-https link without opening anything", async () => {
+    const opened = vi.spyOn(window, "open").mockImplementation(() => null);
+    const { frameWindow, posted, init } = await mounted(fakePort(), LINKING);
+    deliver(openLink(init.mountId, "https://evil.example/phish"), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    deliver(openLink(init.mountId, "http://accounts.acme.test/connections"), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(3));
+    expect(posted.mock.calls.slice(1).map(([message]) => (message as { error: { code: string } }).error.code)).toEqual(["link-undeclared", "link-not-https"]);
+    expect(opened).not.toHaveBeenCalled();
+  });
+
+  it("opens nothing for a surface that declares no link origins", async () => {
+    const opened = vi.spyOn(window, "open").mockImplementation(() => null);
+    const { frameWindow, posted, init } = await mounted(fakePort());
+    deliver(openLink(init.mountId, "https://accounts.acme.test/connections"), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect((posted.mock.calls[1]![0] as { error: { code: string } }).error.code).toBe("link-undeclared");
+    expect(opened).not.toHaveBeenCalled();
+  });
+
+  it("ignores an open-link from the wrong window, origin or nonce", async () => {
+    const opened = vi.spyOn(window, "open").mockImplementation(() => null);
+    const { frameWindow, posted, init } = await mounted(fakePort(), LINKING);
+    const url = "https://accounts.acme.test/connections";
+    deliver(openLink(init.mountId, url), "null", window);
+    deliver(openLink(init.mountId, url), "https://evil.example", frameWindow);
+    deliver(openLink("0".repeat(32), url), "null", frameWindow);
+    await act(async () => { await Promise.resolve(); });
+    expect(opened).not.toHaveBeenCalled();
+    expect(posted).toHaveBeenCalledTimes(1);
   });
 });
 

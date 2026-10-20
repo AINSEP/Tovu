@@ -102,7 +102,7 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
     if (!(await admit(req, res, deps, "admin.plugins.read"))) return;
     const pluginId = String(req.params.pluginId ?? "");
     const surfaces = (await sourceFor(deps).list({ workspaceId: deps.workspaceId })).filter((surface) => surface.plugin.pluginId === pluginId);
-    res.json({ pluginId, surfaces: surfaces.map(({ descriptor }) => ({ id: descriptor.id, title: descriptor.title, src: adminSurfaceFileUrl({ pluginId, surfaceId: descriptor.id, path: descriptor.entry }), actions: descriptor.actions })) });
+    res.json({ pluginId, surfaces: surfaces.map(({ descriptor }) => ({ id: descriptor.id, title: descriptor.title, src: adminSurfaceFileUrl({ pluginId, surfaceId: descriptor.id, path: descriptor.entry }), actions: descriptor.actions, linkOrigins: descriptor.linkOrigins ?? [] })) });
   }));
 
   app.post(`${SURFACE_PATH}/:surfaceId/bootstrap`, (req, res) => guarded(res, async () => {
