@@ -221,3 +221,64 @@ for (const failure of ["missing-keyring", "active-key", "seal", "open"] as const
     assert.equal(await f.vault.find({ workspaceId: "ws", id: "new" }), null);
   });
 }
+
+// Characterization pins for the sealed-DTO compatibility mapping and write fallbacks.
+test("custom subtypes in vendor storage are filtered before sealed-row validation", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const saved = await vault.put({ record: row({ sealed: null, provider: null,
+    meta: { credentialType: "custom", worksFor: [], category: "general" } }), expectedRevision: null });
+  const repo = adapter(vault);
+  assert.equal(await repo.findById(saved), null);
+  assert.deepEqual(await repo.listByWorkspace({ workspaceId: "ws" }), []);
+  await repo.update(dto());
+  assert.deepEqual(await vault.find(saved), saved);
+});
+
+test("invalid owned metadata is rejected before incomplete sealed-row validation", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const saved = await vault.put({ record: row({ sealed: null, meta: { credentialType: "unknown" } }), expectedRevision: null });
+  await assert.rejects(adapter(vault).findById(saved), { code: "invalid-meta" });
+});
+
+for (const worksFor of [undefined, [], ["other-host"]]) {
+  test(`insert compatibility ${JSON.stringify(worksFor)} defaults only when omitted and starts without a hint`, async () => {
+    const vault = new InMemoryVaultRepo({});
+    await adapter(vault).insert(dto({ worksFor }));
+    const saved = await vault.find({ workspaceId: "ws", id: "credential" });
+    assert.ok(saved);
+    assert.deepEqual(saved.meta, { credentialType: "vendor", worksFor: worksFor ?? ["host"], accountLabel: null });
+    assert.deepEqual([saved.last4, saved.tokenLength, saved.revision], [null, null, 1]);
+  });
+}
+
+for (const existingWorksFor of [undefined, [], ["other-host"]]) {
+  test(`update compatibility inherits ${JSON.stringify(existingWorksFor)} before falling back to vendor identity`, async () => {
+    const vault = new InMemoryVaultRepo({});
+    const meta: VaultMeta = { credentialType: "vendor", accountLabel: "old-owner" };
+    if (existingWorksFor !== undefined) meta.worksFor = existingWorksFor;
+    await vault.put({ record: row({ meta }), expectedRevision: null });
+    await adapter(vault).update(dto({ worksFor: undefined }));
+    const saved = await vault.find({ workspaceId: "ws", id: "credential" });
+    assert.ok(saved);
+    assert.deepEqual(saved.meta, { credentialType: "vendor", worksFor: existingWorksFor ?? ["host"], accountLabel: null });
+    assert.deepEqual([saved.last4, saved.tokenLength, saved.revision], ["tail", 20, 2]);
+  });
+}
+
+test("an explicit compatibility list replaces existing compatibility without dropping provenance", async () => {
+  const vault = new InMemoryVaultRepo({});
+  await vault.put({ record: row({ meta: { credentialType: "vendor", worksFor: ["old-host"], migration: { originalLabel: "Original" } } }), expectedRevision: null });
+  await adapter(vault).update(dto({ worksFor: [] }));
+  assert.deepEqual((await vault.find({ workspaceId: "ws", id: "credential" }))?.meta,
+    { credentialType: "vendor", worksFor: [], migration: { originalLabel: "Original" }, accountLabel: null });
+});
+
+test("source-control updates retain metadata and hints while replacing accountLabel", async () => {
+  const vault = new InMemoryVaultRepo({});
+  const saved = await vault.put({ record: row({ kind: "source-control", meta: { accountLabel: "old", migration: { originalLabel: "Original" } } }), expectedRevision: null });
+  const repo = new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" });
+  const found = await repo.findById(saved);
+  assert.ok(found);
+  await repo.update({ ...found, accountLabel: null });
+  assert.deepEqual(await vault.find(saved), { ...saved, revision: 2, meta: { ...saved.meta, accountLabel: null } });
+});
