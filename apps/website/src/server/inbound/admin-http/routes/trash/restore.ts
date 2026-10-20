@@ -92,11 +92,18 @@ function readItems(body: unknown): { entityType: string; entityId: string }[] | 
 
   const items: { entityType: string; entityId: string }[] = [];
   for (const entry of raw) {
-    if (typeof entry !== "object" || entry === null) return null;
-    const { entityType, entityId } = entry as { entityType?: unknown; entityId?: unknown };
-    if (typeof entityType !== "string" || entityType.length === 0) return null;
-    if (typeof entityId !== "string" || entityId.length === 0) return null;
-    items.push({ entityType, entityId });
+    const item = readItem({ entry }, {});
+    if (!item) return null;
+    items.push(item);
   }
   return items;
+}
+
+/** Validate one selection entry without normalizing the caller's identifiers. */
+function readItem({ entry }: { entry: unknown }, _options: object = {}): { entityType: string; entityId: string } | null {
+  if (typeof entry !== "object" || entry === null) return null;
+  const { entityType, entityId } = entry as { entityType?: unknown; entityId?: unknown };
+  if (typeof entityType !== "string" || entityType.length === 0) return null;
+  if (typeof entityId !== "string" || entityId.length === 0) return null;
+  return { entityType, entityId };
 }
