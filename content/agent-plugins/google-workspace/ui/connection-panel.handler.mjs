@@ -33,14 +33,14 @@ async function productSwitches(state) {
 
 /**
  * Everything the panel shows: connection, products (on/off and whether Google granted their
- * permission), the plugin-saved form destinations a switch would affect, and the Google page where a
+ * permission), the form destinations (delivery bindings) a switch would affect, and the Google page where a
  * person can remove access themselves.
  * @complexity O(p + d): one status read, two state reads.
  */
 async function panelView(capabilities) {
   const status = await capabilities.connections.status({ connectionId: CONNECTION_ID });
   const enabled = await productSwitches(capabilities.state);
-  const destinations = await readFormDestinations({ state: capabilities.state });
+  const destinations = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
   return {
     connection: connectionView(status),
     products: PRODUCTS.products.map((product) => ({ id: product.id, label: product.label, enabled: enabled[product.id], granted: status.grantedScopeSetIds.includes(product.id) })),

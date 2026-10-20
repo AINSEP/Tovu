@@ -3,7 +3,8 @@
  * lets a person choose a spreadsheet (a picked one, or the Picker flow), a tab, and save. The server
  * re-verifies the spreadsheet and tab on every save; this file only collects the choice.
  *
- * Saving needs the "rows stay in the spreadsheet" confirmation, because removing a destination here
+ * A saved destination is the form's delivery binding (the server writes it), so there is nothing to
+ * copy anywhere. Saving needs the "rows stay in the spreadsheet" confirmation, because removing a destination here
  * (or deleting a form or submission in Tovu) never deletes rows Google already holds.
  */
 import { connectToHost, failureText, h, show } from './dom.mjs';
@@ -36,7 +37,6 @@ function savedList() {
   return h('ul', { class: 'list' }, view.destinations.map((entry) => h('li', { class: 'card' }, [
     h('p', {}, [h('strong', {}, [entry.formSlug]), ` → ${entry.title} / ${entry.tabTitle}`]),
     entry.sameAccount === false ? h('p', { class: 'notice' }, ['Chosen with a different Google account than the one connected now. Choose its spreadsheet again.']) : null,
-    h('p', { class: 'muted' }, ['Binding config: ', h('code', {}, [entry.bindingConfigJson])]),
     h('div', { class: 'actions' }, [h('button', { type: 'button', onClick: () => step(async () => { view = await call('remove-destination', { formSlug: entry.formSlug }); status = `Removed ${entry.formSlug}. ${EXTERNAL_ROWS_NOTE}`; }) }, ['Remove'])]),
   ])));
 }

@@ -34,7 +34,7 @@ const pickerApi = createFakePickerApi();
 
 /** A saved destination in the `list-destinations` result shape. */
 function saved(optional = {}) {
-  return { formSlug: 'contact', spreadsheetId: FILE_ID, title: 'Leads', url: LEADS.url, sheetId: 42, tabTitle: 'Contact', bindingConfigJson: '{"pluginId":"google-workspace"}', sameAccount: true, ...optional };
+  return { formSlug: 'contact', spreadsheetId: FILE_ID, title: 'Leads', url: LEADS.url, sheetId: 42, tabTitle: 'Contact', sameAccount: true, ...optional };
 }
 
 let frame;
@@ -94,11 +94,11 @@ test('with no picked spreadsheets there is no spreadsheet list, only the Picker 
   assert.deepEqual({ selects: selects().length, buttons: buttonLabels(frame) }, { selects: 0, buttons: ['Choose another spreadsheet', 'Save destination'] });
 });
 
-test('each saved destination shows its form, spreadsheet, tab and binding config', async () => {
+test('each saved destination shows its form, spreadsheet and tab, and no config to copy (the save is the binding)', async () => {
   await openPanel(SYSTEM, { destinations: [saved()], picked: [] });
   const item = frame.document.querySelector('li.card');
   assert.equal(item.querySelector('p').textContent, 'contact → Leads / Contact');
-  assert.equal(item.querySelector('code').textContent, '{"pluginId":"google-workspace"}');
+  assert.equal(item.querySelector('code'), null);
   assert.equal(item.querySelector('.notice'), null);
 });
 
@@ -235,11 +235,11 @@ test('security: a hosted pick is verified by the server, and the bootstrap token
   assert.equal(frame.posted.some((entry) => JSON.stringify(entry.message).includes(PICKER_TOKEN)), false);
 });
 
-test('security: form names, titles, tab titles and binding config from the server are shown as text, never markup', async () => {
-  await openPanel(SYSTEM, { destinations: [saved({ formSlug: MARKUP, title: MARKUP, tabTitle: MARKUP, bindingConfigJson: MARKUP })], picked: [{ ...LEADS, title: MARKUP }] });
+test('security: form names, titles and tab titles from the server are shown as text, never markup', async () => {
+  await openPanel(SYSTEM, { destinations: [saved({ formSlug: MARKUP, title: MARKUP, tabTitle: MARKUP })], picked: [{ ...LEADS, title: MARKUP }] });
   await choosePicked(LEADS, [{ sheetId: 0, title: MARKUP }]);
   assert.equal(frame.document.querySelector('img'), null);
-  assert.equal(frame.document.querySelector('li code').textContent, MARKUP);
+  assert.equal(frame.document.querySelector('li.card p strong').textContent, MARKUP);
   assert.equal(selects()[1].options[0].textContent, MARKUP);
 });
 

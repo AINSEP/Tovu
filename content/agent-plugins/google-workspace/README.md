@@ -36,7 +36,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `verifySpreadsheetAccess({ client, connectionRef, fileId })` (live spreadsheet per Drive, then opened by the Sheets API; shared with `sheets_open_existing`), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
 | `surface-actions.mjs` | For the admin-surface handlers: `CONNECTION_ID` (`'account'`), `surfaceSheetsClient({ capabilities })` (the one Sheets client over the surface port, which names connections by id), `surfaceAccount`, `sheetsUnavailableReason`, `withSurfaceFailures` (plugin/host refusals → surface-safe failures), `surfaceRefusal`. |
 | `picker-flow.mjs` | `createPickerFlow({}, { now, randomId })` → `bootstrap` (hosted session + short-lived token, or `system-browser` / `unavailable`), `verifyHosted`, `startSystemBrowser`, `finishSystemBrowser`; `readPickedSpreadsheets`, `rememberPickedSpreadsheet`, `PICKER_CONFIG_NAMES`, `PICKER_SESSION_TTL_MS`. |
-| `form-destination-settings.mjs` | `readFormDestinations`, `writeFormDestinations`, `bindingConfigFor({ formSlug, destination })`, `FORM_SLUG_PATTERN`, `MAX_FORM_DESTINATIONS`. |
+| `form-destination-settings.mjs` | `readFormDestinations({ deliveryBindings })`, `saveFormDestination({ deliveryBindings, formSlug, destination }, { bindingId })`, `SHEETS_ADAPTER_ID`, `FORM_SLUG_PATTERN`, `MAX_FORM_DESTINATIONS`. |
 | `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`. |
 
 ## Rules the plugin keeps
@@ -69,10 +69,11 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 - Products are read from the plugin's settings and default to OFF; the connection panel writes them,
   and the host hands form delivery the same settings (read-only) as `optional.state`.
-- The Form destinations panel cannot create the form binding itself: bindings live in the host's
-  `core.forms/deliveryBindings` setting, and no admin-surface capability writes it yet (a Jini
-  admin-surfaces seam; see `form-destinations/README.md`). Until then an admin adds the binding with
-  the config the panel shows (`bindingConfigFor`: spreadsheet, tab and the frozen `accountId`).
+- The Form destinations panel saves each form's choice as the form's delivery binding through the
+  host's `deliveryBindings` capability (both the destination and connection surfaces declare
+  `deliveryAdapters: ["google-sheets"]`): one binding per form slug, on this plugin's `account`
+  connection, config = spreadsheet, tab (numeric sheet id), the frozen `accountId`, plus the names the
+  panels show. The host writes it to `core.forms/deliveryBindings` as the signed-in admin.
 - Panels (G13b) are built and unit-tested only; they need a Chrome check (hosted Picker inside the
   sandboxed frame, desktop system-browser Picker, the account-page button). The host says whether it
   is hosted or desktop (`context.hostKind`); a hosted site also needs both

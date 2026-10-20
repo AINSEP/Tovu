@@ -35,6 +35,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 | `isSameOriginAdminWrite` | `same-origin.ts` | the CSRF gate for the two POST routes |
 | `createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns })` | `handlers.ts` | the real `AdminSurfaceHost`: plugin `handlerModule`s through Jini's handler host, plus `refresh()` |
 | `createAdminSurfaceCapabilities({ tools, connectionsFor, stateFor, publicConfig })` | `capabilities.ts` | Tovu's `AdminSurfaceCapabilitiesPort`: the tool port's `http`/`limiter`/`artifacts` (when the tool port has one) plus surface-only `connections`, `state`, `publicConfig` |
+| `createSurfaceDeliveryBindings({ pluginId, workspaceId, principalId, siteWorkspaceId, declaredConnectionIds, contributedAdapterIds, forms, bindings, newBindingId })` | `delivery-bindings.ts` | Tovu's `deliveryBindings` port: the plugin's own form-delivery bindings, written through `core.forms/deliveryBindings` |
 | `createIssuedSignInCollector()` | `issued-sign-ins.ts` | per-request registry (AsyncLocalStorage) of the https sign-in links the connections port issued; the action route returns them as `hostSignIns` |
 | `createAdminSurfacePublicConfig({ env })` | `public-config.ts` | `publicConfig.get({ name })` from host config; secret-shaped names refused; unset → `null` |
 
@@ -57,6 +58,19 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
     read-only for its tools (and later form delivery), keyed by plugin and workspace;
   - `publicConfig`: the declared public names, from host config; only `TOVU_…_APP_ID`, `_CLIENT_ID`,
     `_BROWSER_KEY` or `_PUBLIC_KEY` names are read (never the site's other settings).
+  - `deliveryBindings` (only for a surface that declares `deliveryAdapters`; `delivery-bindings.ts`):
+    list/save/remove of the site's form-delivery bindings whose adapter THIS plugin contributes
+    (`tovu-form-destinations.json`) on one of ITS connections. The plugin names a connection by id and
+    forms by slug; the host stores its own connection ref and the forms' row ids, assigns binding ids,
+    and re-reads ownership inside every write (a binding that changed hands after the session's list
+    is never overwritten or removed). Writes go through the forms build's binding owner
+    (`writeFormDeliveryBindings`, the settings chokepoint) as the signed-in admin, so its validation
+    and `settings.workspace.write` apply; the admin's click on the surface is the human action (the
+    assistant's own writes of that setting still need a card). Refusal codes: `admin-required`,
+    `adapter-not-owned`, `connection-not-declared`, `form-not-found`, `binding-not-found`,
+    `delivery-binding-invalid` (the owner's validation message). Delivery itself stops for a disabled
+    plugin (its adapter is absent from the active-only registry the deliverer reads per attempt:
+    `adapter-unavailable`, retryable) and for a disabled product (the plugin's adapter checks it).
   Without a handler module, a declared action answers `action-unavailable` and bootstrap data is `null`.
 - Sign-in links: the sandboxed frame cannot open popups, so a handler's `begin` result is opened by
   the HOST page. The connections port reports every link it issued to `issued-sign-ins.ts`; the

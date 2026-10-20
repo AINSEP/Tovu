@@ -149,7 +149,8 @@ export function installSheetsGrid(required) {
       return [failure.status, failure.body ?? { error: { code: failure.status } }, failure.headers];
     }
     if (url.pathname === prefix && req.method === 'GET') {
-      return [200, { sheets: tabs.map((tab) => ({ properties: { sheetId: tab.sheetId, title: tab.title, gridProperties: { rowCount: tab.rowCount, columnCount: tab.columnCount } } })) }];
+      // The spreadsheet's id and title too (a `fields` mask is not applied), so a panel can verify it before saving.
+      return [200, { spreadsheetId, properties: { title: 'Leads' }, sheets: tabs.map((tab) => ({ properties: { sheetId: tab.sheetId, title: tab.title, gridProperties: { rowCount: tab.rowCount, columnCount: tab.columnCount } } })) }];
     }
     if (url.pathname === `${prefix}:batchUpdate`) return batchUpdate(JSON.parse(body));
     if (url.pathname === `${prefix}/developerMetadata:search`) return [200, searchMetadata(body)];

@@ -77,9 +77,9 @@ whose `connectionRef` is this plugin's connection resolves through it (`addition
 declared `apiOrigins` after the first, as exact origins); delivery gets `optional.state` and a
 per-request `getAccessToken()`.
 
-Left (seam gap, needs Jini): the destination panel saves its choice in this plugin's settings
-(`form-destinations`), but the binding owner is the host's `core.forms/deliveryBindings` setting,
-which no admin-surface capability can write (Jini `admin-surfaces` declares only connections, state
-and public config). A host-written binding needs a new declared capability (e.g. "save this form's
-binding for my own adapter and connection") with a human confirmation, since a binding copies every
-submission to a destination. Until then the panel shows the binding config to copy.
+Bindings (G14c): the destination panel saves each form's choice as its binding through the host's
+admin-surface `deliveryBindings` capability (`../lib/form-destination-settings.mjs`). The binding names
+the form by slug (the host stores the form's row id) and the `account` connection by id (the host
+stores its own ref); an admin clicking Save on the panel is the human action. A binding whose plugin
+is disabled is not delivered (`adapter-unavailable`, retryable: the host reads only active plugins'
+adapters on every attempt), the same code as Sheets turned off here.

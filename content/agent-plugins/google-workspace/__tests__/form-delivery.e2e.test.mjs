@@ -5,8 +5,10 @@
  * grid. Plus: a replayed event and a redelivered job add no second row (plan-once + the id-column
  * scan), Sheets turned off pauses the job (retryable) until it is turned back on, a sign-in Google
  * stopped honouring is `authorization-required` with the job kept, and an account switch after
- * planning never sends the frozen job to the new account. The binding config is the one the
- * destination panel shows (`bindingConfigFor`). The host harness is shared with the acme-office twin
+ * planning never sends the frozen job to the new account. G14c: the binding is the one the plugin's
+ * own destination panel saves through the host's `deliveryBindings` (the real `save-destination`
+ * action: spreadsheet and tab verified through the fake Google, then written to
+ * `core.forms/deliveryBindings` as the admin). The host harness is shared with the acme-office twin
  * (`apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.fixture.ts`).
  *
  * The only transport is the local Google fake (127.0.0.1); every other host throws.
@@ -15,8 +17,8 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 
 import { loadPluginContributionsFromSource } from '../../../../apps/website/src/features/agent-plugins/lifecycle.ts';
-import { createOAuthDeliverySite } from '../../../../apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.fixture.ts';
-import { bindingConfigFor } from '../lib/form-destination-settings.mjs';
+import { createOAuthDeliverySite, FORM_ID } from '../../../../apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.fixture.ts';
+import { SPREADSHEET_MIME_TYPE } from '../lib/picker-selection.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { installSheetsGrid } from './fake-sheets-grid.mjs';
 import { PLUGIN_ROOT } from './sheets-admin-harness.mjs';
@@ -50,13 +52,25 @@ const appends = () => fake.requests.filter((request) => request.host === 'sheets
 async function boundSite({ sheetsOn = true } = {}) {
   const site = await createOAuthDeliverySite({ loadContributions, http, kit, env });
   const connectionRef = await site.connect({ pluginId: PLUGIN, consent: consentAs('alice'), scopeSetIds: ['sheets'] });
-  await site.setPluginSetting({ pluginId: PLUGIN, key: 'products', value: { sheets: sheetsOn } });
   const token = await site.host.accessTokensFor({ pluginId: PLUGIN }).getAccessToken({ connectionRef });
   const grid = installSheetsGrid({ fake, spreadsheetId: BOOK, token, tabs: [{ sheetId: TAB_ID, title: 'Contact form' }] });
-  const config = bindingConfigFor({ formSlug: 'contact', destination: { spreadsheetId: BOOK, sheetId: TAB_ID, accountId: 'perm-alice' } });
-  await site.bind({ bindings: [{ bindingId: 'b1', adapterId: 'google-sheets', connectionRef, enabled: true, config }] });
-  return { site, grid };
+  fake.route({ method: 'GET', path: `/drive/v3/files/${BOOK}` }, () => [200, { id: BOOK, name: 'Leads', mimeType: SPREADSHEET_MIME_TYPE, trashed: false }]);
+  // Saving needs Sheets on; a test of Sheets off turns it off after the save.
+  await site.setPluginSetting({ pluginId: PLUGIN, key: 'products', value: { sheets: true } });
+  const saved = await site.surfaceAction({ pluginId: PLUGIN, surfaceId: 'form-destinations', action: 'save-destination', payload: { formSlug: 'contact', spreadsheetId: BOOK, sheetId: TAB_ID, confirmExternalRows: true } });
+  assert.equal(saved.ok, true, JSON.stringify(saved));
+  await site.setPluginSetting({ pluginId: PLUGIN, key: 'products', value: { sheets: sheetsOn } });
+  fake.requests.length = 0;
+  return { site, grid, connectionRef };
 }
+
+test('the destination panel\'s save is the delivery binding: this plugin\'s Sheets adapter, its own connection ref, the form\'s row id, the frozen account', async () => {
+  const { site, connectionRef } = await boundSite();
+  assert.deepEqual(await site.bindings(), [{
+    bindingId: (await site.bindings())[0].bindingId, adapterId: 'google-sheets', connectionRef, enabled: true, formIds: [FORM_ID],
+    config: { spreadsheetId: BOOK, accountId: 'perm-alice', tabs: { contact: { sheetId: TAB_ID } }, title: 'Leads', tabTitle: 'Contact form' },
+  }]);
+});
 
 const ledger = (site, submissionId) => site.jobsFor({ submissionId }).map(({ status, attempts, lastError }) => ({ status, attempts, lastError }));
 
