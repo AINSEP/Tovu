@@ -7,11 +7,71 @@ import { copyKeysResultText, copyKeysUpgradeMessage } from "../security-i18n";
 
 export type CopyKeysPort = Pick<typeof api, "listCredentialCopySources" | "copyCredentials">;
 type StartSite = (input: { id: string }) => Promise<unknown>;
+type CopyKey = AdminCredentialCopySource["keys"][number];
+
+const NEEDS_UPGRADE = "source-needs-upgrade";
+const MAX_COPY_IDS = 100;
 
 /** Adapt an existing desktop capability when present; browser admins cannot start local sites. */
-function desktopStarter(_required: Record<string, never>, _options = {}): StartSite | undefined {
+function desktopStarter(): StartSite | undefined {
   const bridge = (window as unknown as { tovuRunner?: { startSite?: (id: string) => Promise<unknown> } }).tovuRunner;
   return bridge?.startSite ? ({ id }) => bridge.startSite!(id) : undefined;
+}
+
+/** Copy needs an idle dialog, an eligible selected source, and 1–100 selected IDs. */
+function copyBlocked({ loading, pending, source, count }: {
+  loading: boolean; pending: boolean; source: AdminCredentialCopySource | undefined; count: number;
+}): boolean {
+  return loading || pending || !source || !!source.reasonCode || count === 0 || count > MAX_COPY_IDS;
+}
+
+/** The desktop start for the selected upgrade source — only its own route-supplied hint, only with a desktop owner. */
+function startRequest({ source, sourceSiteId, startSite }: {
+  source: AdminCredentialCopySource | undefined; sourceSiteId: string; startSite: StartSite | undefined;
+}): (() => Promise<unknown>) | undefined {
+  const hint = source?.actionHint;
+  if (source?.reasonCode !== NEEDS_UPGRADE || hint?.action !== "start-site" || hint.siteId !== sourceSiteId || !startSite) return undefined;
+  return () => startSite({ id: hint.desktopSiteId });
+}
+
+/** Label, provider (or kind) and the server's hint, shown only when it is exactly four characters. */
+function keyText(key: CopyKey): string {
+  return `${key.label} · ${key.provider ?? key.kind}${key.last4?.length === 4 ? ` · …${key.last4}` : ""}`;
+}
+
+/** Works-for ids win; publish hosts are the fallback only for an empty list. */
+function worksForText({ key, t }: { key: CopyKey; t: Translate }): string {
+  const worksFor = key.worksFor?.length ? key.worksFor : key.publishHosts ?? [];
+  return worksFor.length ? `${t("Works for")}: ${worksFor.join(", ")}` : "";
+}
+
+function keyRows({ source, ids, t }: { source: AdminCredentialCopySource | undefined; ids: string[]; t: Translate }) {
+  const selected = new Set(ids);
+  return (source?.keys ?? []).map(key => ({ id: key.id, checked: selected.has(key.id), text: keyText(key), worksFor: worksForText({ key, t }) }));
+}
+
+/** Results render fixed copy only, prefixed by the source's label for IDs it still lists. */
+function resultRows({ source, results, t }: {
+  source: AdminCredentialCopySource | undefined; results: AdminCredentialCopyResult[]; t: Translate;
+}) {
+  const labels = new Map(source?.keys.map(key => [key.id, key.label] as const));
+  return results.map((result, index) => {
+    const label = labels.get(result.id);
+    return { key: `${result.id}:${index}`, text: `${label ? `${label} · ` : ""}${copyKeysResultText({ result, t })}` };
+  });
+}
+
+function sourceMessage({ source, t }: { source: AdminCredentialCopySource | undefined; t: Translate }): string | undefined {
+  return source?.reasonCode === NEEDS_UPGRADE ? copyKeysUpgradeMessage({ site: source.name, t }) : source?.message;
+}
+
+function isEmptySource(source: AdminCredentialCopySource | undefined): boolean {
+  return !!source && !source.reasonCode && source.keys.length === 0;
+}
+
+/** The copy route refused because the source must be upgraded first; any other failure stays generic. */
+function isUpgradeRefusal(failure: unknown): boolean {
+  return failure instanceof ApiError && failure.body?.reasonCode === NEEDS_UPGRADE;
 }
 
 /** Owns this CMS copy flow; Jini owns the dialog and C2 owns eligibility/secret handling.
@@ -44,9 +104,14 @@ export function useCopyKeys({ t }: { t: Translate }, {
     return () => { live = false; };
   }, [client, open, refresh]);
   const source = sources.find(item => item.siteId === sourceSiteId);
-  const selected = new Set(ids);
-  const labels = new Map(source?.keys.map(key => [key.id, key.label] as const));
-  const disabled = loading || pending || !source || !!source.reasonCode || ids.length === 0 || ids.length > 100;
+  const disabled = copyBlocked({ loading, pending, source, count: ids.length });
+  const launch = startRequest({ source, sourceSiteId, startSite });
+  /** One copy or start at a time: `busy` refuses a second call before `pending` re-renders. */
+  const exclusive = async (work: () => Promise<void>) => {
+    busy.current = true; setPending(true); setError("");
+    try { await work(); }
+    finally { busy.current = false; setPending(false); }
+  };
   const show = (event: Pick<MouseEvent<HTMLButtonElement>, "currentTarget">) => {
     event.currentTarget.focus({ preventScroll: true });
     setSources([]); setSourceSiteId(""); setIds([]); setResults([]); setOverwrite(false); setError(""); setOpen(true);
@@ -62,50 +127,40 @@ export function useCopyKeys({ t }: { t: Translate }, {
   const submit = async (event: Pick<FormEvent<HTMLFormElement>, "preventDefault">) => {
     event.preventDefault();
     if (disabled || busy.current) return;
-    busy.current = true; setPending(true); setError(""); setResults([]);
-    try {
-      const response = await client.copyCredentials({ sourceSiteId, ids, overwrite });
-      setResults(response.results);
-      publishContentRefresh([ACCESS_TOKENS_RESOURCE]);
-    } catch (failure) {
-      if (failure instanceof ApiError && failure.body?.reasonCode === "source-needs-upgrade") {
+    setResults([]);
+    await exclusive(async () => {
+      try {
+        const response = await client.copyCredentials({ sourceSiteId, ids, overwrite });
+        setResults(response.results);
+        publishContentRefresh([ACCESS_TOKENS_RESOURCE]);
+      } catch (failure) {
+        if (!isUpgradeRefusal(failure)) { setError("Copying keys failed. Try again."); return; }
         setSources(previous => previous.map(item => item.siteId === sourceSiteId
-          ? { ...item, keys: [], reasonCode: "source-needs-upgrade" } : item));
+          ? { ...item, keys: [], reasonCode: NEEDS_UPGRADE } : item));
         setIds([]);
-      } else setError("Copying keys failed. Try again.");
-    }
-    finally { busy.current = false; setPending(false); }
+      }
+    });
   };
-  const hint = source?.actionHint;
-  const canStart = source?.reasonCode === "source-needs-upgrade" && hint?.action === "start-site" && hint.siteId === sourceSiteId && !!startSite;
   const start = async () => {
-    if (!canStart || !startSite || !hint || busy.current) return;
-    busy.current = true; setPending(true); setError("");
-    try { await startSite({ id: hint.desktopSiteId }); setRefresh(value => value + 1); }
-    catch { setError("Couldn't start this project. Try again."); }
-    finally { busy.current = false; setPending(false); }
+    if (!launch || busy.current) return;
+    await exclusive(async () => {
+      try { await launch(); setRefresh(value => value + 1); }
+      catch { setError("Couldn't start this project. Try again."); }
+    });
   };
   return {
     open, show, cancel, submit, loading, pending, disabled, sources, sourceSiteId, changeSource, changeKey,
     overwrite, changeOverwrite: (event: ChangeEvent<HTMLInputElement>) => setOverwrite(event.currentTarget.checked),
-    error: error ? t(error) : "", canStart, start,
-    sourceMessage: source?.reasonCode === "source-needs-upgrade" ? copyKeysUpgradeMessage({ site: source.name, t }) : source?.message,
-    empty: !!source && !source.reasonCode && source.keys.length === 0,
-    keys: (source?.keys ?? []).map(key => {
-      const worksFor = key.worksFor?.length ? key.worksFor : key.publishHosts ?? [];
-      return { id: key.id, checked: selected.has(key.id),
-        text: `${key.label} · ${key.provider ?? key.kind}${key.last4?.length === 4 ? ` · …${key.last4}` : ""}`,
-        worksFor: worksFor.length ? `${t("Works for")}: ${worksFor.join(", ")}` : "" };
-    }),
-    results: results.map((result, index) => {
-      const label = labels.get(result.id);
-      return { key: `${result.id}:${index}`, text: `${label ? `${label} · ` : ""}${copyKeysResultText({ result, t })}` };
-    }),
+    error: error ? t(error) : "", canStart: !!launch, start,
+    sourceMessage: sourceMessage({ source, t }),
+    empty: isEmptySource(source),
+    keys: keyRows({ source, ids, t }),
+    results: resultRows({ source, results, t }),
   };
 }
 
 export type CopyKeysController = ReturnType<typeof useCopyKeys>;
 /** Bind the existing HTTP and desktop owners; the presentation layer never imports either. */
-export function useWiredCopyKeys(required: { t: Translate }, _options = {}): CopyKeysController {
-  return useCopyKeys(required, { startSite: desktopStarter({}) });
+export function useWiredCopyKeys(required: { t: Translate }): CopyKeysController {
+  return useCopyKeys(required, { startSite: desktopStarter() });
 }
