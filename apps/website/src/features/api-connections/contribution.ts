@@ -16,8 +16,9 @@ import { parseConnectionBudgets, type ConnectionBudget } from "./budgets.js";
  * only ever NAMED by the plugin: names must match {@link CLIENT_ENV_PATTERN}, so a plugin can point
  * at its own `…_CLIENT_ID` / `…_CLIENT_SECRET` and never at another secret of this host. Request
  * budgets (`budgets`) are clamped to the host's maxima by `budgets.ts` and never reach the descriptor;
- * nor do `scopeSets` (the plugin's scope-set ids, for status) and `apiOrigins` (the https origins its
- * API calls reach, for form delivery's host allowlist), which only the host reads.
+ * nor do `scopeSets` (the plugin's scope-set ids, for status), `apiOrigins` (the https origins its
+ * API calls reach, for form delivery's host allowlist) and `byoClient` (whether a workspace admin may
+ * use their own OAuth client, `byo-client.ts`), which only the host reads.
  */
 
 export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
@@ -50,6 +51,8 @@ export interface ApiConnectionDeclaration {
   readonly scopeSets: readonly string[];
   /** The https origins the plugin's API calls with this connection reach (form delivery's host allowlist). */
   readonly apiOrigins: readonly string[];
+  /** True when a workspace admin may sign in with their own OAuth client instead of the host's (`byo-client.ts`). */
+  readonly byoClient: boolean;
   /** Passed to `parseApiConnectionDescriptor` with the plugin id at load time. */
   readonly descriptor: Readonly<Record<string, unknown>>;
 }
@@ -67,6 +70,7 @@ export interface DeclaredApiConnection {
   readonly budgets: ApiConnectionDeclaration["budgets"];
   readonly scopeSets: ApiConnectionDeclaration["scopeSets"];
   readonly apiOrigins: ApiConnectionDeclaration["apiOrigins"];
+  readonly byoClient: ApiConnectionDeclaration["byoClient"];
   readonly module: ApiConnectionHooksModule;
 }
 
@@ -113,13 +117,20 @@ function isHttpsOrigin(value: unknown): value is string {
   return isOrigin(value) && new URL(value as string).protocol === "https:";
 }
 
-/** Optional host-read lists, each bounded; absent = empty. @complexity O(n) entries. */
-function parseHostLists(scopeSets: unknown, apiOrigins: unknown, at: string): Pick<ApiConnectionDeclaration, "scopeSets" | "apiOrigins"> | string {
+function isBoundedList(value: unknown, max: number, isItem: (item: unknown) => boolean): value is readonly string[] {
+  return Array.isArray(value) && value.length <= max && value.every(isItem);
+}
+
+const isScopeSetId = (id: unknown): boolean => typeof id === "string" && SCOPE_SET_ID_PATTERN.test(id);
+
+/** Optional host-read fields, each bounded; absent lists are empty and an absent `byoClient` is false. @complexity O(n) entries. */
+function parseHostLists(scopeSets: unknown, apiOrigins: unknown, byoClient: unknown, at: string): Pick<ApiConnectionDeclaration, "scopeSets" | "apiOrigins" | "byoClient"> | string {
   const sets = scopeSets ?? [];
   const origins = apiOrigins ?? [];
-  if (!Array.isArray(sets) || sets.length > MAX_SCOPE_SETS || !sets.every((id) => typeof id === "string" && SCOPE_SET_ID_PATTERN.test(id))) return `${at}.scopeSets must be at most ${MAX_SCOPE_SETS} short ids`;
-  if (!Array.isArray(origins) || origins.length > MAX_API_ORIGINS || !origins.every(isHttpsOrigin)) return `${at}.apiOrigins must be at most ${MAX_API_ORIGINS} https:// origins`;
-  return { scopeSets: [...sets] as string[], apiOrigins: [...origins] as string[] };
+  if (!isBoundedList(sets, MAX_SCOPE_SETS, isScopeSetId)) return `${at}.scopeSets must be at most ${MAX_SCOPE_SETS} short ids`;
+  if (!isBoundedList(origins, MAX_API_ORIGINS, isHttpsOrigin)) return `${at}.apiOrigins must be at most ${MAX_API_ORIGINS} https:// origins`;
+  if (byoClient !== undefined && typeof byoClient !== "boolean") return `${at}.byoClient must be true or false`;
+  return { scopeSets: [...sets] as string[], apiOrigins: [...origins] as string[], byoClient: byoClient === true };
 }
 
 function idOrModuleProblem(id: unknown, module: unknown, at: string): string | undefined {
@@ -136,7 +147,7 @@ function idOrModuleProblem(id: unknown, module: unknown, at: string): string | u
  */
 function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration | string {
   if (!isObject(entry)) return `${at} must be an object`;
-  const { id, module, clients, budgets: declaredBudgets, scopeSets, apiOrigins, ...descriptor } = entry;
+  const { id, module, clients, budgets: declaredBudgets, scopeSets, apiOrigins, byoClient, ...descriptor } = entry;
   const invalid = idOrModuleProblem(id, module, at);
   if (invalid) return invalid;
   if (!isObject(clients)) return `${at}.clients must be an object`;
@@ -144,7 +155,7 @@ function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration 
   if (typeof runtimeClients === "string") return runtimeClients;
   const budgets = parseConnectionBudgets({ value: declaredBudgets, at: `${at}.budgets` });
   if (typeof budgets === "string") return budgets;
-  const lists = parseHostLists(scopeSets, apiOrigins, at);
+  const lists = parseHostLists(scopeSets, apiOrigins, byoClient, at);
   if (typeof lists === "string") return lists;
   // idOrModuleProblem returned undefined, so both are checked strings.
   return { id: id as string, module: module as string, clients: runtimeClients, budgets, ...lists, descriptor };
@@ -194,8 +205,8 @@ export async function loadDeclaredApiConnections(
   for (const item of load.items) {
     try {
       const descriptor = parseApiConnectionDescriptor({ value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
-      const { clients, budgets, scopeSets, apiOrigins } = item.descriptor;
-      connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, module: item.module });
+      const { clients, budgets, scopeSets, apiOrigins, byoClient } = item.descriptor;
+      connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, byoClient, module: item.module });
     } catch (error) {
       refusals.push(`API connection '${item.descriptor.id}' from '${item.pluginId}' was not loaded: ${error instanceof Error ? error.message : "invalid descriptor"}`);
     }

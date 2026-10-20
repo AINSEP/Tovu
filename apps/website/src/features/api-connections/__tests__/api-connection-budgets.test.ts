@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/index.js";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
@@ -33,7 +34,7 @@ function makeHost(clock: { nowMs(): number } = { nowMs: () => Date.now() }) {
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: fixtureRoot }, definition: input.definition });
   return createApiConnectionHost({
     workspaceId: "ws-1", loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
-    clock, oauthHttp, pluginHttp: { fetch: noNetwork }, runtime: "hosted",
+    customCredentialRepo: new InMemoryCustomCredentialSetRepo(), clock, oauthHttp, pluginHttp: { fetch: noNetwork }, runtime: "hosted",
     env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_API_CONNECTION_CALLBACK_ORIGINS: "https://site.example" },
     publicOrigin: () => "https://site.example",
   });

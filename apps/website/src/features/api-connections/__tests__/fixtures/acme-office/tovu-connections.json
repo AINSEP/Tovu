@@ -39,6 +39,7 @@
       "apiOrigins": [
         "https://api.acme.test"
       ],
+      "byoClient": true,
       "clients": {
         "web": {
           "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID",

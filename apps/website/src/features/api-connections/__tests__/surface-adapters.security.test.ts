@@ -22,6 +22,7 @@ import express from "express";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/index.js";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import type { AgentPluginStateReader } from "@jini-ai/agent-plugins/lifecycle/tools";
 import { startLoopbackAuthorizationReceiver, type OAuthHttpPorts } from "@jini-ai/oauth";
@@ -95,7 +96,7 @@ function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () =
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: fixtureRoot }, definition: input.definition });
   const host = createApiConnectionHost({
     workspaceId: WORKSPACE, loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
-    clock, oauthHttp, pluginHttp, runtime,
+    customCredentialRepo: new InMemoryCustomCredentialSetRepo(), clock, oauthHttp, pluginHttp, runtime,
     env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_API_CONNECTION_CALLBACK_ORIGINS: siteOrigin },
     publicOrigin: () => siteOrigin,
   }, startLoopback === undefined ? {} : { startLoopback });

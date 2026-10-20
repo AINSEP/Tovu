@@ -1123,6 +1123,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
+  // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
+  // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
+  // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
+  const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory: createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) }),
     workspaceId: seededWorkspace.id,
@@ -1275,7 +1279,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // first surface bootstrap rather than at this hermetic root's construction (no boot disk read).
     ...composeAgentPluginConnections({
       workspaceId: seededWorkspace.id, loadContributions: agentPluginLifecycle.loadPluginContributions, vaultRepo: new InMemoryVaultRepo({}),
-      keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, http: guardedOutboundHttpClient,
+      keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
       env: process.env, derivedPublicOrigin,
     }),
     executionSettingsReady,
@@ -1590,9 +1594,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
     vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo({}),
-    // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
-    // `routes/types.ts`'s `customCredentialSetRepo` doc.
-    customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
+    customCredentialSetRepo,
     // `features/custom-credentials`'s two agent tools need a guarded `HttpClientPort` — see
     // `routes/types.ts`'s `customCredentialsHttpClient` doc. `createDefaultHttpClient` performs no
     // I/O until a request is actually sent, so building a real one here (rather than a fake) keeps

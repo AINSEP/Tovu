@@ -62,6 +62,32 @@ The panels cannot open links themselves: when a sign-in starts, the admin page s
 
 ## Advanced: your own Google OAuth client
 
-Self-hosted sites outside the known Tovu addresses will be able to use their own Google Cloud OAuth
-client, entered through Tovu's secure credential form (never in chat). This is not available in this
-build yet; do not ask the person for a client id or secret.
+A self-hosted site whose address Tovu has not registered with Google (Tovu then says it "cannot sign
+in from this site's address"), or an organisation that wants its own Google Cloud project, can use
+its own OAuth client instead of Tovu's. The client secret is typed only into Tovu's secure credential
+form, never into chat. Never ask for it in chat and never accept one pasted there.
+
+1. In their own Google Cloud project, the person creates an OAuth client: **Web application** for a
+   hosted site, with the authorized redirect URI
+   `<this site's address>/api/agent-plugins/connections/oauth/callback`; **Desktop app** for the
+   desktop app. They enable the Google Sheets API, Google Drive API and Google Picker API there and
+   set the consent screen up.
+2. In Tovu, a site admin saves it under **Admin → Access Tokens → Add custom provider**. You may
+   instead open the secure "Save an API credential" card (`custom_credential_create`) with the label
+   and base URL prefilled; the person types the rest into the card:
+   - **Label:** exactly `google-workspace/account OAuth client`
+   - **Base URL:** `https://oauth2.googleapis.com/token`
+   - **Username:** the OAuth client ID
+   - **Token:** the client secret
+3. The person reconnects in the Google Workspace panel. Until then it shows **Reconnect required**:
+   a sign-in made with one client cannot be used with another. Spreadsheets chosen before must be
+   chosen again with the picker, because Google ties each picked file to the Cloud project whose client picked it.
+
+If Tovu says it **"cannot use your own OAuth client"**, the message names the saved credential and
+what is wrong (base URL or missing client ID): fix it under Admin → Access Tokens, then retry. After
+the client changes (saved, replaced or removed), `reconnect-required` means "reconnect once".
+
+To go back to Tovu's client, delete that saved credential and reconnect. On a hosted site the file
+picker uses the site's Picker settings (`TOVU_GOOGLE_PICKER_BROWSER_KEY`, `TOVU_GOOGLE_PICKER_APP_ID`):
+with your own client the operator sets them to that project's browser key and project number, or the
+picker cannot open the chosen files.

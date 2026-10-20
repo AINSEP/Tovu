@@ -6,7 +6,9 @@
  */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
+import { tmpdir } from "node:os";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -20,9 +22,15 @@ import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
+import { createCustomCredential, deleteCustomCredential, InMemoryCustomCredentialSetRepo, listCustomCredentials, updateCustomCredential } from "../../custom-credentials/index.js";
+import { byoClientLabel } from "../byo-client.js";
+import { InMemoryKeyring as TovuInMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { runApiConnectionConnect } from "../connect.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
+import { parseApiConnectionsFile } from "../contribution.js";
+import { CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
@@ -31,6 +39,7 @@ const refreshToken = "acme-refresh-" + "y".repeat(24);
 /** code -> PKCE challenge the fake provider issued it for. */
 const issued = new Map<string, string>();
 let tokenCalls = 0;
+let revokeCalls = 0;
 /** The last token-endpoint form the fake provider received (to see where a client secret went). */
 let lastTokenForm = new URLSearchParams();
 let provider: Server;
@@ -60,6 +69,11 @@ before(async () => {
     let body = "";
     req.on("data", (chunk) => { body += chunk; });
     req.on("end", () => {
+      if (req.url === "/revoke") {
+        revokeCalls += 1;
+        res.writeHead(200);
+        return res.end();
+      }
       if (req.url === "/me") {
         res.writeHead(req.headers.authorization === `Bearer ${accessToken}` ? 200 : 401, { "content-type": "application/json" });
         return res.end(JSON.stringify({ id: "acct-1", name: "Ada" }));
@@ -85,11 +99,17 @@ after(async () => {
 
 const hostedEnv = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
 
-function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined } = {}) {
-  const keyring = new InMemoryKeyring({ hkdfSalt: "api-connection-slice" });
-  const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: fixtureRoot }, definition: input.definition });
+/** One site key for every host and the saved custom credentials (as in production: `deps.ts` passes the
+ *  site's one keyring and sealer to both), so the Tovu keyring type serves both ports. */
+const siteKeyring = new TovuInMemoryKeyring();
+const siteSealer = new TovuAesGcmSecretSealer(siteKeyring);
+
+function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined; readonly customCredentialRepo?: InMemoryCustomCredentialSetRepo; readonly packageRoot?: string } = {}) {
+  const keyring = siteKeyring;
+  const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: options.packageRoot ?? fixtureRoot }, definition: input.definition });
   return createApiConnectionHost({
-    workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
+    workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: siteSealer,
+    customCredentialRepo: options.customCredentialRepo ?? new InMemoryCustomCredentialSetRepo(),
     clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: options.runtime ?? "hosted",
     // Read when a sign-in starts: `mountCallback` moves the site to a new port per test.
     env: options.env ?? { ...hostedEnv, get TOVU_API_CONNECTION_CALLBACK_ORIGINS() { return siteOrigin; } },
@@ -317,4 +337,199 @@ test("callback: a switch to the account already connected is refused with copy t
   assert.equal(response.status, 400);
   assert.match(await response.text(), /already connected to Tovu, so there is nothing to switch\. Close this window and use Reconnect in Tovu instead\./);
   assert.equal((await host.statusOf({ connection })).status, "connected", "the live connection is untouched");
+});
+
+/** Desktop sign-in through the loopback receiver; the fake consent redirects straight back. */
+async function connectDesktop(host: ReturnType<typeof makeHost>) {
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  return runApiConnectionConnect({
+    deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async ({ signInUrl }) => { await (await fetch(consentRedirect(signInUrl))).text(); },
+  });
+}
+
+const desktopEnv = { TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET: "d".repeat(28) };
+
+test("characterization: a connected account reads as connected through host.records, statusOf and readAccount", async () => {
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv });
+  const { connectionRef } = await connectDesktop(host);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  assert.equal((await host.records.read({ key: connectionRef }))?.status, "connected");
+  assert.equal((await host.statusOf({ connection })).status, "connected");
+  assert.deepEqual(await host.toolConnections.readAccount({ workspaceId: "ws-1", pluginId: "acme-office", connectionRef }), { accountId: "acct-1", displayName: "Ada" });
+});
+
+test("characterization: a connection's hooks reach its declared API origin (account) and its token endpoint's origin (revocation)", async () => {
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv });
+  const { connectionRef } = await connectDesktop(host);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const revokes = revokeCalls;
+  const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId: "ws-1" });
+  assert.equal(outcome.remoteRevocation, "confirmed");
+  assert.ok(revokeCalls > revokes);
+});
+
+test("security: a connection's hooks get HTTP limited to its declared API origins and its token endpoint's origin", async (t) => {
+  // A copy of the fixture whose hooks hand the test the HTTP capability the host gave them.
+  const root = mkdtempSync(path.join(tmpdir(), "acme-hook-http-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(fixtureRoot, root, { recursive: true });
+  writeFileSync(path.join(root, "lib", "connection.mjs"),
+    "export default { createHooks({ http }) { globalThis.__acmeHookHttp = http; return { async resolveScopes() { return []; }, async readAccount() { return { accountId: 'a', displayName: 'A' }; }, async revoke() {} }; } };\n");
+  const sent: string[] = [];
+  const spyHttp = { fetch: async ({ url }: { url: string }) => { sent.push(url); return new Response("ok"); } };
+  const keyring = new InMemoryKeyring({ hkdfSalt: "hook-http" });
+  const host = createApiConnectionHost({
+    workspaceId: "ws-1", loadContributions: (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: root }, definition: input.definition }),
+    vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => Date.now() },
+    customCredentialRepo: new InMemoryCustomCredentialSetRepo(), oauthHttp, pluginHttp: spyHttp, runtime: "desktop", env: desktopEnv, publicOrigin: () => undefined,
+  });
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  await host.requestedScopes({ connection, scopeSetIds: [] });
+  const hookHttp = (globalThis as { __acmeHookHttp?: typeof spyHttp }).__acmeHookHttp!;
+  t.after(() => { delete (globalThis as { __acmeHookHttp?: unknown }).__acmeHookHttp; });
+  assert.equal((await hookHttp.fetch({ url: "https://api.acme.test/me" })).status, 200, "a declared API origin");
+  assert.equal((await hookHttp.fetch({ url: "https://auth.acme.test/revoke" })).status, 200, "the token endpoint's origin (revocation)");
+  for (const url of ["https://evil.test/steal", "https://api.acme.test.evil.test/me", "http://api.acme.test/me", "https://auth.acme.test:8443/revoke", "not a url"]) {
+    await assert.rejects(hookHttp.fetch({ url }), { message: CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE }, url);
+  }
+  assert.deepEqual(sent, ["https://api.acme.test/me", "https://auth.acme.test/revoke"], "a refused URL is never sent");
+});
+
+const byoClientId = "byo-client-1234.example";
+const byoSecret = () => "b".repeat(20) + "-secret";
+let credentialIds = 0;
+
+/** Saves a BYO client the way an admin does (Access Tokens "Add custom provider" or the chat card). */
+async function saveByoClient(repo: InMemoryCustomCredentialSetRepo, input: { readonly workspaceId?: string; readonly label?: string; readonly baseUrl?: string; readonly clientId?: string | null; readonly secret?: string } = {}) {
+  return createCustomCredential({ repo, sealer: siteSealer, keyring: siteKeyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => `00000000-0000-4000-8000-${String(++credentialIds).padStart(12, "0")}` } }, {
+    workspaceId: input.workspaceId ?? "ws-1", label: input.label ?? byoClientLabel({ pluginId: "acme-office", connectionId: "account" }), category: "general",
+    baseUrl: input.baseUrl ?? "https://auth.acme.test/token", connection: { token: input.secret ?? byoSecret(), ...(input.clientId === null ? {} : { username: input.clientId ?? byoClientId }) },
+  });
+}
+
+/** A fixture copy whose connection declaration is edited by `edit` (removed after the test). */
+function fixtureCopy(t: { after(fn: () => void): void }, edit: (declaration: Record<string, unknown>) => void): string {
+  const root = mkdtempSync(path.join(tmpdir(), "acme-byo-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(fixtureRoot, root, { recursive: true });
+  const file = path.join(root, "tovu-connections.json");
+  const parsed = JSON.parse(readFileSync(file, "utf8")) as { connections: Record<string, unknown>[] };
+  edit(parsed.connections[0]!);
+  writeFileSync(file, JSON.stringify(parsed));
+  return root;
+}
+
+test("security: a saved BYO client replaces the Tovu-owned client for its own connection; its secret reaches only the token endpoint", async () => {
+  const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+  await saveByoClient(customCredentialRepo);
+  const vaultRepo = new InMemoryVaultRepo({});
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo, vaultRepo });
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  let signInUrl = "";
+  const result = await runApiConnectionConnect({
+    deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async (input) => { signInUrl = input.signInUrl; await (await fetch(consentRedirect(input.signInUrl))).text(); },
+  });
+  assert.equal(result.status, "connected");
+  assert.equal(new URL(signInUrl).searchParams.get("client_id"), byoClientId, "the browser signs in to the admin's own client");
+  assert.equal(lastTokenForm.get("client_id"), byoClientId);
+  assert.equal(lastTokenForm.get("client_secret"), byoSecret(), "the BYO secret is sent to the token endpoint only");
+  assert.ok(!signInUrl.includes(byoSecret()), "never in the authorization URL");
+  const status = await host.statusOf({ connection });
+  const rows = await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null });
+  for (const [what, value] of Object.entries({ connection, result, status, rows, listed: await host.listConnections({}) })) {
+    assert.ok(!JSON.stringify(value).includes(byoSecret()), `the BYO secret is not in ${what}`);
+  }
+});
+
+test("security: a BYO client is used only for its own workspace and connection, and only when the connection allows one", async (t) => {
+  const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+  await saveByoClient(customCredentialRepo, { workspaceId: "ws-2" });
+  await saveByoClient(customCredentialRepo, { label: byoClientLabel({ pluginId: "acme-office", connectionId: "other" }) });
+  await saveByoClient(customCredentialRepo, { label: byoClientLabel({ pluginId: "other-plugin", connectionId: "account" }) });
+  assert.equal((await connectDesktop(makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo }))).status, "connected");
+  assert.equal(lastTokenForm.get("client_id"), "acme-desktop-client", "another workspace's, connection's or plugin's BYO client is ignored");
+  await saveByoClient(customCredentialRepo);
+  const packageRoot = fixtureCopy(t, (declaration) => { delete declaration.byoClient; });
+  assert.equal((await connectDesktop(makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo, packageRoot }))).status, "connected");
+  assert.equal(lastTokenForm.get("client_id"), "acme-desktop-client", "a connection that does not allow BYO keeps the Tovu-owned client");
+});
+
+test("security: switching the OAuth client makes a connected account reconnect-required, honestly, until it reconnects", async () => {
+  const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo });
+  const { connectionRef } = await connectDesktop(host);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const target = { workspaceId: "ws-1", pluginId: "acme-office", connectionRef };
+  const saved = await saveByoClient(customCredentialRepo);
+  await assert.rejects(host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), { code: "reconnect-required", message: /sign-in client changed.*Reconnect/ });
+  assert.equal((await host.records.read({ key: connectionRef }))?.status, "reconnect-required");
+  assert.equal((await host.statusOf({ connection })).status, "reconnect-required");
+  assert.equal(await host.toolConnections.readAccount(target), null);
+  await deleteCustomCredential({ repo: customCredentialRepo }, { workspaceId: "ws-1", id: saved.id });
+  assert.equal((await host.statusOf({ connection })).status, "reconnect-required", "removing the BYO client returns to the Tovu-owned one only after a reconnect");
+  assert.equal((await connectDesktop(host)).status, "connected");
+  assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
+});
+
+test("security: a client switch is detected on status reads alone (no token read), durably", async () => {
+  const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo });
+  const { connectionRef } = await connectDesktop(host);
+  await saveByoClient(customCredentialRepo);
+  assert.equal((await host.records.read({ key: connectionRef }))?.status, "reconnect-required");
+  await deleteCustomCredential({ repo: customCredentialRepo }, { workspaceId: "ws-1", id: (await listCustomCredentials({ repo: customCredentialRepo }, { workspaceId: "ws-1" }))[0]!.id });
+  assert.equal((await host.records.read({ key: connectionRef }))?.status, "reconnect-required", "the downgrade was written, not just shown");
+});
+
+test("security: rotating the BYO secret under the same client id keeps the connection", async () => {
+  const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+  const saved = await saveByoClient(customCredentialRepo);
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo });
+  const { connectionRef } = await connectDesktop(host);
+  await updateCustomCredential({ repo: customCredentialRepo, sealer: siteSealer, keyring: siteKeyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => "unused" } },
+    { workspaceId: "ws-1", id: saved.id, connection: { token: "r".repeat(30), username: byoClientId } });
+  assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
+});
+
+test("security: a BYO client whose base URL is not the token endpoint's origin, or that has no client id, is refused before any sign-in", async () => {
+  const cases = [
+    { input: { baseUrl: "https://elsewhere.example/token" }, message: /base URL must be on https:\/\/auth\.acme\.test/ },
+    { input: { clientId: null }, message: /OAuth client ID as its username/ },
+  ];
+  for (const { input, message } of cases) {
+    const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+    await saveByoClient(customCredentialRepo, input);
+    const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv, customCredentialRepo });
+    const [connection] = await host.listConnections({ pluginId: "acme-office" });
+    const calls = tokenCalls;
+    assert.throws(() => host.serviceFor({ connection }), (error: Error & { code?: string }) => {
+      assert.equal(error.code, "descriptor-invalid");
+      assert.match(error.message, message);
+      assert.ok(!error.message.includes(byoSecret()), "the refusal never carries the secret");
+      return true;
+    });
+    assert.equal(tokenCalls, calls);
+  }
+});
+
+test("security: a hosted BYO web client returns to this site's own address, and still fails closed without one", async () => {
+  const customCredentialRepo = new InMemoryCustomCredentialSetRepo();
+  await saveByoClient(customCredentialRepo);
+  const hosted = makeHost("ws-1", { env: {}, customCredentialRepo, publicOrigin: () => "https://self-hosted.example" });
+  const [connection] = await hosted.listConnections({ pluginId: "acme-office" });
+  assert.equal(hosted.hostedCallbackUrl({ connection: connection! }), "https://self-hosted.example/api/agent-plugins/connections/oauth/callback", "no configured callback-origin list needed");
+  const offline = makeHost("ws-1", { env: {}, customCredentialRepo, publicOrigin: () => undefined });
+  const [withoutOrigin] = await offline.listConnections({ pluginId: "acme-office" });
+  assert.throws(() => offline.hostedCallbackUrl({ connection: withoutOrigin! }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
+});
+
+test("security: a byoClient flag that is not true or false refuses the whole declaration (never read as allowed)", () => {
+  const declaration = { id: "account", module: "lib/connection.mjs", clients: { web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } } };
+  assert.deepEqual(parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [{ ...declaration, byoClient: "yes" }] }) }), { ok: false, reason: "connections[0].byoClient must be true or false" });
+  const absent = parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [declaration] }) });
+  assert.equal(absent.ok && absent.descriptors[0]!.byoClient, false);
+  const declared = parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [{ ...declaration, byoClient: true }] }) });
+  assert.ok(declared.ok && declared.descriptors[0]!.byoClient === true && !("byoClient" in declared.descriptors[0]!.descriptor), "never reaches Jini's descriptor");
 });

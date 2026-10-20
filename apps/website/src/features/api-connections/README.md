@@ -16,6 +16,8 @@ names no provider.
 | `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
 | `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
+| `byo-client.ts` | Bring-your-own OAuth client: `byoClientLabel({ pluginId, connectionId })` (the custom-credential label an admin saves it under) and `resolveByoClient({ credentials, workspaceId, connection })` (the saved client, an actionable refusal, or none). |
+| `hook-http.ts` | `createConnectionHookHttp({ http, connection })`: the HTTP a connection's hooks get, limited to its declared `apiOrigins` plus its token endpoint's origin (exact origin match; anything else is refused before it is sent). |
 | `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. `startApiConnectionSignIn` is the shared start (declared start parameters; desktop completion returns the declared callback fields). |
 | `surface-connections.ts` | The admin-surface `connections` port by connection id (status, begin, confirm/cancel switch, disconnect with verbatim revocation, `takeCallbackFields` keyed by the service's attempt id). `status.lastSignInAttempt` is `{ code, nextAction: 'reconnect' }` after a desktop sign-in failed once the browser had opened (our own code, from `host.lastSignInAttempts`), `null` otherwise; a later successful desktop sign-in clears it. |
 | `plugin-state.ts` | Plugin settings: JSON per key, per workspace + plugin, sealed rows in the same vault kind (no migration); 128 keys and 16 KiB per value; `forPlugin` (surfaces, read-write) and `readerFor` (tools, form delivery: `get` only). |
@@ -30,7 +32,7 @@ names no provider.
   "authorizationEndpoint": "https://…", "tokenEndpoint": "https://…",
   "authorizationParams": { "public": {}, "confidential": {} }, "startParams": [], "callbackFields": [],
   "budgets": [{ "scope": "connection", "perMinute": 45 }, { "scope": "instance", "perMinute": 240 }],
-  "scopeSets": ["files"], "apiOrigins": ["https://api.example.com"],
+  "scopeSets": ["files"], "apiOrigins": ["https://api.example.com"], "byoClient": true,
   "clients": {
     "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET", "redirectOrigins": ["https://…"] },
     "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }
@@ -43,11 +45,38 @@ so a surface's `status` can report which are granted. `apiOrigins` (optional, at
 exactly those hosts. Neither reaches Jini's descriptor.
 
 `createHooks({ http })` returns Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`,
-`revoke`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`). The web
+`revoke`). Its `http` reaches only the connection's `apiOrigins` and its `tokenEndpoint`'s origin, so
+a provider's revocation endpoint must be on one of those (`hook-http.ts`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`). The web
 client is confidential and must have its secret. The desktop client is public (PKCE, loopback); it
 may name a secret when the provider issues installed apps one, which is sent with
 `client_secret_post` but still kept in host config only, never in output, logs or the vault. A second
 provider needs only its own plugin files (see the `acme-office` test fixture).
+
+## Bring your own OAuth client
+
+A declaration with `"byoClient": true` lets a workspace admin sign in with their own OAuth client
+instead of the host's. It is saved through the existing secure credential capture (Admin → Access
+Tokens → "Add custom provider", or the chat `custom_credential_create` card: masked field, sealed in
+the vault, never chat text or a tool argument) as a custom credential with:
+
+- label `<pluginId>/<connectionId> OAuth client` (`byoClientLabel`), in the same workspace;
+- base URL on the connection's token endpoint origin (the only place its secret may go; a credential
+  whose allowed origins miss it is refused, not ignored);
+- username = the client id (not a secret), token = the client secret.
+
+The host resolves it on every `listConnections` and keeps the client in a per-host `WeakMap` keyed by
+the loaded declaration, so it never becomes a serializable field and never crosses workspaces. It
+then replaces the host client for that runtime (`public` on desktop, `confidential` hosted, both
+`client_secret_post`). A hosted BYO web client returns to this site's own public origin (the admin
+registered `<origin>/api/agent-plugins/connections/oauth/callback`), with no configured origin list;
+no public origin still fails closed. A declaration without `byoClient` ignores any such credential.
+
+Client switch: tokens are sealed for the client id that issued them. When the client changes (BYO
+saved, replaced or removed), `records.read`, `statusOf`, `toolConnections.readAccount` and token reads
+find the connected record's tokens unreadable and durably move it to `reconnect-required` (revision
+CAS); token reads then refuse with `reconnect-required`. A reconnect issues tokens for the current
+client. Rotating the secret under the same client id keeps the connection. A second provider plugin
+gets all of this by declaring `byoClient: true`.
 
 ## Rules the host keeps
 

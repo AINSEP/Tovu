@@ -2093,7 +2093,7 @@ async function composeSiteRouteDeps(
   const agentPluginConnections = composeAgentPluginConnections({
     workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
     vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }),
-    keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, http: guardedOutboundHttpClient,
+    keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
     env: process.env, derivedPublicOrigin,
   });
   // Boot load of plugin admin-surface handlers (each surface open reloads them too; see handlers.ts).

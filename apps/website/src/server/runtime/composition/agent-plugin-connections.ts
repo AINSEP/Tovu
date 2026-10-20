@@ -3,6 +3,8 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
+import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
+
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "#src/features/api-connections/host";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -72,6 +74,7 @@ export interface AgentPluginConnectionsComposition {
 
 /**
  * Builds the shared connection port and the three seams over it.
+ * @param required.customCredentialRepo - The site's saved custom credentials (an admin's own OAuth client lives there).
  * @param required.http - The site's guarded outbound HTTP client (OAuth, plugin hooks and plugin tools all use it).
  * @param required.env - Host configuration plugin client names resolve in (`process.env` in production).
  * @param required.derivedPublicOrigin - The listener origin, for the hosted callback when `TOVU_PUBLIC_URL` is unset.
@@ -81,6 +84,7 @@ export function composeAgentPluginConnections(
   required: {
     readonly workspaceId: string; readonly loadContributions: LoadPluginContributions;
     readonly vaultRepo: VaultRepoPort; readonly keyring: KeyringPort; readonly sealer: SecretSealerPort;
+    readonly customCredentialRepo: CustomCredentialSetRepoPort;
     readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
     readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
   },
@@ -89,7 +93,8 @@ export function composeAgentPluginConnections(
   const { workspaceId, loadContributions, clock, http, env } = required;
   const runtime = resolveApiConnectionRuntime({ env });
   const host = createApiConnectionHost({
-    workspaceId, loadContributions, vaultRepo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer, clock,
+    workspaceId, loadContributions, vaultRepo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer,
+    customCredentialRepo: required.customCredentialRepo, clock,
     // The installed-app redirect is `http://127.0.0.1:<port>` (RFC 8252 loopback), and the OAuth guard
     // checks redirect URIs like endpoints, so desktop admits plaintext loopback there. Nothing is
     // fetched from loopback because of it: the guarded transport still refuses private addresses.

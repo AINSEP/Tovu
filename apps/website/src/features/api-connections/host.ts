@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { createApiConnectionService, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
 import { startLoopbackAuthorizationReceiver, type OAuthClient, type OAuthHttpPorts } from "@jini-ai/oauth";
+import type { ApiConnectionRecord } from "@jini-ai/integrations/api-connections";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -9,7 +10,10 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { createAdminSurfaceCallbackInbox, type AdminSurfaceSignInAttempt } from "@jini-ai/agent-plugins/admin-surfaces";
 
 import type { LoadPluginContributions } from "../agent-plugins/lifecycle.js";
+import type { CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
+import { resolveByoClient, type ByoClient } from "./byo-client.js";
 import { createConnectionBudgets } from "./budgets.js";
+import { createConnectionHookHttp, type PluginHttp } from "./hook-http.js";
 import { createAgentPluginStateStore } from "./plugin-state.js";
 import { loadDeclaredApiConnections, type ApiConnectionClientConfig, type DeclaredApiConnection } from "./contribution.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, type ApiConnectionVaultRecordStore } from "./vault-stores.js";
@@ -26,6 +30,13 @@ import { createApiConnectionVault, createApiConnectionVaultRecordStore, createAp
  * declared request budgets (`budgets.ts`), counted in this host's memory. The host also owns the
  * workspace's plugin settings store (`plugin-state.ts`, same vault) and the consume-once inbox where
  * a completed sign-in's declared callback fields wait for the plugin's surface handler.
+ *
+ * A connection that allows it (`byoClient`) uses the workspace admin's own OAuth client when one is
+ * saved (`byo-client.ts`); its secret stays in this host's memory for the call and goes to the token
+ * endpoint only. Tokens are sealed for the client id that issued them, so after the client changes
+ * (BYO saved, replaced or removed) a connected record would claim "connected" with tokens nobody can
+ * read: every status read and token read here notices that and durably moves the record to
+ * `reconnect-required` (the honest state: a reconnect issues tokens for the current client).
  */
 
 /** The public, cookie-less callback every hosted API-connection sign-in returns to. */
@@ -44,13 +55,15 @@ export interface ApiConnectionHostDeps {
   readonly workspaceId: string;
   readonly loadContributions: LoadPluginContributions;
   readonly vaultRepo: VaultRepoPort;
+  /** The site's saved custom credentials, where an admin's own OAuth client is kept (`byo-client.ts`); opened with `keyring` + `sealer`. */
+  readonly customCredentialRepo: CustomCredentialSetRepoPort;
   readonly keyring: KeyringPort;
   readonly sealer: SecretSealerPort;
   readonly clock: Clock;
   /** Guarded OAuth fetch + URL policy (`createTovuOAuthHttpPorts`). */
   readonly oauthHttp: OAuthHttpPorts;
-  /** The guarded HTTP capability plugin hooks receive (the same one plugin tools get). */
-  readonly pluginHttp: unknown;
+  /** The guarded plugin HTTP (the same one plugin tools get); each connection's hooks get it limited to that connection's origins. */
+  readonly pluginHttp: PluginHttp;
   readonly runtime: ApiConnectionRuntime;
   /** Host configuration the plugin's client names resolve in (process env at the composition root). */
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -73,6 +86,28 @@ function configured(env: ApiConnectionHostDeps["env"], name: string | undefined)
   return name === undefined ? undefined : env[name]?.trim() || undefined;
 }
 
+/** True when a stored token set cannot be opened by this owner (sealed for another client id, or malformed). */
+function isUnreadableTokenRecord(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return error instanceof Error && error.name === "OAuthTokenStoreError" && (code === "owner-mismatch" || code === "invalid-record");
+}
+
+function clientChanged(cause: unknown): ApiConnectionError {
+  return new ApiConnectionError({ code: "reconnect-required", message: "This connection's sign-in client changed, so its stored sign-in can no longer be used. Reconnect the account in the connection settings." }, { cause });
+}
+
+/** The client kind a runtime signs in as: the installed app is public, the hosted site confidential. */
+function clientKindFor(runtime: ApiConnectionRuntime): ApiConnectionClientKind {
+  return runtime === "desktop" ? "public" : "confidential";
+}
+
+type ResolvedClient = { readonly client: OAuthClient; readonly clientKind: ApiConnectionClientKind };
+
+/** An admin's own client for this runtime; its secret goes to the token endpoint like the host's. @complexity O(1). */
+function byoOAuthClient(byo: ByoClient, runtime: ApiConnectionRuntime): ResolvedClient {
+  return { clientKind: clientKindFor(runtime), client: { clientId: byo.clientId, clientSecret: byo.clientSecret, authMethod: "client_secret_post" } };
+}
+
 /**
  * The runtime's OAuth client and how it is registered. Desktop is the installed app (`public`): PKCE,
  * and a provider-issued secret only when the provider requires one for installed apps (it is not
@@ -80,12 +115,12 @@ function configured(env: ApiConnectionHostDeps["env"], name: string | undefined)
  * web client (`confidential`) and must have its server-held secret.
  * @complexity O(1).
  */
-function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): { readonly client: OAuthClient; readonly clientKind: ApiConnectionClientKind } {
+function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): ResolvedClient {
   const config: ApiConnectionClientConfig | undefined = runtime === "desktop" ? connection.clients.desktop : connection.clients.web;
   const clientId = configured(env, config?.clientIdEnv);
   if (!config || !clientId) throw notConfigured(connection, runtime, "sign-in client");
   const clientSecret = configured(env, config.clientSecretEnv);
-  const clientKind: ApiConnectionClientKind = runtime === "desktop" ? "public" : "confidential";
+  const clientKind = clientKindFor(runtime);
   if (clientKind === "confidential" && !clientSecret) throw notConfigured(connection, runtime, "sign-in client secret");
   return { clientKind, client: clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" } };
 }
@@ -122,11 +157,64 @@ export function createApiConnectionHost(
   // the plugin's panel can say so (the loopback page is all the user saw). At most one per declared
   // connection; a later success deletes it.
   const lastSignInAttempts = new Map<string, AdminSurfaceSignInAttempt>();
+  const credentials = { repo: required.customCredentialRepo, sealer: required.sealer, keyring: required.keyring };
+  // Per host (so per workspace) and per loaded declaration object: a BYO client never travels with a
+  // connection object into another host, and the secret is never a field anything could serialize.
+  const byoClients = new WeakMap<DeclaredApiConnection, ByoClient | ApiConnectionError>();
 
+  /** The declared connections, each with this workspace's BYO client resolved fresh. @complexity O(p + c) plus one credential open per BYO connection. */
   async function listConnections(input: { readonly pluginId?: string } = {}): Promise<readonly DeclaredApiConnection[]> {
     const { connections } = await loadDeclaredApiConnections({ workspaceId: required.workspaceId, loadContributions: required.loadContributions });
-    return input.pluginId === undefined ? connections : connections.filter((connection) => connection.pluginId === input.pluginId);
+    const listed = input.pluginId === undefined ? connections : connections.filter((connection) => connection.pluginId === input.pluginId);
+    for (const connection of listed) {
+      const byo = await resolveByoClient({ credentials, workspaceId: required.workspaceId, connection });
+      if (byo) byoClients.set(connection, byo);
+    }
+    return listed;
   }
+
+  /** The connection's OAuth client here: the admin's own when saved (an unusable one refuses), else the host's. @complexity O(1). */
+  function clientFor(connection: DeclaredApiConnection): ResolvedClient {
+    const byo = byoClients.get(connection);
+    if (byo instanceof ApiConnectionError) throw byo;
+    return byo ? byoOAuthClient(byo, required.runtime) : resolveClient(connection, required.runtime, required.env);
+  }
+
+  function tokensFor(connection: DeclaredApiConnection, clientId: string) {
+    const owner = { workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, clientId };
+    return createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner });
+  }
+
+  /** Durably moves a record to `reconnect-required` (revision CAS); a lost race returns what won. @complexity Two vault calls at most. */
+  async function markReconnectRequired(record: ApiConnectionRecord): Promise<ApiConnectionRecord | null> {
+    const next: ApiConnectionRecord = { ...record, status: "reconnect-required", revision: record.revision + 1, updatedAt: new Date(required.clock.nowMs()).toISOString() };
+    return (await records.compareAndSet({ key: record.key, expectedRevision: record.revision, record: next })) ? next : records.read({ key: record.key });
+  }
+
+  /**
+   * True when a connected record's tokens were sealed for another client than the one this host
+   * would use now. A connection no longer declared, or with no usable client, is left as it is: its
+   * actions already refuse with their own reason.
+   * @complexity One contribution load and one token-row open.
+   */
+  async function tokensForAnotherClient(record: ApiConnectionRecord): Promise<boolean> {
+    if (record.status !== "connected") return false;
+    const connection = (await listConnections({ pluginId: record.pluginId })).find((candidate) => candidate.descriptor.connectionId === record.connectionId);
+    if (!connection) return false;
+    let clientId: string;
+    try { clientId = clientFor(connection).client.clientId; } catch { return false; }
+    return tokensFor(connection, clientId).load({ key: record.key }).then(() => false, (error: unknown) => {
+      if (isUnreadableTokenRecord(error)) return true;
+      throw error;
+    });
+  }
+
+  /** The record as it really stands: a connected record whose tokens belong to another client reads (and is stored) as reconnect-required. */
+  async function readHonestRecord(input: { readonly key: string }): Promise<ApiConnectionRecord | null> {
+    const record = await records.read(input);
+    return record && (await tokensForAnotherClient(record)) ? markReconnectRequired(record) : record;
+  }
+  const honestRecords: ApiConnectionVaultRecordStore = { ...records, read: readHonestRecord };
 
   /** The https origins `pluginId`'s connections declare here (union); another workspace declares none. @complexity O(p + c). */
   async function apiOriginsFor(input: { readonly workspaceId: string; readonly pluginId: string }): Promise<readonly string[]> {
@@ -141,6 +229,9 @@ export function createApiConnectionHost(
    */
   function hostedCallbackUrl({ connection }: { readonly connection: DeclaredApiConnection }): string {
     const origin = required.publicOrigin();
+    // A BYO web client is the admin's own registration: they registered this site's own callback.
+    const byo = byoClients.get(connection);
+    if (byo && !(byo instanceof ApiConnectionError)) return byoCallbackUrl(connection, origin);
     const allowed = [...(connection.clients.web?.redirectOrigins ?? []), ...configuredOrigins(required.env)];
     if (allowed.length === 0) {
       throw setupRefused(`${connection.descriptor.label} cannot sign in on this site yet: no registered sign-in return address is configured. Ask the operator to set ${API_CONNECTION_CALLBACK_ORIGINS_ENV} to this site's address, then retry.`);
@@ -151,17 +242,26 @@ export function createApiConnectionHost(
     return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
   }
 
+  function byoCallbackUrl(connection: DeclaredApiConnection, origin: string | undefined): string {
+    if (!origin) throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address: this site has no public address. Set TOVU_PUBLIC_URL, then retry.`);
+    return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
+  }
+
+  /** The connection's hooks over HTTP limited to its declared API origins and token endpoint origin. @complexity O(1). */
+  function hooksFor(connection: DeclaredApiConnection) {
+    return connection.module.createHooks({ http: createConnectionHookHttp({ http: required.pluginHttp, connection }) });
+  }
+
   /** One connection's service. Desktop passes the loopback redirect URI its attempt listens on. @complexity O(1). */
   function serviceFor(input: { readonly connection: DeclaredApiConnection; readonly redirectUri?: string }): ApiConnectionService {
     const { connection } = input;
-    const { client, clientKind } = resolveClient(connection, required.runtime, required.env);
+    const { client, clientKind } = clientFor(connection);
     const redirectUri = input.redirectUri ?? (required.runtime === "hosted" ? hostedCallbackUrl({ connection }) : undefined);
-    const owner = { workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, clientId: client.clientId };
     return createApiConnectionService({
       descriptor: connection.descriptor, client, clientKind,
       appOptions: { clientDisplayName: "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
-      hooks: connection.module.createHooks({ http: required.pluginHttp }),
-      records, tokens: createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }),
+      hooks: hooksFor(connection),
+      records, tokens: tokensFor(connection, client.clientId),
       fetchFn: required.oauthHttp.fetchFn, guard: required.oauthHttp.guard, clock: required.clock,
       randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
       sleep: ({ ms }) => new Promise((resolve) => { setTimeout(resolve, ms); }),
@@ -187,7 +287,12 @@ export function createApiConnectionHost(
         const connection = await declaredFor({ pluginId: scope.pluginId, connectionRef: input.connectionRef });
         if (!connection) throw notAvailable();
         await budgets.charge({ workspaceId: required.workspaceId, pluginId: scope.pluginId, connectionId: connection.descriptor.connectionId, connectionRef: input.connectionRef, budgets: connection.budgets });
-        return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef, workspaceId: required.workspaceId }, options);
+        return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef, workspaceId: required.workspaceId }, options).catch(async (error: unknown) => {
+          if (!isUnreadableTokenRecord(error)) throw error;
+          const record = await records.read({ key: input.connectionRef });
+          if (record?.status === "connected") await markReconnectRequired(record);
+          throw clientChanged(error);
+        });
       },
     };
   }
@@ -201,7 +306,7 @@ export function createApiConnectionHost(
   const toolConnections = {
     async readAccount(target: { readonly workspaceId: string; readonly pluginId: string; readonly connectionRef: string }) {
       if (target.workspaceId !== required.workspaceId || !(await declaredFor(target))) return null;
-      const record = await records.read({ key: target.connectionRef });
+      const record = await readHonestRecord({ key: target.connectionRef });
       return record?.status === "connected" && record.account ? { accountId: record.account.accountId, displayName: record.account.displayName } : null;
     },
     async getAccessToken(target: { readonly workspaceId: string; readonly pluginId: string; readonly connectionRef: string }, options: { readonly expectedAccountId?: string } = {}): Promise<string> {
@@ -212,18 +317,18 @@ export function createApiConnectionHost(
 
   /** The scopes a sign-in for these scope sets would request, via the plugin's own hook. @complexity One hook call. */
   async function requestedScopes(input: { readonly connection: DeclaredApiConnection; readonly scopeSetIds: readonly string[] }): Promise<readonly string[]> {
-    return input.connection.module.createHooks({ http: required.pluginHttp }).resolveScopes({ scopeSetIds: [...input.scopeSetIds] });
+    return hooksFor(input.connection).resolveScopes({ scopeSetIds: [...input.scopeSetIds] });
   }
 
   /** Token-free status straight from the record; a connection never created reads as disconnected. @complexity One read. */
   async function statusOf({ connection }: { readonly connection: DeclaredApiConnection }) {
     const key = deriveApiConnectionKey({ workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId });
-    const record = await records.read({ key });
+    const record = await readHonestRecord({ key });
     return { connectionRef: key, status: record?.status ?? "disconnected", grantedScopes: record?.grantedScopes ?? [] } as const;
   }
 
   const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;
-  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, startLoopback, listConnections, serviceFor, accessTokensFor,
+  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records: honestRecords, startLoopback, listConnections, serviceFor, accessTokensFor,
     toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, lastSignInAttempts, pluginState };
 }
 

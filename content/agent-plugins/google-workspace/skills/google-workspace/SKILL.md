@@ -17,7 +17,9 @@ Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
 - **A pasted spreadsheet link grants nothing.** If the person pastes a link, explain that they need
   to choose the file with the picker (or let Tovu create a new spreadsheet).
 - Never ask for a password, a token, a client secret or an API key in chat, and never accept one.
-  Sign-in always happens on Google's own page.
+  Sign-in always happens on Google's own page. A site that cannot use Tovu's own Google client can
+  use its own OAuth client, saved only through Tovu's secure credential form: see
+  [connection](references/connection.md), "Advanced: your own Google OAuth client".
 
 ## Before working on a spreadsheet
 
