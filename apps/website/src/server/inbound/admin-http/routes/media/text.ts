@@ -1,4 +1,4 @@
-import type { Express } from 'express';
+import type { Express, Response } from 'express';
 import { MediaNotFoundError, MediaValidationError, readDocumentText } from '@jini-ai/cms/media';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import type { MediaRouteDeps } from './deps.js';
@@ -15,13 +15,25 @@ export function registerAdminMediaTextRoute(required: { app: Express; deps: Medi
       const id = String(req.params.mediaId);
       const access = await deps.authorize({ principalId: principal.id, permission: 'media.read', workspaceId: deps.workspaceId, entityType: 'media', entityId: id });
       if (!access.allowed) { res.status(403).json({ error: 'media.read is required', code: 'FORBIDDEN' }); return; }
-      const rawOffset = req.query.offset;
-      if (rawOffset !== undefined && (typeof rawOffset !== 'string' || !/^\d+$/u.test(rawOffset))) throw new MediaValidationError({ message: 'offset must be a non-negative byte offset' });
       res.json(await readDocumentText({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, blobStore: deps.blobStore },
-        input: { workspaceId: deps.workspaceId, id, offset: rawOffset === undefined ? 0 : Number(rawOffset) } }));
+        input: { workspaceId: deps.workspaceId, id, offset: parseTextOffset(req.query.offset) } }));
     } catch (error) {
-      const status = error instanceof MediaNotFoundError ? 404 : error instanceof MediaValidationError ? 400 : 500;
-      res.status(status).json({ error: status === 500 ? 'internal error' : (error as Error).message });
+      sendTextReadFailure({ res, error });
     }
   });
+}
+
+/** An omitted offset pages from byte 0; anything but a run of decimal digits is refused before any read.
+ *  @complexity O(n) in the offset's length. */
+function parseTextOffset(rawOffset: unknown): number {
+  if (rawOffset === undefined) return 0;
+  if (typeof rawOffset !== 'string' || !/^\d+$/u.test(rawOffset)) throw new MediaValidationError({ message: 'offset must be a non-negative byte offset' });
+  return Number(rawOffset);
+}
+
+/** 404 for a missing document, 400 for a refused read, otherwise a private 500.
+ *  @complexity O(1). */
+function sendTextReadFailure({ res, error }: { res: Response; error: unknown }): void {
+  const status = error instanceof MediaNotFoundError ? 404 : error instanceof MediaValidationError ? 400 : 500;
+  res.status(status).json({ error: status === 500 ? 'internal error' : (error as Error).message });
 }

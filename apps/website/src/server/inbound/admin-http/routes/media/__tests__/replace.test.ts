@@ -119,6 +119,29 @@ test('replace sanitizes SVG before switching its source and preserves the media 
   assert.equal(createHash('sha256').update(bytes).digest('hex'), result.json.media.sha256);
 });
 
+test('replace reports the uploaded byte length for a raster replacement', async t => {
+  const { deps, media } = await fixture(t);
+  const result = await invoke({ deps, id: media.id });
+  assert.equal(result.status, 200);
+  assert.equal(result.json.media.byteSize, replacement.byteLength);
+});
+
+test('replace reports the stored size of a sanitized SVG, and null when that size is unknown', async t => {
+  const { deps, media } = await fixture(t);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><path d="M0 0h10v10z"/></svg>';
+  const input = { filename: 'logo.svg', contentType: 'image/svg+xml', dataBase64: Buffer.from(svg).toString('base64') };
+  const result = await invoke({ deps, id: media.id, input });
+  assert.equal(result.status, 200);
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: result.json.media.sha256 });
+  assert.ok(blob);
+  assert.equal(result.json.media.byteSize, (await deps.blobStore.get({ storageKey: blob.storageKey })).byteLength);
+  assert.notEqual(result.json.media.byteSize, Buffer.byteLength(svg));
+  t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
+  const unknown = await invoke({ deps, id: media.id, input: { ...input, dataBase64: Buffer.from(svg.replace('10', '20')).toString('base64') } });
+  assert.equal(unknown.status, 200);
+  assert.equal(unknown.json.media.byteSize, null);
+});
+
 test('replace fails closed on wrong workspace, missing principal, missing asset, trash and missing transaction capability', async t => {
   const { deps, media } = await fixture(t);
   assert.deepEqual(await invoke({ deps, id: media.id, workspaceId: 'other' }), { status: 404, json: { error: 'workspace was not found' } });
