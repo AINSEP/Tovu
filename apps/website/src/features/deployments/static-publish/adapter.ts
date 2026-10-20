@@ -8,7 +8,7 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, FormDestinationForm, FormDestinationPublishInput, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
 /**
@@ -222,6 +222,20 @@ export interface StaticPublishDeps {
   readonly hostKit?: DeployHostKit;
   /** `RouteDeps.observability`: the default kit traces the plugin's egress through it. */
   readonly observability?: ObservabilityPort;
+  /** The site's form submissions destination. Absent: publishing carries no forms (the old behavior). */
+  readonly formDestination?: StaticPublishFormDestinationPort;
+}
+
+/** What a publish hands a host that can receive the site's forms. The receiver key is created on the
+ *  first publish with active forms and saved only after that publish reaches the host. */
+export interface StaticPublishFormDestinationPort {
+  listForms(required: { readonly workspaceId: string }, optional?: Record<string, never>): Promise<readonly FormDestinationForm[]>;
+  receiverKey(required: { readonly workspaceId: string; readonly targetId: string }, optional?: Record<string, never>): Promise<{
+    readonly secret: string;
+    /** Present for a new key, or to move an existing key's address after a rename: saves it for
+     *  later pulls once the host has it. */
+    readonly save?: (required: { readonly url: string }, optional?: Record<string, never>) => Promise<void>;
+  }>;
 }
 
 /**
@@ -426,11 +440,12 @@ async function publishAndMapOutcome(
   jiniTarget: DeployTarget,
   publishInput: DeployPublishInput,
   input: StaticPublishInput,
-  basePath: string | undefined
+  basePath: string | undefined,
+  formDestination?: FormDestinationPublishInput
 ): Promise<StaticPublishOutcome> {
   try {
     const result = await jiniTarget.publish(publishInput, { responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS,
-      metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}) } });
+      metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}), ...(formDestination ? { formDestination } : {}) } });
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);
     }
@@ -489,9 +504,39 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     return targetResult.outcome;
   }
 
+  const forms = await prepareFormDestination({ deps, input });
+  if (!forms.ok) return forms.outcome;
   const publishInput: DeployPublishInput = { files, projectName: input.projectName };
-  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath);
+  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.input);
+  await saveReceiverKey({ outcome, save: forms.save });
   return finishPublishOutcome({ outcome, credential: credentialResult.credential });
+}
+
+/**
+ * The site's active forms and, when there are any, its receiver key, for a host that can accept
+ * submissions. A host that cannot simply ignores the input. No port, or no active forms: nothing is
+ * sent and no key is created.
+ * @complexity One forms read plus at most one key read.
+ */
+async function prepareFormDestination({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInput }, _options = {}): Promise<
+  { ok: true; input?: FormDestinationPublishInput; save?: (required: { readonly url: string }) => Promise<void> } | { ok: false; outcome: StaticPublishOutcome }> {
+  if (!deps.formDestination) return { ok: true };
+  try {
+    const forms = await deps.formDestination.listForms({ workspaceId: input.workspaceId });
+    if (forms.length === 0) return { ok: true, input: { forms } };
+    const key = await deps.formDestination.receiverKey({ workspaceId: input.workspaceId, targetId: input.config.target });
+    return { ok: true, input: { forms, secret: key.secret }, ...(key.save ? { save: key.save } : {}) };
+  } catch (err) {
+    return { ok: false, outcome: { ok: false, code: "EXPORT_FAILED", message: `form submissions could not be prepared: ${err instanceof Error ? err.message : String(err)}. Check the site's forms, then publish again.` } };
+  }
+}
+
+/** Saves the receiver key (new, or moved after a rename) once the host has it. A failed save is logged, not fatal: the
+ *  next publish creates and installs a fresh key, and rows still waiting at the host stay pullable. */
+async function saveReceiverKey({ outcome, save }: { outcome: StaticPublishOutcome; save?: (required: { readonly url: string }) => Promise<void> }, _options = {}): Promise<void> {
+  if (!save || outcome.ok === false) return;
+  try { await save({ url: outcome.url }); }
+  catch { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it"); }
 }
 
 /** Final credential-safe projection, including partial provider failures. @complexity O(message bytes). */

@@ -87,7 +87,7 @@ function makeHooks(required: {
     domain: 'deployment.static-publish-domain', scopeId: deps.workspaceId, readPermission: 'deployments.read', mutatePermission: 'deployments.publish',
     resolveActorClassIdentity,
     computePlan: async () => {
-      const inspected = await inspectStaticPublish({ deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, hostKit: deps.hostKit },
+      const inspected = await inspectStaticPublish({ deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
         input: { workspaceId: deps.workspaceId, config, projectName, ...(required.credentialId ? { credentialId: required.credentialId } : {}) } });
       if (inspected.inspection?.domains?.inventoryStatus !== 'complete') throw new ToolInputError({ message: `DOMAIN_INVENTORY_UNKNOWN: ${inspected.inspection?.domains?.message ?? 'Complete authenticated domain inspection is required. Preview again.'}` });
       const details = { ...inspected, workspaceId: deps.workspaceId, actorId, config, projectName };
@@ -97,7 +97,7 @@ function makeHooks(required: {
       signal.throwIfAborted();
       if (getPublishRunSnapshot().status === 'running') throw new ToolInputError({ message: 'ALREADY_RUNNING: A publish is running. Wait for it to finish, then preview again.' });
       const domainPlan = details.inspection!.domains!;
-      return runPublishAndAwait({ credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, hostKit: deps.hostKit }, {
+      return runPublishAndAwait({ credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination }, {
         workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
         config, projectName, ...(details.credentialId ? { credentialId: details.credentialId } : {}),
         domainApproval: { plan: domainPlan, credentialBinding: details.credentialBinding!, authorize: async ({ fingerprint }) => {

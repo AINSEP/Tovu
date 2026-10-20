@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ToolInputError } from '@jini-ai/core';
 import { createDeployHostKit } from '../deploy-targets/host-kit.js';
-import type { DeployTargetInspection } from '../deploy-targets/types.js';
+import type { DeployTargetInspection, FormDestinationForm } from '../deploy-targets/types.js';
 import { planStaticPublish, type StaticPublishDeps } from './adapter.js';
 import { toDeployTargetCredential } from './credentials.js';
 import type { StaticPublishConfig } from './types.js';
@@ -37,15 +37,23 @@ export async function inspectStaticPublish({ deps, input }: { deps: StaticPublis
   const resolved = await resolveInspectionCredential({ deps, input });
   if (!resolved.ok) throw new ToolInputError({ message: `NO_CREDENTIALS_CONFIGURED: ${resolved.reason}` });
   const credential = toDeployTargetCredential(resolved);
+  const formDestination = await previewFormDestination({ deps, workspaceId: input.workspaceId });
   try {
     const inspection = await plan.target.module.preview({ credential, config: input.config, projectName: input.projectName,
-      kit: deps.hostKit ?? createDeployHostKit({ observability: deps.observability }) });
+      kit: deps.hostKit ?? createDeployHostKit({ observability: deps.observability }), ...formDestination });
     return { inspection, credentialId: resolved.credentialId,
       credentialBinding: createHash('sha256').update(JSON.stringify(credential)).digest('hex') };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Provider inspection failed. Check the connection and preview again.';
     throw new ToolInputError({ message: message.replaceAll(resolved.token, '[REDACTED]') });
   }
+}
+
+/** The site's active forms for a preview, or nothing. Forms only: the receiver key is never read
+ * or created by a preview. @complexity One forms read when the port is wired. */
+async function previewFormDestination({ deps, workspaceId }: { deps: StaticPublishDeps; workspaceId: string }, _options = {}): Promise<{ formDestination?: { forms: readonly FormDestinationForm[] } }> {
+  const forms = deps.formDestination ? await deps.formDestination.listForms({ workspaceId }) : [];
+  return forms.length ? { formDestination: { forms } } : {};
 }
 
 async function resolveInspectionCredential({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput }, _options = {}) {

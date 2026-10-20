@@ -282,6 +282,8 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   /** Existing shared gateway; required when publishing with infrastructure changes. */
   readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
   readonly hostKit?: StaticPublishDeps["hostKit"];
+  /** `RouteDeps.formDestination`: the site's forms and receiver key, for a host that receives submissions. */
+  readonly formDestination?: StaticPublishDeps["formDestination"];
   readonly localCredentialCopy?: CredentialCopyToolDeps['localCredentialCopy'];
   readonly ownerPrincipalId?: Promise<string>;
   readonly authorize: AuthorizeFn;
@@ -942,7 +944,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
 
       const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
-        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, hostKit: deps.hostKit },
+        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
         input: { workspaceId: deps.workspaceId, config, projectName: typeof raw.projectName === "string" ? raw.projectName : "",
           ...toolCredentialChoice({ raw }) },
       }) : {};
@@ -1028,7 +1030,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
       const outcome = await runPublishAndAwait(
-        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, observability: deps.observability, hostKit: deps.hostKit },
+        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), buildTarget: deps.buildTarget, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination },
         { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName,
           ...toolCredentialChoice({ raw }) },
         { nowIso: () => clockNowIso({ clock: deps.clock }) },

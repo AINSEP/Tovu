@@ -73,8 +73,9 @@ export interface HostDeployTarget extends Omit<DeployTarget, "publish" | "checkR
  * base path, no summary rows, no credential check, no hosting steps).
  */
 export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "create" | "createArtifactStore" | "validateConfig" | "basePath" | "verifyCredential"> {
-  /** Authenticated read-only provider inspection. Never uploads or provisions infrastructure. */
-  preview?(required: DeployTargetCreateContext & { readonly projectName: string }, optional?: Record<string, never>): Promise<DeployTargetInspection>;
+  /** Authenticated read-only provider inspection. Never uploads or provisions infrastructure.
+   *  `formDestination` lists the site's active forms (no receiver key) so a host can preview storage. */
+  preview?(required: DeployTargetCreateContext & { readonly projectName: string; readonly formDestination?: { readonly forms: readonly FormDestinationForm[] } }, optional?: Record<string, never>): Promise<DeployTargetInspection>;
   readonly defaultForNewDestination?: boolean;
   /** A new capability may require explicit compatibility instead of inheriting an old vendor ID. */
   acceptsCredential?(required: { readonly worksFor: readonly string[] }, optional?: Record<string, never>): boolean;
@@ -95,6 +96,42 @@ export interface DeployTargetModule extends Omit<DevopsDeployTargetModule, "crea
    *  credential fields the agent passed. Throws a plain `Error` with a person-facing message for a
    *  missing field. */
   hostingSetup?(input: { readonly fields: Readonly<Record<string, string>> }): DeployHostingSetup;
+  /** A host that receives form submissions on the published site: one page of rows not yet
+   *  acknowledged, oldest first. `destination` is the published address and the site's receiver key. */
+  pullFormSubmissions?(required: { readonly kit: DeployHostKit; readonly destination: FormDestinationAddress }, optional?: { readonly after?: number; readonly limit?: number }): Promise<FormDestinationPage>;
+  /** Marks rows Tovu has durably imported, so they are no longer pending at the host. */
+  acknowledgeFormSubmissions?(required: { readonly kit: DeployHostKit; readonly destination: FormDestinationAddress; readonly ids: readonly string[] }, optional?: Record<string, never>): Promise<{ readonly acknowledged: number }>;
+}
+
+/** One active form as a hosting target receives it: names, required flags and lengths only. Never
+ *  markup, theme, notification recipients or answers. A publish adds the site's receiver `secret`. */
+export interface FormDestinationForm {
+  readonly slug: string;
+  readonly fields: readonly { readonly name: string; readonly required: boolean; readonly maxLength?: number; readonly multiple?: true }[];
+  /** Site-relative page to show after a successful submission; absent = back to the form's page. */
+  readonly successPath?: string;
+}
+export interface FormDestinationPublishInput {
+  readonly forms: readonly FormDestinationForm[];
+  readonly secret?: string;
+}
+export interface FormDestinationAddress {
+  readonly url: string;
+  readonly secret: string;
+}
+/** A submission stored at the host, before Tovu validates and imports it. */
+export interface RemoteFormSubmission {
+  readonly seq: number;
+  readonly id: string;
+  readonly formSlug: string;
+  readonly answers: Readonly<Record<string, unknown>>;
+  readonly submittedAt: string;
+  readonly ip: string | null;
+}
+export interface FormDestinationPage {
+  readonly items: readonly RemoteFormSubmission[];
+  readonly nextAfter: number;
+  readonly hasMore: boolean;
 }
 
 /** Plugin-owned inspection data; opaque vendor facts remain outside Jini's generic port. */
@@ -108,6 +145,13 @@ export interface DeployTargetInspection {
     readonly message: string;
     readonly errorCode?: string;
     readonly hostnames: readonly Readonly<Record<string, unknown>>[];
+    readonly changes: readonly Readonly<Record<string, unknown>>[];
+  };
+  /** Present when the site has active forms: whether this host will receive them, and what it changes. */
+  readonly formSubmissions?: {
+    readonly status: "on" | "unsupported" | "permission-required";
+    readonly forms: number;
+    readonly message: string;
     readonly changes: readonly Readonly<Record<string, unknown>>[];
   };
 }
