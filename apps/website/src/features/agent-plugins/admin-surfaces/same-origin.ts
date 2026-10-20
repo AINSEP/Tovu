@@ -10,6 +10,16 @@
  * client still needs the session cookie.
  */
 
+/** The host of a bare http(s) origin string, or null for anything else (including "null"). */
+function originHost(origin: string): string | null {
+  try {
+    const url = new URL(origin);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.origin === origin ? url.host : null;
+  } catch {
+    return null;
+  }
+}
+
 /** True only for a browser request whose `Origin` is exactly this server's host.
  * @complexity O(1). */
 export function isSameOriginAdminWrite(
@@ -19,10 +29,5 @@ export function isSameOriginAdminWrite(
   const { origin, host, fetchSite } = required;
   if (!origin || !host) return false;
   if (fetchSite !== undefined && fetchSite !== "same-origin") return false;
-  try {
-    const url = new URL(origin);
-    return (url.protocol === "http:" || url.protocol === "https:") && url.origin === origin && url.host === host;
-  } catch {
-    return false;
-  }
+  return originHost(origin) === host;
 }
