@@ -6,6 +6,16 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import type { FormsRouteRegistrar } from "./deps.js";
 
+function authoringPatch({ body }: { body: Record<string, unknown> }, _options = {}) {
+  return {
+    ...(typeof body.name === "string" ? { name: body.name } : {}),
+    ...(Array.isArray(body.fields) ? { fields: body.fields as FieldDescriptor[] } : {}),
+    ...(body.notify !== undefined ? { notify: body.notify as NotifyConfig } : {}),
+    ...(body.mode !== undefined ? { mode: body.mode as FormAuthoring["mode"] } : {}),
+    ...(body.html !== undefined ? { html: body.html as string } : {}),
+  };
+}
+
 /** Separate authoring endpoint avoids changing the shared-tree CRUD route. Both permissions and
  * the audit boundary live in the write service, covering route and future tool callers alike. */
 export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps) => {
@@ -36,13 +46,7 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps)
           formId,
           actor: { id: principal.id, kind: "user" },
           idempotencyKey: req.get("Idempotency-Key") || undefined,
-          patch: {
-            ...(typeof body.name === "string" ? { name: body.name } : {}),
-            ...(Array.isArray(body.fields) ? { fields: body.fields as FieldDescriptor[] } : {}),
-            ...(body.notify !== undefined ? { notify: body.notify as NotifyConfig } : {}),
-            ...(body.mode !== undefined ? { mode: body.mode as FormAuthoring["mode"] } : {}),
-            ...(body.html !== undefined ? { html: body.html as string } : {}),
-          },
+          patch: authoringPatch({ body }, {}),
         },
       });
       res.json(toAdminFormDefinitionResponse(definition));

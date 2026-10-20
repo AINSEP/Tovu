@@ -1,6 +1,6 @@
 import { deleteFormSubmission } from "@jini-ai/cms/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { FormsRouteDeps, FormsRouteRegistrar } from "./deps.js";
+import type { FormsRouteRegistrar } from "./deps.js";
 import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 /** DELETE moves one submission to the Trash (`FORMS_DELETE_SUBMISSION`). A submission of another
@@ -55,13 +55,13 @@ export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app
           },
           {}
         );
-        if (!outcome.ok && outcome.reason === "not-found") {
-          res
-            .status(404)
-            .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });
-          return;
-        }
         if (!outcome.ok) {
+          if (outcome.reason === "not-found") {
+            res
+              .status(404)
+              .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });
+            return;
+          }
           res
             .status(409)
             .json({ error: `submission '${submissionId}' changed while it was being deleted`, code: "TRASH_VERSION_CHANGED" });
