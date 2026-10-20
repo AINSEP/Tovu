@@ -132,7 +132,7 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
   const connectionRef = deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" });
   assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
-  assert.deepEqual(await port({ workspaceId: "ws-1", connectionRef, adapterId: "sheet-rows" }), { token: accessToken, baseUrl: "" });
+  assert.deepEqual(await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }), { token: accessToken, baseUrl: "" });
 });
 
 test("security: the callback refuses an unknown state without any token exchange and renders no request data", async () => {

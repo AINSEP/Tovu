@@ -8,8 +8,8 @@ import type { ApiConnectionHost } from "./host.js";
  * destination's binding stores only a `connectionRef`; each delivery attempt resolves a fresh access
  * token here, immediately before its HTTP call. Jobs never hold tokens.
  *
- * UNWIRED until the forms fan-out lands (lot G14): it is built against the contract in the
- * google-workspace brief and tested in isolation. The ref must belong to the plugin that contributes
+ * UNWIRED until the forms fan-out lands (the form-delivery wiring lot): it is built against the
+ * forms-multidest delivery contract and tested in isolation. The ref must belong to the plugin that contributes
  * the binding's adapter, so one plugin's destination can never spend another plugin's connection.
  */
 
