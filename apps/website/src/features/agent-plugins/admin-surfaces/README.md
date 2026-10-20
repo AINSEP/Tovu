@@ -55,7 +55,8 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
     digest of the OAuth state);
   - `state`: the plugin's settings (`api-connections/plugin-state.ts`), read-write here and
     read-only for its tools (and later form delivery), keyed by plugin and workspace;
-  - `publicConfig`: the declared public names, from host config.
+  - `publicConfig`: the declared public names, from host config; only `TOVU_…_APP_ID`, `_CLIENT_ID`,
+    `_BROWSER_KEY` or `_PUBLIC_KEY` names are read (never the site's other settings).
   Without a handler module, a declared action answers `action-unavailable` and bootstrap data is `null`.
 - Sign-in links: the sandboxed frame cannot open popups, so a handler's `begin` result is opened by
   the HOST page. The connections port reports every link it issued to `issued-sign-ins.ts`; the
