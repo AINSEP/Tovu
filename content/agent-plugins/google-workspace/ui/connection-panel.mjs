@@ -12,9 +12,9 @@
 import { connectionSummary, productRows, revocationMessage } from './connection-view.mjs';
 import { busy, connectToHost, failureText, h, show, wait } from './dom.mjs';
 
-const client = connectToHost();
-const app = document.getElementById('app');
 const POLL_MS = 4000;
+let client;
+let app;
 let notice = null;
 
 const call = (action, payload = {}) => client.call({ action, payload });
@@ -24,7 +24,8 @@ async function followSignIn(before, expiresAt) {
   while (Date.now() < Date.parse(expiresAt)) {
     await wait(POLL_MS);
     const view = await call('status');
-    if (JSON.stringify(view.connection) !== JSON.stringify(before.connection)) return render(view);
+    // The sign-in finished: the "continue to sign-in" instruction no longer applies.
+    if (JSON.stringify(view.connection) !== JSON.stringify(before.connection)) { notice = null; return render(view); }
   }
   notice = { text: 'The sign-in link expired. Start it again if you still want to change the connection.' };
   return render(await call('status'));
@@ -101,11 +102,27 @@ let lastView = null;
 
 function render(view) {
   lastView = view;
-  if (view === null) return show(app, h('p', { class: 'notice' }, [notice?.text ?? 'The panel could not load. Close it and open it again.']));
+  // A null view only comes from a failed first `status`, which always sets the notice first (and
+  // with no view there are no buttons, so no later action can render null again).
+  if (view === null) return show(app, h('p', { class: 'notice' }, [notice.text]));
   return show(app,
     notice ? h('p', { class: notice.ok ? 'notice ok' : 'notice', role: 'status' }, [notice.text]) : null,
     connectionCard(view),
     productsCard(view));
 }
 
-client.ready.then(() => call('status')).then(render, (error) => { notice = { text: failureText(error) }; render(null); });
+/**
+ * Starts the panel in a frame: connects to the host and renders the status once the host's init
+ * arrives. Exported so a test can start a fresh panel (fresh state) in its own jsdom window; the
+ * last line starts the real one.
+ * @param {{ window: Window, document: Document }} required
+ */
+export function initConnectionPanel(required) {
+  client = connectToHost({ window: required.window });
+  app = required.document.getElementById('app');
+  notice = null;
+  lastView = null;
+  client.ready.then(() => call('status')).then(render, (error) => { notice = { text: failureText(error) }; render(null); });
+}
+
+initConnectionPanel({ window, document });
