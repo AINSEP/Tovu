@@ -35,7 +35,8 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 | F4 | MERGED (Tovu) | 4bc8f6e1f (incl. fix F7a) | 45c606447 | personas OK; 323k tokens/138 calls (OVER 300k ceiling). First verify RED: cross-site-read-catalog (forms_delivery_status had no peer reader) → F7a (113k tokens) supplied the peer site's read-only SqlFormDeliveryRepo reads (forSubmission/recentUnfinished) + peer-isolation pin. cx: nothing new/worsened (pre-existing over-9 unchanged, identical on base). Conflicts with F5 in routes/types.ts + deps.ts resolved as unions; F5's duplicate readAutoPull removed in favour of F4's readFormsAutoPull (via settings barrel). |
 | F5 | MERGED (Tovu) | 636ba4744 | 46c048ec2 | personas OK; 306k tokens/130 calls (OVER 300k ceiling). Classifier: principalHoldsOwnerWildcard + principalHoldsBuiltinAdminRole (identity feature), explicit AdminSignInPort (CreateAppOptions → createCoreModule → registerAuthRoutes) on password login + desktop boot-session + local boot-session; lease proof FORM_PULL_LEASE_MS = 2 × 10 pages × 2 requests × 15 s = 600 s, host now caps each pull request at 15 s (pull.ts). cx nothing new/worsened. form-pull-triggers.ts 100/100/100 (subagent). |
 | F7b | MERGED (Tovu) | 120ea5441 | (merge after cc452f863) | transfer/vault parity pins for 0018 (pre-existing base gap) + 0019 tables: plans + job index copied (ids only; outbox rows travel in the same snapshot; omitting plans would re-plan = duplicate delivery), form_receiver_pulls EXCLUDED (new reason `running-lock`). 163k tokens. |
-| F6 | dispatching | | | |
+| F6 | MERGED (Tovu) | 05b067014 | (see log) | personas OK; 272k tokens/70 calls. 10/10 groups PASS (coordinator rerun 10/10, no 'connection is not open' line): P1 pull→plan (2 frozen jobs, key [sid,bindingId], no IP); drain1 A completed / B retrying attempts 1 nextRetryAt +10 min (adapter retryAfter beat 2.5 min backoff) code rate-limited; drain2 same job id/key/payload, A called once; replay adds nothing; binding edits after planning change nothing; non-retryable → failed attempts 1, no retry after +48 h; restart recovers claimed jobs after the 30-min worker lease. P2 autoPull OFF → 0 pulls; ON → 1 startup pull, sign-in within 60 s pulls nothing; manual during in-flight → already-running. Mutation check: 7 product breaks each failed its group. |
+| F7 | not needed beyond F7a/F7b (F6 found no product failure) | | | |
 | F7 | — | | | |
 | F8 | — | | | |
 | F9 | — | | | |
@@ -47,7 +48,7 @@ Reference copies: `/tmp/fm-wip.patch`, `/tmp/fm-wip-app.patch`, `/tmp/fm-wipx/` 
 - 2026-10-20 06:18Z: fresh coordinator resumed after the 05:46Z usage-limit stop. The previous F3 merge (997c1a9e) was never pushed; origin coordinator was at 235960d1. Re-merged origin/cloud/forms-multidest-F3 (a7a9a734) as 0ff24f5e and re-verified from scratch. Setup redone: Node v24.22.0 tarball (sha256 OK) in ~/.local/node24 via /tmp/fm-env.sh; Jini install 18 s + build 95 s (integrations tsc fails on its own tests, as before); Tovu npm ci x3 40 s; link:jini OK; sdk OK; Postgres 16 cluster /tmp/fm-pg (socket /tmp, roles la/root). Coordinator personas (software-architect, code-inspection, security) re-loaded.
 
 ## Next
-F6 vertical-slice proof.
+F8 review (phase B), then F9 fixes + phase C tests, then end-of-build suites.
 
 ## Combined F4+F5 verify (coordinator, merged state cc452f863)
 - root tsc 0; typecheck:tests 0; 592 lot+importer test files: 6766 tests, 6752 pass, 6 fail, 8 skipped. 4 fail identically on base (database-transfer tool-registrations.postgres ×3 expect host 'localhost' vs PGHOST=/tmp; theme-colour-contract missing content tokens.json). 2 (commerce-strip-parity) = 0018/0019 tables missing from parity pins → F7b; after F7b: parity + vault-boundary + exclusions 21/21, typecheck:tests 0.
@@ -55,6 +56,8 @@ F6 vertical-slice proof.
 - Test hygiene (pre-existing): the suite leaves chat.db, content/themes/.preview-refresh.json, sites/tovu-dev/agent-plugins/ in the repo root; removed by hand.
 
 ## Review notes for phase B / F8
+- F6: form-submissions.ts:91 starts a background processOutbox after a pull that stop() never awaits → closing the store mid-drain logs 'database connection is not open' (rows recover after the 30-min worker lease).
+- F6: composition clock fixed at deps.ts:1172 (Date); planning timestamps + pull lease use wall clock, so the 60 s 'recent' window cannot be driven by a fake clock.
 - F5: per-receiver pull failure log (form-submissions.ts pullOne catch) includes receiver origin + redacted stack; now emitted at startup/sign-in.
 - F5: stopServingWithinGrace waits on the pull with no limit (≤ ~300 s).
 - F5: a page import that throws can leave forms[].imported > report counts.
