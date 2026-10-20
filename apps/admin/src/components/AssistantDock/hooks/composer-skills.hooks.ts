@@ -53,6 +53,14 @@ export function useComposerDiscoveryDraft(catalog: readonly ComposerDiscoveryGro
   return { rootRef, captureDraft, readDraft, groups, draftBlank: shape.blank, refreshDraft };
 }
 
+const IDLE_SEND_BUTTON = ".jini-composer-send:not(.jini-composer-send--stop)";
+
+/** Seeding is only safe while the composer accepts input and shows Send (not Stop). */
+function composerAcceptsSend(root: HTMLDivElement | null): boolean {
+  const textarea = root?.querySelector<HTMLTextAreaElement>(".jini-composer textarea");
+  return !textarea?.disabled && Boolean(root?.querySelector(IDLE_SEND_BUTTON));
+}
+
 /** The package disables Send for empty drafts and exposes only insertText to hosts. This explicit
  * send action uses that public handle to seed a skill-name-only turn at send time, then delegates
  * to the pane's usual Send (including its runtime/upload guards). Selection itself stays blank. */
@@ -64,12 +72,10 @@ export function useSkillOnlySend(input: {
   const { prompt, composerHandle, discovery } = input;
   useEffect(() => { discovery.refreshDraft(); }, [prompt, discovery.refreshDraft]);
   const sendSkills = useCallback(() => {
-    if (!prompt || discovery.readDraft().trim() || !composerHandle.current) return;
-    const textarea = discovery.rootRef.current?.querySelector<HTMLTextAreaElement>(".jini-composer textarea");
-    if (textarea?.disabled || !discovery.rootRef.current?.querySelector(".jini-composer-send:not(.jini-composer-send--stop)")) return;
-    flushSync(() => composerHandle.current?.insertText(prompt));
-    const send = discovery.rootRef.current?.querySelector<HTMLButtonElement>(".jini-composer-send:not(.jini-composer-send--stop)");
-    send?.click();
+    const handle = composerHandle.current;
+    if (!prompt || discovery.readDraft().trim() || !handle || !composerAcceptsSend(discovery.rootRef.current)) return;
+    flushSync(() => handle.insertText(prompt));
+    discovery.rootRef.current?.querySelector<HTMLButtonElement>(IDLE_SEND_BUTTON)?.click();
   }, [prompt, composerHandle, discovery.readDraft, discovery.rootRef]);
   return { sendSkills, canSendSkills: prompt.length > 0 && discovery.draftBlank };
 }

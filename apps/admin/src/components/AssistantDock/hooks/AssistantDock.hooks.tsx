@@ -1,8 +1,9 @@
 import { partitionChatPackages } from "./chat-package-kind";
-import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features/plugins/selected-skills";
+import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./resolve-composer-discovery-outcome";
+import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
-import { loadSkillDraft, SKILLS_CHANGED_EVENT } from "@/features/skills/api";
+import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 import { startVisibleInterval } from "@/lib/visible-interval";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
@@ -48,7 +49,6 @@ import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,
   projectComposerCapabilities,
-  resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
 } from "@/features/plugins/composer-capabilities";
 import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
@@ -1318,99 +1318,9 @@ export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | un
   return useMemo(() => createBrowserWorkingDirectoryAccess(), []);
 }
 
-export interface ResolveComposerDiscoveryOutcomeDeps {
-  readonly capabilities: ComposerCapabilityProjection;
-  readonly navigate: (path: string) => void;
-  /** Structurally `@jini-ai/chat/react`'s `McpUiToolCallHandler` — the same instance registered
-   * for MCP-UI surface rendering in `AssistantDock.tsx` (`mcpUiToolCaller`), reused rather than
-   * re-instantiated. */
-  readonly callAllowlistedTool: (call: { name: string; arguments: Record<string, unknown> }) => Promise<unknown> | unknown;
-  /**
-   * Pins a selected capability's `pluginRefId` (`composer-capabilities.ts`'s own doc on that
-   * field) as a removable chip — {@link UseSelectedAgentPlugins.addPluginRef}. Optional so every
-   * existing caller of this function keeps compiling and passing unchanged even when it projects no
-   * `pluginRefId` capability; a selection that resolves to a `pluginRefId` capability with this omitted is simply
-   * a no-op rather than a crash, matching `resolveTovuComposerDiscoveryRoute`'s own "no route, no
-   * effect" posture for an id nothing recognizes.
-   */
-  readonly addPluginRef?: (pluginRefId: string) => void;
-  readonly skillsAvailable?: boolean;
-  readonly addSkill?: (skill: SelectedComposerSkill) => void;
-  readonly readDraft?: () => string;
-}
-
-/**
- * Resolves one composer selection into its effect — the host half of debate 2's projection
- * ("Composer slash commands"). Checks the existing client-local route first (`/mcp`'s settings
- * navigation, unchanged since before this projection existed), then falls through to a projected
- * capability's own {@link ComposerHostBinding} (see `composer-capabilities.ts`'s module doc for
- * what each binding kind means). Returns the `ComposerDiscoveryOutcome`
- * Jini's `Composer` applies to the draft, or `undefined` when nothing should change it — e.g. `/mcp`
- * navigating away, or an unresolvable item id (never true for a live selection, but not assumed).
- *
- * A free function rather than inline in the component: every dependency is explicit and injected,
- * so the resolution logic (including the `'allowlisted-tool-call'` branch, unreachable through any
- * bundled capability today) is provable without rendering `AssistantDock` at all.
- *
- * Per `INFO.md`'s Components rule 2 it is re-exported by name from `AssistantDock.tsx` — see that
- * file — which is the path its own suite imports it through.
- *
- * @complexity O(1) plus the cost of `callAllowlistedTool` when a tool-call binding is resolved.
- * @overallScore 100
- */
-export async function resolveComposerDiscoveryOutcome(
-  selection: ComposerDiscoverySelection,
-  deps: ResolveComposerDiscoveryOutcomeDeps,
-): Promise<ComposerDiscoveryOutcome | void> {
-  const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
-  if (route) {
-    deps.navigate(route);
-    return;
-  }
-
-  const capability = deps.capabilities.byItemId.get(selection.item.id);
-
-  // Pinning a plugin ref never leaves anything of its own in the draft — the chip IS the visible
-  // effect, rendered by `AssistantDock.tsx`'s own `leadingAccessories` slot from
-  // `useSelectedAgentPlugins` state, not by anything Jini's `Composer` applies. Checked before
-  // `capability?.resolve` below: today's bundled catalog never sets both on the same capability,
-  // but if a future one did, pinning the chip should not be skipped just because a `resolve`
-  // binding also exists.
-  //
-  // `{ draft: "" }`, not a bare `return` (2026-08-23): the "+" menu and a plain (no-`command`)
-  // slash selection both already clear the draft themselves, in `Composer.tsx`, via this
-  // capability's own `insertText: ""` — this outcome was a no-op for those paths. But the
-  // `command`-bearing slash path (`/ui-ux-design`, added the same day) is a `selectSlashItem`
-  // branch that skips that same insertText-driven clear (see `composer-capabilities.ts`'s
-  // `command` doc), so without this the literal typed `/ui-ux-design` would sit in the box after
-  // pinning. Same "host explicitly clears it" pattern the `allowlisted-tool-call` branch below
-  // already uses.
-  if (capability?.pluginRefId) {
-    deps.addPluginRef?.(capability.pluginRefId);
-    return { draft: "" };
-  }
-
-  if (!capability?.resolve) return;
-
-  const binding = capability.resolve(selection.argument);
-  if (binding.kind === "compose-text") return { draft: binding.text };
-  if (binding.kind === "installed-skill") {
-    if (deps.skillsAvailable === false) throw new Error("This runtime has no tools. Choose a runtime with tools to use skills.");
-    const draft = draftAfterSkillSelection(deps.readDraft?.() ?? "", selection.source);
-    const guidance = await loadSkillDraft(binding.toolId);
-    const name = capability.item.label.replace(/ · Skill$/, "");
-    deps.addSkill?.({ toolId: binding.toolId, name, guidance });
-    return { draft };
-  }
-
-  // 'allowlisted-tool-call': POSTs through the same session-authenticated, allowlist-gated route
-  // MCP-UI surface confirmations already use. Rejects with `TOOL_NOT_ALLOWLISTED` (403) for any
-  // tool id not on `MCP_UI_REDEEMABLE_TOOL_IDS`'s allowlist — true for every binding in the bundled
-  // catalog today, since none is wired to this kind yet. The rejection propagates to the caller,
-  // where Jini's `runComposerHostEffect` reports it and leaves the draft untouched.
-  await Promise.resolve(deps.callAllowlistedTool({ name: binding.toolName, arguments: binding.params }));
-  return { draft: "" };
-}
+// `resolveComposerDiscoveryOutcome` and its deps live in `./resolve-composer-discovery-outcome.ts`;
+// re-exported here so `AssistantDock.tsx`'s re-export (and every existing import) keeps working.
+export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps };
 
 /**
  * Wraps {@link resolveComposerDiscoveryOutcome} as the `onDiscoverySelect` callback
