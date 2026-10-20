@@ -100,14 +100,23 @@ function isCheck(value: unknown): value is ContentCheck {
   );
 }
 
+function hasReportMetrics(
+  { value }: { value: Record<string, unknown> },
+  _options: Record<string, never> = {},
+): boolean {
+  return (
+    isFiniteNumber(value.score) &&
+    isFiniteNumber(value.wordCount) &&
+    isFiniteNumber(value.sentenceCount) &&
+    isFiniteNumber(value.readingTimeMinutes)
+  );
+}
+
 function isReport(value: unknown): value is ContentAnalysisReport {
   return (
     isRecord(value) &&
     value.v === 1 &&
-    isFiniteNumber(value.score) &&
-    isFiniteNumber(value.wordCount) &&
-    isFiniteNumber(value.sentenceCount) &&
-    isFiniteNumber(value.readingTimeMinutes) &&
+    hasReportMetrics({ value }) &&
     isReadability(value.readability) &&
     Array.isArray(value.toc) &&
     value.toc.every(isTocEntry) &&

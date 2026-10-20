@@ -31,6 +31,33 @@ describe("parseContentAnalysisReport", () => {
   });
 
   it.each([
+    "v", "score", "wordCount", "sentenceCount", "readingTimeMinutes", "readability", "toc", "checks",
+  ])("rejects a report missing its required %s field", (field) => {
+    expect(parseContentAnalysisReport(reportJson({ [field]: undefined }))).toBeNull();
+  });
+
+  describe.each(["score", "wordCount", "sentenceCount", "readingTimeMinutes"])("%s metric", (field) => {
+    it.each([null, true, "12", {}, []])("rejects the non-numeric value %j", (value) => {
+      expect(parseContentAnalysisReport(reportJson({ [field]: value }))).toBeNull();
+    });
+
+    it.each(["1e400", "-1e400"])("rejects a JSON number that overflows to %s", (literal) => {
+      const raw = reportJson({ [field]: "overflow" }).replace('"overflow"', literal);
+      expect(parseContentAnalysisReport(raw)).toBeNull();
+    });
+
+    it.each([0, -1, 1.5, Number.MAX_VALUE])("preserves the finite value %s without range checks", (value) => {
+      const report = { ...VALID_REPORT, [field]: value };
+      expect(parseContentAnalysisReport(JSON.stringify(report))).toEqual(report);
+    });
+  });
+
+  it("accepts empty collections and preserves extra report fields", () => {
+    const report = { ...VALID_REPORT, toc: [], checks: [], futureField: { enabled: true } };
+    expect(parseContentAnalysisReport(JSON.stringify(report))).toEqual(report);
+  });
+
+  it.each([
     ["a non-string", 42],
     ["undefined", undefined],
     ["unparseable JSON", "{not json"],
