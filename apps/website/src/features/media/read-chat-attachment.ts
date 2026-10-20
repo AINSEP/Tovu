@@ -146,7 +146,12 @@ function refuse(refusal: ChatAttachmentRefusal): ChatAttachmentReadResult {
 
 /** Sidecar filename for a ref — a line-for-line mirror of `attachments.ts`'s
  *  `attachmentSidecarFileName`, which is exported from that module but not from the package's
- *  single `.` entry point (see this file's header). */
+ *  single `.` entry point (see this file's header).
+ *
+ *  Defense in depth behind the ref pattern: even if that pattern were ever loosened, a path whose
+ *  parent is not exactly the sidecar directory never gets read. This mapping is what guarantees it
+ *  (no separator or dot survives it, pinned in `read-chat-attachment.test.ts`), which made the
+ *  former parent-equality re-check on the joined sidecar path unreachable. */
 export function chatAttachmentSidecarFileName(ref: string): string {
   return `${ref.replaceAll(/[^a-zA-Z0-9-]/gu, "_")}.json`;
 }
@@ -229,6 +234,47 @@ async function observeAttachment(
   }
 }
 
+/** The upload root's canonical path, or `undefined` when there is none to search. */
+async function canonicalUploadRoot({ uploadDirectory }: { uploadDirectory: string }, _options = {}): Promise<string | undefined> {
+  try {
+    return await realpath(uploadDirectory);
+  } catch {
+    // No upload directory at all — the daemon has never run here, or it was removed. Nothing to
+    // find, reported as the ordinary not-found outcome rather than as a server fault.
+    return undefined;
+  }
+}
+
+/** Whether `ownerId` is the principal the store recorded. Pure: decided from the sidecar alone. */
+function isRecordedOwner({ record, ownerId }: { record: SidecarRecord; ownerId: unknown }, _options = {}): boolean {
+  // A caller with no usable principal id matches nothing. Guarded explicitly rather than left to
+  // the comparison below, because that comparison has one input for which it says YES:
+  // `undefined !== undefined` is false, so an ownerless record and a caller with no id would match
+  // each other and hand out someone's upload. `ownerId` is typed `string` and comes from
+  // `getAuthedPrincipal`, so this can only fire on a contract violation — but it is the one
+  // contract violation that would grant access rather than deny it.
+  if (typeof ownerId !== "string" || ownerId.length === 0) return false;
+  // An attachment registered with NO `ownerId` is readable by nobody — never "unscoped", never a
+  // wildcard match. Same rule `AttachmentStore.listPendingForOwner` documents for its own listing,
+  // and it matters for the same reason: every attachment registered before ownership existed, and
+  // every attachment from a host that wires no `resolveOwnerId`, carries no owner at all. The
+  // single comparison below enforces that rule and ordinary ownership together — `undefined` never
+  // equals a non-empty id — so a separate `=== undefined` guard here would be dead code.
+  return record.ownerId === ownerId;
+}
+
+/** A recorded size the preview cap refuses: negative or over the cap. A JSON sidecar cannot hold
+ *  NaN, and an overflowing literal parses to ±Infinity, which these two comparisons already refuse. */
+function exceedsPreviewCap({ size, maxBytes }: { size: number; maxBytes?: number }, _options = {}): boolean {
+  return maxBytes !== undefined && (size < 0 || size > maxBytes);
+}
+
+/** Whether the file on disk is still exactly the one registration accepted. */
+async function isStillRegistered({ record, filePath }: { record: SidecarRecord; filePath: string }, _options = {}): Promise<boolean> {
+  const observed = await observeAttachment(filePath);
+  return observed !== undefined && isUnchangedAttachment({ recorded: { ...record, filePath }, observed });
+}
+
 /**
  * The bytes of the chat attachment `ref` names, if and only if `ownerId` is the principal the store
  * recorded for it and the file is still byte-for-byte the one registration accepted.
@@ -245,49 +291,24 @@ export async function readChatAttachmentForOwner(
 ): Promise<ChatAttachmentReadResult> {
   if (!CHAT_ATTACHMENT_REF_PATTERN.test(input.ref)) return refuse("malformed-ref");
 
-  let canonicalUploadDirectory: string;
-  try {
-    canonicalUploadDirectory = await realpath(deps.uploadDirectory);
-  } catch {
-    // No upload directory at all — the daemon has never run here, or it was removed. Nothing to
-    // find, reported as the ordinary not-found outcome rather than as a server fault.
-    return refuse("no-record");
-  }
+  const canonicalUploadDirectory = await canonicalUploadRoot({ uploadDirectory: deps.uploadDirectory });
+  if (canonicalUploadDirectory === undefined) return refuse("no-record");
 
   const sidecarDirectory = resolve(canonicalUploadDirectory, SIDECAR_DIRECTORY_NAME);
   const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName(input.ref));
-  // Defense in depth behind the ref pattern: even if that pattern were ever loosened, a path whose
-  // parent is not exactly the sidecar directory never gets read.
-  if (dirname(sidecarPath) !== sidecarDirectory) return refuse("malformed-ref");
 
   const loaded = await loadSidecar(sidecarPath, canonicalUploadDirectory, input.ref);
   if (typeof loaded === "string") return refuse(loaded);
 
   // Ownership is decided BEFORE the attachment file is touched, so a caller who is not the owner
   // never causes a read of those bytes at all.
-  //
-  // A caller with no usable principal id matches nothing. Guarded explicitly rather than left to
-  // the comparison below, because that comparison has one input for which it says YES:
-  // `undefined !== undefined` is false, so an ownerless record and a caller with no id would match
-  // each other and hand out someone's upload. `ownerId` is typed `string` and comes from
-  // `getAuthedPrincipal`, so this can only fire on a contract violation — but it is the one
-  // contract violation that would grant access rather than deny it.
-  if (typeof input.ownerId !== "string" || input.ownerId.length === 0) return refuse("not-owner");
-  // An attachment registered with NO `ownerId` is readable by nobody — never "unscoped", never a
-  // wildcard match. Same rule `AttachmentStore.listPendingForOwner` documents for its own listing,
-  // and it matters for the same reason: every attachment registered before ownership existed, and
-  // every attachment from a host that wires no `resolveOwnerId`, carries no owner at all. The
-  // single comparison below enforces that rule and ordinary ownership together — `undefined` never
-  // equals a non-empty id — so a separate `=== undefined` guard here would be dead code.
-  if (loaded.record.ownerId !== input.ownerId) return refuse("not-owner");
+  if (!isRecordedOwner({ record: loaded.record, ownerId: input.ownerId })) return refuse("not-owner");
 
   // Video preview has a tighter cap than upload. Refuse before allocating/reading its payload;
   // the identity gate below also proves that the current file still has this recorded size.
-  if (input.maxBytes !== undefined && (!Number.isFinite(loaded.record.size) || loaded.record.size < 0 || loaded.record.size > input.maxBytes)) return refuse("too-large");
+  if (exceedsPreviewCap({ size: loaded.record.size, maxBytes: input.maxBytes })) return refuse("too-large");
 
-  const observed = await observeAttachment(loaded.filePath);
-  if (observed === undefined) return refuse("integrity");
-  if (!isUnchangedAttachment({ recorded: { ...loaded.record, filePath: loaded.filePath }, observed })) return refuse("integrity");
+  if (!(await isStillRegistered(loaded))) return refuse("integrity");
 
   return { ok: true, bytes: await readFile(loaded.filePath) };
 }
