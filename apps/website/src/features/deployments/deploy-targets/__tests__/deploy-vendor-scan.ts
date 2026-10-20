@@ -24,6 +24,8 @@ export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/features/deployments/",
   "apps/website/src/features/site-export/",
   "apps/website/src/features/vendor-credentials/",
+  // Form destinations (2026-10-19): vendor receivers are plugin form destinations, never core.
+  "apps/website/src/features/form-destinations/",
   "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
   "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts",
   "apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts",

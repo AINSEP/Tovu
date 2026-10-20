@@ -4,15 +4,19 @@ import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { processOutbox } from "#src/contracts/core/events/index";
 import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetRegistry, FormDestinationAddress } from "#src/features/deployments/deploy-targets/types";
-import { createFormDestinationPort, listFormDestinations, pullFromFormDestination, type StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
+import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
+import { createFormDestinationPort, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationRegistry } from "#src/features/form-destinations/index";
+import { readFormDestinationSetting } from "#src/features/settings/form-destination";
+import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type RemoteImportResult } from "#src/features/forms/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 
 /**
- * @file Composes the site's form destination once: the publish-side port (active forms + receiver
- * key) and the pull that brings stored submissions back. The pull joins the deploy target's generic
- * form methods to the forms feature's import, so neither feature imports the other.
+ * @file Composes the site's form destination once: the publish-side port (active forms, the receiver
+ * the site's `core.forms` setting selects, its key) and the pull that brings stored submissions
+ * back. The pull joins a form destination module's `pull`/`ack` (`features/form-destinations/`) to
+ * the forms feature's import, so neither feature imports the other.
  */
 export interface FormSubmissionsCompositionDeps {
   readonly formDefinitionRepo: Pick<FormDefinitionRepoPort, "list" | "findBySlug">;
@@ -23,7 +27,9 @@ export interface FormSubmissionsCompositionDeps {
   readonly clock: Clock & { nowIso(): string };
   readonly idGen: IdGenerator;
   readonly credentials: CustomCredentialWriteDeps;
-  readonly loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  readonly loadFormDestinations: (workspaceId: string) => Promise<FormDestinationRegistry>;
+  /** For the site's `core.forms` `receiver` read (`features/settings/form-destination.ts`). */
+  readonly settingsRepo: SettingsRepoPort;
 }
 
 /** @complexity O(1) to build; see each port for its own cost. */
@@ -34,6 +40,8 @@ export function composeFormSubmissions(
   const destination = createFormDestinationPort({
     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
     credentials: required.credentials,
+    loadRegistry: required.loadFormDestinations,
+    readSetting: ({ workspaceId }) => readFormDestinationSetting({ settingsRepo: required.settingsRepo, workspaceId }),
   });
   return { destination, pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, ...options }) } };
 }
@@ -46,13 +54,15 @@ async function pullAll(
   optional: { targetId?: string; observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void },
 ): Promise<{ message: string; destinations: FormDestinationPullReport[] }> {
   const { deps, workspaceId } = required;
-  const saved = await listFormDestinations({ credentials: deps.credentials, workspaceId }, optional.targetId ? { targetId: optional.targetId } : {});
+  // `targetId` (the tool's field name, kept for compatibility) is the receiver scope: the hosting
+  // target id for a co-hosted receiver.
+  const saved = await listFormDestinations({ credentials: deps.credentials, workspaceId }, optional.targetId ? { scope: optional.targetId } : {});
   if (saved.length === 0) return { message: "No published site receives form submissions yet. Publish the site with its forms to a hosting target that supports them, then pull again.", destinations: [] };
-  const registry = await deps.loadDeployTargets(workspaceId);
+  const registry = await deps.loadFormDestinations(workspaceId);
   const kit = optional.kit ?? createDeployHostKit({ observability: optional.observability });
   const destinations: FormDestinationPullReport[] = [];
-  for (const { targetId, destination } of saved) {
-    destinations.push(await pullOne({ deps, workspaceId, targetId, destination, module: registry.get(targetId)?.module ?? {}, kit }));
+  for (const { scope, destination } of saved) {
+    destinations.push(await pullOne({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit }));
   }
   if (destinations.some((report) => report.imported > 0)) {
     void processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }).catch(() => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"));
@@ -63,13 +73,13 @@ async function pullAll(
 /** One destination's pull and import; a failure becomes that destination's report, never a throw.
  * @complexity O(pull cap * rows). */
 async function pullOne(
-  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; targetId: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: DeployHostKit },
+  required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; scope: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: DeployHostKit },
   _optional: Record<string, never> = {},
 ): Promise<FormDestinationPullReport> {
-  const { deps, workspaceId, targetId, destination, module, kit } = required;
-  const base = { targetId, url: new URL(destination.url).origin };
+  const { deps, workspaceId, scope, destination, module, kit } = required;
+  const base = { targetId: scope, url: new URL(destination.url).origin };
   try {
-    const pulled = await pullFromFormDestination({ module, targetId, destination, kit,
+    const pulled = await pullFromFormDestination({ module, scope, destination, kit,
       importPage: ({ items, destinationKey }) => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
         receipts: deps.receipts, outbox: deps.outbox, clock: deps.clock, idGen: deps.idGen }, workspaceId, destinationKey, items }) });
     return { ...base, ...sumPages({ pages: pulled.pages }), pulled: pulled.pulled, acknowledged: pulled.acknowledged, hasMore: pulled.hasMore };

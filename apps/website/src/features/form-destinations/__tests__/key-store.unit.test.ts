@@ -6,13 +6,18 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryCustomCredentialSetRepo, listCustomCredentials, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import { createFormDestinationPort, formDestinationKeyLabel, listFormDestinations } from "../form-destination-port.js";
+import { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "../key-store.js";
 
-/** @file The form destination key lifecycle over the real credential store (in-memory repo, real sealer). */
+/** @file The form receiver key lifecycle over the real credential store (in-memory repo, real sealer). */
 
 const W = "ws-1";
 const KEY_A = "a".repeat(43);
 const KEY_B = "b".repeat(43);
+
+/** The publish-side key for one scope, bound to a store. */
+function keys(credentials: CustomCredentialWriteDeps, optional: { newSecret?: () => string } = {}) {
+  return { receiverKey: ({ workspaceId, scope }: { workspaceId: string; scope: string }) => formReceiverKey({ credentials, workspaceId, scope }, optional) };
+}
 
 function credentials(overrides: Partial<CustomCredentialWriteDeps> = {}): CustomCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
@@ -21,17 +26,14 @@ function credentials(overrides: Partial<CustomCredentialWriteDeps> = {}): Custom
     clock: createFakeClock({ startIso: "2026-10-19T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` }, ...overrides };
 }
 
-const forms = async () => [{ slug: "waitlist", fields: [{ name: "email", required: true }] }];
-
 test("a first publish mints a key and saves it only when told the published address", async () => {
   const creds = credentials();
-  const port = createFormDestinationPort({ listForms: forms, credentials: creds }, { newSecret: () => KEY_A });
-  assert.deepEqual(await port.listForms({ workspaceId: W }), await forms());
-  const key = await port.receiverKey({ workspaceId: W, targetId: "host-a" });
+  const port = keys(creds, { newSecret: () => KEY_A });
+  const key = await port.receiverKey({ workspaceId: W, scope: "host-a" });
   assert.equal(key.secret, KEY_A);
   assert.deepEqual(await listCustomCredentials(creds, { workspaceId: W }), [], "nothing is saved before the host has the key");
   await key.save!({ url: "https://site-a.example/some/path" });
-  const saved = await resolveCustomCredentialByLabel(creds, { workspaceId: W, label: formDestinationKeyLabel({ targetId: "host-a" }) });
+  const saved = await resolveCustomCredentialByLabel(creds, { workspaceId: W, label: formDestinationKeyLabel({ scope: "host-a" }) });
   assert.equal(saved?.connection.token, KEY_A);
   assert.equal(saved?.baseUrl, "https://site-a.example");
   assert.equal(saved?.category, "hosting");
@@ -43,12 +45,12 @@ test("a republish reuses the saved key and moves its address only when the publi
   const update = repo.update.bind(repo);
   repo.update = async (record) => { updates += 1; await update(record); };
   const creds = credentials({ repo });
-  const port = createFormDestinationPort({ listForms: forms, credentials: creds }, { newSecret: () => KEY_A });
-  await (await port.receiverKey({ workspaceId: W, targetId: "host-a" })).save!({ url: "https://old.example" });
-  const again = await port.receiverKey({ workspaceId: W, targetId: "host-a" });
+  const port = keys(creds, { newSecret: () => KEY_A });
+  await (await port.receiverKey({ workspaceId: W, scope: "host-a" })).save!({ url: "https://old.example" });
+  const again = await port.receiverKey({ workspaceId: W, scope: "host-a" });
   assert.equal(again.secret, KEY_A);
   await again.save!({ url: "https://old.example/" });
-  const label = formDestinationKeyLabel({ targetId: "host-a" });
+  const label = formDestinationKeyLabel({ scope: "host-a" });
   assert.equal(updates, 0, "same origin: no write");
   await again.save!({ url: "https://renamed.example/" });
   assert.equal(updates, 1);
@@ -57,27 +59,27 @@ test("a republish reuses the saved key and moves its address only when the publi
 
 test("a concurrent first save keeps the winner's key; other save failures propagate", async () => {
   const creds = credentials();
-  const port = createFormDestinationPort({ listForms: forms, credentials: creds }, { newSecret: (() => { const keys = [KEY_A, KEY_B]; return () => keys.shift()!; })() });
-  const first = await port.receiverKey({ workspaceId: W, targetId: "host-a" });
-  const second = await port.receiverKey({ workspaceId: W, targetId: "host-a" });
+  const port = keys(creds, { newSecret: (() => { const queue = [KEY_A, KEY_B]; return () => queue.shift()!; })() });
+  const first = await port.receiverKey({ workspaceId: W, scope: "host-a" });
+  const second = await port.receiverKey({ workspaceId: W, scope: "host-a" });
   await first.save!({ url: "https://a.example" });
   await second.save!({ url: "https://a.example" });
-  assert.equal((await resolveCustomCredentialByLabel(creds, { workspaceId: W, label: formDestinationKeyLabel({ targetId: "host-a" }) }))?.connection.token, KEY_A);
+  assert.equal((await resolveCustomCredentialByLabel(creds, { workspaceId: W, label: formDestinationKeyLabel({ scope: "host-a" }) }))?.connection.token, KEY_A);
   const broken = credentials({ repo: Object.assign(new InMemoryCustomCredentialSetRepo(), { insert: async () => { throw new Error("database is locked"); } }) });
-  const failing = await createFormDestinationPort({ listForms: forms, credentials: broken }).receiverKey({ workspaceId: W, targetId: "host-a" });
+  const failing = await keys(broken).receiverKey({ workspaceId: W, scope: "host-a" });
   assert.match(failing.secret, /^[A-Za-z0-9_-]{43}$/, "the default key is 32 random bytes, base64url");
   await assert.rejects(failing.save!({ url: "https://a.example" }), /database is locked/);
 });
 
-test("pull destinations are the saved keys, optionally one target's, with their published address", async () => {
+test("pull destinations are the saved keys, optionally one scope's, with their published address", async () => {
   const creds = credentials();
-  const port = createFormDestinationPort({ listForms: forms, credentials: creds }, { newSecret: (() => { const keys = [KEY_A, KEY_B]; return () => keys.shift()!; })() });
-  await (await port.receiverKey({ workspaceId: W, targetId: "host-a" })).save!({ url: "https://a.example" });
-  await (await port.receiverKey({ workspaceId: W, targetId: "host-b" })).save!({ url: "https://b.example" });
+  const port = keys(creds, { newSecret: (() => { const queue = [KEY_A, KEY_B]; return () => queue.shift()!; })() });
+  await (await port.receiverKey({ workspaceId: W, scope: "host-a" })).save!({ url: "https://a.example" });
+  await (await port.receiverKey({ workspaceId: W, scope: "host-b" })).save!({ url: "https://b.example" });
   assert.deepEqual(await listFormDestinations({ credentials: creds, workspaceId: W }), [
-    { targetId: "host-a", destination: { url: "https://a.example", secret: KEY_A } },
-    { targetId: "host-b", destination: { url: "https://b.example", secret: KEY_B } },
+    { scope: "host-a", destination: { url: "https://a.example", secret: KEY_A } },
+    { scope: "host-b", destination: { url: "https://b.example", secret: KEY_B } },
   ]);
-  assert.deepEqual((await listFormDestinations({ credentials: creds, workspaceId: W }, { targetId: "host-b" })).map((entry) => entry.targetId), ["host-b"]);
+  assert.deepEqual((await listFormDestinations({ credentials: creds, workspaceId: W }, { scope: "host-b" })).map((entry) => entry.scope), ["host-b"]);
   assert.deepEqual(await listFormDestinations({ credentials: creds, workspaceId: "other" }), []);
 });

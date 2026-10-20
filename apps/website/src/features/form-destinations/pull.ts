@@ -1,10 +1,10 @@
-import type { DeployHostKit, DeployTargetModule, FormDestinationAddress, RemoteFormSubmission } from "#src/features/deployments/deploy-targets/types";
+import type { FormDestinationAddress, FormDestinationKit, FormDestinationModule, RemoteFormSubmission } from "./types.js";
 
 /**
  * @file Pulls a form destination's pending submissions into Tovu, page by page, and acknowledges
- * only the rows the import committed, so a row is never lost between the host and Tovu: an
+ * only the rows the import committed, so a row is never lost between the receiver and Tovu: an
  * unacknowledged row is simply pulled again and the import's receipts absorb the repeat. Generic:
- * the hosting target is any deploy target module that implements the two form methods.
+ * the destination is any module that implements `pull` and `ack`.
  */
 const DEFAULT_MAX_PAGES = 10;
 const DEFAULT_PAGE_SIZE = 50;
@@ -13,24 +13,24 @@ const DEFAULT_PAGE_SIZE = 50;
 export type FormDestinationImportPort<R extends { readonly committedIds: readonly string[] }> =
   (required: { readonly items: readonly RemoteFormSubmission[]; readonly destinationKey: string }) => Promise<R>;
 
-/** Stable identity of one destination for dedupe: the target and the published origin. @complexity O(1). */
-export function formDestinationKey({ targetId, url }: { targetId: string; url: string }, _optional = {}): string {
-  return `${targetId}:${new URL(url).origin}`;
+/** Stable identity of one receiver for dedupe: its scope and origin. @complexity O(1). */
+export function formDestinationKey({ scope, url }: { scope: string; url: string }, _optional = {}): string {
+  return `${scope}:${new URL(url).origin}`;
 }
 
 /**
  * Pull, import, acknowledge, for up to `maxPages` pages. `hasMore` stays true when the cap stopped
  * the loop, so the caller can say "pull again". Errors name the address, never the key.
- * @complexity O(maxPages * pageSize) rows; two host requests per page.
+ * @complexity O(maxPages * pageSize) rows; two receiver requests per page.
  */
 export async function pullFromFormDestination<R extends { readonly committedIds: readonly string[] }>(
-  required: { module: Pick<DeployTargetModule, "pullFormSubmissions" | "acknowledgeFormSubmissions">; targetId: string; destination: FormDestinationAddress; kit: DeployHostKit; importPage: FormDestinationImportPort<R> },
+  required: { module: Pick<FormDestinationModule, "pull" | "ack">; scope: string; destination: FormDestinationAddress; kit: FormDestinationKit; importPage: FormDestinationImportPort<R> },
   optional: { maxPages?: number; pageSize?: number } = {},
 ): Promise<{ destinationKey: string; pulled: number; acknowledged: number; hasMore: boolean; pages: R[] }> {
-  const { module, targetId, destination, kit, importPage } = required;
-  const { pullFormSubmissions: pull, acknowledgeFormSubmissions: acknowledge } = module;
-  if (!pull || !acknowledge) throw new Error(`hosting target ${targetId} cannot return form submissions. Publish the site to a target that receives forms, then pull again.`);
-  const destinationKey = formDestinationKey({ targetId, url: destination.url });
+  const { module, scope, destination, kit, importPage } = required;
+  const { pull, ack } = module;
+  if (!pull || !ack) throw new Error(`no installed form destination returns submissions for ${scope}. Turn on the plugin that provides it (or republish the site to a host that receives forms), then pull again.`);
+  const destinationKey = formDestinationKey({ scope, url: destination.url });
   const report = { destinationKey, pulled: 0, acknowledged: 0, hasMore: false, pages: [] as R[] };
   const { maxPages = DEFAULT_MAX_PAGES, pageSize: limit = DEFAULT_PAGE_SIZE } = optional;
   try {
@@ -42,7 +42,7 @@ export async function pullFromFormDestination<R extends { readonly committedIds:
       report.pulled += batch.items.length;
       const imported = await importPage({ items: batch.items, destinationKey });
       report.pages.push(imported);
-      report.acknowledged += await acknowledgeCommitted({ acknowledge: (ids) => acknowledge.call(module, { kit, destination, ids }), committedIds: imported.committedIds });
+      report.acknowledged += await acknowledgeCommitted({ acknowledge: (ids) => ack.call(module, { kit, destination, ids }), committedIds: imported.committedIds });
       after = batch.nextAfter;
       if (!batch.hasMore) break;
     }

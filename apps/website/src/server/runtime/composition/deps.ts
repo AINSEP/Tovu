@@ -98,6 +98,7 @@ import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-cr
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
 import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
+import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createChatRunLedger,
@@ -229,6 +230,7 @@ import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
+import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -1296,6 +1298,7 @@ async function composeSiteRouteDeps(
     // one-connection reason as the registrations above.
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
@@ -2596,13 +2599,15 @@ async function composeSiteRouteDeps(
   // recurring copies would resurrect a credential deleted from the vault.
   routeDeps.legacyPublishCredentialsReady = widgetAdoptionReady;
 
-  // Form destinations: a published static site's host stores submissions; publishing hands it the
-  // active forms and a receiver key, and the pull imports what it stored (`form-submissions.ts`).
+  // Form destinations: a published static site's receiver (a plugin's form destination, selected by
+  // the site's `core.forms` setting) stores submissions; publishing hands it the active forms and a
+  // receiver key, and the pull imports what it stored (`form-submissions.ts`).
   const formSubmissions = composeFormSubmissions({
     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
     receipts: new SqlFormSubmissionReceiptRepo(kernel), outbox, bus, clock, idGen,
     credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
-    loadDeployTargets: routeDeps.loadDeployTargets,
+    loadFormDestinations: (workspaceId) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    settingsRepo,
   }, { observability });
   routeDeps.formDestination = formSubmissions.destination;
   routeDeps.formSubmissionsPull = formSubmissions.pull;

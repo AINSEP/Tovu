@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { ToolInputError } from '@jini-ai/core';
 import { createDeployHostKit } from '../deploy-targets/host-kit.js';
-import type { DeployTargetInspection, FormDestinationForm } from '../deploy-targets/types.js';
+import type { DeployTargetInspection } from '../deploy-targets/types.js';
+import type { FormDestinationForm } from '#src/features/form-destinations/types';
 import { planStaticPublish, type StaticPublishDeps } from './adapter.js';
 import { toDeployTargetCredential } from './credentials.js';
 import type { StaticPublishConfig } from './types.js';
@@ -37,11 +38,11 @@ export async function inspectStaticPublish({ deps, input }: { deps: StaticPublis
   const resolved = await resolveInspectionCredential({ deps, input });
   if (!resolved.ok) throw new ToolInputError({ message: `NO_CREDENTIALS_CONFIGURED: ${resolved.reason}` });
   const credential = toDeployTargetCredential(resolved);
-  const formDestination = await previewFormDestination({ deps, workspaceId: input.workspaceId });
+  const kit = deps.hostKit ?? createDeployHostKit({ observability: deps.observability });
+  const forms = await previewFormDestination({ deps, input, kit });
   try {
-    const inspection = await plan.target.module.preview({ credential, config: input.config, projectName: input.projectName,
-      kit: deps.hostKit ?? createDeployHostKit({ observability: deps.observability }), ...formDestination });
-    return { inspection, credentialId: resolved.credentialId,
+    const hostInspection = await plan.target.module.preview({ credential, config: input.config, projectName: input.projectName, kit, ...forms.hostInput });
+    return { inspection: forms.addFormLine(hostInspection), credentialId: resolved.credentialId,
       credentialBinding: createHash('sha256').update(JSON.stringify(credential)).digest('hex') };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Provider inspection failed. Check the connection and preview again.';
@@ -49,11 +50,20 @@ export async function inspectStaticPublish({ deps, input }: { deps: StaticPublis
   }
 }
 
-/** The site's active forms for a preview, or nothing. Forms only: the receiver key is never read
- * or created by a preview. @complexity One forms read when the port is wired. */
-async function previewFormDestination({ deps, workspaceId }: { deps: StaticPublishDeps; workspaceId: string }, _options = {}): Promise<{ formDestination?: { forms: readonly FormDestinationForm[] } }> {
-  const forms = deps.formDestination ? await deps.formDestination.listForms({ workspaceId }) : [];
-  return forms.length ? { formDestination: { forms } } : {};
+/** The site's active forms for a preview: handed to the host when its deployment carries the
+ * selected co-hosted receiver, otherwise core's own form line (external, off or refused). Forms
+ * only: the receiver key is never read or created by a preview.
+ * @complexity One forms read when the port is wired, plus a registry load and setting read with forms. */
+async function previewFormDestination({ deps, input, kit }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput; kit: NonNullable<StaticPublishDeps['hostKit']> }, _options = {}): Promise<{
+  hostInput: { formDestination?: { readonly forms: readonly FormDestinationForm[] } };
+  addFormLine: (inspection: DeployTargetInspection) => DeployTargetInspection;
+}> {
+  const forms = deps.formDestination
+    ? await deps.formDestination.previewInput({ workspaceId: input.workspaceId, hostingTargetId: input.config.target, projectName: input.projectName, kit })
+    : {};
+  const { hosting, formSubmissions } = forms;
+  return { hostInput: hosting ? { formDestination: hosting } : {},
+    addFormLine: (inspection) => (formSubmissions ? { ...inspection, formSubmissions } : inspection) };
 }
 
 async function resolveInspectionCredential({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput }, _options = {}) {

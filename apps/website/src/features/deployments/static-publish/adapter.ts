@@ -8,7 +8,11 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, FormDestinationForm, FormDestinationPublishInput, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+// Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and
+// the barrel would add the plugin loader and the credential vault to it.
+import { rewriteFormActions } from "#src/features/form-destinations/rewrite-actions";
+import type { FormDestinationPublishInput, FormReceiverPlan, FormReceiverPort } from "#src/features/form-destinations/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
 /**
@@ -226,17 +230,10 @@ export interface StaticPublishDeps {
   readonly formDestination?: StaticPublishFormDestinationPort;
 }
 
-/** What a publish hands a host that can receive the site's forms. The receiver key is created on the
- *  first publish with active forms and saved only after that publish reaches the host. */
-export interface StaticPublishFormDestinationPort {
-  listForms(required: { readonly workspaceId: string }, optional?: Record<string, never>): Promise<readonly FormDestinationForm[]>;
-  receiverKey(required: { readonly workspaceId: string; readonly targetId: string }, optional?: Record<string, never>): Promise<{
-    readonly secret: string;
-    /** Present for a new key, or to move an existing key's address after a rename: saves it for
-     *  later pulls once the host has it. */
-    readonly save?: (required: { readonly url: string }, optional?: Record<string, never>) => Promise<void>;
-  }>;
-}
+/** What a publish does with the site's forms (`features/form-destinations/port.ts`): selection,
+ *  receiver keys and an external receiver's `prepare` all live behind it. The receiver key is
+ *  created on the first publish with active forms and saved only after that publish reaches the host. */
+export type StaticPublishFormDestinationPort = FormReceiverPort;
 
 /**
  * The composition-root-bound export call this domain takes instead of `RouteDeps` itself (2026-08-20
@@ -506,29 +503,34 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
 
   const forms = await prepareFormDestination({ deps, input });
   if (!forms.ok) return forms.outcome;
-  const publishInput: DeployPublishInput = { files, projectName: input.projectName };
-  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.input);
+  const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
+  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting);
   await saveReceiverKey({ outcome, save: forms.save });
   return finishPublishOutcome({ outcome, credential: credentialResult.credential });
 }
 
 /**
- * The site's active forms and, when there are any, its receiver key, for a host that can accept
- * submissions. A host that cannot simply ignores the input. No port, or no active forms: nothing is
- * sent and no key is created.
- * @complexity One forms read plus at most one key read.
+ * The site's active forms and, when there are any, its receiver key, for the receiver the site's
+ * form setting selects (`features/form-destinations/port.ts`): the co-hosted add-on for this host
+ * (`hosting`), or an external receiver's post address (`submitUrl`). No port: nothing is sent and
+ * no key is created.
+ * @complexity One forms read plus at most one key read (and an external receiver's own prepare).
  */
 async function prepareFormDestination({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInput }, _options = {}): Promise<
-  { ok: true; input?: FormDestinationPublishInput; save?: (required: { readonly url: string }) => Promise<void> } | { ok: false; outcome: StaticPublishOutcome }> {
+  ({ ok: true } & FormReceiverPlan) | { ok: false; outcome: StaticPublishOutcome }> {
   if (!deps.formDestination) return { ok: true };
   try {
-    const forms = await deps.formDestination.listForms({ workspaceId: input.workspaceId });
-    if (forms.length === 0) return { ok: true, input: { forms } };
-    const key = await deps.formDestination.receiverKey({ workspaceId: input.workspaceId, targetId: input.config.target });
-    return { ok: true, input: { forms, secret: key.secret }, ...(key.save ? { save: key.save } : {}) };
+    const plan = await deps.formDestination.prepare({ workspaceId: input.workspaceId, hostingTargetId: input.config.target, projectName: input.projectName,
+      kit: deps.hostKit ?? createDeployHostKit({ observability: deps.observability }) });
+    return { ok: true, ...plan };
   } catch (err) {
     return { ok: false, outcome: { ok: false, code: "EXPORT_FAILED", message: `form submissions could not be prepared: ${err instanceof Error ? err.message : String(err)}. Check the site's forms, then publish again.` } };
   }
+}
+
+/** An external receiver: exported pages post to its address instead of the site's own path. @complexity O(HTML bytes). */
+function filesForReceiver({ files, submitUrl }: { files: DeployFile[]; submitUrl?: string | undefined }, _options = {}): DeployFile[] {
+  return submitUrl ? rewriteFormActions({ files, submitUrl }) : files;
 }
 
 /** Saves the receiver key (new, or moved after a rename) once the host has it. A failed save is logged, not fatal: the

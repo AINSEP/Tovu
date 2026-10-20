@@ -8,11 +8,12 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import type { DeployHostKit, DeployTargetRegistry, FormDestinationPage } from "#src/features/deployments/deploy-targets/types";
-import { formDestinationKeyLabel } from "#src/features/deployments/static-publish/index";
+import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+import { formDestinationKeyLabel, type FormDestinationPage, type FormDestinationRegistry } from "#src/features/form-destinations/index";
+import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { composeFormSubmissions, type FormSubmissionsCompositionDeps } from "../form-submissions.js";
 
-/** @file The composed form destination pull: saved keys → host pages → import → acknowledge → outbox. */
+/** @file The composed form destination pull: saved keys → destination pages → import → acknowledge → outbox. */
 
 const W = "ws-1";
 const waitlist: FormDefinitionRecord = { id: "f1", workspaceId: W, slug: "waitlist", name: "Waitlist", status: "active", notify: { enabled: true, recipients: [] },
@@ -35,9 +36,10 @@ function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[
     if (typeof value !== "function") return value;
     return (...args: unknown[]) => { if (prop !== "enqueue") outboxReads.push(String(prop)); return value.apply(target, args); };
   } });
-  const modules = new Map(Object.entries(hosts).map(([targetId, host]) => [targetId, { module: {
-    pullFormSubmissions: async () => { if (host.fail) throw new Error(host.fail); return host.pages?.shift() ?? { items: [], nextAfter: 0, hasMore: false }; },
-    acknowledgeFormSubmissions: async ({ ids }: { ids: readonly string[] }) => { (acks[targetId] ??= []).push(...ids); return { acknowledged: ids.length }; },
+  // Each saved scope resolves to its own fake destination, as a co-hosted one resolves by host id.
+  const modules = new Map(Object.entries(hosts).map(([scope, host]) => [scope, { module: {
+    pull: async () => { if (host.fail) throw new Error(host.fail); return host.pages?.shift() ?? { items: [], nextAfter: 0, hasMore: false }; },
+    ack: async ({ ids }: { ids: readonly string[] }) => { (acks[scope] ??= []).push(...ids); return { acknowledged: ids.length }; },
   } }]));
   let registryLoads = 0;
   const deps: FormSubmissionsCompositionDeps = {
@@ -46,9 +48,10 @@ function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[
     receipts: { claim: async () => true },
     outbox, bus: new InMemoryEventBus(), clock: { ...clock, nowIso: () => new Date(clock.nowMs()).toISOString() },
     idGen: { newId: () => `id-${++n}` }, credentials,
-    loadDeployTargets: async () => { registryLoads += 1; return { get: (id: string) => modules.get(id), list: () => [], refusals: [] } as unknown as DeployTargetRegistry; },
+    loadFormDestinations: async () => { registryLoads += 1; return { resolve: ({ scope }: { scope: string }) => modules.get(scope), get: () => undefined, list: () => [], refusals: [] } as unknown as FormDestinationRegistry; },
+    settingsRepo: new InMemorySettingsRepo(),
   };
-  const save = async (targetId: string, url: string) => createCustomCredential(credentials, { workspaceId: W, label: formDestinationKeyLabel({ targetId }), category: "hosting", baseUrl: url, connection: { token: "k".repeat(43) } });
+  const save = async (scope: string, url: string) => createCustomCredential(credentials, { workspaceId: W, label: formDestinationKeyLabel({ scope }), category: "hosting", baseUrl: url, connection: { token: "k".repeat(43) } });
   return { deps, rows, acks, outboxReads, save, registryLoads: () => registryLoads };
 }
 
@@ -105,8 +108,10 @@ test("the message names invalid, skipped and still-waiting rows", async () => {
   assert.equal(result.destinations[0]?.skipped.length, 1);
 });
 
-test("the publish-side port lists the site's active forms as the generic manifest", async () => {
+test("the publish-side port hands the site's active forms, as the generic manifest, to the receiver auto selects", async () => {
   const s = setup({ hosts: {} });
-  const forms = await composeFormSubmissions(s.deps).destination.listForms({ workspaceId: W });
-  assert.deepEqual(forms.map((form) => form.slug), ["waitlist"]);
+  const cohosted = { descriptor: { id: "dest", label: "Dest", module: "d.mjs", receive: "co-hosted" as const, hosts: ["host-a"] }, pluginId: "p", module: {} };
+  s.deps = { ...s.deps, loadFormDestinations: async () => ({ list: () => [cohosted], get: () => cohosted, resolve: () => cohosted, refusals: [] }) };
+  const preview = await composeFormSubmissions(s.deps).destination.previewInput({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
+  assert.deepEqual(preview.hosting?.forms.map((form) => form.slug), ["waitlist"]);
 });
