@@ -172,3 +172,16 @@ test(
     });
   }
 );
+
+test("resolveMediaAssetMetadataForRender: image AND media ref nodes are collected in document (pre-order) order, through nested content", async () => {
+  const deps = createRouteDeps();
+  for (const id of ["asset-a", "asset-b", "asset-c"]) await deps.mediaRepo.save(mediaRecord({ id, slug: id, source: { sha256: `sha-${id}` } }));
+  const bodyJson: PostRecord["bodyJson"] = { type: "doc", content: [
+    { type: "bulletList", content: [{ type: "listItem", content: [{ type: "image", attrs: { assetId: "asset-a" } }] }] },
+    { type: "media", attrs: { assetId: "asset-b" } },
+    { type: "image", attrs: { assetId: "asset-c" } },
+    { type: "paragraph", attrs: { assetId: "not-a-media-node" } },
+  ] };
+  const result = await resolveMediaAssetMetadataForRender(deps, postRecord({ bodyJson }));
+  assert.deepEqual([...result.keys()], ["asset-a", "asset-b", "asset-c"]);
+});
