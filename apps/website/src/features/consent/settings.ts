@@ -87,7 +87,7 @@ export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, { a
   return {
     async get(_input: Record<string, never> = {}, _optional = {}): Promise<SiteConsentSettings> {
       // Disabling remains a working rollback even if another consent setting is malformed.
-      const activation = await resolveSiteConsentActivation({ settingsRepo, workspaceId }, autoEnable ? { autoEnable } : {});
+      const activation = await resolveSiteConsentActivation({ settingsRepo, workspaceId }, { autoEnable });
       if (!activation.enabled) return { ...SITE_CONSENT_DEFAULTS };
       const values = await readValues({ settingsRepo, workspaceId });
       if (!SITE_CONSENT_REGION_MODES.includes(values.regionMode)) throw new Error('Choose automatic, opt-in, or opt-out cookie consent region mode.');
