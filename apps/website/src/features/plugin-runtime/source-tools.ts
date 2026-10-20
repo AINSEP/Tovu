@@ -46,6 +46,30 @@ export const pluginSourceDerivedRisk: DerivedRiskByToolId = new Map([
 ]);
 type SourceDeps = Pick<PluginsToolDeps, 'workspaceId' | 'authorize' | 'pluginSource'>;
 
+/** Reads one required string field, naming it when the caller sent something else. */
+function stringField(required: { input: Record<string, unknown>; key: string }): string {
+  const value = required.input[required.key];
+  if (typeof value !== 'string') throw new ToolInputError({ message: `${required.key} must be a string.` });
+  return value;
+}
+
+type SourceOperation = (required: { port: PluginSourcePort; pluginId: string; input: Record<string, unknown> }) => Promise<unknown>;
+
+/** One port call per non-confirming source tool; fields are read in argument order. */
+const SOURCE_OPERATIONS: Partial<Record<string, SourceOperation>> = {
+  plugin_source_create: ({ port, pluginId, input }) => port.create({ id: pluginId, name: stringField({ input, key: 'name' }), description: stringField({ input, key: 'description' }) }, {}),
+  plugin_source_open: ({ port, pluginId }) => port.open({ id: pluginId }, {}),
+  plugin_source_list: ({ port, pluginId }) => port.list({ id: pluginId }, {}),
+  plugin_source_read: ({ port, pluginId, input }) => port.read({ id: pluginId, path: stringField({ input, key: 'path' }) }, {}),
+  plugin_source_write: ({ port, pluginId, input }) => port.write({ id: pluginId, path: stringField({ input, key: 'path' }), content: stringField({ input, key: 'content' }) }, {}),
+  plugin_source_edit: ({ port, pluginId, input }) => {
+    if (input.replaceAll !== undefined && typeof input.replaceAll !== 'boolean') throw new ToolInputError({ message: 'replaceAll must be a boolean.' });
+    return port.edit({ id: pluginId, path: stringField({ input, key: 'path' }), oldString: stringField({ input, key: 'oldString' }), newString: stringField({ input, key: 'newString' }), ...(input.replaceAll === undefined ? {} : { replaceAll: input.replaceAll }) }, {});
+  },
+  plugin_source_seal: ({ port, pluginId }) => port.seal({ id: pluginId }, {}),
+  plugin_source_rollback: ({ port, pluginId }) => port.rollback({ id: pluginId }, {}),
+};
+
 /** Bind authenticated chat operations to the existing source owner and shared approval transport.
  * @param required Narrow site deps and human exchange transport.
  * @param _optional Reserved registration options.
@@ -69,33 +93,15 @@ export function buildPluginSourceRegistrations(required: { deps: SourceDeps; sur
   }
   const handlers: Record<string, ToolHandler> = {};
   for (const tool of pluginSourceAgentToolCatalog) {
-    if (tool.name === 'plugin_source_delete') continue;
+    const operation = SOURCE_OPERATIONS[tool.name];
+    // plugin_source_delete has no direct operation: its approval handler is bound below.
+    if (!operation) continue;
     handlers[tool.name] = async ctx => {
       await authorize(ctx, tool.authorization.permission);
       const input = requireInputRecord({ input: ctx.input });
       const pluginId = requireString({ input, key: 'id' });
-      const string = (key: string) => {
-        const value = input[key];
-        if (typeof value !== 'string') throw new ToolInputError({ message: `${key} must be a string.` });
-        return value;
-      };
-      return relay(async () => {
-        const port = source();
-        switch (tool.name) {
-          case 'plugin_source_create': return port.create({ id: pluginId, name: string('name'), description: string('description') }, {});
-          case 'plugin_source_open': return port.open({ id: pluginId }, {});
-          case 'plugin_source_list': return port.list({ id: pluginId }, {});
-          case 'plugin_source_read': return port.read({ id: pluginId, path: string('path') }, {});
-          case 'plugin_source_write': return port.write({ id: pluginId, path: string('path'), content: string('content') }, {});
-          case 'plugin_source_edit': {
-            if (input.replaceAll !== undefined && typeof input.replaceAll !== 'boolean') throw new ToolInputError({ message: 'replaceAll must be a boolean.' });
-            return port.edit({ id: pluginId, path: string('path'), oldString: string('oldString'), newString: string('newString'), ...(input.replaceAll === undefined ? {} : { replaceAll: input.replaceAll }) }, {});
-          }
-          case 'plugin_source_seal': return port.seal({ id: pluginId }, {});
-          case 'plugin_source_rollback': return port.rollback({ id: pluginId }, {});
-          default: throw new ToolInputError({ message: `Unknown source tool ${tool.name}.` });
-        }
-      });
+      // The port is resolved before any field is read, so a missing owner is reported first.
+      return relay(async () => operation({ port: source(), pluginId, input }));
     };
   }
   // Only permanent source-file deletion asks. The approved file text is pinned across the wait;
@@ -112,9 +118,7 @@ export function buildPluginSourceRegistrations(required: { deps: SourceDeps; sur
       details: [{ label: 'Plugin', value: prepared.target.id }, { label: 'Draft file', value: prepared.target.path }], confirmLabel: 'Delete', cancelLabel: 'Cancel' }),
     run: async ({ ctx, prepared }) => {
       await authorize(ctx, 'admin.plugins.enable');
-      return relay(async () => {
-        return source().delete(prepared.target, { expectedDigest: prepared.prior.digest });
-      });
+      return relay(() => source().delete(prepared.target, { expectedDigest: prepared.prior.digest }));
     },
   }, { flag: 'deleted' });
   return buildDomainRegistrations({ metadata: toolMetadata, domain: 'plugin-source', catalogModule: 'features/plugin-runtime/source-tools.ts', catalog: indexCatalogById({ catalog: pluginSourceAgentToolCatalog }), derivedRisk: pluginSourceDerivedRisk, handlers });
