@@ -67,9 +67,11 @@ export interface VaultCredentialSnapshot {
   values: VaultCredentialValue[]; metadataOnly: SealedCredentialInventory["metadataOnly"]; columns: SealedColumnSummary[];
 }
 
+/** Catalog suffix of every sealed envelope column; shared with the key-minting gate's scan. */
+export const SEALED_COLUMN_SUFFIX = "sealed_ciphertext";
 /** Quad siblings for a catalog name, quoted verbatim by callers. */
 export function siblingColumns(column: string): { keyId: string; nonce: string; alg: string } {
-  const prefix = column.slice(0, -"sealed_ciphertext".length);
+  const prefix = column.slice(0, -SEALED_COLUMN_SUFFIX.length);
   return { keyId: `${prefix}sealed_key_id`, nonce: `${prefix}sealed_nonce`, alg: `${prefix}sealed_alg` };
 }
 /** Shared restore-artifact classification for inventory and the key-minting gate. */
@@ -85,7 +87,7 @@ export async function discoverSealedColumns(kernel: ContentKernel): Promise<Disc
     const columns = await listColumns(catalog, table);
     const tableColumns = new Set(columns.map(column => column.name));
     for (const column of columns) {
-      if (column.name.endsWith("sealed_ciphertext")) refs.push({ table, column: column.name, tableColumns, notNull: column.notNull });
+      if (column.name.endsWith(SEALED_COLUMN_SUFFIX)) refs.push({ table, column: column.name, tableColumns, notNull: column.notNull });
     }
   }
   return refs;
