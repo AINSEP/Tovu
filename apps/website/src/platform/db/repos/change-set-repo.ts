@@ -1,4 +1,4 @@
-import type { Selectable } from "kysely";
+import type { Insertable, Selectable } from "kysely";
 
 import type { ContentKernel } from "../content-kernel.js";
 import type { ChangeSetItemsTable, ChangeSetsTable } from "../content-database.generated.js";
@@ -71,6 +71,38 @@ function toItemRecord(row: Selectable<ChangeSetItemsTable>): ChangeSetItemRecord
   };
 }
 
+/** `toRecord`'s inverse: every absent optional field is written as SQL NULL. */
+function toRow(record: ChangeSetRecord): Insertable<ChangeSetsTable> {
+  return {
+    id: record.id,
+    workspace_id: record.workspaceId,
+    actor_id: record.actorId ?? null,
+    status: record.status,
+    summary: record.summary,
+    idempotency_key: record.idempotencyKey ?? null,
+    intent_ref: record.intentRef ?? null,
+    created_at: record.createdAt,
+    applied_at: record.appliedAt ?? null,
+    reverted_at: record.revertedAt ?? null,
+  };
+}
+
+/** `toItemRecord`'s inverse: absent optionals as SQL NULL, the inverse payload as JSON text. */
+function toItemRow(item: ChangeSetItemRecord): Insertable<ChangeSetItemsTable> {
+  return {
+    id: item.id,
+    change_set_id: item.changeSetId,
+    entity_type: item.entityType,
+    entity_id: item.entityId,
+    operation: item.operation,
+    before_revision_id: item.beforeRevisionId ?? null,
+    after_revision_id: item.afterRevisionId ?? null,
+    inverse_payload_json: item.inversePayload === undefined ? null : JSON.stringify(item.inversePayload),
+    entity_version_at_apply: item.entityVersionAtApply ?? null,
+    position: item.position,
+  };
+}
+
 export class SqlChangeSetRepo implements ChangeSetRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
 
@@ -83,40 +115,8 @@ export class SqlChangeSetRepo implements ChangeSetRepoPort {
   ): Promise<void> {
     await this.kernel.transaction(async () =>
       this.kernel.run(async (db) => {
-        await db
-          .insertInto("change_sets")
-          .values({
-            id: record.id,
-            workspace_id: record.workspaceId,
-            actor_id: record.actorId ?? null,
-            status: record.status,
-            summary: record.summary,
-            idempotency_key: record.idempotencyKey ?? null,
-            intent_ref: record.intentRef ?? null,
-            created_at: record.createdAt,
-            applied_at: record.appliedAt ?? null,
-            reverted_at: record.revertedAt ?? null,
-          })
-          .execute();
-
-        for (const item of items) {
-          await db
-            .insertInto("change_set_items")
-            .values({
-              id: item.id,
-              change_set_id: item.changeSetId,
-              entity_type: item.entityType,
-              entity_id: item.entityId,
-              operation: item.operation,
-              before_revision_id: item.beforeRevisionId ?? null,
-              after_revision_id: item.afterRevisionId ?? null,
-              inverse_payload_json: item.inversePayload === undefined ? null : JSON.stringify(item.inversePayload),
-              entity_version_at_apply: item.entityVersionAtApply ?? null,
-              position: item.position,
-            })
-            .execute();
-        }
-
+        await db.insertInto("change_sets").values(toRow(record)).execute();
+        for (const item of items) await db.insertInto("change_set_items").values(toItemRow(item)).execute();
         if (event) await db.insertInto("outbox_events").values(outboxEventValues(event)).execute();
       })
     );

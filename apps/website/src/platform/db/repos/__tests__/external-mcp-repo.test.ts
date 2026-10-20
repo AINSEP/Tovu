@@ -12,7 +12,7 @@ import { openContentDb, openSqliteContentConnection } from "../../sqlite/content
 
 import type { ExternalMcpServerRecord } from "#src/assistant/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlExternalMcpServerRepo } from "../external-mcp-repo.js";
 
 /**
@@ -388,4 +388,89 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     assert.ok(rows.every(row => row.sealedEnv && row.sealedOAuth));
   });
 
+});
+
+/** A server with both payloads stored for real, read back through a kernel whose roster query
+ *  overlays `patch` on every joined row. The JOIN itself never returns a foreign or malformed
+ *  payload, so this is the only way to reach the read path's defensive refusals. */
+async function readTampered(patch: Record<string, unknown>): Promise<ExternalMcpServerRecord | null> {
+  const kernel = freshSqliteContentKernel();
+  await kernel.run((db) => db.insertInto("workspaces").values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, created_at: NOW }).execute());
+  await prepareVault(kernel);
+  const record = makeOAuthRecord({ sealedEnv: makeRecord().sealedEnv });
+  await new SqlExternalMcpServerRepo(kernel).upsert(record);
+  const tampered = new SqlExternalMcpServerRepo({
+    ...kernel,
+    query: async (statement) => (await kernel.query(statement)).map((row) => ({ ...row, ...patch })),
+  });
+  return tampered.findByServerId(record);
+}
+
+const CONTEXT_REFUSAL = { name: "VaultError", code: "context", message: "Secrets vault: context" };
+const INVALID_RECORD = { name: "VaultError", code: "invalid-record", message: "Secrets vault: invalid-record" };
+
+test("joined payload: a live env pointer whose payload row is missing is refused as a context error", async () => {
+  await assert.rejects(readTampered({ env_id: null }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: an env payload from another workspace is refused as a context error", async () => {
+  await assert.rejects(readTampered({ env_workspace_id: OTHER_WORKSPACE }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: an env payload owned by another server is refused as a context error", async () => {
+  await assert.rejects(readTampered({ env_owner_key: "other-server" }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: an env pointer to an OAuth-kind payload is refused as a context error", async () => {
+  await assert.rejects(readTampered({ env_kind: "mcp-auth" }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: an env payload bound to a principal is refused as a context error", async () => {
+  await assert.rejects(readTampered({ env_principal_id: "principal-1" }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: an env payload with a binding is refused as a context error", async () => {
+  await assert.rejects(readTampered({ env_binding: "binding-1" }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: the OAuth pointer is checked too — an env-kind payload behind it is refused", async () => {
+  await assert.rejects(readTampered({ oauth_kind: "mcp-env" }), CONTEXT_REFUSAL);
+});
+
+for (const column of ["sealed_key_id", "sealed_ciphertext", "sealed_nonce", "sealed_alg"]) {
+  test(`joined payload: an env payload with no ${column} is refused as an invalid record`, async () => {
+    await assert.rejects(readTampered({ [`env_${column}`]: null }), INVALID_RECORD);
+  });
+}
+
+test("joined payload: the context check runs before the sealed-parts check", async () => {
+  await assert.rejects(readTampered({ env_owner_key: "other-server", env_sealed_nonce: null }), CONTEXT_REFUSAL);
+});
+
+test("joined payload: a NULL is_default reads as not default", async () => {
+  const found = await readTampered({ env_is_default: null });
+
+  assert.equal(externalMcpVaultRecord({ sealed: found!.sealedEnv!, identity: found!, kind: "mcp-env" }).isDefault, false);
+});
+
+test("joined payload: a stored revision string reads as a number", async () => {
+  const found = await readTampered({ env_revision: "7" });
+
+  assert.equal(externalMcpVaultRecord({ sealed: found!.sealedEnv!, identity: found!, kind: "mcp-env" }).revision, 7);
+});
+
+test("joined payload: meta stored as JSON text is parsed", async () => {
+  const found = await readTampered({ env_meta: JSON.stringify({ source: "text" }) });
+
+  assert.deepEqual(externalMcpVaultRecord({ sealed: found!.sealedEnv!, identity: found!, kind: "mcp-env" }).meta, { source: "text" });
+});
+
+test("joined payload: meta already decoded by the driver is kept as-is", async () => {
+  const found = await readTampered({ env_meta: { source: "object" } });
+
+  assert.deepEqual(externalMcpVaultRecord({ sealed: found!.sealedEnv!, identity: found!, kind: "mcp-env" }).meta, { source: "object" });
+});
+
+test("server row: a NULL enabled flag reads as disabled", async () => {
+  assert.equal((await readTampered({ enabled: null }))?.enabled, false);
 });
