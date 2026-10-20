@@ -19,7 +19,7 @@ import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { parseSiteStorage } from "./site-storage.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
-import type { ConfigJson, SiteMetaJson } from "./types.js";
+import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
 
 /**
  * @file SPEC-003 sibling operation (2026-09-05) — `duplicateSite`, a full working copy of an
@@ -198,99 +198,130 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
   const resolvedName = resolveSiteName(target, name); // pre-write VALIDATION, mirrors initSite step 1.
   validateInitTarget(target); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
   const { meta: sourceMeta } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
-  // The copy keeps the source's storage: SQLite copies `content.db`, PGlite its data dir (both
-  // through the storage ops port). Postgres is refused, which is also the secret rule: a postgres
-  // source's `.storage-secret.json` (or its env var) names the SOURCE's database, so a duplicate
-  // must never inherit it, and the allowlist copy never carries the file.
-  const storage = parseSiteStorage(sourceMeta.storage);
-  if (storage.kind === "postgres") {
-    throw new ValidationError(
-      "a site stored on postgres cannot be duplicated here: its data lives on the Postgres server; copy that database with your provider, then create the new site on it"
-    );
-  }
+  const storage = duplicableStorage(sourceMeta.storage);
 
   const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.
   const createdAt = new Date().toISOString();
   const paths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
   const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.dirname(paths.contentDbPath) : undefined;
-  let createdExternalDbDir = false;
-  let wroteAnything = false;
+  const progress: DuplicateProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
-    if (!fs.existsSync(target)) {
-      fs.mkdirSync(target);
-      wroteAnything = true;
-    }
-
-    // Only the portable entries the source actually has (see this file's own header). The flag is
-    // raised from inside, before the first `fs.cpSync` — a copy that throws halfway has already
-    // written into `target`, and that partial tree is exactly what cleanup must remove.
-    copyPortableEntries(source, target, () => {
-      wroteAnything = true;
-    });
-
-    // From here on `target` is written to unconditionally — `config.json`, `content.db`, and the
-    // marker — so the flag is raised here rather than by any of them individually. It was not, and
-    // that was C03 (2026-09-07): the two branches above are both CONDITIONAL (the `mkdirSync` is
-    // skipped for a pre-existing empty target, which `validateInitTarget` accepts; the copy
-    // callback never fires for a source with no portable entries, which `readSiteDir` also
-    // accepts), so a `duplicateContentDb` failure could rethrow with `wroteAnything` still false —
-    // `cleanupAndRethrow` then skipped the removal and left `config.json` behind, and the
-    // operator's retry was refused with `InitDirNotEmptyError` about a directory they had created
-    // empty themselves.
-    //
-    // Raised BEFORE the write, not after, for the same reason `copyPortableEntries` takes an
-    // `onBeforeFirstWrite` callback rather than returning a count: a write that throws part way
-    // through has still written, and that partial is exactly what cleanup exists to remove.
-    wroteAnything = true;
-
-    // config.json — new display name, domain/port reset (see this file's own header).
-    const config: ConfigJson = { name: resolvedName, domain: null, port: null };
-    writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
-
-    // content.db — WAL-safe physical copy, with the chat/session tables emptied from it by name and
-    // the source's legacy site-title pin and marker reset (SPEC-050 REQ-12), so the duplicate renders
-    // its own `config.json` name. Chat history's own file, `chat.db`, is left behind by the allowlist
-    // copy above, not here.
-    if (storage.kind === "pglite") {
-      // Same outcome on PGlite: a consistent dump of the data dir, AI chat emptied, title pin reset.
-      await duplicatePgliteStore({
-        sourceDataDir: path.join(source, PGLITE_DATA_DIR_NAME),
-        targetDataDir: path.join(target, PGLITE_DATA_DIR_NAME),
-      });
-    } else {
-      if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`duplicateSite: database target already exists at ${externalDbDir}`);
-      fs.mkdirSync(path.dirname(paths.contentDbPath), { recursive: true });
-      createdExternalDbDir = Boolean(externalDbDir);
-      await duplicateContentDb({
-        sourceDbPath: resolveSiteDatabasePaths({ dir: source }, { workspace }).contentDbPath,
-        targetDbPath: paths.contentDbPath,
-      });
-    }
+    writeDuplicateFolder({ source, target, resolvedName }, progress);
+    await copySiteDatabase({ source, target, storage, contentDbPath: paths.contentDbPath, externalDbDir, workspace }, progress);
 
     // .site-meta.json — the commit marker, written LAST on success (mirrors initSite's own
     // CIC U-003-ORD1), carrying the SOURCE's own schema stamp verbatim (see this file's header's
     // "THE SCHEMA-STAMP TRAP" paragraph) and a brand-new siteId.
-    const meta: SiteMetaJson = {
-      siteId,
-      templateId: sourceMeta.templateId,
-      templateVersion: sourceMeta.templateVersion,
-      schemaVersion: sourceMeta.schemaVersion,
-      schemaTag: sourceMeta.schemaTag,
-      createdAt,
-      // Site-key plan §A.4: the copy shares the SOURCE's own key identity, never siteId (the one
-      // field just above that IS always fresh) — content.db was physically copied with its sealed
-      // rows intact, so the duplicate must resolve to the exact same `~/.tovu/site-keys/<id>.hex`
-      // the source uses, or nothing in it can be decrypted. `?? sourceMeta.siteId` covers a source
-      // written before this field existed (a pre-A4 `.site-meta.json` with no siteKeyId at all).
-      siteKeyId: sourceMeta.siteKeyId ?? sourceMeta.siteId,
-      storage,
-    };
-    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: meta }, {});
+    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: duplicateMeta({ siteId, createdAt, sourceMeta, storage }) }, {});
 
     return { siteId, dir: target };
   } catch (err) {
-    if (externalDbDir && createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
-    return cleanupAndRethrow(err, target, wroteAnything);
+    if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
+    return cleanupAndRethrow(err, target, progress.wroteAnything);
   }
+}
+
+type DuplicableStorage = Exclude<SiteStorage, { kind: "postgres" }>;
+
+/** CIC U-003 cleanup facts for a duplicate (see `initSite`'s own cleanup design). */
+interface DuplicateProgress {
+  wroteAnything: boolean;
+  createdExternalDbDir: boolean;
+}
+
+/** @throws {ValidationError} a source stored on Postgres — nothing created. */
+function duplicableStorage(stored: SiteMetaJson["storage"]): DuplicableStorage {
+  // The copy keeps the source's storage: SQLite copies `content.db`, PGlite its data dir (both
+  // through the storage ops port). Postgres is refused, which is also the secret rule: a postgres
+  // source's `.storage-secret.json` (or its env var) names the SOURCE's database, so a duplicate
+  // must never inherit it, and the allowlist copy never carries the file.
+  const storage = parseSiteStorage(stored);
+  if (storage.kind === "postgres") {
+    throw new ValidationError(
+      "a site stored on postgres cannot be duplicated here: its data lives on the Postgres server; copy that database with your provider, then create the new site on it"
+    );
+  }
+  return storage;
+}
+
+/** The target folder, its portable entries and its own `config.json`, raising `progress.wroteAnything` before each write. */
+function writeDuplicateFolder({ source, target, resolvedName }: { source: string; target: string; resolvedName: string }, progress: DuplicateProgress): void {
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target);
+    progress.wroteAnything = true;
+  }
+
+  // Only the portable entries the source actually has (see this file's own header). The flag is
+  // raised from inside, before the first `fs.cpSync` — a copy that throws halfway has already
+  // written into `target`, and that partial tree is exactly what cleanup must remove.
+  copyPortableEntries(source, target, () => {
+    progress.wroteAnything = true;
+  });
+
+  // From here on `target` is written to unconditionally — `config.json`, `content.db`, and the
+  // marker — so the flag is raised here rather than by any of them individually. It was not, and
+  // that was C03 (2026-09-07): the two branches above are both CONDITIONAL (the `mkdirSync` is
+  // skipped for a pre-existing empty target, which `validateInitTarget` accepts; the copy
+  // callback never fires for a source with no portable entries, which `readSiteDir` also
+  // accepts), so a `duplicateContentDb` failure could rethrow with `wroteAnything` still false —
+  // `cleanupAndRethrow` then skipped the removal and left `config.json` behind, and the
+  // operator's retry was refused with `InitDirNotEmptyError` about a directory they had created
+  // empty themselves.
+  //
+  // Raised BEFORE the write, not after, for the same reason `copyPortableEntries` takes an
+  // `onBeforeFirstWrite` callback rather than returning a count: a write that throws part way
+  // through has still written, and that partial is exactly what cleanup exists to remove.
+  progress.wroteAnything = true;
+
+  // config.json — new display name, domain/port reset (see this file's own header).
+  const config: ConfigJson = { name: resolvedName, domain: null, port: null };
+  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
+}
+
+/**
+ * content.db — WAL-safe physical copy, with the chat/session tables emptied from it by name and
+ * the source's legacy site-title pin and marker reset (SPEC-050 REQ-12), so the duplicate renders
+ * its own `config.json` name. Chat history's own file, `chat.db`, is left behind by the allowlist
+ * copy, not here.
+ * @throws {InternalError} an app-data database folder already exists for the new siteId.
+ */
+async function copySiteDatabase(
+  { source, target, storage, contentDbPath, externalDbDir, workspace }: { source: string; target: string; storage: DuplicableStorage; contentDbPath: string; externalDbDir: string | undefined; workspace: SitesWorkspace },
+  progress: DuplicateProgress,
+): Promise<void> {
+  if (storage.kind === "pglite") {
+    // Same outcome on PGlite: a consistent dump of the data dir, AI chat emptied, title pin reset.
+    await duplicatePgliteStore({
+      sourceDataDir: path.join(source, PGLITE_DATA_DIR_NAME),
+      targetDataDir: path.join(target, PGLITE_DATA_DIR_NAME),
+    });
+    return;
+  }
+  if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`duplicateSite: database target already exists at ${externalDbDir}`);
+  fs.mkdirSync(path.dirname(contentDbPath), { recursive: true });
+  progress.createdExternalDbDir = Boolean(externalDbDir);
+  await duplicateContentDb({
+    sourceDbPath: resolveSiteDatabasePaths({ dir: source }, { workspace }).contentDbPath,
+    targetDbPath: contentDbPath,
+  });
+}
+
+/** The duplicate's commit marker: the source's own schema stamp and key identity, a fresh siteId. */
+function duplicateMeta({ siteId, createdAt, sourceMeta, storage }: { siteId: string; createdAt: string; sourceMeta: SiteMetaJson; storage: DuplicableStorage }): SiteMetaJson {
+  return {
+    siteId,
+    templateId: sourceMeta.templateId,
+    templateVersion: sourceMeta.templateVersion,
+    schemaVersion: sourceMeta.schemaVersion,
+    schemaTag: sourceMeta.schemaTag,
+    createdAt,
+    // Site-key plan §A.4: the copy shares the SOURCE's own key identity, never siteId (the one
+    // field just above that IS always fresh) — content.db was physically copied with its sealed
+    // rows intact, so the duplicate must resolve to the exact same `~/.tovu/site-keys/<id>.hex`
+    // the source uses, or nothing in it can be decrypted. `?? sourceMeta.siteId` covers a source
+    // written before this field existed (a pre-A4 `.site-meta.json` with no siteKeyId at all).
+    siteKeyId: sourceMeta.siteKeyId ?? sourceMeta.siteId,
+    storage,
+  };
 }
