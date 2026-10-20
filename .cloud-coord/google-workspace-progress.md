@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: G16 — Jini G16j merged + dist rebuilt (Tovu tsc 3 errors until G16t1). Running: G16t1 (Tovu generic: browser-binding cookie etc.), G16t2 (plugin: switch reassign etc.). Next: merge both → end-of-build suites (Jini touched packages, Tovu whole suite + admin + tsc + repo checks, same on base, desktop gates) → final report.
+Status: CANCELLED by the owner (2026-10-20, during G16). All subagents stopped; nothing further dispatched; no further tests run.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -73,8 +73,8 @@ Status: G16 — Jini G16j merged + dist rebuilt (Tovu tsc 3 errors until G16t1).
 | C5 | MERGED | cloud/google-workspace-C5 (816c024c8) | merged | tests 224→485 (sheets.contract 173 for 26 tools; form-delivery 33→59; surfaces.contract; ui-views; google-client; products-catalog). Coord coverage (lib + form-destinations, all 15 test files): every file 100/100/100 except http.mjs branch 98.53 (artifact: :143 closing brace of for(;;)). 81 RED (25 security). Prod: readCatalog exported for testability; unreachable sheetId ?? 0 label fallback removed (schema-required, pinned). Note: sheets_format frozen-rows request declared write though inventory rates updateSheetProperties destructive (G15). Subagent 365k tokens (OVER ceiling). |
 | G15 (Jini half) | DONE (read-only) | — | — | findings .cloud-coord/google-workspace-G15-jini.md: HIGH F1 hosted callback has no browser binding (attempt compared with itself) → cross-account login-CSRF: attacker workspace can capture victim's Google grant; MEDIUM F2 hosted connect without refresh token accepted (no prompt=consent), F3 disconnect revokes grant for every workspace on the shared client; LOW F4 account-switch race on token read, F5 error token scan misses AggregateError/deep causes, F6 affected-resources text unscanned, F7 surface session hands token without signed-in admin + token valid ~1h after disable, F8 wrong-state request consumes loopback slot, F9 ref vs id naming, F10 revocation failures undiagnosed, F11 binding without formIds = every form (fail-open), F12 action aliases. Verified fixed: phase-B H1, M1–M7. Coordinator: accept F1, F2, F4–F8, F10, F11 for G16; F3 = owner decision (revoke behaviour per OWNER DECISIONS; add to owner follow-ups); F9/F12 leave. |
 | G15 (Tovu half) | DONE (read-only) | — | — | .cloud-coord/google-workspace-G15-tovu.md: no Critical/High; MEDIUM T1 account switch has no reassign step (destinations stop for good; copy wrong), T2 'pause'/'never dropped on quota' only ~1 day (forms retry cap 8) + auth failures terminal (OWNER DECISION on hold semantics); LOW T3 bindings RMW no CAS (forms-multidest-owned), T4 attempt row id = raw state, T5 plugin may name any TOVU_*_CLIENT_SECRET, T6 public surface-files unthrottled, T7 Origin vs Host behind proxy (fails closed), T8 single 401 → reconnect-required, T9 trims/docs. Red-team: no working abuse path beyond these. Verified fixed: phase-B H1–H4, M1–M4, M6, M7, L7; M5 partly. |
-| G16t1 | running | cloud/google-workspace-G16t1 | | F1 cookie, F2, F7, F10 status, F11, T3 doc, T4, T5, T6, T7 doc |
-| G16t2 | running | cloud/google-workspace-G16t2 | | T1 reassign, T2 copy, F10 hook codes, T8, T9, M5 |
+| G16t1 | STOPPED (owner cancel) — NOT merged | cloud/google-workspace-G16t1 (f04a6c23d tsc adaptation; dc611e05d WIP of the killed subagent: browser-binding cookie + explicit binding forms, UNVERIFIED) | — | 3 untracked new test files left uncommitted in /home/user/wt-G16t1 (browser-binding.security/unit tests, support/starting-browser.ts) |
+| G16t2 | done, NOT merged (owner cancel) | cloud/google-workspace-G16t2 (03e7860c5) | — | T1 switch reassign, T2 copy, F10 revoke codes, T8 401 retry, T9 trims, M5 docs; plugin 601 tests with the same 21 G16j-baseline failures |
 
 ## Coverage / RED / complexity debt / removed checks
 (phase C)
@@ -128,3 +128,10 @@ Planned lots: B3 (Tovu generic: H1, M1, M3, M4, L5, L7 generic parts), B3p (plug
 
 ## End of build — Jini (2026-10-20, Jini cloud/google-workspace @ 381583e6)
 - platform 1170 pass / 7 fail / 6 skip — the 7 (fs verified-directory-move ×6, verified-file-relocation ×1, EXDEV cross-device) FAIL IDENTICALLY on base origin/general-work (container fs); oauth 368/368; integrations 1155/1155; agent-plugins 978 pass / 2 skipped (pre-existing skips); cms 2667/2668 (video-frames.ffmpeg chmod-as-root, same as forms-multidest end-of-build); infra 64/64; pnpm guard 26 (= base).
+
+## CANCELLED — state at stop (owner instruction, 2026-10-20)
+- Coordinator branches as pushed: Tovu `cloud/google-workspace`, Jini `cloud/google-workspace` @ 381583e6 (includes G16j).
+- **The Tovu coordinator branch does NOT typecheck against the current Jini branch's dist.** Jini G16j changed shapes: `browserBinding` is required on complete, binding forms must be stated explicitly, and surface tokens need a principal. That gives 3 root tsc errors (delivery-bindings.ts:82, connect.ts:155, oauth-callback.ts:107), and the adaptation lives only on the unmerged G16t1 branch. With the G16j dist, the plugin suite shows 21 failing tests.
+- The **HIGH G15 F1** finding (hosted OAuth callback has no browser binding, so a cross-account sign-in hijack is possible) is fixed in Jini only. The Tovu cookie side is unmerged WIP on G16t1, so hosted sign-in is still vulnerable on the Tovu branch.
+- Not run: the Tovu whole suite (build + base), admin whole suite, repo checks at the final head, desktop gates (owed for 910e7f8ed).
+- Jini end-of-build was run (see the section above).
