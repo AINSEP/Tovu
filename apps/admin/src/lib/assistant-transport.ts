@@ -113,13 +113,26 @@ export interface CreateTovuAssistantTransportOptions {
 export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}, {
  createTransport = client.createAssistantTransport, activity = adminStreamActivity,
 }: { createTransport?: typeof client.createAssistantTransport; activity?: StreamActivity } = {}) {
- return trackTransportActivity({ activity, transport: createTransport({ options: {
-  getExecutionConfig: options.getExecutionConfig ? () => options.getExecutionConfig!() : undefined,
-  getAgUiEnabled: options.getAgUiEnabled ? () => options.getAgUiEnabled!() : undefined,
-  getResumeCapableAgentIds: options.getResumeCapableAgentIds ? () => options.getResumeCapableAgentIds!() : undefined,
-  ensureConversationId: options.ensureConversationId ? () => options.ensureConversationId!() : undefined,
-  persistUserTurn: options.persistUserTurn ? ({ conversationId, message }) => options.persistUserTurn!(conversationId, message) : undefined,
- } }, {}) }, {});
+ return trackTransportActivity({ activity, transport: createTransport({ options: jiniHostOptions(options) }, {}) }, {});
+}
+
+type JiniHostOptions = NonNullable<Parameters<typeof client.createAssistantTransport>[0]["options"]>;
+
+/**
+ * Adapts the dock's host callbacks to Jini's port shape. Jini calls each port as `port({}, {})`;
+ * every wrapper re-reads the option on each call and invokes it with exactly the arguments its own
+ * signature declares, so a callback with optional parameters never receives Jini's port objects.
+ * @param options The dock's callbacks; absent ones stay `undefined` so Jini keeps its defaults.
+ * @returns Jini host options. No side effects.
+ */
+function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHostOptions {
+ return {
+  getExecutionConfig: options.getExecutionConfig && (() => options.getExecutionConfig!()),
+  getAgUiEnabled: options.getAgUiEnabled && (() => options.getAgUiEnabled!()),
+  getResumeCapableAgentIds: options.getResumeCapableAgentIds && (() => options.getResumeCapableAgentIds!()),
+  ensureConversationId: options.ensureConversationId && (() => options.ensureConversationId!()),
+  persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => options.persistUserTurn!(conversationId, message)),
+ };
 }
 export function historyForTranscript(history: readonly ChatMessage[]) { return client.historyForTranscript({ history }, {}); }
 export function undeliveredUserPrompt(history: readonly ChatMessage[]) { return client.undeliveredUserPrompt({ history }, {}); }
@@ -129,8 +142,7 @@ export function consumeByokStream(body: ReadableStream<Uint8Array>, ctx: Paramet
 
 /** Provider dispatch receives an augmented copy; persistence/title derivation sees the original. */
 function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {
-  let userIndex = -1;
-  input.history.forEach((message, index) => { if (message.role === "user") userIndex = index; });
-  if (userIndex < 0) return input;
+  // Jini refuses a turn with no user message before projecting, so the newest user message exists.
+  const userIndex = input.history.map((message) => message.role).lastIndexOf("user");
   return { ...input, history: input.history.map((message, index) => index === userIndex ? { ...message, content: promptWithSelectedSkills(message.content, input.context) } : message) };
 }
