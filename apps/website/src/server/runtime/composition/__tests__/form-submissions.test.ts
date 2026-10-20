@@ -66,10 +66,11 @@ test("no saved destination: a next-step message, and no host or registry is touc
 });
 
 test("one host imports and is acknowledged; a failing host is reported and does not stop the other", async () => {
-  const s = setup({ hosts: { "host-ok": { pages: [page(["r1", "r2"])] }, "host-bad": { fail: "host said no" } } });
+  const s = setup({ hosts: { "host-ok": { pages: [page(["r1", "r2"])] }, "host-bad": { fail: `host said no to ${"k".repeat(43)}` } } });
   await s.save("host-ok", "https://ok.example");
   await s.save("host-bad", "https://bad.example");
-  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull.pull({ workspaceId: W });
+  const logged: string[] = [];
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit, logError: (line) => logged.push(line) }).pull.pull({ workspaceId: W });
   await settle();
   assert.equal(s.rows.length, 2);
   assert.deepEqual(s.acks, { "host-ok": ["r1", "r2"] });
@@ -78,6 +79,12 @@ test("one host imports and is acknowledged; a failing host is reported and does 
   assert.deepEqual({ imported: ok?.imported, acknowledged: ok?.acknowledged, url: ok?.url, error: ok?.error }, { imported: 2, acknowledged: 2, url: "https://ok.example", error: undefined });
   assert.equal(bad?.imported, 0);
   assert.match(bad?.error ?? "", /host said no/);
+  // The person gets the next step and a reference; the log has the full cause under it, never the key.
+  const reference = /report reference (\S+): the site's server log has the details\.$/.exec(bad?.error ?? "")?.[1];
+  assert.ok(reference, "the report names a reference");
+  assert.equal(logged.length, 1);
+  assert.match(logged[0]!, new RegExp(`^\\[form-submissions\\] pull from https://bad\\.example \\(host-bad\\) failed, reference ${reference}: Error: host said no to \\[redacted\\]\\n\\s+at `));
+  assert.ok(!logged[0]!.includes("k".repeat(43)) && !(bad?.error ?? "").includes("k".repeat(43)), "the key is never logged or returned");
   assert.match(result.message, /^Imported 2 new form submissions from 2 published sites\./);
   assert.match(result.message, /https:\/\/bad\.example: .*host said no/);
   assert.ok(s.outboxReads.length > 0, "notification delivery starts once something was imported");

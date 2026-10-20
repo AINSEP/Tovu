@@ -109,3 +109,18 @@ test("without a store transaction the writes still run in order", async () => {
   const result = await importRemoteFormSubmissions({ deps: { ...s.deps, submissionRepo: plain }, workspaceId: "w", destinationKey: "d", items: [row("r1", { email: "a@b.co" })] });
   assert.equal(result.imported, 1);
 });
+
+test("the store's transaction is called on the store itself, as the SQL adapter's `this.kernel` needs", async () => {
+  // Regression (2026-10-19, live byho.io pull): the import called a detached `transaction`, so the
+  // SQL store failed with "Cannot read properties of undefined (reading 'kernel')" on every row.
+  const s = setup();
+  const inner = s.deps.submissionRepo;
+  class KernelBackedRepo {
+    private readonly kernel = { transaction: <T>(work: () => Promise<T>) => inner.transaction!(work) };
+    create = inner.create;
+    transaction<T>(work: () => Promise<T>): Promise<T> { return this.kernel.transaction(work); }
+  }
+  const result = await importRemoteFormSubmissions({ deps: { ...s.deps, submissionRepo: new KernelBackedRepo() }, workspaceId: "w", destinationKey: "d", items: [row("r1", { email: "a@b.co" })] });
+  assert.deepEqual(result, { committedIds: ["r1"], imported: 1, duplicates: 0, invalid: [], skipped: [] });
+  assert.equal(s.rows.length, 1);
+});

@@ -42,7 +42,15 @@ test('forms submissions pull: an unwired server says so with a next step', async
   assert.deepEqual(result.body, { error: "pulling form submissions is not available on this site's server; restart the site, then try again", code: 'FORMS_PULL_UNAVAILABLE' });
 });
 
-test('forms submissions pull: a thrown pull is a private 500', async () => {
+test('forms submissions pull: a thrown pull is a private 500 that names a reference the server log repeats', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
   const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: { pull: async () => { throw new Error('secret detail'); } } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH), { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+  const result = await dispatchJsonRequest(app, 'POST', PATH);
+  const body = result.body as { error: string; code: string };
+  assert.deepEqual({ status: result.status, code: body.code }, { status: 500, code: 'INTERNAL_ERROR' });
+  assert.ok(!body.error.includes('secret detail'), 'the cause stays in the log');
+  const reference = /report reference ([0-9a-f-]{36}) /.exec(body.error)?.[1];
+  assert.ok(reference, body.error);
+  assert.equal(logged.mock.callCount(), 1);
+  assert.match(String(logged.mock.calls[0]!.arguments[0]), new RegExp(`reference ${reference}: Error: secret detail`));
 });

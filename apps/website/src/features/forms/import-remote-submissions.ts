@@ -85,14 +85,15 @@ async function importOne(
   const data = validation.valid ? validation.data : declaredAnswers({ definition, answers: item.answers });
   const now = new Date(deps.clock.nowMs()).toISOString();
   const submissionId = deps.idGen.newId();
-  const transaction = deps.submissionRepo.transaction ?? (<T>(work: () => Promise<T>) => work());
-  const claimed = await transaction(async () => {
+  const write = async (): Promise<boolean> => {
     if (!await deps.receipts.claim({ workspaceId, destinationKey, remoteId: item.id, submissionId, importedAt: now })) return false;
     await deps.submissionRepo.create({ id: submissionId, workspaceId, formDefinitionId: definition.id, data, sourceIp: item.ip, submittedAt: submittedAt({ value: item.submittedAt, now }) });
     await deps.outbox.enqueue({ id: deps.idGen.newId(), name: "form.submission.received", occurredAt: now, workspaceId, aggregateId: submissionId,
       payload: { workspaceId, formDefinitionId: definition.id, submissionId } });
     return true;
-  });
+  };
+  // Called as a method, never detached: the SQL store's `transaction` reads `this.kernel`.
+  const claimed = deps.submissionRepo.transaction ? await deps.submissionRepo.transaction(write) : await write();
   if (!claimed) return { kind: "duplicate" };
   return { kind: "imported", submissionId, ...(validation.valid ? {} : { fieldErrors: validation.fieldErrors }) };
 }

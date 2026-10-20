@@ -35,7 +35,7 @@ export interface FormSubmissionsCompositionDeps {
 /** @complexity O(1) to build; see each port for its own cost. */
 export function composeFormSubmissions(
   required: FormSubmissionsCompositionDeps,
-  optional: { observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void } = {},
+  optional: { observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void } = {},
 ): { destination: StaticPublishFormDestinationPort; pull: FormSubmissionsPullPort } {
   const destination = createFormDestinationPort({
     listForms: async ({ workspaceId }) => buildFormDestinationManifest({ definitions: await required.formDefinitionRepo.list({ workspaceId }) }),
@@ -51,7 +51,7 @@ export function composeFormSubmissions(
  * @complexity O(destinations * pull cap). */
 async function pullAll(
   required: { deps: FormSubmissionsCompositionDeps; workspaceId: string },
-  optional: { targetId?: string; observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void },
+  optional: { targetId?: string; observability?: ObservabilityPort; kit?: DeployHostKit; warn?: (message: string) => void; logError?: (message: string) => void },
 ): Promise<{ message: string; destinations: FormDestinationPullReport[] }> {
   const { deps, workspaceId } = required;
   // `targetId` (the tool's field name, kept for compatibility) is the receiver scope: the hosting
@@ -62,7 +62,7 @@ async function pullAll(
   const kit = optional.kit ?? createDeployHostKit({ observability: optional.observability });
   const destinations: FormDestinationPullReport[] = [];
   for (const { scope, destination } of saved) {
-    destinations.push(await pullOne({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit }));
+    destinations.push(await pullOne({ deps, workspaceId, scope, destination, module: registry.resolve({ scope })?.module ?? {}, kit }, { logError: optional.logError }));
   }
   if (destinations.some((report) => report.imported > 0)) {
     void processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }).catch(() => (optional.warn ?? console.warn)("[form-submissions] notification delivery for pulled submissions failed; the outbox retries it"));
@@ -71,10 +71,11 @@ async function pullAll(
 }
 
 /** One destination's pull and import; a failure becomes that destination's report, never a throw.
+ * The failure's full cause is logged under a reference the report repeats, so a person can quote it.
  * @complexity O(pull cap * rows). */
 async function pullOne(
   required: { deps: FormSubmissionsCompositionDeps; workspaceId: string; scope: string; destination: FormDestinationAddress; module: Parameters<typeof pullFromFormDestination>[0]["module"]; kit: DeployHostKit },
-  _optional: Record<string, never> = {},
+  optional: { logError?: (message: string) => void } = {},
 ): Promise<FormDestinationPullReport> {
   const { deps, workspaceId, scope, destination, module, kit } = required;
   const base = { targetId: scope, url: new URL(destination.url).origin };
@@ -84,8 +85,20 @@ async function pullOne(
         receipts: deps.receipts, outbox: deps.outbox, clock: deps.clock, idGen: deps.idGen }, workspaceId, destinationKey, items }) });
     return { ...base, ...sumPages({ pages: pulled.pages }), pulled: pulled.pulled, acknowledged: pulled.acknowledged, hasMore: pulled.hasMore };
   } catch (error) {
-    return { ...base, pulled: 0, imported: 0, duplicates: 0, acknowledged: 0, hasMore: false, invalid: [], skipped: [], error: error instanceof Error ? error.message : String(error) };
+    const reference = deps.idGen.newId();
+    (optional.logError ?? console.error)(`[form-submissions] pull from ${base.url} (${scope}) failed, reference ${reference}: ${failureDetail({ error, secret: destination.secret })}`);
+    const message = error instanceof Error ? error.message : String(error);
+    return { ...base, pulled: 0, imported: 0, duplicates: 0, acknowledged: 0, hasMore: false, invalid: [], skipped: [],
+      error: `${message} If it fails again, report reference ${reference}: the site's server log has the details.` };
   }
+}
+
+/** The failure's root stack for the log (the original cause when there is one), with the key removed.
+ * @complexity O(stack bytes). */
+function failureDetail({ error, secret }: { error: unknown; secret: string }, _optional = {}): string {
+  const root = error instanceof Error && error.cause !== undefined ? error.cause : error;
+  const text = root instanceof Error ? root.stack ?? root.message : String(root);
+  return secret ? text.replaceAll(secret, "[redacted]") : text;
 }
 
 /** @complexity O(pages + rows). */

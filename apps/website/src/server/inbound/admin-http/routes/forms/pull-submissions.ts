@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 
@@ -39,7 +41,16 @@ export const registerAdminFormsPullSubmissionsRoute: FormsRouteRegistrar = (app,
         res.status(503).json({ error: "pulling form submissions is not available on this site's server; restart the site, then try again", code: "FORMS_PULL_UNAVAILABLE" });
         return;
       }
-      res.json(await deps.formSubmissionsPull.pull({ workspaceId: deps.workspaceId }, parsed.targetId ? { targetId: parsed.targetId } : {}));
+      try {
+        res.json(await deps.formSubmissionsPull.pull({ workspaceId: deps.workspaceId }, parsed.targetId ? { targetId: parsed.targetId } : {}));
+      } catch (error) {
+        // One host's failure is already a per-destination report; this is a failure before any host
+        // was read (the vault, the plugin registry). Log the cause under a reference the reply repeats.
+        const reference = randomUUID();
+        // eslint-disable-next-line no-console
+        console.error(`[forms] pulling form submissions failed, reference ${reference}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+        res.status(500).json({ error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${reference} (the site's server log has the details)`, code: "INTERNAL_ERROR" });
+      }
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

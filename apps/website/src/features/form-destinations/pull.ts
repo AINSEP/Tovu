@@ -64,5 +64,6 @@ async function acknowledgeCommitted(
 /** The person-facing stop error: names the address, never the key. @complexity O(message bytes). */
 function pullStopped({ error, destination }: { error: unknown; destination: FormDestinationAddress }, _optional = {}): Error {
   const message = (error instanceof Error ? error.message : String(error)).replaceAll(destination.secret, "[redacted]");
-  return new Error(`pulling form submissions from ${new URL(destination.url).origin} stopped: ${message}. Rows not yet acknowledged stay at the host; pull again later.`);
+  // `cause` keeps the original stack for the server log; the caller redacts the key before logging it.
+  return new Error(`pulling form submissions from ${new URL(destination.url).origin} stopped: ${message}. Rows not yet acknowledged stay at the host; pull again later.`, { cause: error });
 }
