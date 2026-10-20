@@ -114,6 +114,14 @@ function satisfied(body, requirement) {
   return [requirement].flat().some((field) => body[field] !== undefined && body[field] !== null);
 }
 
+/** What is wrong with a listed kind's body, or undefined. @complexity O(f). */
+function bodyProblem(entry, body) {
+  const missing = entry.requires.find((requirement) => !satisfied(body, requirement));
+  if (missing) return `needs ${[missing].flat().join(' or ')}`;
+  const explicitMask = typeof body.fields === 'string' && body.fields.trim() !== '' && !body.fields.includes('*');
+  return body.fields === undefined || explicitMask ? undefined : 'needs an explicit field mask, not *';
+}
+
 /**
  * The listed kind of one request, or the refusal that stops the whole batch.
  * @complexity O(f) fields of the kind's requirements.
@@ -127,12 +135,8 @@ function checkOne(request, index) {
   if (!entry) return { error: refuse('unsupported-request', `request ${index + 1}`) };
   const body = request[kind];
   if (!isPlainObject(body)) return { error: refuse('invalid-input', `request ${index + 1} (${kind}) must be an object`) };
-  const missing = entry.requires.find((requirement) => !satisfied(body, requirement));
-  if (missing) return { error: refuse('invalid-input', `request ${index + 1} (${kind}) needs ${[missing].flat().join(' or ')}`) };
-  if (body.fields !== undefined && (typeof body.fields !== 'string' || body.fields.trim() === '' || body.fields.includes('*'))) {
-    return { error: refuse('invalid-input', `request ${index + 1} (${kind}) needs an explicit field mask, not *`) };
-  }
-  return { kind, entry };
+  const problem = bodyProblem(entry, body);
+  return problem ? { error: refuse('invalid-input', `request ${index + 1} (${kind}) ${problem}`) } : { kind, entry };
 }
 
 /** Refuses an empty, oversized or too varied batch. @complexity O(serialized size). */

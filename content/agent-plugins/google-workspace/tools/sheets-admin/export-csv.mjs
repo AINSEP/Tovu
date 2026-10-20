@@ -34,10 +34,15 @@ async function readRows(client, input, chunks, signal) {
       connectionRef: input.connectionRef, url: spreadsheetUrl({ spreadsheetId: input.spreadsheetId, suffix: '/values:batchGet' }), kind: 'read',
       query: { ranges: chunk.range, majorDimension: 'ROWS', valueRenderOption: input.valueRenderOption ?? 'FORMATTED_VALUE' },
     }, signal ? { signal } : {});
-    const values = Array.isArray(body?.valueRanges?.[0]?.values) ? body.valueRanges[0].values : [];
-    for (let index = 0; index < chunk.rowCount; index += 1) rows.push(Array.isArray(values[index]) ? values[index] : []);
+    rows.push(...paddedRows(body, chunk.rowCount));
   }
   return rows;
+}
+
+/** One chunk's rows; Google drops trailing empty rows, so they are put back as empty rows. @complexity O(rows). */
+function paddedRows(body, rowCount) {
+  const values = Array.isArray(body?.valueRanges?.[0]?.values) ? body.valueRanges[0].values : [];
+  return Array.from({ length: rowCount }, (_, index) => (Array.isArray(values[index]) ? values[index] : []));
 }
 
 /** A file name from the tab title: letters, digits, space, dot, dash and underscore only. @complexity O(title). */
