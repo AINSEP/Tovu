@@ -8,7 +8,7 @@ import type { DeployHostKit } from "#src/features/deployments/deploy-targets/typ
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
 import { createFormDestinationPort, FORM_PULL_LEASE_MS, formDestinationKey, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationRegistry } from "#src/features/form-destinations/index";
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";
-import { readFormsAutoPull } from "#src/features/settings/form-delivery";
+import { readFormsAutoPull } from "#src/features/settings/index";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormImportCounts, type FormPullCounts, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort, type RemoteImportResult, type RemoteSubmissionInput } from "#src/features/forms/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
