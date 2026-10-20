@@ -3,7 +3,6 @@
  * the frozen account, guarded HTTP, limiter isolation, confirmation before any external write,
  * activation and authorization rechecks, and the MCP-UI callback accepting only exchange answers.
  */
-import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';

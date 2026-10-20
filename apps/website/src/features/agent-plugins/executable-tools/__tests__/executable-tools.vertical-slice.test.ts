@@ -4,7 +4,6 @@
  * existing confirmation card, and after confirmation the module runs with a host-scoped token,
  * guarded HTTP and the frozen account, returning a result without the token.
  */
-import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { bootFixture, startConfirmingCall, TOKEN, WORKSPACE, PLUGIN } from './fixtures.js';

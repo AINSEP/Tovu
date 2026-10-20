@@ -4,7 +4,6 @@
  * the existing confirmation card's Tool/Input rows, the existing extension approval families, and
  * the MCP-UI callback refusing a fresh execution of a plugin tool id.
  */
-import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createToolRegistry, type ToolRegistration } from '@jini-ai/core';
