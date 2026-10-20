@@ -77,6 +77,27 @@ function inlineText(node: NodeView, images: ContentBlock[], depth: number): stri
   return text;
 }
 
+/** A heading or text block, followed by the inline images found in its text. */
+function inlineBlock(required: { node: NodeView }): ContentBlock[] {
+  const { node } = required;
+  const images: ContentBlock[] = [];
+  const text = inlineText(node, images, 0);
+  return [node.type === "heading" ? { kind: "heading", level: headingLevel(node.attrs.level), text } : { kind: "text", text }, ...images];
+}
+
+/** The blocks one block-level node yields, or `undefined` for a container whose children are walked. */
+function leafBlocks(required: { node: NodeView }): ContentBlock[] | undefined {
+  const { node } = required;
+  if (node.type === "heading" || TEXT_BLOCK_TYPES.has(node.type as string)) return inlineBlock({ node });
+  if (IMAGE_TYPES.has(node.type as string)) return [imageBlock(node)];
+  // The admin editor prepends a `title` node to every bodyJson (apps/admin/src/features/posts/
+  // rules.ts `withTitleNode`); the title reaches the scorer separately, so counting it here would
+  // double it into the body's words.
+  if (node.type === "title") return [];
+  if (node.type === "text") return typeof node.text === "string" ? [{ kind: "text", text: node.text }] : [];
+  return undefined;
+}
+
 function walk(node: unknown, out: ContentBlock[], depth: number): void {
   if (depth > MAX_DEPTH) return;
   if (Array.isArray(node)) {
@@ -85,27 +106,9 @@ function walk(node: unknown, out: ContentBlock[], depth: number): void {
   }
   const current = view(node);
   if (!current) return;
-
-  if (current.type === "heading") {
-    const images: ContentBlock[] = [];
-    out.push({ kind: "heading", level: headingLevel(current.attrs.level), text: inlineText(current, images, 0) }, ...images);
-    return;
-  }
-  if (TEXT_BLOCK_TYPES.has(current.type as string)) {
-    const images: ContentBlock[] = [];
-    out.push({ kind: "text", text: inlineText(current, images, 0) }, ...images);
-    return;
-  }
-  if (IMAGE_TYPES.has(current.type as string)) {
-    out.push(imageBlock(current));
-    return;
-  }
-  // The admin editor prepends a `title` node to every bodyJson (apps/admin/src/features/posts/
-  // rules.ts `withTitleNode`); the title reaches the scorer separately, so counting it here would
-  // double it into the body's words.
-  if (current.type === "title") return;
-  if (current.type === "text") {
-    if (typeof current.text === "string") out.push({ kind: "text", text: current.text });
+  const blocks = leafBlocks({ node: current });
+  if (blocks) {
+    out.push(...blocks);
     return;
   }
   for (const child of current.children) walk(child, out, depth + 1);
