@@ -285,3 +285,10 @@ test("performThemeFileRename: a destPath that resolves generated-readonly throws
     /'generated-output\.json' is read-only: this file is generated output of a built theme/
   );
 });
+
+test('theme_edit_file: an empty replacement deletes the exact match', async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const result = await wired(deps, 'theme_edit_file').handler(executionContext({ themeId: 'plain', path: 'styles.css', oldString: '.card{padding:0}\n', newString: '' }));
+  assert.equal((result as { occurrencesReplaced: number }).occurrencesReplaced, 1);
+  assert.equal(readFile(themesDir, 'styles.css'), 'body{padding:0}\n');
+});

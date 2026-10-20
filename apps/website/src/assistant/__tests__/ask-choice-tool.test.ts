@@ -386,9 +386,9 @@ test("registers unconditionally, publishing its own catalog schema", () => {
     }>;
   };
   assert.equal(schema.type, "object");
-  assert.deepEqual(schema.required, ["title"]);
+  assert.equal(schema.required, undefined);
   assert.equal(schema.properties.title.type, "string");
-  assert.deepEqual(schema.anyOf, [{ required: ["singleSelect"] }, { required: ["multiSelect"] }]);
+  assert.deepEqual(schema.anyOf, [{ required: ["question", "options"] }, { required: ["title", "singleSelect"] }, { required: ["title", "multiSelect"] }]);
   for (const field of ["singleSelect", "multiSelect"]) {
     const select = schema.properties[field]!;
     assert.equal(select.type, "object");
@@ -501,4 +501,23 @@ test('delegated normalization: flat choice travels through the bridge, waits for
   assert.equal(refused.isError, true);
   assert.match(delegatedText(refused), /Send either flat options or explicit select fields/);
   assert.equal(emitted.length, 1);
+});
+
+test('canonical flat questions use the shared model schema and keep authenticated answers unchanged', async () => {
+  const { ASK_CHOICE_INPUT_SCHEMA } = await import('@jini-ai/mcp/tools/ask-choice');
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+  assert.deepEqual(registration.descriptor.inputSchema, ASK_CHOICE_INPUT_SCHEMA);
+  const schema = registration.descriptor.inputSchema as { properties: Record<string, unknown> };
+  for (const field of ['choice', 'selections', ASK_CHOICE_ANSWER_TICKET_PARAM]) assert.equal(field in schema.properties, false);
+  const pending = await executeRegisteredTool({ registration, input: { question: 'Start now?', options: [{ label: 'Now', description: 'Start immediately' }, { label: 'Later', value: 'wait' }] } });
+  assert.equal(pending.status, 'completed');
+  const ticket = answerTicketFromResult(pending.output);
+  const answer = await executeRegisteredTool({ registration, input: { choice: 'Now', [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+  assert.equal(answer.status, 'completed');
+  assert.match(JSON.stringify(answer.output), /"submitted":true/);
+  assert.match(JSON.stringify(answer.output), /"choice":"Now"/);
+  const forged = await executeRegisteredTool({ registration, input: { choice: 'Now', [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+  assert.equal(forged.errorKind, 'validation');
 });
