@@ -1,8 +1,6 @@
-import { createHash } from "node:crypto";
-
-import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionRemoteRevocation, type ApiConnectionStatusView } from "@jini-ai/integrations/api-connections";
-import type {
-  AdminSurfaceAuthorizationStart, AdminSurfaceConnectionAction, AdminSurfaceConnections, AdminSurfaceConnectionStatus, AdminSurfaceRevocationOutcome,
+import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionStagedSwitch, type ApiConnectionStatusView } from "@jini-ai/integrations/api-connections";
+import {
+  ADMIN_SURFACE_ACTION_INTENTS, type AdminSurfaceAuthorizationStart, type AdminSurfaceConnections, type AdminSurfaceConnectionStatus,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { startLoopbackAuthorizationReceiver } from "@jini-ai/oauth";
 
@@ -20,14 +18,10 @@ import type { ApiConnectionHost } from "./host.js";
  * connection id is turned into its opaque ref here, from the scope's plugin and workspace, and any
  * other id gets one refusal. Refs never leave. A sign-in's authorization URL is reported to
  * `onSignInIssued` so the admin route can let the host page (not the sandboxed frame) open exactly
- * the URLs this host issued. Revocation outcomes are reported verbatim: `revoked` only when the
- * provider confirmed.
+ * the URLs this host issued. Revocation outcomes are reported verbatim: `confirmed` only when the
+ * provider confirmed. A sign-in's `attemptId` is the service's own random id; the OAuth `state`
+ * never reaches the plugin.
  */
-
-/** The opaque attempt id a plugin uses to take callback fields: a digest of the state, never the state. */
-export function callbackAttemptId(required: { readonly state: string }, _optional: Record<string, never> = {}): string {
-  return createHash("sha256").update(required.state).digest("base64url");
-}
 
 export interface IssuedSignIn extends AdminSurfaceAuthorizationStart {
   readonly pluginId: string;
@@ -42,8 +36,6 @@ export interface SurfaceConnectionsDeps {
   readonly log?: (line: string) => void;
   readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
-
-const REVOCATION: Readonly<Record<ApiConnectionRemoteRevocation, AdminSurfaceRevocationOutcome>> = { confirmed: "revoked", pending: "revocation-pending", "not-needed": "not-needed" };
 
 /** The one refusal for an id the plugin does not declare here, a foreign workspace, or no admin. */
 function notAvailable(): ApiConnectionError {
@@ -68,16 +60,19 @@ async function grantedScopeSets(host: ApiConnectionHost, connection: DeclaredApi
   return ids;
 }
 
+/** A staged switch's account while it can still be confirmed: after its expiry the confirm refuses, so no label. @complexity O(1). */
+function liveStagedAccount(host: ApiConnectionHost, staged: ApiConnectionStagedSwitch | null | undefined): StatusSource["pendingSwitch"] {
+  return staged && Date.parse(staged.expiresAt) > host.clock.nowMs() ? staged.account : null;
+}
+
 /** Token-free status; scope sets are the plugin's own ids, never raw provider scopes. */
 async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnection, view: StatusSource): Promise<AdminSurfaceConnectionStatus> {
   return {
-    connectionId: connection.descriptor.connectionId, state: view.status, accountLabel: view.account?.displayName ?? null,
+    connectionId: connection.descriptor.connectionId, status: view.status, accountLabel: view.account?.displayName ?? null,
     grantedScopeSetIds: view.status === "connected" ? await grantedScopeSets(host, connection, view.grantedScopes) : [],
     pendingSwitchAccountLabel: view.pendingSwitch?.displayName ?? null,
   };
 }
-
-const intentOf = (action: AdminSurfaceConnectionAction) => (action === "switch" ? "switch-account" as const : "connect" as const);
 
 /**
  * Builds the per-call connections port for one plugin, workspace and (for account actions) admin.
@@ -102,6 +97,11 @@ export function createSurfaceConnections(
     return { ...(await resolve(connectionId)), actorId: principalId };
   }
 
+  /** An action's result view, its staged-switch label re-read from the record so an expired one never shows. */
+  async function viewAfterAction(connectionRef: string, view: ApiConnectionStatusView): Promise<StatusSource> {
+    return { ...view, pendingSwitch: liveStagedAccount(host, (await host.records.read({ key: connectionRef }))?.staged) };
+  }
+
   /** Desktop: deposit the callback fields once the loopback sign-in redeemed; failures go to the log by code. */
   function watchDesktopCompletion(connectionId: string, attemptId: string, completion: Promise<{ readonly callbackFields: Readonly<Record<string, string>> } | null> | undefined): void {
     void completion?.then(
@@ -118,32 +118,34 @@ export function createSurfaceConnections(
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);
       const record = await host.records.read({ key: connectionRef });
-      return statusFrom(host, connection, record ? { ...record, pendingSwitch: record.staged?.account ?? null } : NEVER_CONNECTED);
+      return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED);
     },
     async begin({ connectionId, action }, optional = {}) {
       const { connection, actorId } = await forActor(connectionId);
-      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: intentOf(action), scopeSetIds: optional.scopeSetIds ?? [] }, {
+      const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [] }, {
         ...(optional.startParams === undefined ? {} : { startParams: optional.startParams }),
         ...(required.startLoopback === undefined ? {} : { startLoopback: required.startLoopback }),
       });
-      const issued = { authorizationUrl: start.authorizationUrl, attemptId: callbackAttemptId({ state: start.state }), expiresAt: start.expiresAt };
+      const issued = { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt };
       watchDesktopCompletion(connectionId, issued.attemptId, start.completion);
       required.onSignInIssued?.({ ...issued, pluginId, connectionId });
       return issued;
     },
     async confirmSwitch({ connectionId }) {
       const { connection, connectionRef, actorId } = await forActor(connectionId);
-      const view = await host.serviceFor({ connection }).confirmSwitchAccount({ connectionRef, actorId });
-      return statusFrom(host, connection, view);
+      const view = await host.serviceFor({ connection }).confirmSwitchAccount({ connectionRef, workspaceId, actorId });
+      return statusFrom(host, connection, await viewAfterAction(connectionRef, view));
     },
     async cancelSwitch({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
-      return statusFrom(host, connection, await host.serviceFor({ connection }).cancelSwitchAccount({ connectionRef }));
+      const view = await host.serviceFor({ connection }).cancelSwitchAccount({ connectionRef, workspaceId });
+      return statusFrom(host, connection, await viewAfterAction(connectionRef, view));
     },
     async disconnect({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
-      const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef });
-      return { ...(await statusFrom(host, connection, outcome)), revocation: REVOCATION[outcome.remoteRevocation] };
+      const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId });
+      // Same vocabulary on both sides: the provider's outcome passes through unchanged.
+      return { ...(await statusFrom(host, connection, await viewAfterAction(connectionRef, outcome))), revocation: outcome.remoteRevocation };
     },
     async takeCallbackFields({ connectionId, attemptId }) {
       await resolve(connectionId);

@@ -166,16 +166,16 @@ test("desktop: the loopback sign-in deposits the declared callback fields for th
   assert.equal(await port.getAccessToken({ connectionId: "account" }), accessToken, "the loopback completion connected the account");
 });
 
-test("disconnect: revocation is reported verbatim, never 'revoked' unless the provider confirmed", async () => {
+test("disconnect: revocation is reported verbatim, never 'confirmed' unless the provider confirmed", async () => {
   const host = makeHost();
   const port = await connected(host);
   provider.revokeStatus = 503;
   const pending = await port.disconnect({ connectionId: "account" });
-  assert.deepEqual([pending.state, pending.revocation], ["revocation-pending", "revocation-pending"]);
+  assert.deepEqual([pending.status, pending.revocation], ["revocation-pending", "pending"]);
   await assert.rejects(port.getAccessToken({ connectionId: "account" }), { code: "revocation-pending" });
   provider.revokeStatus = 200;
   const retried = await port.disconnect({ connectionId: "account" });
-  assert.deepEqual([retried.state, retried.revocation], ["disconnected", "revoked"]);
+  assert.deepEqual([retried.status, retried.revocation], ["disconnected", "confirmed"]);
 });
 
 test("issued sign-ins: only links recorded inside a collection, only https, and concurrent collections never mix", async () => {

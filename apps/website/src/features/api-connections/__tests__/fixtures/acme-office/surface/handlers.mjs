@@ -15,7 +15,7 @@ export default {
       const status = await capabilities.connections.status({ connectionId: context.connectionIds[0] });
       const appId = await capabilities.publicConfig.get({ name: "TOVU_ACME_CHOOSER_APP_ID" });
       return {
-        state: status.state, grantedScopeSetIds: [...status.grantedScopeSetIds],
+        state: status.status, grantedScopeSetIds: [...status.grantedScopeSetIds],
         ...(status.accountLabel === null ? {} : { accountLabel: status.accountLabel }), ...(appId === null ? {} : { appId }),
       };
     },
@@ -35,7 +35,7 @@ export default {
     },
     async disconnect({ capabilities, context }) {
       const outcome = await capabilities.connections.disconnect({ connectionId: context.connectionIds[0] });
-      return { state: outcome.state, revocation: outcome.revocation };
+      return { state: outcome.status, revocation: outcome.revocation };
     },
   },
 };
