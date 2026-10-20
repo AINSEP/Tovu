@@ -112,8 +112,9 @@ test("every bundled plugin not seeded enabled, supabase included, is listed as s
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
     assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), SEEDED_ENABLED);
-    assert.deepEqual([...bundledIds].sort(), ["composio", "higgsfield-media", "jev", "site-compliance", "supabase"]);
-    for (const expected of ["supabase"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
+    // google-workspace (2026-10-20) ships disabled until its products and sign-in are reviewed.
+    assert.deepEqual([...bundledIds].sort(), ["composio", "google-workspace", "higgsfield-media", "jev", "site-compliance", "supabase"]);
+    for (const expected of ["supabase", "google-workspace"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
 
     const listed = await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));

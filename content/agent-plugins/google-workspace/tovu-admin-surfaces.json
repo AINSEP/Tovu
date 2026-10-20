@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "surfaces": [
+    {
+      "id": "connection",
+      "title": "Google Workspace",
+      "entry": "ui/connection-panel.html"
+    }
+  ]
+}
