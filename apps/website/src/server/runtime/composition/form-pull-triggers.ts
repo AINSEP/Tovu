@@ -47,7 +47,7 @@ export function createServingFormPullTrigger(
     onError: () => console.warn(FORM_PULL_FAILED_LINE),
   });
   // `trigger.run` never rejects, so neither sign-in nor boot waits on or fails because of a pull.
-  const pullNow = (): void => { void trigger.run(); };
+  const pullNow = (): void => { void trigger.run({}); };
   const settled = async (): Promise<void> => { await trigger.stop(); await autoPull?.drained(); };
   return { signIn: { signedIn: pullNow }, pullNow, stop: () => withinGrace({ work: settled() }) };
 }
