@@ -483,53 +483,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
     if (!cardIsAvailable(byId, card)) continue;
 
     const id = contentReadToolId(card.resource);
-    const memberIds: string[] = [];
-    let handler: ToolHandler;
-    let inputSchema: Readonly<Record<string, unknown>>;
-
-    if (card.get && card.listLookup) {
-      throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and listLookup — a hand-written get always serves read-one`);
-    }
-
-    if (card.list && card.listLookup) {
-      const listReg = sourceRegistration(byId, card.list.toolId);
-      memberIds.push(card.list.toolId);
-      const get = lookupInList({ resource: card.resource, listToolId: card.list.toolId, lookup: card.listLookup, list: listReg.handler });
-      handler = dispatchByIdPresence({ idProperty: card.listLookup.idProperty, get, list: listReg.handler });
-      inputSchema = unionInputSchema(
-        listLookupIdSchema({ resource: card.resource, lookup: card.listLookup, listSchema: (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA }),
-        (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
-        card.listLookup.idProperty,
-      );
-    } else if (card.get && card.list) {
-      if (!card.get.idProperty) {
-        throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and list but no idProperty on get`);
-      }
-      const getReg = sourceRegistration(byId, card.get.toolId);
-      const listReg = sourceRegistration(byId, card.list.toolId);
-      memberIds.push(card.get.toolId, card.list.toolId);
-      const getSchema = (getReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
-      handler = dispatchByIdPresence({ idProperty: card.get.idProperty, get: getReg.handler, list: listReg.handler }, {
-        batchGet: Object.hasOwn((getSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA, "items"),
-      });
-      inputSchema = unionInputSchema(
-        getSchema,
-        (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
-        card.get.idProperty,
-      );
-    } else if (card.get) {
-      const getReg = sourceRegistration(byId, card.get.toolId);
-      memberIds.push(card.get.toolId);
-      handler = getReg.handler;
-      inputSchema = (getReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
-    } else if (card.list) {
-      const listReg = sourceRegistration(byId, card.list.toolId);
-      memberIds.push(card.list.toolId);
-      handler = listReg.handler;
-      inputSchema = (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
-    } else {
-      throw new Error(`content-read-tool.ts: card '${card.resource}' declares neither get nor list`);
-    }
+    const { memberIds, handler, inputSchema } = cardDispatch({ card, byId });
 
     for (const memberId of memberIds) retiredIds.add(memberId);
 
@@ -558,4 +512,74 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
 
   // Survivors and cards alike may still name a retired id in their prose; see `createRetiredReadToolIdRewriter`.
   return [...sourceRegistrations.filter((registration) => !retiredIds.has(registration.descriptor.id)), ...collapsed].map(createRetiredReadToolIdRewriter({ retiredIds }));
+}
+
+/** Resolve a card through its original domain handlers; permission enforcement stays there. */
+function cardDispatch({ card, byId }: { card: ContentReadCard; byId: ReadonlyMap<string, ToolRegistration> }, _options = {}) {
+  const memberIds: string[] = [];
+  let handler: ToolHandler;
+  let inputSchema: Readonly<Record<string, unknown>>;
+  if (card.get && card.listLookup) {
+    throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and listLookup — a hand-written get always serves read-one`);
+  }
+
+  if (card.list && card.listLookup) {
+    return lookupCardDispatch({ card, list: card.list, lookup: card.listLookup, byId });
+  } else if (card.get && card.list) {
+    return pairedCardDispatch({ card, get: card.get, list: card.list, byId });
+  } else if (card.get) {
+    const getReg = sourceRegistration(byId, card.get.toolId);
+    memberIds.push(card.get.toolId);
+    handler = getReg.handler;
+    inputSchema = registrationInputSchema({ registration: getReg });
+  } else if (card.list) {
+    const listReg = sourceRegistration(byId, card.list.toolId);
+    memberIds.push(card.list.toolId);
+    handler = listReg.handler;
+    inputSchema = registrationInputSchema({ registration: listReg });
+  } else {
+    throw new Error(`content-read-tool.ts: card '${card.resource}' declares neither get nor list`);
+  }
+
+  return { memberIds, handler, inputSchema };
+}
+
+function pairedCardDispatch({ card, get, list, byId }: {
+  card: ContentReadCard; get: NonNullable<ContentReadCard["get"]>; list: NonNullable<ContentReadCard["list"]>;
+  byId: ReadonlyMap<string, ToolRegistration>;
+}, _options = {}) {
+  if (!get.idProperty) {
+    throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and list but no idProperty on get`);
+  }
+  const getReg = sourceRegistration(byId, get.toolId);
+  const listReg = sourceRegistration(byId, list.toolId);
+  const getSchema = registrationInputSchema({ registration: getReg });
+  const handler = dispatchByIdPresence({ idProperty: get.idProperty, get: getReg.handler, list: listReg.handler }, {
+    batchGet: Object.hasOwn((getSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA, "items"),
+  });
+  const inputSchema = unionInputSchema(
+    getSchema,
+    registrationInputSchema({ registration: listReg }),
+    get.idProperty,
+  );
+  return { memberIds: [get.toolId, list.toolId], handler, inputSchema };
+}
+
+function registrationInputSchema({ registration }: { registration: ToolRegistration }, _options = {}): Readonly<Record<string, unknown>> {
+  return (registration.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
+}
+
+function lookupCardDispatch({ card, list, lookup, byId }: {
+  card: ContentReadCard; list: NonNullable<ContentReadCard["list"]>; lookup: ListLookup;
+  byId: ReadonlyMap<string, ToolRegistration>;
+}, _options = {}) {
+  const listReg = sourceRegistration(byId, list.toolId);
+  const get = lookupInList({ resource: card.resource, listToolId: list.toolId, lookup, list: listReg.handler });
+  const handler = dispatchByIdPresence({ idProperty: lookup.idProperty, get, list: listReg.handler });
+  const inputSchema = unionInputSchema(
+    listLookupIdSchema({ resource: card.resource, lookup, listSchema: registrationInputSchema({ registration: listReg }) }),
+    registrationInputSchema({ registration: listReg }),
+    lookup.idProperty,
+  );
+  return { memberIds: [list.toolId], handler, inputSchema };
 }

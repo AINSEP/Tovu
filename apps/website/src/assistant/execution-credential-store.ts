@@ -3,6 +3,7 @@ import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
 import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "./assistant-vault.js";
+import { credentialViewFields, credentialWriteFields } from './credential-store-fields.js';
 
 /** The admin session principal owns this feature contract. Jini owns vault persistence and
  * JSON sealing. Omitted keys preserve envelopes; clearing retains settings. Legacy AAD is opened
@@ -51,12 +52,15 @@ export interface AdminExecutionCredentialView {
 }
 
 function toView({ record, tokenHint = null }: { record: VaultRecord | null; tokenHint?: CredentialTokenHint | null }, _options = {}): AdminExecutionCredentialView {
-  const isSet = record?.sealed != null;
-  return { isSet, masked: tokenHint?.last4 ? `••••${tokenHint.last4}` : null, tokenHint,
-    protocol: record?.meta.protocol as string ?? "anthropic", providerId: record?.provider ?? null,
-    baseUrl: record?.meta.baseUrl as string | null ?? null, model: record?.meta.model as string | null ?? null,
-    maxTokens: record?.meta.maxTokens as number | null ?? null,
-    updatedAt: record?.updatedAt ?? null };
+  return { ...credentialViewFields({ record, tokenHint }),
+    ...executionMetadata({ input: {}, meta: record?.meta ?? {} }), providerId: record?.provider ?? null };
+}
+
+function executionMetadata({ input, meta }: { input: Pick<SetExecutionCredentialInput, "protocol" | "baseUrl" | "model" | "maxTokens">; meta: VaultRecord["meta"] }, _options = {}) {
+  return { protocol: input.protocol ?? meta.protocol as string ?? "anthropic",
+    baseUrl: input.baseUrl ?? meta.baseUrl as string | null ?? null,
+    model: input.model ?? meta.model as string | null ?? null,
+    maxTokens: input.maxTokens ?? meta.maxTokens as number | null ?? null };
 }
 
 export interface ExecutionCredentialReadDeps { repo: AdminExecutionCredentialRepoPort; sealer?: SecretSealerPort; }
@@ -151,13 +155,9 @@ export async function setExecutionCredential(deps: ExecutionCredentialWriteDeps,
   const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
     throw new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
   } });
-  const prepared = await vault.prepare({ ...context, ...(existing ? { id: existing.id } : {}),
-    expectedRevision: existing?.revision ?? null, provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null, label: existing?.label ?? "",
-    meta: { ...existing?.meta, protocol: input.protocol ?? existing?.meta.protocol ?? "anthropic",
-      baseUrl: input.baseUrl ?? existing?.meta.baseUrl ?? null, model: input.model ?? existing?.meta.model ?? null,
-      maxTokens: input.maxTokens ?? existing?.meta.maxTokens ?? null },
-    payload: input.apiKey === undefined ? (existing ? undefined : null) : { apiKey: input.apiKey },
-    ...(input.apiKey === undefined ? {} : { hintToken: input.apiKey }),
+  const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),
+    provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
+    meta: { ...existing?.meta, ...executionMetadata({ input, meta: existing?.meta ?? {} }) },
   });
   const saved = await repo.put({ record: prepared, expectedRevision: existing?.revision ?? null });
   let tokenHint: CredentialTokenHint | null;

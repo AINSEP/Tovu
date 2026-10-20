@@ -3,6 +3,7 @@ import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
 import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "./assistant-vault.js";
+import { credentialViewFields, credentialWriteFields } from './credential-store-fields.js';
 
 /** The site visitor assistant owns this feature contract. Jini owns vault persistence and
  * JSON sealing. Omitted keys preserve envelopes; clearing retains settings. Legacy AAD is opened
@@ -45,11 +46,14 @@ export interface SiteAssistantCredentialView {
 }
 
 function toView({ record, tokenHint = null }: { record: VaultRecord | null; tokenHint?: CredentialTokenHint | null }, _options = {}): SiteAssistantCredentialView {
-  const isSet = record?.sealed != null;
-  return { isSet, masked: tokenHint?.last4 ? `••••${tokenHint.last4}` : null, tokenHint,
-    provider: record?.provider ?? "google", baseUrl: record?.meta.baseUrl as string | null ?? null,
-    model: record?.meta.model as string | null ?? null,
-    updatedAt: record?.updatedAt ?? null };
+  return { ...credentialViewFields({ record, tokenHint }), provider: record?.provider ?? "google",
+    baseUrl: record?.meta.baseUrl as string | null ?? null, model: record?.meta.model as string | null ?? null };
+}
+
+function siteMetadata({ input, existing }: { input: SetSiteAssistantCredentialInput; existing: VaultRecord | null }, _options = {}) {
+  const meta = existing?.meta;
+  return { ...meta, baseUrl: input.baseUrl ?? meta?.baseUrl ?? null,
+    model: input.model ?? meta?.model ?? null };
 }
 
 export interface SiteAssistantCredentialReadDeps { repo: SiteAssistantCredentialRepoPort; sealer?: SecretSealerPort; }
@@ -122,12 +126,9 @@ export async function setSiteAssistantCredential(deps: SiteAssistantCredentialWr
   const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
     throw new SiteAssistantSecretStoreUnconfiguredError(`site assistant secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
   } });
-  const prepared = await vault.prepare({ ...context, ...(existing ? { id: existing.id } : {}),
-    expectedRevision: existing?.revision ?? null, provider: input.provider ?? existing?.provider ?? "google", label: existing?.label ?? "",
-    meta: { ...existing?.meta, baseUrl: input.baseUrl ?? existing?.meta.baseUrl ?? null,
-      model: input.model ?? existing?.meta.model ?? null },
-    payload: input.apiKey === undefined ? (existing ? undefined : null) : { apiKey: input.apiKey },
-    ...(input.apiKey === undefined ? {} : { hintToken: input.apiKey }),
+  const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),
+    provider: input.provider ?? existing?.provider ?? "google",
+    meta: siteMetadata({ input, existing }),
   });
   const saved = await repo.put({ record: prepared, expectedRevision: existing?.revision ?? null });
   let tokenHint: CredentialTokenHint | null;

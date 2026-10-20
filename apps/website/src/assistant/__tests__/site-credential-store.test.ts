@@ -485,3 +485,18 @@ test("concurrent first saves with different providers contend on one singleton i
   assert.equal(results.filter(result => result.status === "rejected").length, 1);
   assert.equal((await repo.vault.list(assistantVaultContext({ ...scope, kind: "site-assistant" }))).length, 1);
 });
+
+test('TW3 site settings-only creation and omitted settings retain defaults, identity and key', async () => {
+  const { deps, repo } = makeDeps();
+  const scope = { workspaceId: WORKSPACE };
+  const first = await setSiteAssistantCredential(deps, { ...scope, model: 'first' });
+  assert.deepEqual(first, { isSet: false, masked: null, tokenHint: null, provider: 'google', baseUrl: null, model: 'first', updatedAt: clock.nowIso() });
+  await setSiteAssistantCredential(deps, { ...scope, apiKey: ['test', 'credential', '5678'].join('-'), provider: 'openai', baseUrl: 'https://example.test' });
+  const stored = await repo.findByWorkspaceId(WORKSPACE);
+  const changed = await setSiteAssistantCredential(deps, { ...scope, model: 'second' });
+  assert.equal(changed.provider, 'openai');
+  assert.equal(changed.baseUrl, 'https://example.test');
+  assert.equal(changed.model, 'second');
+  assert.equal(changed.masked, '••••5678');
+  assert.deepEqual((await repo.findByWorkspaceId(WORKSPACE))?.sealed, stored?.sealed);
+});

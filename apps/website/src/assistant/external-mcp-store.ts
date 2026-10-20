@@ -490,17 +490,7 @@ function parseEnvLine(rawLine: string, index: number): { readonly name: string; 
 export function parseEnvBlock(text: string): Record<string, string> {
   // JSON is the lossless representation for multiline values; NAME=VALUE remains compatible.
   if (text.trimStart().startsWith('{')) {
-    let parsed: unknown;
-    try { parsed = JSON.parse(text); } catch { throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env'); }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env');
-    const entries = Object.entries(parsed);
-    if (entries.length > MAX_ENV_VARS) throw new ExternalMcpValidationError(`at most ${MAX_ENV_VARS} environment variables are supported`, 'env');
-    for (const [name, value] of entries) {
-      if (!ENV_NAME_PATTERN.test(name) || typeof value !== 'string' || value.includes('\0')) throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env');
-      assertExternalMcpPlainField({ value: name, field: 'env' });
-      if (value.length > CREDENTIAL_TOKEN_LIMIT) throw new ExternalMcpValidationError('The token exceeds the 8192-character limit. Copy only the token.', 'env');
-    }
-    return Object.fromEntries(entries) as Record<string, string>;
+    return parseJsonEnvBlock({ text });
   }
   const env: Record<string, string> = {};
   const lines = text.split(/\r?\n/);
@@ -522,6 +512,22 @@ export function parseEnvBlock(text: string): Record<string, string> {
   }
 
   return env;
+}
+
+function assertJsonEnvEntry({ name, value }: { name: string; value: unknown }, _options = {}): void {
+  if (!ENV_NAME_PATTERN.test(name) || typeof value !== 'string' || value.includes('\0')) throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env');
+  assertExternalMcpPlainField({ value: name, field: 'env' });
+  if (value.length > CREDENTIAL_TOKEN_LIMIT) throw new ExternalMcpValidationError('The token exceeds the 8192-character limit. Copy only the token.', 'env');
+}
+
+function parseJsonEnvBlock({ text }: { text: string }, _options = {}): Record<string, string> {
+  let parsed: unknown;
+  try { parsed = JSON.parse(text); } catch { throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env');
+  const entries = Object.entries(parsed);
+  if (entries.length > MAX_ENV_VARS) throw new ExternalMcpValidationError(`at most ${MAX_ENV_VARS} environment variables are supported`, 'env');
+  for (const [name, value] of entries) assertJsonEnvEntry({ name, value });
+  return Object.fromEntries(entries) as Record<string, string>;
 }
 
 /**
@@ -716,14 +722,18 @@ export function externalMcpRecordHasStoredToken(
   return resolveExternalMcpOAuthStatus(record) === "connected" || record.oauthExpiresAt !== null;
 }
 
-async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort): Promise<ExternalMcpServerView> {
+async function externalMcpEnvHints({ record, sealer }: { record: ExternalMcpServerRecord; sealer?: SecretSealerPort }, _options = {}) {
   const envTokenHints: Record<string, CredentialTokenHint> = {};
-  if (sealer && record.sealedEnv) {
-    const opened = await openExternalMcpEnv(record, sealer);
-    if (opened.ok) for (const [name, value] of Object.entries(opened.env)) {
-      if (typeof value === 'string') envTokenHints[name] = credentialTokenHint({ token: value });
-    }
+  if (!sealer || !record.sealedEnv) return envTokenHints;
+  const opened = await openExternalMcpEnv(record, sealer);
+  if (!opened.ok) return envTokenHints;
+  for (const [name, value] of Object.entries(opened.env)) {
+    if (typeof value === 'string') envTokenHints[name] = credentialTokenHint({ token: value });
   }
+  return envTokenHints;
+}
+
+async function externalMcpAccessTokenHint({ record, sealer }: { record: ExternalMcpServerRecord; sealer?: SecretSealerPort }, _options = {}) {
   let accessTokenHint: CredentialTokenHint | null = null;
   if (sealer && record.sealedOAuth) {
     try {
@@ -732,6 +742,12 @@ async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort
       if (token) accessTokenHint = credentialTokenHint({ token });
     } catch { /* A rotated site key must not prevent listing non-secret metadata. */ }
   }
+  return accessTokenHint;
+}
+
+async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort): Promise<ExternalMcpServerView> {
+  const envTokenHints = await externalMcpEnvHints({ record, sealer });
+  const accessTokenHint = await externalMcpAccessTokenHint({ record, sealer });
   return {
     serverId: record.serverId,
     label: record.label ?? record.serverId,
@@ -939,10 +955,16 @@ async function resolveHttpTarget(
   }
 
   if (headers.authorization !== undefined) {
-    try { assertCredentialToken({ value: headers.authorization.slice('Bearer '.length), hosted: true }); }
-    catch (err) { return externalMcpFailure(record, err instanceof CredentialInputError ? err.message : CREDENTIAL_MESSAGES.ascii); }
+    const failure = hostedTokenFailure({ authorization: headers.authorization });
+    if (failure !== null) return externalMcpFailure(record, failure);
   }
   return { ok: true, target: { kind: "streamable_http", url: record.url, headers } };
+}
+
+function hostedTokenFailure({ authorization }: { authorization: string }, _options = {}): string | null {
+  try { assertCredentialToken({ value: authorization.slice('Bearer '.length), hosted: true }); }
+  catch (err) { return err instanceof CredentialInputError ? err.message : CREDENTIAL_MESSAGES.ascii; }
+  return null;
 }
 
 /**
@@ -1998,16 +2020,20 @@ function assertExternalMcpPlainField(required: { value: string; field: string })
   }
 }
 
-export async function saveExternalMcpServer(
-  deps: ExternalMcpStoreDeps,
-  input: SaveExternalMcpServerInput,
-): Promise<ExternalMcpServerView> {
+function assertExternalMcpPlainInput({ input }: { input: SaveExternalMcpServerInput }, _options = {}): void {
   for (const field of ["serverId", "label", "command", "args", "url", "transport", "authMode", "accessTokenEnvName"] as const) {
     assertExternalMcpPlainField({ value: input[field] ?? "", field });
   }
   for (const [field, value] of Object.entries(input.oauth ?? {})) {
     if (field !== 'clientSecret' && typeof value === 'string') assertExternalMcpPlainField({ value, field: `oauth.${field}` });
   }
+}
+
+export async function saveExternalMcpServer(
+  deps: ExternalMcpStoreDeps,
+  input: SaveExternalMcpServerInput,
+): Promise<ExternalMcpServerView> {
+  assertExternalMcpPlainInput({ input });
   const serverId = input.serverId.trim().toLowerCase();
   assertValidExternalMcpServerId(serverId);
   assertSupportedExternalMcpTransport(input.transport);

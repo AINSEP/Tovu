@@ -1434,3 +1434,60 @@ test("static_env access token: leaving static_env drops it, and coming back with
   const back = await saveExternalMcpServer(deps, validInput({ authMode: "static_env", accessTokenEnvName: "API_KEY" }));
   assert.equal(back.hasAccessToken, false);
 });
+
+test('TW3 JSON env preserves multiline values and rejects every invalid entry shape', () => {
+  assert.deepEqual(parseEnvBlock(JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' })), { TOKEN: 'first\nsecond', EMPTY: '' });
+  for (const input of ['{', '{"9NAME":"value"}', '{"NAME":2}', JSON.stringify({ NAME: 'bad\0value' }), JSON.stringify({ NAME: 'x'.repeat(8193) }), JSON.stringify(Object.fromEntries(Array.from({ length: 65 }, (_, n) => [`VAR_${n}`, 'value'])))]) {
+    assert.throws(() => parseEnvBlock(input), ExternalMcpValidationError);
+  }
+});
+
+test('TW3 external views tolerate failed hint opens and expose only hints when opens succeed', async () => {
+  const { deps, repo, sealer } = makeDeps();
+  const token = ['test', 'credential', '4321'].join('-');
+  await saveExternalMcpServer(deps, validInput({ env: `TOKEN=${token}`, authMode: 'static_env', accessToken: token, accessTokenEnvName: 'TOKEN' }));
+  const [hinted] = await listExternalMcpServerViews({ repo, sealer }, WORKSPACE);
+  assert.equal(hinted?.accessTokenHint?.last4, '4321');
+  assert.equal(hinted?.envTokenHints?.TOKEN?.last4, '4321');
+  const [plain] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.equal(plain?.accessTokenHint, null);
+  assert.equal(plain?.envTokenHints, undefined);
+  const broken = { open: async () => { throw new Error('unavailable'); }, seal: sealer.seal.bind(sealer) };
+  const [unreadable] = await listExternalMcpServerViews({ repo, sealer: broken }, WORKSPACE);
+  assert.equal(unreadable?.accessTokenHint, null);
+  assert.equal(unreadable?.envTokenHints, undefined);
+  assert.equal(unreadable?.label, 'GitHub');
+});
+
+test('TW3 hosted OAuth target validates tokens and preserves resolver failures', async () => {
+  const { deps, repo, sealer } = makeDeps();
+  await saveExternalMcpServer(deps, validInput({ transport: 'streamable_http', url: 'https://example.test/mcp', authMode: 'none', env: '' }));
+  const anonymous = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.deepEqual(anonymous.configs[0]?.target, { kind: 'streamable_http', url: 'https://example.test/mcp', headers: {} });
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: 'github' });
+  assert.ok(record);
+  await repo.upsert({ ...record, authMode: 'oauth', oauthStatus: 'connected' });
+  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: { resolveAccessToken: async () => 'valid-token' } }, WORKSPACE);
+  assert.deepEqual(resolved.configs[0]?.target, { kind: 'streamable_http', url: 'https://example.test/mcp', headers: { authorization: 'Bearer valid-token' } });
+  for (const value of ['invalid\nheader', '']) {
+    const invalid = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: { resolveAccessToken: async () => value } }, WORKSPACE);
+    assert.equal(invalid.configs.length, 0);
+    assert.equal(invalid.failures.length, 1);
+  }
+  const failed = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: { resolveAccessToken: async () => { throw new Error('offline'); } } }, WORKSPACE);
+  assert.equal(failed.configs.length, 0);
+  assert.equal(failed.failures.length, 1);
+  await repo.upsert({ ...record, url: null });
+  const missing = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.match(missing.failures[0]?.reason ?? '', /no URL/);
+});
+
+test('TW3 NAME=VALUE silently drops the __proto__ variable (reported, not fixed)', () => {
+  const text = '__proto__=operator-value';
+  const parsed = parseEnvBlock(text);
+  assert.equal(Object.hasOwn(parsed, '__proto__'), false);
+  assert.deepEqual(Object.entries(parsed), []);
+  const json = parseEnvBlock('{"__proto__":"operator-value"}');
+  assert.equal(Object.hasOwn(json, '__proto__'), true);
+  assert.equal(json.__proto__, 'operator-value');
+});

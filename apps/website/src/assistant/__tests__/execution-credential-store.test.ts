@@ -489,3 +489,20 @@ test("personal runtime rejects a row from another principal before opening it", 
   assert.equal(await resolveExecutionCredential(deps, { ...scope, principalId: ADMIN_B }), null);
   assert.equal(opens.mock.callCount(), 0);
 });
+
+test('TW3 execution settings-only creation, partial update and explicit provider clearing retain their defaults and key', async () => {
+  const { deps, repo } = makeDeps();
+  const scope = { workspaceId: WORKSPACE, principalId: ADMIN_A };
+  const first = await setExecutionCredential(deps, { ...scope, model: 'first' });
+  assert.deepEqual(first, { isSet: false, masked: null, tokenHint: null, protocol: 'anthropic', providerId: null, baseUrl: null, model: 'first', maxTokens: null, updatedAt: clock.nowIso() });
+  await setExecutionCredential(deps, { ...scope, apiKey: ['test', 'credential', '1234'].join('-'), protocol: 'openai', providerId: 'custom', baseUrl: 'https://example.test', maxTokens: 42 });
+  const stored = await repo.findByWorkspaceAndPrincipal(scope);
+  const changed = await setExecutionCredential(deps, { ...scope, providerId: null, model: 'second' });
+  assert.equal(changed.providerId, null);
+  assert.equal(changed.protocol, 'openai');
+  assert.equal(changed.baseUrl, 'https://example.test');
+  assert.equal(changed.maxTokens, 42);
+  assert.equal(changed.model, 'second');
+  assert.equal(changed.masked, '••••1234');
+  assert.deepEqual((await repo.findByWorkspaceAndPrincipal(scope))?.sealed, stored?.sealed);
+});
