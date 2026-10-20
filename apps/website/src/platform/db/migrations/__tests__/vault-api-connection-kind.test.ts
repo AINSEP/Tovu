@@ -33,6 +33,9 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       const pointed = pointersBefore.find((entry) => entry.oauth_secret_id !== null)!;
       await assert.rejects(kernel.execute(sql`DELETE FROM secrets_vault WHERE workspace_id = 'ws' AND id = ${String(pointed.oauth_secret_id)}`),
         /FOREIGN KEY|foreign key/);
+      // The SQLite rebuild drops the table's own triggers; a linked MCP secret must still keep its identity.
+      await assert.rejects(kernel.execute(sql`UPDATE secrets_vault SET owner_key = 'someone-else' WHERE workspace_id = 'ws' AND id = ${String(pointed.oauth_secret_id)}`),
+        /linked vault MCP identity/);
     } finally {
       await kernel.close();
     }

@@ -6,6 +6,7 @@ import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.
 import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
 import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "../migrations/0011_drop_empty_core_commerce_tables.js";
 import { secretsVaultStatements, MCP_VAULT_SQLITE_STATEMENTS } from "../migrations/0012_secrets_vault.js";
+import { widenedVaultTableDdl } from "../migrations/0020_vault_api_connection_kind.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
@@ -149,6 +150,22 @@ export function bootstrapFreshContentDb(
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
+    },
+    "0020_vault_api_connection_kind": () => {
+      // Fresh-only: no vault or MCP rows exist yet, so 0020's pointer parking and row copy are skipped.
+      // The same rebuild and legacy rename keep the stored CREATE text, indexes and trigger at parity.
+      const table = client.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'secrets_vault'").get() as { sql: string };
+      const objects = client.prepare("SELECT sql FROM sqlite_schema WHERE type IN ('index', 'trigger') AND tbl_name = 'secrets_vault' AND sql IS NOT NULL")
+        .all() as Array<{ sql: string }>;
+      client.exec(widenedVaultTableDdl({ original: table.sql }));
+      client.exec("DROP TABLE secrets_vault");
+      client.exec("PRAGMA legacy_alter_table = ON");
+      try {
+        client.exec("ALTER TABLE secrets_vault_0020 RENAME TO secrets_vault");
+      } finally {
+        client.exec("PRAGMA legacy_alter_table = OFF");
+      }
+      for (const object of objects) client.exec(object.sql);
     },
   };
   if (migrations.length !== Object.keys(operations).length ||
