@@ -110,8 +110,10 @@ export function createConnectionBudgets(required: { readonly clock: Clock }, _op
       const ordered = [...target.budgets].sort((a, b) => SCOPES.indexOf(b.scope) - SCOPES.indexOf(a.scope));
       for (const budget of ordered) {
         // NUL cannot appear in a workspace, plugin or connection id, so no key can name another's budget.
-        const owner = budget.scope === "connection" ? target.connectionRef : "";
-        const key = [budget.scope, target.workspaceId, target.pluginId, target.connectionId, owner].join("\u0000");
+        // The account segment is empty only for `instance`: an owned ref is never empty, so the two
+        // scopes' keys differ even when their profiles (and so their limiter) are the same.
+        const account = budget.scope === "connection" ? target.connectionRef : "";
+        const key = [target.workspaceId, target.pluginId, target.connectionId, account].join("\u0000");
         const verdict = await limiterFor(budget).check({ key });
         if (!verdict.allowed) throw new ConnectionBudgetExceededError({ retryAfterMs: verdict.retryAfterSeconds * 1000 });
       }

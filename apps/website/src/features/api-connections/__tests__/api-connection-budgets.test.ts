@@ -52,6 +52,20 @@ test("characterization: the declaration parser splits id, module and clients fro
   assert.ok(!("id" in (declaration?.descriptor ?? {})) && !("module" in (declaration?.descriptor ?? {})) && !("clients" in (declaration?.descriptor ?? {})));
 });
 
+test("characterization: an invalid web or desktop client refuses the declaration with the field it names", () => {
+  const withClients = (clients: unknown) => {
+    const file = JSON.parse(fixtureRaw) as { connections: Record<string, unknown>[] };
+    file.connections[0].clients = clients;
+    return parseApiConnectionsFile({ raw: JSON.stringify(file) });
+  };
+  const web = withClients({ web: { clientIdEnv: "HOME" } });
+  assert.equal(web.ok ? "loaded" : web.reason, "connections[0].clients.web.clientIdEnv must name a TOVU_…_CLIENT_ID setting");
+  const desktop = withClients({ desktop: { clientIdEnv: "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID", clientSecretEnv: "AWS_SECRET_ACCESS_KEY" } });
+  assert.equal(desktop.ok ? "loaded" : desktop.reason, "connections[0].clients.desktop.clientSecretEnv must name a TOVU_…_CLIENT_SECRET setting");
+  const both = withClients({ web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } });
+  assert.deepEqual(both.ok ? both.descriptors[0]?.clients : null, { web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } });
+});
+
 test("characterization: an owned ref that was never connected is refused as not found (connect first) on every read", async () => {
   const tokens = makeHost().accessTokensFor({ pluginId: "acme-office" });
   for (let call = 0; call < 3; call += 1) {
@@ -78,17 +92,24 @@ test("security: a declared budget above the host maximum is clamped, never honou
 test("security: a connection that declares no instance budget still gets the host's bounded one", () => {
   const parsed = parseApiConnectionsFile({ raw: withBudgets(undefined) });
   assert.deepEqual(parsed.ok ? parsed.descriptors[0]?.budgets : [], [{ scope: "instance", perMinute: 240, burst: 40 }]);
+  const onlyPerAccount = parseApiConnectionsFile({ raw: fixtureRaw });
+  assert.deepEqual(onlyPerAccount.ok ? onlyPerAccount.descriptors[0]?.budgets : [], [{ scope: "instance", perMinute: 240, burst: 40 }, { scope: "connection", perMinute: 45, burst: 0 }]);
 });
 
 test("security: a malformed budget refuses the whole declaration instead of loading it unbounded", () => {
-  const malformed: unknown[] = [
-    "45", [{ scope: "connection", perMinute: 0 }], [{ scope: "connection", perMinute: 1.5 }], [{ scope: "connection", perMinute: "45" }],
-    [{ scope: "connection", perMinute: 45, burst: -1 }], [{ scope: "everyone", perMinute: 45 }], [{ scope: "connection" }], ["connection"],
-    [{ scope: "connection", perMinute: 45 }, { scope: "connection", perMinute: 90 }],
+  const count = /^connections\[0\]\.budgets\[0\]\.perMinute must be a whole number of at least 1, and burst a whole number of at least 0$/;
+  const malformed: readonly (readonly [unknown, RegExp])[] = [
+    ["45", /^connections\[0\]\.budgets must be a list of at most 2 budgets$/],
+    [[{ scope: "instance", perMinute: 1 }, { scope: "connection", perMinute: 1 }, { scope: "connection", perMinute: 1 }], /^connections\[0\]\.budgets must be a list of at most 2 budgets$/],
+    [[{ scope: "connection", perMinute: 0 }], count], [[{ scope: "connection", perMinute: 1.5 }], count], [[{ scope: "connection", perMinute: "45" }], count],
+    [[{ scope: "connection" }], count], [[{ scope: "connection", perMinute: 45, burst: -1 }], count],
+    [[{ scope: "everyone", perMinute: 45 }], /^connections\[0\]\.budgets\[0\]\.scope must be "instance" or "connection"$/],
+    [["connection"], /^connections\[0\]\.budgets\[0\] must be an object$/],
+    [[{ scope: "connection", perMinute: 45 }, { scope: "connection", perMinute: 90 }], /^connections\[0\]\.budgets\[1\]\.scope "connection" is declared twice$/],
   ];
-  for (const budgets of malformed) {
+  for (const [budgets, reason] of malformed) {
     const parsed = parseApiConnectionsFile({ raw: withBudgets(budgets) });
-    assert.deepEqual(parsed.ok ? "loaded" : parsed.reason.startsWith("connections[0].budgets"), true, JSON.stringify(budgets));
+    assert.match(parsed.ok ? "loaded" : parsed.reason, reason, JSON.stringify(budgets));
   }
 });
 
@@ -168,4 +189,21 @@ test("security: a refused per-account charge does not spend the shared instance 
   assert.equal(await allowed(budgets.charge(target)), true);
   for (let call = 0; call < 5; call += 1) assert.equal(await allowed(budgets.charge(target)), false);
   assert.equal(await allowed(budgets.charge({ ...target, connectionRef: "ref-2" })), true, "a busy account cannot drain the budget other accounts share");
+});
+
+test("security: each plugin gets exactly the budget it declared, even when another declared the same rate with a different burst", async () => {
+  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const strict = { workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: [{ scope: "connection", perMinute: 1, burst: 0 }] as const };
+  const bursty = { ...strict, pluginId: "plugin-b", budgets: [{ scope: "connection", perMinute: 1, burst: 1 }] as const };
+  assert.equal(await allowed(budgets.charge(strict)), true);
+  assert.equal(await allowed(budgets.charge(strict)), false);
+  assert.equal(await allowed(budgets.charge(bursty)), true);
+  assert.equal(await allowed(budgets.charge(bursty)), true, "plugin-b's burst is honoured");
+  assert.equal(await allowed(budgets.charge(bursty)), false);
+});
+
+test("security: an instance and a per-account budget with the same rate never share a counter", async () => {
+  const budgets = createConnectionBudgets({ clock: manualClock() });
+  const declared: readonly ConnectionBudget[] = [{ scope: "instance", perMinute: 1, burst: 0 }, { scope: "connection", perMinute: 1, burst: 0 }];
+  assert.equal(await allowed(budgets.charge({ workspaceId: "ws-1", pluginId: "plugin-a", connectionId: "account", connectionRef: "ref-1", budgets: declared })), true);
 });
