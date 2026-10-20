@@ -22,5 +22,5 @@ export { buildFormDestinationRegistry, FORM_DESTINATIONS_FILENAME, loadFormDesti
 export { FORM_RECEIVER_AUTO, FORM_RECEIVER_NONE, selectFormReceiver, type FormReceiverSelection } from "./select.js";
 export { assertSubmitUrl, rewriteFormActions } from "./rewrite-actions.js";
 export { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "./key-store.js";
-export { formDestinationKey, pullFromFormDestination, type FormDestinationImportPort } from "./pull.js";
+export { FORM_PULL_LEASE_MS, formDestinationKey, pullFromFormDestination, type FormDestinationImportPort } from "./pull.js";
 export { createFormDestinationPort, type FormDestinationPortDeps } from "./port.js";

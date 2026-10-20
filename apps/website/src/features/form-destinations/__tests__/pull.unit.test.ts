@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { FormDestinationKit, FormDestinationPage, RemoteFormSubmission } from "../types.js";
-import { formDestinationKey, pullFromFormDestination } from "../pull.js";
+import { FORM_PULL_LEASE_MS, FORM_PULL_REQUEST_TIMEOUT_MS, formDestinationKey, pullFromFormDestination } from "../pull.js";
 
 /** @file Page loop, acknowledge-only-committed and key redaction for the generic form destination pull. */
 
@@ -80,4 +80,29 @@ test("without overrides a pull stops after 10 pages of 50, two receiver requests
   assert.equal(h.acks.length, 10);
   assert.ok(h.calls.every((call) => call.limit === 50));
   assert.equal(result.hasMore, true);
+});
+
+// ---- Security pin (phase A): the pull lease must outlast the slowest bounded pull. ----
+
+test("security: the pull lease outlasts the worst-case pull (10 pages x 2 requests x the 15 s request cap)", () => {
+  const worstCaseNetworkMs = 10 * 2 * FORM_PULL_REQUEST_TIMEOUT_MS;
+  assert.equal(FORM_PULL_REQUEST_TIMEOUT_MS, 15_000);
+  assert.equal(worstCaseNetworkMs, 300_000);
+  assert.equal(FORM_PULL_LEASE_MS, 600_000, "twice the network bound leaves room for the local import");
+  assert.ok(FORM_PULL_LEASE_MS > worstCaseNetworkMs);
+});
+
+test("security: a module asking for a longer request timeout is cut to the pull's 15 s cap; a shorter one is kept", async () => {
+  const asked: number[] = [];
+  const kitSpy: FormDestinationKit = { timeouts: {}, fetch: async (_url, _init, options) => { asked.push(options.timeoutMs); return new Response("{}"); } };
+  const module = {
+    pull: async ({ kit: given }: { kit: FormDestinationKit }) => {
+      await given.fetch("https://site.example/pull", {}, { timeoutMs: 120_000 });
+      await given.fetch("https://site.example/pull", {}, { timeoutMs: 5_000 });
+      return { items: [], nextAfter: 0, hasMore: false };
+    },
+    ack: async () => ({ acknowledged: 0 }),
+  };
+  await pullFromFormDestination({ module, scope: "t", destination, kit: kitSpy, importPage: async () => ({ committedIds: [] }) });
+  assert.deepEqual(asked, [FORM_PULL_REQUEST_TIMEOUT_MS, 5_000]);
 });
