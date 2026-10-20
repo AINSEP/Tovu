@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
 import type { AdminMedia } from "../../../lib/api";
@@ -228,6 +228,16 @@ describe("tabs, notices and preview", () => {
     const { vm } = fakeController();
     renderEditor(vm, { preview: () => new Promise<string>(() => {}) });
     expect(await screen.findByText("Loading preview…")).toBeTruthy();
+  });
+
+  it("shows no preview status once the render has finished without error", async () => {
+    const { vm } = fakeController();
+    renderEditor(vm);
+    const frame = screen.getByTitle("Preview");
+    await waitFor(() => expect(frame.getAttribute("srcdoc")).toContain("<p>preview</p>"));
+    const status = within(screen.getByRole("region", { name: "Preview" })).getByRole("status");
+    expect(status.textContent).toBe("");
+    expect(status.className).toBe("field-hint");
   });
 
   it("says the preview is unavailable when the render fails", async () => {
