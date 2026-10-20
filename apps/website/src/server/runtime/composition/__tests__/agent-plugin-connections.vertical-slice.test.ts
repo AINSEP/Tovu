@@ -14,6 +14,9 @@
  *
  * Phase-B pin: the token memory Jini keeps per plugin generation survives across calls through
  * Tovu's real wiring (boot-time tool registration, handler reload before every surface bootstrap).
+ * Phase-B (B6) pins: the composition gives the tool projection and the surface handler host ONE
+ * token memory (a token either seam obtained is withheld from the other), and the handler host's
+ * `hostKind` comes from the same runtime detection the API connections use, whatever a caller says.
  */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
@@ -276,6 +279,47 @@ test("security: a token a plugin kept in module scope is withheld in a LATER too
   assert.ok(!JSON.stringify([surfaceLeak, stateLeak]).includes(accessToken), JSON.stringify([surfaceLeak, stateLeak]));
   const saved = await composition.apiConnections.host.pluginState.readerFor({ workspaceId: WORKSPACE, pluginId: PLUGIN }).get({ key: "cached" });
   assert.equal(saved, null, "the token was not written to plugin state");
+});
+
+/** Loads the fixture surface's handlers through the composition and returns a dispatcher for it. */
+async function surfaceDispatch(composition: Awaited<ReturnType<typeof compose>>, context: Readonly<Record<string, unknown>> = {}) {
+  const fullContext = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account", ...context };
+  await composition.adminSurfaceHost.bootstrapData({ context: fullContext });
+  const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
+  const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) });
+  return (action: string) => dispatcher.dispatch({ action, payload: {}, context: fullContext });
+}
+
+// Jini withholds a result naming an issued token as its generic `action-failed`, never the result itself.
+const WITHHELD = { ok: false, error: { code: "action-failed", message: "The action failed. Try again; if it keeps failing, check the server log.", retryable: true } };
+
+test("security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer", async () => {
+  const composition = await compose();
+  const connectionRef = await connectForRef(composition);
+  const registry = createToolRegistry({});
+  await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
+  assert.equal((await createToolExecutor({ registry }).execute({ toolId: "p_acme_office__whoami", principal: { id: "admin-1" }, run: { id: "run-1" }, input: { connectionRef } })).status, "completed");
+  const answer = await (await surfaceDispatch(composition))("tool-token");
+  assert.deepEqual(answer, WITHHELD);
+  assert.ok(!JSON.stringify(answer).includes(accessToken));
+});
+
+test("security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output", async () => {
+  const composition = await compose();
+  await connectForRef(composition);
+  assert.deepEqual(await (await surfaceDispatch(composition))("whoami"), { ok: true, result: { name: "Ada" } });
+  const registry = createToolRegistry({});
+  await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
+  const leaked = await createToolExecutor({ registry }).execute({ toolId: "p_acme_office__last_token", principal: { id: "admin-1" }, run: { id: "run-2" }, input: {} });
+  assert.notEqual(leaked.status, "completed");
+  assert.match(String(leaked.error), new RegExp(WITHHELD_OUTPUT_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.ok(!JSON.stringify(leaked).includes(accessToken));
+});
+
+test("security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context", async () => {
+  const desktop = await compose({ ELECTRON_RUN_AS_NODE: "1", TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" });
+  assert.deepEqual(await (await surfaceDispatch(desktop, { hostKind: "hosted" }))("host-kind"), { ok: true, result: { name: "desktop" } });
+  assert.deepEqual(await (await surfaceDispatch(await compose(), { hostKind: "desktop" }))("host-kind"), { ok: true, result: { name: "hosted" } });
 });
 
 test("security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself", async () => {
