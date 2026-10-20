@@ -1026,3 +1026,30 @@ describe("AssistantDock — permanent conversation deletion", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+/**
+ * The four `ChatPane` props the dock passes only when they hold a value (`optionalChatPaneProps`),
+ * and the voice slot that stays empty while `VOICE_INPUT_ENABLED` is off — pinned at the dock
+ * boundary so the wiring, not just the pure builders, is proven.
+ */
+describe("AssistantDock optional ChatPane props", () => {
+  it("scopes composer history to the signed-in admin when a principal id is given", async () => {
+    render(<AssistantDock useChats={() => fakeChats()} principalId="admin-7" />);
+    await waitFor(() => expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ composerHistoryScope: "admin-7" })));
+  });
+
+  it("omits composerHistoryScope and conversationId entirely with no principal and no active conversation", async () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
+    const props = chatPaneSpy.mock.lastCall![0] as ComponentProps<typeof RealChatPane>;
+    expect(Object.keys(props)).not.toContain("composerHistoryScope");
+    expect(Object.keys(props)).not.toContain("conversationId");
+  });
+
+  it("leaves the composer footer's voice slot undefined while voice input is switched off", async () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
+    const props = chatPaneSpy.mock.lastCall![0] as ComponentProps<typeof RealChatPane>;
+    expect(props.composerSlots?.footerLeadingAccessory).toBeUndefined();
+  });
+});
