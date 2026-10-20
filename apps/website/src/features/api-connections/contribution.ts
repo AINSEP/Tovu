@@ -1,0 +1,139 @@
+import path from "node:path";
+
+import { parseApiConnectionDescriptor, type ApiConnectionDescriptor, type ApiConnectionHooks } from "@jini-ai/integrations/api-connections";
+
+import { defineExecutablePluginContribution, type LoadPluginContributions } from "../agent-plugins/lifecycle.js";
+
+/**
+ * @file Loads the OAuth API connections Agent Plugins declare in {@link API_CONNECTIONS_FILENAME}:
+ * the provider descriptor Jini's api-connections service runs, the plugin's hooks module (scope
+ * sets, account identity, revocation) and the names of the host config that holds its client ids.
+ *
+ * TRUST RULE: hooks are plugin code running in this process, so they load through the lifecycle's
+ * one executable gate (ACTIVE plugin, bundled digest, contained `.mjs`), like mail adapters. The
+ * descriptor is untrusted until Jini's `parseApiConnectionDescriptor` accepts it. Client config is
+ * only ever NAMED by the plugin: names must match {@link CLIENT_ENV_PATTERN}, so a plugin can point
+ * at its own `…_CLIENT_ID` / `…_CLIENT_SECRET` and never at another secret of this host.
+ */
+
+export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
+const CLIENT_ENV_PATTERN = /^TOVU_[A-Z0-9_]{1,80}_CLIENT_(ID|SECRET)$/;
+const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_CONNECTIONS = 8;
+const MAX_ORIGINS = 32;
+
+/** Where a runtime's client id (and, for the hosted web client, its secret) is configured. */
+export interface ApiConnectionClientConfig {
+  readonly clientIdEnv: string;
+  readonly clientSecretEnv?: string;
+  /** Hosted only: the site origins the shared client has registered callbacks for. Absent = any. */
+  readonly redirectOrigins?: readonly string[];
+}
+
+/** One `connections[]` entry before the plugin id is known. */
+export interface ApiConnectionDeclaration {
+  readonly id: string;
+  readonly module: string;
+  readonly clients: { readonly web?: ApiConnectionClientConfig; readonly desktop?: ApiConnectionClientConfig };
+  /** Passed to `parseApiConnectionDescriptor` with the plugin id at load time. */
+  readonly descriptor: Readonly<Record<string, unknown>>;
+}
+
+/** What the hooks module default-exports: hooks built over the host's guarded HTTP capability. */
+export interface ApiConnectionHooksModule {
+  readonly createHooks: (required: { readonly http: unknown }, optional?: Record<string, never>) => ApiConnectionHooks;
+}
+
+/** A declared, trusted connection ready for the host to build a service around. */
+export interface DeclaredApiConnection {
+  readonly pluginId: string;
+  readonly descriptor: ApiConnectionDescriptor;
+  readonly clients: ApiConnectionDeclaration["clients"];
+  readonly module: ApiConnectionHooksModule;
+}
+
+type ParseResult = { readonly ok: true; readonly descriptors: readonly ApiConnectionDeclaration[] } | { readonly ok: false; readonly reason: string };
+
+function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isOrigin(value: unknown): boolean {
+  return typeof value === "string" && URL.canParse(value) && new URL(value).origin === value;
+}
+
+/** One client config, or why it is invalid. @complexity O(o) origins. */
+function parseClient(value: unknown, at: string): ApiConnectionClientConfig | string | undefined {
+  if (value === undefined) return undefined;
+  if (!isObject(value)) return `${at} must be an object`;
+  const { clientIdEnv, clientSecretEnv, redirectOrigins } = value;
+  if (typeof clientIdEnv !== "string" || !CLIENT_ENV_PATTERN.test(clientIdEnv) || !clientIdEnv.endsWith("_ID")) return `${at}.clientIdEnv must name a TOVU_…_CLIENT_ID setting`;
+  if (clientSecretEnv !== undefined && (typeof clientSecretEnv !== "string" || !CLIENT_ENV_PATTERN.test(clientSecretEnv) || !clientSecretEnv.endsWith("_SECRET"))) {
+    return `${at}.clientSecretEnv must name a TOVU_…_CLIENT_SECRET setting`;
+  }
+  if (redirectOrigins !== undefined && (!Array.isArray(redirectOrigins) || redirectOrigins.length > MAX_ORIGINS || !redirectOrigins.every(isOrigin))) {
+    return `${at}.redirectOrigins must be a list of origins`;
+  }
+  return { clientIdEnv, ...(clientSecretEnv === undefined ? {} : { clientSecretEnv }), ...(redirectOrigins === undefined ? {} : { redirectOrigins }) };
+}
+
+/** One declaration, or why it is invalid. The desktop client is public: it never takes a secret. @complexity O(1). */
+function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration | string {
+  if (!isObject(entry)) return `${at} must be an object`;
+  const { id, module, clients, ...descriptor } = entry;
+  if (typeof id !== "string" || id.length > 64 || !ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  if (!isObject(clients)) return `${at}.clients must be an object`;
+  const web = parseClient(clients.web, `${at}.clients.web`);
+  const desktop = parseClient(clients.desktop, `${at}.clients.desktop`);
+  if (typeof web === "string") return web;
+  if (typeof desktop === "string") return desktop;
+  if (desktop?.clientSecretEnv !== undefined) return `${at}.clients.desktop must not declare a secret: an installed app cannot keep one`;
+  return { id, module, clients: { ...(web ? { web } : {}), ...(desktop ? { desktop } : {}) }, descriptor };
+}
+
+/** Parses a plugin's {@link API_CONNECTIONS_FILENAME}. Pure; unknown keys go to the descriptor parser. @complexity O(c). */
+export function parseApiConnectionsFile(required: { readonly raw: string }, _optional: Record<string, never> = {}): ParseResult {
+  let value: unknown;
+  try { value = JSON.parse(required.raw); } catch { return { ok: false, reason: "not valid JSON" }; }
+  if (!isObject(value) || value.schemaVersion !== 1) return { ok: false, reason: "schemaVersion must be 1" };
+  if (!Array.isArray(value.connections) || value.connections.length > MAX_CONNECTIONS) return { ok: false, reason: `connections must be an array of at most ${MAX_CONNECTIONS}` };
+  const descriptors: ApiConnectionDeclaration[] = [];
+  for (const [index, entry] of value.connections.entries()) {
+    const result = parseDeclaration(entry, `connections[${index}]`);
+    if (typeof result === "string") return { ok: false, reason: result };
+    if (descriptors.some((seen) => seen.id === result.id)) return { ok: false, reason: `connections[${index}].id '${result.id}' is declared twice` };
+    descriptors.push(result);
+  }
+  return { ok: true, descriptors };
+}
+
+const connectionContribution = defineExecutablePluginContribution<ApiConnectionDeclaration, ApiConnectionHooksModule>({
+  filename: API_CONNECTIONS_FILENAME, contribution: "API connections",
+  parse: parseApiConnectionsFile, modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => (isObject(exported) && typeof exported.createHooks === "function" ? exported as unknown as ApiConnectionHooksModule : "its module has no createHooks() function"),
+  refusal: ({ plugin, descriptor, reason }) => `API connection '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
+}, { onReadError: ({ error }) => ((error as NodeJS.ErrnoException)?.code === "ENOENT" ? [] : undefined) });
+
+/**
+ * Every trusted API connection the workspace's active plugins declare, plus log-safe refusals.
+ * A descriptor Jini refuses drops only that connection.
+ * @complexity O(p + c) plugins and connections, one contained import per connection.
+ */
+export async function loadDeclaredApiConnections(
+  required: { readonly workspaceId: string; readonly loadContributions: LoadPluginContributions },
+  _optional: Record<string, never> = {},
+): Promise<{ readonly connections: readonly DeclaredApiConnection[]; readonly refusals: readonly string[] }> {
+  const load = await required.loadContributions({ workspaceId: required.workspaceId, definition: connectionContribution }, { orderByPluginId: true });
+  const connections: DeclaredApiConnection[] = [];
+  const refusals = [...load.refusals];
+  for (const item of load.items) {
+    try {
+      const descriptor = parseApiConnectionDescriptor({ value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
+      connections.push({ pluginId: item.pluginId, descriptor, clients: item.descriptor.clients, module: item.module });
+    } catch (error) {
+      refusals.push(`API connection '${item.descriptor.id}' from '${item.pluginId}' was not loaded: ${error instanceof Error ? error.message : "invalid descriptor"}`);
+    }
+  }
+  return { connections, refusals };
+}

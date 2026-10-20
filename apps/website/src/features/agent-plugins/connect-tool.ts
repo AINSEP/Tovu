@@ -22,6 +22,8 @@ import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
+import { runApiConnectionConnect, type ApiConnectionConnectDeps } from "../api-connections/connect.js";
+import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 
 /**
  * @file agent_plugin_connect connects any OAuth-authenticated Agent Plugin's account through
@@ -197,6 +199,8 @@ export interface AgentPluginConnectToolDeps {
   /** Injectable for tests, so a fixture plugin needs no real install on disk. A real composition
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
+  /** Plugin-declared OAuth API connections (`tovu-connections.json`). Absent: only MCP servers connect. */
+  readonly apiConnections?: ApiConnectionConnectDeps;
 }
 
 const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
@@ -306,7 +310,11 @@ export async function runAgentPluginConnect(
     .filter(([, config]) => isOAuthServer(config))
     .map(([serverKey]) => serverKey);
   if (oauthServerKeys.length === 0) {
-    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
+    const declared = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
+    if (declared.length === 0) {
+      throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
+    }
+    return connectDeclaredApiConnection(routeDeps, surfaces, ctx, { pluginId, declared }, optional);
   }
   if (!routeDeps.externalMcpOAuth) {
     throw new Error("agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.");
@@ -371,5 +379,50 @@ export async function runAgentPluginConnect(
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
     exchange.close({});
+  }
+}
+
+/**
+ * The API-connection branch: same card, same parked wait, same `{ status }`-only result as the MCP
+ * branch, over Jini's api-connections lifecycle instead of an external-MCP row. One declared
+ * connection per call, for the same reason the MCP branch takes one pending server.
+ * @throws {ToolInputError} More than one declared connection, or a sign-in refusal (safe message).
+ * @throws {Error} No interactive channel to show the sign-in card on.
+ * @complexity One sign-in round trip bounded by `waitTimeoutMs`.
+ */
+async function connectDeclaredApiConnection(
+  routeDeps: AgentPluginConnectToolDeps,
+  surfaces: AssistantSurfaceDeps,
+  ctx: ToolExecutionContext,
+  target: { readonly pluginId: string; readonly declared: readonly DeclaredApiConnection[] },
+  optional: ToolExecutionOptions,
+): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
+  const { pluginId, declared } = target;
+  if (declared.length > 1) {
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
+  }
+  const pluginDisplayName = titleCaseFromPluginId(pluginId);
+  let exchange: ReturnType<AssistantSurfaceDeps["surfaceExchanges"]["open"]> | undefined;
+  const closeOnAbort = () => exchange?.close({});
+  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    const result = await runApiConnectionConnect({
+      deps: routeDeps.apiConnections!, connection: declared[0], actorId: ctx.principal.id, signal: ctx.signal,
+      pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+      showSignIn: async ({ signInUrl }) => {
+        const emitSurface = optional.emitSurface;
+        if (!emitSurface) throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
+        exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
+        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) } } });
+      },
+    });
+    if (result.status === "connected" && exchange) {
+      // A human-visible card update failing must never turn a real connection into a tool failure.
+      await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "connected" }) } } }).catch(() => undefined);
+    }
+    return result;
+  } finally {
+    ctx.signal.removeEventListener("abort", closeOnAbort);
+    exchange?.close({});
   }
 }
