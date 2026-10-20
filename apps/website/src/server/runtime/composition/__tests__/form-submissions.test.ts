@@ -265,3 +265,104 @@ test("drained resolves only once the notification drain a pull started has settl
   await waiting;
   assert.equal(notified, 1);
 });
+
+const DRAIN_FAILED_LINE = "[form-submissions] notification delivery for pulled submissions failed; the outbox retries it";
+
+/** An outbox whose enqueue works (the import commits) and whose background drain's claim fails. */
+function claimFailingOutbox(): InMemoryOutbox {
+  return new Proxy(new InMemoryOutbox(), { get(target, prop, receiver) {
+    if (prop === "claimPending") return async () => { throw new Error("outbox offline"); };
+    const value = Reflect.get(target, prop, receiver);
+    return typeof value === "function" ? value.bind(target) : value;
+  } });
+}
+
+test("a notification drain that fails logs one line, and drained still resolves", async () => {
+  const s = setup({ hosts: { h: { pages: [page(["r1"])] } } });
+  await s.save("h", "https://h.example");
+  s.deps = { ...s.deps, outbox: claimFailingOutbox() };
+  const warned: string[] = [];
+  const composed = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit, warn: (line) => warned.push(line) });
+
+  const result = await composed.pull.pull({ workspaceId: W });
+  await composed.autoPull.drained();
+
+  assert.equal(result.totals.imported, 1);
+  assert.deepEqual(warned, [DRAIN_FAILED_LINE]);
+});
+
+test("with no warn given, a failed notification drain logs to console.warn", async (t) => {
+  const s = setup({ hosts: { h: { pages: [page(["r1"])] } } });
+  await s.save("h", "https://h.example");
+  s.deps = { ...s.deps, outbox: claimFailingOutbox() };
+  const warned: string[] = [];
+  t.mock.method(console, "warn", (line: string) => { warned.push(line); });
+  const composed = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit });
+
+  await composed.pull.pull({ workspaceId: W });
+  await composed.autoPull.drained();
+
+  assert.deepEqual(warned, [DRAIN_FAILED_LINE]);
+});
+
+test("a receiver that says more rows are waiting tells the person to pull again", async () => {
+  const s = setup({ hosts: { h: { pages: [{ items: [], nextAfter: 0, hasMore: true }] } } });
+  await s.save("h", "https://h.example");
+
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull.pull({ workspaceId: W });
+
+  assert.equal(result.destinations[0]?.hasMore, true);
+  assert.equal(result.message, "Imported 0 new form submissions from 1 published site. More are waiting: pull again.");
+});
+
+test("a saved receiver whose destination is no longer installed is reported as failed, not thrown", async () => {
+  const s = setup({ hosts: {} });
+  await s.save("orphan", "https://orphan.example");
+
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit, logError: () => {} }).pull.pull({ workspaceId: W });
+
+  assert.equal(result.ran, true);
+  assert.match(result.destinations[0]?.error ?? "", /^no installed form destination returns submissions for orphan\. Turn on the plugin that provides it/);
+});
+
+test("one form's rows from two receivers are counted as one form row", async () => {
+  const s = setup({ hosts: { "host-a": { pages: [page(["a1", "a2"])] }, "host-b": { pages: [page(["b1"])] } } });
+  await s.save("host-a", "https://a.example");
+  await s.save("host-b", "https://b.example");
+
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull.pull({ workspaceId: W });
+  await settle();
+
+  assert.deepEqual(result.forms, [{ formId: "f1", formSlug: "waitlist", imported: 3, alreadyImported: 0, unmapped: 0, failed: 0 }]);
+  assert.deepEqual(result.totals, { imported: 3, alreadyImported: 0, unmapped: 0, failed: 0 });
+});
+
+test("a pull that counted no rows reads no form definitions for ids", async () => {
+  const s = setup({ hosts: { h: { pages: [] } } });
+  await s.save("h", "https://h.example");
+  let lists = 0;
+  s.deps = { ...s.deps, formDefinitionRepo: { ...s.deps.formDefinitionRepo, list: async () => { lists += 1; return [waitlist]; } } };
+
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull.pull({ workspaceId: W });
+
+  assert.deepEqual([result.ran, result.forms, lists], [true, [], 0]);
+});
+
+test("security: a pull that one receiver's lease refused while another ran reports ran, with the refusal on that receiver", async () => {
+  const held = heldHost();
+  const s = setup({ hosts: { "a-held": held.host, "b-free": { pages: [page(["b1"])] } } });
+  await s.save("a-held", "https://a.example");
+  await s.save("b-free", "https://b.example");
+  const port = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull;
+  const first = port.pull({ workspaceId: W }, { targetId: "a-held" });
+  await held.inFlight;
+
+  const second = await port.pull({ workspaceId: W });
+  held.release();
+  await first;
+  await settle();
+
+  assert.deepEqual(second.destinations.map((report) => [report.targetId, report.refused, report.imported]), [["a-held", "already-running", 0], ["b-free", undefined, 1]]);
+  assert.equal(second.ran, true);
+  assert.match(second.message, /https:\/\/a\.example: a pull from this site is already running/);
+});
