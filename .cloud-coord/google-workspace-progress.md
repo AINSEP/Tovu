@@ -33,9 +33,9 @@ Status: PHASE A — G1–G5 merged in Jini; G6/G7/G8 re-dispatched after RESUME 
 | G3 | MERGED | cloud/google-workspace-G3 (Jini) | 00a1b4cb | @jini-ai/oauth/loopback-receiver; oauth suite 313/313; cx max 9; 1 RED survivor (!consumed gap guard) → phase C |
 | G4 | MERGED | cloud/google-workspace-G4 (Jini) | pushed | agent-plugins/lifecycle/tools; 16 tests + 7 char pins; cx ≤9; plugins suite 442/443 — the 1 failure (install.unit 'lock creation rethrows faults') is env (runs as root), untouched file |
 | G5 | MERGED | cloud/google-workspace-G5 (Jini) | pushed | agent-plugins/admin-surfaces (+/client); 70 tests; 31 RED checks; cx ≤9 |
-| G6 | running | cloud/google-workspace-G6 (Tovu, + Jini G6 if vault kind) | | |
-| G7 | running | cloud/google-workspace-G7 (Tovu) | | |
-| G8 | running | cloud/google-workspace-G8 (Tovu) | | |
+| G6 | running (re-dispatched 06:35Z) | cloud/google-workspace-G6 (Tovu); Jini part merged | Jini 7846710b (vault kind api-connection; platform vault.service 21/21, tsc 0, guard 26=base) | Tovu needs migration 0020 for secrets_vault_kind CHECK |
+| G7 | running (re-dispatched 06:35Z; nothing had been pushed) | cloud/google-workspace-G7 (Tovu) | | |
+| G8 | running (re-dispatched 06:35Z from 3cd9d157 char pins) | cloud/google-workspace-G8 (Tovu) | | |
 | G9–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
@@ -56,7 +56,7 @@ pending (G9)
 none yet
 
 ## Problems
-none yet
+- Resume: `git pull --rebase` flattened the Jini G6 merge commit into a linear commit (7846710b); coordinator now uses `git pull --rebase=merges` and so do subagents.
 
 ## Next
 Verify + merge G1–G5 as they finish; then G6/G7/G8.
