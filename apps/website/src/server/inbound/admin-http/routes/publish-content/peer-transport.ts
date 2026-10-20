@@ -22,10 +22,21 @@ import {
   PUBLISH_FROM_LIVE_SITE_CODE,
   PUBLISH_FROM_LIVE_SITE_ERROR,
 } from "#src/features/publish-content/live-site-policy";
-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
+import { rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import {
+  acceptOverwriteEntityKeys,
+  authorizedPrincipalId,
+  bodyRecord,
+  mappedErrorResponse,
+  OVERWRITE_REFUSED,
+  rejectForeignWorkspace,
+  routeParam,
+  sendRefusal,
+  type MappedErrorClass,
+  type RouteParamsRequest,
+} from "./route-helpers.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -75,30 +86,28 @@ import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContent
  * whose message is derived from the PEER's response, never from the request.
  */
 
-/** @complexity O(1). */
-function statusFor(err: unknown): { status: number; code: string } {
-  if (err instanceof PublishContentPeerNotFoundError) return { status: 404, code: "PEER_NOT_FOUND" };
+/** The typed errors a peer action answers with their own message. */
+const PEER_ACTION_ERRORS: readonly MappedErrorClass[] = [
+  [PublishContentPeerNotFoundError, 404, "PEER_NOT_FOUND"],
   // A connected destination's handshake. 502 for the same reason a transport error is: this
   // instance is fine and the request was well-formed — the far side (or the path to it) is what
   // failed, and the message is already the sentence the owner needs to act on.
-  if (err instanceof PublishTrustHandshakeError) return { status: 502, code: "PUBLISH_TRUST_HANDSHAKE_FAILED" };
-  if (err instanceof PublishContentPeerCredentialMissingError) return { status: 409, code: "PEER_CREDENTIAL_MISSING" };
-  if (err instanceof PublishContentPeerSecretStoreUnconfiguredError) return { status: 503, code: "SECRET_STORE_UNCONFIGURED" };
+  [PublishTrustHandshakeError, 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
+  [PublishContentPeerCredentialMissingError, 409, "PEER_CREDENTIAL_MISSING"],
+  [PublishContentPeerSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
+];
+
+/** @complexity O(1). */
+function respondWithError(res: Response, err: unknown): void {
   if (err instanceof PublishContentPeerTransportError) {
     // 502: this instance is fine and the request was well-formed; the PEER (or the path to it) is
     // what failed. A 500 here would send an operator looking in the wrong server's logs — and for
     // `EGRESS_REFUSED` specifically, the message is the `devHostAllowlist` diagnosis, which is only
     // actionable if it reaches them intact.
-    return { status: 502, code: err.code };
+    res.status(502).json({ error: err.message, code: err.code });
+    return;
   }
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
-
-/** @complexity O(1). */
-function respondWithError(res: { status(code: number): { json(body: unknown): void } }, err: unknown): void {
-  const { status, code } = statusFor(err);
-  const message = status === 500 ? "internal error" : err instanceof Error ? err.message : "internal error";
-  res.status(status).json({ error: message, code });
+  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS));
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.
@@ -133,14 +142,14 @@ const INVALID_SELECTION = Symbol("invalid-selection");
  * @complexity O(n) in the submitted key count.
  */
 function readSelectedEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_SELECTION {
-  const raw = (body ?? {}) as Record<string, unknown>;
+  const raw = bodyRecord(body);
   if (raw.selectedEntityKeys === undefined || raw.selectedEntityKeys === null) return null;
   if (!Array.isArray(raw.selectedEntityKeys)) return INVALID_SELECTION;
   if (!raw.selectedEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_SELECTION;
   return raw.selectedEntityKeys;
 }
 
-/** `scope`'s per-field cap, matching {@link readOverwriteEntityKeys}'s 1000-entry bound below. */
+/** `scope`'s per-field cap, matching `readOverwriteEntityKeys`'s 1000-entry bound (`route-helpers.ts`). */
 const MAX_SCOPE_ARRAY_LENGTH = 1000;
 
 /** @complexity O(1). */
@@ -164,49 +173,45 @@ function isNonEmptyStringArrayField(value: unknown): value is readonly string[] 
  *   (`"scope"` itself when it is not an object or names neither field — never read as "everything").
  * @complexity O(n) in the submitted array lengths.
  */
-function readPublishScope(body: unknown): { scope: PublishScope | null } | { invalidField: "scope" | "entityTypes" | "entityKeys" } {
-  const raw = (body ?? {}) as Record<string, unknown>;
+function readPublishScope(body: unknown): { scope: PublishScope | null } | { invalidField: ScopeInvalidField } {
+  const raw = bodyRecord(body);
   if (raw.scope === undefined || raw.scope === null) return { scope: null };
   if (typeof raw.scope !== "object" || Array.isArray(raw.scope)) return { invalidField: "scope" };
   const scopeBody = raw.scope as Record<string, unknown>;
   // A present scope naming neither field (`{}`, or a typo like `{types: [...]}`) would otherwise
   // narrow nothing — silently widening a one-section dialog to "publish everything". Refused.
   if (scopeBody.entityTypes === undefined && scopeBody.entityKeys === undefined) return { invalidField: "scope" };
-
-  const scope: { entityTypes?: readonly string[]; entityKeys?: readonly string[] } = {};
-  if (scopeBody.entityTypes !== undefined) {
-    if (!isNonEmptyStringArrayField(scopeBody.entityTypes)) return { invalidField: "entityTypes" };
-    scope.entityTypes = scopeBody.entityTypes;
-  }
-  if (scopeBody.entityKeys !== undefined) {
-    if (!isNonEmptyStringArrayField(scopeBody.entityKeys)) return { invalidField: "entityKeys" };
-    scope.entityKeys = scopeBody.entityKeys;
-  }
-  return { scope };
+  const invalidField = SCOPE_FIELDS.find((field) => scopeBody[field] !== undefined && !isNonEmptyStringArrayField(scopeBody[field]));
+  return invalidField ? { invalidField } : { scope: presentScopeFields(scopeBody) };
 }
 
-/** Distinguishes "the body carried a malformed set of ticks" (a 400) from "the body carried none"
- *  (`null`, force nothing) — the same two-outcome shape {@link readSelectedEntityKeys} above uses. */
-const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
+const SCOPE_FIELDS = ["entityTypes", "entityKeys"] as const;
+type ScopeInvalidField = "scope" | (typeof SCOPE_FIELDS)[number];
+
+/** The scope fields the body carries, each already validated by {@link readPublishScope}.
+ *  @complexity O(1) — two fixed fields. */
+function presentScopeFields(scopeBody: Record<string, unknown>): PublishScope {
+  return Object.fromEntries(SCOPE_FIELDS.filter((field) => scopeBody[field] !== undefined).map((field) => [field, scopeBody[field]]));
+}
+
+/** The 400 message for a malformed `scope`. @complexity O(1). */
+function scopeErrorMessage(invalidField: ScopeInvalidField): string {
+  return invalidField === "scope"
+    ? "'scope' must be an object with 'entityTypes' and/or 'entityKeys'"
+    : `'scope.${invalidField}' must be a non-empty array of strings`;
+}
 
 /**
- * publish-overwrite-live-plan §4/S7 — reads `push/plan`'s and `push/execute`'s optional
- * `overwriteEntityKeys`: the `entityKey()` strings (`planner.ts`) the operator ticked "Overwrite on
- * live" for. Absent/`null` means "force nothing", the pre-S7 default every existing caller keeps
- * getting. Bounded at 1000 entries, matching the destination's own cap
- * (`routes/publish-content/import.ts`'s `readOverwriteEntityKeys`) — repeated here rather than
- * imported, the same one-reader-per-route-file convention {@link readSelectedEntityKeys} already
- * follows in this file.
- *
- * @complexity O(n) in the submitted key count.
+ * Reads `push/plan`'s two narrowing fields: `selectedEntityKeys` first, then `scope`.
+ * @returns the 400 message for the first malformed one, or both read values.
+ * @complexity O(n) in the submitted array lengths.
  */
-function readOverwriteEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
-  const raw = (body ?? {}) as Record<string, unknown>;
-  if (raw.overwriteEntityKeys === undefined || raw.overwriteEntityKeys === null) return null;
-  if (!Array.isArray(raw.overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
-  if (raw.overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
-  if (!raw.overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
-  return raw.overwriteEntityKeys;
+function readPushPlanNarrowing(body: unknown): { error: string } | { scope: PublishScope | null; selectedEntityKeys: readonly string[] | null } {
+  const selectedEntityKeys = readSelectedEntityKeys(body);
+  if (selectedEntityKeys === INVALID_SELECTION) return { error: "'selectedEntityKeys' must be an array of strings" };
+  const scopeResult = readPublishScope(body);
+  if ("invalidField" in scopeResult) return { error: scopeErrorMessage(scopeResult.invalidField) };
+  return { scope: scopeResult.scope, selectedEntityKeys };
 }
 
 /**
@@ -233,18 +238,9 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
   /** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
    *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
    *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
-  const guard = async (req: { params: Record<string, string | undefined> }, res: Parameters<Parameters<typeof app.post>[1]>[1]): Promise<string | null> => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return null;
-    }
-    const principal = getAuthedPrincipal(res);
-    const allowed = await authorizeOrRespond(res, deps.authorize, {
-      principalId: principal.id,
-      permission: "publish_content.apply",
-      workspaceId: deps.workspaceId,
-    });
-    return allowed ? principal.id : null;
+  const guard = async (req: RouteParamsRequest, res: Response): Promise<string | null> => {
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return null;
+    return authorizedPrincipalId(res, deps, "publish_content.apply");
   };
 
   /** The push routes' extra preamble: the live site is the publish destination, so it never pushes
@@ -262,35 +258,20 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const principalId = await pushGuard(req, res);
       if (principalId === null) return;
 
-      const selectedEntityKeys = readSelectedEntityKeys(req.body);
-      if (selectedEntityKeys === INVALID_SELECTION) {
-        res.status(400).json({ error: "'selectedEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
+      const narrowing = readPushPlanNarrowing(req.body);
+      if ("error" in narrowing) {
+        res.status(400).json({ error: narrowing.error, code: "VALIDATION_ERROR" });
         return;
       }
-      const scopeResult = readPublishScope(req.body);
-      if ("invalidField" in scopeResult) {
-        res.status(400).json({
-          error:
-            scopeResult.invalidField === "scope"
-              ? "'scope' must be an object with 'entityTypes' and/or 'entityKeys'"
-              : `'scope.${scopeResult.invalidField}' must be a non-empty array of strings`,
-          code: "VALIDATION_ERROR",
-        });
-        return;
-      }
-      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
-      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
-        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
-        return;
-      }
-      if (!mayOverwrite(res, overwriteEntityKeys)) return;
+      const overwriteEntityKeys = acceptOverwriteEntityKeys(res, bodyRecord(req.body).overwriteEntityKeys, mayOverwrite);
+      if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const peer = await openPeer(deps, String(req.params.peerId ?? ""));
+      const peer = await openPeer(deps, routeParam(req, "peerId"));
       res.json(await planPublishToPeer({
         deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) },
         peer,
         principalId,
-      }, { scope: scopeResult.scope, selectedEntityKeys, overwriteEntityKeys }));
+      }, { scope: narrowing.scope, selectedEntityKeys: narrowing.selectedEntityKeys, overwriteEntityKeys }));
     } catch (err) {
       respondWithError(res, err);
     }
@@ -301,13 +282,13 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const principalId = await pushGuard(req, res);
       if (principalId === null) return;
 
-      const { planId, planHash } = (req.body ?? {}) as Record<string, unknown>;
+      const { planId, planHash } = bodyRecord(req.body);
       if (typeof planId !== "string" || typeof planHash !== "string") {
         res.status(400).json({ error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
 
-      const peer = await openPeer(deps, String(req.params.peerId ?? ""));
+      const peer = await openPeer(deps, routeParam(req, "peerId"));
       res.json(await confirmPeerImport(peer, { planId, planHash }));
     } catch (err) {
       respondWithError(res, err);
@@ -319,19 +300,16 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const principalId = await pushGuard(req, res);
       if (principalId === null) return;
 
-      const { bundleId, confirmationToken } = (req.body ?? {}) as Record<string, unknown>;
+      const body = bodyRecord(req.body);
+      const { bundleId, confirmationToken } = body;
       if (typeof bundleId !== "string" || typeof confirmationToken !== "string") {
         res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
-      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
-        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
-        return;
-      }
-      if (!mayOverwrite(res, overwriteEntityKeys)) return;
+      const overwriteEntityKeys = acceptOverwriteEntityKeys(res, body.overwriteEntityKeys, mayOverwrite);
+      if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const peer = await openPeer(deps, String(req.params.peerId ?? ""));
+      const peer = await openPeer(deps, routeParam(req, "peerId"));
       res.json(
         await executePeerImport(peer, {
           bundleId,
@@ -350,7 +328,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       if (principalId === null) return;
 
       res.status(201).json(await pullAndStageFromPeer(deps, {
-        peerId: String(req.params.peerId ?? ""),
+        peerId: routeParam(req, "peerId"),
         principalId,
       }));
     } catch (err) {
