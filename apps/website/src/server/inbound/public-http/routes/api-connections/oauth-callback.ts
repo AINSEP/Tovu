@@ -4,6 +4,7 @@ import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { API_CONNECTION_OAUTH_CALLBACK_PATH, type ApiConnectionHost } from "#src/features/api-connections/host";
+import { clearedBrowserBindingCookie, readBrowserBinding } from "#src/features/api-connections/browser-binding";
 import { renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { resolvePublicOrigin } from "../oauth/public-origin.js";
 
@@ -12,10 +13,11 @@ import { resolvePublicOrigin } from "../oauth/public-origin.js";
  * the external-MCP callback on purpose: a different lifecycle (Jini api-connections), one fixed path
  * every provider registers once.
  *
- * Cookie-less for the reason `external-mcp/oauth-callback.ts` documents (`tovu_session` is
+ * Session-less for the reason `external-mcp/oauth-callback.ts` documents (`tovu_session` is
  * `SameSite=Strict`; the provider's redirect is a cross-site navigation). What authenticates the
  * request is the single-use, expiring attempt its `state` names, bound to workspace, actor, plugin
- * connection, scopes and this exact callback URL, plus the provider's one-time code. The attempt is
+ * connection, scopes, this exact callback URL and the starting browser (the `SameSite=Lax` binding
+ * cookie the host sign-in link set, read here and cleared once used), plus the provider's one-time code. The attempt is
  * peeked only to route the request to its connection; Jini consumes it and checks every binding.
  *
  * After a successful exchange, the plugin's declared callback fields (never the code or state) are
@@ -98,13 +100,18 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
     if (!(await deps.callbackLimiter.check({ key: resolveClientIp(req) })).allowed) return send(res, 429, "rate_limited");
     const params = stringParams(req.query as Record<string, unknown>);
     const state = params.state ?? "";
+    // The browser that started the sign-in carries this (`browser-binding.ts`); any other browser
+    // carries none, and Jini refuses the attempt.
+    const browserBinding = readBrowserBinding({ cookieHeader: req.get("cookie") });
     if (state === "" || state.length > MAX_STATE_LENGTH) return send(res, 400, "no_state");
     try {
       const routed = await routeAttempt(deps.host, state);
       // Unknown, used, foreign-workspace or no-longer-declared: the same answer for each.
       if (!routed) return send(res, 400, "state_expired");
       const { attempt, connection } = routed;
-      const done = await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params });
+      // `complete` consumes the attempt whatever it decides, so the binding is spent either way.
+      res.append("Set-Cookie", clearedBrowserBindingCookie());
+      const done = await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params, browserBinding });
       depositCallbackFields(deps.host, { attempt, attemptId: done.attemptId, fields: done.callbackFields });
       return send(res, 200);
     } catch (error) {

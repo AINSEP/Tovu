@@ -52,7 +52,7 @@ test("desktop: an installed-app client that names no secret setting signs in as 
   const service = host.serviceFor({ connection: connection!, redirectUri });
   const start = await service.start({ workspaceId: ACME_WORKSPACE, actorId: "admin-1", intent: "connect", scopeSetIds: [], redirectUri });
   const back = harness.consentRedirect(start.authorizationUrl);
-  await service.complete({ workspaceId: ACME_WORKSPACE, actorId: "admin-1", redirectUri, callbackParams: Object.fromEntries(back.searchParams) });
+  await service.complete({ workspaceId: ACME_WORKSPACE, actorId: "admin-1", redirectUri, callbackParams: Object.fromEntries(back.searchParams), browserBinding: start.browserBinding });
   assert.equal(harness.provider.lastTokenForm.get("client_id"), "acme-desktop-client");
   assert.equal(harness.provider.lastTokenForm.has("client_secret"), false);
   assert.equal((await host.statusOf({ connection: connection! })).status, "connected");

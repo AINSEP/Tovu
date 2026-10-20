@@ -6,6 +6,7 @@ import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-ht
 import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
+import { registerApiConnectionSignInRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/connection-sign-in";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
@@ -33,6 +34,8 @@ import type { ServerModuleHandle } from "./types.js";
  * returns to, registered only when the composition provides them (`deps.apiConnections`). It is
  * cookie-less for the reason its own header gives, so it also sits outside `/api/admin`, with its own
  * per-IP limiter instance sized like the external-MCP callback's (same anonymous, exchange-costly shape).
+ * Its hosted sign-in links open through the session-gated `connection-sign-in.ts` route, which
+ * binds the starting browser before redirecting to the provider.
  */
 export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
@@ -46,7 +49,10 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerAgentPluginMemoryRoutes(app, deps);
       registerAgentPluginAdminSurfaceRoutes(app, deps);
       registerAdminSurfaceFilesRoute(app, deps);
-      if (deps.apiConnections) registerApiConnectionOAuthCallbackRoute(app, { host: deps.apiConnections.host, callbackLimiter });
+      if (deps.apiConnections) {
+        registerApiConnectionSignInRoute(app, { workspaceId: deps.workspaceId, host: deps.apiConnections.host });
+        registerApiConnectionOAuthCallbackRoute(app, { host: deps.apiConnections.host, callbackLimiter });
+      }
     },
   };
 }

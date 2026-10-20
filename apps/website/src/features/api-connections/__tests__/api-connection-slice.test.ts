@@ -29,6 +29,7 @@ import { AesGcmSecretSealer as TovuAesGcmSecretSealer } from "../../webhooks/sec
 import { runApiConnectionConnect } from "../connect.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
+import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
@@ -107,7 +108,7 @@ const siteSealer = new TovuAesGcmSecretSealer(siteKeyring);
 function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined; readonly customCredentialRepo?: InMemoryCustomCredentialSetRepo; readonly packageRoot?: string } = {}) {
   const keyring = siteKeyring;
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: options.packageRoot ?? fixtureRoot }, definition: input.definition });
-  return createApiConnectionHost({
+  const host = createApiConnectionHost({
     workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: siteSealer,
     customCredentialRepo: options.customCredentialRepo ?? new InMemoryCustomCredentialSetRepo(),
     clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: options.runtime ?? "hosted",
@@ -115,7 +116,12 @@ function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" |
     env: options.env ?? { ...hostedEnv, get TOVU_API_CONNECTION_CALLBACK_ORIGINS() { return siteOrigin; } },
     publicOrigin: options.publicOrigin ?? (() => siteOrigin),
   });
+  browser = trackStartingBrowser(host);
+  return host;
 }
+
+/** The browser that started the latest host's sign-ins (it opened the host link and holds the binding). */
+let browser: StartingBrowser | undefined;
 
 async function mountCallback(host: ReturnType<typeof makeHost>, logs: string[]): Promise<void> {
   const app = express();
@@ -127,7 +133,7 @@ async function mountCallback(host: ReturnType<typeof makeHost>, logs: string[]):
 
 /** The "browser": consent at the fake provider, which redirects back with a code bound to the PKCE challenge. */
 function consentRedirect(authorizationUrl: string): string {
-  const url = new URL(authorizationUrl);
+  const url = new URL(browser?.providerUrl(authorizationUrl) ?? authorizationUrl);
   const code = randomBytes(12).toString("hex");
   issued.set(code, url.searchParams.get("code_challenge") ?? "");
   const back = new URL(url.searchParams.get("redirect_uri") ?? "");
@@ -135,6 +141,12 @@ function consentRedirect(authorizationUrl: string): string {
   back.searchParams.set("state", url.searchParams.get("state") ?? "");
   return back.href;
 }
+
+/** The starting browser follows the provider's redirect back, carrying its binding cookie. */
+const followConsent = (authorizationUrl: string): Promise<Response> => {
+  const back = consentRedirect(authorizationUrl);
+  return fetch(back, { headers: browser?.cookieFor(back) ?? {} });
+};
 
 test("vertical slice: connect -> public callback -> plugin access token -> form-delivery credential", async () => {
   const host = makeHost();
@@ -145,8 +157,11 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
   const result = await runApiConnectionConnect({
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => {
-      assert.equal(new URL(signInUrl).searchParams.get("code_challenge_method"), "S256");
-      const response = await fetch(consentRedirect(signInUrl));
+      // F1: the card gets the host's sign-in link (the provider URL stays off the transcript).
+      assert.match(new URL(signInUrl).pathname, /\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
+      assert.equal(new URL(signInUrl).search, "");
+      assert.equal(new URL(browser!.providerUrl(signInUrl)).searchParams.get("code_challenge_method"), "S256");
+      const response = await followConsent(signInUrl);
       callbackPage = await response.text();
       assert.equal(response.status, 200, logs.join("\n"));
       assert.equal(response.headers.get("cache-control"), "no-store");
@@ -172,7 +187,7 @@ test("security: a form-delivery credential stays on the job's frozen account, fo
   const [connection] = await host.listConnections({ pluginId: "acme-office" });
   const { connectionRef } = await runApiConnectionConnect({
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
-    showSignIn: async ({ signInUrl }) => { assert.equal((await fetch(consentRedirect(signInUrl))).status, 200); },
+    showSignIn: async ({ signInUrl }) => { assert.equal((await followConsent(signInUrl)).status, 200); },
   });
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
   const target = { workspaceId: "ws-1", connectionRef, adapterId: "row-append" };
@@ -211,8 +226,10 @@ test("security: a replayed callback state is refused; a wrong PKCE verifier neve
   const redirect = consentRedirect(start.authorizationUrl);
   const tampered = new URL(start.authorizationUrl);
   issued.set(new URL(redirect).searchParams.get("code")!, "not-the-challenge");
-  assert.equal((await fetch(redirect)).status, 400, "a code whose PKCE challenge does not match is refused");
-  assert.equal((await fetch(redirect)).status, 400, "the consumed state cannot be replayed");
+  // The starting browser (it carries the binding), so the refusals below are PKCE and replay.
+  const headers = browser!.cookieFor(redirect);
+  assert.equal((await fetch(redirect, { headers })).status, 400, "a code whose PKCE challenge does not match is refused");
+  assert.equal((await fetch(redirect, { headers })).status, 400, "the consumed state cannot be replayed");
   assert.equal((await host.statusOf({ connection })).status, "disconnected");
   assert.ok(tampered.searchParams.get("state"));
 });
@@ -289,7 +306,7 @@ test("security: two open sign-in attempts for one connection and two connections
   assert.notEqual(states[0], states[1]);
   for (const state of states) assert.ok(await host.records.peekAttempt({ state }), "both attempts stay open");
   const record = (key: string) => ({ key, workspaceId: "ws-1", pluginId: "acme-office", connectionId: key, status: "disconnected" as const, revision: 0,
-    generation: 0, account: null, grantedScopes: [], staged: null, updatedAt: new Date().toISOString() });
+    generation: 0, account: null, grantedScopes: [], staged: null, revocationFailure: null, updatedAt: new Date().toISOString() });
   assert.equal(await host.records.compareAndSet({ key: "conn-a", expectedRevision: 0, record: record("conn-a") }), true);
   assert.equal(await host.records.compareAndSet({ key: "conn-b", expectedRevision: 0, record: record("conn-b") }), true);
   const labels = (await vaultRepo.list({ workspaceId: "ws-1", kind: "api-connection", ownerKey: "tovu", principalId: null })).map((row) => row.label);
@@ -307,7 +324,7 @@ test("security: a desktop public client's provider-issued secret reaches only th
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async (input) => {
       signInUrl = input.signInUrl;
-      const response = await fetch(consentRedirect(input.signInUrl));
+      const response = await followConsent(input.signInUrl);
       logs.push(await response.text());
     },
   });
@@ -335,8 +352,8 @@ test("callback: a switch to the account already connected is refused with copy t
   const [connection] = await host.listConnections({ pluginId: "acme-office" });
   const service = host.serviceFor({ connection });
   const begin = (intent: "connect" | "switch-account") => service.start({ workspaceId: "ws-1", actorId: "admin-1", intent, scopeSetIds: [], redirectUri: host.hostedCallbackUrl({ connection }) });
-  assert.equal((await fetch(consentRedirect((await begin("connect")).authorizationUrl))).status, 200);
-  const response = await fetch(consentRedirect((await begin("switch-account")).authorizationUrl));
+  assert.equal((await followConsent((await begin("connect")).authorizationUrl)).status, 200);
+  const response = await followConsent((await begin("switch-account")).authorizationUrl);
   assert.equal(response.status, 400);
   assert.match(await response.text(), /already connected to Tovu, so there is nothing to switch\. Close this window and use Reconnect in Tovu instead\./);
   assert.equal((await host.statusOf({ connection })).status, "connected", "the live connection is untouched");
@@ -347,7 +364,7 @@ async function connectDesktop(host: ReturnType<typeof makeHost>) {
   const [connection] = await host.listConnections({ pluginId: "acme-office" });
   return runApiConnectionConnect({
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
-    showSignIn: async ({ signInUrl }) => { await (await fetch(consentRedirect(signInUrl))).text(); },
+    showSignIn: async ({ signInUrl }) => { await (await followConsent(signInUrl)).text(); },
   });
 }
 
@@ -432,7 +449,7 @@ test("security: a saved BYO client replaces the Tovu-owned client for its own co
   let signInUrl = "";
   const result = await runApiConnectionConnect({
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
-    showSignIn: async (input) => { signInUrl = input.signInUrl; await (await fetch(consentRedirect(input.signInUrl))).text(); },
+    showSignIn: async (input) => { signInUrl = input.signInUrl; await (await followConsent(input.signInUrl)).text(); },
   });
   assert.equal(result.status, "connected");
   assert.equal(new URL(signInUrl).searchParams.get("client_id"), byoClientId, "the browser signs in to the admin's own client");

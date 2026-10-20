@@ -259,7 +259,7 @@ test("security: another adapter's binding is invisible to the surface and can be
 test("the surface lists and removes its own binding; the removal reaches the stored setting", async () => {
   const { site } = await connectedSite();
   const listed = await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "list-bindings" });
-  assert.deepEqual(listed.ok && JSON.parse((listed.result as { json: string }).json), [{ bindingId: "b1", adapterId: ADAPTER, connectionId: "account", enabled: true, config: { table: "Leads", accountId: "acct-alice" } }]);
+  assert.deepEqual(listed.ok && JSON.parse((listed.result as { json: string }).json), [{ bindingId: "b1", adapterId: ADAPTER, connectionId: "account", enabled: true, allForms: true, config: { table: "Leads", accountId: "acct-alice" } }]);
   assert.deepEqual(await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "remove-binding", payload: { bindingId: "b1" } }), { ok: true, result: { removed: true } });
   assert.deepEqual(await site.bindings(), []);
 });

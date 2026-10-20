@@ -16,6 +16,7 @@ import { createConnectionBudgets } from "./budgets.js";
 import { createConnectionHookHttp, type PluginHttp } from "./hook-http.js";
 import { createAgentPluginStateStore } from "./plugin-state.js";
 import { loadDeclaredApiConnections, type ApiConnectionClientConfig, type DeclaredApiConnection } from "./contribution.js";
+import { API_CONNECTION_OAUTH_CALLBACK_PATH as CALLBACK_PATH, createSignInHandoffs } from "./browser-binding.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, type ApiConnectionVaultRecordStore } from "./vault-stores.js";
 
 /**
@@ -39,8 +40,8 @@ import { createApiConnectionVault, createApiConnectionVaultRecordStore, createAp
  * `reconnect-required` (the honest state: a reconnect issues tokens for the current client).
  */
 
-/** The public, cookie-less callback every hosted API-connection sign-in returns to. */
-export const API_CONNECTION_OAUTH_CALLBACK_PATH = "/api/agent-plugins/connections/oauth/callback";
+// Defined beside the binding cookie, whose `Path` it is; re-exported for the routes that mount it.
+export { API_CONNECTION_OAUTH_CALLBACK_PATH } from "./browser-binding.js";
 
 export type ApiConnectionRuntime = "hosted" | "desktop";
 
@@ -157,6 +158,8 @@ export function createApiConnectionHost(
   // the plugin's panel can say so (the loopback page is all the user saw). At most one per declared
   // connection; a later success deletes it.
   const lastSignInAttempts = new Map<string, AdminSurfaceSignInAttempt>();
+  // Hosted sign-ins started here, waiting for their starter's browser to open the host link.
+  const signInHandoffs = createSignInHandoffs({ clock: required.clock });
   const credentials = { repo: required.customCredentialRepo, sealer: required.sealer, keyring: required.keyring };
   // Per host (so per workspace) and per loaded declaration object: a BYO client never travels with a
   // connection object into another host, and the secret is never a field anything could serialize.
@@ -239,12 +242,12 @@ export function createApiConnectionHost(
     if (!origin || !allowed.includes(origin)) {
       throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address. Use a registered address or configure your own sign-in client.`);
     }
-    return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
+    return `${origin}${CALLBACK_PATH}`;
   }
 
   function byoCallbackUrl(connection: DeclaredApiConnection, origin: string | undefined): string {
     if (!origin) throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address: this site has no public address. Set TOVU_PUBLIC_URL, then retry.`);
-    return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
+    return `${origin}${CALLBACK_PATH}`;
   }
 
   /** The connection's hooks over HTTP limited to its declared API origins and token endpoint origin. @complexity O(1). */
@@ -329,7 +332,7 @@ export function createApiConnectionHost(
 
   const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;
   return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records: honestRecords, startLoopback, listConnections, serviceFor, accessTokensFor,
-    toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, lastSignInAttempts, pluginState };
+    toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, lastSignInAttempts, signInHandoffs, pluginState };
 }
 
 export type ApiConnectionHost = ReturnType<typeof createApiConnectionHost>;

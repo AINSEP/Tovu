@@ -19,7 +19,7 @@ import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import {
-  PLUGIN, WORKSPACE, accessToken, compose, consentRedirect, mountCallback, refreshToken, startAcmeProvider, stopAcmeProvider, type AcmeComposition,
+  PLUGIN, PUBLIC_URL, WORKSPACE, accessToken, compose, followConsent, providerUrlOf, mountCallback, refreshToken, startAcmeProvider, stopAcmeProvider, type AcmeComposition,
 } from "#src/server/runtime/composition/__tests__/fixtures/acme-provider";
 import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 
@@ -55,7 +55,7 @@ function signInUrlOf(html: string): string {
 async function connect(composition: AcmeComposition, options: { readonly onCard?: (html: string, index: number) => Promise<void>; readonly signal?: AbortSignal; readonly waitTimeoutMs?: number; readonly pluginId?: string } = {}) {
   mountCallback(composition);
   const cards: string[] = [];
-  const onCard = options.onCard ?? (async (html: string, index: number) => { if (index === 0) assert.equal((await fetch(consentRedirect(signInUrlOf(html)))).status, 200); });
+  const onCard = options.onCard ?? (async (html: string, index: number) => { if (index === 0) assert.equal((await followConsent(signInUrlOf(html))).status, 200); });
   const result = await runAgentPluginConnect(depsFor(composition.apiConnections, options.waitTimeoutMs), surfaces(), ctxFor(options.signal), options.pluginId ?? PLUGIN, {
     emitSurface: async (emission) => { const html = htmlOf(emission); cards.push(html); await onCard(html, cards.length - 1); },
   });
@@ -68,7 +68,12 @@ test("a declared API connection connects through the real host: waiting card, th
   assert.equal(typeof result.connectionRef, "string");
   assert.deepEqual(Object.keys(result).sort(), ["connectionRef", "status"]);
   assert.equal(cards.length, 2);
-  assert.match(new URL(signInUrlOf(cards[0]!)).hostname, /^auth\.acme\.test$/);
+  // F1: the card links to the host's sign-in link on the site's public address; the provider URL
+  // (with its state) never reaches the transcript.
+  assert.equal(new URL(signInUrlOf(cards[0]!)).origin, PUBLIC_URL);
+  assert.doesNotMatch(cards[0]!, /auth\.acme\.test/);
+  assert.ok(!cards[0]!.includes(providerUrlOf(signInUrlOf(cards[0]!)).searchParams.get("state")!), "the OAuth state is not on the card");
+  assert.match(providerUrlOf(signInUrlOf(cards[0]!)).hostname, /^auth\.acme\.test$/);
   assert.doesNotMatch(cards[1]!, /var OPEN_URL/, "the connected card carries no sign-in link");
   const everything = JSON.stringify([result, cards]);
   assert.ok(!everything.includes(accessToken) && !everything.includes(refreshToken), "no token in the result or any card");
@@ -126,7 +131,7 @@ test("aborting while parked closes the card's exchange and returns waiting-for-s
 test("a failed connected-card update never turns a real connection into a tool failure", async () => {
   const { result, cards } = await connect(await compose(), {
     onCard: async (html, index) => {
-      if (index === 0) return void (await fetch(consentRedirect(signInUrlOf(html))));
+      if (index === 0) return void (await followConsent(signInUrlOf(html)));
       throw new Error("card channel closed");
     },
   });
@@ -179,7 +184,7 @@ test("with no poll interval or wait bound configured, the built-in defaults stil
   let shown = 0;
   const result = await runAgentPluginConnect(depsFor(composition.apiConnections, null), surfaces(), ctxFor(), PLUGIN, {
     // The "browser" finishes before the first status read, so the default interval is never slept.
-    emitSurface: async (emission) => { if (shown++ === 0) assert.equal((await fetch(consentRedirect(signInUrlOf(htmlOf(emission))))).status, 200); },
+    emitSurface: async (emission) => { if (shown++ === 0) assert.equal((await followConsent(signInUrlOf(htmlOf(emission)))).status, 200); },
   });
   assert.equal(result.status, "connected");
 });

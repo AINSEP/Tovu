@@ -3,6 +3,7 @@ import {
 } from "@jini-ai/integrations/api-connections";
 import { ToolInputError } from "@jini-ai/core";
 
+import { hostedSignInLink } from "./browser-binding.js";
 import type { DeclaredApiConnection } from "./contribution.js";
 import type { ApiConnectionHost } from "./host.js";
 
@@ -10,7 +11,8 @@ import type { ApiConnectionHost } from "./host.js";
  * @file The plugin-declared API-connection branch of `agent_plugin_connect` (the single sign-in
  * entry point): start the generic sign-in, hand the card its link, and wait for the result.
  *
- * Hosted: the provider returns to the public callback route, which completes the sign-in; this call
+ * Hosted: the card links to the host's sign-in link (`browser-binding.ts`), which binds the browser
+ * and redirects to the provider; the provider returns to the public callback route, which completes the sign-in; this call
  * watches the connection record until its credential generation moves past the one it started from
  * and it reads `connected`. Desktop: an ephemeral 127.0.0.1 loopback listener (Jini's installed-app
  * receiver) catches the redirect and this call completes it itself. The card's link opens in the
@@ -76,6 +78,7 @@ async function waitForCallback(run: ConnectRun, service: ApiConnectionService, w
 
 /** A started sign-in. Desktop also carries its own completion; hosted completes at the public callback. */
 export interface ApiConnectionSignInStart {
+  /** The link the person opens: desktop, the provider's URL (system browser); hosted, this host's sign-in link. */
   readonly authorizationUrl: string;
   /** The service's opaque attempt id: what plugin code and frames get, never the OAuth `state`. */
   readonly attemptId: string;
@@ -98,9 +101,16 @@ export async function startApiConnectionSignIn(
 ): Promise<ApiConnectionSignInStart> {
   if (required.host.runtime === "desktop") return startDesktopSignIn(required, optional);
   const { host, connection, actorId, intent, scopeSetIds } = required;
-  const start = await host.serviceFor({ connection }).start(
-    { workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: host.hostedCallbackUrl({ connection }) }, startOptionsOf(optional));
-  return { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt };
+  // The service first: its setup refusals (no client configured) come before the callback address's.
+  const service = host.serviceFor({ connection });
+  const callbackUrl = host.hostedCallbackUrl({ connection });
+  const start = await service.start(
+    { workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: callbackUrl }, startOptionsOf(optional));
+  // Hosted hands out the host's own link (`browser-binding.ts`): opening it as this admin sets the
+  // browser binding, then redirects to the provider. The provider URL and the binding stay here.
+  const { authorizationUrl, browserBinding, expiresAt } = start;
+  const handoffId = host.signInHandoffs.issue({ authorizationUrl, browserBinding, actorId, expiresAt });
+  return { authorizationUrl: hostedSignInLink({ callbackUrl, workspaceId: host.workspaceId, handoffId }), attemptId: start.attemptId, expiresAt };
 }
 
 interface SignInRequest {
@@ -149,10 +159,11 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
     });
     const service = host.serviceFor({ connection, redirectUri: receiver.redirectUri });
     const start = await service.start({ workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
-    // `state` stays here: it arms the receiver and goes back to `complete`, never into the result.
-    const { state } = start;
+    // `state` and `browserBinding` stay here: the receiver that gets the callback is this process,
+    // so both go straight back to `complete`, never into the result.
+    const { state, browserBinding } = start;
     const completion = receiver.receive({ expectedState: state }).then(
-      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code } }),
+      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code }, browserBinding }),
       () => null,
     ).finally(release);
     return { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt, completion };

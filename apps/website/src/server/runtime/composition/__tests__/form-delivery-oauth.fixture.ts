@@ -193,7 +193,7 @@ export async function createOAuthDeliverySite(required: {
     const service = host.serviceFor({ connection });
     const redirectUri = host.hostedCallbackUrl({ connection });
     const start = await service.start({ workspaceId: WORKSPACE, actorId: ADMIN, intent: input.intent, scopeSetIds: [...(input.scopeSetIds ?? [])], redirectUri });
-    await service.complete({ workspaceId: WORKSPACE, actorId: ADMIN, redirectUri, callbackParams: { ...(await input.consent(start.authorizationUrl)) } });
+    await service.complete({ workspaceId: WORKSPACE, actorId: ADMIN, redirectUri, callbackParams: { ...(await input.consent(start.authorizationUrl)) }, browserBinding: start.browserBinding });
     return { service, connectionRef: (await host.statusOf({ connection })).connectionRef };
   }
 

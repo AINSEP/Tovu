@@ -26,6 +26,7 @@ import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/ind
 import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "../../host.js";
 import type { PluginHttp } from "../../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
+import { trackStartingBrowser, type StartingBrowser } from "./starting-browser.js";
 
 export const ACME_FIXTURE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "acme-office");
 export const ACME_PLUGIN = "acme-office";
@@ -73,10 +74,18 @@ export interface AcmeHarness {
   readonly env: Readonly<Record<string, string>>;
   /** A host over the fixture plugin; also mounts the public callback route on the site server. */
   makeHost(options?: AcmeHostOptions): ApiConnectionHost;
-  /** The "browser": consents at the fake provider and follows the redirect; returns the callback status. */
-  consent(authorizationUrl: string, extra?: Readonly<Record<string, string>>): Promise<number>;
-  /** The redirect the provider would send (code bound to the PKCE challenge), without following it. */
+  /**
+   * The "browser": consents at the fake provider and follows the redirect; returns the callback status.
+   * By default it is the browser that started the sign-in (it carries the binding cookie); pass
+   * `browser.cookie` to be another browser (`''` carries none).
+   */
+  consent(authorizationUrl: string, extra?: Readonly<Record<string, string>>, browser?: { readonly cookie?: string }): Promise<number>;
+  /** The redirect the provider would send (code bound to the PKCE challenge), without following it. A host sign-in link is resolved first. */
   consentRedirect(authorizationUrl: string, extra?: Readonly<Record<string, string>>): URL;
+  /** The provider URL a sign-in link of the latest host leads to (a hosted link is the host's own). */
+  providerUrl(link: string): string;
+  /** The `Cookie` header the starting browser of the latest host sends with a URL carrying `state`. */
+  cookieFor(url: string | URL): Readonly<Record<string, string>>;
   reset(): void;
   close(): Promise<void>;
 }
@@ -146,6 +155,7 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
     TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_API_CONNECTION_CALLBACK_ORIGINS: siteOrigin,
   };
 
+  let browser: StartingBrowser | undefined;
   function makeHost(options: AcmeHostOptions = {}): ApiConnectionHost {
     const keyring = options.keyring ?? new InMemoryKeyring({ hkdfSalt: "api-connections-c3" });
     const packageRoot = options.packageRoot ?? ACME_FIXTURE_ROOT;
@@ -162,11 +172,14 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
     registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } });
     siteServer.removeAllListeners("request");
     siteServer.on("request", app);
+    browser = trackStartingBrowser(host);
     return host;
   }
 
+  const cookieFor = (url: string | URL): Readonly<Record<string, string>> => browser?.cookieFor(url) ?? {};
+
   function consentRedirect(authorizationUrl: string, extra: Readonly<Record<string, string>> = {}): URL {
-    const url = new URL(authorizationUrl);
+    const url = new URL(browser?.providerUrl(authorizationUrl) ?? authorizationUrl);
     const code = randomBytes(12).toString("hex");
     issued.set(code, url.searchParams.get("code_challenge") ?? "");
     const back = new URL(url.searchParams.get("redirect_uri") ?? "");
@@ -175,9 +188,11 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
   }
 
   return {
-    providerOrigin, siteOrigin, provider, accessToken, refreshToken, oauthHttp, pluginHttp, env, makeHost, consentRedirect,
-    async consent(authorizationUrl, extra = {}) {
-      const response = await fetch(consentRedirect(authorizationUrl, extra));
+    providerOrigin, siteOrigin, provider, accessToken, refreshToken, oauthHttp, pluginHttp, env, makeHost, consentRedirect, cookieFor,
+    providerUrl: (link) => browser?.providerUrl(link) ?? link,
+    async consent(authorizationUrl, extra = {}, other = {}) {
+      const back = consentRedirect(authorizationUrl, extra);
+      const response = await fetch(back, { headers: other.cookie === undefined ? cookieFor(back) : { cookie: other.cookie } });
       await response.text();
       return response.status;
     },

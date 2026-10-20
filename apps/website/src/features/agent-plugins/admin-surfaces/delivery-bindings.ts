@@ -78,10 +78,12 @@ function ownEntries(ownership: Ownership): { readonly binding: FormDeliveryBindi
  * @complexity O(f) form ids.
  */
 function toView(ownership: Ownership, binding: FormDeliveryBinding, connectionId: string): AdminSurfaceDeliveryBinding {
-  const formIds = binding.formIds?.flatMap((formId) => ownership.slugByFormId.get(formId) ?? []);
+  // A stored binding without `formIds` delivers every form (the forms build's meaning); the port
+  // states that explicitly, so the plugin never has to infer it from a missing field.
+  const forms = binding.formIds === undefined ? { allForms: true as const } : { formIds: binding.formIds.flatMap((formId) => ownership.slugByFormId.get(formId) ?? []) };
   return {
     bindingId: binding.bindingId, adapterId: binding.adapterId, connectionId,
-    enabled: binding.enabled, ...(formIds === undefined ? {} : { formIds }),
+    enabled: binding.enabled, ...forms,
     // Stored config passed the binding owner's JSON validation and Jini's plain-JSON check on save.
     config: binding.config as AdminSurfaceDeliveryBinding["config"],
   };
@@ -107,7 +109,8 @@ function toStored(ownership: Ownership, draft: AdminSurfaceDeliveryBindingDraft,
   if (connectionRef === undefined) throw refusal("connection-not-declared", `This plugin has no connection ${named(draft.connectionId)} here. Reopen the plugin's settings from this site's admin and retry.`);
   return {
     bindingId, adapterId: draft.adapterId, connectionRef, enabled: draft.enabled,
-    ...(draft.formIds === undefined ? {} : { formIds: storedFormIds(ownership, draft.formIds) }),
+    // `allForms: true` is stored as no `formIds`, which the forms build reads as every form.
+    ...(draft.allForms === true ? {} : { formIds: storedFormIds(ownership, draft.formIds) }),
     config: { ...draft.config },
   };
 }
