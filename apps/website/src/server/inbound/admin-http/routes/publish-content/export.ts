@@ -1,10 +1,12 @@
+import type { Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
-import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "./route-helpers.js";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —
@@ -46,12 +48,47 @@ import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.
  * use stays bounded by one entity at a time regardless of corpus size.
  */
 
+/**
+ * Writes the export envelope by hand, one entity at a time (this file's header, "Why this streams
+ * rather than buffers"), for a principal that has already passed the route-level gate.
+ * @complexity O(n) in the packed entities; memory O(1) entities plus the blob-manifest set.
+ */
+async function streamExportBundle(res: Response, deps: PublishContentRouteDeps, principalId: string): Promise<void> {
+  const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
+  const sourceLabel = workspace?.name ?? deps.workspaceId;
+  const publishContentDeps = toPublishContentDeps(deps);
+
+  res.setHeader("content-type", "application/json");
+  res.write(
+    `{"artifactFormatVersion":${JSON.stringify(PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION)},` +
+      `"hashVersion":${JSON.stringify(CONTENT_HASH_VERSION)},"sourceLabel":${JSON.stringify(sourceLabel)},"entities":[`
+  );
+
+  const requiredBlobs = new Set<string>();
+  let separator = "";
+  // The registry walk and the per-type gate (see this file's own header, "Two DIFFERENT
+  // permission checks") live in `export-bundle.ts` so Task 10's push driver runs the IDENTICAL
+  // loop rather than a second copy of it. A per-type denial omits that type and continues; it
+  // never turns into a 500 or aborts the stream. This route keeps its own streaming write, which
+  // is the one thing the two callers genuinely do differently.
+  for await (const entity of packAuthorizedEntities({
+    workspaceId: deps.workspaceId,
+    principalId,
+    authorize: deps.authorize,
+    publishContentDeps,
+  })) {
+    res.write(separator + JSON.stringify(entity));
+    separator = ",";
+    for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
+  }
+
+  res.write(`],"blobManifest":${JSON.stringify(Array.from(requiredBlobs))}}`);
+  res.end();
+}
+
 export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/export", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -83,37 +120,7 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
       )
         return;
 
-      const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
-      const sourceLabel = workspace?.name ?? deps.workspaceId;
-      const publishContentDeps = toPublishContentDeps(deps);
-
-      res.setHeader("content-type", "application/json");
-      res.write(
-        `{"artifactFormatVersion":${JSON.stringify(PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION)},` +
-          `"hashVersion":${JSON.stringify(CONTENT_HASH_VERSION)},"sourceLabel":${JSON.stringify(sourceLabel)},"entities":[`
-      );
-
-      const requiredBlobs = new Set<string>();
-      let wroteEntity = false;
-      // The registry walk and the per-type gate (see this file's own header, "Two DIFFERENT
-      // permission checks") live in `export-bundle.ts` so Task 10's push driver runs the IDENTICAL
-      // loop rather than a second copy of it. A per-type denial omits that type and continues; it
-      // never turns into a 500 or aborts the stream. This route keeps its own streaming write, which
-      // is the one thing the two callers genuinely do differently.
-      for await (const entity of packAuthorizedEntities({
-        workspaceId: deps.workspaceId,
-        principalId: principal.id,
-        authorize: deps.authorize,
-        publishContentDeps,
-      })) {
-        if (wroteEntity) res.write(",");
-        res.write(JSON.stringify(entity));
-        wroteEntity = true;
-        for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
-      }
-
-      res.write(`],"blobManifest":${JSON.stringify(Array.from(requiredBlobs))}}`);
-      res.end();
+      await streamExportBundle(res, deps, principal.id);
     } catch {
       // The envelope's opening brace may already be flushed by the time a contributor's pack()
       // throws mid-stream — a second `res.status().json()` on a headers-sent response would itself

@@ -1,9 +1,10 @@
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import type { MediaRouteDeps } from "./deps.js";
 import type { MediaWhereUsedDeps } from "./where-used.js";
+import { readRouteParam, rejectForeignWorkspace } from "./route-guards.js";
 
 /**
  * DELETE hard-purges a media asset — second rung of the ADR-027 §5 deletion
@@ -14,22 +15,21 @@ import type { MediaWhereUsedDeps } from "./where-used.js";
  */
 export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps & MediaWhereUsedDeps): void => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
+      const mediaId = readRouteParam({ req, name: "mediaId" });
       const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "media.delete.force",
         workspaceId: deps.workspaceId,
         entityType: "media",
-        entityId: String(req.params.mediaId ?? ""),
+        entityId: mediaId,
       });
       if (!authorized) return;
 
+      // `purgeMedia` resolves `{ purged: true }` or throws, so there is no not-purged outcome to skip.
       const { purged } = await purgeMedia({
         deps: {
           mediaRepo: deps.mediaRepo,
@@ -39,24 +39,29 @@ export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps
           renditionRepo: deps.assetRenditionRepo,
           blobStore: deps.blobStore,
         },
-        input: { workspaceId: deps.workspaceId, id: String(req.params.mediaId ?? "") },
+        input: { workspaceId: deps.workspaceId, id: mediaId },
       });
       // The bytes are gone for good, so the Trash index row has to go with them — otherwise the
       // Trash screen keeps offering a Restore for an asset that no longer exists.
-      if (purged) {
-        await deps.forgetRemovedMedia({ workspaceId: deps.workspaceId, id: String(req.params.mediaId ?? "") });
-      }
+      await deps.forgetRemovedMedia({ workspaceId: deps.workspaceId, id: mediaId });
       res.json({ purged });
     } catch (err) {
-      if (err instanceof MediaStillReferencedError) {
-        res.status(409).json({ error: err.message, referencing: err.referencing });
-        return;
-      }
-      if (err instanceof MediaNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
+      sendPurgeFailure({ res, err });
     }
   });
 };
+
+/** 409 with the referencing list while content still uses the asset, 404 for an unknown asset,
+ *  otherwise a private 500.
+ *  @complexity O(1). */
+function sendPurgeFailure({ res, err }: { res: Response; err: unknown }): void {
+  if (err instanceof MediaStillReferencedError) {
+    res.status(409).json({ error: err.message, referencing: err.referencing });
+    return;
+  }
+  if (err instanceof MediaNotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}

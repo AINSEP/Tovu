@@ -16,6 +16,7 @@ import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pe
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
 import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
 import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
+import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /** Evaluate the real registration's resolver, not a test-written callback that already knows the
@@ -60,7 +61,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const registration = discoveryRegistration({ lifecycle, attachmentStore: store, messageAttachmentRefsByRunId });
     const resolveAttachmentRunFields = evaluateDaemonExpression<(required: unknown, optional: {}) => Promise<unknown>>(
       daemonFunction("resolveAttachmentRunFields"),
-      { attachmentStore: store, DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart },
+      { attachmentStore: store, DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
     );
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {

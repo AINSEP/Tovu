@@ -1,8 +1,13 @@
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
-import { sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { PluginsRouteRegistrar } from "./deps.js";
+import type { Express } from "express";
+import type { PluginsRouteDeps } from "./deps.js";
+import { localPluginInstaller, type LocalInstallerDeps } from "./local-installer.js";
+
+/** The deps the list route reads; activation is only ever looked up, never written. */
+export type PluginsListRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "authorize" | "discoverPlugins" | "listPluginConflicts"> &
+  LocalInstallerDeps & { pluginActivationRepo: Pick<PluginsRouteDeps["pluginActivationRepo"], "getActivation"> };
 
 /**
  * @file `PLUGINS_LIST` — `GET /api/admin/v1/workspaces/:workspaceId/plugins` (SPEC-005 REQ-10,
@@ -20,9 +25,9 @@ import type { PluginsRouteRegistrar } from "./deps.js";
  * `toAdminPluginResponse()` alongside its activation row. Verified against
  * `__tests__/integration/plugins-http.integration.test.ts`.
  */
-export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
+export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDeps): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -51,8 +56,7 @@ export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
         })
       );
 
-      const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: process.env });
-      res.json({ plugins, installSources: enabled && deps.pluginInstaller ? ["folder", "zip"] : [] });
+      res.json({ plugins, installSources: localPluginInstaller(deps) ? ["folder", "zip"] : [] });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

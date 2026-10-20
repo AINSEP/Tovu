@@ -12,7 +12,6 @@ import { buildPublishContentImportHooks } from "#src/features/publish-content/ga
 import { executePublishContentImport } from "#src/features/publish-content/execute-import";
 import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
 import type { PublishContentReport } from "#src/features/publish-content/planner";
-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, type CredentialKindForbiddenBody } from "#src/server/inbound/admin-http/dev-auth";
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registeredPublishTypePermissions } from "#src/features/publish-content/type-registry";
@@ -20,6 +19,14 @@ import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.
 import { readBackstopApplyReport } from "./apply-report.js";
 import { importErrorResponse } from "./import-errors.js";
 import { toPublishContentReportDto } from "./report-dto.js";
+import {
+  acceptOverwriteEntityKeys,
+  authorizedPrincipalId,
+  bodyRecord,
+  OVERWRITE_REFUSED,
+  rejectForeignWorkspace,
+  sendRefusal,
+} from "./route-helpers.js";
 import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
@@ -41,24 +48,6 @@ import { readBackstopMetadata } from "#src/features/publish-content/backstop-ser
  * `merge-term.ts`'s `intoTermId` being required in both `plan` and `execute` bodies for the
  * identical reason: `computePlan()`/`executeMutation()` need to know what to recompute against).
  */
-/** Distinguishes "the body carried a malformed selection" (a 400) from "the body carried none"
- *  (`null`, force nothing) — the same two-outcome shape `peer-transport.ts`'s own
- *  `readSelectedEntityKeys`/`INVALID_SELECTION` uses for `selectedEntityKeys`. */
-const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
-
-/** publish-overwrite-live-plan §4/S6 — reads `overwriteEntityKeys` off a `plan`/`execute` request
- *  body: the `entityKey()` strings (planner.ts) the operator ticked "overwrite on live" for.
- *  Absent/`null` means "force nothing", the pre-S6 default every existing caller keeps getting.
- *  Bounded at 1000 entries, matching the plan's own cap — this ceremony never has a legitimate use
- *  for more than that in one bundle. */
-function readOverwriteEntityKeys(overwriteEntityKeys: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
-  if (overwriteEntityKeys === undefined || overwriteEntityKeys === null) return null;
-  if (!Array.isArray(overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
-  if (overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
-  if (!overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
-  return overwriteEntityKeys;
-}
-
 /**
  * publish-overwrite-live-plan §7: "Overwrite on live" ticks come only from a person's click — here,
  * a signed-in admin session, or a publishing instance relaying its own admin's click (its relay
@@ -80,8 +69,27 @@ function mayOverwrite(res: Response, overwriteEntityKeys: readonly string[] | nu
   return false;
 }
 
+/** The confirm-only hooks the `confirm` step and `execute`'s authorization pre-check both use. */
+function confirmOnlyHooks(workspaceId: string) {
+  return buildConfirmOnlyHooks({
+    domain: "publish_content.import",
+    readPermission: "publish_content.read",
+    mutatePermission: "publish_content.apply",
+    scopeId: workspaceId,
+  });
+}
+
+/** True when a plan carries manual-publish rows, whose values the preview would show.
+ *  @complexity O(n) in the report's rows. */
+function planCarriesRawRows(report: PublishContentReport): boolean {
+  return !report.refused && report.rows.some((row) => row.entityType === "raw-row" || row.entityType === "raw-file");
+}
+
+/** Returned by `rawPlanPreview` once it has sent the 403. */
+const RAW_VALUES_REFUSED = Symbol("raw-values-refused");
+
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = (app: Express, deps) => {
-  function buildHooks(bundleId: string, actorId: string, res: Response, forcedEntityKeys?: ReadonlySet<string>) {
+  function buildHooks(bundleId: string, actorId: string, res: Response, overwriteEntityKeys: readonly string[] | null) {
     const publishContentDeps = toPublishContentDeps(deps);
     return buildPublishContentImportHooks({
       workspaceId: deps.workspaceId,
@@ -104,15 +112,46 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       // itself (this function's own doc), so a caller's ticks changing between plan/confirm and
       // execute changes the re-derived report and is caught by the existing PLAN_STALE mechanism
       // (`gated-hooks.ts`'s own doc on `forcedEntityKeys`), not by anything bespoke here.
-      ...(forcedEntityKeys === undefined ? {} : { forcedEntityKeys }),
+      ...(overwriteEntityKeys === null ? {} : { forcedEntityKeys: new Set(overwriteEntityKeys) }),
     });
   }
 
-  app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/plan", async (req, res) => {
-    if (req.params.workspaceId !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
+  /** A read-capable account cannot turn the raw plan into a private-data reader. Both the
+   *  separate capability and each explicitly granted raw type are checked by this port.
+   *  @complexity O(t) sequential `authorize()` calls, one per distinct entity type; stops at the first denial. */
+  async function mayReadRawValues(res: Response, principalId: string, report: PublishContentReport): Promise<boolean> {
+    const projection = toPublishContentDeps(deps);
+    const authorized = withPublishTrustContentAuthorize(res, { authorize: deps.authorize }, registeredPublishTypePermissions(projection));
+    const types = [...new Set(report.rows.map((row) => row.entityType))];
+    for (const publishType of types) {
+      const allowed = await authorized.authorize({ principalId, permission: "publish.backstop", workspaceId: deps.workspaceId, publishType } as Parameters<typeof deps.authorize>[0]);
+      if (!allowed.allowed) return false;
     }
+    return true;
+  }
+
+  /**
+   * The planner does not attach backstop metadata; the apply loop adds that to the durable
+   * run later. Detect raw rows themselves so the first manual plan also has a value review.
+   * @returns the preview, `undefined` when there is none to show, or {@link RAW_VALUES_REFUSED}
+   *   once the 403 has been sent.
+   */
+  async function rawPlanPreview(res: Response, input: { principalId: string; bundleId: string; report: PublishContentReport }) {
+    if (!planCarriesRawRows(input.report)) return undefined;
+    if (!(await mayReadRawValues(res, input.principalId, input.report))) {
+      res.status(403).json({ error: "Manual publishing values are not available to this account.", code: "FORBIDDEN" });
+      return RAW_VALUES_REFUSED;
+    }
+    const backstop = toPublishContentDeps(deps).backstop;
+    const staged = await deps.publishContentBundleRepo.findById({ workspaceId: deps.workspaceId, id: input.bundleId });
+    if (!staged || !backstop) return undefined;
+    const entities = JSON.parse(staged.entitiesJson) as PackedEntity[];
+    readBackstopMetadata({ entities });
+    return buildBackstopPreview({ entities, backstop, workspaceId: deps.workspaceId });
+  }
+
+  app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/plan", async (req, res) => {
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
       const principal = getAuthedPrincipal(res);
       const bundleId = req.body?.bundleId;
@@ -120,14 +159,10 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'bundleId' (string) is required", code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = readOverwriteEntityKeys(req.body.overwriteEntityKeys);
-      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
-        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
-        return;
-      }
-      if (!mayOverwrite(res, overwriteEntityKeys)) return;
+      const overwriteEntityKeys = acceptOverwriteEntityKeys(res, req.body.overwriteEntityKeys, mayOverwrite);
+      if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys === null ? undefined : new Set(overwriteEntityKeys));
+      const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys);
       const result = await plan({
         deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
         principalId: principal.id,
@@ -136,56 +171,27 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       });
 
       const report = result.details as PublishContentReport;
-      let backstopPreview;
-      // The planner does not attach backstop metadata; the apply loop adds that to the durable
-      // run later. Detect raw rows themselves so the first manual plan also has a value review.
-      if (!report.refused && report.rows.some((row) => row.entityType === "raw-row" || row.entityType === "raw-file")) {
-        const projection = toPublishContentDeps(deps);
-        const authorized = withPublishTrustContentAuthorize(res, { authorize: deps.authorize }, registeredPublishTypePermissions(projection));
-        // A read-capable account cannot turn the raw plan into a private-data reader. Both the
-        // separate capability and each explicitly granted raw type are checked by this port.
-        const types = [...new Set(report.rows.map((row) => row.entityType))];
-        for (const publishType of types) {
-          const allowed = await authorized.authorize({ principalId: principal.id, permission: "publish.backstop", workspaceId: deps.workspaceId, publishType } as Parameters<typeof deps.authorize>[0]);
-          if (!allowed.allowed) { res.status(403).json({ error: "Manual publishing values are not available to this account.", code: "FORBIDDEN" }); return; }
-        }
-        const staged = await deps.publishContentBundleRepo.findById({ workspaceId: deps.workspaceId, id: bundleId });
-        if (staged && projection.backstop) {
-          const entities = JSON.parse(staged.entitiesJson) as PackedEntity[];
-          readBackstopMetadata({ entities });
-          backstopPreview = await buildBackstopPreview({ entities, backstop: projection.backstop, workspaceId: deps.workspaceId });
-        }
-      }
+      const backstopPreview = await rawPlanPreview(res, { principalId: principal.id, bundleId, report });
+      if (backstopPreview === RAW_VALUES_REFUSED) return;
       res.json({
         ...result,
         details: toPublishContentReportDto(report),
         ...(backstopPreview === undefined ? {} : { backstopPreview }),
       });
     } catch (err) {
-      const { status, body } = importErrorResponse(err);
-      res.status(status).json(body);
+      sendRefusal(res, importErrorResponse(err));
     }
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/confirm", async (req, res) => {
-    if (req.params.workspaceId !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
       const principal = getAuthedPrincipal(res);
-      const { planId, planHash } = req.body ?? {};
+      const { planId, planHash } = bodyRecord(req.body);
       if (typeof planId !== "string" || typeof planHash !== "string") {
         res.status(400).json({ error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
-
-      const hooks = buildConfirmOnlyHooks({
-        domain: "publish_content.import",
-        readPermission: "publish_content.read",
-        mutatePermission: "publish_content.apply",
-        scopeId: deps.workspaceId,
-      });
 
       const record = await confirm({
         deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
@@ -197,36 +203,29 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         // HTTP gate — so the "agent cannot confirm" property is still proved directly against
         // `gateway.confirm()` in this feature's unit tests, not via HTTP (`gated-hooks.test.ts`).
         principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
-        hooks,
+        hooks: confirmOnlyHooks(deps.workspaceId),
         planId,
         planHash,
       });
 
       res.json({ confirmationToken: record.confirmationToken });
     } catch (err) {
-      const { status, body } = importErrorResponse(err);
-      res.status(status).json(body);
+      sendRefusal(res, importErrorResponse(err));
     }
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute", async (req, res) => {
-    if (req.params.workspaceId !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
       const principal = getAuthedPrincipal(res);
-      const { bundleId, confirmationToken } = req.body ?? {};
+      const body = bodyRecord(req.body);
+      const { bundleId, confirmationToken } = body;
       if (typeof bundleId !== "string" || typeof confirmationToken !== "string") {
         res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = readOverwriteEntityKeys(req.body.overwriteEntityKeys);
-      if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
-        res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
-        return;
-      }
-      if (!mayOverwrite(res, overwriteEntityKeys)) return;
+      const overwriteEntityKeys = acceptOverwriteEntityKeys(res, body.overwriteEntityKeys, mayOverwrite);
+      if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
       // Pre-check mirroring `database/migrate-forward.ts`'s AUD-001 fix: authorize BEFORE the
       // costClass refusal ever runs, so an authenticated-but-unauthorized caller cannot learn this
@@ -234,12 +233,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       // (CIC U-001) remains the authoritative check and is unchanged by this.
       const preCheck = await authorizeForHooks(
         withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
-        buildConfirmOnlyHooks({
-          domain: "publish_content.import",
-          readPermission: "publish_content.read",
-          mutatePermission: "publish_content.apply",
-          scopeId: deps.workspaceId,
-        }),
+        confirmOnlyHooks(deps.workspaceId),
         { principalId: principal.id, permission: "publish_content.apply" }
       );
       if (!preCheck.allowed) {
@@ -250,9 +244,8 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         return;
       }
 
-      const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys === null ? undefined : new Set(overwriteEntityKeys));
+      const hooks = buildHooks(bundleId, principal.id, res, overwriteEntityKeys);
       const capabilities = await deps.dbOps.getCapabilities();
-
       const result = await executePublishContentImport({
         workspaceId: deps.workspaceId,
         costClass: capabilities.restorePoint.costClass,
@@ -283,26 +276,14 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       const applyReport = await readBackstopApplyReport({ audit: toPublishContentDeps(deps).backstop?.audit, workspaceId: deps.workspaceId, runId: result.runId });
       res.json({ ...result, ...applyReport });
     } catch (err) {
-      const { status, body } = importErrorResponse(err);
-      res.status(status).json(body);
+      sendRefusal(res, importErrorResponse(err));
     }
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId", async (req, res) => {
-    if (req.params.workspaceId !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
-      const principal = getAuthedPrincipal(res);
-      if (
-        !(await authorizeOrRespond(res, deps.authorize, {
-          principalId: principal.id,
-          permission: "publish_content.read",
-          workspaceId: deps.workspaceId,
-        }))
-      )
-        return;
+      if ((await authorizedPrincipalId(res, deps, "publish_content.read")) === null) return;
 
       const runId = req.params.runId;
       const status = await getPublishContentRunStatus(deps.publishContentRunRepo, {
@@ -315,8 +296,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       }
       res.json(status);
     } catch (err) {
-      const { status, body } = importErrorResponse(err);
-      res.status(status).json(body);
+      sendRefusal(res, importErrorResponse(err));
     }
   });
 };

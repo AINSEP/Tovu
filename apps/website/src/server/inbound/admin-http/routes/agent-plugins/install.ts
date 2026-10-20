@@ -1,13 +1,13 @@
-import type { Response } from "express";
+import type { Request, RequestHandler, Response } from "express";
 import { raw } from "express";
 
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
-import { AgentPluginInstallError, maxAgentPluginInstallArchiveBytes } from "../../../../../features/agent-plugins/lifecycle.js";
-import { AgentPluginUploadError, installUploadedAgentPlugin } from "#src/features/agent-plugins/install-upload";
+import { maxAgentPluginInstallArchiveBytes } from "../../../../../features/agent-plugins/lifecycle.js";
+import { installUploadedAgentPlugin } from "#src/features/agent-plugins/install-upload";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteRegistrar } from "./deps.js";
+import { bodyParseRefusal, installErrorResponse, installedAgentPluginRow, type InstallRefusal } from "./install-response.js";
 
 /**
  * @file `AGENT_PLUGIN_INSTALL_ZIP` — `POST /api/admin/v1/workspaces/:workspaceId/agent-plugins/install/zip?expectedSha256=<hex>`
@@ -24,99 +24,59 @@ import type { AgentPluginsRouteRegistrar } from "./deps.js";
  * Error bodies carry a code and a plain message; no host path ever reaches them.
  */
 
-const TOO_LARGE_MESSAGE = "The .zip is larger than the 32 MiB limit.";
-const UNPACKED_TOO_LARGE_MESSAGE = "The .zip is too big once unpacked: at most 4096 files, 16 MiB per file, 64 MiB in all.";
+const DIGEST_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "expectedSha256 must be the file's lowercase hex SHA-256." } };
+const NOT_ZIP_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "An application/zip upload is required." } };
+const REPLACE_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "replace must be true or false." } };
 
-/** Plain-language text for each refusal the operator can fix by choosing a different file. */
-const INSTALL_ERROR_MESSAGES: Readonly<Partial<Record<string, string>>> = {
-  ARCHIVE_TOO_LARGE: TOO_LARGE_MESSAGE,
-  DIGEST_MISMATCH: "The upload arrived damaged. Try again.",
-  MANIFEST_MISSING: "No plugin.json found. Put plugin.json at the top of the .zip, or inside one folder.",
-  MANIFEST_INVALID: "plugin.json is not a valid Agent Plugin manifest.",
-  TOO_MANY_ENTRIES: UNPACKED_TOO_LARGE_MESSAGE,
-  FILE_TOO_LARGE: UNPACKED_TOO_LARGE_MESSAGE,
-  DECOMPRESSION_BOMB: UNPACKED_TOO_LARGE_MESSAGE,
-  TOTAL_SIZE_EXCEEDED: UNPACKED_TOO_LARGE_MESSAGE,
-};
+/** A checked upload: the zip bytes, the digest the client computed, and whether to replace. */
+interface ZipUpload {
+  readonly archive: Buffer;
+  readonly expectedSha256: string;
+  readonly replace: boolean;
+}
 
-/** Maps a thrown install error to its HTTP response.
- *  @complexity O(1). */
-function sendInstallError(res: Response, error: unknown): void {
-  if (error instanceof AgentPluginUploadError) {
-    const taken = error.code === "PLUGIN_ID_TAKEN";
-    res.status(error.code === "ARCHIVE_UNREADABLE" ? 400 : 409).json({
-      code: `AGENT_PLUGIN_${error.code}`,
-      error: taken ? "This plugin ID is already installed. Choose Replace existing version to upgrade it." : error.code === "ARCHIVE_UNREADABLE" ? "This file is not a readable .zip." : error.message,
-    });
-    return;
-  }
-  if (error instanceof AgentPluginInstallError) {
-    res.status(error.code === "ARCHIVE_TOO_LARGE" ? 413 : error.code === "PUBLISH_FAILED" ? 500 : 400).json({
-      code: `AGENT_PLUGIN_${error.code}`,
-      error: INSTALL_ERROR_MESSAGES[error.code] ?? "This .zip contains files or links that plugins may not include.",
-    });
-    return;
-  }
-  if (error instanceof AgentPluginActivationsUnreadableError || error instanceof AgentPluginActivationsBusyError) {
-    console.warn(`[agent-plugins] upload refused — ${error.message}`);
-    res.status(409).json({ code: "AGENT_PLUGIN_ACTIVATIONS_BUSY", error: "Could not install the plugin. Try again." });
-    return;
-  }
-  res.status(500).json({ code: "INTERNAL_ERROR", error: "internal error" });
+/** Sends a refusal, logging its operator-side warning first when it has one. */
+function sendRefusal(res: Response, refusal: InstallRefusal): void {
+  if (refusal.warning) console.warn(refusal.warning);
+  res.status(refusal.status).json(refusal.body);
+}
+
+/**
+ * Checks the query and reads the raw zip body, in this order: digest, content type, body, replace.
+ * Runs only after authorization, so no unauthorized request gets its body parsed.
+ * @complexity O(b) in body bytes, capped by the raw parser's limit.
+ */
+async function readZipUpload(required: { req: Request; res: Response; parseZip: RequestHandler }): Promise<ZipUpload | InstallRefusal> {
+  const { req, res, parseZip } = required;
+  const expectedSha256 = req.query.expectedSha256;
+  if (typeof expectedSha256 !== "string" || !/^[a-f0-9]{64}$/.test(expectedSha256)) return DIGEST_REFUSAL;
+  // ZIP parsing follows authorization, as in `routes/plugins/install.ts`.
+  if (!req.is("application/zip")) return NOT_ZIP_REFUSAL;
+  const parseError = await new Promise<unknown>((resolve) => parseZip(req, res, (error?: unknown) => resolve(error)));
+  if (parseError) return bodyParseRefusal(parseError);
+
+  const replace = req.query.replace;
+  if (replace !== undefined && replace !== "true" && replace !== "false") return REPLACE_REFUSAL;
+  return { archive: req.body as Buffer, expectedSha256, replace: replace === "true" };
 }
 
 export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   const parseZip = raw({ type: "application/zip", limit: maxAgentPluginInstallArchiveBytes(), inflate: false });
   app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/install/zip", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
-      const expectedSha256 = req.query.expectedSha256;
-      if (typeof expectedSha256 !== "string" || !/^[a-f0-9]{64}$/.test(expectedSha256)) {
-        res.status(400).json({ code: "VALIDATION_ERROR", error: "expectedSha256 must be the file's lowercase hex SHA-256." });
-        return;
-      }
-      // ZIP parsing follows authorization, as in `routes/plugins/install.ts`.
-      if (!req.is("application/zip")) {
-        res.status(400).json({ code: "VALIDATION_ERROR", error: "An application/zip upload is required." });
-        return;
-      }
-      const parseError = await new Promise<unknown>((resolve) => parseZip(req, res, (error?: unknown) => resolve(error)));
-      if (parseError) {
-        const large = (parseError as { type?: string }).type === "entity.too.large";
-        res.status(large ? 413 : 400).json({ code: large ? "AGENT_PLUGIN_ARCHIVE_TOO_LARGE" : "AGENT_PLUGIN_ARCHIVE_UNREADABLE", error: large ? TOO_LARGE_MESSAGE : "The upload could not be read." });
-        return;
-      }
-
-      const replace = req.query.replace;
-      if (replace !== undefined && replace !== "true" && replace !== "false") {
-        res.status(400).json({ code: "VALIDATION_ERROR", error: "replace must be true or false." });
-        return;
-      }
-      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ archive: req.body as Buffer, expectedSha256, workspaceId: deps.workspaceId, actor: principal.id, replace: replace === "true" }, { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}) });
+      const upload = await readZipUpload({ req, res, parseZip });
+      if ("status" in upload) return sendRefusal(res, upload);
+      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ ...upload, workspaceId: deps.workspaceId, actor: principal.id }, { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost });
       const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === plugin.pluginId);
-      res.status(alreadyInstalled ? 200 : 201).json({
-        alreadyInstalled,
-        agentPlugin: candidate
-          ? {
-              pluginId: candidate.pluginId,
-              displayName: candidate.displayName ?? null,
-              summary: candidate.summary ?? null,
-              version: candidate.version ?? null,
-              description: candidate.description ?? null,
-              keywords: candidate.keywords,
-              enabled: candidate.enabled,
-              skills: candidate.skills,
-              mcpServerIds: candidate.mcpServerIds,
-            }
-          : null,
-      });
+      res.status(alreadyInstalled ? 200 : 201).json({ alreadyInstalled, agentPlugin: installedAgentPluginRow(candidate) });
     } catch (error) {
-      sendInstallError(res, error);
+      sendRefusal(res, installErrorResponse(error));
     }
   });
 };

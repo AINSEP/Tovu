@@ -702,3 +702,18 @@ test("GET /pricing: a see-more collection marker pages its entries through /pric
   assert.ok(batch.includes("Widget Alpha") && !batch.includes("Widget Beta"));
   assert.doesNotMatch(batch, /data-jini-more/);
 });
+
+test("GET /pricing: a collection marker opting into faq-page structured data emits FAQPage JSON-LD for its entries", async (t) => {
+  const pricingMarker = `<section data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}","fields":["category"],"structuredData":"faq-page"}'>No gadgets</section>`;
+  const { server, baseUrl } = await startServer({
+    themes: [themeForCollectionMarkers(pricingMarker)],
+    contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]),
+    entryRepo: await seededEntryRepo(threePublishedGadgetsPlusOneDraft()),
+  });
+  t.after(() => closeServer(server));
+
+  const page = await (await fetch(`${baseUrl}/pricing`)).text();
+  const jsonLd = /<script type="application\/ld\+json">(\{"@context":"https:\/\/schema\.org","@type":"FAQPage"[^<]*)<\/script>/.exec(page);
+  assert.ok(jsonLd, "the FAQPage JSON-LD must be emitted");
+  assert.deepEqual(JSON.parse(jsonLd[1]!).mainEntity.map((question: { name: string }) => question.name), ["Widget Gamma", "Widget Beta", "Widget Alpha"]);
+});

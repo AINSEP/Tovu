@@ -1,16 +1,16 @@
-import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { createRouteDeps } from "../../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminMediaOriginalRoute } from "../../inbound/admin-http/routes/media/original.js";
-import { registerAdminMediaTrashRoute } from "../../inbound/admin-http/routes/media/trash.js";
-import { registerAdminMediaUploadRoute } from "../../inbound/admin-http/routes/media/upload.js";
-import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { registerAdminMediaOriginalRoute } from "../original.js";
+import { registerAdminMediaTrashRoute } from "../trash.js";
+import { registerAdminMediaUploadRoute } from "../upload.js";
+import type { RouteDeps } from "#src/server/routes/types";
 import { uploadMedia } from "#src/features/media/index";
 
 /**

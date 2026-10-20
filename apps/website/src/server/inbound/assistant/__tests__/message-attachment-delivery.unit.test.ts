@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { prepareMessageAttachments } from "@jini-ai/daemon";
 import { sniffContentType } from "#src/features/media/index";
+import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { captureDaemonRun, daemonFunction, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 test("the daemon exchanges both current-message refs for exact pixels and native CLI image paths", async () => {
@@ -16,7 +17,7 @@ test("the daemon exchanges both current-message refs for exact pixels and native
           { path: "/uploads/message/yellow.png", name: "yellow-square.png", kind: "image" },
         ] };
       } },
-      prepareMessageAttachments, sniffContentType, DEFAULT_AGENT_ID: "claude",
+      prepareMessageAttachments, sniffContentType, agentReceivesImageAttachments, DEFAULT_AGENT_ID: "claude",
       getAgentDef: () => ({ imageDelivery: "prompt-path" }),
       readFile: async (path: string) => {
         reads.push(path);

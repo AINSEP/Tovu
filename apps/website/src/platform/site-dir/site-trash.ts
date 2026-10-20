@@ -56,7 +56,9 @@ function trashRoot({ base }: { base: string }, { create = false, ...optional }: 
 function restoreRoot({ base }: { base: string }, optional: SiteTrashOptions = {}): string {
   const home = sitesWorkspace({ base }, optional).home({});
   fs.mkdirSync(home, { recursive: true });
-  return fs.realpathSync(home);
+  const root = fs.realpathSync(home);
+  assertRealDirectory({ dir: root });
+  return root;
 }
 
 /** The registry and Trash share the same name/path rule. @complexity O(1) filesystem checks plus one site listing. */

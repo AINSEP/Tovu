@@ -10,6 +10,7 @@ import { resolveResumeSessionField } from "../../../../assistant/agent-session-p
 import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
 
 /**
  * @file Wiring proof for the Defect 1 fix (2026-09-11 chat-lifecycle repair), in the same
@@ -72,6 +73,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     } },
     conversationStartLock: createConversationStartLock({}, {}),
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, resolveResumeSessionField,
+    durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt,
     randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
     waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     agentCarriesOwnMemory: () => true, wouldForcedColdStartLoseConversationContext: () => false,

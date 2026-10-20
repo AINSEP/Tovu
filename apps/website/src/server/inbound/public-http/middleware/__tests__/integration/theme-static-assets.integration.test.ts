@@ -1,4 +1,4 @@
-import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import express from "express";
 
-import { registerThemeStaticAssets } from "../theme-static-assets.js";
+import { registerThemeStaticAssets } from "../../theme-static-assets.js";
 import { createApp } from "#src/server/runtime/composition/app";
 
 /**
@@ -198,7 +198,8 @@ test("registerThemeStaticAssets: path traversal in the themeId segment cannot es
   await withTempApp(async (baseUrl) => {
     // Encoded so Express's router treats it as one :themeId segment rather than splitting the path.
     const res = await fetch(`${baseUrl}/theme-assets/${encodeURIComponent("../../../../etc")}/passwd`);
-    assert.ok(res.status === 404 || res.status === 400, `expected refusal, got ${res.status}`);
+    assert.equal(res.status, 404);
+    assert.equal(await res.text(), "not found");
   }, [rootA]);
 });
 
@@ -371,7 +372,7 @@ test("createApp(): the real 'basic' static theme's real css/theme.css still serv
   if (address === null || typeof address === "string") throw new Error("expected a real listening address");
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
-  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../../../../../../content/themes/static/tovu-theme/css/theme.css"), "utf8");
+  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../../../../../../../content/themes/static/tovu-theme/css/theme.css"), "utf8");
   const res = await fetch(`${baseUrl}/theme-assets/tovu-theme/css/theme.css`);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), onDisk);
@@ -405,7 +406,7 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
   const stylesOnDisk = readFileSync(
-    path.resolve(import.meta.dirname, "../../../../../../../../content/themes/templated/fashion-modern/css/theme.css"),
+    path.resolve(import.meta.dirname, "../../../../../../../../../content/themes/templated/fashion-modern/css/theme.css"),
     "utf8"
   );
   const stylesRes = await fetch(`${baseUrl}/theme-assets/fashion-modern/css/theme.css`);
@@ -436,7 +437,7 @@ test("createApp(): all 4 static themes' real screenshot files still serve byte-f
   ];
 
   for (const { id, file } of staticThemeScreenshots) {
-    const onDiskPath = path.resolve(import.meta.dirname, `../../../../../../../../content/themes/static/${id}/screenshots/${file}`);
+    const onDiskPath = path.resolve(import.meta.dirname, `../../../../../../../../../content/themes/static/${id}/screenshots/${file}`);
     const onDisk = readFileSync(onDiskPath);
     const res = await fetch(`${baseUrl}/theme-assets/${id}/screenshots/${file}`);
     assert.equal(res.status, 200, `${id}/screenshots/${file} should still 200`);

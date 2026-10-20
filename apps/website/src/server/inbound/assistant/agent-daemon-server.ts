@@ -99,6 +99,16 @@ import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, R
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
+/** The extra `AgentExecutor.run()` fields a claimed attachment batch contributes. */
+type AttachmentRunFields = { imagePaths?: readonly string[]; imageContents?: readonly MessageAttachmentImage[]; attachmentNotice?: string;
+  extraAllowedDirs?: readonly string[]; uploadRoot?: string };
+
+/** A run's session-binding decision: the agent it runs and the session fields handed to the CLI. */
+type RunSessionBinding = {
+  readonly agentId: string;
+  readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };
+};
+
 import { attachAssistantToolExtensions, type AssistantToolExtensions } from "#src/assistant/installed-extension-tools";
 import { createStoredExternalMcpConnectionSource, buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
@@ -187,6 +197,7 @@ import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import { createEarlySessionCapture } from "./early-run-session.js";
+import { agentReceivesImageAttachments, durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
 import { readProcessStart } from "./attempt-process-identity.js";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
@@ -864,8 +875,7 @@ async function resolveAttachmentRunFields(
   { run, attachmentIds, runLifecycle, agentId = DEFAULT_AGENT_ID }: {
     run: OnStartedContext["run"]; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string;
   }, _optional = {},
-): Promise<{ imagePaths?: readonly string[]; imageContents?: readonly MessageAttachmentImage[]; attachmentNotice?: string;
-  extraAllowedDirs?: readonly string[]; uploadRoot?: string } | null> {
+): Promise<AttachmentRunFields | null> {
   if (attachmentIds.length === 0) return {};
 
   if (!attachmentStore) {
@@ -891,7 +901,7 @@ async function resolveAttachmentRunFields(
       const attachment = byPath.get(ref)!;
       const bytes = await readFile(attachment.path);
       return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
-    } }, { fileAccess: true, imageAccess: def?.imageDelivery === "native" || def?.imageDelivery === "prompt-path" || def?.promptInputFormat === "stream-json" });
+    } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
     // Non-image uploads need an explicit prompt notice as well as directory access; otherwise a
     // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
     return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
@@ -957,6 +967,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     return;
   }
 
+  // One agent id for the whole run: the session subscription, attachment preparation and the
+  // session binding below must all key by the same agent.
+  const agentId = request.agentId ?? DEFAULT_AGENT_ID;
   const pluginAbort = new AbortController();
   const unsubscribePluginCancel = runLifecycle.onCancelRequested({ runId: run.id, listener: () => pluginAbort.abort() });
   principalByRunId.set(run.id, principal);
@@ -1005,7 +1018,6 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // subscribe-before-replay never loses an event to timing).
   if (conversationId !== undefined) {
     const resolvedConversationId = conversationId;
-    const resolvedAgentId = request.agentId ?? DEFAULT_AGENT_ID;
     void runLifecycle.stream({ runId: run.id, onEvent: (event) => {
       if (event.kind === "error") {
         console.error(formatRunErrorLogLine({ runId: run.id, payload: event.payload }));
@@ -1020,13 +1032,13 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // (`createInMemoryEventLog()` above), and the admin client discards the status — so without
       // this line the exit code exists nowhere durable and nowhere visible.
       if (event.kind === "end") {
-        const line = formatRunEndLogLine({ runId: run.id, payload: event.payload, agentId: resolvedAgentId, conversationId: resolvedConversationId, resumeAttempted: attemptedResumeSessionId !== null });
+        const line = formatRunEndLogLine({ runId: run.id, payload: event.payload, agentId: agentId, conversationId: resolvedConversationId, resumeAttempted: attemptedResumeSessionId !== null });
         if (event.payload.status === "succeeded") console.log(line);
         else console.error(line);
       }
       // Status carries capture-style locators (Codex/opencode) before end. A killed process must
       // not lose its locator; generation checks also prevent a stale attempt changing the session.
-      void captureEarlySession({ event, runId: run.id, conversationId: resolvedConversationId, agentId: resolvedAgentId }, { durableBinding: durableMessageId !== undefined })
+      void captureEarlySession({ event, runId: run.id, conversationId: resolvedConversationId, agentId: agentId }, { durableBinding: durableMessageId !== undefined })
         .catch((error: unknown) => console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error));
       if (extractSessionRefFromEndEvent({ event: event }, {}) !== undefined) return;
       // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
@@ -1037,7 +1049,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       if (shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: attemptedResumeSessionId }, {})) {
         const cleared = durableMessageId && routeDeps.chatRunLedger.durable
           ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId! }, {})
-          : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId });
+          : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: agentId });
         void cleared.catch((error: unknown) => {
           console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
         });
@@ -1066,23 +1078,11 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     .then(async () => {
       // One generic preparation turns every claimed file into image pixels or a file notice.
       // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
-      const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId: request.agentId ?? DEFAULT_AGENT_ID }, {});
+      const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId }, {});
       if (!attachmentRunFields) return;
       let pluginPromptPrefix = await resolveAgentPluginPromptPrefix({ run, pluginRefIds, runLifecycle, workspaceId: routeDeps.workspaceId, agentPluginLayout: routeDeps.agentPluginLayout });
       if (pluginPromptPrefix === null) return;
-      if (conversationId !== undefined) {
-        try {
-          const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, ...(durableMessageId === undefined ? {} : { messageId: durableMessageId }), context: {
-            principal, conversationId, state: agentPluginState, query: userPrompt ?? prompt, pinned: pluginRefIds,
-            signal: pluginAbort.signal,
-            emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: {
-              type: 'mcp-ui', toolUseId: `agent-plugins:${run.id}`, resource: emission.payload['resource'],
-            } } }); },
-            publish: async value => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'agent_plugins', ...value } } }); },
-          } });
-          pluginPromptPrefix = [pluginPromptPrefix, automaticPrefix].filter(Boolean).join('\n\n');
-        } catch { console.warn('[agent-plugins] automatic preflight unavailable'); }
-      }
+      pluginPromptPrefix = await joinAutomaticPluginPrefix({ pinnedPrefix: pluginPromptPrefix }, {});
 
       /*
        * This run's entire session-binding decision, in ONE function so it can be handed to
@@ -1103,11 +1103,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
        * `routeDeps.agentSessions.setSessionId(` appear, in this relative order, strictly before
        * `agentExecutor.run` below; keeping this body here preserves that ordering byte-for-byte.
        */
-      async function resolveSessionBinding(): Promise<{
-        readonly agentId: string;
-        readonly sessionFields: { resumeSessionId?: string; newSessionId?: string };
-      } | null> {
-        const agentId = request.agentId ?? DEFAULT_AGENT_ID;
+      async function resolveSessionBinding(): Promise<RunSessionBinding | null> {
         // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
         // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
         // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
@@ -1117,9 +1113,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // one and persists it before the CLI is spawned, which is what this comment used to say was
         // deliberately NOT happening.
         const priorSessionId = conversationId !== undefined ? await routeDeps.agentSessions.getSessionId({ conversationId, agentId }) : null;
-        // Recovery is authoritative about native resume: reconstruction must never quietly use
-        // the old locator, which could still be written by an orphaned CLI after daemon death.
-        const storedSessionId = recoveryMode === "reconstruction" ? null : recoveryMode === "native" ? recoverySessionId ?? null : priorSessionId;
+        // Recovery is authoritative about native resume (see `resolveStoredSessionId`).
+        const storedSessionId = resolveStoredSessionId({ recoveryMode, recoverySessionId, priorSessionId }, {});
         // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
         // sent right after Stop resumes the session instead of being refused (2026-09-27).
         if (conversationId !== undefined) {
@@ -1208,9 +1203,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
       if (sessionBinding === null) return;
       // The browser cannot know whether the daemon still has a native session to resume.
-      if (!sessionBinding.sessionFields.resumeSessionId && coldStartContext && agentCarriesOwnMemory({ agentId: sessionBinding.agentId }, {})) {
-        prompt = coldStartContext;
-      }
+      prompt = selectRunHistoryPrompt({ prompt, coldStartContext, resumeSessionId: sessionBinding.sessionFields.resumeSessionId,
+        carriesOwnMemory: agentCarriesOwnMemory({ agentId: sessionBinding.agentId }, {}) }, {});
       // Select history before decorating it, so cold starts retain the same page, attachment and
       // plugin instructions as resumes.
       // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
@@ -1235,69 +1229,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
       prompt = assemblePromptWithPluginPrefix(prompt, toolExtensions?.federation.refusalPrefix() ?? "");
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
-      if (durableMessageId && routeDeps.chatRunLedger.durable) {
-        const attempt = await routeDeps.chatRunLedger.durable.find({ runId: run.id }, {});
-        if (!attempt || attempt.cancelReason || !["queued", "running"].includes(attempt.message.runStatus ?? "")) {
-          await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
-        }
+      if (!(await durableAttemptStillOwnsAnswer())) {
+        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
       }
-
-      const isOwner = principal.id === await routeDeps.ownerPrincipalId;
-      // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
-      const settings = resolveFullCliAccess({ isOwner, env: process.env }, {})
-        ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-          settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
-        : assistantCliPermissions({ enabled: false });
-      const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
-        settings });
-      const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
-      // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
-      if (isOwner) {
-        const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
-          workspaceId: routeDeps.workspaceId, principalId: principal.id, site: routeDeps.siteBinding.dir,
-          chatId: conversationId ?? run.id, runId: run.id, provider: sessionBinding.agentId,
-          redact: text => redactSecretShapes({ text }).text,
-        }, { onError: () => console.error("[tool-gaps] audit write failed") });
-        await runLifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
-      }
-      // One launch snapshot supplies every dimension; edits affect only subsequent runs.
-      const subagentsEnabled = nativeCapabilities.subagents;
-      const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
-        excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
-      await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
-        runId: run.id,
-        agentId: sessionBinding.agentId,
-        prompt,
-        // In dev the server starts from the repo root, where CLIs auto-load Codex AGENTS.md
-        // and Claude CLAUDE.md; use the site so the in-app assistant avoids developer bootstrap.
-        cwd: process.env.TOVU_AGENT_CWD ?? routeDeps.siteBinding.dir,
-      }, {
-        permissionMode: resolvePermissionMode(),
-        nativeToolAccess,
-        nativeCapabilities,
-        cliParity: nativeToolAccess,
-        ...(parityEnv ? { env: parityEnv } : {}),
-        // Explicit capability denies are applied by the runtime after this legacy native grant.
-        // Read path denies remain defense in depth for owner-authorized local filesystem access.
-        disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled, nativeToolAccess }, {}),
-        // Keep the locked settings policy when the owner switches personal configuration off.
-        // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
-        ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
-        // Locked runs retain the host's auto-memory/no-system-search policy rather than user hooks.
-        ...(nativeCapabilities.userSettings ? {} : { settings: resolveAssistantRunSettings(homedir(), existsSync) }),
-        ...(model !== undefined ? { model } : {}),
-        // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
-        // def's own `buildArgs` options, which is where it becomes real argv.
-        ...(reasoning !== undefined ? { reasoning } : {}),
-        ...attachmentRunFields,
-        // Both session fields at once — `resolveResumeSessionField(effectiveResumeSessionId)` for a
-        // resumed turn and `resolveNewSessionField(hostMintedSessionId)` for a cold one. They are
-        // mutually exclusive by construction (`resolveHostMintedSessionId` mints only when there is
-        // nothing to resume), and both are empty objects when they do not apply, so exactly one key
-        // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
-        // id that was persisted and the id handed to the CLI can never drift apart.
-        ...sessionBinding.sessionFields,
-      }) })));
+      await launchAgentRun({ sessionBinding, attachmentRunFields }, {});
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.
@@ -1308,6 +1243,95 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // A startup rejection must terminalize its attempt so its slot and credentials release.
       void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt." }, {});
     });
+
+  /** The automatic Agent plugins preflight for a conversation run, joined after the pinned plugin
+   * prefix. Fail-open: an unavailable preflight is warned about and the pinned prefix is kept. */
+  async function joinAutomaticPluginPrefix({ pinnedPrefix }: { pinnedPrefix: string }, _optional = {}): Promise<string> {
+    if (conversationId === undefined) return pinnedPrefix;
+    try {
+      const automaticPrefix = await automaticPluginRuns.start({ runId: run.id, ...(durableMessageId === undefined ? {} : { messageId: durableMessageId }), context: {
+        principal, conversationId, state: agentPluginState, query: userPrompt ?? prompt, pinned: pluginRefIds,
+        signal: pluginAbort.signal,
+        emitSurface: async emission => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: {
+          type: 'mcp-ui', toolUseId: `agent-plugins:${run.id}`, resource: emission.payload['resource'],
+        } } }); },
+        publish: async value => { await runLifecycle.emit({ runId: run.id, input: { event: 'agent', data: { type: 'agent_plugins', ...value } } }); },
+      } });
+      return [pinnedPrefix, automaticPrefix].filter(Boolean).join('\n\n');
+    } catch { console.warn('[agent-plugins] automatic preflight unavailable'); return pinnedPrefix; }
+  }
+
+  /** A durable attempt must still own its answer when the agent is about to launch: a stop or a
+   * newer attempt may have taken over while this run was preparing. A non-durable run always does. */
+  async function durableAttemptStillOwnsAnswer(): Promise<boolean> {
+    if (!durableMessageId || !routeDeps.chatRunLedger.durable) return true;
+    const attempt = await routeDeps.chatRunLedger.durable.find({ runId: run.id }, {});
+    return durableAttemptOwnsAnswer({ attempt }, {});
+  }
+
+  /** Resolves this run's native-tool grant from one launch snapshot and dispatches the agent CLI.
+   * Declared after the continuation that calls it so the session binding above stays textually
+   * ahead of `agentExecutor.run` (the wiring tests read this file's source in order). */
+  async function launchAgentRun(
+    { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
+  ): Promise<void> {
+    const isOwner = principal.id === await routeDeps.ownerPrincipalId;
+    // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
+    const settings = resolveFullCliAccess({ isOwner, env: process.env }, {})
+      ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
+        settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
+      : assistantCliPermissions({ enabled: false });
+    const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
+      settings });
+    const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+    // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
+    if (isOwner) {
+      const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
+        workspaceId: routeDeps.workspaceId, principalId: principal.id, site: routeDeps.siteBinding.dir,
+        chatId: conversationId ?? run.id, runId: run.id, provider: sessionBinding.agentId,
+        redact: text => redactSecretShapes({ text }).text,
+      }, { onError: () => console.error("[tool-gaps] audit write failed") });
+      await runLifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
+    }
+    // One launch snapshot supplies every dimension; edits affect only subsequent runs.
+    const subagentsEnabled = nativeCapabilities.subagents;
+    const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
+      excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
+    await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
+      runId: run.id,
+      agentId: sessionBinding.agentId,
+      prompt,
+      // In dev the server starts from the repo root, where CLIs auto-load Codex AGENTS.md
+      // and Claude CLAUDE.md; use the site so the in-app assistant avoids developer bootstrap.
+      cwd: process.env.TOVU_AGENT_CWD ?? routeDeps.siteBinding.dir,
+    }, {
+      permissionMode: resolvePermissionMode(),
+      nativeToolAccess,
+      nativeCapabilities,
+      cliParity: nativeToolAccess,
+      ...(parityEnv ? { env: parityEnv } : {}),
+      // Explicit capability denies are applied by the runtime after this legacy native grant.
+      // Read path denies remain defense in depth for owner-authorized local filesystem access.
+      disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled, nativeToolAccess }, {}),
+      // Keep the locked settings policy when the owner switches personal configuration off.
+      // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
+      ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
+      // Locked runs retain the host's auto-memory/no-system-search policy rather than user hooks.
+      ...(nativeCapabilities.userSettings ? {} : { settings: resolveAssistantRunSettings(homedir(), existsSync) }),
+      ...(model !== undefined ? { model } : {}),
+      // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
+      // def's own `buildArgs` options, which is where it becomes real argv.
+      ...(reasoning !== undefined ? { reasoning } : {}),
+      ...attachmentRunFields,
+      // Both session fields at once — `resolveResumeSessionField(effectiveResumeSessionId)` for a
+      // resumed turn and `resolveNewSessionField(hostMintedSessionId)` for a cold one. They are
+      // mutually exclusive by construction (`resolveHostMintedSessionId` mints only when there is
+      // nothing to resume), and both are empty objects when they do not apply, so exactly one key
+      // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
+      // id that was persisted and the id handed to the CLI can never drift apart.
+      ...sessionBinding.sessionFields,
+    }) })));
+  }
 };
 
 /** Fails closed: an untracked `runId` throws rather than fabricating a principal — see

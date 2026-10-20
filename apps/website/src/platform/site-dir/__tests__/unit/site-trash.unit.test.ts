@@ -62,3 +62,32 @@ test("home sites use existing Trash; restore registers the directory in the curr
   const registry = JSON.parse(fs.readFileSync(path.join(workspace.config({}).appData, "sites.json"), "utf8"));
   assert.equal(registry.entries.find((entry: { id: string }) => entry.id === "id")?.path, target);
 });
+
+test("restore refuses a sites home replaced by a symlink after canonicalization", (t) => {
+  const { base } = fixture(t);
+  const row = trashSite({ base, name: "alpha" });
+  const home = path.join(base, "new-home");
+  const outside = path.join(base, "outside");
+  fs.mkdirSync(outside);
+  const original = fs.realpathSync;
+  let swapped = false;
+  const probe = t.mock.method(fs, "realpathSync", (...args: Parameters<typeof original>) => {
+    const result = original(...args);
+    if (args[0] === home && !swapped) {
+      swapped = true;
+      fs.renameSync(home, `${home}-original`);
+      fs.symlinkSync(outside, home);
+    }
+    return result;
+  });
+  try {
+    assert.throws(() => restoreSiteReal({ base, id: row.id }, {
+      homeDir: base, env: { TOVU_SITES_HOME: home },
+    }), /SITE_PATH_UNSAFE/);
+    assert.equal(swapped, true);
+    assert.equal(fs.existsSync(path.join(outside, "alpha")), false);
+    assert.equal(fs.existsSync(path.join(base, "site-trash", row.id)), true);
+  } finally {
+    probe.mock.restore();
+  }
+});
