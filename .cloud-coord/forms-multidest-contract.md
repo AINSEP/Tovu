@@ -122,8 +122,16 @@ key), `adapter-unavailable` (host could not load the adapter or it has no `deliv
   dedupe column) when the destination supports it.
 - Snapshot: the planner copies only `form.{slug, fields}` and `submission.{id, answers, submittedAt}`
   from the host reader, so a reader returning a whole row cannot leak the source IP.
-  Snapshot is read only when at least one binding matched; a missing submission/form throws so the
-  source event retries. Local deletion later does not remove copies already delivered.
+  Snapshot is read only when at least one binding matched. When the submission or form is gone
+  (deleted before planning), the Tovu host records an EMPTY plan and logs one line naming only the
+  submission id (F8 M1 / F9B: a throw would re-run the notification email on every retry); any other
+  planner failure still throws so the source event retries.
+- Permanent purge (Tovu Trash purge of the submission or its form) scrubs, in the purge's
+  transaction, the answers in that submission's frozen jobs and fails its unfinished jobs with
+  `delivery-failed`. Copies a destination already received stay at the destination.
+- Disabling or deleting a binding stops planning only for later submissions; jobs already planned
+  keep retrying on their schedule (≤ 8 attempts over about a day). Deleting/revoking the binding's
+  credential is the kill switch (next attempt: `authorization-required`, adapter not called).
 
 ## 6. Status derivation (`formDeliveryStatusFromOutbox`)
 
@@ -151,7 +159,10 @@ function; it keeps no status table of its own.
   → `{ ran: true, result } | { ran: false, reason }`. Automatic uses `recentMs = FORM_PULL_RECENT_MS`
   (60 000); manual uses 0 (bypasses `recent`, never `already-running`). Release runs in `finally`.
 - `leaseMs` is the host's: it must exceed the bounded pull's worst case (pages × per-request
-  timeout + ack), proved in a comment and a test next to the pull bounds in Tovu.
+  timeout + ack), proved in a comment and a test next to the pull bounds in Tovu. Tovu (F9B): a pull
+  has a 300 s wall-clock budget (stops paging with `hasMore: true`), each request is capped to 15 s
+  and to the time left before 315 s, so `FORM_PULL_LEASE_MS` = 300 + 15 + 60 s margin = 375 s.
+  Tovu's shutdown waits at most 1 s for a running pull; an abandoned lease frees itself on expiry.
 - `createFormPullTrigger({ run, onError })`: `run()` never rejects (errors go to `onError`, a
   throwing `onError` is swallowed); `stop()` refuses new runs and awaits live ones. No timers.
 
