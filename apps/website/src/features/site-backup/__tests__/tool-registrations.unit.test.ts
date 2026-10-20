@@ -399,6 +399,17 @@ test("include.database=false takes no snapshot and lists no database file; media
   assert.equal(h.dbOps.captureCalls.length, 0);
 });
 
+test("a plan whose media lives in object storage carries that scope's note and lists no uploads", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const tool = overriddenTool(h, "site_backup_plan", { siteBackupSources: { ...h.site.sources, mediaUploadsDir: null } });
+  const result = (await call(tool, PLAN_INPUT)) as Result;
+  assert.deepEqual({ notes: result.notes, uploads: (result.files as { path: string }[]).filter((f) => f.path.startsWith("uploads/")) }, {
+    notes: ["Media is stored in object storage (TOVU_MEDIA_BLOB_STORE=s3), not in a folder on this server, so media files are not in this backup. The database still lists every media item."],
+    uploads: [],
+  });
+});
+
 test("a PUBLIC repository is refused at plan time, before any database snapshot", async (t) => {
   const h = harness(t);
   await h.seed();
