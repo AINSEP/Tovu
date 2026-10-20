@@ -73,6 +73,8 @@ function memoryTokenStore() {
   const entries = new Map();
   return {
     async load({ key }) { return structuredClone(entries.get(key) ?? null); },
+    // No generation fence here, so the disabled credential reads the same as a live one.
+    async loadForRevocation({ key }) { return structuredClone(entries.get(key) ?? null); },
     async persist({ key, tokens }) { entries.set(key, structuredClone(tokens)); },
     async install({ key, tokens }) { entries.set(key, structuredClone(tokens)); },
     async markNeedsReauth() { /* status lives in the record store */ },
@@ -222,9 +224,11 @@ test('revoke hook: posts the token form-encoded to Google\'s revocation endpoint
     ['POST', GOOGLE_REVOCATION_ENDPOINT, 'application/x-www-form-urlencoded', 'token=fake-refresh-to-revoke']);
 });
 
-test('revoke hook: a refusal or Google\'s invalid_token is never a confirmation, and the error carries no token', async () => {
+test('revoke hook: a refusal is never a confirmation (only invalid_token, "already revoked", is), and the error carries no token', async () => {
   const { revoke } = hooksModule.createHooks({ http: { fetch: fake.fetch } });
-  for (const [status, body] of [[503, {}], [400, { error: 'invalid_token' }]]) {
+  Object.assign(fake.behaviour, { revokeStatus: 400, revokeBody: { error: 'invalid_token' } });
+  await revoke({ token: 'fake-refresh-kept' });
+  for (const [status, body] of [[503, {}], [400, { error: 'invalid_request' }], [503, { error: 'invalid_token' }]]) {
     Object.assign(fake.behaviour, { revokeStatus: status, revokeBody: body });
     await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.message.includes('Google revocation pending') && !error.message.includes('fake-refresh-kept'));
   }
@@ -258,13 +262,31 @@ test('revoke: a confirmed revocation clears local tokens; a failed one stays "re
   assert.deepEqual([retried.status, retried.remoteRevocation, fake.liveRefreshTokens()], ['disconnected', 'confirmed', []]);
 });
 
-test('revoke over the vault token store never reaches Google and reports not-needed (reported, not fixed)', async () => {
-  // Jini disconnectApiConnection bumps the generation before revokeCredential loads the tokens, and
-  // the vault store's load() returns null for an older generation, so the grant is never revoked.
+test('revoke over the vault token store reaches Google and clears the grant', async () => {
+  // Was pinned "(reported, not fixed)": the generation bump hid the tokens from the revoke. Jini G1c
+  // reads them through loadForRevocation, so the disabled credential still revokes the grant.
   const h = await harness();
   const { started } = await signIn(h);
   const result = await h.service.disconnect({ connectionRef: started.connectionRef });
-  assert.deepEqual([result.status, result.remoteRevocation, fake.requests.some((entry) => entry.path === '/revoke'), fake.liveRefreshTokens().length], ['disconnected', 'not-needed', false, 1]);
+  assert.deepEqual([result.status, result.remoteRevocation, fake.requests.some((entry) => entry.path === '/revoke'), fake.liveRefreshTokens().length], ['disconnected', 'confirmed', true, 0]);
+});
+
+test('revoke: Google answering that the token is already revoked counts as confirmed, so a retry can finish', async () => {
+  const h = await harness({ tokenStore: 'memory' });
+  const { started } = await signIn(h);
+  fake.behaviour.revokeStatus = 400;
+  fake.behaviour.revokeBody = { error: 'invalid_token', error_description: 'Token expired or revoked' };
+  const result = await h.service.disconnect({ connectionRef: started.connectionRef });
+  assert.deepEqual([result.status, result.remoteRevocation], ['disconnected', 'confirmed']);
+});
+
+test('revoke: any other refusal from Google stays pending', async () => {
+  const h = await harness({ tokenStore: 'memory' });
+  const { started } = await signIn(h);
+  fake.behaviour.revokeStatus = 400;
+  fake.behaviour.revokeBody = { error: 'invalid_request' };
+  const result = await h.service.disconnect({ connectionRef: started.connectionRef });
+  assert.deepEqual([result.status, result.remoteRevocation], ['revocation-pending', 'pending']);
 });
 
 test('desktop: the installed-app sign-in forces consent without incremental grants, and re-consent replaces the old tokens', async () => {

@@ -6,10 +6,14 @@
  * `tovu-connections.json`, and everything Google-specific the engine must call back into lives
  * here. The engine handles state, PKCE, the code exchange, refresh and token storage.
  *
- * Revocation honesty: `revoke` resolves only when Google answered 200. Anything else (including
- * Google's `invalid_token`, which can also mean an expired access token while the grant lives on)
- * throws, so the host shows "Disconnected locally; Google revocation pending", keeps the disabled
- * sealed credential for a retry, and the person can remove access at {@link GOOGLE_ACCOUNT_ACCESS_PAGE}.
+ * Revocation honesty: `revoke` resolves only when Google answered 200, or answered `invalid_token`
+ * (the token is already revoked: a retry after a lost answer resends a token Google already
+ * revoked, and the host's engine requires that to count as success). Both clients request offline
+ * access, so the engine hands over the refresh token, whose `invalid_token` means the grant is gone;
+ * only a credential stored without a refresh token could see it for a merely expired access token.
+ * Anything else throws, so the host shows "Disconnected locally; Google revocation pending", keeps
+ * the disabled sealed credential for a retry, and the person can remove access at
+ * {@link GOOGLE_ACCOUNT_ACCESS_PAGE}.
  */
 import { readAccount } from './drive-files.mjs';
 import { createGoogleClient } from './http.mjs';
@@ -23,7 +27,7 @@ const REVOCATION_PENDING = 'Google did not confirm the revocation. Disconnected 
 
 /**
  * Asks Google to revoke the grant behind `token` (the refresh token when there is one, which ends
- * the whole grant). Throws unless Google confirmed.
+ * the whole grant). Throws unless Google confirmed, or said the token is already revoked.
  * @complexity O(1): one request.
  */
 async function revokeAtGoogle(http, token) {
@@ -35,7 +39,14 @@ async function revokeAtGoogle(http, token) {
   } catch (cause) {
     throw new Error(REVOCATION_PENDING, { cause });
   }
-  if (response.status !== 200) throw new Error(REVOCATION_PENDING);
+  if (response.status !== 200 && !(await alreadyRevoked(response))) throw new Error(REVOCATION_PENDING);
+}
+
+/** Google's "this token is already revoked" answer (400 `invalid_token`); an unreadable body is not it. */
+async function alreadyRevoked(response) {
+  if (response.status !== 400) return false;
+  const body = await response.json().catch(() => null);
+  return body?.error === 'invalid_token';
 }
 
 /**
