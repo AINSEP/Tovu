@@ -138,6 +138,25 @@ export interface ShapeDifference {
   extraTables: string[];
 }
 
+function missingEntries({ name, part, entries, present, direction }: {
+  name: string; part: string; entries: string[]; present: Set<string>; direction: "expected" | "unexpected";
+}, _options = {}): string[] {
+  return entries.filter(item => !present.has(item)).map(item => `${name}: ${direction} ${part} entry "${item}"`);
+}
+
+function compareTableParts({ name, want, have }: {
+  name: string; want: SchemaShape["tables"][string]; have: SchemaShape["tables"][string];
+}, _options = {}): string[] {
+  const problems: string[] = [];
+  for (const part of ["columns", "indexes", "constraints"] as const) {
+    const wanted = new Set(want[part]);
+    const had = new Set(have[part]);
+    problems.push(...missingEntries({ name, part, entries: want[part], present: had, direction: "expected" }));
+    problems.push(...missingEntries({ name, part, entries: have[part], present: wanted, direction: "unexpected" }));
+  }
+  return problems;
+}
+
 /** `actual` against `expected`, table by table, in both directions for shared tables. */
 export function compareShapes(expected: SchemaShape, actual: SchemaShape, optional: { optionalTables?: ReadonlySet<string> } = {}): ShapeDifference {
   const problems: string[] = [];
@@ -147,12 +166,7 @@ export function compareShapes(expected: SchemaShape, actual: SchemaShape, option
       if (!optional.optionalTables?.has(name)) problems.push(`missing table ${name}`);
       continue;
     }
-    for (const part of ["columns", "indexes", "constraints"] as const) {
-      const wanted = new Set(want[part]);
-      const had = new Set(have[part]);
-      for (const item of want[part]) if (!had.has(item)) problems.push(`${name}: expected ${part} entry "${item}"`);
-      for (const item of have[part]) if (!wanted.has(item)) problems.push(`${name}: unexpected ${part} entry "${item}"`);
-    }
+    problems.push(...compareTableParts({ name, want, have }));
   }
   const actualOthers = new Set(actual.others);
   for (const other of expected.others) if (!actualOthers.has(other)) problems.push(`missing ${other}`);
