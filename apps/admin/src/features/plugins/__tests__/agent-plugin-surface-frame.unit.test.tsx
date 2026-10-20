@@ -215,6 +215,66 @@ describe("AgentPluginSurfaceFrame external links", () => {
   });
 });
 
+describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
+  it("shows the could-not-open notice instead of the frame when the bootstrap fails", async () => {
+    const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(async () => { throw new Error("401"); }) });
+    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    fireEvent.load(screen.getByTitle("Manage connection"));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Could not open this view. Close and reopen the plugin to try again."));
+    expect(screen.queryByTitle("Manage connection")).toBeNull();
+  });
+
+  it("ignores a message that arrives before the frame's first load, even from the frame's own window", async () => {
+    const port = fakePort();
+    render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
+    const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
+    deliver(request("0".repeat(32)), "null", iframe.contentWindow);
+    deliver(request("0".repeat(32)), "null", null);
+    await act(async () => { await Promise.resolve(); });
+    expect(port.action).not.toHaveBeenCalled();
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it("posts nothing when the view is closed before its bootstrap arrives", async () => {
+    let resolve: (value: AdminSurfaceBootstrap) => void = () => {};
+    const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(() => new Promise((done) => { resolve = done; })) });
+    const view = render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
+    const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
+    const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
+    fireEvent.load(iframe);
+    view.unmount();
+    await act(async () => { resolve(BOOTSTRAP); });
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it("hands the plugin's refusal to the frame as that request's error", async () => {
+    const error = { code: "resource-missing", message: "Pick the file again.", retryable: false };
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({ ok: false, error })) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect(posted.mock.calls[1]).toEqual([{ protocol: "jini.admin-surface", version: 1, kind: "action-response", mountId: init.mountId, requestId: "req-1", ok: false, error }, "*"]);
+  });
+
+  it("answers an unreachable server with the host's own retryable error, never the failure's text", async () => {
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => { throw new Error("ECONNRESET db=prod secret-path"); }) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect((posted.mock.calls[1]![0] as { error: unknown }).error).toEqual({ code: "host-unavailable", message: "The admin page could not reach the server. Try again.", retryable: true });
+  });
+
+  it("never offers a sign-in link that is not a parseable URL", async () => {
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({ ok: true, result: null, hostSignIns: [{ authorizationUrl: "not a url", expiresAt }] })) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("link", { name: "Continue to sign-in" })).toBeNull();
+  });
+});
+
 describe("AgentPluginDetailsModal admin surfaces", () => {
   it("adds one view per contributed surface after Memory, titled by the plugin", async () => {
     const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
