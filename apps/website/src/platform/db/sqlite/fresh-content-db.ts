@@ -1,6 +1,7 @@
 import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
+import { FORM_DELIVERY_PLANS_STATEMENTS } from "../migrations/0019_form_delivery_plans.js";
 import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
 import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.js";
 import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
@@ -149,6 +150,9 @@ export function bootstrapFreshContentDb(
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
+    },
+    "0019_form_delivery_plans": () => {
+      for (const statement of FORM_DELIVERY_PLANS_STATEMENTS) client.exec(statement);
     },
   };
   if (migrations.length !== Object.keys(operations).length ||

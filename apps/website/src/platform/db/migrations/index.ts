@@ -1,5 +1,6 @@
 import { publishHistoryKind } from "./0017_publish_history_kind.js";
 import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_receipts.js";
+import { formDeliveryPlans } from "./0019_form_delivery_plans.js";
 import { AI_CHAT_SCHEMA } from "../chat-kernel.js";
 import type { StorageKernel } from "../kernel/port.js";
 import { legacyBaseline } from "./0000_legacy_baseline.js";
@@ -64,6 +65,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   publishDestinationHistory({ checksum: pinned("0016_publish_destination_history") }),
   publishHistoryKind({ checksum: pinned("0017_publish_history_kind") }),
   formSubmissionRemoteReceipts({ checksum: pinned("0018_form_submission_remote_receipts") }),
+  formDeliveryPlans({ checksum: pinned("0019_form_delivery_plans") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
