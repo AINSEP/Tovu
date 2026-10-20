@@ -45,7 +45,8 @@ function spreadsheetChooser() {
   const options = view.picked.map((sheet) => h('option', { value: sheet.spreadsheetId, ...(draft.spreadsheet?.spreadsheetId === sheet.spreadsheetId ? { selected: true } : {}) }, [sheet.title]));
   return h('div', { class: 'actions' }, [
     view.picked.length > 0 ? h('label', {}, ['Spreadsheet', h('select', { onChange: (event) => step(() => useSpreadsheet(event.target.value)) }, [h('option', { value: '' }, ['Choose…']), ...options])]) : null,
-    bootstrap?.mode !== 'unavailable' ? h('button', { type: 'button', onClick: () => step(async () => {
+    // Same rule as the Picker panel: no start data (or an unavailable mode) means nothing to open.
+    bootstrap !== undefined && bootstrap.mode !== 'unavailable' ? h('button', { type: 'button', onClick: () => step(async () => {
       const chosen = await chooseSpreadsheet({ client, bootstrap, onStatus: (text) => { status = text; render(); } });
       if (chosen === null) { status = CANCELLED_TEXT; return; }
       status = '';
@@ -70,7 +71,9 @@ function editor() {
     h('label', { class: 'check' }, [h('input', { type: 'checkbox', ...(draft.confirmed ? { checked: true } : {}), onChange: (event) => { draft.confirmed = event.target.checked; } }), EXTERNAL_ROWS_NOTE]),
     h('div', { class: 'actions' }, [h('button', { type: 'button', class: 'primary', onClick: () => step(async () => {
       view = await call('save-destination', { formSlug: draft.formSlug, spreadsheetId: draft.spreadsheet?.spreadsheetId ?? '', sheetId: draft.sheetId ?? 0, confirmExternalRows: draft.confirmed });
-      status = `Saved: ${draft.formSlug} sends to ${draft.spreadsheet?.title ?? 'the spreadsheet'}.`;
+      // A save only succeeds with a chosen spreadsheet: the declared input refuses an empty
+      // spreadsheetId (minLength 1), and that id is non-empty only once `draft.spreadsheet` is set.
+      status = `Saved: ${draft.formSlug} sends to ${draft.spreadsheet.title}.`;
     }) }, ['Save destination'])]),
   ]);
 }
