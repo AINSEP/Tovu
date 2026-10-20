@@ -25,7 +25,7 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 | L100 public-http/routes | queued | | | | | | |
 | L125 media | queued | | | | | | |
 | L140 assistant daemon | MERGED 018d352d | 1 (64 tools, 229k tok, 20 min) | onStarted continuation 25/17; resolveSessionBinding 14/13; resolveAttachmentRunFields 13 | 0 violations | run-start-decisions.ts 100/100/100; agent-daemon-server.ts not measurable (entry script booting on import; tests AST-evaluate source); 42 branch pins | 14979dde, 5259531f | PASS: cx 0, 85 tests (changed test files), root tsc 0; diff read: ordering/closure semantics preserved, why-comments moved |
-| L143 agent-plugins | queued | | | | | | |
+| L143 agent-plugins | MERGED c70bb1db | 1 (43 tools, 148k tok, 12 min) | install route 22/17, sendInstallError 11/15; memory route 16 | 0 violations | install, install-response, memory 100/100/100 (coord run, 50 tests) | a183079a, a5f1abce | PASS: cx 0, root tsc 0; 25-input golden proved identical error mapping; diff read: order + bodies identical, pluginHost undefined==omitted (install-upload.ts:232) |
 | L175 settings | queued | | | | | | |
 | L191 middleware | queued | | | | | | |
 
@@ -45,3 +45,4 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 - L143, L175, L191 dispatched ~02:00 UTC.
 - L140 cross-area: durable-run-routes.ts:35,80 repeat the durableAttemptOwnsAnswer check (could reuse run-start-decisions.ts).
 - Concurrency slip: dispatched L143+L175+L191 while L055/L100/L125 still ran (6 > 5). Stopped L191 at once, before it changed anything (worktree clean). It will be re-dispatched fresh when a slot frees.
+- L143 cross-area: agent-plugins/list.ts duplicates the row builder (with extra id/provides) and the dead `?? ""` on workspaceId. Installer ARCHIVE_TOO_LARGE is unreachable over HTTP (raw parser caps first); kept as a pinned defensive mapping. L191 re-dispatched ~02:15 UTC.
