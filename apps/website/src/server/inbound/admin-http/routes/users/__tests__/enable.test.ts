@@ -14,6 +14,9 @@ import { registerAdminUserEnableRoute } from "../enable.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createPolicy, createRole, createUser } from "@jini-ai/user-management/server";
 
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
+import { UserInTrashError } from "#src/features/identity/delete-user-service";
+
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId/enable`;
 
@@ -222,4 +225,40 @@ test("ENABLE_PRINCIPAL route: 409 USER_IN_TRASH when the target is currently in 
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
   assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId }), before);
+});
+
+// Pin the route's complete error envelope independently of domain transition preconditions.
+for (const { error, status, body } of [
+  { error: new UserInTrashError("trashed"), status: 409, body: { error: "trashed", code: "USER_IN_TRASH" } },
+  { error: new IdentityForbiddenError({ message: "denied", permission: "user.manage", reason: "no grant" }), status: 403,
+    body: { error: "denied", code: "FORBIDDEN", details: { permission: "user.manage", reason: "no grant" } } },
+  { error: new IdentityValidationError({ message: "invalid" }), status: 400, body: { error: "invalid", code: "VALIDATION_ERROR" } },
+  { error: new IdentityNotFoundError({ message: "missing" }), status: 404, body: { error: "missing", code: "RESOURCE_NOT_FOUND" } },
+  { error: new OwnerRequiredError({ message: "owner needed" }), status: 409, body: { error: "owner needed", code: "OWNER_REQUIRED" } },
+  { error: new Error("private failure"), status: 500, body: { error: "internal error" } },
+  { error: null, status: 500, body: { error: "internal error" } },
+]) {
+  test(`ENABLE_PRINCIPAL pin: ${body.code ?? "unexpected"} error envelope (${String(error)})`, async () => {
+    const { app, ownerId } = await buildApp({ isInTrash: async () => { throw error; } });
+    const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: ownerId };
+    await handler({ params: { workspaceId: WORKSPACE_ID, principalId: "target" } }, res);
+    assert.equal(capture.statusCode, status);
+    assert.deepEqual(capture.jsonBody, body);
+  });
+}
+
+test("ENABLE_PRINCIPAL pin: Trash membership is exposed before permission checking (reported, not fixed)", async () => {
+  const { app, deps } = await buildApp({ isInTrash: async () => true }, "unauthorized-user");
+  await deps.principalRepo.save({
+    id: "unauthorized-user", workspaceId: WORKSPACE_ID, kind: "user", displayName: "No grants",
+    status: "active", createdAt: deps.clock.nowIso(),
+  });
+  const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "unauthorized-user" };
+  await handler({ params: { workspaceId: WORKSPACE_ID, principalId: "target" } }, res);
+  assert.equal(capture.statusCode, 409);
+  assert.deepEqual(capture.jsonBody, { error: "this user is in the Trash; restore them first", code: "USER_IN_TRASH" });
 });
