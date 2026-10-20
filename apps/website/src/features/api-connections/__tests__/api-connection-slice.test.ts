@@ -140,7 +140,31 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
   assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
   // The push kit's host allowlist is the connection's declared API origin, never empty.
-  assert.deepEqual(await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }), { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  const { getAccessToken, ...credential } = (await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }))!;
+  assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  assert.equal(typeof getAccessToken, "function");
+});
+
+test("security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request", async () => {
+  const host = makeHost();
+  await mountCallback(host, []);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const { connectionRef } = await runApiConnectionConnect({
+    deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async ({ signInUrl }) => { assert.equal((await fetch(consentRedirect(signInUrl))).status, 200); },
+  });
+  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
+  const target = { workspaceId: "ws-1", connectionRef, adapterId: "row-append" };
+  await assert.rejects(port(target, { expectedAccountId: "acct-someone-else" }), { code: "account-changed" });
+
+  const credential = await port(target, { expectedAccountId: "acct-1" });
+  assert.equal(credential?.token, accessToken);
+  assert.equal(await credential?.getAccessToken(), accessToken, "the first request uses the attempt's own read");
+  assert.equal(await credential?.getAccessToken(), accessToken, "later requests read a fresh token");
+  // A confirmed switch moves the same ref to another account: the frozen job must not follow it.
+  const record = (await host.records.read({ key: connectionRef }))!;
+  assert.ok(await host.records.compareAndSet({ key: connectionRef, expectedRevision: record.revision, record: { ...record, revision: record.revision + 1, account: { accountId: "acct-2", displayName: "Bob" } } }));
+  await assert.rejects(credential!.getAccessToken(), { code: "account-changed" });
 });
 
 test("security: the callback refuses an unknown state without any token exchange and renders no request data", async () => {

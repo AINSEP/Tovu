@@ -214,7 +214,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
   }
 
   return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, listConnections, serviceFor, accessTokensFor,
-    toolConnections, apiOriginsFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
+    toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
 }
 
 export type ApiConnectionHost = ReturnType<typeof createApiConnectionHost>;

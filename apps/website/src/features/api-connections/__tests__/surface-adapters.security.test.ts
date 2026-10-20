@@ -272,7 +272,9 @@ test("form delivery: the credential allows only the connection's declared https 
   await connected(host);
   const connectionRef = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: "account" });
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => PLUGIN });
-  assert.deepEqual(await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }), { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  const { getAccessToken, ...credential } = (await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }))!;
+  assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  assert.equal(typeof getAccessToken, "function");
   const declaration = (apiOrigins: unknown) => JSON.stringify({ schemaVersion: 1, connections: [{ id: "account", module: "lib/connection.mjs", clients: {}, apiOrigins }] });
   assert.deepEqual(parseApiConnectionsFile({ raw: declaration(["http://api.acme.test"]) }), { ok: false, reason: "connections[0].apiOrigins must be at most 8 https:// origins" });
   assert.deepEqual(parseApiConnectionsFile({ raw: declaration(["https://api.acme.test/path"]) }), { ok: false, reason: "connections[0].apiOrigins must be at most 8 https:// origins" });
