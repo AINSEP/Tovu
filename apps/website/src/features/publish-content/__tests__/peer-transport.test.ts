@@ -161,7 +161,7 @@ test("the api key is sent as a bearer header and appears in NO result and NO err
   assert.equal(http.calls[0].headers.authorization, `Bearer ${API_KEY}`);
   assert.equal(JSON.stringify(result).includes(API_KEY), false, "the api key leaked into the push result");
 
-  // And a peer rejection quotes the PEER's body, never the request that carried the key.
+  // A peer can echo the request's key in its body, so rejection diagnostics omit that body.
   const rejecting = new FakeHttpClient([{ match: /\/bundles$/, status: 403, bodyText: '{"error":"not authorized"}' }]);
   await assert.rejects(
     () => pushBundleToPeer(pushDeps(rejecting), { bundle: bundle() }),
@@ -170,7 +170,8 @@ test("the api key is sent as a bearer header and appears in NO result and NO err
       assert.equal(err.code, "PEER_REJECTED");
       assert.equal(err.peerStatus, 403);
       assert.equal(err.message.includes(API_KEY), false, "the api key leaked into a peer-rejection message");
-      assert.match(err.message, /not authorized/);
+      assert.match(err.message, /HTTP 403$/);
+      assert.equal(err.message.includes("not authorized"), false);
       return true;
     }
   );
@@ -283,6 +284,35 @@ test("push probes capabilities BEFORE blobs/bundle/plan, trims to the legacy set
   // The bundle actually staged on the peer holds only the two accepted types.
   const staged = JSON.parse(Buffer.from(http.calls[2].body ?? "{}").toString("utf8")) as { entities: Array<{ entityType: string }> };
   assert.deepEqual(staged.entities.map((entity) => entity.entityType), ["post", "media"]);
+});
+
+test("L061 a peer cannot request a blob removed by capability trimming", async () => {
+  const keptSha = "1".repeat(64);
+  const excludedSha = "2".repeat(64);
+  const http = new FakeHttpClient([
+    { match: /\/capabilities$/, status: 404 },
+    { match: /\/blobs\/probe$/, json: { missing: [keptSha, excludedSha] } },
+  ]);
+  const deps = { ...pushDeps(http),
+    computeStorageKey: () => { return assert.fail("must validate the trimmed manifest before storage access"); },
+    blobSource: {
+      exists: async () => { return assert.fail("must not probe local storage"); },
+      get: async () => { return assert.fail("must not read local bytes"); },
+    },
+  };
+  await assert.rejects(pushBundleToPeer(deps, { bundle: bundle({
+    entities: [
+      packedEntity({ entityType: "media", requiredBlobs: [keptSha] }),
+      packedEntity({ entityType: "redirect", requiredBlobs: [excludedSha] }),
+    ],
+    blobManifest: [keptSha, excludedSha],
+  }) }), (error: unknown) => {
+    assert.ok(error instanceof PublishContentPeerTransportError);
+    assert.equal(error.code, "PEER_RESPONSE_INVALID");
+    return true;
+  });
+  assert.equal(http.calls.length, 2, "refuse before any upload or staging request");
+  assert.deepEqual(JSON.parse(Buffer.from(http.calls[1].body ?? "{}").toString("utf8")), { shas: [keptSha] });
 });
 
 test("an OLD build answers a publishing credential's capabilities probe with 401 (its route allowlist predates the route) — read as the legacy set, and the push proceeds", async () => {
@@ -454,7 +484,8 @@ test("a transport failure that is not an egress refusal reads as unreachable, an
     (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_UNREACHABLE");
-      assert.match(err.message, /connect ETIMEDOUT/);
+      assert.match(err.message, /could not be reached\.$/);
+      assert.equal(err.message.includes("connect ETIMEDOUT"), false);
       assert.equal(err.message.includes("devHostAllowlist"), false, "an ordinary timeout must not be diagnosed as an allowlist gap");
       assert.equal(err.message.includes(API_KEY), false);
       return true;

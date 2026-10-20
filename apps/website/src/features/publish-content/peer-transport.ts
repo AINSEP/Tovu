@@ -1,3 +1,4 @@
+import { redactSecretShapes } from "../../contracts/core/secret-redaction.js";
 import { bytesMatchSha256 } from "./blob-staging.js";
 import { peerHostname, peerUrl } from "./peer-url.js";
 import type { PublishContentExportEnvelope } from "./export-bundle.js";
@@ -40,8 +41,8 @@ import type { PublishHistoryStore, PublishTrigger } from "#src/features/deployme
  * The opened key exists only as the `Authorization` header of one in-flight request. It is never
  * logged, never placed in a URL (`HttpClientPort` rejects credentials-in-URL outright), never
  * returned in a result, and never interpolated into an error message — {@link toTransportError} is
- * the single funnel every failure here passes through, and it is built from the RESPONSE, never
- * from the request. `client.ts` additionally strips `Authorization` on any cross-origin redirect,
+ * the single funnel for request failures. Diagnostics use fixed local text and HTTP status, never
+ * upstream messages or bodies that could echo the credential. `client.ts` additionally strips `Authorization` on any cross-origin redirect,
  * and this feature's policy sets `maxRedirects: 0` so there is no redirect hop at all.
  */
 
@@ -55,26 +56,24 @@ export type PeerTransportErrorCode =
   /** The operator ticked "Overwrite on live" but the peer doesn't advertise `"overwrite-live"`. */
   | "PEER_CANNOT_OVERWRITE";
 
-/** The single error type every failure in this module surfaces as. `message` is operator-facing and
- *  is built from the peer's RESPONSE plus this instance's own diagnosis — never from the request,
- *  so a credential has no path into it. */
+/** The single error type every failure in this module surfaces as. `message` is operator-facing:
+ *  fixed local diagnostics omit upstream error text; the shared redactor also scrubs secret-shaped
+ *  values from route/host context. */
 export class PublishContentPeerTransportError extends Error {
   readonly code: PeerTransportErrorCode;
   /** The peer's HTTP status, when there was one. Absent for a refusal or an unreachable host. */
   readonly peerStatus?: number;
 
   constructor(message: string, code: PeerTransportErrorCode, options: { peerStatus?: number } = {}) {
-    super(message);
+    super(redactSecretShapes({ text: message }).text);
     this.name = "PublishContentPeerTransportError";
     this.code = code;
     if (options.peerStatus !== undefined) this.peerStatus = options.peerStatus;
   }
 }
 
-/** How much of a peer's error body is quoted back to the operator. A peer's own error text is
- *  genuinely useful ("workspace was not found" tells you `remoteWorkspaceId` is wrong), but it is
- *  another process's output, so it is bounded rather than trusted to be small. */
-const MAX_QUOTED_PEER_BODY = 400;
+// A peer's error text can be useful, but another process may echo our Authorization header.
+// Keep diagnostics local and fixed: even a bounded excerpt or shape redaction can leak an opaque key.
 
 /**
  * Turns an `EgressRefusedError` into the operator diagnosis this task's brief requires: a message
@@ -110,13 +109,13 @@ export function describePeerEgressRefusal(err: EgressRefusedError, baseUrl: stri
 /**
  * The single funnel every peer-call failure passes through.
  *
- * @complexity O(1).
+ * @complexity O(n) in the base URL and resulting diagnostic length, including shared redaction.
  */
 function toTransportError(err: unknown, baseUrl: string): PublishContentPeerTransportError {
   if (err instanceof PublishContentPeerTransportError) return err;
   if (err instanceof EgressRefusedError) return describePeerEgressRefusal(err, baseUrl);
   return new PublishContentPeerTransportError(
-    `the peer at '${peerHostname(baseUrl)}' could not be reached: ${err instanceof Error ? err.message : String(err)}`,
+    `the peer at '${peerHostname(baseUrl)}' could not be reached.`,
     "PEER_UNREACHABLE"
   );
 }
@@ -163,6 +162,7 @@ export async function callPeer(
   const { baseUrl, apiKey } = deps.credential;
   let response;
   try {
+    const payload = peerRequestPayload({ request });
     response = await deps.httpClient.send({
       method: request.method,
       url: peerUrl(baseUrl, request.path),
@@ -176,9 +176,9 @@ export async function callPeer(
         // ahead of the admin session gate. Both are `Bearer <opaque>` on the wire, so there is
         // still no transport-specific auth mechanism here to get wrong.
         authorization: `Bearer ${apiKey}`,
-        ...(request.archive !== undefined ? { "content-type": "application/zip" } : request.body === undefined ? {} : { "content-type": "application/json" }),
+        ...payload.headers,
       },
-      ...(request.archive !== undefined ? { body: request.archive } : request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+      ...payload.content,
       signal: request.signal,
       timeoutMs: PEER_REQUEST_TIMEOUT_MS,
       // Publishing can carry a 96 MB bundle. Keep the feature's intended 60 s
@@ -193,8 +193,7 @@ export async function callPeer(
     throw new PublishContentPeerTransportError(
       isCredentialKindRefusal(response.status, response.bodyText)
         ? credentialKindRefusalMessage(baseUrl)
-        : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}: ` +
-            `${response.bodyText.slice(0, MAX_QUOTED_PEER_BODY)}`,
+        : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}`,
       "PEER_REJECTED",
       { peerStatus: response.status }
     );
@@ -422,8 +421,8 @@ function trimBundleToCapabilities(
  * @param required.blobSource - Read-only access to this instance's blob store.
  * @throws {PublishContentPeerTransportError} on any peer failure.
  * @complexity O(b + 1) network round trips for `b` missing blobs, plus one probe, one stage and one
- * plan. Memory is O(size of the largest single blob) — blobs are uploaded one at a time, never
- * collected.
+ * plan. Memory is O(selected manifest size + size of the largest single blob) — hashes are checked
+ * as a batch before uploading; blob bytes are uploaded one at a time, never collected.
  */
 export async function pushBundleToPeer(
   deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (sha256: string) => string },
@@ -449,37 +448,7 @@ export async function pushBundleToPeer(
     notSupportedByLive = trimmed.notSupportedByLive;
   }
 
-  const blobsUploaded: string[] = [];
-  const blobsUnavailable: string[] = [];
-  if (bundle.blobManifest.length > 0) {
-    const probed = requireObject(
-      await callPeer(deps, {
-        method: "POST",
-        path: peerRoute(credential, "/blobs/probe"),
-        body: { shas: bundle.blobManifest },
-      }),
-      "blob probe",
-      credential.baseUrl
-    );
-    const missing = Array.isArray(probed.missing) ? (probed.missing as unknown[]).filter((s): s is string => typeof s === "string") : [];
-
-    for (const sha256 of missing) {
-      const storageKey = deps.computeStorageKey(sha256);
-      if (!(await deps.blobSource.exists({ sha256, storageKey }))) {
-        // Not an error: the bundle names a blob this instance no longer holds. Reported, and the
-        // peer's own planner blocks whatever needed it rather than applying half an entity.
-        blobsUnavailable.push(sha256);
-        continue;
-      }
-      const bytes = await deps.blobSource.get({ sha256, storageKey });
-      await callPeer(deps, {
-        method: "PUT",
-        path: peerRoute(credential, `/blobs/${encodeURIComponent(sha256)}`),
-        body: { dataBase64: Buffer.from(bytes).toString("base64") },
-      });
-      blobsUploaded.push(sha256);
-    }
-  }
+  const { blobsUploaded, blobsUnavailable } = await uploadMissingPeerBlobs(deps, { bundle });
 
   const staged = requireObject(
     await callPeer(deps, {
@@ -782,40 +751,10 @@ export async function pullBlobsFromPeer(
       continue;
     }
 
-    let body: Record<string, unknown>;
-    try {
-      body = requireObject(
-        await callPeer(deps, { method: "GET", path: peerRoute(deps.credential, `/blobs/${encodeURIComponent(sha256)}`) }),
-        "blob fetch",
-        deps.credential.baseUrl
-      );
-    } catch (err) {
-      if (err instanceof PublishContentPeerTransportError && err.peerStatus === 404) {
-        unavailable.push(sha256);
-        continue;
-      }
-      throw err;
-    }
-
-    if (typeof body.dataBase64 !== "string") {
-      throw new PublishContentPeerTransportError(
-        `the peer's response for blob '${sha256}' carried no 'dataBase64' string`,
-        "PEER_RESPONSE_INVALID"
-      );
-    }
-    // `Buffer.from(..., "base64")` never throws — it drops invalid characters — so a malformed
-    // payload is caught by the hash check below rather than by a decode error, which is the check
-    // that has to hold anyway.
-    const bytes = new Uint8Array(Buffer.from(body.dataBase64, "base64"));
-
-    // The security property this function exists to hold — see the doc above. MUST precede the
-    // write: `putIfAbsent` will not catch it.
-    if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {
-      throw new PublishContentPeerTransportError(
-        `the peer's bytes for blob '${sha256}' do not hash to it — refusing to store them under that ` +
-          `sha256, because the hash IS the identity this feature addresses content by`,
-        "PEER_RESPONSE_INVALID"
-      );
+    const bytes = await fetchVerifiedPeerBlob(deps, { sha256 });
+    if (bytes === null) {
+      unavailable.push(sha256);
+      continue;
     }
 
     await deps.blobSink.putIfAbsent({ workspaceId: deps.workspaceId, sha256, bytes });
@@ -823,4 +762,105 @@ export async function pullBlobsFromPeer(
   }
 
   return { downloaded, alreadyPresent, unavailable, deferredOverCap };
+}
+
+/** Archive bytes take precedence over JSON when both fields are supplied. */
+function peerRequestPayload({ request }: { request: { body?: unknown; archive?: Uint8Array } }, _optional: Record<string, never> = {}): {
+  headers: Record<string, string>; content: { body?: string | Uint8Array };
+} {
+  if (request.archive !== undefined) return { headers: { "content-type": "application/zip" }, content: { body: request.archive } };
+  if (request.body === undefined) return { headers: {}, content: {} };
+  return { headers: { "content-type": "application/json" }, content: { body: JSON.stringify(request.body) } };
+}
+
+/** Probe and upload sequentially before staging, so the peer plans against the uploaded blobs.
+ * Refuses out-of-manifest requests before local I/O. O(m + r) validation time and O(m) space for
+ * m selected hashes and r requested hashes, followed by sequential blob reads/uploads. */
+async function uploadMissingPeerBlobs(
+  deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (sha256: string) => string },
+  { bundle }: { bundle: PublishContentExportEnvelope },
+): Promise<{ blobsUploaded: string[]; blobsUnavailable: string[] }> {
+  const { credential } = deps;
+  const blobsUploaded: string[] = [];
+  const blobsUnavailable: string[] = [];
+  if (bundle.blobManifest.length > 0) {
+    const probed = requireObject(
+      await callPeer(deps, {
+        method: "POST",
+        path: peerRoute(credential, "/blobs/probe"),
+        body: { shas: bundle.blobManifest },
+      }),
+      "blob probe",
+      credential.baseUrl
+    );
+    const missing = Array.isArray(probed.missing) ? (probed.missing as unknown[]).filter((s): s is string => typeof s === "string") : [];
+    // Validate the whole request before any local read or upload: a valid prefix must not let a
+    // peer obtain bytes from an invalid mixed batch. This is the manifest AFTER capability trimming.
+    const selectedHashes = new Set(bundle.blobManifest);
+    if (missing.some(sha256 => !selectedHashes.has(sha256))) {
+      throw new PublishContentPeerTransportError(
+        "the peer requested a blob outside the selected manifest",
+        "PEER_RESPONSE_INVALID"
+      );
+    }
+
+    for (const sha256 of missing) {
+      const storageKey = deps.computeStorageKey(sha256);
+      if (!(await deps.blobSource.exists({ sha256, storageKey }))) {
+        // Not an error: the bundle names a blob this instance no longer holds. Reported, and the
+        // peer's own planner blocks whatever needed it rather than applying half an entity.
+        blobsUnavailable.push(sha256);
+        continue;
+      }
+      const bytes = await deps.blobSource.get({ sha256, storageKey });
+      await callPeer(deps, {
+        method: "PUT",
+        path: peerRoute(credential, `/blobs/${encodeURIComponent(sha256)}`),
+        body: { dataBase64: Buffer.from(bytes).toString("base64") },
+      });
+      blobsUploaded.push(sha256);
+    }
+  }
+
+  return { blobsUploaded, blobsUnavailable };
+}
+
+/** A missing blob is reportable; malformed or mismatched bytes abort before the local write. */
+async function fetchVerifiedPeerBlob(deps: PeerCallDeps, { sha256 }: { sha256: string }): Promise<Uint8Array | null> {
+  let body: Record<string, unknown>;
+  try {
+    body = requireObject(
+      await callPeer(deps, { method: "GET", path: peerRoute(deps.credential, `/blobs/${encodeURIComponent(sha256)}`) }),
+      "blob fetch",
+      deps.credential.baseUrl
+    );
+  } catch (err) {
+    if (err instanceof PublishContentPeerTransportError && err.peerStatus === 404) {
+      return null;
+    }
+    throw err;
+  }
+
+  if (typeof body.dataBase64 !== "string") {
+    throw new PublishContentPeerTransportError(
+      `the peer's response for blob '${sha256}' carried no 'dataBase64' string`,
+      "PEER_RESPONSE_INVALID"
+    );
+  }
+  // `Buffer.from(..., "base64")` never throws — it drops invalid characters — so a malformed
+  // payload is caught by the hash check below rather than by a decode error, which is the check
+  // that has to hold anyway.
+  const bytes = new Uint8Array(Buffer.from(body.dataBase64, "base64"));
+
+  // The security property this function exists to hold — see the doc above. MUST precede the
+  // write: `putIfAbsent` will not catch it.
+  if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {
+    throw new PublishContentPeerTransportError(
+      `the peer's bytes for blob '${sha256}' do not hash to it — refusing to store them under that ` +
+        `sha256, because the hash IS the identity this feature addresses content by`,
+      "PEER_RESPONSE_INVALID"
+    );
+  }
+
+  return bytes;
 }

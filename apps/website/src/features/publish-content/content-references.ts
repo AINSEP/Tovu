@@ -37,15 +37,8 @@ export function collectBodyReferences(state: Readonly<Record<string, unknown>>):
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: state.bodyJson, fieldsExt: {} });
   for (const row of rows) if (row.sourceKind === "widget-embed") add(out, "widget", row.targetId);
 
-  if (typeof state.bodyHtml === "string") {
-    for (const marker of scanEmbedMarkers({ html: state.bodyHtml }).markers) {
-      if (marker.type.toLowerCase() !== "widget") continue;
-      const target = embedMarkerTarget({ type: marker.type, config: marker.config });
-      if (target !== undefined && target.key !== "none") add(out, "widget", target.value);
-    }
-  }
-
-  if (Array.isArray(state.termIds)) for (const id of state.termIds) if (typeof id === "string") add(out, "term", id);
+  addHtmlWidgetReferences({ html: state.bodyHtml, out });
+  addTermReferences({ termIds: state.termIds, out });
   return [...out.values()];
 }
 
@@ -58,8 +51,28 @@ export function collectPlacementReferences(state: Readonly<Record<string, unknow
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: { placements: state.placements }, fieldsExt: {} });
   const out = new Map<string, PublishContentReference>();
   for (const row of rows) if (row.sourceKind === "widget-area-placement") add(out, "widget", row.targetId);
-  if (Array.isArray(state.placements)) for (const placement of state.placements) {
-    if (typeof placement === 'object' && placement !== null) for (const key of collectMediaConfigKeys({ config: (placement as Record<string, unknown>).content })) add(out, 'media', key);
-  }
+  addPlacementMediaReferences({ placements: state.placements, out });
   return [...out.values()];
+}
+
+function addHtmlWidgetReferences({ html, out }: { html: unknown; out: Map<string, PublishContentReference> }, _optional: Record<string, never> = {}): void {
+  if (typeof html !== "string") return;
+  for (const marker of scanEmbedMarkers({ html }).markers) {
+    if (marker.type.toLowerCase() !== "widget") continue;
+    const target = embedMarkerTarget({ type: marker.type, config: marker.config });
+    if (target !== undefined && target.key !== "none") add(out, "widget", target.value);
+  }
+}
+
+function addTermReferences({ termIds, out }: { termIds: unknown; out: Map<string, PublishContentReference> }, _optional: Record<string, never> = {}): void {
+  if (!Array.isArray(termIds)) return;
+  for (const id of termIds) if (typeof id === "string") add(out, "term", id);
+}
+
+function addPlacementMediaReferences({ placements, out }: { placements: unknown; out: Map<string, PublishContentReference> }, _optional: Record<string, never> = {}): void {
+  if (!Array.isArray(placements)) return;
+  for (const placement of placements) {
+    if (typeof placement !== "object" || placement === null) continue;
+    for (const key of collectMediaConfigKeys({ config: (placement as Record<string, unknown>).content })) add(out, "media", key);
+  }
 }
