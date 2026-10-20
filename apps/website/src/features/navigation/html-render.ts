@@ -16,38 +16,72 @@ export interface HtmlMenuItem {
   readonly children: readonly HtmlMenuItem[];
 }
 
-function renderList(items: readonly HtmlMenuItem[], depth: number, sanitizeHref: (href: string) => string, toolPrefix: string): string {
-  const children = items.map((item, index) => {
-    const toolName = `${toolPrefix}_${index}`;
-    const nested = renderList(item.children, depth + 1, sanitizeHref, toolName);
-    const linkable = item.available && item.href !== null;
-    // Keep unavailable headings only when they still contain available descendants.
-    if (!linkable && nested === "") return "";
-    const icon = item.attrs?.icon ? `<span data-tovu-menu-icon="${escapeHtml(item.attrs.icon)}"></span>` : "";
-    const description = item.attrs?.description ? `<span data-tovu-menu-description>${escapeHtml(item.attrs.description)}</span>` : "";
-    const label = `${icon}${escapeHtml(item.label)}${description}`;
-    const current = item.isCurrent ? ' aria-current="page"' : "";
-    const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
-    const relTokens = new Set((item.attrs?.rel ?? "").split(/\s+/).filter(Boolean));
-    if (item.attrs?.openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
-    const rel = relTokens.size ? ` rel="${escapeHtml([...relTokens].join(" "))}"` : "";
-    const href = linkable ? sanitizeHref(item.href!) : '';
-    // Only site-relative navigation is advertised. The browser rechecks origin
-    // against its actual base URL before executing; external links remain ordinary links.
-    const tool = href && !/^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i.test(href) && !/[\\\u0000-\u0020]/.test(href)
-      ? ` data-toolname="${escapeHtml(toolName.slice(0, 128))}" data-tooldescription="${escapeHtml(item.label)}"` : '';
-    const body = linkable
-      ? `<a href="${escapeHtml(href)}"${current}${target}${rel}${tool}>${label}</a>`
-      : `<span data-tovu-menu-label>${label}</span>`;
-    return `<li data-tovu-menu-item data-depth="${depth}" data-current="${item.isCurrent}" data-active="${item.isActive === true}" data-has-children="${nested !== ""}">${body}${nested}</li>`;
-  }).join("");
+type MenuAttrs = NonNullable<HtmlMenuItem["attrs"]>;
+type SanitizeHref = (href: string) => string;
+
+/** A URL scheme (`https:`, `javascript:`) or an authority prefix (`//`, `\\`, `/\`). */
+const SCHEME_OR_AUTHORITY = /^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i;
+/** Backslashes, C0 controls and space anywhere in the href. */
+const UNSAFE_HREF_CHARACTER = /[\\\u0000- ]/;
+
+function isSiteRelative(href: string): boolean {
+  return href !== "" && !SCHEME_OR_AUTHORITY.test(href) && !UNSAFE_HREF_CHARACTER.test(href);
+}
+
+function renderToolAttrs({ href, toolName, label }: { href: string; toolName: string; label: string }): string {
+  // Only site-relative navigation is advertised. The browser rechecks origin
+  // against its actual base URL before executing; external links remain ordinary links.
+  return isSiteRelative(href)
+    ? ` data-toolname="${escapeHtml(toolName.slice(0, 128))}" data-tooldescription="${escapeHtml(label)}"` : "";
+}
+
+function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): string {
+  const icon = attrs.icon ? `<span data-tovu-menu-icon="${escapeHtml(attrs.icon)}"></span>` : "";
+  const description = attrs.description ? `<span data-tovu-menu-description>${escapeHtml(attrs.description)}</span>` : "";
+  return `${icon}${escapeHtml(label)}${description}`;
+}
+
+function renderRel({ attrs }: { attrs: MenuAttrs }): string {
+  const relTokens = new Set((attrs.rel ?? "").split(/\s+/).filter(Boolean));
+  if (attrs.openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
+  return relTokens.size ? ` rel="${escapeHtml([...relTokens].join(" "))}"` : "";
+}
+
+function renderAnchor({ item, attrs, href, toolName, label }: {
+  item: HtmlMenuItem; attrs: MenuAttrs; href: string; toolName: string; label: string;
+}): string {
+  const current = item.isCurrent ? ' aria-current="page"' : "";
+  const target = attrs.openInNewTab ? ' target="_blank"' : "";
+  const tool = renderToolAttrs({ href, toolName, label: item.label });
+  return `<a href="${escapeHtml(href)}"${current}${target}${renderRel({ attrs })}${tool}>${label}</a>`;
+}
+
+function renderItem({ item, index, depth, sanitizeHref, toolPrefix }: {
+  item: HtmlMenuItem; index: number; depth: number; sanitizeHref: SanitizeHref; toolPrefix: string;
+}): string {
+  const toolName = `${toolPrefix}_${index}`;
+  const nested = renderList({ items: item.children, depth: depth + 1, sanitizeHref, toolPrefix: toolName });
+  const authoredHref = item.available ? item.href : null;
+  // Keep unavailable headings only when they still contain available descendants.
+  if (authoredHref === null && nested === "") return "";
+  const attrs = item.attrs ?? {};
+  const label = renderLabel({ label: item.label, attrs });
+  const body = authoredHref === null
+    ? `<span data-tovu-menu-label>${label}</span>`
+    : renderAnchor({ item, attrs, href: sanitizeHref(authoredHref), toolName, label });
+  return `<li data-tovu-menu-item data-depth="${depth}" data-current="${item.isCurrent}" data-active="${item.isActive === true}" data-has-children="${nested !== ""}">${body}${nested}</li>`;
+}
+
+function renderList({ items, depth, sanitizeHref, toolPrefix }: {
+  items: readonly HtmlMenuItem[]; depth: number; sanitizeHref: SanitizeHref; toolPrefix: string;
+}): string {
+  const children = items.map((item, index) => renderItem({ item, index, depth, sanitizeHref, toolPrefix })).join("");
   return children === "" ? "" : `<ul data-tovu-menu-list data-depth="${depth}">${children}</ul>`;
 }
 
 export function renderHtmlMenu(
-  { id, items, sanitizeHref }: { id: string; items: readonly HtmlMenuItem[]; sanitizeHref: (href: string) => string },
-  _optional = {},
+  { id, items, sanitizeHref }: { id: string; items: readonly HtmlMenuItem[]; sanitizeHref: SanitizeHref },
 ): string {
-  const list = renderList(items, 0, sanitizeHref, `menu_${id.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64)}`);
+  const list = renderList({ items, depth: 0, sanitizeHref, toolPrefix: `menu_${id.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64)}` });
   return list === "" ? "" : `<nav data-tovu-menu="${escapeHtml(id)}">${list}</nav>`;
 }
