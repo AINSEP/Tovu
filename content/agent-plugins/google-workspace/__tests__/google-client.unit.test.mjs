@@ -11,6 +11,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { createHooks } from '../lib/auth.mjs';
 import { readAccount } from '../lib/drive-files.mjs';
 import { createGoogleClient } from '../lib/http.mjs';
 import { verifySpreadsheetAccess } from '../lib/picker-selection.mjs';
@@ -199,4 +200,15 @@ test('batch inventory: an empty batch or a batch that is not a list is invalid-i
 
 test('output bound: nothing to serialize (undefined) fits', () => {
   assert.equal(outputFits({ value: undefined }), true);
+});
+
+/** The revocation hook over a transport that answers once with `status` and `text`. */
+const revokeWith = (status, text) => createHooks({ http: { async fetch() { return new Response(text, { status }); } } }).revoke({ token: 'fake-refresh-token' });
+
+test('revocation: a 400 whose body is not JSON is not "already revoked": the revocation stays pending', async () => {
+  await assert.rejects(revokeWith(400, '<html>bad</html>'), { message: /Disconnected locally; Google revocation pending/ });
+});
+
+test('revocation: a 400 invalid_token answer means Google already revoked it, which counts as confirmed', async () => {
+  assert.equal(await revokeWith(400, '{"error":"invalid_token"}'), undefined);
 });
