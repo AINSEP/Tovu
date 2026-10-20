@@ -15,7 +15,8 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 
 import destination from '../form-destinations/sheets.mjs';
-import { DEDUPE_LIMITS } from '../form-destinations/dedupe.mjs';
+import { DEDUPE_LIMITS, findSubmissionRows } from '../form-destinations/dedupe.mjs';
+import { planColumns } from '../form-destinations/mapping.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { installSheetsGrid } from './fake-sheets-grid.mjs';
 
@@ -324,4 +325,146 @@ test('results never carry the token, answers or tab titles', async () => {
   const outputs = [await deliver(job()), await deliver({ ...job(), credential: { token: 'fake-access-revoked', baseUrl: '' } })];
   const text = JSON.stringify(outputs);
   for (const needle of [TOKEN, 'fake-access-revoked', 'Ada', 'ada@example.test', 'Secret tab title']) assert.ok(!text.includes(needle), needle);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Phase C: contract completion (failure mapping, answer shapes, header/label rules, odd answers)
+// ---------------------------------------------------------------------------------------------
+
+const PREFIX = `/v4/spreadsheets/${BOOK}`;
+const HEADER_PATH = `${PREFIX}/values/${encodeURIComponent("'Contact form'!1:1")}`;
+const APPEND_PATH = `${PREFIX}/values/${encodeURIComponent("'Contact form'!A1")}:append`;
+const batches = () => sheetsRequests().filter((request) => request.path.endsWith(':batchUpdate')).map((request) => JSON.parse(request.body).requests);
+
+/** `[status, Google body, contract code, retryable]` for a failure on the first request (the tab read). */
+const FAILURE_CODES = [
+  [401, undefined, 'authorization-required', false],
+  [403, { error: { code: 403, errors: [{ reason: 'insufficientPermissions' }] } }, 'authorization-required', false],
+  [403, { error: { code: 403 } }, 'resource-not-granted', false],
+  [403, { error: { code: 403, errors: [{ reason: 'domainPolicy' }] } }, 'resource-not-granted', false],
+  [404, undefined, 'resource-not-granted', false],
+  [400, undefined, 'mapping-invalid', false],
+  // A status the plugin has no code for is unexpected-response: reported, not retried.
+  [418, undefined, 'delivery-failed', false],
+];
+for (const [status, body, code, retryable] of FAILURE_CODES) {
+  test(`failure mapping: Google ${status} ${JSON.stringify(body?.error?.errors ?? '')} on the tab read is ${code} (retryable: ${retryable}), nothing appended`, async () => {
+    const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+    sheets.failNext = { status, ...(body ? { body } : {}) };
+    assert.deepEqual(await deliver(job()), { ok: false, error: { code, retryable, outcome: 'not-applied' } });
+    assert.equal(appends().length, 0);
+  });
+}
+
+test('failure mapping: a 409 conflict with a long Retry-After is a retryable delivery-failed that keeps retryAfterMs', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  sheets.failNext = { status: 409, headers: { 'retry-after': '40' } };
+  assert.deepEqual(await deliver(job()), { ok: false, error: { code: 'delivery-failed', retryable: true, outcome: 'not-applied', retryAfterMs: 40_000 } });
+});
+
+test('failure mapping: a refused append (400) is mapping-invalid and is not re-scanned as if uncertain', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  fake.route({ method: 'POST', path: APPEND_PATH }, () => [400, { error: { code: 400 } }]);
+  assert.deepEqual(await deliver(job()), { ok: false, error: { code: 'mapping-invalid', retryable: false, outcome: 'not-applied' } });
+  // tab, header row, markers, dedupe scan, column batch, append: no second tab read for a re-scan.
+  assert.equal(sheetsRequests().filter((request) => request.method === 'GET' && request.path === PREFIX).length, 1);
+});
+
+test('OAuth credential: a host credential with getAccessToken is asked for a fresh token before every Google request', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  let reads = 0;
+  const credential = { baseUrl: '', getAccessToken: async () => { reads += 1; return TOKEN; } };
+  assert.equal((await deliver({ ...job(), credential })).ok, true);
+  assert.equal(reads, sheetsRequests().length);
+  assert.ok(reads >= 5);
+});
+
+for (const [why, config] of [
+  ['no config at all', undefined],
+  ['a spreadsheet id that is not text', { spreadsheetId: 7, tabs: { contact: { sheetId: TAB_ID } } }],
+  ['a negative tab id', { spreadsheetId: BOOK, tabs: { contact: { sheetId: -1 } } }],
+  ['a tab id that is not an integer', { spreadsheetId: BOOK, tabs: { contact: { sheetId: '7' } } }],
+  ['a tab entry inherited from the prototype, not the binding', { spreadsheetId: BOOK, tabs: Object.create({ contact: { sheetId: TAB_ID } }) }],
+]) {
+  test(`configuration-invalid for ${why}, before any request`, async () => {
+    // Built by hand: `job()`'s default would replace an undefined config.
+    const base = job();
+    const input = { ...base, binding: { ...base.binding, config } };
+    assert.deepEqual(await deliver(input), { ok: false, error: { code: 'configuration-invalid', retryable: false, outcome: 'not-applied' } });
+    assert.equal(fake.requests.length, 0);
+  });
+}
+
+test('a tab that was deleted from the spreadsheet is configuration-invalid (pick the tab again), nothing appended', async () => {
+  grid([{ sheetId: 99, title: 'Other' }]);
+  assert.deepEqual(await deliver(job()), { ok: false, error: { code: 'configuration-invalid', retryable: false, outcome: 'not-applied' } });
+  assert.equal(appends().length, 0);
+});
+
+test('a metadata answer naming no tabs at all is configuration-invalid', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  fake.route({ method: 'GET', path: PREFIX }, () => [200, {}]);
+  assert.deepEqual(await deliver(job()), { ok: false, error: { code: 'configuration-invalid', retryable: false, outcome: 'not-applied' } });
+});
+
+test('a tab answered without a grid size counts as empty: columns are added for every header and the row is appended', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  fake.route({ method: 'GET', path: PREFIX }, () => [200, { sheets: [{ properties: { sheetId: TAB_ID, title: 'Contact form' } }] }]);
+  assert.equal((await deliver(job())).ok, true);
+  assert.deepEqual(batches()[0][0], { appendDimension: { sheetId: TAB_ID, dimension: 'COLUMNS', length: 4 } });
+  assert.equal(appends().length, 1);
+});
+
+test('a header-row read answered without values counts as a fresh tab', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  fake.route({ method: 'GET', path: HEADER_PATH }, () => [200, { range: "'Contact form'!A1:Z1" }]);
+  assert.deepEqual(await deliver(job()), { ok: true, reference: `sheet ${TAB_ID} row 2` });
+  assert.deepEqual(sheets.rowsOf(TAB_ID)[0], HEADERS);
+});
+
+test('a marker search answered without a match list counts as no markers: every field column gets tagged', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  fake.route({ method: 'POST', path: `${PREFIX}/developerMetadata:search` }, () => [200, {}]);
+  assert.equal((await deliver(job())).ok, true);
+  assert.deepEqual(sheets.markersOf(TAB_ID), { name: 2, email: 3 });
+});
+
+test('an append answer naming no updated range is delivered with the tab as the reference (no row number guessed)', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  fake.route({ method: 'POST', path: APPEND_PATH }, () => [200, {}]);
+  assert.deepEqual(await deliver(job()), { ok: true, reference: `sheet ${TAB_ID}` });
+});
+
+test('labels: a missing or blank label falls back to the field id, and a label is trimmed', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  const form = { slug: 'contact', fields: [{ name: 'phone' }, { name: 'note', label: '   ' }, { name: 'city', label: '  City ' }] };
+  assert.equal((await deliver(job({ form, submission: { answers: { phone: '1', note: 'n', city: 'c' } } }))).ok, true);
+  assert.deepEqual(sheets.rowsOf(TAB_ID)[0], ['_tovu_submission_id', '_tovu_submitted_at', 'phone', 'note', 'City']);
+});
+
+test('answers: null and absent answers are blank cells, numbers and booleans keep their type in the RAW row', async () => {
+  grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  const form = { slug: 'contact', fields: [...FORM.fields, { name: 'agree', label: 'Agree' }, { name: 'extra', label: 'Extra' }] };
+  await deliver(job({ form, submission: { answers: { name: null, email: 42, agree: true } } }));
+  assert.deepEqual(JSON.parse(appends()[0].body).values[0].slice(2), ['', 42, true, '']);
+});
+
+test('dedupe: blank and malformed id cells are skipped and a padded id still matches', async () => {
+  const reads = [];
+  const found = await findSubmissionRows({ rowCount: 6, submissionId: 'sub-1', readColumn: async (range) => { reads.push(range); return [['other'], [], null, ['  sub-1 ']]; } });
+  assert.deepEqual(found, [5]);
+  assert.deepEqual(reads, [{ from: 2, to: 6 }]);
+});
+
+test('mapping: a null cell in the header row counts as blank, so the headers around it keep their positions', () => {
+  const mapping = [{ header: '_tovu_submission_id', source: 'id' }, { header: 'Name', field: 'name' }];
+  const layout = planColumns({ mapping, headerRow: ['_tovu_submission_id', null, 'Name'], markers: new Map() });
+  assert.deepEqual(layout.columns, [0, 2]);
+  assert.deepEqual(layout.newHeaders, []);
+});
+
+test('mapping: a header row of only null cells is a fresh tab, so every header is written', () => {
+  const mapping = [{ header: '_tovu_submission_id', source: 'id' }, { header: 'Name', field: 'name' }];
+  const layout = planColumns({ mapping, headerRow: [null, null], markers: new Map() });
+  assert.deepEqual(layout.newHeaders, [{ index: 0, header: '_tovu_submission_id' }, { index: 1, header: 'Name' }]);
 });

@@ -36,7 +36,9 @@ const ACTIONS = {
 /** A data filter as a card phrase; never cell values. @complexity O(1). */
 function describeFilter(filter) {
   if (filter.a1Range) return `range ${filter.a1Range}`;
-  if (filter.gridRange) return `grid range on tab ${filter.gridRange.sheetId ?? 0}`;
+  // No fallback tab id: the input schema requires gridRange.sheetId, and the projection only hands
+  // schema-checked input to describeAffectedResources (pinned in sheets.contract.test.mjs).
+  if (filter.gridRange) return `grid range on tab ${filter.gridRange.sheetId}`;
   return 'cells found by developer metadata';
 }
 
