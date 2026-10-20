@@ -53,8 +53,7 @@ export function createTovuPluginHost(
     ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await optional.readAgentManifest!({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
     : readInstalledAgentPluginIdentity;
 
-  const listProviders = async ({ forAdmission = false }: { forAdmission?: boolean } = {}) => {
-    const workspaceRoot = resolveWorkspaceRoot();
+  const listSiteProviders = async ({ forAdmission }: { forAdmission: boolean }, _options = {}): Promise<PluginProvider[]> => {
     const providers: PluginProvider[] = [];
     for (const record of await deps.discoverPlugins()) {
       if (record.status !== 'valid' || !record.manifest) {
@@ -69,6 +68,37 @@ export function createTovuPluginHost(
       const activation = forAdmission ? null : await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: record.id });
       providers.push({ ...identity, version: record.version, enabled: activation?.enabled === true, family: 'site-runtime', localId: record.id });
     }
+    return providers;
+  };
+
+  const resolveAgentProviders = async ({ agentProviders, workspaceRoot }: {
+    agentProviders: Map<string, PluginProvider[]>; workspaceRoot: string;
+  }, _options = {}): Promise<PluginProvider[]> => {
+    const providers: PluginProvider[] = [];
+    for (const [pluginId, revisions] of agentProviders) {
+      // Multiple digests are revisions of one install, not duplicate provider registrations.
+      // Without a recorded winner the existing lifecycle refuses to guess; discovery follows it
+      // by omitting this plugin, while unrelated lookup and installation remain available.
+      if (revisions.length !== 1) {
+        const declaredIds = new Set(revisions.map(provider => provider.id).filter(id => id !== `unknown/${pluginId}`));
+        warn(`Plugin '${pluginId}': ${declaredIds.size > 1 ? 'conflicting publisher identities' : 'ambiguous installed revisions'}; omitted from metadata lookup.`);
+        continue;
+      }
+      let enabled: boolean;
+      if (optional.resolveEnabled) enabled = await optional.resolveEnabled({ workspaceRoot, pluginId });
+      else {
+        const activation = await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId });
+        enabled = activation.verdict === 'active';
+      }
+      providers.push({ ...revisions[0]!, enabled });
+    }
+    return providers;
+  };
+
+  const listAgentProviders = async ({ workspaceRoot, forAdmission }: {
+    workspaceRoot: string; forAdmission: boolean;
+  }, _options = {}): Promise<PluginProvider[]> => {
+    const providers: PluginProvider[] = [];
     const agentProviders = new Map<string, PluginProvider[]>();
     // A legacy revision may acquire its first publisher identity at upgrade; old frozen
     // digests can remain present from older installs until successful publication prunes them.
@@ -89,24 +119,13 @@ export function createTovuPluginHost(
       revisions.push(provider);
       agentProviders.set(plugin.pluginId, revisions);
     }
-    for (const [pluginId, revisions] of agentProviders) {
-      // Multiple digests are revisions of one install, not duplicate provider registrations.
-      // Without a recorded winner the existing lifecycle refuses to guess; discovery follows it
-      // by omitting this plugin, while unrelated lookup and installation remain available.
-      if (revisions.length !== 1) {
-        const declaredIds = new Set(revisions.map(provider => provider.id).filter(id => id !== `unknown/${pluginId}`));
-        warn(`Plugin '${pluginId}': ${declaredIds.size > 1 ? 'conflicting publisher identities' : 'ambiguous installed revisions'}; omitted from metadata lookup.`);
-        continue;
-      }
-      let enabled: boolean;
-      if (optional.resolveEnabled) enabled = await optional.resolveEnabled({ workspaceRoot, pluginId });
-      else {
-        const activation = await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId });
-        enabled = activation.verdict === 'active';
-      }
-      providers.push({ ...revisions[0]!, enabled });
-    }
-    return providers;
+    return providers.concat(await resolveAgentProviders({ agentProviders, workspaceRoot }));
+  };
+
+  const listProviders = async ({ forAdmission = false }: { forAdmission?: boolean } = {}, _options = {}) => {
+    const workspaceRoot = resolveWorkspaceRoot();
+    const providers = await listSiteProviders({ forAdmission });
+    return providers.concat(await listAgentProviders({ workspaceRoot, forAdmission }));
   };
   const lookup = createPluginLookup({ listPlugins: listProviders }, { warn });
 

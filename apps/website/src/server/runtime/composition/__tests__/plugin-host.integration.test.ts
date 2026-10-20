@@ -12,6 +12,7 @@ import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
+import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { createTovuPluginHost, type TovuPluginHostDeps } from '../plugin-host.js';
 import { composePluginRuntime } from '../plugin-runtime.js';
 import { definePlugin, type PluginSdk } from '@tovu/sdk';
@@ -304,4 +305,73 @@ test('MCP provisioning logs each server and reason while preserving activation s
   const unavailable = createTovuPluginHost({ deps: ctx.deps }, { warn: message => warnings.push(message), resolveMcpServers: async () => { throw new Error('manifest unavailable'); } });
   await unavailable.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'operator' });
   assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — manifest unavailable");
+});
+
+test('L058b site discovery omits invalid identities and propagates activation read failures', async t => {
+  const ctx = await fixture(t);
+  const base: PluginDiscoveryRecord = { id: 'missing', name: 'Missing', version: '1', source: 'site', status: 'valid', errors: [] };
+  ctx.addSite([
+    base,
+    { ...base, id: 'invalid', status: 'invalid', manifest: WORD_COUNT_MANIFEST },
+    { ...base, id: 'bad-identity', manifest: { ...WORD_COUNT_MANIFEST, extensions: { tovu: { id: 'invalid' } } } },
+    { ...base, id: 'legacy', manifest: { ...WORD_COUNT_MANIFEST, id: 'legacy', extensions: {} } },
+  ]);
+  assert.equal((await ctx.host.getPlugin({ id: 'unknown/legacy' }))?.enabled, false);
+  assert.deepEqual(ctx.warnings, [
+    "Plugin 'missing': invalid installed manifest omitted from metadata lookup.",
+    "Plugin 'invalid': invalid installed manifest omitted from metadata lookup.",
+    "Plugin 'bad-identity': installed identity manifest is unreadable or invalid; omitted from metadata lookup.",
+    "Plugin 'legacy' has no publisher-qualified id; using 'unknown/legacy'.",
+  ]);
+  await ctx.deps.pluginActivationRepo.save({ workspaceId: 'site', pluginId: 'legacy', version: '1', enabled: true, updatedAt: '2026-10-20T00:00:00Z' });
+  assert.equal((await ctx.host.getPlugin({ id: 'unknown/legacy' }))?.enabled, true);
+  const failure = new Error('activation unavailable');
+  const pluginActivationRepo = new InMemoryPluginActivationRepo();
+  t.mock.method(pluginActivationRepo, 'getActivation', async () => { throw failure; });
+  const host = createTovuPluginHost({ deps: { ...ctx.deps, pluginActivationRepo } }, { readAgentManifest: async () => manifest, warn: () => {} });
+  await assert.rejects(host.getPlugin({ id: 'tovu/word-count' }), error => error === failure);
+  assert.equal(await host.withInstallIdentity({ candidate: { id: 'vendor/new', family: 'agent-plugin', localId: 'new' }, run: async () => 'published' }), 'published');
+});
+
+test('L058b default agent activation is resolved through the lifecycle owner', async t => {
+  const ctx = await fixture(t);
+  const host = createTovuPluginHost({ deps: ctx.deps }, { readAgentManifest: async () => manifest, warn: () => {} });
+  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, true);
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, pluginId: 'github', enabled: false, actor: 'pin' });
+  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, false);
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, pluginId: 'github', enabled: true, actor: 'pin' });
+  assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, true);
+});
+
+test('L058b agent revision lookup and admission retain distinct selection contracts', async t => {
+  const ctx = await fixture(t);
+  const old = { ...plugin, archiveDigest: 'b'.repeat(64), version: undefined };
+  const broken = { ...plugin, pluginId: 'broken', archiveDigest: 'c'.repeat(64) };
+  const warnings: string[] = [];
+  let conflicting = false;
+  const host = createTovuPluginHost({ deps: { ...ctx.deps, listInstalledAgentPlugins: async () => [old, broken, plugin] } }, {
+    readAgentManifest: async ({ plugin: revision }) => {
+      if (revision.pluginId === 'broken') throw new Error('unreadable');
+      if (revision.archiveDigest === old.archiveDigest) return conflicting
+        ? { ...manifest, extensions: { tovu: { id: 'vendor/github' } } }
+        : { name: 'github' };
+      return manifest;
+    },
+    resolveEnabled: async () => true, warn: message => warnings.push(message),
+  });
+  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+  assert.ok(warnings.includes("Plugin 'github': ambiguous installed revisions; omitted from metadata lookup."));
+  conflicting = true;
+  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+  assert.ok(warnings.includes("Plugin 'github': conflicting publisher identities; omitted from metadata lookup."));
+  await mkdir(ctx.deps.agentPluginLayout.forWorkspace('site').root, { recursive: true });
+  await recordBundledAgentPluginDigests({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, seeded: [{ pluginId: 'github', archiveDigest: old.archiveDigest }] });
+  assert.deepEqual(await host.getPlugin({ id: 'vendor/github' }), {
+    id: 'vendor/github', localId: 'github', family: 'agent-plugin', version: null, enabled: true, keywords: ['repository'], provides: [],
+  });
+  for (const id of ['vendor/github', 'tovu/github']) {
+    await assert.rejects(host.withInstallIdentity({ candidate: { id, localId: 'alias', family: 'site-runtime' }, run: async () => 'unexpected' }), { message: `Duplicate plugin id '${id}'.` });
+  }
+  assert.equal(await host.withInstallIdentity({ candidate: { id: 'vendor/new', localId: 'new', family: 'site-runtime' }, run: async () => 'published' }), 'published');
+  assert.ok(warnings.includes("Plugin 'broken': installed identity manifest is unreadable or invalid; omitted from metadata lookup."));
 });

@@ -180,3 +180,29 @@ test("registered identity_user_delete admits admin ordinary target up to human c
     assert.ok(await f.trashRepo.findByEntity({ workspaceId: f.workspaceId, entityType: "user", entityId: protectedTarget }));
   } finally { f.db.$client.close(); }
 });
+
+test('L058b preparation preserves the user deletion ladder and dispatch guards', async () => {
+  const f = await setup();
+  try {
+    const owner = await f.identity.ownerPrincipalId;
+    const ordinary = await f.make('l058b-ordinary');
+    await assert.rejects(f.permanent.prepare('identity_user_delete', ordinary, ordinary), /cannot permanently delete yourself or the seeded owner/);
+    await assert.rejects(f.permanent.prepare('identity_user_delete', owner, owner), /cannot permanently delete yourself or the seeded owner/);
+    await assert.rejects(f.permanent.prepare('identity_user_delete', owner, ordinary), /cannot permanently delete yourself or the seeded owner/);
+    await assert.rejects(f.permanent.prepare('identity_user_delete', ordinary, owner), /user is not in Trash/);
+    await assert.rejects(f.permanent.prepare('identity_user_delete', 'absent', owner), /item was not found/);
+    for (const tool of PERMANENT_DELETE_SPECS.filter(spec => spec.name !== 'trash_empty')) {
+      await assert.rejects(f.permanent.prepare(tool.name, null, owner), /item was not found/);
+    }
+    await assert.rejects(f.permanent.prepare('trash_empty', null, owner), /Trash is empty/);
+    await assert.rejects(f.permanent.prepare('trash_purge_item', 'absent', owner), /item was not found/);
+    const trashId = await f.move(ordinary);
+    const single = await f.permanent.prepare('trash_purge_item', trashId, owner);
+    assert.equal(single.details[0]?.value, '1');
+    const empty = await f.permanent.prepare('trash_empty', null, owner);
+    assert.equal(empty.details[0]?.value, '1');
+    const plan = await f.permanent.prepare('identity_user_delete', ordinary, owner);
+    assert.equal((await plan.execute()).purged, 1);
+    assert.equal(await f.identity.principalRepo.findById({ workspaceId: f.workspaceId, id: ordinary }), null);
+  } finally { f.db.$client.close(); }
+});

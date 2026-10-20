@@ -142,6 +142,19 @@ async function trashPlan(deps: Deps, toolId: PermanentDeleteToolId, items: Trash
   };
 }
 
+async function prepareUserTrash({ deps, toolId, id, principalId }: {
+  deps: Deps; toolId: PermanentDeleteToolId; id: string; principalId: string;
+}, _options = {}): Promise<PermanentDeletePlan> {
+  if (id === principalId || id === await deps.ownerPrincipalId) throw new ToolInputError({ message: "identity_user_delete: cannot permanently delete yourself or the seeded owner." });
+  const item = await findTrashItem(deps, item => item.entityId === id, ["user"]);
+  if (!item) {
+    const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
+    if (!principal) throw notFound(toolId);
+    throw new ToolInputError({ message: "identity_user_delete: user is not in Trash. Move the user to Trash first, then request permanent deletion." });
+  }
+  return trashPlan(deps, toolId, [item], principalId);
+}
+
 /** Prepare the exact public Trash selection across every page. The single-user branch follows
  * the existing Trash-only deletion ladder. No new arrival inherits consent after preparation.
  * @complexity O(n) reads for n listed items, O(n) snapshot/card space for Empty Trash.
@@ -154,16 +167,7 @@ async function prepareTrash(deps: Deps, toolId: PermanentDeleteToolId, id: strin
     return trashPlan(deps, toolId, items, principalId);
   }
   if (id === null) throw notFound(toolId);
-  if (toolId === "identity_user_delete") {
-    if (id === principalId || id === await deps.ownerPrincipalId) throw new ToolInputError({ message: "identity_user_delete: cannot permanently delete yourself or the seeded owner." });
-    const item = await findTrashItem(deps, item => item.entityId === id, ["user"]);
-    if (!item) {
-      const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
-      if (!principal) throw notFound(toolId);
-      throw new ToolInputError({ message: "identity_user_delete: user is not in Trash. Move the user to Trash first, then request permanent deletion." });
-    }
-    return trashPlan(deps, toolId, [item], principalId);
-  }
+  if (toolId === "identity_user_delete") return prepareUserTrash({ deps, toolId, id, principalId });
   const item = await findTrashItem(deps, item => item.id === id);
   if (!item) throw notFound(toolId);
   return trashPlan(deps, toolId, [item], principalId);
@@ -181,7 +185,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
   return {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
     prepare: async (toolId, id, principalId) => {
-      if (toolId === "trash_empty" || toolId === "trash_purge_item" || toolId === "identity_user_delete") return prepareTrash(deps, toolId, id, principalId);
+      if (["trash_empty", "trash_purge_item", "identity_user_delete"].includes(toolId)) return prepareTrash(deps, toolId, id, principalId);
       if (id === null) throw notFound(toolId);
       const key = { workspaceId: deps.workspaceId, id };
       switch (toolId) {
