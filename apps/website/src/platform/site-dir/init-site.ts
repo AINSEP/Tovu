@@ -207,132 +207,208 @@ export interface InitSiteRestorePort {
  *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
-export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional & { workspace?: SitesWorkspace; filesystem?: AtomicFilesystemPort; verifiedRestore?: InitSiteRestorePort; onAllocated?: (required: InitSiteResult & { dbPath: string }) => void } = {}): Promise<InitSiteResult> {
+export async function initSite(required: InitSiteRequired, options: InitSiteOptions = {}): Promise<InitSiteResult> {
   const { dir, name } = required;
-  // Imported sites must never inherit either the default password or process credentials.
-  if (options.verifiedRestore && (required.adminPassword === undefined || required.storage && required.storage.kind !== "sqlite")) throw new ValidationError("Verified import requires an explicit owner password and SQLite storage.");
+  assertVerifiedImportInput(required, options);
   const adminPassword = resolveNewSiteAdminPassword(required);
   const target = resolveInstallDirTarget(dir);
 
   const resolvedName = resolveSiteName(target, name); // step 1 (VALIDATION) — before any target/fs check.
   const storage = required.storage ?? { kind: "sqlite" };
-  validateStorageInput(storage, required.connectionString); // step 1 too.
+  const postgres = validateStorageInput(storage, required.connectionString); // step 1 too.
   validateInitTarget(target); // step 2 (INIT_DIR_NOT_EMPTY).
   const { template, seed } = readTemplate({ templateId: "starter" }, options); // step 3 (INTERNAL) — nothing created yet.
 
   const siteId = randomUUID();
-  const createdAt = new Date().toISOString();
   const workspace = options.workspace ?? createSitesWorkspace({});
   const dbPaths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
   const externalDbDir = storage.kind === "sqlite" && !dbPaths.contentDbPath.startsWith(target + path.sep) ? path.dirname(dbPaths.contentDbPath) : undefined;
-  let wroteAnything = false;
-  let createdExternalDbDir = false;
+  const site: NewSite = { target, siteId, createdAt: new Date().toISOString(), resolvedName, storage, postgres, template, seed, adminPassword, dbPath: dbPaths.contentDbPath, externalDbDir };
+  const progress: InitProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
-    // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
-    await assertPostgresTargetEmpty(storage, required.connectionString);
-
-    if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`initSite: database target already exists at ${externalDbDir}`);
-
-    // Journal the minted identity and BOTH storage locations before any site bytes exist.
-    // Recovery must not guess an app-data path from settings that may change after a crash.
-    options.onAllocated?.({ dir: target, siteId, dbPath: dbPaths.contentDbPath });
-
-    // Step 4: directory + subdirectory creation.
-    if (!fs.existsSync(target)) {
-      fs.mkdirSync(target);
-      wroteAnything = true;
-    }
-    for (const sub of SUBDIRS) {
-      fs.mkdirSync(path.join(target, sub));
-      wroteAnything = true;
-    }
-
-    // Step 4b: themes/ is SEEDED, not plain-`mkdir`'d — see `SUBDIRS`'s own doc for why an empty
-    // placeholder here would brick the site's first `tovu serve`. A seed failure is a real init
-    // failure, same as any other step-4 sub-step (CIC U-003) — nothing here swallows it.
-    seedSiteThemes({ stockDir: stockThemesDir(), siteThemesDir: path.join(target, "themes"), siteRoot: target }, { siteName: resolvedName });
-    wroteAnything = true;
-
-    // Step 5: config.json write.
-    const config: ConfigJson = { name: resolvedName, domain: null, port: null };
-    writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, { filesystem: options.filesystem });
-
-    // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
-    // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
-    // fault-isolable at the fs level).
-    // SQLite: built through the migration runner (ADR-066), so the file is born with the
-    // `tovu_migrations` ledger at head and its first boot has nothing to adopt or back up; a new,
-    // empty file has nothing to copy, so no backup path. chat.db is created by the first boot's
-    // chat runner (`openSiteChatDb`), which takes no copy either.
-    // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
-    if (storage.kind === "sqlite") {
-      const dbPath = dbPaths.contentDbPath;
-      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-      createdExternalDbDir = Boolean(externalDbDir);
-      await options.verifiedRestore?.restore({ dir: target, dbPath, siteId });
-      options.verifiedRestore?.signal?.throwIfAborted();
-      const db = openSqliteContentConnection(dbPath);
-      try {
-        await migrateContentDatabase(sqliteKernel<unknown>(db));
-        if (!options.verifiedRestore) await prepareContentStore(contentKernel(db), { seed });
-        // A freshly initialized site must already carry current repair markers, so its first boot
-        // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
-        await runBootDataRepairs({ kernel: contentKernel(db) });
-        await seedNewSiteOwner({ kernel: contentKernel(db), seed, adminPassword });
-        options.verifiedRestore?.signal?.throwIfAborted();
-      } finally {
-        closeSqliteConnection(db);
-      }
-    } else {
-      await createPgSiteStore({ target, storage, seed, siteKeyId: siteId, connectionString: required.connectionString, adminPassword });
-    }
-
-    // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
-    // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
-    options.verifiedRestore?.signal?.throwIfAborted();
-    const runtime = runtimeSchemaVersion();
-    const meta: SiteMetaJson = {
-      siteId,
-      templateId: template.id,
-      templateVersion: template.version,
-      schemaVersion: runtime.index,
-      schemaTag: runtime.tag,
-      createdAt,
-      // Site-key plan §A.4: a brand-new site's key file is named after its own siteId — explicit
-      // here rather than left for `resolveSiteKeyId`'s siteId fallback to infer, so the intent is
-      // visible in the file itself and a future `duplicateSite` always has a real value to carry
-      // forward (see that function's own `siteKeyId ?? siteId` carry-over).
-      siteKeyId: siteId,
-      // Written explicitly (absent also means SQLite) so the choice is visible in the file.
-      storage,
-    };
-    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: meta }, { filesystem: options.filesystem });
-
+    await createSiteContents(site, options, progress);
     return { siteId, dir: target };
   } catch (err) {
-    if (externalDbDir && createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
-    return cleanupAndRethrow(err, target, wroteAnything);
+    if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
+    return cleanupAndRethrow(err, target, progress.wroteAnything);
   }
+}
+
+type InitSiteOptions = ReadTemplateOptional & {
+  workspace?: SitesWorkspace;
+  filesystem?: AtomicFilesystemPort;
+  verifiedRestore?: InitSiteRestorePort;
+  onAllocated?: (required: InitSiteResult & { dbPath: string }) => void;
+};
+
+/** Everything `initSite` resolved before its first write; every path derives from `target` or the allocated database path. */
+interface NewSite {
+  target: string;
+  siteId: string;
+  createdAt: string;
+  resolvedName: string;
+  storage: SiteStorage;
+  postgres: PostgresTarget | undefined;
+  template: ReturnType<typeof readTemplate>["template"];
+  seed: ContentDbSeedData;
+  adminPassword: string;
+  dbPath: string;
+  externalDbDir: string | undefined;
+}
+
+/** CIC U-003 cleanup facts, each set only AFTER the write it records actually succeeded. */
+interface InitProgress {
+  wroteAnything: boolean;
+  createdExternalDbDir: boolean;
+}
+
+/** Imported sites must never inherit either the default password or process credentials.
+ * @throws {ValidationError} a verified import without an explicit owner password or with non-SQLite storage.
+ */
+function assertVerifiedImportInput(required: InitSiteRequired, { verifiedRestore }: Pick<InitSiteOptions, "verifiedRestore">): void {
+  if (!verifiedRestore) return;
+  if (required.adminPassword === undefined || (required.storage && required.storage.kind !== "sqlite")) throw new ValidationError("Verified import requires an explicit owner password and SQLite storage.");
+}
+
+/**
+ * BR-01 steps 3b-8 in order, ending with the commit marker. Updates `progress` after each write so
+ * the caller's cleanup removes only what this call created.
+ * @complexity Bounded per fs/db operation count plus one stock-themes copy (see `initSite`).
+ */
+async function createSiteContents(site: NewSite, options: InitSiteOptions, progress: InitProgress): Promise<void> {
+  const { target, siteId, externalDbDir } = site;
+  // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
+  await assertPostgresTargetEmpty(site.postgres);
+
+  if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`initSite: database target already exists at ${externalDbDir}`);
+
+  // Journal the minted identity and BOTH storage locations before any site bytes exist.
+  // Recovery must not guess an app-data path from settings that may change after a crash.
+  options.onAllocated?.({ dir: target, siteId, dbPath: site.dbPath });
+
+  createSiteFolders(site, progress);
+
+  // Step 5: config.json write.
+  const config: ConfigJson = { name: site.resolvedName, domain: null, port: null };
+  writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, { filesystem: options.filesystem });
+
+  // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
+  // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
+  // fault-isolable at the fs level).
+  // SQLite: built through the migration runner (ADR-066), so the file is born with the
+  // `tovu_migrations` ledger at head and its first boot has nothing to adopt or back up; a new,
+  // empty file has nothing to copy, so no backup path. chat.db is created by the first boot's
+  // chat runner (`openSiteChatDb`), which takes no copy either.
+  // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
+  if (site.storage.kind === "sqlite") await createSqliteSiteStore(site, options, progress);
+  else await createPgSiteStore({ target, storage: site.storage, seed: site.seed, siteKeyId: siteId, postgres: site.postgres, adminPassword: site.adminPassword });
+
+  // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
+  // success (CIC U-003-ORD1), gated on every prior step having already succeeded.
+  options.verifiedRestore?.signal?.throwIfAborted();
+  writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: siteMeta(site) }, { filesystem: options.filesystem });
+}
+
+/** Step 4 (target + placeholder subdirectories) and step 4b (seeded themes). */
+function createSiteFolders({ target, resolvedName }: Pick<NewSite, "target" | "resolvedName">, progress: InitProgress): void {
+  // Step 4: directory + subdirectory creation.
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target);
+    progress.wroteAnything = true;
+  }
+  for (const sub of SUBDIRS) {
+    fs.mkdirSync(path.join(target, sub));
+    progress.wroteAnything = true;
+  }
+
+  // Step 4b: themes/ is SEEDED, not plain-`mkdir`'d — see `SUBDIRS`'s own doc for why an empty
+  // placeholder here would brick the site's first `tovu serve`. A seed failure is a real init
+  // failure, same as any other step-4 sub-step (CIC U-003) — nothing here swallows it.
+  seedSiteThemes({ stockDir: stockThemesDir(), siteThemesDir: path.join(target, "themes"), siteRoot: target }, { siteName: resolvedName });
+  progress.wroteAnything = true;
+}
+
+/** Steps 6-7 for SQLite: create (or, for a verified import, restore) content.db, migrate it, repair and seed its owner. */
+async function createSqliteSiteStore({ target, siteId, seed, adminPassword, dbPath, externalDbDir }: NewSite, { verifiedRestore }: Pick<InitSiteOptions, "verifiedRestore">, progress: InitProgress): Promise<void> {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  progress.createdExternalDbDir = Boolean(externalDbDir);
+  await verifiedRestore?.restore({ dir: target, dbPath, siteId });
+  verifiedRestore?.signal?.throwIfAborted();
+  const db = openSqliteContentConnection(dbPath);
+  try {
+    await migrateContentDatabase(sqliteKernel<unknown>(db));
+    if (!verifiedRestore) await prepareContentStore(contentKernel(db), { seed });
+    // A freshly initialized site must already carry current repair markers, so its first boot
+    // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
+    await runBootDataRepairs({ kernel: contentKernel(db) });
+    await seedNewSiteOwner({ kernel: contentKernel(db), seed, adminPassword });
+    verifiedRestore?.signal?.throwIfAborted();
+  } finally {
+    closeSqliteConnection(db);
+  }
+}
+
+/** The commit marker's contents (step 8). */
+function siteMeta({ siteId, template, createdAt, storage }: NewSite): SiteMetaJson {
+  const runtime = runtimeSchemaVersion();
+  return {
+    siteId,
+    templateId: template.id,
+    templateVersion: template.version,
+    schemaVersion: runtime.index,
+    schemaTag: runtime.tag,
+    createdAt,
+    // Site-key plan §A.4: a brand-new site's key file is named after its own siteId — explicit
+    // here rather than left for `resolveSiteKeyId`'s siteId fallback to infer, so the intent is
+    // visible in the file itself and a future `duplicateSite` always has a real value to carry
+    // forward (see that function's own `siteKeyId ?? siteId` carry-over).
+    siteKeyId: siteId,
+    // Written explicitly (absent also means SQLite) so the choice is visible in the file.
+    storage,
+  };
+}
+
+/** The Postgres database a new site will use, as validated before anything is created. */
+interface PostgresTarget {
+  /** The connection string exactly as given (sealed) or as read from the named variable. */
+  url: string;
+  /** True when init seals `url` into the site folder (`secretRef: "site"`). */
+  sealed: boolean;
 }
 
 /**
  * `storage` + `connectionString` agree, checked before anything is created: a sealed Postgres site
  * needs its connection string, an env-named one needs that variable set, and nothing else takes one.
  *
+ * @returns The validated Postgres target, or undefined for SQLite/PGlite storage.
  * @throws {ValidationError} naming the missing or extra input (never the connection string).
  */
-function validateStorageInput(storage: SiteStorage, connectionString: string | undefined): void {
-  const sealed = storage.kind === "postgres" && storage.secretRef === "site";
-  const given = connectionString !== undefined && connectionString.trim() !== "";
-  if (sealed && !given) throw new ValidationError("initSite: a postgres site sealed in its folder needs its connection string");
-  if (!sealed && connectionString !== undefined) throw new ValidationError(`initSite: a ${storage.kind} site takes no connection string here`);
-  if (storage.kind === "postgres" && storage.secretRef !== "site") {
-    const value = process.env[storage.secretRef.env];
-    if (value === undefined || value.trim() === "") {
-      throw new ValidationError(`initSite: the environment variable ${storage.secretRef.env} (the site's Postgres connection string) is not set`);
-    }
+function validateStorageInput(storage: SiteStorage, connectionString: string | undefined): PostgresTarget | undefined {
+  if (storage.kind !== "postgres") {
+    assertNoConnectionString(storage, connectionString);
+    return undefined;
   }
+  if (storage.secretRef === "site") {
+    if (connectionString === undefined || connectionString.trim() === "") throw new ValidationError("initSite: a postgres site sealed in its folder needs its connection string");
+    return { url: connectionString, sealed: true };
+  }
+  assertNoConnectionString(storage, connectionString);
+  return { url: requiredEnvConnectionString(storage.secretRef), sealed: false };
+}
+
+/** @throws {ValidationError} when a storage that keeps no sealed secret is handed a connection string. */
+function assertNoConnectionString(storage: SiteStorage, connectionString: string | undefined): void {
+  if (connectionString !== undefined) throw new ValidationError(`initSite: a ${storage.kind} site takes no connection string here`);
+}
+
+/** @throws {ValidationError} when the named variable is unset or blank (never echoing a value). */
+function requiredEnvConnectionString({ env }: { env: string }): string {
+  const value = process.env[env];
+  if (value === undefined || value.trim() === "") {
+    throw new ValidationError(`initSite: the environment variable ${env} (the site's Postgres connection string) is not set`);
+  }
+  return value;
 }
 
 /**
@@ -345,10 +421,9 @@ function validateStorageInput(storage: SiteStorage, connectionString: string | u
  *
  * @throws {ValidationError} naming up to five occupied tables (never the connection string).
  */
-async function assertPostgresTargetEmpty(storage: SiteStorage, connectionString: string | undefined): Promise<void> {
-  if (storage.kind !== "postgres") return;
-  const url = storage.secretRef === "site" ? connectionString : process.env[storage.secretRef.env];
-  const kernel = openPostgresKernel<unknown>({ connectionString: (url ?? "").trim(), max: 1 });
+async function assertPostgresTargetEmpty(postgres: PostgresTarget | undefined): Promise<void> {
+  if (!postgres) return;
+  const kernel = openPostgresKernel<unknown>({ connectionString: postgres.url.trim(), max: 1 });
   try {
     const occupied = await nonEmptyTables(kernel);
     if (occupied.length === 0) return;
@@ -373,13 +448,12 @@ async function createPgSiteStore(required: {
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
   seed: ContentDbSeedData;
   siteKeyId: string;
-  connectionString: string | undefined;
+  postgres: PostgresTarget | undefined;
 }): Promise<void> {
-  const { target, storage, seed, siteKeyId, connectionString } = required;
-  const sealed =
-    storage.kind === "postgres" && storage.secretRef === "site" && connectionString !== undefined
-      ? await sealConnectionStringForNewSite({ siteDir: target, siteKeyId, connectionString })
-      : undefined;
+  const { target, storage, seed, siteKeyId, postgres } = required;
+  const sealed = postgres?.sealed
+    ? await sealConnectionStringForNewSite({ siteDir: target, siteKeyId, connectionString: postgres.url })
+    : undefined;
   const store = await openSiteStore(
     { storage, dbPath: path.join(target, "content.db"), chatDbPath: path.join(target, "chat.db"), role: "owner" },
     { seed, sealer: sealed?.sealer }

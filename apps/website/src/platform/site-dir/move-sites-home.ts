@@ -43,52 +43,102 @@ interface SitesMovePlanOptions {
  */
 export function planSitesMove({ repoRoot }: { repoRoot: string }, { workspace = createSitesWorkspace({}, { cwd: repoRoot, catalogRecovery: false }), sites, onSkipped, sourceRoots }: SitesMovePlanOptions = {}): MovePlan[] {
   const home = workspace.home({});
-  const plans: MovePlan[] = [];
   const nestedRoot = workspace.nestedSitesRoot({});
   const formerRoots = nestedRoot ? [nestedRoot] : [];
-  const roots = [...new Set(sourceRoots ?? formerRoots)];
   const selectedNames = new Set(sites);
-  for (const candidate of roots) {
-    // Relocate within the implicit Documents home family only: local ~/Tovu sites must never be silently
-    // transferred into synced Documents. Checkout compatibility roots remain discovery sources.
-    if (!formerRoots.includes(path.resolve(candidate))) throw new Error("Only sites inside the former default sites/ folder can be moved to Documents/Tovu.");
-    if (!fs.existsSync(candidate)) continue;
-    if (fs.lstatSync(candidate).isSymbolicLink()) throw new Error("The source sites folder must not be a symlink.");
-    const root = fs.realpathSync(candidate);
-    if (path.resolve(candidate) === path.join(repoRoot, "sites") && (home === root || home.startsWith(root + path.sep))) throw new Error("Sites home must be outside the checkout sites folder.");
-    if (home === root) continue;
-    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const from = path.join(root, entry.name), to = path.join(home, entry.name);
-      if (entry.name.startsWith(".") || (!fs.existsSync(path.join(from, "config.json")) || !fs.existsSync(path.join(from, ".site-meta.json")))) {
-        onSkipped?.({ dir: from });
-        continue;
-      }
-      if (selectedNames.size > 0 && !selectedNames.has(entry.name)) continue;
-      const { meta, config } = readSiteDir({ dir: from });
-      try { fs.lstatSync(to); throw new Error(`Move target already exists: ${to}`); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-      const existing = resolveSiteDatabasePaths({ dir: from, siteId: meta.siteId }, { workspace, reserveIdentity: false });
-      const selected = resolveSiteDatabasePaths({ dir: to, siteId: meta.siteId }, { workspace, placement: workspace.config({}).databases });
-      if (selected.contentDbPath.startsWith(from + path.sep)) throw new Error("App-data databases must be outside the site being moved.");
-      const placement = workspace.config({}).databases;
-      const databases = [{ from: existing.contentDbPath, to: selected.contentDbPath }, { from: existing.chatDbPath, to: selected.chatDbPath }]
-        .filter((db) => fs.existsSync(db.from)).map((db) => ({ ...db,
-          // Existing in-site placement wins: a folder rename carries the DB atomically, so a
-          // folder-level move needs neither a new DB copy nor a second backup of those same bytes.
-          to: placement === "inSite" && db.from.startsWith(from + path.sep) ? path.join(to, path.relative(from, db.from)) : db.to,
-        }));
-      for (const db of databases) {
-        for (const suffix of ["", "-wal", "-shm"]) {
-          if (fs.existsSync(db.from + suffix) && !fs.lstatSync(db.from + suffix).isFile()) throw new Error(`Database move requires a regular file: ${db.from + suffix}`);
-          if (db.from !== db.to && fs.existsSync(db.to + suffix)) throw new Error(`Database move target already exists: ${db.to + suffix}`);
-        }
-      }
-      plans.push({ from, to, id: meta.siteId, name: config.name, databases, running: workspace.running({ path: from }).peek({}) });
-  }
+  return [...new Set(sourceRoots ?? formerRoots)].flatMap((candidate) => {
+    const root = openSourceRoot({ candidate, formerRoots, repoRoot, home });
+    return root ? planRootMoves({ root, home, workspace, selectedNames }, { onSkipped }) : [];
+  });
+}
+
+/** Validate one source root before any of its children are read.
+ * @returns The real root, or undefined when it is absent or already is the sites home.
+ * @throws A root outside the former default, a symlinked root, or a checkout root holding the home.
+ * @complexity O(1) filesystem probes.
+ */
+function openSourceRoot({ candidate, formerRoots, repoRoot, home }: { candidate: string; formerRoots: readonly string[]; repoRoot: string; home: string }): string | undefined {
+  // Relocate within the implicit Documents home family only: local ~/Tovu sites must never be silently
+  // transferred into synced Documents. Checkout compatibility roots remain discovery sources.
+  if (!formerRoots.includes(path.resolve(candidate))) throw new Error("Only sites inside the former default sites/ folder can be moved to Documents/Tovu.");
+  if (!fs.existsSync(candidate)) return undefined;
+  if (fs.lstatSync(candidate).isSymbolicLink()) throw new Error("The source sites folder must not be a symlink.");
+  const root = fs.realpathSync(candidate);
+  if (path.resolve(candidate) === path.join(repoRoot, "sites") && (home === root || home.startsWith(root + path.sep))) throw new Error("Sites home must be outside the checkout sites folder.");
+  return home === root ? undefined : root;
+}
+
+/** Plan every selected site folder directly inside one validated root, reporting non-site folders.
+ * @complexity O(n) children of the root plus each selected site's metadata/catalog reads.
+ */
+function planRootMoves({ root, home, workspace, selectedNames }: { root: string; home: string; workspace: SitesWorkspace; selectedNames: ReadonlySet<string> }, { onSkipped }: Pick<SitesMovePlanOptions, "onSkipped"> = {}): MovePlan[] {
+  const plans: MovePlan[] = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const from = path.join(root, entry.name);
+    if (!isSiteFolder({ name: entry.name, dir: from })) onSkipped?.({ dir: from });
+    else if (isSelected({ name: entry.name, selectedNames })) plans.push(planSiteMove({ from, to: path.join(home, entry.name), workspace }));
   }
   return plans;
 }
+
+/** A site folder is visible (no dot prefix) and carries both site markers. */
+function isSiteFolder({ name, dir }: { name: string; dir: string }): boolean {
+  return !name.startsWith(".") && fs.existsSync(path.join(dir, "config.json")) && fs.existsSync(path.join(dir, ".site-meta.json"));
+}
+
+/** An absent or empty selection includes all sites. */
+function isSelected({ name, selectedNames }: { name: string; selectedNames: ReadonlySet<string> }): boolean {
+  return selectedNames.size === 0 || selectedNames.has(name);
+}
+
+/** Read one site's identity and plan its folder and database moves without writing anything.
+ * @throws Invalid metadata, a target collision, or a database that cannot move safely.
+ */
+function planSiteMove({ from, to, workspace }: { from: string; to: string; workspace: SitesWorkspace }): MovePlan {
+  const { meta, config } = readSiteDir({ dir: from });
+  assertMoveTargetAbsent({ to });
+  const databases = planDatabaseMoves({ from, to, siteId: meta.siteId, workspace });
+  return { from, to, id: meta.siteId, name: config.name, databases, running: workspace.running({ path: from }).peek({}) };
+}
+
+/** Refuse any existing entry at the target, even a dangling symlink; other probe errors propagate. */
+function assertMoveTargetAbsent({ to }: { to: string }): void {
+  try { fs.lstatSync(to); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  throw new Error(`Move target already exists: ${to}`);
+}
+
+/** Pair each existing database with its destination under the configured placement.
+ * @throws App-data placement inside the moved site, a non-file database/sidecar, or a target collision.
+ * @complexity O(1): two databases with three files each.
+ */
+function planDatabaseMoves({ from, to, siteId, workspace }: { from: string; to: string; siteId: string; workspace: SitesWorkspace }): MovePlan["databases"] {
+  const existing = resolveSiteDatabasePaths({ dir: from, siteId }, { workspace, reserveIdentity: false });
+  const placement = workspace.config({}).databases;
+  const selected = resolveSiteDatabasePaths({ dir: to, siteId }, { workspace, placement });
+  if (selected.contentDbPath.startsWith(from + path.sep)) throw new Error("App-data databases must be outside the site being moved.");
+  const databases = [{ from: existing.contentDbPath, to: selected.contentDbPath }, { from: existing.chatDbPath, to: selected.chatDbPath }]
+    .filter((db) => fs.existsSync(db.from)).map((db) => ({ ...db,
+      // Existing in-site placement wins: a folder rename carries the DB atomically, so a
+      // folder-level move needs neither a new DB copy nor a second backup of those same bytes.
+      to: placement === "inSite" && db.from.startsWith(from + path.sep) ? path.join(to, path.relative(from, db.from)) : db.to,
+    }));
+  for (const db of databases) assertDatabaseMovable({ db });
+  return databases;
+}
+
+/** Each database file and sidecar must be a regular file, and a relocated one must not overwrite anything. */
+function assertDatabaseMovable({ db }: { db: { from: string; to: string } }): void {
+  for (const suffix of ["", "-wal", "-shm"]) {
+    if (fs.existsSync(db.from + suffix) && !fs.lstatSync(db.from + suffix).isFile()) throw new Error(`Database move requires a regular file: ${db.from + suffix}`);
+    if (db.from !== db.to && fs.existsSync(db.to + suffix)) throw new Error(`Database move target already exists: ${db.to + suffix}`);
+  }
+}
+
 /** Require the site stopped, reserve both identities against boots, then verify and commit.
  * A crashed apply retains a verified destination or the original; it never silently overwrites.
  * @param options.sites - Optional checkout folder names, retained across every locked re-plan.
@@ -98,65 +148,90 @@ export function planSitesMove({ repoRoot }: { repoRoot: string }, { workspace = 
  * @complexity O(total site bytes + SQLite verification), plus registry I/O.
  */
 export async function moveSitesHome(
-  { repoRoot }: { repoRoot: string }, { apply = false, workspace = createSitesWorkspace({}, { cwd: repoRoot, catalogRecovery: false }), verifyDatabase = inspectStoppedDatabase, relocateDirectory = moveDirectoryVerified, sites, onSkipped, onRunning = ({ dir, running }) => console.warn(`Skipped running site in ${running.app}: ${dir}. Stop it before moving it.`), sourceRoots, projectsPaths }: Partial<SitesMovePorts> & SitesMovePlanOptions & { apply?: boolean } = {},
+  { repoRoot }: { repoRoot: string }, { apply = false, workspace = createSitesWorkspace({}, { cwd: repoRoot, catalogRecovery: false }), verifyDatabase = inspectStoppedDatabase, relocateDirectory = moveDirectoryVerified, sites, onSkipped, onRunning = warnRunning, sourceRoots, projectsPaths }: Partial<SitesMovePorts> & SitesMovePlanOptions & { apply?: boolean } = {},
 ): Promise<MovePlan[]> {
   const plans = planSitesMove({ repoRoot }, { workspace, sites, onSkipped, sourceRoots });
   if (!apply) return plans;
   const home = workspace.home({});
   // Lock parents can create directories too; refuse an absent volume before acquiring any lane.
   if (!workspace.homeAvailable({})) throw new Error(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
+  const replan = () => planSitesMove({ repoRoot }, { workspace, sites, sourceRoots });
   const moved: MovePlan[] = [];
   await withFileLock({ lockPath: `${home}.move.lock`, run: async () => {
     // Running sites are refused individually; stopped siblings can move without forcing a stop.
     // Journal/exclusive-lock admission still precedes every byte copied for stopped sites.
-    const stopped = planSitesMove({ repoRoot }, { workspace, sites, sourceRoots });
-    for (const plan of stopped) {
-      if (plan.running) { onRunning({ dir: plan.from, running: plan.running }); continue; }
-      for (const db of plan.databases) assertDatabaseStopped({ path: db.from });
-    }
-    if (stopped.length && stopped.every((plan) => plan.running)) {
-      const plan = stopped[0]!;
-      throw new Error(`Site is running in ${plan.running!.app}: ${plan.from}. Stop it before moving it.`);
-    }
+    admitStoppedSites({ plans: replan() }, { onRunning });
     // Re-plan after obtaining the migration lane: another apply may have completed while waiting.
-    for (const plan of planSitesMove({ repoRoot }, { workspace, sites, sourceRoots })) {
-      if (plan.running) continue;
-      await withFileLock({ lockPath: `${plan.to}.creation.lock`, run: async () => {
-        const live = workspace.running({ path: plan.from }).peek({});
-        if (live) throw new Error(`Site is running in ${live.app}: ${plan.from}. Stop it before moving it.`);
-        for (const db of plan.databases) assertDatabaseStopped({ path: db.from });
-        const reservation = workspace.claim({ path: plan.from, app: "Migration" });
-        if (!reservation.acquired) throw new Error(`Another app started this site: ${plan.from}`);
-        let targetToken: string | undefined;
-        try {
-          const targetReservation = workspace.claim({ path: plan.to, app: "Migration" });
-          if (!targetReservation.acquired) throw new Error(`Another app started the move target: ${plan.to}`);
-          targetToken = targetReservation.record.token;
-          fs.mkdirSync(workspace.home({}), { recursive: true });
-          relocateDirectory({ from: plan.from, to: plan.to, commit: () => {
-            const verified = readSiteDir({ dir: plan.to });
-            if (verified.meta.siteId !== plan.id) throw new Error("Moved site's identity did not match.");
-            workspace.relocate({ from: plan.from, to: plan.to,
-              entry: { id: plan.id, name: plan.name, path: plan.from, createdBy: "migrated", lastOpened: null },
-              references: sitesProjectReferences({ workspace, from: plan.from, to: plan.to }, { projectsPaths }),
-            });
-          } }, { excluded: [".tovu-running.json", ".tovu-running.json.lock"],
-            relocateFiles: ({ target }) => plan.databases.map((db) => ({
-              from: db.from.startsWith(plan.from + path.sep) ? path.join(target, path.relative(plan.from, db.from)) : db.from,
-              to: db.to, sidecars: ["-wal", "-shm"],
-            })), verifyFile: verifyDatabase,
-          });
-          moved.push(plan);
-        } finally {
-          // Release at the new path only after the move, so cleanup never recreates the source.
-          // Leases now live in app-data, so release both identities even after the source moves.
-          workspace.running({ path: plan.from }).release({ token: reservation.record.token });
-          if (targetToken) workspace.running({ path: plan.to }).release({ token: targetToken });
-        }
-      } }, { createParent: true, staleMs: Infinity });
+    for (const plan of replan().filter((candidate) => !candidate.running)) {
+      await moveOneSite({ plan, workspace }, { relocateDirectory, verifyDatabase, projectsPaths });
+      moved.push(plan);
     }
   } }, { createParent: true, staleMs: Infinity });
   return moved;
+}
+
+/** Default running-site report for the CLI and desktop callers. */
+function warnRunning({ dir, running }: { dir: string; running: DirectoryRunningRecord }): void {
+  console.warn(`Skipped running site in ${running.app}: ${dir}. Stop it before moving it.`);
+}
+
+/** Report each running site, prove every stopped site's databases closed, and refuse a batch with only running sites.
+ * @throws The first site's running error when every planned site is running, or a database admission error.
+ * @complexity O(p) plans plus one exclusive probe per stopped database.
+ */
+function admitStoppedSites({ plans }: { plans: readonly MovePlan[] }, { onRunning }: { onRunning: NonNullable<SitesMovePlanOptions["onRunning"]> }): void {
+  for (const plan of plans) {
+    if (plan.running) onRunning({ dir: plan.from, running: plan.running });
+    else for (const db of plan.databases) assertDatabaseStopped({ path: db.from });
+  }
+  const [first] = plans;
+  if (first?.running && plans.every((plan) => plan.running)) throw new Error(`Site is running in ${first.running.app}: ${first.from}. Stop it before moving it.`);
+}
+
+/** Move one stopped site under its target creation lock while both identities are reserved.
+ * @throws A site or target claimed by another app, a database admission error, or a failed verified move.
+ * @complexity The site's bytes plus SQLite verification and catalog I/O.
+ */
+async function moveOneSite({ plan, workspace }: { plan: MovePlan; workspace: SitesWorkspace }, ports: SiteRelocationPorts): Promise<void> {
+  await withFileLock({ lockPath: `${plan.to}.creation.lock`, run: async () => {
+    const live = workspace.running({ path: plan.from }).peek({});
+    if (live) throw new Error(`Site is running in ${live.app}: ${plan.from}. Stop it before moving it.`);
+    for (const db of plan.databases) assertDatabaseStopped({ path: db.from });
+    const reservation = workspace.claim({ path: plan.from, app: "Migration" });
+    if (!reservation.acquired) throw new Error(`Another app started this site: ${plan.from}`);
+    let targetToken: string | undefined;
+    try {
+      const targetReservation = workspace.claim({ path: plan.to, app: "Migration" });
+      if (!targetReservation.acquired) throw new Error(`Another app started the move target: ${plan.to}`);
+      targetToken = targetReservation.record.token;
+      fs.mkdirSync(workspace.home({}), { recursive: true });
+      relocateSite({ plan, workspace }, ports);
+    } finally {
+      // Release at the new path only after the move, so cleanup never recreates the source.
+      // Leases now live in app-data, so release both identities even after the source moves.
+      workspace.running({ path: plan.from }).release({ token: reservation.record.token });
+      if (targetToken) workspace.running({ path: plan.to }).release({ token: targetToken });
+    }
+  } }, { createParent: true, staleMs: Infinity });
+}
+
+type SiteRelocationPorts = Pick<SitesMovePorts, "relocateDirectory" | "verifyDatabase"> & Pick<SitesMovePlanOptions, "projectsPaths">;
+
+/** Verified folder move whose commit re-checks identity and updates the registry and desktop catalogs. */
+function relocateSite({ plan, workspace }: { plan: MovePlan; workspace: SitesWorkspace }, { relocateDirectory, verifyDatabase, projectsPaths }: SiteRelocationPorts): void {
+  relocateDirectory({ from: plan.from, to: plan.to, commit: () => {
+    const verified = readSiteDir({ dir: plan.to });
+    if (verified.meta.siteId !== plan.id) throw new Error("Moved site's identity did not match.");
+    workspace.relocate({ from: plan.from, to: plan.to,
+      entry: { id: plan.id, name: plan.name, path: plan.from, createdBy: "migrated", lastOpened: null },
+      references: sitesProjectReferences({ workspace, from: plan.from, to: plan.to }, { projectsPaths }),
+    });
+  } }, { excluded: [".tovu-running.json", ".tovu-running.json.lock"],
+    relocateFiles: ({ target }) => plan.databases.map((db) => ({
+      from: db.from.startsWith(plan.from + path.sep) ? path.join(target, path.relative(plan.from, db.from)) : db.from,
+      to: db.to, sidecars: ["-wal", "-shm"],
+    })), verifyFile: verifyDatabase,
+  });
 }
 /** Released hosts have no lease. SQLite's exclusive lock is the admission proof. Never copy a live SQLite inode.
  * A WAL/SHM that survives while this probe holds that lock was left by an unclean stop (no process has the DB):
@@ -183,16 +258,17 @@ export function assertDatabaseStopped({ path: file }: { path: string }, _options
  * existing SQLite inspector. It now supports strict counts; its diagnostics mode still reports
  * partial results. No process is signalled: a recycled PID is not permission to stop another app.
  * Row counts include tables with unusual quoted names and distinguish identical totals per table.
+ * @param options.verifyIntegrity - Integrity/row-count inspector; defaults to Jini's SQLite inspector.
  * @complexity O(database pages + all table rows), one stopped connection per verification.
  */
-export function inspectStoppedDatabase({ path: file }: { path: string }, _options = {}): string {
+export function inspectStoppedDatabase({ path: file }: { path: string }, { verifyIntegrity = verifySqliteIntegrity }: { verifyIntegrity?: typeof verifySqliteIntegrity } = {}): string {
   // SQLite can create WAL/SHM even for a readonly connection. Remember exactly what existed;
   // only this inspection's artifacts may be removed, never a pre-existing journal.
   const absentSidecars = ["-wal", "-shm"].map((suffix) => file + suffix).filter((sidecar) => !fs.existsSync(sidecar));
   let db: Database.Database | undefined;
   try {
     db = new Database(file, { readonly: true, fileMustExist: true });
-    const checked = verifySqliteIntegrity({ db }, { includeRowCounts: true });
+    const checked = verifyIntegrity({ db }, { includeRowCounts: true });
     if (!checked.ok) throw new Error(`SQLite integrity_check failed for ${path.basename(file)}: ${checked.issues.map((issue) => issue.message).join('; ')}`);
     if (!checked.rowCounts) throw new Error("Build @jini-ai/db before running the stopped-site database mover.");
     return JSON.stringify(checked.rowCounts);

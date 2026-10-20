@@ -1,4 +1,4 @@
-import { constants, lstatSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, chmodSync } from "node:fs";
+import fs, { constants } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import type { RawFilePort, RawFileSnapshot } from "#src/features/publish-content/backstop-ports";
@@ -8,27 +8,47 @@ import { normalizeMode } from "#src/features/publish-content/file-tree-policy";
 function missing(error: unknown): boolean { return (error as { code?: string })?.code === "ENOENT"; }
 function sha(bytes: Uint8Array): string { return createHash("sha256").update(bytes).digest("hex"); }
 
+const LINK_REFUSAL = "Links are never sent; choose a regular file inside the site folder.";
+const NOT_REGULAR_REFUSAL = "Choose a regular file inside the site folder.";
+
+/** The `node:fs` calls this adapter makes, injectable so fault paths are testable without races. */
+export type BackstopFilesystem = Pick<typeof fs, "lstatSync" | "mkdirSync" | "openSync" | "closeSync" | "readFileSync" | "writeFileSync" | "renameSync" | "unlinkSync" | "chmodSync">;
+
+/** lstat that reports an absent path as null; every other failure propagates. */
+function lstatOrNull({ file }: { file: string }, { filesystem }: { filesystem: BackstopFilesystem }): fs.Stats | null {
+  try { return filesystem.lstatSync(file); } catch (error) { if (missing(error)) return null; throw error; }
+}
+
+/** Walk each component below the root without following links. An absent component means the
+ * file is new, which is safe. @complexity O(c) lstat calls for c path components.
+ */
+function componentsRefusal({ root, parts }: { root: string; parts: readonly string[] }, { filesystem }: { filesystem: BackstopFilesystem }): string | null {
+  let current = root;
+  for (const [index, part] of parts.entries()) {
+    current = path.join(current, part);
+    const stat = lstatOrNull({ file: current }, { filesystem });
+    if (!stat) return null;
+    if (stat.isSymbolicLink()) return LINK_REFUSAL;
+    if (index < parts.length - 1 ? !stat.isDirectory() : !stat.isFile()) return NOT_REGULAR_REFUSAL;
+  }
+  return null;
+}
+
 /** Single CMS site-file adapter. lstat every component, never follow a link; stage on the same
  * filesystem and rename only verified regular bytes. Previous files stay in a private folder for
- * one-click undo, rather than relying on the whole-db restore/restart path. */
-export function createRawFileSitePort({ siteDir }: { siteDir: string }, _optional: Record<string, never> = {}): RawFilePort {
+ * one-click undo, rather than relying on the whole-db restore/restart path.
+ * @param options.filesystem - The `node:fs` calls used; defaults to Node's.
+ */
+export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesystem = fs }: { filesystem?: BackstopFilesystem } = {}): RawFilePort {
+  const { lstatSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, chmodSync } = filesystem;
   const root = path.resolve(siteDir);
   function check(relPath: string): string | null {
     const denied = checkRawFilePath({ relPath });
     if (denied) return denied;
     try {
-      const rootStat = lstatSync(root);
-      if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) return "The site folder must be a real directory, never a link.";
-      const parts = relPath.split("/");
-      let current = root;
-      for (let i = 0; i < parts.length; i++) {
-        current = path.join(current, parts[i]!);
-        let stat;
-        try { stat = lstatSync(current); } catch (error) { if (missing(error)) return null; throw error; }
-        if (stat.isSymbolicLink()) return "Links are never sent; choose a regular file inside the site folder.";
-        if (i < parts.length - 1 ? !stat.isDirectory() : !stat.isFile()) return "Choose a regular file inside the site folder.";
-      }
-      return null;
+      // lstat never follows a link: a linked site folder is not a directory here.
+      if (!lstatSync(root).isDirectory()) return "The site folder must be a real directory, never a link.";
+      return componentsRefusal({ root, parts: relPath.split("/") }, { filesystem });
     } catch (error) { return missing(error) ? "The site folder is unavailable." : "This file cannot be inspected safely."; }
   }
   function target(relPath: string): string {
@@ -48,8 +68,10 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, _optiona
   }
   function privateDir(name: ".publish-staging" | ".publish-previous"): string {
     const dir = path.join(root, name);
-    try { const stat = lstatSync(dir); if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("The publish staging folder is not a safe directory."); }
-    catch (error) { if (!missing(error)) throw error; mkdirSync(dir, { mode: 0o700 }); }
+    // lstat never follows a link, so a linked folder fails isDirectory() too.
+    const stat = lstatOrNull({ file: dir }, { filesystem });
+    if (!stat) mkdirSync(dir, { mode: 0o700 });
+    else if (!stat.isDirectory()) throw new Error("The publish staging folder is not a safe directory.");
     chmodSync(dir, 0o700);
     return dir;
   }
@@ -57,8 +79,9 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, _optiona
     let current = root;
     for (const part of relPath.split("/").slice(0, -1)) {
       current = path.join(current, part);
-      try { const stat = lstatSync(current); if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Links are never sent; choose a regular file inside the site folder."); }
-      catch (error) { if (!missing(error)) throw error; mkdirSync(current, { mode: 0o755 }); }
+      const stat = lstatOrNull({ file: current }, { filesystem });
+      if (!stat) mkdirSync(current, { mode: 0o755 });
+      else if (!stat.isDirectory()) throw new Error(LINK_REFUSAL);
     }
   }
   function replace(relPath: string, bytes: Uint8Array, mode: number): void {
