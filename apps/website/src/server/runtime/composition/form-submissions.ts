@@ -117,6 +117,7 @@ function emptyReport({ scope, destination }: { scope: string; destination: FormD
 
 /** One destination's pull and import; a failure becomes that destination's report, never a throw.
  * The failure's full cause is logged under a reference the report repeats, so a person can quote it.
+ * A failed report still counts the pages committed before the failure, as the per-form counts do.
  * @complexity O(pull cap * rows). */
 async function pullOne(
   required: PullOneInput,
@@ -125,30 +126,33 @@ async function pullOne(
   const { deps, workspaceId, scope, destination, module, kit } = required;
   const base = { targetId: scope, url: new URL(destination.url).origin };
   const forms = new Map<string, SlugPullCounts>();
+  const committed: RemoteImportResult[] = [];
   try {
     const pulled = await pullFromFormDestination({ module, scope, destination, kit,
-      importPage: ({ items, destinationKey }) => importCounted({ forms, items, run: () => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
+      importPage: ({ items, destinationKey }) => importCounted({ forms, committed, items, run: () => importRemoteFormSubmissions({ deps: { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo,
         receipts: deps.receipts, outbox: deps.outbox, clock: deps.clock, idGen: deps.idGen }, workspaceId, destinationKey, items }) }) });
     return { report: { ...base, ...sumPages({ pages: pulled.pages }), pulled: pulled.pulled, acknowledged: pulled.acknowledged, hasMore: pulled.hasMore }, forms: [...forms.values()] };
   } catch (error) {
     const reference = deps.idGen.newId();
     (optional.logError ?? console.error)(`[form-submissions] pull from ${base.url} (${scope}) failed, reference ${reference}: ${failureDetail({ error, secret: destination.secret })}`);
     const message = error instanceof Error ? error.message : String(error);
-    return { report: { ...emptyReport({ scope, destination }),
+    return { report: { ...emptyReport({ scope, destination }), ...sumPages({ pages: committed }),
       error: `${message} If it fails again, report reference ${reference}: the site's server log has the details.` }, forms: [...forms.values()] };
   }
 }
 
-/** One page's import, counted per form: its own counts when it commits, every row as `failed` when
- * it throws (none of that page is acknowledged, so all of it is read again next time).
+/** One page's import, counted per form: its own counts when it commits (the page also joins
+ * `committed`), every row as `failed` when it throws (none of that page is acknowledged, so all of
+ * it is read again next time).
  * @throws whatever the import throws. @complexity O(rows). */
 async function importCounted(
-  required: { forms: Map<string, SlugPullCounts>; items: readonly RemoteSubmissionInput[]; run: () => Promise<RemoteImportResult> },
+  required: { forms: Map<string, SlugPullCounts>; committed: RemoteImportResult[]; items: readonly RemoteSubmissionInput[]; run: () => Promise<RemoteImportResult> },
   _optional: Record<string, never> = {},
 ): Promise<RemoteImportResult> {
   const { forms, items } = required;
   try {
     const page = await required.run();
+    required.committed.push(page);
     for (const counts of page.forms) addCounts({ forms, counts: { ...counts, failed: 0 } });
     return page;
   } catch (error) {
