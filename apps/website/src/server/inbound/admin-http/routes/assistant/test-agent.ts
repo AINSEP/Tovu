@@ -1,4 +1,4 @@
-import { detectAgents } from "@jini-ai/agent-runtime";
+import { detectAgents, type DetectedAgent } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
@@ -12,6 +12,25 @@ function parseTestAgentBody(rawBody: unknown): { agentId: string; model: string 
     agentId: String(body.agentId ?? "").trim(),
     model: String(body.model ?? "").trim(),
   };
+}
+
+/** Select the requested CLI, retaining the route's missing-PATH verdict before readiness checks.
+ * @complexity O(n) time for n detected agents, O(1) additional space; no I/O.
+ */
+function detectedTestAgentOutcome(
+  { agents, agentId, model }: { agents: DetectedAgent[]; agentId: string; model: string },
+  _options: Record<string, never> = {},
+) {
+  const agent = agents.find((candidate) => candidate.id === agentId);
+  if (!agent || !agent.available) {
+    return { ok: false, message: `'${agentId}' was not found on this server's PATH.` };
+  }
+
+  // Branch logic (installed/authenticated/model-mismatch/success) lives in
+  // `resolveTestAgentOutcome` — a pure function so it can be unit-tested against fabricated
+  // `DetectedAgent` objects instead of depending on which CLIs happen to be installed and
+  // authenticated on the host running the suite. See that file's doc for why.
+  return resolveTestAgentOutcome(agent, model);
 }
 
 /**
@@ -71,18 +90,7 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
       }
 
       const agents = await (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)({}, { force: true });
-      const agent = agents.find((candidate) => candidate.id === agentId);
-
-      if (!agent || !agent.available) {
-        res.json({ ok: false, message: `'${agentId}' was not found on this server's PATH.` });
-        return;
-      }
-
-      // Branch logic (installed/authenticated/model-mismatch/success) lives in
-      // `resolveTestAgentOutcome` — a pure function so it can be unit-tested against fabricated
-      // `DetectedAgent` objects instead of depending on which CLIs happen to be installed and
-      // authenticated on the host running the suite. See that file's doc for why.
-      res.json(resolveTestAgentOutcome(agent, model));
+      res.json(detectedTestAgentOutcome({ agents, agentId, model }));
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
