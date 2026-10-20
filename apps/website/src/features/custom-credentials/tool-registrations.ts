@@ -821,6 +821,20 @@ async function saveCreateCard(
   return saved;
 }
 
+/** Optional plugin catalogs enrich this feature's create form without owning its save path. */
+async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomCredentialsToolDeps }, _options = {}): Promise<{ id: string; vendorId: string }[]> {
+  const providers: { id: string; vendorId: string }[] = [];
+  // Catalogs enrich a create-time prefill only. An unavailable plugin must not prevent saving
+  // an API key or erase explicitly supplied compatibility IDs.
+  try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.(routeDeps.workspaceId))?.list() ?? []) {
+    if (descriptor.credential) providers.push({ id: descriptor.id, vendorId: descriptor.credential.vendorId });
+  } } catch { /* The API key form still works without hosting plugins. */ }
+  try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders(routeDeps.workspaceId)).list()) {
+    providers.push({ id: descriptor.id, vendorId: descriptor.id });
+  } } catch { /* Source-control catalog enrichment is optional too. */ }
+  return providers;
+}
+
 /** Bind API creation and rotation to their existing authorization, errors and sealed store.
  * @param required - Workspace dependencies and shared surface exchanges.
  * @returns Two internal adapters; neither is registered under a retired tool id.
@@ -912,15 +926,7 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       const prefill = readCreateCredentialPrefill(input);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
-      const providers: { id: string; vendorId: string }[] = [];
-      // Catalogs enrich a create-time prefill only. An unavailable plugin must not prevent saving
-      // an API key or erase explicitly supplied compatibility IDs.
-      try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.(routeDeps.workspaceId))?.list() ?? []) {
-        if (descriptor.credential) providers.push({ id: descriptor.id, vendorId: descriptor.credential.vendorId });
-      } } catch { /* The API key form still works without hosting plugins. */ }
-      try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders(routeDeps.workspaceId)).list()) {
-        providers.push({ id: descriptor.id, vendorId: descriptor.id });
-      } } catch { /* Source-control catalog enrichment is optional too. */ }
+      const providers = await loadCreateCredentialProviders({ routeDeps });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       // Fail closed rather than degrade — the only place a token can enter is the rendered form.
       // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.

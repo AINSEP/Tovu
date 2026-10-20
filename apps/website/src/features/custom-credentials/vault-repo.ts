@@ -7,18 +7,22 @@ export function customVaultScope({ workspaceId, id, kind = "vendor" }: { workspa
     ...(id === undefined ? {} : { id }) };
 }
 
+function isCustomCredentialRow({ row }: { row: VaultRecord }, _options = {}): boolean {
+  return row.kind === "custom" || (row.kind === "vendor" && row.meta.credentialType === "custom");
+}
+
 /** Username belongs exclusively to metadata after normalization; no sealed fallback can resurrect
  * an explicit clear. The private envelope/revision never becomes a public summary field.
  */
 export function customVaultRecord({ row, expectedRevision }: { row: VaultRecord; expectedRevision?: number | null }, _options = {}): CustomCredentialSetRecord {
-  if ((row.kind !== "custom" && (row.kind !== "vendor" || row.meta.credentialType !== "custom")) || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider !== null) {
+  if (!isCustomCredentialRow({ row }) || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider !== null) {
     throw new VaultError({ code: "context" });
   }
   const meta = parseTovuStoreMeta({ kind: row.kind as "vendor" | "custom", meta: row.meta, provider: row.provider });
   if (!row.sealed) throw new VaultError({ code: "invalid-record" });
   const record: CustomCredentialSetRecord = { workspaceId: row.workspaceId, id: row.id, label: row.label,
     category: meta.category as CustomCredentialCategoryId, baseUrl: meta.baseUrl as string,
-    worksFor: meta.worksFor as string[], additionalHosts: meta.additionalHosts as string[], ...(meta.username === null || meta.username === undefined ? {} : { username: meta.username as string }),
+    worksFor: meta.worksFor as string[], additionalHosts: meta.additionalHosts as string[], ...(meta.username == null ? {} : { username: meta.username as string }),
     sealed: row.sealed, createdAt: row.createdAt, updatedAt: row.updatedAt };
   Object.defineProperty(record, "vaultRecord", { value: { ...row, meta } });
   if (expectedRevision !== undefined) Object.defineProperty(record, "vaultExpectedRevision", { value: expectedRevision });
@@ -31,7 +35,7 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
   async findById(input: { workspaceId: string; id: string }): Promise<CustomCredentialSetRecord | null> {
     const row = await this.vault.find(input);
-    if (!row || (row.kind !== "custom" && (row.kind !== "vendor" || row.meta.credentialType !== "custom"))) return null;
+    if (!row || !isCustomCredentialRow({ row })) return null;
     return customVaultRecord({ row });
   }
   async listByWorkspace(input: { workspaceId: string }): Promise<CustomCredentialSetRecord[]> {
@@ -56,20 +60,8 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
    * the envelope is unchanged. Label conflicts keep the historical raw UNIQUE error contract.
    */
   private async write({ record, expectedRevision, existing }: { record: CustomCredentialSetRecord; expectedRevision: number | null; existing?: VaultRecord }, _options = {}): Promise<void> {
-    const prepared = record.vaultExpectedRevision === undefined ? undefined : record.vaultRecord;
-    if (prepared) {
-      customVaultRecord({ row: prepared });
-      if (prepared.workspaceId !== record.workspaceId || prepared.id !== record.id) throw new VaultError({ code: "context" });
-    }
-    const unchanged = existing?.sealed != null && existing.sealed.keyId === record.sealed.keyId &&
-      existing.sealed.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce && existing.sealed.alg === record.sealed.alg;
-    const kind = existing?.kind === "custom" ? "custom" : "vendor";
-    const row: VaultRecord = prepared ?? { ...customVaultScope({ ...record, kind }), id: record.id, provider: null, label: record.label,
-      sealed: record.sealed, isDefault: existing?.isDefault ?? false, revision: (expectedRevision ?? 0) + 1,
-      last4: unchanged ? existing!.last4 : null, tokenLength: unchanged ? existing!.tokenLength : null,
-      meta: parseTovuStoreMeta({ kind, meta: { ...existing?.meta, credentialType: "custom", worksFor: [...(record.worksFor ?? existing?.meta.worksFor as string[] ?? [])], category: record.category, baseUrl: record.baseUrl,
-        additionalHosts: [...record.additionalHosts], username: record.username ?? null } }),
-      createdAt: existing?.createdAt ?? record.createdAt, updatedAt: record.updatedAt };
+    const prepared = preparedVaultRow({ record });
+    const row = prepared ?? compatibilityVaultRow({ record, expectedRevision, existing });
     try { await this.vault.put({ record: row, expectedRevision }); }
     catch (error) {
       if (error instanceof VaultError && error.code === "conflict" && (await this.listByWorkspace(record)).some(other => other.id !== record.id && other.label === record.label)) {
@@ -82,4 +74,37 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
     const row = await this.findById(input);
     if (row) await this.vault.delete({ ...input, expectedRevision: row.vaultRecord!.revision });
   }
+}
+
+type CompatibilityWrite = { record: CustomCredentialSetRecord; expectedRevision: number | null; existing?: VaultRecord };
+
+function compatibilityVaultRow({ record, expectedRevision, existing }: CompatibilityWrite, _options = {}): VaultRecord {
+  const kind = existing?.kind === "custom" ? "custom" : "vendor";
+  return { ...customVaultScope({ ...record, kind }), id: record.id, provider: null, label: record.label,
+    sealed: record.sealed, isDefault: existing?.isDefault ?? false, revision: (expectedRevision ?? 0) + 1,
+    ...compatibilityTokenHints({ record, existing }),
+    meta: compatibilityVaultMeta({ record, existing, kind }),
+    createdAt: existing?.createdAt ?? record.createdAt, updatedAt: record.updatedAt };
+}
+
+function compatibilityVaultMeta({ record, existing, kind }: Pick<CompatibilityWrite, "record" | "existing"> & { kind: "vendor" | "custom" }, _options = {}) {
+  return parseTovuStoreMeta({ kind, meta: { ...existing?.meta, credentialType: "custom",
+    worksFor: [...(record.worksFor ?? existing?.meta.worksFor as string[] ?? [])],
+    category: record.category, baseUrl: record.baseUrl,
+    additionalHosts: [...record.additionalHosts], username: record.username ?? null } });
+}
+
+function compatibilityTokenHints({ record, existing }: Pick<CompatibilityWrite, "record" | "existing">, _options = {}): Pick<VaultRecord, "last4" | "tokenLength"> {
+  const unchanged = existing?.sealed != null && existing.sealed.keyId === record.sealed.keyId &&
+    existing.sealed.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce && existing.sealed.alg === record.sealed.alg;
+  return { last4: unchanged ? existing!.last4 : null, tokenLength: unchanged ? existing!.tokenLength : null };
+}
+
+function preparedVaultRow({ record }: { record: CustomCredentialSetRecord }, _options = {}): VaultRecord | undefined {
+  const prepared = record.vaultExpectedRevision === undefined ? undefined : record.vaultRecord;
+  if (prepared) {
+    customVaultRecord({ row: prepared });
+    if (prepared.workspaceId !== record.workspaceId || prepared.id !== record.id) throw new VaultError({ code: "context" });
+  }
+  return prepared;
 }

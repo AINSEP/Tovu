@@ -627,3 +627,47 @@ test("secure API card saves explicit works-for independent of its label", { time
   assert.equal(result.credential.credentialType, "custom");
   assert.doesNotMatch(JSON.stringify(result), /synthetic-card-token/);
 });
+
+for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] as const) {
+  test(`create catalog enrichment preserves optional plugin behavior: ${mode}`, { timeout: 5000 }, async t => {
+    const { deps } = fakeRouteDeps();
+    const calls: string[] = [];
+    const loadDeployTargets: CustomCredentialsToolDeps["loadDeployTargets"] = mode === "missing" ? undefined : async workspaceId => {
+      assert.equal(workspaceId, WORKSPACE_ID);
+      calls.push("deploy");
+      if (mode === "unavailable") throw new Error("catalog unavailable");
+      return {
+        get: () => undefined, refusals: [],
+        list: () => mode === "populated" || mode === "partial" ? [
+          { pluginId: "test", descriptor: { id: "host-target", label: "Host", module: "host.mjs", configFields: [], credential: { vendorId: "host-vendor", tokenField: "token", fields: [] } }, module: { create: () => { throw new Error("must not create a target"); } } },
+          { pluginId: "test", descriptor: { id: "no-credential", label: "No credential", module: "none.mjs", configFields: [] }, module: { create: () => { throw new Error("must not create a target"); } } },
+        ] : [],
+      };
+    };
+    const configured: CustomCredentialsToolDeps = {
+      ...deps,
+      ...(loadDeployTargets ? { loadDeployTargets } : {}),
+      loadSourceControlProviders: async workspaceId => {
+        assert.equal(workspaceId, WORKSPACE_ID);
+        calls.push("source");
+        if (mode === "unavailable" || mode === "partial") throw new Error("source catalog unavailable");
+        return { get: () => undefined, refusals: [], list: () => mode === "populated" ? [
+          { pluginId: "test", descriptor: { id: "source-host", label: "Source", apiOrigin: "https://source.example.com", module: "source.mjs" }, module: { create: () => { throw new Error("must not create a provider"); } } },
+        ] : [] };
+      },
+    };
+    const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const createTool = tool(buildRegistrations(configured, exchanges), TOOL_ID);
+    const { pending, exchangeId, ui } = await raiseForm(createTool, { worksFor: ["explicit-host"] }, { signal: t.signal });
+    assert.deepEqual(calls, mode === "missing" ? ["source"] : ["deploy", "source"]);
+    assert.match(ui.resource.text, /explicit-host/);
+    if (mode === "populated" || mode === "partial") {
+      assert.match(ui.resource.text, /host-target/);
+      assert.match(ui.resource.text, /host-vendor/);
+      assert.doesNotMatch(ui.resource.text, /no-credential/);
+    }
+    if (mode === "populated") assert.match(ui.resource.text, /source-host/);
+    exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: TOOL_ID });
+    assert.equal((await pending as { created: boolean }).created, false);
+  });
+}
