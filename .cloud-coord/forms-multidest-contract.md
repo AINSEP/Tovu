@@ -60,6 +60,15 @@ deliver?(required: {
 type FormDeliveryConnectionPort = (required: { workspaceId; connectionRef; adapterId }, optional?) => Promise<FormDestinationCredential | null>;
 ```
 
+Credential scope (Phase B, F8 H2, fixed in F9A): a `FormDeliveryConnectionPort` returns null — so the
+attempt fails as non-retryable `authorization-required` and the adapter is never called — unless the
+connection is granted to the binding's `adapterId` (a custom credential's `worksFor` lists it). Each
+attempt's `kit` exposes only `fetch`/`timeouts`/`now`, and `kit.fetch` reaches only the credential's
+`baseUrl` origin and its optional `additionalHosts` (exact origin, http/https, no `user:pass@`); any other
+URL rejects before a network call with `configuration-invalid` (non-retryable).
+`FormDestinationCredential` gains optional `additionalHosts?: readonly string[]`. Plugins run in-process,
+so this bounds the kit, not a plugin that calls `globalThis.fetch` itself (only a sandbox would).
+
 `binding` and `idempotencyKey` stay optional in the TS type so receive-only adapters compile
 unchanged; the push path always supplies them. The host spreads `job.snapshot` (`form`,
 `submission`) plus `job.binding` and `job.idempotencyKey` into the call.
