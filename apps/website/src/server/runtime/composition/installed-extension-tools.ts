@@ -29,6 +29,9 @@ import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/t
 import { createRetiredPluginToolAliases } from "#src/features/agent-plugins/retired-plugin-tool-aliases";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
 import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
+import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
+import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
+import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 
 /** Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
  *  capability tool directly onto `registry`, in that fixed order. Never throws or rejects: each of
@@ -58,6 +61,8 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
     );
   }
 
+  await registerExecutableAgentPluginTools(deps, log);
+
   try {
     await registerEnabledPluginCapabilityTools(registry, {
       authorize: deps.authorize,
@@ -76,3 +81,25 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
     );
   }
 };
+
+/** Registers executable Agent Plugin tools when the composition bound their host ports and a
+ *  confirmation transport; otherwise the family is skipped. Fails open like the other families.
+ *  @complexity O(t) in the contributed tool count; see `registerAgentPluginExecutableTools`. */
+async function registerExecutableAgentPluginTools(deps: Parameters<InstalledExtensionRegistrar>[1], log: string): Promise<void> {
+  const { agentPluginTools: host, surfaces, executablePluginToolRegistry: registry } = deps;
+  if (!host || !surfaces || !registry) return;
+  try {
+    const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
+    const { refusals } = await registerAgentPluginExecutableTools({
+      registry, workspaceId: deps.workspaceId, host, authorize: deps.authorize,
+      // Fresh per call and fail-closed: anything but a readable "active" verdict denies.
+      isActive: async ({ pluginId }) => (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === "active",
+      applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
+    });
+    for (const refusal of refusals) console.warn(`${log} ${refusal}`);
+  } catch (error) {
+    console.warn(
+      `${log} executable agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}

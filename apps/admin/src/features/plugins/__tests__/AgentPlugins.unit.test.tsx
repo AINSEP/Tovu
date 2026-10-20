@@ -495,7 +495,8 @@ describe("AgentPlugins inspector (stateful)", () => {
   // The inspector reads AGENT_PLUGIN_FILES through the real api client (2026-09-13); every other
   // request (`useAdminLocale()`'s settings read) gets an empty default-locale body. The modal's
   // Memory tab (Layout B, 852d711e6) reads `/memory` on open, so it gets the server's empty listing
-  // shape (`routes/agent-plugins/memory.ts` always sends `learned` and `notes` arrays).
+  // shape (`routes/agent-plugins/memory.ts` always sends `learned` and `notes` arrays). The modal's
+  // admin-surface tabs (2026-10-20) read `/surfaces` on open, so it gets the empty listing too.
   beforeEach(() => {
     vi.stubGlobal("fetch", (url: string) => {
       const body = String(url).includes("/agent-plugins/site-compliance/files")
@@ -507,7 +508,9 @@ describe("AgentPlugins inspector (stateful)", () => {
           }
         : String(url).includes("/agent-plugins/site-compliance/memory")
           ? { pluginId: "site-compliance", learned: [], notes: [], limits: { learned: 1048576, notes: 16384, files: 128 } }
-          : { data: [] };
+          : String(url).includes("/agent-plugins/site-compliance/surfaces")
+            ? { pluginId: "site-compliance", surfaces: [] }
+            : { data: [] };
       return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
     });
   });

@@ -19,6 +19,7 @@
  * `modules/assistant-byok.ts`'s turn route awaits once before dispatching a turn.
  */
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
 
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";
@@ -42,6 +43,10 @@ export interface InstalledExtensionToolDeps extends PluginCapabilityToolDeps {
   readonly skillLayout: import("../features/skills/layout.js").SkillLayout;
   readonly siteBinding: { readonly dir: string };
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  /** Host ports for executable Agent Plugin tools; omitted, that family is not registered. */
+  readonly agentPluginTools?: import("../features/agent-plugins/executable-tools/register.js").AgentPluginExecutableToolHost;
+  /** The process's confirmation transport, for plugin tools that ask before acting. */
+  readonly surfaces?: AssistantSurfaceDeps;
 }
 
 /** Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
