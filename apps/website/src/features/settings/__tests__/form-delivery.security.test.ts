@@ -5,7 +5,8 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, ValueValidationFailedError, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { createSettingsPrincipalLookup, set } from "../index.js";
-import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, writeFormDeliveryBindings } from "../form-delivery.js";
+import { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings } from "../form-delivery.js";
+import { writeFormDeliveryBindings } from "../form-delivery-write.js";
 
 /**
  * @file Phase-A security pins for `core.forms/deliveryBindings`: config never carries a secret
@@ -44,6 +45,43 @@ test("a credential-shaped value under an innocent key is refused without repeati
   for (const secret of [BEARER_LIKE, JWT_LIKE, PEM_LIKE]) {
     const error = refusal([binding({ config: { header: { value: secret } } })]);
     assert.equal(error.message, 'Form delivery bindings (core.forms.deliveryBindings) binding 1: "config.header.value" holds a value that looks like a credential. Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.');
+  }
+});
+
+test("the newer secret key names are refused: private/access keys, credential(s), auth/authorization, passphrase, pwd", () => {
+  for (const config of [{ privateKey: "a" }, { private_key: "a" }, { AccessKey: "a" }, { credential: "a" }, { credentials: { id: "a" } },
+    { auth: "a" }, { Authorization: "a" }, { passphrase: "a" }, { pwd: "a" }]) {
+    const error = refusal([binding({ config })]);
+    assert.match(error.message, /^Form delivery bindings \(core\.forms\.deliveryBindings\) binding 1: "config\.[^"]+" is named like a secret\. /, JSON.stringify(Object.keys(config)));
+  }
+});
+
+test("ordinary keys that only contain a shorter word stay allowed (author, authorName)", () => {
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config: { author: "Ana", authorName: "Ana" } })] })[0]?.config, { author: "Ana", authorName: "Ana" });
+});
+
+// Built at runtime: an HTTP Basic value ("user:secret" in base64) and a URL carrying user:pass.
+const BASIC_LIKE = "Bas" + "ic " + Buffer.from(`user:${"s".repeat(12)}`).toString("base64");
+const USERINFO_URL = "https://" + "user:" + "p".repeat(12) + "@" + "rows.example.com/api";
+
+test("an HTTP Basic credential or a URL with user:pass@ is refused as a config value", () => {
+  for (const secret of [BASIC_LIKE, USERINFO_URL]) {
+    const error = refusal([binding({ config: { endpoint: secret } })]);
+    assert.equal(error.message, 'Form delivery bindings (core.forms.deliveryBindings) binding 1: "config.endpoint" holds a value that looks like a credential. Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.');
+  }
+});
+
+test("plain words after Basic and URLs without a password stay allowed", () => {
+  const config = { plan: "Basic tier", url: "https://rows.example.com/api?x=1", mail: "mailto:a@example.com" };
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config })] })[0]?.config, config);
+});
+
+test("bindingId, adapterId and connectionRef holding a credential-shaped value are refused without repeating it", () => {
+  for (const field of ["bindingId", "adapterId", "connectionRef"]) {
+    for (const secret of [BEARER_LIKE, BASIC_LIKE, USERINFO_URL, JWT_LIKE]) {
+      const error = refusal([binding({ [field]: secret })]);
+      assert.equal(error.message, `Form delivery bindings (core.forms.deliveryBindings) binding 1: "${field}" holds a value that looks like a credential. Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.`);
+    }
   }
 });
 

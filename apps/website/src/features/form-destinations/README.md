@@ -29,6 +29,21 @@ deleting a submission or a binding in Tovu does not remove copies a destination 
 
 The full contract, with an example adapter, is `.cloud-coord/forms-multidest-contract.md`.
 
+## Credential scope
+
+A binding can only use a credential its owner scoped to that destination, and the credential can
+only travel to the hosts it was saved for:
+
+- The connection port hands a credential to an adapter only when the credential's `worksFor`
+  lists the binding's `adapterId`. Otherwise the attempt fails at once as `authorization-required`
+  (not retried) and the adapter is never called. To connect a destination, add its id to the
+  credential's "works for" list.
+- Each attempt's adapter gets a kit with only `fetch`, `timeouts` and `now`. Its `fetch` reaches
+  only the credential's `baseUrl` origin and its `additionalHosts`: the same exact-origin check
+  `custom_credential_make_request` applies (http/https only, no `user:pass@`). Any other URL is
+  refused before a network call with `configuration-invalid` (not retried). If a destination needs
+  another API host, add it to the credential's additional hosts.
+
 ## Public API
 
 - `types.ts`: the module ABI (`FormDestinationModule`, `FormDeliveryConnectionPort`, …).
@@ -43,5 +58,6 @@ The full contract, with an example adapter, is `.cloud-coord/forms-multidest-con
   `receive`. Nothing in core changes.
 - **A new connection kind** (for example OAuth): implement `FormDeliveryConnectionPort` and bind
   it in the site composition instead of, or beside, the custom-credential port. It must resolve by
-  stable id within the given workspace, return null when there is no usable credential, and never
-  cache or persist what it returns.
+  stable id within the given workspace, return null when there is no usable credential or the
+  connection is not granted to `adapterId`, return the origins it may reach (`baseUrl` +
+  `additionalHosts`), and never cache or persist what it returns.

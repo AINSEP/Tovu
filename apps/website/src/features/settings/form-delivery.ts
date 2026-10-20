@@ -1,6 +1,5 @@
 import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
-import type { JsonValue } from "@jini-ai/core/primitives";
-import { ensureSettingDefinitions, getEffective, SCOPE_BIT, set, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, SCOPE_BIT, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 /**
  * @file The two site settings behind durable form delivery, on the existing settings ledger:
@@ -14,10 +13,10 @@ import { ensureSettingDefinitions, getEffective, SCOPE_BIT, set, ValueValidation
  * copies a destination already received.
  *
  * Validation lives in one pure function, {@link parseFormDeliveryBindings}, used when the setting
- * is read for planning, by {@link writeFormDeliveryBindings} (the typed write a later admin or
- * plugin UI calls), and by the host settings chokepoint (`site-title-write.ts`) through
- * {@link enforceFormDeliveryBindingsWrite}, so the generic settings route and tools cannot store a
- * list planning would refuse, or a secret in `config`.
+ * is read for planning and by the host settings chokepoint (`site-title-write.ts`) through
+ * {@link enforceFormDeliveryBindingsWrite}, which every write goes through: the typed write a later
+ * admin or plugin UI calls (`form-delivery-write.ts`), the generic settings route and the tools. So
+ * none of them can store a list planning would refuse, or a secret in `config`.
  */
 
 const NAMESPACE = "core.forms";
@@ -25,16 +24,18 @@ const BINDINGS_KEY = "deliveryBindings";
 const AUTO_PULL_KEY = "autoPull";
 
 /** Caps that keep planning O(bindings × formIds) small and bounded per submission. */
-export const MAX_FORM_DELIVERY_BINDINGS = 100;
-export const MAX_FORM_DELIVERY_FORM_IDS = 1000;
+const MAX_FORM_DELIVERY_BINDINGS = 100;
+const MAX_FORM_DELIVERY_FORM_IDS = 1000;
 const MAX_REFERENCE_LENGTH = 256;
 
 const BINDING_FIELDS: ReadonlySet<string> = new Set(["bindingId", "adapterId", "connectionRef", "enabled", "formIds", "config"]);
-/** Matched against a config key lowercased with separators removed (`api_key`, `API-Key` → `apikey`). */
-const SECRET_KEY = /token|secret|password|apikey/;
-/** Values that are credentials whatever their key is called: an Authorization header value, a JWT,
- *  a PEM private key. */
-const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./, /-----BEGIN [A-Z ]*PRIVATE KEY-----/];
+/** Matched against a config key lowercased with separators removed (`api_key`, `API-Key` → `apikey`).
+ *  `auth` and `pwd` match only as the whole key, so `author` or `authorName` stay usable. */
+const SECRET_KEY = /token|secret|password|passphrase|apikey|privatekey|accesskey|credential|authorization|^auth$|^pwd$/;
+/** Values that are credentials whatever their key is called: a Bearer Authorization header value, a
+ *  JWT, a PEM private key, a URL carrying `user:pass@`. HTTP Basic is {@link isBasicCredential}. */
+const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /\b[a-z][\w+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/i];
+const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i;
 const FIX_HINT = "Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.";
 
 /**
@@ -80,31 +81,16 @@ export async function readFormDeliveryBindings(
 }
 
 /**
- * One settings write: a `core.forms.deliveryBindings` value is replaced by its validated, cleaned
- * form; any other setting passes through unchanged. Pure.
+ * One settings write: a `core.forms.deliveryBindings` value is checked against every binding rule;
+ * any other setting passes through unchanged. Pure. The value is stored as written: for JSON input
+ * the parsed bindings hold exactly the same fields and values (unknown fields are refused, not
+ * dropped), so there is no cleaned form to substitute.
  * @throws ValueValidationFailedError for any rule {@link parseFormDeliveryBindings} enforces.
  * @complexity {@link parseFormDeliveryBindings} for this setting, O(1) otherwise.
  */
 export function enforceFormDeliveryBindingsWrite(input: SetValueRequired["input"]): SetValueRequired["input"] {
-  if (input.namespace !== NAMESPACE || input.key !== BINDINGS_KEY) return input;
-  return { ...input, value: parseFormDeliveryBindings({ value: input.value }) as unknown as JsonValue };
-}
-
-/**
- * Validates the bindings and saves the cleaned list, so an invalid or secret-carrying list never
- * reaches the ledger.
- * @throws ValueValidationFailedError for any rule {@link parseFormDeliveryBindings} enforces;
- *   authorization and ledger errors from the settings write propagate.
- * @complexity {@link parseFormDeliveryBindings} plus one settings write.
- */
-export async function writeFormDeliveryBindings(
-  required: { deps: SetValueRequired["deps"]; workspaceId: string; callerPrincipalId: string; value: unknown },
-  _optional: Record<string, never> = {},
-): Promise<{ value: JsonValue; revisionSeq: number }> {
-  return set({ deps: required.deps, input: enforceFormDeliveryBindingsWrite({
-    namespace: NAMESPACE, key: BINDINGS_KEY, scope: "workspace", workspaceId: required.workspaceId,
-    callerPrincipalId: required.callerPrincipalId, value: required.value as JsonValue,
-  }) });
+  if (input.namespace === NAMESPACE && input.key === BINDINGS_KEY) parseFormDeliveryBindings({ value: input.value });
+  return input;
 }
 
 /**
@@ -148,11 +134,14 @@ function parseBinding(required: { value: unknown; where: string }): FormDelivery
   };
 }
 
+/** Ids and references are checked like config values: a secret pasted into one would be stored
+ *  and copied into every delivery job as plainly as one in `config`. */
 function parseReference(required: { value: unknown; where: string; field: string }): string {
   const { value, where, field } = required;
   if (typeof value !== "string" || value.length === 0 || value.length > MAX_REFERENCE_LENGTH) {
     throw invalid(`${where}: ${field} must be a non-empty string of at most ${MAX_REFERENCE_LENGTH} characters.`);
   }
+  assertNotSecretValue({ path: field, value, where });
   return value;
 }
 
@@ -185,7 +174,16 @@ function childrenOf(required: { path: string; value: object; where: string }): {
 }
 
 function assertNotSecretValue(required: { path: string; value: string; where: string }): void {
-  if (SECRET_VALUES.some(pattern => pattern.test(required.value))) throw invalid(`${required.where}: ${quote(required.path)} holds a value that looks like a credential. ${FIX_HINT}`);
+  if (SECRET_VALUES.some(pattern => pattern.test(required.value)) || isBasicCredential(required.value)) {
+    throw invalid(`${required.where}: ${quote(required.path)} holds a value that looks like a credential. ${FIX_HINT}`);
+  }
+}
+
+/** An HTTP Basic Authorization value: base64 that decodes to `user:password`. Decoding keeps plain
+ *  words after "Basic" (a "Basic tier" plan name) usable. */
+function isBasicCredential(value: string): boolean {
+  const encoded = BASIC_VALUE.exec(value)?.[1];
+  return encoded !== undefined && Buffer.from(encoded, "base64").toString("utf8").includes(":");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

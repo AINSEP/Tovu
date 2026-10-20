@@ -78,7 +78,6 @@ export interface FormsToolDeps {
   formDeliveryStatus?: FormDeliveryStatusPort;
 }
 
-
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own

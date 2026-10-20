@@ -52,6 +52,15 @@ export type SettingsToolDeps = CoreSettingsToolDeps & {
   approvalIdentityForRun?: (required: { ctx: ToolExecutionContext }) => Promise<{ key: string; label: string; version?: string }>;
 };
 
+/** Where visitors' form answers go: delivery bindings send every new submission to outside
+ * destinations, and the receiver collects a static site's submissions. Both always ask, because a
+ * plugin's saved escalation grant was given for execution settings, not for routing answers. */
+const FORMS_NAMESPACE = "core.forms";
+const FORM_ROUTING_SETTINGS: readonly AgentSettingWriteRule[] = [
+  { namespace: FORMS_NAMESPACE, key: "deliveryBindings", reason: "Changes where new form submissions are sent" },
+  { namespace: FORMS_NAMESPACE, key: "receiver", reason: "Changes which receiver collects your published site's form submissions" },
+];
+
 /** Host-owned assistant configuration: changes are possible only after a human card.
  * Credentials are not settings: core.execution intentionally omits byok.apiKey; provider
  * credentials, OAuth state and external-MCP grants use their own repositories. */
@@ -59,6 +68,7 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
   ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS.filter(rule => rule.key !== "localCli.agentId"),
   ...CHAT_EXECUTION_KEYS.map(key => ({ namespace: "core.execution", key, reason: "Changes your chat agent, model or thinking effort for the next turn" })),
   { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Changes your Agent plugins mode (Auto / Ask first / Off)" },
+  ...FORM_ROUTING_SETTINGS,
 ];
 
 /** Wires the generic cms tools to the host's authenticated card transport and title validator.
@@ -79,7 +89,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
       // Agent plugins opt-in belongs to the person. Always ask: a saved plugin grant must
       // never let prompt injection silently flip Ask first to Auto (or clear its override).
       const isAgentPlugins = namespace === ADMIN_INTERFACE_NAMESPACE && key === CHAT_AGENT_PLUGINS_KEY;
-      const alwaysAsk = isAgentPlugins || selectionSnapshot !== null;
+      const alwaysAsk = isAgentPlugins || namespace === FORMS_NAMESPACE || selectionSnapshot !== null;
       // Reuse the invoking plugin's canonical enable grant. Escalation consent applies once to
       // that admitted identity/version/digest; it never replaces fresh per-write scope permissions.
       const handler = approvalToolHandler({ surfaces,

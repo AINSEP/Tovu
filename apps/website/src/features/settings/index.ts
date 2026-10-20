@@ -152,4 +152,5 @@ export { getSettingsAgentToolCatalog } from "@jini-ai/core/settings";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
 export { ensureFeatureFlag, readFeatureFlag, FEATURE_FLAGS_NAMESPACE, type FeatureFlagDefinition } from './feature-flags.js';
-export { ensureFormDeliverySettings, enforceFormDeliveryBindingsWrite, MAX_FORM_DELIVERY_BINDINGS, MAX_FORM_DELIVERY_FORM_IDS, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull, writeFormDeliveryBindings } from "./form-delivery.js";
+export { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "./form-delivery.js";
+export { writeFormDeliveryBindings } from "./form-delivery-write.js";
