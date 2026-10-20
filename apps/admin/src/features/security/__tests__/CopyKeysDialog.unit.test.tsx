@@ -1,25 +1,13 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
-import type { ChangeEvent } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CopyKeysDialog } from "../CopyKeysDialog";
-import { useCopyKeys, useWiredCopyKeys, type CopyKeysPort } from "../hooks/use-copy-keys.hooks";
-import { ApiError, type AdminCredentialCopySource } from "@/lib/api";
+import { useCopyKeys, type CopyKeysPort } from "../hooks/use-copy-keys.hooks";
+import { ApiError } from "@/lib/api";
 import { subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import { useOtherCredentials } from "../hooks/use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../hooks/other-credentials-dependencies.hooks";
-
-const t = (key: string) => key;
-const sources: AdminCredentialCopySource[] = [
-  { siteId: "a", name: "Alpha", keys: [{ kind: "vendor", id: "one", label: "Main", provider: "OpenAI", worksFor: [], last4: "1234" }] },
-  { siteId: "b", name: "Beta", keys: [{ kind: "custom", id: "two", label: "Work", provider: "Example", worksFor: [], last4: "5678" }] },
-];
-function port(choices = sources): CopyKeysPort {
-  return {
-    listCredentialCopySources: vi.fn().mockResolvedValue({ sources: choices }),
-    copyCredentials: vi.fn().mockResolvedValue({ results: [{ kind: "vendor", id: "one", status: "copied", last4: "1234" }] }),
-  };
-}
+import { COPY_SOURCES as sources, fakeCopyKeysPort as port, t } from "./copy-keys.fixture";
 function Harness({ api, startSite }: { api: CopyKeysPort; startSite?: (input: { id: string }) => Promise<unknown> }) {
   const dialog = useCopyKeys({ t }, { port: api, startSite });
   return <><button onClick={dialog.show}>Open</button><CopyKeysDialog dialog={dialog} t={t} /></>;
@@ -85,6 +73,33 @@ describe("CopyKeysDialog", () => {
     expect(api.copyCredentials).not.toHaveBeenCalled();
   });
 
+  it("locks the source picker and overwrite while projects load", async () => {
+    const api = port();
+    let finish!: (value: { sources: typeof sources }) => void;
+    vi.mocked(api.listCredentialCopySources).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const user = userEvent.setup();
+    render(<Harness api={api} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Loading projects…");
+    expect(screen.getByLabelText("Source project")).toBeDisabled();
+    expect(screen.getByLabelText("Overwrite existing")).toBeDisabled();
+    await act(async () => { finish({ sources }); });
+    expect(screen.getByLabelText("Source project")).toBeEnabled();
+    expect(screen.getByLabelText("Overwrite existing")).toBeEnabled();
+  });
+
+  it("says there are no keys to copy for an eligible project without keys", async () => {
+    await open(port([{ siteId: "a", name: "Alpha", keys: [] }]));
+    expect(screen.getByText("No keys to copy.")).toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+  });
+
+  it("does not say there are no keys for a refused project without keys", async () => {
+    await open(port([{ siteId: "a", name: "Alpha", keys: [], reasonCode: "source-locked", message: "Unlock this project first." }]));
+    expect(screen.getByRole("status")).toHaveTextContent("Unlock this project first.");
+    expect(screen.queryByText("No keys to copy.")).not.toBeInTheDocument();
+  });
+
   it("labels keys with their kind when the provider is absent", async () => {
     await open(port([{ ...sources[0]!, keys: [
       { kind: "custom", id: "one", label: "Main", provider: null, worksFor: [], last4: "1234" },
@@ -135,24 +150,6 @@ describe("CopyKeysDialog", () => {
     await open(port([{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade" }]), vi.fn());
     expect(screen.queryByRole("button", { name: "Start project" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
-  });
-
-  it("starts a project only once while its desktop start is in flight", async () => {
-    const api = port([{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade",
-      actionHint: { action: "start-site", siteId: "a", desktopSiteId: "/registered/alpha" } }]);
-    let finish!: () => void;
-    const started = new Promise<void>(resolve => { finish = resolve; });
-    const startSite = vi.fn(() => started);
-    const { result } = renderHook(() => useCopyKeys({ t }, { port: api, startSite }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    act(() => result.current.changeSource({ currentTarget: { value: "a" } } as ChangeEvent<HTMLSelectElement>));
-    expect(result.current.canStart).toBe(true);
-    const start = result.current.start;
-    let attempts!: Promise<void>[];
-    // Call the controller twice before completion; the dialog disables its button after one click.
-    act(() => { attempts = [start(), start()]; });
-    await act(async () => { finish(); await Promise.all(attempts); });
-    expect(startSite).toHaveBeenCalledExactlyOnceWith({ id: "/registered/alpha" });
   });
 
   it("locks source, keys, overwrite and cancellation while copying and suppresses repeat submission", async () => {
@@ -219,75 +216,6 @@ describe("CopyKeysDialog", () => {
     expect(screen.queryByText("private payload")).not.toBeInTheDocument();
   });
 
-  it("shows a safe project-list failure and can load again after reopening", async () => {
-    const api = port();
-    vi.mocked(api.listCredentialCopySources).mockRejectedValueOnce(new Error("private inventory error"));
-    const { result } = renderHook(() => useCopyKeys({ t }, { port: api }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    expect(result.current.error).toBe("Couldn't load projects. Try again.");
-    expect(result.current.loading).toBe(false);
-    act(() => result.current.cancel());
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    expect(result.current.sources).toEqual(sources);
-    expect(result.current.error).toBe("");
-  });
-
-  it.each(["resolve", "reject"])("ignores a stale inventory %s after cancellation and reopening", async outcome => {
-    let resolve!: (value: { sources: AdminCredentialCopySource[] }) => void;
-    let reject!: (error: Error) => void;
-    const oldRequest = new Promise<{ sources: AdminCredentialCopySource[] }>((yes, no) => { resolve = yes; reject = no; });
-    let finishNew!: (value: { sources: AdminCredentialCopySource[] }) => void;
-    const newRequest = new Promise<{ sources: AdminCredentialCopySource[] }>(yes => { finishNew = yes; });
-    const api = port();
-    vi.mocked(api.listCredentialCopySources).mockReturnValueOnce(oldRequest).mockReturnValueOnce(newRequest);
-    const { result } = renderHook(() => useCopyKeys({ t }, { port: api }));
-    act(() => result.current.show({ currentTarget: document.createElement("button") }));
-    expect(result.current.loading).toBe(true);
-    act(() => result.current.cancel());
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    expect(result.current.sources).toEqual([]);
-    await act(async () => {
-      if (outcome === "resolve") resolve({ sources: [{ ...sources[0]!, name: "Stale" }] });
-      else reject(new Error("stale failure"));
-      await oldRequest.catch(() => undefined);
-    });
-    expect(result.current.sources).toEqual([]);
-    expect(result.current.error).toBe("");
-    expect(result.current.loading).toBe(true);
-    await act(async () => { finishNew({ sources }); await newRequest; });
-    expect(result.current.sources).toEqual(sources);
-    expect(result.current.loading).toBe(false);
-  });
-
-  it("removes unchecked keys, bounds selection at 100, and refuses concurrent submissions and cancellation", async () => {
-    const keys = Array.from({ length: 101 }, (_, index) => ({ kind: "custom" as const, id: `k${index}`, label: `Key ${index}`, provider: null, worksFor: [] }));
-    const api = port([{ ...sources[0]!, keys }]);
-    let finish!: (value: { results: [] }) => void;
-    vi.mocked(api.copyCredentials).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
-    const { result } = renderHook(() => useCopyKeys({ t }, { port: api }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    act(() => result.current.changeSource({ currentTarget: { value: "a" } } as ChangeEvent<HTMLSelectElement>));
-    act(() => { for (const key of keys) result.current.changeKey({ currentTarget: { value: key.id, checked: true } } as ChangeEvent<HTMLInputElement>); });
-    expect(result.current.disabled).toBe(true);
-    await act(async () => { await result.current.submit({ preventDefault() {} }); });
-    expect(api.copyCredentials).not.toHaveBeenCalled();
-    act(() => result.current.changeKey({ currentTarget: { value: "k100", checked: false } } as ChangeEvent<HTMLInputElement>));
-    expect(result.current.keys.find(key => key.id === "k100")?.checked).toBe(false);
-    expect(result.current.keys.find(key => key.id === "k0")?.text).toBe("Key 0 · custom");
-    expect(result.current.disabled).toBe(false);
-    const submit = result.current.submit;
-    let attempts!: Promise<void>[];
-    act(() => { attempts = [submit({ preventDefault() {} }), submit({ preventDefault() {} })]; result.current.cancel(); });
-    expect(result.current.open).toBe(true);
-    expect(result.current.pending).toBe(true);
-    await act(async () => { finish({ results: [] }); await Promise.all(attempts); });
-    expect(api.copyCredentials).toHaveBeenCalledExactlyOnceWith({ sourceSiteId: "a", ids: keys.slice(0, 100).map(key => key.id), overwrite: false });
-    expect(result.current.results).toEqual([]);
-    expect(result.current.pending).toBe(false);
-    act(() => result.current.cancel());
-    expect(result.current.open).toBe(false);
-  });
-
   it("shows safe copy failure text for an ApiError without a reason body", async () => {
     const api = port();
     vi.mocked(api.copyCredentials).mockRejectedValue(new ApiError("private failure", 500));
@@ -296,36 +224,6 @@ describe("CopyKeysDialog", () => {
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Copying keys failed. Try again.");
     expect(screen.queryByText("private failure")).not.toBeInTheDocument();
-  });
-
-  it("uses the default HTTP port and exposes a selected empty project's message", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (url, init) => {
-      expect(url).toBe("/api/admin/v1/workspaces/workspace-local/system/credential-copy");
-      expect(init.method).toBe("GET");
-      return Response.json({ sources: [
-        { siteId: "empty", name: "Empty", keys: [], message: "No eligible keys in this project." },
-      ] });
-    }));
-    const { result } = renderHook(() => useCopyKeys({ t }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    act(() => result.current.changeSource({ currentTarget: { value: "empty" } } as ChangeEvent<HTMLSelectElement>));
-    expect(result.current.empty).toBe(true);
-    expect(result.current.keys).toEqual([]);
-    expect(result.current.sourceMessage).toBe("No eligible keys in this project.");
-    expect(result.current.disabled).toBe(true);
-  });
-
-  it("does not offer or perform desktop start for a mismatched route hint", async () => {
-    const api = port([{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade",
-      actionHint: { action: "start-site", siteId: "b", desktopSiteId: "/registered/beta" } }]);
-    const startSite = vi.fn();
-    const { result } = renderHook(() => useCopyKeys({ t }, { port: api, startSite }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    act(() => result.current.changeSource({ currentTarget: { value: "a" } } as ChangeEvent<HTMLSelectElement>));
-    expect(result.current.canStart).toBe(false);
-    await act(async () => { await result.current.start(); });
-    expect(startSite).not.toHaveBeenCalled();
-    expect(result.current.pending).toBe(false);
   });
 
   it("shows a safe start failure and keeps the upgrade selection available for retry", async () => {
@@ -340,38 +238,5 @@ describe("CopyKeysDialog", () => {
     expect(api.listCredentialCopySources).toHaveBeenCalledTimes(1);
   });
 
-  it("retains the other source when an upgrade refusal changes the selected source", async () => {
-    const api = port();
-    vi.mocked(api.copyCredentials).mockRejectedValue(new ApiError("private", 409, undefined, { reasonCode: "source-needs-upgrade" }));
-    const { result } = renderHook(() => useCopyKeys({ t }, { port: api }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    act(() => result.current.changeSource({ currentTarget: { value: "a" } } as ChangeEvent<HTMLSelectElement>));
-    act(() => result.current.changeKey({ currentTarget: { value: "one", checked: true } } as ChangeEvent<HTMLInputElement>));
-    await act(async () => { await result.current.submit({ preventDefault() {} }); });
-    expect(result.current.sources).toEqual([{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade" }, sources[1]]);
-    expect(result.current.keys).toEqual([]);
-    expect(result.current.disabled).toBe(true);
-  });
-
-  it.each([undefined, {}, { startSite: vi.fn(async () => ({})) }])("wires the HTTP inventory and optional desktop bridge: %s", async bridge => {
-    vi.stubGlobal("tovuRunner", bridge);
-    const fetch = vi.fn(async (url, init) => {
-      expect(url).toBe("/api/admin/v1/workspaces/workspace-local/system/credential-copy");
-      expect(init.method).toBe("GET");
-      return Response.json({ sources: [{ ...sources[0]!, keys: [], reasonCode: "source-needs-upgrade",
-        actionHint: { action: "start-site", siteId: "a", desktopSiteId: "/registered/alpha" } }] });
-    });
-    vi.stubGlobal("fetch", fetch);
-    const { result } = renderHook(() => useWiredCopyKeys({ t }));
-    await act(async () => { result.current.show({ currentTarget: document.createElement("button") }); });
-    expect(result.current.sources[0]?.name).toBe("Alpha");
-    act(() => result.current.changeSource({ currentTarget: { value: "a" } } as ChangeEvent<HTMLSelectElement>));
-    expect(result.current.canStart).toBe(!!bridge && "startSite" in bridge);
-    await act(async () => { await result.current.start(); });
-    if (bridge && "startSite" in bridge) {
-      expect(bridge.startSite).toHaveBeenCalledExactlyOnceWith("/registered/alpha");
-      expect(fetch).toHaveBeenCalledTimes(2);
-    } else expect(fetch).toHaveBeenCalledTimes(1);
-    expect(result.current.sourceMessage).toBe("Start Alpha once in Tovu to upgrade it, then copy.");
-  });
 });
+
