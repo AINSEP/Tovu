@@ -43,7 +43,8 @@ Status: PHASE A — G1–G10 merged (+ fix lots G1b, G5b, G6b, G7fix). Running s
 | G10 | MERGED | cloud/google-workspace-G10 (44c4c6377) | merged | plugin skeleton seeded DISABLED (not in BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED; gating test updated). Coord: 21/21 oauth pins, 74 plugin/bundled suites 1140/1140, cx clean, no secret-shaped literals. Hosted redirectOrigins left empty on purpose (owner registers). Coverage (subagent): auth 100/100, request-policy 35/75 … phase C. Subagent 289k tokens. |
 | G11 | running | cloud/google-workspace-G11 | | |
 | G12 | running | cloud/google-workspace-G12 | | |
-| G13 | running | cloud/google-workspace-G13 | | |
+| G13 | PARTIAL MERGED (selection verification only) | cloud/google-workspace-G13 (988b28b37) | merged | lib/picker-selection.mjs (server-side verification: id safety, account match, MIME, real Sheets access; 27 security pins), +2 safe codes. Panel + Picker BLOCKED on seams (a) no connection status/actions in handler capabilities, (b) no connection ids in handler context, (c) Tovu connect.ts drops startParams + callbackFields, (d) no plugin state, (e) no public config → G5c (Jini ports) → G6d (Tovu adapters) → G13b (UI). Coord: plugin tests 64/64, cx clean. |
+| G5c | running (Jini seam lot, ~09:35Z) | cloud/google-workspace-G5c | | connections/state/publicConfig capability ports + one-time callback-field delivery for surface handlers |
 | G6c | running (fix lot) | cloud/google-workspace-G6c | | plugin-declared budgets (45/min per connection, 240/min per instance) via real limiter |
 | G1c | running (Jini fix lot) | cloud/google-workspace-G1c | | HIGH: disconnect bumps generation before revokeCredential loads tokens → vault store returns null → provider revocation never called, reports not-needed (account-actions.ts:84-87) |
 | G14–G16 | pending | | | |
