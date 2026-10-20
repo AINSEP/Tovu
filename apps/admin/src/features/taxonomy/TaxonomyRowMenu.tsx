@@ -1,9 +1,10 @@
 import { createPortal } from "react-dom";
-import type { JSX } from "react";
+import type { CSSProperties, JSX } from "react";
 import { resolveTone, toneClassName, type RowMenuProps } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/agentic";
 import { useTaxonomyRowMenu } from "./TaxonomyRowMenu.hooks";
+
+type MenuState = ReturnType<typeof useTaxonomyRowMenu>;
 
 export type TaxonomyRowMenuProps = Pick<RowMenuProps, "items" | "triggerLabel" | "agentHandle"> & {
   /** Mounted page root, outside the row scroller and inside the scoped agent driver. */
@@ -32,7 +33,7 @@ export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, 
       disabled={portalContainer === null || items.length === 0}
       onClick={menu.onTriggerClick}
       onKeyDown={menu.onTriggerKeyDown}
-      {...(baseHandle === undefined ? {} : agentHandle({ handle: baseHandle }, { role: "button", label: triggerLabel }))}
+      {...buttonHandleProps({ handle: baseHandle, label: triggerLabel })}
     >
       <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
         <circle cx="9" cy="4.5" r="1.5" />
@@ -41,31 +42,64 @@ export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, 
       </svg>
     </button>
     {menu.open && portalContainer ? createPortal(
-      <div
-        ref={menu.menuRef}
-        role="menu"
-        aria-label={triggerLabel}
-        className={`row-menu-popup${menu.position?.placement === "above" ? " row-menu-popup-above" : ""}`}
-        style={{
-          position: "fixed",
-          top: menu.position ? menu.position.top : -9999,
-          left: menu.position ? menu.position.left : -9999,
-          visibility: menu.position ? "visible" : "hidden",
-          transform: menu.position?.placement === "above" ? "translateY(-100%)" : undefined,
-        }}
-        onKeyDown={menu.onMenuKeyDown}
-      >
-        {items.map((item, index) => <button
-          key={item.key}
-          ref={(element) => { menu.itemRefs.current[index] = element; }}
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          className={["row-menu-item", toneClassName({ tone: resolveTone({}, item) })].filter(Boolean).join(" ")}
-          onClick={() => menu.selectItem({ onSelect: item.onSelect })}
-          {...(itemHandles === undefined ? {} : agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.label }))}
-        >{item.label}</button>)}
-      </div>, portalContainer,
+      <TaxonomyRowMenuPopup menu={menu} items={items} triggerLabel={triggerLabel} itemHandles={itemHandles} />, portalContainer,
     ) : null}
   </>;
+}
+
+/**
+ * The agent-handle attributes for one of this menu's buttons, or none when it publishes no handle.
+ * @param required - The button's handle (absent when the menu has no base handle) and its label.
+ * @returns Spreadable `data-agent-*` props, or an empty object.
+ */
+function buttonHandleProps({ handle, label }: { handle: string | undefined; label: string }) {
+  return handle === undefined ? {} : agentHandle({ handle }, { role: "button", label });
+}
+
+/**
+ * Where the fixed popup sits. Before the first layout measure lands it is parked off-screen and hidden.
+ * @param required - The hook's measured position, or `null` before the first measure.
+ * @returns The popup's inline style.
+ */
+function popupStyle({ position }: { position: MenuState["position"] }): CSSProperties {
+  if (!position) return { position: "fixed", top: -9999, left: -9999, visibility: "hidden", transform: undefined };
+  return {
+    position: "fixed",
+    top: position.top,
+    left: position.left,
+    visibility: "visible",
+    transform: position.placement === "above" ? "translateY(-100%)" : undefined,
+  };
+}
+
+interface TaxonomyRowMenuPopupProps {
+  menu: MenuState;
+  items: TaxonomyRowMenuProps["items"];
+  triggerLabel: string;
+  /** One handle per item, in item order — absent when the menu publishes no handles. */
+  itemHandles: string[] | undefined;
+}
+
+/** The portalled `role="menu"` list of actions — split out of `TaxonomyRowMenu` unchanged. */
+function TaxonomyRowMenuPopup({ menu, items, triggerLabel, itemHandles }: TaxonomyRowMenuPopupProps): JSX.Element {
+  const above = menu.position?.placement === "above";
+  return <div
+    ref={menu.menuRef}
+    role="menu"
+    aria-label={triggerLabel}
+    className={`row-menu-popup${above ? " row-menu-popup-above" : ""}`}
+    style={popupStyle({ position: menu.position })}
+    onKeyDown={menu.onMenuKeyDown}
+  >
+    {items.map((item, index) => <button
+      key={item.key}
+      ref={(element) => { menu.itemRefs.current[index] = element; }}
+      type="button"
+      role="menuitem"
+      tabIndex={-1}
+      className={["row-menu-item", toneClassName({ tone: resolveTone({}, item) })].filter(Boolean).join(" ")}
+      onClick={() => menu.selectItem({ onSelect: item.onSelect })}
+      {...buttonHandleProps({ handle: itemHandles?.[index], label: item.label })}
+    >{item.label}</button>)}
+  </div>;
 }
