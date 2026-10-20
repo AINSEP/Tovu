@@ -44,4 +44,15 @@ Branch: `cloud/tw1-admin` (from `origin/restructure/apps-website-phased`). Lot b
 - L084b (AssistantDock.tsx): cyc 21/cog 10 → 8/1; new DockHeader.tsx, DockLeadingAccessory.tsx, assistant-dock-props.tsx; 100/100/100 on 4 files with all 10 importing test files (108 tests); comments verified (2 re-tensed into 'Complexity history'); commit c8db1ace (push blocked). Left for owner: commented-out `suggestions` block in AssistantDock.tsx is dead code kept under never-delete-comments.
 - Final complexity sweep on all 41 lot + new helper files: 0 violations.
 
+## Final verification (head 63877eea + progress commits)
+- Complexity sweep: 41 files (33 lot + 8 new helpers) → 0 violations (cyc ≤10, cog ≤10).
+- Whole admin suite `npx vitest run --maxWorkers=4` (692 s): 750/753 files, 12287 passed / 5 failed / 2 skipped. All 5 failures reproduce identically on a clean worktree of origin/restructure/apps-website-phased (27f1a073), so they are pre-existing, not this wave:
+  - users/__tests__/Users.unit.test.tsx "Caller without role.manage > keeps the Roles/Policies columns…"
+  - users/__tests__/account-protections.unit.test.tsx "rendered owner row keeps admin login…"
+  - lib/__tests__/untranslated-copy.unit.test.ts ×3 (sites-i18n, site-publish-i18n, site-transfer-i18n dictionaries have English copy)
+- Known load-flake composer-selected-skills "real ChatPane sends a chip-only turn" passed in the full run; passes alone on base and head.
+- Typechecks: admin `tsc --noEmit` EXIT 0; root `tsc -p tsconfig.json` EXIT 0; `npm run typecheck:tests` EXIT 0.
+- Total wall time ≈ 103 min (setup ≈ 4.3 min). Max parallelism: 5 subagents.
+
 ## Next
+- Wave complete. Nothing to resume. Owner decisions: (1) pre-push hook vs. new lot branches in cloud; (2) items under 'Noted' per lot (taxonomy deleteTaxonomyBlocked, themes default fetchers/Jini, browser-stream unhandled rejection, AssistantDock dead `suggestions` comment block, SitesHomeSetting unused `home` prop passed from Sites.tsx:319).
