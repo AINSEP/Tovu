@@ -22,7 +22,8 @@ export function createAdminSurfaceCapabilities(
   return (scope) => {
     const { http, limiter, artifacts } = required.tools(scope);
     return {
-      http, limiter, artifacts,
+      // Absent stays absent: this site has no artifact store, and a stub would hide that from the plugin.
+      http, limiter, ...(artifacts === undefined ? {} : { artifacts }),
       connections: required.connectionsFor(scope),
       state: required.stateFor({ workspaceId: scope.workspaceId, pluginId: scope.pluginId }),
       publicConfig: required.publicConfig,

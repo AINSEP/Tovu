@@ -5,7 +5,12 @@
  * the sign-in completed, verifies it through the provider's API, and saves it in plugin state.
  * `whoami` also keeps its token in module scope (a plugin accident): `last-token` and
  * `save-last-token` try to return or store it in a later call, which the host must refuse.
+ * Across seams: `whoami` also hands its token to the tool module (`rememberToken`), and `tool-token`
+ * returns the token a TOOL kept; the host's one shared token memory must withhold both.
+ * `host-kind` echoes the host kind the handler host was built with.
  */
+import { lastToken as toolToken, rememberToken } from "../tools/whoami.mjs";
+
 let lastToken = null;
 
 export default {
@@ -13,6 +18,7 @@ export default {
     async whoami({ capabilities, context }) {
       const token = await capabilities.connections.getAccessToken({ connectionId: context.connectionIds[0] });
       lastToken = token;
+      rememberToken(token);
       const response = await capabilities.http.fetch({ url: "https://api.acme.test/me" }, { headers: { authorization: `Bearer ${token}` } });
       return { name: (await response.json()).name };
     },
@@ -40,6 +46,12 @@ export default {
     },
     async 'last-token'() {
       return { name: lastToken };
+    },
+    async 'tool-token'() {
+      return { name: toolToken };
+    },
+    async 'host-kind'({ context }) {
+      return { name: context.hostKind };
     },
     async 'save-last-token'({ capabilities }) {
       await capabilities.state.set({ key: "cached", value: { token: lastToken } });

@@ -31,11 +31,13 @@ const SAFE_ERRORS = Object.freeze({
   'uncertain-outcome': { retryable: false, nextAction: 'review-outcome', message: 'Google did not confirm whether the change was applied. Check the spreadsheet before trying again.' },
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off. Turn it on in the Google Workspace panel, then retry; the Google sign-in is kept.' },
+  'picker-not-configured': { retryable: false, nextAction: 'contact-admin', message: "Choosing an existing spreadsheet is not set up on this site yet (the Google file picker is not configured). Ask the site operator, or create a new spreadsheet." },
   'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
   'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
   // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
   'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
   'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },
+  'export-unavailable': { retryable: false, nextAction: 'read-in-chat', message: 'Saving a CSV file is not available on this site. Nothing was read from Google; read the values in chat instead (sheets_values_get or sheets_values_batch_get).' },
   'unsupported-request': { retryable: false, nextAction: 'fix-request', message: 'The batch contains a request kind Google Workspace tools do not support (only reviewed, generally available Sheets request kinds are allowed). Remove it and retry; nothing was sent to Google.' },
 });
 

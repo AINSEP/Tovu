@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises';
 import {
   createAdminSurfaceActionDispatcher, createAdminSurfaceHandlerHost, parseAdminSurfacesFile,
 } from '@jini-ai/agent-plugins/admin-surfaces';
+import { createIssuedTokenMemories } from '@jini-ai/agent-plugins/lifecycle/tools';
 
 import { createConnectionPanelHandlers } from '../ui/connection-panel.handler.mjs';
 import { createDestinationPanelHandlers } from '../ui/destination-panel.handler.mjs';
@@ -76,7 +77,7 @@ export async function surfaceDescriptors() {
 /**
  * Boots the handler host with the plugin's three handler modules.
  * @param {{ fake: { fetch: Function }, ports: ReturnType<typeof createHostPorts> }} required
- * @param {{ now?: () => number, randomId?: () => string }} [optional] The Picker flow's clock and id source.
+ * @param {{ now?: () => number, randomId?: () => string, hostKind?: 'hosted' | 'desktop' }} [optional] The Picker flow's clock and id source; the host kind (default hosted).
  */
 export async function bootSurfaces(required, optional = {}) {
   const { fake, ports } = required;
@@ -93,7 +94,7 @@ export async function bootSurfaces(required, optional = {}) {
     artifacts: { async write() { throw new Error('admin surfaces write no artifacts'); } },
     connections: ports.connections, state: ports.stateStore, publicConfig: ports.publicConfig,
   });
-  const host = createAdminSurfaceHandlerHost({ capabilities });
+  const host = createAdminSurfaceHandlerHost({ capabilities, issuedTokens: createIssuedTokenMemories(), hostKind: optional.hostKind ?? 'hosted' });
   const { refusals } = host.sync({ loaded: descriptors.map((descriptor) => ({ pluginId: PLUGIN, descriptor, module: modules[descriptor.id] })), refusals: [] });
   if (refusals.length > 0) throw new Error(refusals.join('\n'));
   const errors = [];

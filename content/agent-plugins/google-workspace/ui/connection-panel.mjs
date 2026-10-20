@@ -6,7 +6,8 @@
  * Sign-ins: the panel is a sandboxed frame that cannot open links or popups, so `sign-in` only asks
  * the server to start one; the admin page above the panel then offers "Continue to sign-in" (in the
  * desktop app it opens the system browser). The panel polls the status until the sign-in finishes or
- * its link expires.
+ * its link expires. The Google Account page (to remove access by hand while a revocation is
+ * pending) is opened the same way, through the surface client's `openLink`.
  */
 import { connectionSummary, productRows, revocationMessage } from './connection-view.mjs';
 import { busy, connectToHost, failureText, h, show, wait } from './dom.mjs';
@@ -57,6 +58,18 @@ function onAction(action, view) {
   return run(async () => { notice = null; render(await call(action)); });
 }
 
+/**
+ * The Google Account page, opened by the admin page (the frame cannot open links): only this
+ * surface's declared `linkOrigins` open. The address stays visible in case the host refuses.
+ */
+function accountAccessLink(url) {
+  const open = () => client.openLink({ url }).catch((error) => { notice = { text: failureText(error) }; render(lastView); });
+  return h('p', {}, [
+    h('button', { type: 'button', onClick: open }, ['Open Google Account page']),
+    ' ', h('span', { class: 'url' }, [url]),
+  ]);
+}
+
 function connectionCard(view) {
   const summary = connectionSummary({ connection: view.connection });
   const switching = Boolean(view.connection.pendingSwitchAccountLabel);
@@ -65,7 +78,7 @@ function connectionCard(view) {
     h('p', { class: 'muted' }, [summary.detail]),
     switching && view.destinations.length > 0 ? h('ul', { class: 'list' }, view.destinations.map((entry) => h('li', {}, [`${entry.formSlug}: ${entry.title} / ${entry.tabTitle}`]))) : null,
     h('div', { class: 'actions' }, summary.buttons.map((entry, index) => h('button', { type: 'button', class: index === 0 ? 'primary' : undefined, onClick: () => onAction(entry.action, view) }, [entry.label]))),
-    view.connection.status === 'revocation-pending' ? h('p', {}, ['Google Account page: ', h('span', { class: 'url' }, [view.accountAccessUrl])]) : null,
+    view.connection.status === 'revocation-pending' ? accountAccessLink(view.accountAccessUrl) : null,
   ]);
 }
 

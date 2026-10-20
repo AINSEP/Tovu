@@ -13,6 +13,8 @@ export interface AgentPluginSurfaceSummary {
   readonly title: string;
   readonly src: string;
   readonly actions: readonly AdminSurfaceAction[];
+  /** The https origins the surface declared it may link to (`linkOrigins`); absent or empty opens nothing. */
+  readonly linkOrigins?: readonly string[];
 }
 
 /** A sign-in link the SERVER issued while running the action (never one the plugin returned). */

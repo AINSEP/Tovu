@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { after, before, beforeEach, test } from 'node:test';
 
-import { createAgentPluginToolProjection, parseAgentPluginToolsFile } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { createAgentPluginToolProjection, createIssuedTokenMemories, parseAgentPluginToolsFile } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
 
 import { pathSegment } from '../lib/http.mjs';
@@ -67,7 +67,7 @@ before(async () => {
   descriptors = loaded.map((tool) => tool.descriptor);
   registry = createPluginContributionRegistry({});
   projection = createAgentPluginToolProjection({
-    registry, toolIdFor: pluginToolIdFor,
+    registry, toolIdFor: pluginToolIdFor, issuedTokens: createIssuedTokenMemories(),
     capabilities: () => ({
       connections: { getAccessToken: async ({ connectionRef }) => { assert.equal(connectionRef, 'conn-1'); return TOKEN; } },
       http: { fetch: (target, init) => fake.fetch(target, init) },

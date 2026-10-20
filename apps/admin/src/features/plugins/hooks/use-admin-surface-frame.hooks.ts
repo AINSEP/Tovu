@@ -3,8 +3,10 @@ import {
   adminSurfaceActionResponse,
   adminSurfaceInitMessage,
   createAdminSurfaceMount,
+  openAdminSurfaceLink,
   validateAdminSurfaceMessage,
   type AdminSurfaceActionOutcome,
+  type AdminSurfaceOpenLinkPort,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPluginSurfaceSummary, HostSignInLink } from "./agent-plugin-surfaces-port.hooks";
 
@@ -24,6 +26,11 @@ import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPlug
  * mount's actions (`hostSignIns`), kept per mount, https only, until opened or expired; a URL in the
  * plugin's own result is never opened. The page opens them as a new tab with no opener, which the
  * desktop shell's window policy hands to the system browser (as for every external link).
+ *
+ * Other external links: a surface may ask to open a link (`open-link`); Jini's gate opens only an
+ * https URL whose origin the surface DECLARED (`linkOrigins`, from the digest-checked surfaces file),
+ * and only for this mount's frame. The page opens it the same way as a sign-in: a new tab with no
+ * opener or referrer on the web, which the desktop shell hands to the system browser.
  */
 
 export type AdminSurfaceFrameStatus = "open" | "navigated" | "failed";
@@ -48,6 +55,9 @@ export interface AdminSurfaceFrameController {
 function hostLinks(answer: AgentPluginSurfaceActionAnswer): readonly HostSignInLink[] {
   return (answer.hostSignIns ?? []).filter((link) => URL.parse(link.authorizationUrl)?.protocol === "https:");
 }
+
+/** The one opener for checked links, hosted and desktop alike (the desktop shell's window policy routes it). */
+const openInNewTab: AdminSurfaceOpenLinkPort = ({ url }) => { window.open(url, "_blank", "noopener,noreferrer"); };
 
 /** What the frame receives: the plugin's outcome alone, never the host's links. */
 function frameOutcome(answer: AgentPluginSurfaceActionAnswer): AdminSurfaceActionOutcome {
@@ -87,7 +97,10 @@ export function useAdminSurfaceFrame(
       const frame = liveFrame();
       // No live frame: nothing may match (a null `source` must never equal a missing frame).
       if (frame === null) return;
-      const verdict = validateAdminSurfaceMessage({ event, mount: { mountId: mount.mountId, frame, descriptor: { actions: surface.actions } } });
+      const record = { mountId: mount.mountId, frame, descriptor: { actions: surface.actions, linkOrigins: surface.linkOrigins ?? [] } };
+      // Each gate ignores the other's messages; a link verdict with a response is this mount's open-link.
+      void openAdminSurfaceLink({ event, mount: record, openLink: openInNewTab }).then((link) => { if ("response" in link) liveFrame()?.postMessage(link.response, "*"); });
+      const verdict = validateAdminSurfaceMessage({ event, mount: record });
       if (!verdict.ok) {
         if ("response" in verdict) frame.postMessage(verdict.response, "*");
         return;
@@ -103,7 +116,7 @@ export function useAdminSurfaceFrame(
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [status, port, pluginId, surface.id, surface.actions, mount.mountId, liveFrame]);
+  }, [status, port, pluginId, surface.id, surface.actions, surface.linkOrigins, mount.mountId, liveFrame]);
 
   const onSignInOpened = useCallback((link: HostSignInLink) => setIssued((current) => current.filter((entry) => entry !== link)), []);
   const signIns = issued.filter((link) => Date.parse(link.expiresAt) > Date.now());

@@ -44,6 +44,16 @@
           "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
         },
         {
+          "name": "tool-token",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "host-kind",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
           "name": "save-last-token",
           "input": { "type": "object", "properties": {} },
           "result": { "type": "object", "properties": { "saved": { "type": "boolean" } }, "required": ["saved"] }

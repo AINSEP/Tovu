@@ -17,7 +17,7 @@ import { createRandomUuidGenerator, createSystemClock } from '@jini-ai/core/prim
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
 
 import { applyToolApprovalPolicy } from '../../../../apps/website/src/assistant/tool-approval-policy.ts';
 import { registerAgentPluginExecutableTools } from '../../../../apps/website/src/features/agent-plugins/executable-tools/register.ts';
@@ -78,7 +78,7 @@ export async function bootPluginTools({ fake }) {
   const items = await loadPluginTools();
   const registered = await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, authorize: async () => ({ allowed: true, reason: 'test' }),
-    host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) }, state: () => SHEETS_ON, apiOrigins: declaredApiOrigins },
+    host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) }, state: () => SHEETS_ON, apiOrigins: declaredApiOrigins, issuedTokens: createIssuedTokenMemories() },
     isActive: async () => true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });
@@ -99,13 +99,18 @@ export async function startConfirmingCall(booted, toolId, input) {
   return { pending, rows, answer };
 }
 
-/** The capabilities one module call receives, straight over the fake (for module-level pins). */
+/**
+ * The capabilities one module call receives, straight over the fake (for module-level pins).
+ * `withoutArtifacts: true` leaves `artifacts` out, as a host with no artifact store does.
+ */
 export function directCapabilities({ fake }, optional = {}) {
-  return {
+  const capabilities = {
     connections: { getAccessToken: async () => TOKEN },
     http: { fetch: (target, init) => fake.fetch(target, init) },
     limiter: { check: async () => ({ allowed: true }) },
     artifacts: { write: optional.writeArtifact ?? (async () => { throw new Error('no artifact store in this test'); }) },
     state: optional.state ?? SHEETS_ON,
   };
+  if (optional.withoutArtifacts) delete capabilities.artifacts;
+  return capabilities;
 }

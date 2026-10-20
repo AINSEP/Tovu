@@ -71,6 +71,22 @@ test('limiter keys are namespaced by workspace and plugin, so one plugin cannot 
   assert.deepEqual(limiterKeys, [`${WORKSPACE}\u0000a\u0000user`, `${WORKSPACE}\u0000b\u0000user`]);
 });
 
+test('no artifact store bound: the artifacts capability is absent, so a tool can refuse before any work', () => {
+  assert.equal('artifacts' in portFor().port({ pluginId: PLUGIN, workspaceId: WORKSPACE }), false);
+});
+
+test('an artifact store bound: a write is stored under the calling plugin and workspace, never ones the plugin names', async () => {
+  const written: unknown[] = [];
+  const { connections } = fakeConnections({ accountId: 'alice' });
+  const port = createAgentPluginToolCapabilities(
+    { connections, http: fakeHttp().http, limiter: recordingLimiter, frozen: createFrozenConnectionAccounts(), state: () => ({ get: async () => null }), apiOrigins: async () => [] },
+    { artifacts: { write: async (file) => { written.push(file); return { artifactRef: 'a-1' }; } } },
+  );
+  const forged = { name: 'x.csv', mediaType: 'text/csv', content: 'a', workspaceId: 'other-ws', pluginId: 'other-plugin' };
+  assert.deepEqual(await port({ pluginId: PLUGIN, workspaceId: WORKSPACE }).artifacts?.write(forged), { artifactRef: 'a-1' });
+  assert.deepEqual(written, [{ ...forged, workspaceId: WORKSPACE, pluginId: PLUGIN }]);
+});
+
 test('a write call refuses when no human can be asked, and nothing runs', async () => {
   const fixture = await bootFixture();
   const result = await fixture.executor.execute({ toolId: WRITE, principal: { id: 'owner' }, run: { id: 'run' }, input });

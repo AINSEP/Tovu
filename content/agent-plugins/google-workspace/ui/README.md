@@ -51,12 +51,13 @@ url, sheetId, tabTitle, accountId } }`, at most 50), and the transient `picker-s
 
 ## Hosted vs desktop Picker
 
-The bootstrap's `mode` decides: `hosted` (the JS Picker inside the frame, with the bootstrap's
-short-lived access token and the public `TOVU_GOOGLE_PICKER_BROWSER_KEY` / `TOVU_GOOGLE_PICKER_APP_ID`)
-when both config values are set, otherwise `system-browser` (Google's native Picker as a
-code + PKCE sign-in with `trigger_onepick` and the spreadsheet MIME filter; `picked_file_ids` comes
-back through the host's callback inbox). `unavailable` names why (not connected, permission missing,
-Sheets off). Every selection is verified by `lib/picker-selection.mjs` before it is saved.
+The host decides (the handler call's `context.hostKind`), and the bootstrap's `mode` tells the frame:
+`system-browser` on a desktop host (Google's native Picker as a code + PKCE sign-in with
+`trigger_onepick` and the spreadsheet MIME filter; `picked_file_ids` comes back through the host's
+callback inbox), `hosted` on a hosted site (the JS Picker inside the frame, with the bootstrap's
+short-lived access token and the public `TOVU_GOOGLE_PICKER_BROWSER_KEY` / `TOVU_GOOGLE_PICKER_APP_ID`).
+`unavailable` names why (not connected, permission missing, Sheets off, or a hosted site without both
+Picker values: `picker-not-configured`). Every selection is verified by `lib/picker-selection.mjs` before it is saved.
 
 ## Extension points
 

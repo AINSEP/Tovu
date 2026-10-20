@@ -1,6 +1,6 @@
 import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionStagedSwitch, type ApiConnectionStatusView } from "@jini-ai/integrations/api-connections";
 import {
-  ADMIN_SURFACE_ACTION_INTENTS, type AdminSurfaceAuthorizationStart, type AdminSurfaceConnections, type AdminSurfaceConnectionStatus,
+  ADMIN_SURFACE_ACTION_INTENTS, type AdminSurfaceAuthorizationStart, type AdminSurfaceConnections, type AdminSurfaceConnectionStatus, type AdminSurfaceSignInAttempt,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 
 import { startApiConnectionSignIn } from "./connect.js";
@@ -43,6 +43,13 @@ function codeOf(error: unknown): string {
   return typeof code === "string" ? code : "unknown";
 }
 
+/** Our own lowercase hyphenated codes pass; anything else (an upstream library's code) becomes one generic code. */
+const SAFE_ATTEMPT_CODE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+function failedAttempt(error: unknown): AdminSurfaceSignInAttempt {
+  const code = codeOf(error);
+  return { code: code.length <= 64 && SAFE_ATTEMPT_CODE.test(code) ? code : "sign-in-failed", nextAction: "reconnect" };
+}
+
 /** What a status is built from: a record (with its staged switch's account) or a service status view. */
 type StatusSource = Pick<ApiConnectionStatusView, "status" | "account" | "grantedScopes" | "pendingSwitch">;
 const NEVER_CONNECTED: StatusSource = { status: "disconnected", account: null, grantedScopes: [], pendingSwitch: null };
@@ -62,11 +69,12 @@ function liveStagedAccount(host: ApiConnectionHost, staged: ApiConnectionStagedS
 }
 
 /** Token-free status; scope sets are the plugin's own ids, never raw provider scopes. */
-async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnection, view: StatusSource): Promise<AdminSurfaceConnectionStatus> {
+async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnection, view: StatusSource, connectionRef: string): Promise<AdminSurfaceConnectionStatus> {
   return {
     connectionId: connection.descriptor.connectionId, status: view.status, accountLabel: view.account?.displayName ?? null,
     grantedScopeSetIds: view.status === "connected" ? await grantedScopeSets(host, connection, view.grantedScopes) : [],
     pendingSwitchAccountLabel: view.pendingSwitch?.displayName ?? null,
+    lastSignInAttempt: host.lastSignInAttempts.get(connectionRef) ?? null,
   };
 }
 
@@ -97,12 +105,23 @@ export function createSurfaceConnections(
     return { ...view, pendingSwitch: liveStagedAccount(host, (await host.records.read({ key: connectionRef }))?.staged) };
   }
 
-  /** Desktop: deposit the callback fields once the loopback sign-in redeemed; failures are logged by code only. */
+  /**
+   * Desktop: deposit the callback fields once the loopback sign-in redeemed, and clear a failed
+   * attempt; a failure is kept (code and next action only) for `status` and logged by code only.
+   */
   function watchDesktopCompletion(connectionId: string, attemptId: string, completion: Promise<{ readonly callbackFields: Readonly<Record<string, string>> } | null> | undefined): void {
+    const connectionRef = deriveApiConnectionKey({ workspaceId, pluginId, connectionId });
     void completion?.then(
-      (done) => { if (done) host.callbackInbox.deposit({ workspaceId, pluginId, connectionId, attemptId, fields: done.callbackFields }); },
+      (done) => {
+        if (!done) return;
+        host.lastSignInAttempts.delete(connectionRef);
+        host.callbackInbox.deposit({ workspaceId, pluginId, connectionId, attemptId, fields: done.callbackFields });
+      },
       // Error codes only: a desktop sign-in that failed after the browser opened.
-      (error: unknown) => console.warn(`[admin-surfaces] desktop sign-in for '${pluginId}' did not complete: ${codeOf(error)}`),
+      (error: unknown) => {
+        host.lastSignInAttempts.set(connectionRef, failedAttempt(error));
+        console.warn(`[admin-surfaces] desktop sign-in for '${pluginId}' did not complete: ${codeOf(error)}`);
+      },
     );
   }
 
@@ -114,7 +133,7 @@ export function createSurfaceConnections(
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);
       const record = await host.records.read({ key: connectionRef });
-      return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED);
+      return statusFrom(host, connection, record ? { ...record, pendingSwitch: liveStagedAccount(host, record.staged) } : NEVER_CONNECTED, connectionRef);
     },
     async begin({ connectionId, action }, optional = {}) {
       const { connection, actorId } = await forActor(connectionId);
@@ -129,18 +148,18 @@ export function createSurfaceConnections(
     async confirmSwitch({ connectionId }) {
       const { connection, connectionRef, actorId } = await forActor(connectionId);
       const view = await host.serviceFor({ connection }).confirmSwitchAccount({ connectionRef, workspaceId, actorId });
-      return statusFrom(host, connection, await viewAfterAction(connectionRef, view));
+      return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async cancelSwitch({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
       const view = await host.serviceFor({ connection }).cancelSwitchAccount({ connectionRef, workspaceId });
-      return statusFrom(host, connection, await viewAfterAction(connectionRef, view));
+      return statusFrom(host, connection, await viewAfterAction(connectionRef, view), connectionRef);
     },
     async disconnect({ connectionId }) {
       const { connection, connectionRef } = await forActor(connectionId);
       const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId });
       // Same vocabulary on both sides: the provider's outcome passes through unchanged.
-      return { ...(await statusFrom(host, connection, await viewAfterAction(connectionRef, outcome))), revocation: outcome.remoteRevocation };
+      return { ...(await statusFrom(host, connection, await viewAfterAction(connectionRef, outcome), connectionRef)), revocation: outcome.remoteRevocation };
     },
     async takeCallbackFields({ connectionId, attemptId }) {
       await resolve(connectionId);
