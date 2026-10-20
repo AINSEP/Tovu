@@ -183,7 +183,8 @@ async function pullResult(
     unmapped: sum({ forms, key: "unmapped" }), failed: sum({ forms, key: "failed" }),
   };
   const base = { message: pullMessage({ destinations }), destinations, forms, totals };
-  const refusal = destinations[0]?.refused;
+  // `pullAll` returns before this when no receiver is saved, so there is always a first report.
+  const refusal = destinations[0]!.refused;
   return refusal && destinations.every((report) => report.refused) ? { ...base, ran: false, reason: refusal } : { ...base, ran: true };
 }
 

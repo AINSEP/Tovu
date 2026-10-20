@@ -6,8 +6,9 @@ import type { FormDeliveryJobStatus } from "@jini-ai/cms/forms";
  * `SqlFormDeliveryRepo`, whose status comes only from each delivery job's outbox row.
  */
 
-/** One binding's delivery of one submission: status derived from its outbox job, nothing else. */
-export type FormDeliveryStatusView = {
+/** One binding's delivery of one submission: status derived from its outbox job, nothing else.
+ * The one definition: `SqlFormDeliveryRepo` returns it and the tool reports it. */
+export type FormDeliveryStatusRow = {
   readonly bindingId: string;
   readonly adapterId: string;
   readonly formId: string;
@@ -16,6 +17,6 @@ export type FormDeliveryStatusView = {
 
 /** Read side of durable form delivery (`SqlFormDeliveryRepo`); both reads are scoped to `workspaceId`. */
 export interface FormDeliveryStatusPort {
-  forSubmission(required: { workspaceId: string; submissionId: string }, optional?: Record<string, never>): Promise<readonly FormDeliveryStatusView[]>;
-  recentUnfinished(required: { workspaceId: string }, optional?: { limit?: number }): Promise<readonly FormDeliveryStatusView[]>;
+  forSubmission(required: { workspaceId: string; submissionId: string }, optional?: Record<string, never>): Promise<readonly FormDeliveryStatusRow[]>;
+  recentUnfinished(required: { workspaceId: string }, optional?: { limit?: number }): Promise<readonly FormDeliveryStatusRow[]>;
 }

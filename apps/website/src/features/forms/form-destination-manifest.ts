@@ -1,4 +1,4 @@
-import { FIELD_TYPE_REGISTRY, type FormDefinitionRecord } from "@jini-ai/cms/forms";
+import { FIELD_TYPE_REGISTRY, type FormDefinitionRecord, type FormDeliveryForm } from "@jini-ai/cms/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
 
 /**
@@ -30,15 +30,9 @@ export function buildFormDestinationManifest({ definitions }: { definitions: rea
  * planned, whatever the definition's status is now (the submission was accepted already).
  * @complexity O(fields).
  */
-export function buildFormDeliveryForm({ definition: stored }: { definition: FormDefinitionRecord }, _optional = {}): FormDeliveryManifestForm {
+export function buildFormDeliveryForm({ definition: stored }: { definition: FormDefinitionRecord }, _optional = {}): FormDeliveryForm {
   const definition = htmlSubmissionDefinition({ definition: stored, body: {} });
   return { slug: definition.slug, fields: definition.fields.map((field) => ({ ...manifestField(field), label: field.label, type: field.type })) };
-}
-
-/** A manifest form whose fields also carry their display label and field type. */
-export interface FormDeliveryManifestForm {
-  readonly slug: string;
-  readonly fields: readonly (FormDestinationManifestForm["fields"][number] & { readonly label: string; readonly type: string })[];
 }
 
 function manifestField(field: FormDefinitionRecord["fields"][number]): FormDestinationManifestForm["fields"][number] {
