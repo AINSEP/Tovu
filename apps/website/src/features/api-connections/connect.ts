@@ -1,7 +1,6 @@
 import {
   ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, type ApiConnectionIntent, type ApiConnectionService, type CompletedAuthorization,
 } from "@jini-ai/integrations/api-connections";
-import { startLoopbackAuthorizationReceiver } from "@jini-ai/oauth";
 import { ToolInputError } from "@jini-ai/core";
 
 import type { DeclaredApiConnection } from "./contribution.js";
@@ -22,10 +21,6 @@ import type { ApiConnectionHost } from "./host.js";
 
 export interface ApiConnectionConnectDeps {
   readonly host: ApiConnectionHost;
-  /** Scope sets (opaque product-module ids) to request; default none, i.e. the plugin's base scopes. */
-  readonly scopeSetIds?: (input: { readonly pluginId: string; readonly connectionId: string }) => Promise<readonly string[]>;
-  /** Injectable for tests; production uses Jini's loopback receiver. */
-  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
 
 /**
@@ -115,7 +110,6 @@ interface SignInRequest {
 
 interface SignInOptions {
   readonly startParams?: Readonly<Record<string, string>>; readonly timeoutMs?: number; readonly signal?: AbortSignal;
-  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
 
 const startOptionsOf = (optional: SignInOptions) => (optional.startParams === undefined ? {} : { startParams: optional.startParams });
@@ -146,7 +140,7 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
   const release = (): void => { free(); optional.signal?.removeEventListener("abort", stop); };
   optional.signal?.addEventListener("abort", stop, { once: true });
   try {
-    const receiver = await (optional.startLoopback ?? startLoopbackAuthorizationReceiver)({}, {
+    const receiver = await host.startLoopback({}, {
       callbackFields: connection.descriptor.callbackFields.map((field) => field.name), signal: listening.signal,
       ...(optional.timeoutMs === undefined ? {} : { timeoutMs: optional.timeoutMs }),
     });
@@ -178,7 +172,11 @@ async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): P
   return waitForCallback(run, service, { connectionRef, startGeneration, readGeneration });
 }
 
-/** Desktop: loopback receiver, consent in the system browser, completion here. The listener always closes. */
+/**
+ * Desktop: loopback receiver, consent in the system browser, completion here. The listener always
+ * closes: this call's own controller also closes it when the card cannot be shown or the run ends,
+ * not only on `run.signal`, so a failed card never leaves a 127.0.0.1 listener up for its timeout.
+ */
 async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): Promise<boolean> {
   const { host } = run.deps;
   const listening = new AbortController();
@@ -186,7 +184,7 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   run.signal.addEventListener("abort", stop, { once: true });
   try {
     const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
-      timeoutMs: run.waitTimeoutMs, signal: listening.signal, ...(run.deps.startLoopback ? { startLoopback: run.deps.startLoopback } : {}),
+      timeoutMs: run.waitTimeoutMs, signal: listening.signal,
     }).catch(asToolError);
     await run.showSignIn({ signInUrl: start.authorizationUrl });
     return (await (start.completion ?? Promise.resolve(null)).catch(asToolError)) !== null;
@@ -208,7 +206,8 @@ export async function runApiConnectionConnect(
 ): Promise<ApiConnectionConnectStatus> {
   const { host } = required.deps;
   const { connection } = required;
-  const scopeSetIds = await (required.deps.scopeSetIds?.({ pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId }) ?? Promise.resolve([]));
+  // Chat connects the plugin's base scopes; products add theirs from the plugin's own panel.
+  const scopeSetIds: readonly string[] = [];
   const status = await host.statusOf({ connection });
   const { connectionRef } = status;
   const wanted = await host.requestedScopes({ connection, scopeSetIds });

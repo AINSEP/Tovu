@@ -90,7 +90,7 @@ after(async () => {
   await new Promise((resolve) => siteServer.close(resolve));
 });
 
-function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () => number } = { nowMs: () => Date.now() }) {
+function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () => number } = { nowMs: () => Date.now() }, startLoopback?: typeof startLoopbackAuthorizationReceiver) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "surface-adapters-security" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: fixtureRoot }, definition: input.definition });
   const host = createApiConnectionHost({
@@ -98,7 +98,7 @@ function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () =
     clock, oauthHttp, pluginHttp, runtime,
     env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_API_CONNECTION_CALLBACK_ORIGINS: siteOrigin },
     publicOrigin: () => siteOrigin,
-  });
+  }, startLoopback === undefined ? {} : { startLoopback });
   const app = express();
   registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
   siteServer.removeAllListeners("request");
@@ -341,14 +341,14 @@ test("workspace: every connection-ref operation names the port's workspace (conn
 });
 
 test("desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes", async () => {
-  const host = makeHost("desktop");
   // The real receiver, observed: probing a listener over HTTP would itself consume and close it.
   const listeners: AbortSignal[] = [];
   const startLoopback: typeof startLoopbackAuthorizationReceiver = (required, optional = {}) => {
     if (optional.signal) listeners.push(optional.signal);
     return startLoopbackAuthorizationReceiver(required, optional);
   };
-  const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1", startLoopback });
+  const host = makeHost("desktop", undefined, startLoopback);
+  const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
   await port.begin({ connectionId: "account", action: "connect" });
   assert.equal(listeners[0]!.aborted, false);
   const second = await port.begin({ connectionId: "account", action: "connect" });

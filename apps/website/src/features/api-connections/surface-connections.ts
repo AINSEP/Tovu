@@ -2,7 +2,6 @@ import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionStagedSwi
 import {
   ADMIN_SURFACE_ACTION_INTENTS, type AdminSurfaceAuthorizationStart, type AdminSurfaceConnections, type AdminSurfaceConnectionStatus,
 } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { startLoopbackAuthorizationReceiver } from "@jini-ai/oauth";
 
 import { startApiConnectionSignIn } from "./connect.js";
 import type { DeclaredApiConnection } from "./contribution.js";
@@ -32,9 +31,6 @@ export interface SurfaceConnectionsDeps {
   readonly host: ApiConnectionHost;
   /** Called with every authorization URL `begin` issued (the per-request registry the admin route reads). */
   readonly onSignInIssued?: (issued: IssuedSignIn) => void;
-  /** Where a desktop sign-in that failed after the browser opened is reported (error codes only). */
-  readonly log?: (line: string) => void;
-  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
 
 /** The one refusal for an id the plugin does not declare here, a foreign workspace, or no admin. */
@@ -83,7 +79,6 @@ export function createSurfaceConnections(
   _optional: Record<string, never> = {},
 ): AdminSurfaceConnections {
   const { host, pluginId, workspaceId, principalId } = required;
-  const log = required.log ?? ((line: string) => console.warn(line));
 
   async function resolve(connectionId: string): Promise<{ readonly connection: DeclaredApiConnection; readonly connectionRef: string }> {
     const connection = workspaceId === host.workspaceId ? (await host.listConnections({ pluginId })).find((candidate) => candidate.descriptor.connectionId === connectionId) : undefined;
@@ -102,11 +97,12 @@ export function createSurfaceConnections(
     return { ...view, pendingSwitch: liveStagedAccount(host, (await host.records.read({ key: connectionRef }))?.staged) };
   }
 
-  /** Desktop: deposit the callback fields once the loopback sign-in redeemed; failures go to the log by code. */
+  /** Desktop: deposit the callback fields once the loopback sign-in redeemed; failures are logged by code only. */
   function watchDesktopCompletion(connectionId: string, attemptId: string, completion: Promise<{ readonly callbackFields: Readonly<Record<string, string>> } | null> | undefined): void {
     void completion?.then(
       (done) => { if (done) host.callbackInbox.deposit({ workspaceId, pluginId, connectionId, attemptId, fields: done.callbackFields }); },
-      (error: unknown) => log(`[admin-surfaces] desktop sign-in for '${pluginId}' did not complete: ${codeOf(error)}`),
+      // Error codes only: a desktop sign-in that failed after the browser opened.
+      (error: unknown) => console.warn(`[admin-surfaces] desktop sign-in for '${pluginId}' did not complete: ${codeOf(error)}`),
     );
   }
 
@@ -124,7 +120,6 @@ export function createSurfaceConnections(
       const { connection, actorId } = await forActor(connectionId);
       const start = await startApiConnectionSignIn({ host, connection, actorId, intent: ADMIN_SURFACE_ACTION_INTENTS[action], scopeSetIds: optional.scopeSetIds ?? [] }, {
         ...(optional.startParams === undefined ? {} : { startParams: optional.startParams }),
-        ...(required.startLoopback === undefined ? {} : { startLoopback: required.startLoopback }),
       });
       const issued = { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt };
       watchDesktopCompletion(connectionId, issued.attemptId, start.completion);

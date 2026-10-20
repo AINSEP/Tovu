@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { createApiConnectionService, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
-import type { OAuthClient, OAuthHttpPorts } from "@jini-ai/oauth";
+import { startLoopbackAuthorizationReceiver, type OAuthClient, type OAuthHttpPorts } from "@jini-ai/oauth";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -56,7 +56,6 @@ export interface ApiConnectionHostDeps {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** This site's public origin for the hosted callback; undefined when it has none. */
   readonly publicOrigin: () => string | undefined;
-  readonly displayName?: string;
 }
 
 /** The one refusal for a ref the calling plugin does not own here, whatever the reason. */
@@ -106,7 +105,13 @@ function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnection
  * plugin takes effect without a restart (Node caches each hooks module per file URL).
  * @complexity O(1) setup; each lookup is one contribution load, O(p + c).
  */
-export function createApiConnectionHost(required: ApiConnectionHostDeps, _optional: Record<string, never> = {}) {
+export function createApiConnectionHost(
+  required: ApiConnectionHostDeps,
+  optional: {
+    /** Injectable for tests (observe listeners); production uses Jini's 127.0.0.1 loopback receiver. */
+    readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
+  } = {},
+) {
   const vault = createApiConnectionVault({ repo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer, clock: required.clock, workspaceId: required.workspaceId });
   const records: ApiConnectionVaultRecordStore = createApiConnectionVaultRecordStore({ vault, workspaceId: required.workspaceId, clock: required.clock });
   const budgets = createConnectionBudgets({ clock: required.clock });
@@ -150,7 +155,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     const owner = { workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, clientId: client.clientId };
     return createApiConnectionService({
       descriptor: connection.descriptor, client, clientKind,
-      appOptions: { clientDisplayName: required.displayName ?? "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
+      appOptions: { clientDisplayName: "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
       hooks: connection.module.createHooks({ http: required.pluginHttp }),
       records, tokens: createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }),
       fetchFn: required.oauthHttp.fetchFn, guard: required.oauthHttp.guard, clock: required.clock,
@@ -213,7 +218,8 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     return { connectionRef: key, status: record?.status ?? "disconnected", grantedScopes: record?.grantedScopes ?? [] } as const;
   }
 
-  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, listConnections, serviceFor, accessTokensFor,
+  const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;
+  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, startLoopback, listConnections, serviceFor, accessTokensFor,
     toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
 }
 
