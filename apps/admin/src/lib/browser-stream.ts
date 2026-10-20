@@ -33,6 +33,9 @@ export function browserStreamPorts(_required = {}, _optional = {}): BrowserStrea
   };
 }
 
+/** Unshared idle streams close after this long hidden; shared hidden leaders yield immediately. */
+const HIDDEN_GRACE_MS = 30_000;
+
 /**
  * Hold one connection per key/origin using Web Locks, broadcasting only serializable frames.
  * Tab-specific command streams use scope="tab": commands must execute on their bound page.
@@ -48,28 +51,22 @@ export function startBrowserStream<Frame>(
     connect: (required: { emit: (frame: Frame) => void }) => () => void;
     receive?: (required: { frame: Frame }) => void;
   },
-  { ports = browserStreamPorts(), scope = "origin", activity, hiddenDelayMs = 30_000 }: {
-    ports?: BrowserStreamPorts; scope?: "origin" | "tab"; activity?: StreamActivity; hiddenDelayMs?: number;
+  { ports = browserStreamPorts(), scope = "origin", activity }: {
+    ports?: BrowserStreamPorts; scope?: "origin" | "tab"; activity?: StreamActivity;
   } = {},
 ): () => void {
   let disposed = false;
   let away = false;
-  let hiddenSince = ports.visibility.visibilityState === "hidden" ? ports.now() : undefined;
+  let hiddenSince = hiddenSinceNow({ ports, previous: undefined });
   let stopConnection: (() => void) | undefined;
   let stopTimer: (() => void) | undefined;
   let lock: AbortController | undefined;
   let releaseLock: (() => void) | undefined;
-  let channel: StreamChannel | undefined;
-  // Both capabilities are necessary: a lock without fan-out would silence follower tabs.
-  if (scope === "origin" && ports.requestLock && ports.openChannel) {
-    try { channel = ports.openChannel({ name: `browser-stream:${key}` }); }
-    catch { /* Storage-denied hosts use the visibility-managed fallback. */ }
-  }
-
+  // `stop` removes this listener, so a disposed stream never reaches it.
   const onMessage = (event: MessageEvent<unknown>) => {
-    if (!disposed && !away) receive({ frame: event.data as Frame });
+    if (!away) receive({ frame: event.data as Frame });
   };
-  channel?.addEventListener("message", onMessage);
+  let channel = openSharedChannel({ key, scope, ports, onMessage });
 
   /** Close before releasing the lock: two tabs must never overlap their connections. */
   function halt(): void {
@@ -97,21 +94,26 @@ export function startBrowserStream<Frame>(
     if (lock) return;
     const requested = new AbortController();
     lock = requested;
+    // Disposal and pagehide both run `halt()`, which aborts this request, so its signal covers them.
     void ports.requestLock!({ key: `browser-stream:${key}`, signal: requested.signal, hold: async () => {
-      if (requested.signal.aborted || disposed || away) return;
+      if (requested.signal.aborted) return;
       // Set the release first so cleanup always releases even when connect throws.
       await new Promise<void>((resolve, reject) => {
         releaseLock = resolve;
         try { open(); } catch (error) { reject(error); }
       });
     } }).catch(() => {
-      if (requested.signal.aborted || disposed) return;
+      if (requested.signal.aborted) return;
       halt();
-      channel?.removeEventListener("message", onMessage);
-      channel?.close();
-      channel = undefined;
+      closeChannel();
       reconcile();
     });
+  }
+
+  function closeChannel(): void {
+    channel?.removeEventListener("message", onMessage);
+    channel?.close();
+    channel = undefined;
   }
 
   /** Reconcile one tab's visibility/activity with its connection and queued lock. */
@@ -125,7 +127,7 @@ export function startBrowserStream<Frame>(
       return;
     }
     if (hiddenSince !== undefined && !activity?.active({})) {
-      const remaining = hiddenDelayMs - (ports.now() - hiddenSince);
+      const remaining = HIDDEN_GRACE_MS - (ports.now() - hiddenSince);
       if (remaining <= 0) { halt(); return; }
       stopTimer = ports.schedule({ work: reconcile, delayMs: remaining });
     }
@@ -133,7 +135,7 @@ export function startBrowserStream<Frame>(
   }
 
   const onVisibility = () => {
-    hiddenSince = ports.visibility.visibilityState === "hidden" ? hiddenSince ?? ports.now() : undefined;
+    hiddenSince = hiddenSinceNow({ ports, previous: hiddenSince });
     reconcile();
   };
   const onPageHide = () => { away = true; reconcile(); };
@@ -151,9 +153,36 @@ export function startBrowserStream<Frame>(
     ports.visibility.removeEventListener("visibilitychange", onVisibility);
     ports.page.removeEventListener("pagehide", onPageHide);
     ports.page.removeEventListener("pageshow", onPageShow);
-    channel?.removeEventListener("message", onMessage);
-    channel?.close();
+    closeChannel();
   };
   try { reconcile(); } catch (error) { stop(); throw error; }
   return stop;
+}
+
+/**
+ * When the tab became hidden: kept while it stays hidden, cleared once visible.
+ * @param required Ports to read visibility/clock from, and the previous hidden-since time.
+ * @returns Hidden-since timestamp, or undefined while visible.
+ */
+function hiddenSinceNow({ ports, previous }: { ports: BrowserStreamPorts; previous: number | undefined }): number | undefined {
+  return ports.visibility.visibilityState === "hidden" ? previous ?? ports.now() : undefined;
+}
+
+/**
+ * Opens the cross-tab fan-out channel for an origin-scoped stream and starts listening on it.
+ * @param required Stream key and scope, browser ports, and the frame listener.
+ * @returns The channel, or undefined for tab scope, hosts lacking locks or channels, or a refused channel.
+ */
+function openSharedChannel(
+  { key, scope, ports, onMessage }: {
+    key: string; scope: "origin" | "tab"; ports: BrowserStreamPorts; onMessage: (event: MessageEvent<unknown>) => void;
+  },
+): StreamChannel | undefined {
+  // Both capabilities are necessary: a lock without fan-out would silence follower tabs.
+  if (scope !== "origin" || !ports.requestLock || !ports.openChannel) return undefined;
+  let channel: StreamChannel;
+  try { channel = ports.openChannel({ name: `browser-stream:${key}` }); }
+  catch { return undefined; /* Storage-denied hosts use the visibility-managed fallback. */ }
+  channel.addEventListener("message", onMessage);
+  return channel;
 }
