@@ -3,6 +3,10 @@ import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
+import { AgentPluginSurfaceFrame } from "./AgentPluginSurfaceFrame";
+import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
+import type { AgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-port.hooks";
+import { useAgentPluginSurfaces } from "./hooks/use-agent-plugin-surfaces.hooks";
 import {
   useWiredAgentPluginDetailsModal,
   useAgentPluginDetailsView,
@@ -17,6 +21,8 @@ export interface AgentPluginDetailsModalProps {
   /** Injectable seam for the listing. Defaults to the real {@link useWiredAgentPluginDetailsModal};
    *  a test can pass a fake to exercise the modal's rendering with a fixed file list/selection. */
   readonly useDetails?: (pluginId: string) => AgentPluginDetailsModalController;
+  /** Plugin-owned admin surfaces (2026-10-20); a test passes a typed fake. */
+  readonly surfacesPort?: AgentPluginSurfacesPort;
 }
 
 /**
@@ -26,11 +32,20 @@ export interface AgentPluginDetailsModalProps {
  * screen's viewer uses. Since 2026-09-13 its content comes from `AGENT_PLUGIN_FILES` — the server
  * resolves the id against installed packages and reads inside that package root only, never
  * following a symlink — rather than a compile-time catalog that missed plugins nobody had listed.
+ *
+ * Since 2026-10-20 each admin surface the plugin contributes (for example its "Manage connection"
+ * screen) is one more view after Memory, titled by the plugin and rendered sandboxed.
  */
-export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
+export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal, surfacesPort = defaultAgentPluginSurfacesPort }: AgentPluginDetailsModalProps) {
   const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
   const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
   const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails(plugin.id);
+  const surfaces = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
+  const surfaceViews = surfaces.map((surface) => ({
+    id: `plugin-surface-${surface.id}`,
+    label: surface.title,
+    custom: <AgentPluginSurfaceFrame key={surface.id} pluginId={plugin.id} surface={surface} port={surfacesPort} t={t} />,
+  }));
 
   return (
     <PackageFilesModal
@@ -43,7 +58,7 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
       listNotice={listNotice}
       handlePrefix="agent-plugin-file"
       t={t}
-      additionalViews={[{ id: "plugin-memory", label: memory.t("Memory"), custom: <AgentPluginMemoryPanel controller={memory} /> }]}
+      additionalViews={[{ id: "plugin-memory", label: memory.t("Memory"), custom: <AgentPluginMemoryPanel controller={memory} /> }, ...surfaceViews]}
       onClose={onClose}
     />
   );
