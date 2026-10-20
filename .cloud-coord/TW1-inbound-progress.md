@@ -64,3 +64,17 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 - pages.ts 2 unreachable branches (cross-area): l.463 `case "url"` in navTargetToRouteTarget (Jini resolver never passes url targets; fixing it means narrowing Jini's ResolveTargetHrefFn), and l.882 `renderStaticPage(...) ?? ""` (fixing it means narrowing renderStaticPage's return type in features/theme/static-render.ts).
 - The see-more query carry-over (~pages.ts 2806) cannot be observed under Express 4 (req.query is parsed before the rewrite); the test pins the cache header and a comment notes Express 5.
 - CONTAINER RESTART ~03:45 UTC (OOM): base-branch whole suite + coverage run + tsc ran concurrently. Nothing lost on disk (/home/user, /tmp, Node 24 all survived). Rule: whole-suite runs go alone.
+
+## Whole-suite result (cloud/tw1-inbound @ 645c91de, run alone)
+- Website `TEST_CONCURRENCY=2 npm test` (03:45 → 04:58 UTC, 72 min): 23,458 tests; 23,272 pass, 131 fail, 19 cancelled, 36 skipped, across 40 failing files. Re-running those 40 files on a clean base worktree (b1dde94f): 130 fail and 19 cancelled, the same files with the same per-file counts, except `platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts`, which passes alone on our branch (2/2) and only failed under full-suite load (flaky, and outside this wave's diff). Base failures are environmental: no Postgres server (`*.postgres.test.ts`, pg-fixture, vault parity), no Playwright Chromium (render-form-layout, playwright-page-capture), plus pre-existing development/ script and eslint-rule tests. None of the 40 failing files are touched by this wave.
+- Admin `vitest run --maxWorkers=4` (the brief's `--minWorkers` is an unknown option in the installed vitest): 739 files / 11,951 tests; 11,943 pass, 6 fail in 4 files. Users.unit, account-protections.unit and untranslated-copy.unit fail identically on base. use-theme-canvas-styling.unit (an 8 s timeout test) passes alone on our branch 2/2: load flake. apps/admin is untouched by this wave.
+- Typechecks: root `tsc -p tsconfig.json` 0 errors, `typecheck:tests` 0, `apps/admin tsc --noEmit` 0. cx.sh: 0 violations on every lot file and new helper (baseline 72).
+
+## Final status: ALL 9 LOTS MERGED (plus 3 coverage follow-ups: L082b, L055b, L100b). Nothing left in scope.
+## Next (for the owner / next wave)
+1. SECURITY decision: express.static `dotfiles` for theme assets (L191 pin).
+2. AUTHZ decision: media routes bypass authorizeOrRespond's publishing-credential override (L125).
+3. Confirm the assistant-subagents alias gaps are not a bypass (L175).
+4. Stray remote branch origin/cloud/tw1-inbound-L082 (419e5dd1), pushed past the hook by a subagent: keep or delete.
+5. Cross-area cleanups listed per lot above (duplicate local-install policy in plugin-runtime/install-tool.ts, durable-run-routes ownership check, agent-plugins/list.ts row builder, site-exporter comment names, Jini ResolveTargetHrefFn and renderStaticPage return-type narrowing).
+6. Wave process: split big lots (complexity agent, then a coverage agent) with a ~200k handoff; measure coverage with --enable-source-maps by branch/function over explicit test lists including app-boot suites; never run the whole suite next to other heavy jobs (OOM restart).
