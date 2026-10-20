@@ -12,10 +12,9 @@ method (see the forms-multidest delivery contract, §2–§3).
 - `required`: `{ kit, credential, form, submission, binding, idempotencyKey }` exactly as the host
   hands a frozen job. `credential.token` is the access token the host resolved for this attempt
   from `binding.connectionRef`; it is used only in the `authorization` header.
-- `optional`: `{ productEnabled?, limiter? }` — host ports the contract does not carry yet. Without
+- `optional`: `{ productEnabled? }` — a host port the contract does not carry yet. Without
   `productEnabled` (or when it returns anything but `true`) delivery refuses as
   `adapter-unavailable`, retryable: Sheets off pauses deliveries, it never enables them by default.
-  `limiter` is the plugin's quota limiter (the same budgets the Sheets tools use).
 - Returns a `FormDeliveryResult`; it never throws.
 
 Binding config (non-secret, frozen with the job):
@@ -50,7 +49,7 @@ id: review)`; nothing is appended again.
 ## How it fits
 
 All HTTP goes through `../lib/sheets-client.mjs` → `../lib/http.mjs` (the one Google client:
-limiter, retries, Retry-After, safe errors). The host's `kit.fetch(url, init, { timeoutMs })` is
+retries, Retry-After, safe errors; quotas are the host's budgets). The host's `kit.fetch(url, init, { timeoutMs })` is
 the transport. The forms ledger (outbox) owns attempts, backoff and terminal state; this module
 only reports one attempt's outcome.
 
@@ -66,6 +65,8 @@ dedupe. Nothing here is imported by Tovu core or Jini.
 
 ## Wiring left for the forms fan-out lot (G14b)
 
-- Pass `productEnabled` (plugin state view) and `limiter` in `optional`, or extend the contract.
+- Pass `productEnabled` (`productEnabledReader` over the plugin-state reader) in `optional`, or extend the contract.
+- Quotas: the host charges the declared budgets per token read, but a delivery gets one pre-resolved
+  token for its 3-15 requests (finding M4). Hand delivery a per-request `getAccessToken()` instead.
 - The OAuth `FormDeliveryConnectionPort` returns `baseUrl: ""`; the push kit only reaches the
   credential's `baseUrl` origin plus `additionalHosts`, so it must allow `https://sheets.googleapis.com`.

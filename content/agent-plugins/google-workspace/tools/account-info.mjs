@@ -10,9 +10,9 @@ import { readAccount } from '../lib/drive-files.mjs';
 import { createGoogleClient } from '../lib/http.mjs';
 
 export default {
-  /** @param {{ input: { connectionRef: string }, capabilities: { connections: object, http: object, limiter: object }, signal?: AbortSignal }} required */
+  /** @param {{ input: { connectionRef: string }, capabilities: { connections: object, http: object }, signal?: AbortSignal }} required */
   async invoke({ input, capabilities, signal }) {
-    const client = createGoogleClient({ http: capabilities.http, connections: capabilities.connections }, { limiter: capabilities.limiter });
+    const client = createGoogleClient({ http: capabilities.http, connections: capabilities.connections });
     return readAccount({ client, connectionRef: input.connectionRef }, signal ? { signal } : {});
   },
 };

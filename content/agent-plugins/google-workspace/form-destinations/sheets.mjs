@@ -165,7 +165,7 @@ async function deliverRow(required, optional) {
   if (!(await productEnabled(optional))) throw new DeliveryRefusal({ code: 'adapter-unavailable', retryable: true });
   const { spreadsheetId, tab: tabConfig } = targetFor(required);
   const connections = { getAccessToken: async () => required.credential.token };
-  const client = googleClientFor({ capabilities: { http: { fetch: ({ url }, init) => required.kit.fetch(url, init, { timeoutMs: DELIVERY_REQUEST_TIMEOUT_MS }) }, connections, limiter: optional.limiter } });
+  const client = googleClientFor({ capabilities: { http: { fetch: ({ url }, init) => required.kit.fetch(url, init, { timeoutMs: DELIVERY_REQUEST_TIMEOUT_MS }) }, connections } });
   const requests = sheetsRequests({ client, connectionRef: required.binding.connectionRef, spreadsheetId });
   const tab = await requests.tab(tabConfig.sheetId);
   const mapping = buildMapping({ form: required.form });
@@ -181,11 +181,11 @@ export default {
   /**
    * The forms delivery contract's `deliver`. Never throws: every failure is a contract result.
    * @param {{ kit: { fetch(url: string, init: RequestInit, options: { timeoutMs: number }): Promise<Response> }, credential: { token: string }, form: { slug: string, fields: readonly { name: string, label?: string }[] }, submission: { id: string, answers: Readonly<Record<string, unknown>>, submittedAt: string }, binding: { connectionRef: string, config: Readonly<Record<string, unknown>> }, idempotencyKey?: string }} required
-   * @param {{ productEnabled?: () => boolean | Promise<boolean>, limiter?: { check(input: { key: string }): Promise<{ allowed: boolean, retryAfterSeconds?: number }> } }} [optional]
-   *   Host ports the delivery contract does not carry yet (wired with the forms fan-out): the
+   * @param {{ productEnabled?: () => boolean | Promise<boolean> }} [optional]
+   *   A host port the delivery contract does not carry yet (wired with the forms fan-out): the
    *   Sheets product flag (absent = off; build it with `productEnabledReader` from
-   *   `lib/product-state.mjs` over the host's plugin-state reader, the same gate the tools use) and
-   *   the plugin's quota limiter (the tools' budgets).
+   *   `lib/product-state.mjs` over the host's plugin-state reader, the same gate the tools use).
+   *   Quotas are the host's budgets, charged where it resolves the token.
    * @returns {Promise<{ ok: true, reference?: string } | { ok: false, error: { code: string, retryable: boolean, retryAfterMs?: number, outcome?: 'not-applied' | 'unknown' } }>}
    */
   async deliver(required, optional = {}) {

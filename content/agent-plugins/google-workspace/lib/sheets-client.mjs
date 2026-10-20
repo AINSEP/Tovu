@@ -1,8 +1,8 @@
 /**
  * @file The shared Sheets request helper of the Google Workspace plugin: every Sheets tool builds its
  * endpoint, encodes ids and ranges, applies the RAW input default and enforces the §D bounds here,
- * then sends through the one Google client (`http.mjs`), which owns tokens, quotas, retries and safe
- * errors.
+ * then sends through the one Google client (`http.mjs`), which owns tokens, retries and safe errors
+ * (quotas are the host's, charged on each token read).
  *
  * Exists so the rules that keep a call inside what the person asked for live in one place:
  * - a spreadsheet id or range is ONE encoded path segment (`.`/`..` refused), so caller text can
@@ -53,7 +53,7 @@ export function sheetsUrl(required, optional = {}) {
 
 /**
  * Sends one Sheets request for a tool call through the shared Google client.
- * @param {{ call: { input: { connectionRef: string }, capabilities: { http: object, connections: object, limiter: object }, signal?: AbortSignal }, request: { url: string, method?: string, query?: object, body?: unknown, kind: 'read' | 'idempotent-write' | 'write' } }} required
+ * @param {{ call: { input: { connectionRef: string }, capabilities: { http: object, connections: object, state?: object }, signal?: AbortSignal }, request: { url: string, method?: string, query?: object, body?: unknown, kind: 'read' | 'idempotent-write' | 'write' } }} required
  *   `call` is the tool's `invoke` argument as received.
  * @returns {Promise<any>} Google's parsed JSON body.
  * @throws {GoogleWorkspaceError} Every failure, already mapped to a safe code.
@@ -67,7 +67,7 @@ export function sendSheetsRequest(required, _optional = {}) {
 /** The shared Google client over one call's host capabilities. @complexity O(1). */
 export function googleClientFor(required, _optional = {}) {
   const { capabilities } = required;
-  return createGoogleClient({ http: capabilities.http, connections: capabilities.connections }, { limiter: capabilities.limiter });
+  return createGoogleClient({ http: capabilities.http, connections: capabilities.connections });
 }
 
 /**
@@ -75,7 +75,7 @@ export function googleClientFor(required, _optional = {}) {
  * the plugin's settings (`capabilities.state`), then goes through the shared client. Checked per
  * request, so turning Sheets off also stops a multi-request call (an export) part way, before the
  * next request is sent.
- * @param {{ capabilities: { http: object, connections: object, limiter?: object, state?: { get(input: { key: string }): Promise<unknown> } } }} required
+ * @param {{ capabilities: { http: object, connections: object, state?: { get(input: { key: string }): Promise<unknown> } } }} required
  * @throws {GoogleWorkspaceError} `product-disabled` from `request` while Sheets is off.
  * @complexity O(1) to build; each request adds one state read.
  */

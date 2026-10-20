@@ -36,7 +36,7 @@ ranges and counts on Tovu's confirmation card (never cell values beyond what the
 
 Every module calls `lib/sheets-client.mjs`, which builds the endpoint (each id or range is ONE
 encoded path segment; `.`/`..` refused), defaults values to `RAW`, enforces the bounds and sends
-through `lib/http.mjs` (token right before each request, host limiter, retries, safe errors).
+through `lib/http.mjs` (token right before each request, where the host charges its budgets; retries, safe errors).
 
 | Bound | Value | At the bound |
 |---|---|---|

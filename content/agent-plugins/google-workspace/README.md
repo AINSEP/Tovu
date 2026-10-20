@@ -28,12 +28,12 @@ digest at seed time, which the executable trust gate checks before any module lo
 | Module | Exports |
 |---|---|
 | `auth.mjs` | Default `{ createHooks({ http }) }`: Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`, `revoke`). `GOOGLE_REVOCATION_ENDPOINT`, `GOOGLE_ACCOUNT_ACCESS_PAGE`. |
-| `http.mjs` | `createGoogleClient({ http, connections }, { limiter, sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`; `pathSegment` (one encoded path segment, dot segments refused). |
+| `http.mjs` | `createGoogleClient({ http, connections }, { sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`; `pathSegment` (one encoded path segment, dot segments refused). |
 | `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`); `copyFile({ client, connectionRef, fileId, name }, { parentId })` via Drive `files.copy`. |
 | `sheets-client.mjs` | The Sheets request helper: `sheetsUrl`, `sendSheetsRequest`, `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bound helpers (`boundValueRanges`, `assertPayloadWithin`, `assertOutputWithin`), A1 helpers, `resourceLines` (card lines). |
 | `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`, and the product gate: `PRODUCT_STATE_KEY` (`'products'`), `isProductEnabled({ state, productId })`, `assertProductEnabled(...)` (`product-disabled`), `productEnabledReader({ state, productId })` (the `productEnabled` port form delivery takes, built from the host's read-only plugin-state reader). A product is off unless the plugin's settings hold `products: { <id>: true }`. |
 | `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
-| `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`, `QUOTA_BUDGETS`. |
+| `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`. |
 
 ## Rules the plugin keeps
 

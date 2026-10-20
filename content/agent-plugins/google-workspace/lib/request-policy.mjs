@@ -1,19 +1,12 @@
 /**
  * @file Google request policy for the Google Workspace plugin: the safe error every failure becomes,
- * whether a failed request may be retried, how long to wait, and the per-minute budgets the plugin
- * asks the host's limiter to enforce.
+ * whether a failed request may be retried and how long to wait. The per-minute budgets themselves
+ * are declared in `tovu-connections.json` and enforced by the host on every token read.
  *
  * Exists so chat tools, admin actions and form delivery share ONE answer to "may this run again?"
  * and one error vocabulary. Errors never carry tokens, Google's own message text or sheet contents:
  * Google echoes ranges and values in its messages, so only a fixed sentence per code is shown.
  */
-
-/**
- * Local budgets, below Google's Sheets defaults (60 per user and 300 per project per minute), shared
- * by tools and background delivery. They cannot cap the aggregate of every Tovu install that shares
- * the OAuth project; the shared project's quota is monitored separately.
- */
-export const QUOTA_BUDGETS = Object.freeze({ perAccountPerMinute: 45, perInstancePerMinute: 240 });
 
 /** Longest wait spent inside one call; a longer Retry-After is returned to the caller instead. */
 export const MAX_INLINE_WAIT_MS = 10_000;

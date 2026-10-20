@@ -5,7 +5,9 @@
  * Exists so the rules that keep a person's data and sign-in safe live in one place:
  * - the access token is fetched from the host immediately before each attempt and is never
  *   returned, logged or put in an error;
- * - the host's limiter is asked first (one instance budget and one per-connection budget);
+ * - quotas are the host's: it charges the budgets the connection declares (per account and per
+ *   instance) on every token read, so this client keeps no limiter of its own; a budget refusal
+ *   is a `quota-delay` like Google's 429;
  * - a failure becomes a safe {@link GoogleWorkspaceError} (code, `retryable`, `retryAfterMs`,
  *   `outcome`, next action); Google's message text is dropped because it can echo sheet contents;
  * - only retryable failures are retried, with jittered backoff that honours Retry-After, and a
@@ -91,31 +93,17 @@ async function readResponse(response, kind) {
 /**
  * Creates the client over the host capabilities a module received.
  * @param {{ http: { fetch(target: { url: string }, init?: RequestInit): Promise<Response> }, connections: { getAccessToken(input: { connectionRef: string }): Promise<string> } }} required
- * @param {{ limiter?: { check(input: { key: string }): Promise<{ allowed: true } | { allowed: false, retryAfterSeconds: number }> }, sleep?: (ms: number) => Promise<void>, random?: () => number }} [optional]
- *   `limiter` is absent only during sign-in (the account read), which is not part of any budget.
- * @complexity O(attempts); each attempt is one limiter check, one token read and one request.
+ * @param {{ sleep?: (ms: number) => Promise<void>, random?: () => number }} [optional]
+ * @complexity O(attempts); each attempt is one token read (where the host charges its budgets) and one request.
  */
 export function createGoogleClient(required, optional = {}) {
   const { http, connections } = required;
-  const { limiter } = optional;
   const sleep = optional.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
-
-  /** The first budget that refuses, as a retryable quota error; nothing when both allow. */
-  async function quotaRefusal(connectionRef) {
-    if (!limiter) return undefined;
-    // The host keys every check by workspace and plugin; `instance` is this site's share of the
-    // project budget and `connection:<ref>` the signed-in account's (QUOTA_BUDGETS documents both).
-    for (const key of ['instance', `connection:${connectionRef}`]) {
-      const verdict = await limiter.check({ key });
-      if (!verdict.allowed) return new GoogleWorkspaceError({ code: 'quota-delay' }, { retryAfterMs: verdict.retryAfterSeconds * 1000 });
-    }
-    return undefined;
-  }
 
   /**
    * The token, or the host budget's refusal as a failed attempt: that refusal happens before
-   * anything is sent, so it follows the same backoff rules as the plugin's own limiter refusal.
-   * Every other host refusal ends the call.
+   * anything is sent, so it follows the same backoff rules as Google's 429 (even an append may
+   * wait and retry). Every other host refusal ends the call.
    */
   async function tokenOrRefusal(connectionRef) {
     try {
@@ -127,8 +115,6 @@ export function createGoogleClient(required, optional = {}) {
   }
 
   async function attemptOnce(request, signal) {
-    const refusal = await quotaRefusal(request.connectionRef);
-    if (refusal) return { ok: false, error: refusal };
     const { token, error } = await tokenOrRefusal(request.connectionRef);
     if (error) return { ok: false, error };
     let response;
