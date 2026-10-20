@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { JsonValue } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { getEffective, InMemorySettingsRepo, set as packageSet, ValueValidationFailedError, type AuthorizeFn, type SetValueRequired } from "@jini-ai/core/settings";
 
@@ -18,6 +19,11 @@ const PREFIX = "Form delivery bindings (core.forms.deliveryBindings) ";
 const WS = "ws-form-delivery-unit";
 
 function binding(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { bindingId: "sheet-a", adapterId: "sheets", connectionRef: "conn-1", enabled: true, config: { sheet: "Leads" }, ...overrides };
+}
+
+/** The same well-formed binding typed as a stored JSON value, for the settings writes. */
+function storedBinding(overrides: { [key: string]: JsonValue } = {}): { [key: string]: JsonValue } {
   return { bindingId: "sheet-a", adapterId: "sheets", connectionRef: "conn-1", enabled: true, config: { sheet: "Leads" }, ...overrides };
 }
 
@@ -59,7 +65,7 @@ test("ensureFormDeliverySettings registers deliveryBindings defaulting to no bin
 test("registering again keeps an owner's stored values", async () => {
   const { settingsRepo, ensureDeps, write } = await ledger();
   await write("autoPull", false);
-  await write("deliveryBindings", [binding()]);
+  await write("deliveryBindings", [storedBinding()]);
   await ensureFormDeliverySettings({ deps: ensureDeps, systemPrincipalId: "system" });
   assert.equal(await readFormsAutoPull({ settingsRepo, workspaceId: WS }), false);
   assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), [binding()]);
@@ -86,7 +92,7 @@ test("delivery bindings read as none when the definition was never registered", 
 
 test("a valid list written through the host chokepoint is stored as written and read back parsed", async () => {
   const { settingsRepo, write } = await ledger();
-  const list = [binding(), binding({ bindingId: "rows-b", adapterId: "rows", enabled: false, formIds: ["form-1"], config: { table: "t", columns: [1, true, null] } })];
+  const list = [storedBinding(), storedBinding({ bindingId: "rows-b", adapterId: "rows", enabled: false, formIds: ["form-1"], config: { table: "t", columns: [1, true, null] } })];
   const saved = await write("deliveryBindings", list);
   assert.deepEqual(saved.value, list);
   assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), list);
@@ -95,7 +101,7 @@ test("a valid list written through the host chokepoint is stored as written and 
 test("a stored list that breaks a rule (written past the host chokepoint) is refused when read for planning", async () => {
   const { settingsRepo, deps } = await ledger();
   // The package's own `set` skips the host rules; planning still refuses what it reads.
-  await packageSet({ deps, input: { namespace: "core.forms", key: "deliveryBindings", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner", value: [binding(), binding()] } });
+  await packageSet({ deps, input: { namespace: "core.forms", key: "deliveryBindings", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner", value: [storedBinding(), storedBinding()] } });
   await assert.rejects(readFormDeliveryBindings({ settingsRepo, workspaceId: WS }),
     (error: unknown) => error instanceof ValueValidationFailedError && error.message === `${PREFIX}binding 2 repeats bindingId "sheet-a"; give every binding its own id.`);
 });
@@ -110,7 +116,7 @@ test("enforceFormDeliveryBindingsWrite returns any other setting's input untouch
 });
 
 test("enforceFormDeliveryBindingsWrite returns a valid bindings write as the same input, value not rewritten", () => {
-  const input: SetValueRequired["input"] = { namespace: "core.forms", key: "deliveryBindings", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner", value: [binding()] };
+  const input: SetValueRequired["input"] = { namespace: "core.forms", key: "deliveryBindings", scope: "workspace", workspaceId: WS, callerPrincipalId: "owner", value: [storedBinding()] };
   assert.equal(enforceFormDeliveryBindingsWrite(input), input);
   assert.deepEqual(input.value, [binding()]);
 });
