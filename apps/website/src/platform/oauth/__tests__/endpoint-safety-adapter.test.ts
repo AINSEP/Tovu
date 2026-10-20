@@ -131,3 +131,73 @@ test("host copy preserves unreachable errors unless their cause is specifically 
     await assert.rejects(withTovuOAuthCopy({ call: async () => { throw error; } }), caught => caught === error);
   }
 });
+
+// PIN: a null caller signal is treated like an absent one and never reaches the guarded port.
+test("OAuth omits a null caller signal from the guarded request", async () => {
+  let sent: Parameters<HttpClientPort["send"]>[0] | undefined;
+  const http: HttpClientPort = { async send(required) { sent = required; return { status: 200, headers: {}, bodyText: "{}" }; } };
+  await createTovuOAuthHttpPorts({ http }).fetchFn({ url: "https://auth.example/token" }, { signal: null });
+  assert.deepEqual(sent, { request: {
+    url: "https://auth.example/token", method: "GET", headers: {}, idleTimeoutMs: 15000, maxResponseBytes: 65536,
+  } });
+});
+
+// PIN: the clipped-response refusal carries its fixed copy and is raised before any Response is built.
+test("OAuth clipped responses refuse with the bounded-response copy", async () => {
+  const http: HttpClientPort = { async send() { return { status: 204, headers: {}, bodyText: "", bodyTruncated: true }; } };
+  await assert.rejects(createTovuOAuthHttpPorts({ http }).fetchFn({ url: "https://auth.example/token" }), {
+    name: "OAuthError", code: "OAUTH_MALFORMED_RESPONSE", message: "the OAuth response exceeded the outbound response limit",
+    operatorAction: "This provider's OAuth endpoint returned an oversized response.",
+  });
+});
+
+// PIN: the ports' guard honours the same explicit loopback exception as createTovuOAuthGuard.
+test("OAuth ports pass the explicit loopback exception to their guard and default it closed", () => {
+  const http: HttpClientPort = { async send() { return { status: 200, headers: {}, bodyText: "" }; } };
+  const raw = "http://localhost:8080/token";
+  assert.equal(createTovuOAuthHttpPorts({ http }, { allowLoopbackHttp: true }).guard.assertSafeUrl({ raw, label: "token endpoint" }).href, raw);
+  assert.throws(() => createTovuOAuthHttpPorts({ http }).guard.assertSafeUrl({ raw, label: "token endpoint" }), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "token endpoint: provider endpoint must use https (http is permitted only for loopback)",
+  });
+});
+
+const ISSUER = "https://auth.example/tenant";
+const METADATA_ACTION = "Check the authorization server issuer and discovery endpoints before connecting.";
+
+// PIN: a document that names a different issuer is refused before any endpoint is examined.
+test("issuer policy refuses a metadata document naming a different issuer", () => {
+  const policy = createTovuIssuerBoundDiscoveryPolicy({ guard: createTovuOAuthGuard({}) });
+  assert.throws(() => policy.assertMetadata({ issuer: ISSUER, document: { issuer: "https://auth.example/other", token_endpoint: 7 } }), {
+    name: "OAuthError", code: "OAUTH_UNSAFE_ENDPOINT", message: "OAuth metadata issuer does not equal the requested issuer", operatorAction: METADATA_ACTION,
+  });
+});
+
+// PIN: the requested issuer itself must pass the host guard, under its own label.
+test("issuer policy refuses an internal-address issuer through the guard", () => {
+  const policy = createTovuIssuerBoundDiscoveryPolicy({ guard: createTovuOAuthGuard({}) });
+  assert.throws(() => policy.assertMetadata({ issuer: "https://10.0.0.1/tenant", document: {} }), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "authorization server issuer: provider endpoint resolves to an internal address, which is not allowed",
+  });
+});
+
+// PIN: each discovered endpoint passes the guard under a label with every underscore spaced out.
+test("issuer policy labels guard refusals of discovered endpoints with spaced key names", () => {
+  const policy = createTovuIssuerBoundDiscoveryPolicy({ guard: createTovuOAuthGuard({}) });
+  assert.throws(() => policy.assertMetadata({ issuer: ISSUER, document: { device_authorization_endpoint: "http://auth.example/device" } }), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "discovered device authorization endpoint: provider endpoint must use https (http is permitted only for loopback)",
+  });
+});
+
+// PIN: keys outside the four endpoint fields are not origin-bound.
+test("issuer policy ignores metadata fields that are not one of the four endpoints", () => {
+  const policy = createTovuIssuerBoundDiscoveryPolicy({ guard: createTovuOAuthGuard({}) });
+  assert.equal(policy.assertMetadata({ issuer: ISSUER, document: { jwks_uri: "https://keys.example/jwks", revocation_endpoint: 7 } }), undefined);
+});
+
+// PIN: a different port on the same host is a different origin.
+test("issuer policy refuses a same-host endpoint on a different port", () => {
+  const policy = createTovuIssuerBoundDiscoveryPolicy({ guard: createTovuOAuthGuard({}) });
+  assert.throws(() => policy.assertMetadata({ issuer: ISSUER, document: { token_endpoint: "https://auth.example:8443/token" } }), {
+    code: "OAUTH_UNSAFE_ENDPOINT", message: "OAuth metadata token_endpoint does not share the issuer's origin", operatorAction: METADATA_ACTION,
+  });
+});
