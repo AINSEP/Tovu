@@ -77,15 +77,7 @@ export async function prepareTermSync(input: {
       `${entityType} '${entityId}' has category or tag changes, and you need '${TERM_SYNC_PERMISSION}' to publish them (${allowed.reason})`
     );
   }
-  for (const termId of add) {
-    const term = await ports.terms.findAnyById(termId);
-    if (!term || term.status === "trash") {
-      throw new PublishContentApplyRowError(
-        "blocked",
-        `${entityType} '${entityId}' is tagged with term '${termId}', which is ${term ? "in the trash" : "missing"} at this destination — publish or restore that term first`
-      );
-    }
-  }
+  await validateAddedTerms({ ports, termIds: add, entityType, entityId });
 
   const writeDeps = {
     ...ports,
@@ -101,4 +93,24 @@ export async function prepareTermSync(input: {
     if (unassign.length > 0) await unassignTerms({ deps: writeDeps, ...target, termIds: [...unassign] });
   };
   return { apply: () => move(add, remove), revert: () => move(remove, add) };
+}
+
+async function validateAddedTerms(
+  { ports, termIds, entityType, entityId }: {
+    ports: TaxonomyPublishPorts;
+    termIds: readonly string[];
+    entityType: string;
+    entityId: string;
+  },
+  _options: Record<string, never> = {}
+): Promise<void> {
+  for (const termId of termIds) {
+    const term = await ports.terms.findAnyById(termId);
+    if (!term || term.status === "trash") {
+      throw new PublishContentApplyRowError(
+        "blocked",
+        `${entityType} '${entityId}' is tagged with term '${termId}', which is ${term ? "in the trash" : "missing"} at this destination — publish or restore that term first`
+      );
+    }
+  }
 }
