@@ -31,6 +31,7 @@ const refreshToken = "acme-refresh-" + "y".repeat(24);
 /** code -> PKCE challenge the fake provider issued it for. */
 const issued = new Map<string, string>();
 let tokenCalls = 0;
+let revokeCalls = 0;
 /** The last token-endpoint form the fake provider received (to see where a client secret went). */
 let lastTokenForm = new URLSearchParams();
 let provider: Server;
@@ -60,6 +61,11 @@ before(async () => {
     let body = "";
     req.on("data", (chunk) => { body += chunk; });
     req.on("end", () => {
+      if (req.url === "/revoke") {
+        revokeCalls += 1;
+        res.writeHead(200);
+        return res.end();
+      }
       if (req.url === "/me") {
         res.writeHead(req.headers.authorization === `Bearer ${accessToken}` ? 200 : 401, { "content-type": "application/json" });
         return res.end(JSON.stringify({ id: "acct-1", name: "Ada" }));
@@ -317,4 +323,34 @@ test("callback: a switch to the account already connected is refused with copy t
   assert.equal(response.status, 400);
   assert.match(await response.text(), /already connected to Tovu, so there is nothing to switch\. Close this window and use Reconnect in Tovu instead\./);
   assert.equal((await host.statusOf({ connection })).status, "connected", "the live connection is untouched");
+});
+
+/** Desktop sign-in through the loopback receiver; the fake consent redirects straight back. */
+async function connectDesktop(host: ReturnType<typeof makeHost>) {
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  return runApiConnectionConnect({
+    deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async ({ signInUrl }) => { await (await fetch(consentRedirect(signInUrl))).text(); },
+  });
+}
+
+const desktopEnv = { TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET: "d".repeat(28) };
+
+test("characterization: a connected account reads as connected through host.records, statusOf and readAccount", async () => {
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv });
+  const { connectionRef } = await connectDesktop(host);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  assert.equal((await host.records.read({ key: connectionRef }))?.status, "connected");
+  assert.equal((await host.statusOf({ connection })).status, "connected");
+  assert.deepEqual(await host.toolConnections.readAccount({ workspaceId: "ws-1", pluginId: "acme-office", connectionRef }), { accountId: "acct-1", displayName: "Ada" });
+});
+
+test("characterization: a connection's hooks reach its declared API origin (account) and its token endpoint's origin (revocation)", async () => {
+  const host = makeHost("ws-1", { runtime: "desktop", env: desktopEnv });
+  const { connectionRef } = await connectDesktop(host);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const revokes = revokeCalls;
+  const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId: "ws-1" });
+  assert.equal(outcome.remoteRevocation, "confirmed");
+  assert.ok(revokeCalls > revokes);
 });
