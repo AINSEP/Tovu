@@ -28,6 +28,7 @@ import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
+import type { FormDeliveryStatusPort } from "../../features/forms/delivery-status.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -141,6 +142,7 @@ test("exactly the three write-service.ts operations plus the two submission read
   assert.deepEqual([...formsRegistrations(deps).keys()].sort(), [
     "content_read.form_definition",
     "forms_create_definition",
+    "forms_delivery_status",
     "forms_get_submission",
     "forms_list_submissions",
     "forms_pull_submissions",
@@ -350,7 +352,7 @@ test("every SELF-ENFORCING Forms tool has a known input fixture — a newly wire
   // in their authorize() call, so they get their own dedicated block further down instead, mirroring
   // how tool-registrations.authorization.test.ts splits collections_content_type_list out.
   const { deps } = fakeRouteDeps();
-  const selfEnforcing = [...formsRegistrations(deps).keys()].filter((id) => !["forms_list_submissions", "forms_get_submission", "forms_pull_submissions"].includes(id));
+  const selfEnforcing = [...formsRegistrations(deps).keys()].filter((id) => !["forms_list_submissions", "forms_get_submission", "forms_pull_submissions", "forms_delivery_status"].includes(id));
   assert.deepEqual(selfEnforcing.sort(), Object.keys(TOOL_INPUTS).sort());
 });
 
@@ -697,4 +699,22 @@ test("forms_pull_submissions: without the composed port it says it is unavailabl
   const { deps } = fakeRouteDeps();
   await assert.rejects(() => wired("forms_pull_submissions", deps).handler(executionContext({})),
     (error: unknown) => error instanceof ToolInputError && /not available on this site's server\. Restart the site, then try again\./.test((error as Error).message));
+});
+
+// ---------------------------------------------------------------------------
+// forms_delivery_status — per-binding delivery status (RouteDeps.formDeliveryStatus)
+// ---------------------------------------------------------------------------
+
+test("forms_delivery_status: a denied principal is refused before any delivery status is read", async () => {
+  const { deps, authorizeCalls } = fakeRouteDeps({ allow: false });
+  let reads = 0;
+  const formDeliveryStatus: FormDeliveryStatusPort = {
+    forSubmission: async () => { reads += 1; return []; },
+    recentUnfinished: async () => { reads += 1; return []; },
+  };
+  for (const input of [{ submissionId: "s1" }, {}]) {
+    await assert.rejects(() => wired("forms_delivery_status", { ...deps, formDeliveryStatus }).handler(executionContext(input)), /FORMS_FORBIDDEN: /);
+  }
+  assert.equal(reads, 0);
+  assert.deepEqual(authorizeCalls.map(call => call.permission), ["admin.forms.submissions.read", "admin.forms.submissions.read"]);
 });

@@ -1,3 +1,5 @@
+import type { FormDeliveryBinding, FormDeliveryResult } from "@jini-ai/cms/forms";
+
 /**
  * @file The form destination contract: where a published static site's form submissions go, as an
  * Agent Plugin contribution category (`tovu-form-destinations.json`, `./registry.ts`). It copies the
@@ -12,10 +14,12 @@
  */
 
 /** One active form as a destination receives it: names, required flags and lengths only. Never
- *  markup, theme, notification recipients or answers. A publish adds the site's receiver `secret`. */
+ *  markup, theme, notification recipients or answers. A publish adds the site's receiver `secret`.
+ *  Push delivery (`deliver`) also gets each field's `label` and `type`; `name` stays the stable id
+ *  that keys the answers. */
 export interface FormDestinationForm {
   readonly slug: string;
-  readonly fields: readonly { readonly name: string; readonly required: boolean; readonly maxLength?: number; readonly multiple?: true }[];
+  readonly fields: readonly { readonly name: string; readonly required: boolean; readonly maxLength?: number; readonly multiple?: true; readonly label?: string; readonly type?: string }[];
   /** Site-relative page to show after a successful submission; absent = back to the form's page. */
   readonly successPath?: string;
 }
@@ -75,10 +79,25 @@ export interface FormDestinationModule {
   pull?(required: { readonly kit: FormDestinationKit; readonly destination: FormDestinationAddress }, optional?: { readonly after?: number; readonly limit?: number }): Promise<FormDestinationPage>;
   /** Marks rows Tovu has durably imported, so they are no longer pending at the receiver. */
   ack?(required: { readonly kit: FormDestinationKit; readonly destination: FormDestinationAddress; readonly ids: readonly string[] }, optional?: Record<string, never>): Promise<{ readonly acknowledged: number }>;
-  /** Push model (sheets, tables, email). Called from a `form.submission.received` subscriber.
-   *  NOT wired yet; declared now so the first push destination needs no contract edit. */
-  deliver?(required: { readonly kit: FormDestinationKit; readonly credential: FormDestinationCredential; readonly form: FormDestinationForm; readonly submission: { readonly id: string; readonly answers: Readonly<Record<string, unknown>>; readonly submittedAt: string } }, optional?: Record<string, never>): Promise<void>;
+  /** Push model (sheets, tables, email): one attempt of one binding's durable delivery job (`./deliver.ts`).
+   *  `credential` is resolved fresh per attempt from `binding.connectionRef` and is never stored in the
+   *  job; `form`, `submission` and `binding` were frozen when the submission was planned (the source IP
+   *  is never included). `idempotencyKey` is identical on every retry, so pass it to the destination
+   *  when it can dedupe. Return nothing or `{ ok: true }` on success, or `{ ok: false, error }` with a
+   *  `FormDeliveryErrorCode`; only that code is recorded, never a message, so a thrown error or an
+   *  unknown code becomes a retryable `delivery-failed`. `binding`/`idempotencyKey` are optional in the
+   *  type only so receive-only modules compile unchanged; the push path always passes them. */
+  deliver?(required: { readonly kit: FormDestinationKit; readonly credential: FormDestinationCredential; readonly form: FormDestinationForm; readonly submission: { readonly id: string; readonly answers: Readonly<Record<string, unknown>>; readonly submittedAt: string }; readonly binding?: FormDeliveryBinding; readonly idempotencyKey?: string }, optional?: Record<string, never>): Promise<void | FormDeliveryResult>;
 }
+
+/** Resolves a binding's `connectionRef` to the credential its adapter needs, or null when there is
+ *  none (deleted, revoked, other workspace). The single seam for connection kinds: the shipped one
+ *  opens a custom credential by stable id (`./connection-port.ts`); an OAuth connection is another
+ *  implementation of this same type. Modules never see the vault, only the resolved credential. */
+export type FormDeliveryConnectionPort = (
+  required: { readonly workspaceId: string; readonly connectionRef: string; readonly adapterId: string },
+  optional?: Record<string, never>,
+) => Promise<FormDestinationCredential | null>;
 
 /** One entry of a plugin's `tovu-form-destinations.json`. */
 export interface FormDestinationDescriptor {

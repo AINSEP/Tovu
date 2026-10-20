@@ -1763,6 +1763,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   startModule(
     createIntegrationsModule({
       bus: routeDeps.bus,
+      formDelivery: routeDeps.formDelivery,
       webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
       webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
       idGen: routeDeps.idGen,

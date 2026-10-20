@@ -8,7 +8,8 @@ import type { DeployHostKit } from "#src/features/deployments/deploy-targets/typ
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
 import { createFormDestinationPort, FORM_PULL_LEASE_MS, formDestinationKey, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationRegistry } from "#src/features/form-destinations/index";
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";
-import { getEffective, type SettingsRepoPort } from "@jini-ai/core/settings";
+import { readFormsAutoPull } from "#src/features/settings/form-delivery";
+import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormImportCounts, type FormPullCounts, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort, type RemoteImportResult, type RemoteSubmissionInput } from "#src/features/forms/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 
@@ -54,19 +55,11 @@ export function composeFormSubmissions(
     destination,
     pull: { pull: (input, options = {}) => pullAll({ deps: required, workspaceId: input.workspaceId }, { ...optional, ...options }) },
     autoPull: { run: async ({ workspaceId }) => {
-      if (!await readAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
+      // `core.forms/autoPull` is read fresh at every trigger; manual pulls never read it.
+      if (!await readFormsAutoPull({ settingsRepo: required.settingsRepo, workspaceId })) return;
       await pullAll({ deps: required, workspaceId }, { ...optional, trigger: "automatic" });
     } },
   };
-}
-
-/** `core.forms/autoPull`, read fresh at every trigger. Lot F4 registers the definition
- * (`features/settings/form-delivery.ts`); unregistered, unset or not a boolean reads as ON, its
- * default. Only an explicit `false` turns automatic pulls off; manual pulls never read it.
- * @complexity One effective setting read. */
-async function readAutoPull({ settingsRepo, workspaceId }: { settingsRepo: SettingsRepoPort; workspaceId: string }, _optional = {}): Promise<boolean> {
-  const setting = await getEffective({ repo: settingsRepo }, { namespace: "core.forms", key: "autoPull", scopeContext: { workspaceId } });
-  return setting?.value !== false;
 }
 
 /** One receiver's report plus its rows counted per form slug. */

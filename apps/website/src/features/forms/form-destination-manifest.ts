@@ -20,14 +20,32 @@ export interface FormDestinationManifestForm {
 export function buildFormDestinationManifest({ definitions }: { definitions: readonly FormDefinitionRecord[] }, _optional = {}): FormDestinationManifestForm[] {
   return definitions.filter((definition) => definition.status === "active").map((stored) => {
     const definition = htmlSubmissionDefinition({ definition: stored, body: {} });
-    return {
-      slug: definition.slug,
-      fields: definition.fields.map((field) => ({
-        name: field.name ?? field.id,
-        required: field.required,
-        ...(typeof field.maxLength === "number" ? { maxLength: field.maxLength } : {}),
-        ...((FIELD_TYPE_REGISTRY as Record<string, { multiple?: boolean }>)[field.type]?.multiple === true ? { multiple: true as const } : {}),
-      })),
-    };
+    return { slug: definition.slug, fields: definition.fields.map((field) => manifestField(field)) };
   });
+}
+
+/**
+ * The form as a push delivery receives it: the manifest's fields plus each field's `label` and
+ * `type`, so a destination can name its columns. Used for the snapshot frozen when a submission is
+ * planned, whatever the definition's status is now (the submission was accepted already).
+ * @complexity O(fields).
+ */
+export function buildFormDeliveryForm({ definition: stored }: { definition: FormDefinitionRecord }, _optional = {}): FormDeliveryManifestForm {
+  const definition = htmlSubmissionDefinition({ definition: stored, body: {} });
+  return { slug: definition.slug, fields: definition.fields.map((field) => ({ ...manifestField(field), label: field.label, type: field.type })) };
+}
+
+/** A manifest form whose fields also carry their display label and field type. */
+export interface FormDeliveryManifestForm {
+  readonly slug: string;
+  readonly fields: readonly (FormDestinationManifestForm["fields"][number] & { readonly label: string; readonly type: string })[];
+}
+
+function manifestField(field: FormDefinitionRecord["fields"][number]): FormDestinationManifestForm["fields"][number] {
+  return {
+    name: field.name ?? field.id,
+    required: field.required,
+    ...(typeof field.maxLength === "number" ? { maxLength: field.maxLength } : {}),
+    ...((FIELD_TYPE_REGISTRY as Record<string, { multiple?: boolean }>)[field.type]?.multiple === true ? { multiple: true as const } : {}),
+  };
 }
