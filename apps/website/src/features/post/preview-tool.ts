@@ -35,6 +35,12 @@ export const postPreviewDerivedRisk: DerivedRiskByToolId = new Map([
 ]);
 const CATALOG = indexCatalogById({ catalog: postPreviewAgentToolCatalog });
 
+/** Validate all override fields before copying any of them or performing reads. */
+function validatePreviewOverrides(input: Record<string, unknown>, _options: Record<string, never> = {}): void {
+  for (const key of ["templateChoice", "bodyHtml"] as const) if (input[key] !== undefined && typeof input[key] !== "string") throw new ToolInputError({ message: `content_post_preview: ${key} must be a string.` });
+  if (input.bodyJson !== undefined && (typeof input.bodyJson !== "object" || input.bodyJson === null || Array.isArray(input.bodyJson))) throw new ToolInputError({ message: "content_post_preview: bodyJson must be a JSON object." });
+}
+
 /**
  * Reads id (or its legacy postId alias) and unsaved edits without changing the input. A supplied
  * id wins even when invalid, so a stale alias cannot redirect a preview to a different record.
@@ -44,8 +50,7 @@ const CATALOG = indexCatalogById({ catalog: postPreviewAgentToolCatalog });
 function readPreviewInput(input: Record<string, unknown>, _options: Record<string, never> = {}): { postId: string; overrides: Omit<PostPreviewInput, "post"> } {
   const id = input.id === undefined ? input.postId : input.id;
   if (typeof id !== "string" || id.trim().length === 0) throw new ToolInputError({ message: "content_post_preview: id must be a non-empty id or slug (postId is a legacy alias)." });
-  for (const key of ["templateChoice", "bodyHtml"] as const) if (input[key] !== undefined && typeof input[key] !== "string") throw new ToolInputError({ message: `content_post_preview: ${key} must be a string.` });
-  if (input.bodyJson !== undefined && (typeof input.bodyJson !== "object" || input.bodyJson === null || Array.isArray(input.bodyJson))) throw new ToolInputError({ message: "content_post_preview: bodyJson must be a JSON object." });
+  validatePreviewOverrides(input);
   const overrides: Omit<PostPreviewInput, "post"> = {};
   if (input.templateChoice !== undefined) overrides.templateChoice = input.templateChoice as string;
   if (input.bodyHtml !== undefined) overrides.bodyHtml = input.bodyHtml as string;

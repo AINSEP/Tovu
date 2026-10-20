@@ -69,6 +69,30 @@ async function resolveCurrentActor(
   return matching ? matching.actorId : null;
 }
 
+/** Fields introduced after the original inverse payload: absence keeps current values. */
+function restoredPresentationFields(
+  { inverse, currentPublishAt, currentFeatured }: {
+    inverse: Pick<PostRecord, "publishAt" | "featuredMediaId" | "author" | "showAuthor" | "templateChoice">;
+    currentPublishAt: PostRecord["publishAt"];
+    currentFeatured: PostRecord["featuredMediaId"];
+  },
+  _options: Record<string, never> = {}
+) {
+  return {
+    // Scheduled publishing / featured image (2026-10-05): restored from the pre-image when it
+    // carries them; a pre-image recorded before these fields existed has no key at all, and
+    // then the current values stay (there is nothing older to restore them to).
+    ...presentScheduleFields({
+      publishAt: inverse.publishAt === undefined ? currentPublishAt : inverse.publishAt,
+      featuredMediaId: inverse.featuredMediaId === undefined ? currentFeatured : inverse.featuredMediaId,
+    }),
+    ...(inverse.author !== undefined ? { author: inverse.author } : {}),
+    ...(inverse.showAuthor !== undefined ? { showAuthor: inverse.showAuthor } : {}),
+    // Older pre-images omit this key; keep their current choice instead of clearing it.
+    ...(inverse.templateChoice !== undefined ? { templateChoice: inverse.templateChoice } : {}),
+  };
+}
+
 /**
  * Restores a post to the title/slug/bodyJson/status/ext captured before the edit.
  *
@@ -122,17 +146,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
       const { ext: _currentExt, publishAt: currentPublishAt, featuredMediaId: currentFeatured, ...carriedOver } = existing;
       const restored: PostRecord = {
         ...carriedOver,
-        // Scheduled publishing / featured image (2026-10-05): restored from the pre-image when it
-        // carries them; a pre-image recorded before these fields existed has no key at all, and
-        // then the current values stay (there is nothing older to restore them to).
-        ...presentScheduleFields({
-          publishAt: inverse.publishAt === undefined ? currentPublishAt : inverse.publishAt,
-          featuredMediaId: inverse.featuredMediaId === undefined ? currentFeatured : inverse.featuredMediaId,
-        }),
-        ...(inverse.author !== undefined ? { author: inverse.author } : {}),
-        ...(inverse.showAuthor !== undefined ? { showAuthor: inverse.showAuthor } : {}),
-        // Older pre-images omit this key; keep their current choice instead of clearing it.
-        ...(inverse.templateChoice !== undefined ? { templateChoice: inverse.templateChoice } : {}),
+        ...restoredPresentationFields({ inverse, currentPublishAt, currentFeatured }),
         title: inverse.title,
         slug: inverse.slug,
         bodyJson: inverse.bodyJson as JsonObject,
