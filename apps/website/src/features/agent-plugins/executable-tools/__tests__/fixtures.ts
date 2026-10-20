@@ -83,7 +83,7 @@ export async function bootFixture(options: { readonly active?: () => boolean; re
 }
 
 /** Starts a confirming call and returns the card's rows plus a way to answer it. */
-export async function startConfirmingCall(fixture: Awaited<ReturnType<typeof bootFixture>>, toolId: string, input: unknown) {
+export async function startConfirmingCall(fixture: Pick<Awaited<ReturnType<typeof bootFixture>>, 'executor' | 'surfaces'>, toolId: string, input: unknown) {
   let html = '';
   const pending = fixture.executor.execute({ toolId, principal: { id: 'owner' }, run: { id: 'run' }, input }, {
     emitSurface: async (emission) => { html = (emission.payload as { resource: { resource: { text: string } } }).resource.resource.text; },
