@@ -216,8 +216,8 @@ function importedLocalFields(
     // refused before this point, so the only correct value here is "live".
     deletedAt: null,
     ...(existing?.ext !== undefined ? { ext: existing.ext } : {}),
-    createdByPrincipalId: existing ? existing.createdByPrincipalId : (wire.createdByPrincipalId as string | null),
-    createdAt: existing ? existing.createdAt : (wire.createdAt as string | null),
+    createdByPrincipalId: existing ? existing.createdByPrincipalId : (wire.createdByPrincipalId as string | null) ?? null,
+    createdAt: existing ? existing.createdAt : (wire.createdAt as string | null) ?? null,
   };
 }
 

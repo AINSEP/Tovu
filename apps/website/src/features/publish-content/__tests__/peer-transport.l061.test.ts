@@ -157,3 +157,76 @@ test("L061 a peer cannot request uploads outside the selected manifest, even aft
     assert.equal(deps.calls.length, 1, 'invalid probes must neither upload nor stage a bundle');
   }
 });
+
+test("L061 known peer refusals keep fixed operator guidance without echoing peer text", async () => {
+  const cases: readonly [number, unknown, string][] = [
+    [404, { code: "WORKSPACE_NOT_FOUND" }, "The destination workspace was not found; check the peer's workspace setting."],
+    [404, { error: "workspace was not found" }, "The destination workspace was not found; check the peer's workspace setting."],
+    [413, { code: "PAYLOAD_TOO_LARGE" }, "The transfer exceeds the peer's size limit; publish a smaller selection."],
+    [409, { code: "PLAN_STALE" }, "The destination changed since the plan was checked; check what would change again."],
+    [409, { code: "TOKEN_EXPIRED" }, "The confirmation expired; check and confirm the publish again."],
+    [409, { code: "TOKEN_ALREADY_REDEEMED" }, "This confirmation was already used; check the publish result before trying again."],
+    [409, { code: "RESTORE_POINT_UNAVAILABLE" }, "The peer could not create a restore point; repair its backup storage before publishing."],
+    [404, { code: "BUNDLE_NOT_FOUND" }, "The staged bundle was not found on the peer; send the selection again."],
+    [413, "proxy failure", "The transfer exceeds the peer's size limit; publish a smaller selection."],
+    [409, null, "The peer reported a conflict; check what would change again before retrying."],
+  ];
+  for (const [status, body, guidance] of cases) {
+    const bodyText = body !== null && typeof body === "object"
+      ? JSON.stringify({ message: credential.apiKey, ...body }) : String(body);
+    const deps = client({ reply: () => response({ status, bodyText }) });
+    await assert.rejects(callPeer(deps, { method: "POST", path: "/route" }), err => {
+      assert.ok(err instanceof PublishContentPeerTransportError);
+      assert.equal(err.message, `the peer refused POST /route with HTTP ${status}. ${guidance}`);
+      assert.equal(err.peerStatus, status);
+      assert.equal(err.message.includes(credential.apiKey), false);
+      return true;
+    });
+  }
+  for (const body of [{ code: credential.apiKey, error: credential.apiKey }, { code: "__proto__" }, { error: `workspace was not found ${credential.apiKey}` }, []]) {
+    const deps = client({ reply: () => response({ status: 404, bodyText: JSON.stringify(body) }) });
+    await assert.rejects(callPeer(deps, { method: "GET", path: "/route" }), { message: "the peer refused GET /route with HTTP 404" });
+  }
+});
+
+test("L061 network codes yield fixed diagnostics without exposing messages or causes", async () => {
+  const cases: readonly [string, RegExp][] = [
+    ["ECONNREFUSED", /peer refused the connection/], ["ENOTFOUND", /hostname could not be resolved/],
+    ["CERT_HAS_EXPIRED", /TLS certificate could not be verified/], ["ERR_TLS_CERT_ALTNAME_INVALID", /TLS certificate could not be verified/],
+    ["ETIMEDOUT", /connection timed out/],
+  ];
+  for (const [code, expected] of cases) {
+    for (const failure of [Object.assign(new Error(credential.apiKey), { code }),
+      new Error(credential.apiKey, { cause: { code, message: credential.apiKey } })]) {
+      const httpClient: HttpClientPort = { send: async () => { throw failure; } };
+      await assert.rejects(callPeer({ httpClient, credential }, { method: "GET", path: "/route" }), err => {
+        assert.ok(err instanceof PublishContentPeerTransportError);
+        assert.equal(err.code, "PEER_UNREACHABLE");
+        assert.match(err.message, expected);
+        assert.equal(err.message.includes(credential.apiKey), false);
+        return true;
+      });
+    }
+  }
+});
+
+test("L061 a repeated missing sha is probed, read and uploaded only once", async () => {
+  const bundle: PublishContentExportEnvelope = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+    hashVersion: 1, sourceLabel: "Local", entities: [], blobManifest: ["held", "gone"], skipped: [] };
+  const deps = client({ reply: request => {
+    if (request.url.endsWith("/blobs/probe")) return response({ bodyText: JSON.stringify({ missing: ["held", "held", "gone", "gone", "held"] }) });
+    if (request.url.endsWith("/bundles")) return response({ bodyText: '{"bundleId":"b"}' });
+    return response({});
+  } });
+  const probes: string[] = [];
+  const reads: string[] = [];
+  const result = await pushBundleToPeer({ ...deps, computeStorageKey: sha => sha, blobSource: {
+    exists: async ({ sha256 }) => { probes.push(sha256); return sha256 === "held"; },
+    get: async ({ sha256 }) => { reads.push(sha256); return new Uint8Array([1]); },
+  } }, { bundle });
+  assert.deepEqual(probes, ["held", "gone"]);
+  assert.deepEqual(reads, ["held"]);
+  assert.deepEqual(result.blobsUploaded, ["held"]);
+  assert.deepEqual(result.blobsUnavailable, ["gone"]);
+  assert.equal(deps.calls.filter(request => request.method === "PUT").length, 1);
+});

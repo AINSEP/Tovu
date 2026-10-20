@@ -109,10 +109,17 @@ test("L156 update inverse preserves legacy fields, restores explicit values, and
   assert.equal((await outbox.claimPending({ batchSize: 10, nowIso: new Date(clock.nowMs()).toISOString() }))[0]?.event.name, "entry.published");
 });
 
-test("L156 publish import uses source provenance only on create and keeps destination ext on update", async () => {
+test("L156 publish import uses source provenance only on create and keeps destination ext on update", async (t) => {
   const existing = buildPostRecord({ createdAt: "local-created", createdByPrincipalId: "local-author",
     ext: { local: { flag: true } }, author: "Old", showAuthor: true, publishAt: "later", featuredMediaId: "old-media" });
   const repo = new InMemoryPostRepo([existing]);
+  const savedProvenance: unknown[] = [];
+  const save = repo.save.bind(repo);
+  t.mock.method(repo, "save", async record => {
+    // Assert the record at the write boundary before any repository normalization or read-back.
+    savedProvenance.push({ id: record.id, createdAt: record.createdAt, createdByPrincipalId: record.createdByPrincipalId });
+    return save(record);
+  });
   const outbox = new InMemoryOutbox();
   let id = 0;
   const handler = contributePostPublish().build({ workspaceId: existing.workspaceId, clock,
@@ -133,6 +140,9 @@ test("L156 publish import uses source provenance only on create and keeps destin
       author: "Source", showAuthor: true, publishAt: "2027-01-01T00:00:00.000Z", featuredMediaId: "source-media" } },
     expectedVersion: undefined, principalId: "operator", idempotencyKey: newId });
     const created = (await repo.findById({ workspaceId: existing.workspaceId, id: newId }))!;
+    assert.deepEqual(savedProvenance.at(-1), { id: newId,
+      createdAt: newId === "copy" ? "source-created" : null,
+      createdByPrincipalId: newId === "copy" ? "source-author" : null });
     assert.deepEqual([created.createdAt, created.createdByPrincipalId], newId === "copy"
       ? ["source-created", "source-author"] : [null, null]);
     assert.deepEqual([created.author, created.showAuthor, created.publishAt, created.featuredMediaId, created.ext],

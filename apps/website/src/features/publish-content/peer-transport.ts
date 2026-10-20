@@ -111,13 +111,65 @@ export function describePeerEgressRefusal(err: EgressRefusedError, baseUrl: stri
  *
  * @complexity O(n) in the base URL and resulting diagnostic length, including shared redaction.
  */
-function toTransportError(err: unknown, baseUrl: string): PublishContentPeerTransportError {
+function toTransportError({ err, baseUrl }: { err: unknown; baseUrl: string }, _options = {}): PublishContentPeerTransportError {
   if (err instanceof PublishContentPeerTransportError) return err;
   if (err instanceof EgressRefusedError) return describePeerEgressRefusal(err, baseUrl);
   return new PublishContentPeerTransportError(
-    `the peer at '${peerHostname(baseUrl)}' could not be reached.`,
+    `the peer at '${peerHostname(baseUrl)}' could not be reached.${peerNetworkReason({ err })}`,
     "PEER_UNREACHABLE"
   );
+}
+
+const PEER_NETWORK_REASONS = new Map<string, string>([
+  ["ECONNREFUSED", " The peer refused the connection; check that it is running and reachable."],
+  ...["ENOTFOUND", "EAI_AGAIN"].map(code => [code, " The peer's hostname could not be resolved; check its address and DNS."] as const),
+  ...["ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT"].map(code => [code, " The connection timed out; check the peer and try again."] as const),
+  ...["CERT_HAS_EXPIRED", "CERT_NOT_YET_VALID", "DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN",
+    "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "ERR_TLS_CERT_ALTNAME_INVALID"]
+    .map(code => [code, " The peer's TLS certificate could not be verified; repair its certificate before trying again."] as const),
+]);
+
+/** Classify local network codes without exposing messages or credential-bearing causes.
+ * @complexity O(1), inspecting at most the error and its immediate cause. */
+function peerNetworkReason({ err }: { err: unknown }, _options = {}): string {
+  if (typeof err !== "object" || err === null) return "";
+  const cause = "cause" in err ? err.cause : undefined;
+  const code = "code" in err ? err.code
+    : typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
+  return typeof code === "string" ? PEER_NETWORK_REASONS.get(code) ?? "" : "";
+}
+
+const PEER_REFUSAL_REASONS = new Map<string, string>([
+  ["WORKSPACE_NOT_FOUND", "The destination workspace was not found; check the peer's workspace setting."],
+  ["PAYLOAD_TOO_LARGE", "The transfer exceeds the peer's size limit; publish a smaller selection."],
+  ["PLAN_STALE", "The destination changed since the plan was checked; check what would change again."],
+  ["TOKEN_EXPIRED", "The confirmation expired; check and confirm the publish again."],
+  ["TOKEN_ALREADY_REDEEMED", "This confirmation was already used; check the publish result before trying again."],
+  ["RESTORE_POINT_UNAVAILABLE", "The peer could not create a restore point; repair its backup storage before publishing."],
+  ["BUNDLE_NOT_FOUND", "The staged bundle was not found on the peer; send the selection again."],
+]);
+
+/** Translate only known peer codes/statuses into local operator guidance, never upstream prose.
+ * Legacy workspace refusals have no code, so only their exact fixed sentinel is recognised.
+ * @complexity O(body bytes), one JSON parse and constant-time map lookups. */
+function peerRefusalReason({ status, bodyText }: { status: number; bodyText: string }, _options = {}): string | undefined {
+  try {
+    const body: unknown = JSON.parse(bodyText);
+    if (typeof body === "object" && body !== null) {
+      if ("code" in body && typeof body.code === "string") {
+        const reason = PEER_REFUSAL_REASONS.get(body.code);
+        if (reason) return reason;
+      }
+      if (status === 404 && "error" in body && body.error === "workspace was not found") {
+        return PEER_REFUSAL_REASONS.get("WORKSPACE_NOT_FOUND");
+      }
+    }
+  } catch {
+    // Proxies may return HTML or an empty body; the HTTP status still provides safe guidance.
+  }
+  if (status === 413) return PEER_REFUSAL_REASONS.get("PAYLOAD_TOO_LARGE");
+  if (status === 409) return "The peer reported a conflict; check what would change again before retrying.";
+  return undefined;
 }
 
 /** Per-request timeout for a peer call. A bundle POST is the slow one; 60 s is generous for an API
@@ -186,14 +238,15 @@ export async function callPeer(
       totalDeadlineMs: PEER_REQUEST_TIMEOUT_MS,
     });
   } catch (err) {
-    throw toTransportError(err, baseUrl);
+    throw toTransportError({ err, baseUrl });
   }
 
   if (response.status < 200 || response.status >= 300) {
+    const reason = peerRefusalReason({ status: response.status, bodyText: response.bodyText });
     throw new PublishContentPeerTransportError(
       isCredentialKindRefusal(response.status, response.bodyText)
         ? credentialKindRefusalMessage(baseUrl)
-        : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}`,
+        : `the peer refused ${request.method} ${request.path} with HTTP ${response.status}${reason ? `. ${reason}` : ""}`,
       "PEER_REJECTED",
       { peerStatus: response.status }
     );
@@ -804,7 +857,7 @@ async function uploadMissingPeerBlobs(
       );
     }
 
-    for (const sha256 of missing) {
+    for (const sha256 of new Set(missing)) {
       const storageKey = deps.computeStorageKey(sha256);
       if (!(await deps.blobSource.exists({ sha256, storageKey }))) {
         // Not an error: the bundle names a blob this instance no longer holds. Reported, and the

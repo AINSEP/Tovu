@@ -1,7 +1,4 @@
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-/** True iff `err` is the `(workspace_id, label)` UNIQUE index rejecting a write, from any database
- *  (`isUniqueViolation`, storage kernel: SQLite's message, Postgres SQLSTATE 23505).
- *  @complexity O(n) in the message length. */
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialTokenHint } from "#src/contracts/core/credential-token";
@@ -591,7 +588,10 @@ function peerRecordHint({ record }: { record: VaultRecord }, _options = {}): str
   return `••••${last4}`;
 }
 
-/** The same vault-write failure policy governs create and credential replacement. */
+/** The same vault-write failure policy governs create and credential replacement.
+ * Recognises the `(workspace_id, label)` UNIQUE index rejecting a write, from any database
+ * (`isUniqueViolation`, storage kernel: SQLite's message, Postgres SQLSTATE 23505).
+ * @complexity O(n) in the message length, plus a workspace vault read for conflicts. */
 async function rethrowPeerWriteError(
   { repo }: PublishContentPeerReadDeps,
   { err, workspaceId, label, excludeId }: { err: unknown; workspaceId: string; label: string; excludeId?: string },
