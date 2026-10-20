@@ -14,7 +14,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | Path | What it is |
 |---|---|
 | `plugin.json`, `mcp.json` | Manifest (no MCP servers). |
-| `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). |
+| `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). `byoClient: true` lets a workspace admin use their own OAuth client instead (saved as the custom credential `google-workspace/account OAuth client`; see `skills/google-workspace/references/connection.md`). |
 | `products.json` | Product catalog: id, label, tool prefix (every tool named with it belongs to the product and is gated by it; a security pin enumerates them), required scopes. Sheets = `drive.file` only. |
 | `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`): `account_info`, and the Sheets tools in `tools/sheets/` (see its README). |
 | `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces: the connection panel, Choose spreadsheet (Picker) and Form destinations, each with a server-side `handlerModule`. See `ui/README.md`. |
