@@ -218,3 +218,48 @@ for (const operation of ["findByServerId", "upsert"] as const) {
     ]);
   });
 }
+
+// L025a: keep every skip and malformed-list guard when extracting per-server handling.
+test("tool renames skip local, invalid, missing, and unreadable rows while later eligible rows still change", async () => {
+  const h = await makeHarness({ allowedToolNames: "get_logs" });
+  const row = await h.read();
+  await h.repo.upsert({ ...row, serverId: "bad-list", allowedToolNames: "{broken" });
+  await h.repo.upsert({ ...row, serverId: "bad-write", writeAllowedToolNames: '[1]' });
+  h.plugins[0] = { pluginId: PLUGIN, servers: {
+    local: { type: "stdio", command: "local" },
+    "!!!": DECLARED,
+    missing: DECLARED,
+    "bad-list": DECLARED,
+    "bad-write": DECLARED,
+    supabase: DECLARED,
+  } };
+  await h.run();
+  assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
+  assert.equal((await h.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "bad-list" }))?.allowedToolNames, "{broken");
+  assert.equal((await h.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "bad-write" }))?.writeAllowedToolNames, '[1]');
+  assert.equal(h.notifications(), 1);
+  assert.equal(h.logs.length, 1);
+});
+
+test("tool renames propagate a roster notification failure after persisting the rename (reported, not fixed)", async () => {
+  const h = await makeHarness({ allowedToolNames: "get_logs" });
+  await assert.rejects(applyAgentPluginToolRenames(testSiteLayoutContext({
+    workspaceId: WORKSPACE, externalMcpServerRepo: h.repo, clock: createFakeClock({ startIso: NOW }),
+    listPlugins: async () => h.plugins,
+    notifyRosterChanged: async () => { throw new Error("roster unavailable"); },
+  }), { info() {}, warn() {} }), /roster unavailable/);
+  assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
+});
+
+test("tool renames still notify after a successful write when its info logger throws", async () => {
+  const h = await makeHarness({ allowedToolNames: "get_logs" });
+  let notified = 0;
+  const warnings: string[] = [];
+  await applyAgentPluginToolRenames(testSiteLayoutContext({
+    workspaceId: WORKSPACE, externalMcpServerRepo: h.repo, clock: createFakeClock({ startIso: NOW }),
+    listPlugins: async () => h.plugins, notifyRosterChanged: async () => { notified++; },
+  }), { info: () => { throw new Error("logger unavailable"); }, warn: (message) => { warnings.push(message); } });
+  assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
+  assert.equal(notified, 1);
+  assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': logger unavailable"]);
+});

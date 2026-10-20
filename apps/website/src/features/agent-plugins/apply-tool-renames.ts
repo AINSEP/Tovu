@@ -61,8 +61,21 @@ export function renameToolNames(names: readonly string[], renames: Readonly<Reco
   return [...new Set(names.map((name) => (Object.hasOwn(renames, name) ? renames[name]! : name)))];
 }
 
-/** The row with its two tool lists renamed, or `null` when neither list changed (or either is unreadable). */
-function renameRowTools(row: ExternalMcpServerRecord, renames: Readonly<Record<string, string>>, nowIso: ExternalMcpServerRecord["updatedAt"]): ExternalMcpServerRecord | null {
+/** The matching provisioned row with its two tool lists renamed, or `null` when neither list
+ * changed (or either is unreadable). */
+function renameRowTools(
+  input: {
+    readonly row: ExternalMcpServerRecord;
+    readonly renames: Readonly<Record<string, string>>;
+    readonly clock: ExternalMcpStoreDeps["clock"];
+    readonly pluginId: string;
+    readonly url: string;
+  },
+  _options = {},
+): ExternalMcpServerRecord | null {
+  const { row, renames, clock, pluginId, url } = input;
+  if (row.provisionedByPluginId !== pluginId || row.url !== url) return null;
+  const nowIso = clockNowIso({ clock });
   const allow = readToolList(row.allowedToolNames);
   const write = readToolList(row.writeAllowedToolNames);
   if (allow === null || write === null) return null;
@@ -77,6 +90,37 @@ function renameRowTools(row: ExternalMcpServerRecord, renames: Readonly<Record<s
       : { writeAllowedToolNames: JSON.stringify(renamedWrite), writeGrantsUpdatedByPrincipalId: TOOL_RENAMES_ACTOR, writeGrantsUpdatedAt: nowIso }),
     updatedAt: nowIso,
   };
+}
+
+/** Applies one declaration only to its provisioned row at the declared endpoint. */
+async function applyServerToolRenames(
+  input: {
+    readonly deps: ApplyAgentPluginToolRenamesDeps;
+    readonly pluginId: string;
+    readonly serverKey: string;
+    readonly config: import("./mcp-metadata.js").McpServerConfig;
+    readonly log: TokenImportLog;
+  },
+  _options = {},
+): Promise<boolean> {
+  const { deps, pluginId, serverKey, config, log } = input;
+  if (config.type === "stdio" || !config.tovuRenamedTools) return false;
+  const serverId = deriveAgentPluginConnectionId(serverKey);
+  if (serverId === null) return false;
+  let changed = false;
+  try {
+    const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
+    if (!row) return false;
+    const renamed = renameRowTools({ row, renames: config.tovuRenamedTools, clock: deps.clock, pluginId, url: config.url });
+    if (!renamed) return false;
+    await deps.externalMcpServerRepo.upsert(renamed);
+    changed = true;
+    log.info(`[agent-plugins] '${serverId}': renamed saved tools to follow the '${pluginId}' plugin (${Object.entries(config.tovuRenamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ")}).`);
+    return true;
+  } catch (err) {
+    log.warn(`[agent-plugins] could not apply the '${pluginId}' plugin's tool renames to '${serverId}': ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return changed;
 }
 
 /**
@@ -99,20 +143,7 @@ export async function applyAgentPluginToolRenames(deps: ApplyAgentPluginToolRena
   let changed = false;
   for (const { pluginId, servers } of plugins) {
     for (const [serverKey, config] of Object.entries(servers)) {
-      if (config.type === "stdio" || !config.tovuRenamedTools) continue;
-      const serverId = deriveAgentPluginConnectionId(serverKey);
-      if (serverId === null) continue;
-      try {
-        const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
-        if (!row || row.provisionedByPluginId !== pluginId || row.url !== config.url) continue;
-        const renamed = renameRowTools(row, config.tovuRenamedTools, clockNowIso({ clock: deps.clock }));
-        if (!renamed) continue;
-        await deps.externalMcpServerRepo.upsert(renamed);
-        changed = true;
-        log.info(`[agent-plugins] '${serverId}': renamed saved tools to follow the '${pluginId}' plugin (${Object.entries(config.tovuRenamedTools).map(([from, to]) => `${from} -> ${to}`).join(", ")}).`);
-      } catch (err) {
-        log.warn(`[agent-plugins] could not apply the '${pluginId}' plugin's tool renames to '${serverId}': ${err instanceof Error ? err.message : String(err)}`);
-      }
+      if (await applyServerToolRenames({ deps, pluginId, serverKey, config, log })) changed = true;
     }
   }
   if (changed) await deps.notifyRosterChanged();

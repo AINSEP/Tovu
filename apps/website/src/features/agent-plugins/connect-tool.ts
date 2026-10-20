@@ -262,7 +262,7 @@ export function hasStoredAgentPluginCredential(row: Pick<ExternalMcpServerRecord
 
 /** Resolves which of a plugin's declared OAuth servers still need connecting, after provisioning
  *  every one of them as an external-MCP row (idempotent — a row already `connected` is left alone).
- *  @throws {ToolInputError} A declared OAuth server has no row after provisioning (provisioning
+ *  @throws {ToolInputError} A declared OAuth server has no row owned by this plugin after provisioning (provisioning
  *    skipped or failed it — e.g. a legacy `sse` transport): there is nothing to sign in to. */
 async function resolvePendingOAuthServers(
   routeDeps: AgentPluginConnectToolDeps,
@@ -275,7 +275,7 @@ async function resolvePendingOAuthServers(
     const row = connectionId
       ? await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId })
       : null;
-    if (!connectionId || !row) {
+    if (!connectionId || !row || row.provisionedByPluginId !== pluginId) {
       throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.` });
     }
     // A saved access token counts too: starting a sign-in here would switch the row back to OAuth.
@@ -319,11 +319,16 @@ export async function runAgentPluginConnect(
   }
   const externalMcpOAuth = routeDeps.externalMcpOAuth;
 
-  await provisionAgentPluginMcpServers(
+  const provisioned = await provisionAgentPluginMcpServers(
     { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },
     { workspaceId: routeDeps.workspaceId, pluginId, servers: plugin.servers, principalId: ctx.principal.id },
   );
 
+  // A colliding row can survive a refused provisioning attempt; never start sign-in on it.
+  const refusal = provisioned.failed[0] ?? provisioned.skipped[0];
+  if (refusal) {
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
+  }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
   // Every declared OAuth server is already connected: a legitimate "nothing to do" success.
   if (pending.length === 0) return { status: "connected" };
@@ -332,6 +337,22 @@ export async function runAgentPluginConnect(
   }
   const [server] = pending;
 
+  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth }, optional);
+}
+
+/** Show one MCP sign-in and always release its surface exchange after the bounded wait. */
+async function waitAtMcpSignInCard(
+  input: {
+    readonly routeDeps: AgentPluginConnectToolDeps;
+    readonly surfaces: AssistantSurfaceDeps;
+    readonly ctx: ToolExecutionContext;
+    readonly pluginId: string;
+    readonly server: PendingOAuthServer;
+    readonly externalMcpOAuth: ExternalMcpOAuthService;
+  },
+  optional: ToolExecutionOptions = {},
+): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
+  const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth } = input;
   const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
@@ -350,18 +371,7 @@ export async function runAgentPluginConnect(
       payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) },
     } });
 
-    const pollIntervalMs = routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-    const waitTimeoutMs = routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
-    const deadline = Date.now() + waitTimeoutMs;
-    let connected = false;
-    while (Date.now() < deadline && !ctx.signal.aborted) {
-      const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: server.connectionId });
-      if (row && resolveExternalMcpOAuthStatus(row) === "connected") {
-        connected = true;
-        break;
-      }
-      await sleepOrAbort(Math.min(pollIntervalMs, Math.max(deadline - Date.now(), 0)), ctx.signal);
-    }
+    const connected = await waitForMcpConnection({ routeDeps, ctx, server });
 
     if (connected) {
       try {
@@ -378,6 +388,29 @@ export async function runAgentPluginConnect(
     ctx.signal.removeEventListener("abort", closeOnAbort);
     exchange.close({});
   }
+}
+
+/** Observe the MCP row until callback completion, timeout or cancellation. */
+async function waitForMcpConnection(
+  input: {
+    readonly routeDeps: AgentPluginConnectToolDeps;
+    readonly ctx: ToolExecutionContext;
+    readonly server: PendingOAuthServer;
+  },
+  _options = {},
+): Promise<boolean> {
+  const { routeDeps, ctx, server } = input;
+  const pollIntervalMs = routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const waitTimeoutMs = routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
+  const deadline = Date.now() + waitTimeoutMs;
+  while (Date.now() < deadline && !ctx.signal.aborted) {
+    const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: server.connectionId });
+    if (row && resolveExternalMcpOAuthStatus(row) === "connected") {
+      return true;
+    }
+    await sleepOrAbort(Math.min(pollIntervalMs, Math.max(deadline - Date.now(), 0)), ctx.signal);
+  }
+  return false;
 }
 
 /**

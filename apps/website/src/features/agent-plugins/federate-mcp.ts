@@ -376,7 +376,11 @@ export interface ProvisionAgentPluginMcpServersResult {
  *  and 3 — see this file's header. */
 function buildProvisioningSaveInput(
   planned: PlannedAgentPluginMcpUpsert,
-  input: { readonly workspaceId: string; readonly pluginId: string; readonly principalId: string },
+  input: {
+    readonly workspaceId: string;
+    readonly pluginId: string;
+    readonly principalId: string;
+  },
 ) {
   return {
     workspaceId: input.workspaceId,
@@ -468,17 +472,13 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
       reason: `connection id '${planned.connectionId}' is owned by plugin '${existing.provisionedByPluginId}' at a different endpoint (url='${existing.url ?? ""}', transport='${existing.transport}', authMode='${existing.authMode}') — refusing to rebind it to plugin '${pluginId}' (declared url='${planned.url}', transport='streamable_http', authMode='${planned.authMode}')`,
     };
   }
-  try {
-    // Direct repo write, never `saveExternalMcpServer` — that function has no way to leave every
-    // other field untouched while changing only this one (even its "tri-state" fields resolve a
-    // default the caller must supply). Spreading `existing` and changing one property is the only
-    // way to guarantee byte-identical preservation of the operator's url/transport/auth/allowlist/
-    // write-grants/oauth state.
-    await deps.repo.upsert({ ...existing, provisionedByPluginId: pluginId });
-    return { kind: "adopted" };
-  } catch (err) {
-    return { kind: "failed", reason: err instanceof Error ? err.message : String(err) };
-  }
+  // Direct repo write, never `saveExternalMcpServer` — that function has no way to leave every
+  // other field untouched while changing only this one (even its "tri-state" fields resolve a
+  // default the caller must supply). Spreading `existing` and changing one property is the only
+  // way to guarantee byte-identical preservation of the operator's url/transport/auth/allowlist/
+  // write-grants/oauth state.
+  await deps.repo.upsert({ ...existing, provisionedByPluginId: pluginId });
+  return { kind: "adopted" };
 }
 
 /**
@@ -512,26 +512,38 @@ export async function provisionAgentPluginMcpServers(
   const failed: SkippedAgentPluginMcpServer[] = [];
 
   for (const planned of plan.toUpsert) {
-    try {
-      const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
-      if (existing) {
-        const outcome = await adoptOrRecognizeExistingAgentPluginMcpServer(deps, existing, planned, input.pluginId);
-        if (outcome.kind !== "stale") {
-          if (outcome.kind === "alreadyProvisioned") alreadyProvisioned.push(planned.connectionId);
-          else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
-          else failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
-          continue;
-        }
-        // Rule 1b: replaced by a fresh row, exactly as a first enable would write it.
-        await deps.repo.deleteByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
-      }
-
-      await saveExternalMcpServer(deps, buildProvisioningSaveInput(planned, input));
-      provisioned.push(planned.connectionId);
-    } catch (err) {
-      failed.push({ serverKey: planned.serverKey, reason: err instanceof Error ? err.message : String(err) });
-    }
+    const outcome = await provisionPlannedServer({ deps, input, planned });
+    if (outcome.kind === "failed") failed.push({ serverKey: planned.serverKey, reason: outcome.reason });
+    else if (outcome.kind === "provisioned") provisioned.push(planned.connectionId);
+    else if (outcome.kind === "adopted") adopted.push(planned.connectionId);
+    else alreadyProvisioned.push(planned.connectionId);
   }
 
   return { provisioned, alreadyProvisioned, adopted, skipped: plan.skipped, failed };
+}
+
+/** Execute one planned write, keeping lookup, adoption and replacement failures isolated. */
+async function provisionPlannedServer(
+  required: {
+    readonly deps: ExternalMcpStoreDeps;
+    readonly input: ProvisionAgentPluginMcpServersInput;
+    readonly planned: PlannedAgentPluginMcpUpsert;
+  },
+  _options = {},
+): Promise<{ readonly kind: "provisioned" | "alreadyProvisioned" | "adopted" } | { readonly kind: "failed"; readonly reason: string }> {
+  const { deps, input, planned } = required;
+  try {
+    const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
+    if (existing) {
+      const outcome = await adoptOrRecognizeExistingAgentPluginMcpServer(deps, existing, planned, input.pluginId);
+      if (outcome.kind !== "stale") return outcome;
+      // Rule 1b: replaced by a fresh row, exactly as a first enable would write it.
+      await deps.repo.deleteByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
+    }
+
+    await saveExternalMcpServer(deps, buildProvisioningSaveInput(planned, input));
+    return { kind: "provisioned" };
+  } catch (err) {
+    return { kind: "failed", reason: err instanceof Error ? err.message : String(err) };
+  }
 }

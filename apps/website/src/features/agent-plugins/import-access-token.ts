@@ -146,21 +146,35 @@ export async function importAgentPluginAccessTokensFromEnv(
   }
 
   for (const { pluginId, url, auth } of envDeclarations(plugins)) {
-    const retiredSet = (auth.retiredEnv ?? []).filter((name) => (env[name] ?? "").trim() !== "");
-    if (retiredSet.length > 0) {
-      log.info(`[agent-plugins] ${retiredSet.join(", ")} ${retiredSet.length === 1 ? "is" : "are"} no longer used; the '${pluginId}' plugin's connection replaces them. You can remove them.`);
-    }
+    reportRetiredEnv({ pluginId, auth, env, log });
     const token = auth.importFromEnv ? (env[auth.importFromEnv] ?? "").trim() : "";
-    if (!auth.importFromEnv || token === "" || options.skipPluginIds?.has(pluginId)) continue;
-    try {
-      const outcome = await importAgentPluginAccessToken(deps, { pluginId, token, onlyAtUrl: url });
-      if (outcome === "saved") {
-        log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection and switched it on. The env var is no longer needed.`);
-      } else if (outcome === "saved-left-off") {
-        log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection; it stays off because an operator turned it off (${AGENT_PLUGINS_SCREEN}). The env var is no longer needed.`);
-      }
-    } catch (err) {
-      log.warn(`[agent-plugins] could not copy ${auth.importFromEnv} onto the '${pluginId}' plugin: ${err instanceof Error ? err.message : String(err)}`);
+    await importDeclaredEnvToken({ deps, pluginId, url, auth, token, log, skipPluginIds: options.skipPluginIds });
+  }
+}
+
+type EnvDeclaration = ReturnType<typeof envDeclarations>[number];
+
+/** Retirement notices are independent of whether this boot has a token to import. */
+function reportRetiredEnv(input: Pick<EnvDeclaration, "pluginId" | "auth"> & { readonly env: Readonly<Record<string, string | undefined>>; readonly log: TokenImportLog }, _options = {}): void {
+  const { pluginId, auth, env, log } = input;
+  const retiredSet = (auth.retiredEnv ?? []).filter((name) => (env[name] ?? "").trim() !== "");
+  if (retiredSet.length > 0) {
+    log.info(`[agent-plugins] ${retiredSet.join(", ")} ${retiredSet.length === 1 ? "is" : "are"} no longer used; the '${pluginId}' plugin's connection replaces them. You can remove them.`);
+  }
+}
+
+/** Isolate one import's failure so later declarations still run. */
+async function importDeclaredEnvToken(input: EnvDeclaration & { readonly deps: ImportAgentPluginAccessTokensFromEnvDeps; readonly token: string; readonly log: TokenImportLog; readonly skipPluginIds?: ReadonlySet<string> }, _options = {}): Promise<void> {
+  const { deps, pluginId, url, auth, token, log, skipPluginIds } = input;
+  if (!auth.importFromEnv || token === "" || skipPluginIds?.has(pluginId)) return;
+  try {
+    const outcome = await importAgentPluginAccessToken(deps, { pluginId, token, onlyAtUrl: url });
+    if (outcome === "saved") {
+      log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection and switched it on. The env var is no longer needed.`);
+    } else if (outcome === "saved-left-off") {
+      log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection; it stays off because an operator turned it off (${AGENT_PLUGINS_SCREEN}). The env var is no longer needed.`);
     }
+  } catch (err) {
+    log.warn(`[agent-plugins] could not copy ${auth.importFromEnv} onto the '${pluginId}' plugin: ${err instanceof Error ? err.message : String(err)}`);
   }
 }

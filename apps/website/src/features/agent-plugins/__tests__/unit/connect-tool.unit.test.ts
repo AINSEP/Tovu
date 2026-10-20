@@ -427,3 +427,85 @@ function runAgentPluginConnect(
   const { emitSurface, ...required } = context;
   return runConnectWithOptions(deps, surfaces, required, pluginId, emitSurface ? { emitSurface } : {});
 }
+
+// L025a: pin all pre-card exits before separating the polling/card lifecycle.
+for (const scenario of ["unknown", "no-oauth-service", "already-connected", "multiple", "no-emitter"] as const) {
+  test(`connect pre-card behavior: ${scenario}`, async () => {
+    const store = makeStoreDeps();
+    const servers: Readonly<Record<string, McpServerConfig>> = scenario === "multiple" ? { widget: OAUTH_SERVER, second: OAUTH_SERVER } : { widget: OAUTH_SERVER };
+    if (scenario === "already-connected") {
+      await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers, principalId: PRINCIPAL_ID });
+      await flipRowConnected(store.repo, "widget");
+    }
+    const emissions: SurfaceEmission[] = [];
+    const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
+      workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
+      externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+      externalMcpOAuth: scenario === "no-oauth-service" ? undefined : fakeOAuth(store.repo, "https://example.com/sign-in"),
+      resolveInstalledPlugin: async () => scenario === "unknown" ? null : { servers },
+    });
+    const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+    const call = runConnectWithOptions(deps, surfaces, fakeCtx(emissions), "widget-store");
+    if (scenario === "already-connected") assert.deepEqual(await call, { status: "connected" });
+    else {
+      const messages = {
+        unknown: /not an installed Agent Plugin/, "no-oauth-service": /no OAuth service/,
+        multiple: /2 unconnected OAuth servers/, "no-emitter": /no interactive channel/,
+      };
+      await assert.rejects(call, messages[scenario]);
+    }
+    assert.deepEqual(emissions, []);
+    assert.equal(surfaces.surfaceExchanges.size(), 0);
+  });
+}
+
+test("connect closes its exchange when the initial waiting card fails", async () => {
+  const store = makeStoreDeps();
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
+    workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
+    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    externalMcpOAuth: fakeOAuth(store.repo, "https://example.com/sign-in"),
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+  });
+  await assert.rejects(runConnectWithOptions(deps, surfaces, fakeCtx([]), "widget-store", {
+    emitSurface: async () => { throw new Error("card unavailable"); },
+  }), /card unavailable/);
+  assert.equal(surfaces.surfaceExchanges.size(), 0);
+});
+
+for (const mode of ["provisioning-refused", "ownership-changed"] as const) {
+  test(`connect refuses a different plugin's endpoint before OAuth: ${mode}`, async () => {
+    const store = makeStoreDeps();
+    const otherUrl = "https://other.example/mcp";
+    await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: mode === "ownership-changed" ? "widget-store" : "other-plugin", principalId: PRINCIPAL_ID,
+      servers: { widget: mode === "ownership-changed" ? OAUTH_SERVER : { type: "streamable-http", url: otherUrl, tovuAuthMode: "oauth" } },
+    });
+    if (mode === "ownership-changed") {
+      // Provisioning sees its own row; the subsequent read sees another plugin's replacement.
+      const find = store.repo.findByServerId.bind(store.repo);
+      let reads = 0;
+      store.repo.findByServerId = async input => {
+        const row = await find(input);
+        return row && ++reads > 1 ? { ...row, url: otherUrl, provisionedByPluginId: "other-plugin" } : row;
+      };
+    }
+    const starts: string[] = [];
+    const oauth = fakeOAuth(store.repo, "https://other.example/sign-in");
+    const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
+      workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
+      externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+      externalMcpOAuth: { ...oauth, beginConnect: async (input) => { starts.push(input.serverId); return oauth.beginConnect(input); } },
+      waitTimeoutMs: 0, resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+    });
+    const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+    const emissions: SurfaceEmission[] = [];
+    await assert.rejects(runAgentPluginConnect(deps, surfaces, fakeCtx(emissions), "widget-store"), { name: "ToolInputError" });
+    assert.deepEqual(starts, []);
+    assert.deepEqual(emissions, []);
+    const row = await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" });
+    assert.equal(row?.url, otherUrl);
+    assert.equal(row?.provisionedByPluginId, "other-plugin");
+    assert.equal(surfaces.surfaceExchanges.size(), 0);
+  });
+}

@@ -37,20 +37,28 @@ export function parseDescriptorI18n(value: unknown, at: string): DescriptorI18n 
   const parsed: Record<string, Record<string, string>> = {};
   for (const [locale, entries] of locales) {
     if (!LOCALE_PATTERN.test(locale)) return `${at} has an invalid locale '${locale}'`;
-    if (!isPlainObject(entries)) return `${at}.${locale} must map English text to its translation`;
-    const pairs = Object.entries(entries);
-    if (pairs.length > MAX_ENTRIES_PER_LOCALE) return `${at}.${locale} must declare at most ${MAX_ENTRIES_PER_LOCALE} strings`;
-    for (const [source, translation] of pairs) {
-      if (source.trim() === "" || source.length > MAX_SOURCE_LENGTH) return `${at}.${locale} keys must be non-empty English text of at most ${MAX_SOURCE_LENGTH} characters`;
-      if (typeof translation !== "string" || translation.trim() === "" || translation.length > MAX_TRANSLATION_LENGTH) {
-        return `${at}.${locale} translations must be non-empty strings of at most ${MAX_TRANSLATION_LENGTH} characters`;
-      }
-    }
-    parsed[locale] = Object.fromEntries(pairs) as Record<string, string>;
+    const translations = parseLocaleTranslations({ entries, at: `${at}.${locale}` });
+    if (typeof translations === "string") return translations;
+    parsed[locale] = translations;
   }
   return parsed;
 }
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Validate one locale's bounded dictionary, retaining the first invalid entry's reason. */
+function parseLocaleTranslations(input: { readonly entries: unknown; readonly at: string }, _options = {}): Record<string, string> | string {
+  const { entries, at } = input;
+  if (!isPlainObject(entries)) return `${at} must map English text to its translation`;
+  const pairs = Object.entries(entries);
+  if (pairs.length > MAX_ENTRIES_PER_LOCALE) return `${at} must declare at most ${MAX_ENTRIES_PER_LOCALE} strings`;
+  for (const [source, translation] of pairs) {
+    if (source.trim() === "" || source.length > MAX_SOURCE_LENGTH) return `${at} keys must be non-empty English text of at most ${MAX_SOURCE_LENGTH} characters`;
+    if (typeof translation !== "string" || translation.trim() === "" || translation.length > MAX_TRANSLATION_LENGTH) {
+      return `${at} translations must be non-empty strings of at most ${MAX_TRANSLATION_LENGTH} characters`;
+    }
+  }
+  return Object.fromEntries(pairs) as Record<string, string>;
 }

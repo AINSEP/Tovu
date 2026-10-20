@@ -108,3 +108,16 @@ test("every bundled descriptor file still parses with its i18n blocks", () => {
   for (const file of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile(readFileSync(path.join(CONTENT, file), "utf8")).ok, true, file);
   assert.equal(parseSourceControlProvidersFile(readFileSync(path.join(CONTENT, "github/tovu-source-control.json"), "utf8")).ok, true);
 });
+
+// L025a pins validation order and exact boundaries before splitting the locale loop.
+test("descriptor i18n validates locales and entries in insertion order without trimming saved text", () => {
+  assert.equal(parseDescriptorI18n(null, "descriptor.i18n"), "descriptor.i18n must map locales to translations");
+  assert.equal(parseDescriptorI18n({ es: null }, "i18n"), "i18n.es must map English text to its translation");
+  assert.equal(parseDescriptorI18n({ es: [] }, "i18n"), "i18n.es must map English text to its translation");
+  assert.equal(parseDescriptorI18n({ es: { Owner: " \t " }, invalid: {} }, "i18n"), "i18n.es translations must be non-empty strings of at most 2000 characters");
+  assert.equal(parseDescriptorI18n({ es: { " ": 42 } }, "i18n"), "i18n.es keys must be non-empty English text of at most 500 characters");
+  const block = { "pt-BR": { ["x".repeat(500)]: " padded " }, es: {} };
+  assert.deepEqual(parseDescriptorI18n(block, "i18n"), block);
+  const entries = { es: Object.fromEntries(Array.from({ length: 200 }, (_, i) => [`s${i}`, "t"])) };
+  assert.deepEqual(parseDescriptorI18n(entries, "i18n"), entries);
+});

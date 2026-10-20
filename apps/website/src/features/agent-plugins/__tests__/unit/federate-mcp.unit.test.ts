@@ -489,3 +489,47 @@ test("provisionAgentPluginMcpServers: a per-server existence-read rejection is r
   assert.equal(views.length, 1);
   assert.equal(views[0]?.serverId, "beta");
 });
+
+// L025a: one loop must preserve each outcome and its order after extracting the write boundary.
+test("provisioning reports created, recognized, adopted, refused, and failed servers independently", async (t) => {
+  const deps = makeDeps();
+  const input = { workspaceId: "ws-mixed", pluginId: "owner", principalId: "principal", servers: { recognized: REMOTE_SERVER, adopted: REMOTE_SERVER, refused: REMOTE_SERVER } };
+  await provisionAgentPluginMcpServers(deps, input);
+  const adopted = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "adopted" });
+  const refused = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "refused" });
+  assert.ok(adopted && refused);
+  await deps.repo.upsert({ ...adopted, provisionedByPluginId: null });
+  await deps.repo.upsert({ ...refused, provisionedByPluginId: "other", url: "https://other.example/mcp" });
+  const write = deps.repo.upsert.bind(deps.repo);
+  t.mock.method(deps.repo, "upsert", async (record: Parameters<typeof write>[0]) => {
+    if (record.serverId === "broken") throw new Error("write unavailable");
+    return write(record);
+  });
+  const result = await provisionAgentPluginMcpServers(deps, { ...input, servers: { ...input.servers, broken: REMOTE_SERVER, created: REMOTE_SERVER, local: STDIO_SERVER } });
+  assert.deepEqual(result.provisioned, ["created"]);
+  assert.deepEqual(result.alreadyProvisioned, ["recognized"]);
+  assert.deepEqual(result.adopted, ["adopted"]);
+  assert.deepEqual(result.failed.map(({ serverKey }) => serverKey), ["refused", "broken"]);
+  assert.match(result.failed[0]!.reason, /refusing to rebind/);
+  assert.equal(result.failed[1]!.reason, "write unavailable");
+  assert.deepEqual(result.skipped.map(({ serverKey }) => serverKey), ["local"]);
+});
+
+for (const failure of [new Error("adoption unavailable"), "adoption unavailable"]) {
+  test(`provisioning isolates adoption write failure (${typeof failure}) and continues`, async (t) => {
+    const deps = makeDeps();
+    const input = { workspaceId: "ws-adoption", pluginId: "original", principalId: "principal", servers: { existing: REMOTE_SERVER } };
+    await provisionAgentPluginMcpServers(deps, input);
+    const before = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "existing" });
+    const write = deps.repo.upsert.bind(deps.repo);
+    t.mock.method(deps.repo, "upsert", async (record: Parameters<typeof write>[0]) => {
+      if (record.serverId === "existing") throw failure;
+      return write(record);
+    });
+    const result = await provisionAgentPluginMcpServers(deps, { ...input, pluginId: "new-owner", servers: { existing: REMOTE_SERVER, later: REMOTE_SERVER } });
+    assert.deepEqual(result.failed, [{ serverKey: "existing", reason: "adoption unavailable" }]);
+    assert.deepEqual(result.provisioned, ["later"]);
+    assert.deepEqual(result.adopted, []);
+    assert.deepEqual(await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "existing" }), before);
+  });
+}

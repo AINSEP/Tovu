@@ -471,3 +471,28 @@ test("a row an operator already set up and switched on still gets its plugin swi
   const refused: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...refusedDeps, switchPluginOn: async () => false });
   assert.equal(await importAgentPluginAccessToken(refused, { pluginId: "supabase", token: TOKEN }), "saved-left-off", "an operator's off switch that won the race is reported");
 });
+
+// L025a: retirement notices precede skip decisions, and failures remain isolated.
+test("env import warns on listing failure and logs plural retirement notices even without an import declaration", async () => {
+  const { deps, log, logs, readRow } = await setup();
+  await importAgentPluginAccessTokensFromEnv({ ...deps, listPlugins: async () => { throw "listing unavailable"; } }, {}, log);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: listing unavailable"]);
+  const config: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuTokenAuth: {
+    helpUrl: "https://example.com/help", probeUrl: "https://example.com/probe", retiredEnv: ["OLD_A", "OLD_B"],
+  } };
+  await importAgentPluginAccessTokensFromEnv({ ...deps, listPlugins: async () => [{ pluginId: "retired", bundled: true, servers: { local: { type: "stdio", command: "local" }, remote: config } }] }, { OLD_A: "1", OLD_B: "2" }, log);
+  assert.deepEqual(logs.info, ["[agent-plugins] OLD_A, OLD_B are no longer used; the 'retired' plugin's connection replaces them. You can remove them."]);
+  assert.equal((await readRow())?.authMode, "oauth");
+});
+
+test("env import logs an operator-off save once and remains silent on its credential-preserving retry", async () => {
+  const { deps, log, logs, readRow } = await setup();
+  const off = { ...deps, isPluginOffByOperator: async () => true };
+  const token = ["fixture", "credential"].join("-");
+  await importAgentPluginAccessTokensFromEnv(off, { [ENV_VAR]: token }, log);
+  const saved = await readRow();
+  await importAgentPluginAccessTokensFromEnv(off, { [ENV_VAR]: "replacement" }, log);
+  assert.deepEqual(logs.info, ["[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection; it stays off because an operator turned it off (Add-Ons → Agent Plugins). The env var is no longer needed."]);
+  assert.deepEqual((await readRow())?.sealedOAuth, saved?.sealedOAuth);
+  assert.deepEqual(logs.warn, []);
+});
