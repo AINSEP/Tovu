@@ -8,10 +8,16 @@ import {
   PublishContentPeerValidationError,
   updatePublishContentPeer,
 } from "#src/features/publish-content/peers";
-import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-
 import type { PublishContentRouteRegistrar } from "./deps.js";
+import {
+  authorizedPrincipalId,
+  bodyRecord,
+  mappedErrorResponse,
+  rejectForeignWorkspace,
+  routeParam,
+  sendRefusal,
+  type MappedErrorClass,
+} from "./route-helpers.js";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -39,26 +45,16 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
 
 /** Maps this feature's typed store errors to HTTP. Every case is a specific status — a validation
  *  refusal must never read as a server fault, and a duplicate label must never read as a validation
- *  error the operator can fix by retyping the same value.
- *  @complexity O(1). */
-function statusFor(err: unknown): { status: number; code: string } {
-  if (err instanceof PublishContentPeerValidationError) return { status: 400, code: "VALIDATION_ERROR" };
-  if (err instanceof PublishContentPeerDuplicateLabelError) return { status: 409, code: "DUPLICATE_LABEL" };
-  if (err instanceof PublishContentPeerNotFoundError) return { status: 404, code: "PEER_NOT_FOUND" };
+ *  error the operator can fix by retyping the same value. A raw driver error falls through to the
+ *  generic 500 text rather than being echoed (`mappedErrorResponse`). */
+const PEER_ERRORS: readonly MappedErrorClass[] = [
+  [PublishContentPeerValidationError, 400, "VALIDATION_ERROR"],
+  [PublishContentPeerDuplicateLabelError, 409, "DUPLICATE_LABEL"],
+  [PublishContentPeerNotFoundError, 404, "PEER_NOT_FOUND"],
   // The site key is unset/misconfigured. Operator-actionable and NOT a leak: the message names the
   // configuration failure, never the plaintext that failed to seal.
-  if (err instanceof PublishContentPeerSecretStoreUnconfiguredError) return { status: 503, code: "SECRET_STORE_UNCONFIGURED" };
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
-
-/** Sends the mapped error body. `message` comes from a typed store error only — a raw driver error
- *  falls through to the generic 500 text rather than being echoed.
- *  @complexity O(1). */
-function respondWithError(res: { status(code: number): { json(body: unknown): void } }, err: unknown): void {
-  const { status, code } = statusFor(err);
-  const message = status === 500 ? "internal error" : err instanceof Error ? err.message : "internal error";
-  res.status(status).json({ error: message, code });
-}
+  [PublishContentPeerSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
+];
 
 /** The write-side dependency bag, assembled once per handler from this module's route deps.
  *  @complexity O(1). */
@@ -72,49 +68,35 @@ function toWriteDeps(deps: Parameters<PublishContentRouteRegistrar>[1]) {
   };
 }
 
+const PEER_FIELDS = ["label", "baseUrl", "remoteWorkspaceId", "apiKey"] as const;
+
+/** Keys are forwarded only when PRESENT — an absent key means "leave this field alone", which
+ *  is what lets the UI rename a peer without re-collecting its credential. Spreading
+ *  `undefined` in instead would make every PATCH a full replace.
+ *  @complexity O(1) — four fixed fields. */
+function presentPeerFields(body: Record<string, unknown>): Partial<Record<(typeof PEER_FIELDS)[number], unknown>> {
+  return Object.fromEntries(PEER_FIELDS.filter((field) => field in body).map((field) => [field, body[field]]));
+}
+
 export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (app, deps) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers";
 
   app.get(base, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
-      const principal = getAuthedPrincipal(res);
-      if (
-        !(await authorizeOrRespond(res, deps.authorize, {
-          principalId: principal.id,
-          permission: "publish_content.read",
-          workspaceId: deps.workspaceId,
-        }))
-      )
-        return;
-
+      if ((await authorizedPrincipalId(res, deps, "publish_content.read")) === null) return;
       const peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
       res.json({ peers });
     } catch (err) {
-      respondWithError(res, err);
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
     }
   });
 
   app.post(base, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
-      const principal = getAuthedPrincipal(res);
-      if (
-        !(await authorizeOrRespond(res, deps.authorize, {
-          principalId: principal.id,
-          permission: "publish_content.apply",
-          workspaceId: deps.workspaceId,
-        }))
-      )
-        return;
-
-      const body = (req.body ?? {}) as Record<string, unknown>;
+      if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
+      const body = bodyRecord(req.body);
       const peer = await createPublishContentPeer(toWriteDeps(deps), {
         workspaceId: deps.workspaceId,
         label: body.label,
@@ -124,69 +106,38 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.status(201).json({ peer });
     } catch (err) {
-      respondWithError(res, err);
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
     }
   });
 
   app.patch(`${base}/:peerId`, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
-      const principal = getAuthedPrincipal(res);
-      if (
-        !(await authorizeOrRespond(res, deps.authorize, {
-          principalId: principal.id,
-          permission: "publish_content.apply",
-          workspaceId: deps.workspaceId,
-        }))
-      )
-        return;
-
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      // Keys are forwarded only when PRESENT — an absent key means "leave this field alone", which
-      // is what lets the UI rename a peer without re-collecting its credential. Spreading
-      // `undefined` in instead would make every PATCH a full replace.
+      if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
       const peer = await updatePublishContentPeer(toWriteDeps(deps), {
         workspaceId: deps.workspaceId,
-        id: String(req.params.peerId ?? ""),
-        ...("label" in body ? { label: body.label } : {}),
-        ...("baseUrl" in body ? { baseUrl: body.baseUrl } : {}),
-        ...("remoteWorkspaceId" in body ? { remoteWorkspaceId: body.remoteWorkspaceId } : {}),
-        ...("apiKey" in body ? { apiKey: body.apiKey } : {}),
+        id: routeParam(req, "peerId"),
+        ...presentPeerFields(bodyRecord(req.body)),
       });
       res.json({ peer });
     } catch (err) {
-      respondWithError(res, err);
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
     }
   });
 
   app.delete(`${base}/:peerId`, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
-      const principal = getAuthedPrincipal(res);
-      if (
-        !(await authorizeOrRespond(res, deps.authorize, {
-          principalId: principal.id,
-          permission: "publish_content.apply",
-          workspaceId: deps.workspaceId,
-        }))
-      )
-        return;
-
+      if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
       // Idempotent 204, matching this codebase's other credential DELETE routes: deleting an
       // already-absent peer is a success, not a 404.
       await deletePublishContentPeer({ repo: deps.publishContentPeerRepo }, {
         workspaceId: deps.workspaceId,
-        id: String(req.params.peerId ?? ""),
+        id: routeParam(req, "peerId"),
       });
       res.status(204).end();
     } catch (err) {
-      respondWithError(res, err);
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
     }
   });
 };
