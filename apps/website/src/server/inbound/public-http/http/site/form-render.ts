@@ -329,10 +329,10 @@ function queryStringValue(value: unknown): string {
  * @complexity O(1). */
 function parseFieldErrorEntry(entry: unknown): { field: string; reason: string } | null {
   const candidate = { value: entry };
-  const o = isNonArrayRecord(candidate) ? candidate.value : undefined;
-  const field = o ? queryStringValue(o.field) : "";
+  if (!isNonArrayRecord(candidate)) return null;
+  const field = queryStringValue(candidate.value.field);
   if (!field) return null;
-  const reason = o ? queryStringValue(o.reason) : "";
+  const reason = queryStringValue(candidate.value.reason);
   return { field: field.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN), reason: reason.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN) };
 }
 
@@ -505,6 +505,44 @@ function showFieldValues(formHtml: string, values: Readonly<Record<string, strin
   return Object.entries(values).reduce((updated, [field, value]) => showOneFieldValue(updated, field, value), formHtml);
 }
 
+/** The `"validation"` outcome for one matched `<form>` block: per-field messages (labels read from
+ *  the form's own markup, copy in the document's language), re-populated values, and the summary.
+ *  An HTML-mode form (`data-tovu-form`) lists every message in its summary; a Builder form shows the
+ *  generic line because its per-field messages already sit beside each field. A result with no field
+ *  errors still produces one generic "check this field" message. @complexity O(formHtml.length) per
+ *  field error. */
+function showValidationResult(
+  { html, originalForm, slugPattern, result }: { html: string; originalForm: string; slugPattern: string; result: Extract<FormSubmissionRedirectResult, { kind: "validation" }> },
+): string {
+  const authored = originalForm.includes("data-tovu-form=");
+  const messages = formValidationMessages({
+    formHtml: originalForm,
+    errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }],
+    locale: formDocumentLocale({ html }),
+  });
+  return showFormErrorSummary(
+    showFieldValues(showFieldErrors(originalForm, messages), result.values),
+    slugPattern,
+    authored ? messages.map(({ message }) => escapeHtml(message)).join(" ") : "Please fix the highlighted fields below."
+  );
+}
+
+/** Rebuilds the one matched `<form>` block for `result`'s outcome (success hides it; every other
+ *  outcome reveals its error summary). The success MESSAGE slot sits outside the form and is shown
+ *  separately by the caller. @complexity O(formHtml.length), plus {@link showValidationResult}'s own
+ *  work for `"validation"`. */
+function updateFormForResult(
+  { html, originalForm, slugPattern, result }: { html: string; originalForm: string; slugPattern: string; result: FormSubmissionRedirectResult },
+): string {
+  if (result.kind === "success") return hideFormElement(originalForm);
+  if (result.kind === "validation") return showValidationResult({ html, originalForm, slugPattern, result });
+  if (result.kind === "rate-limited") {
+    const plural = result.retryAfterSeconds === 1 ? "" : "s";
+    return showFormErrorSummary(originalForm, slugPattern, `Too many submissions — please try again in ${result.retryAfterSeconds} second${plural}.`);
+  }
+  return showFormErrorSummary(originalForm, slugPattern, "Something went wrong — please try again.");
+}
+
 /**
  * Splices a {@link FormSubmissionRedirectResult} into an already-fully-rendered page's HTML,
  * targeting the ONE form widget instance whose `${FORM_SLUG_ATTR}` matches `result.slug` — every
@@ -532,27 +570,7 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
   if (!formMatch) return html;
   const originalForm = formMatch[0];
 
-  let updatedForm: string;
-  if (result.kind === "success") {
-    updatedForm = hideFormElement(originalForm);
-  } else if (result.kind === "validation") {
-    const authored = originalForm.includes("data-tovu-form=");
-    const messages = formValidationMessages({
-      formHtml: originalForm,
-      errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }],
-      locale: formDocumentLocale({ html }),
-    });
-    updatedForm = showFormErrorSummary(
-      showFieldValues(showFieldErrors(originalForm, messages), result.values),
-      slugPattern,
-      authored ? messages.map(({ message }) => escapeHtml(message)).join(" ") : "Please fix the highlighted fields below."
-    );
-  } else if (result.kind === "rate-limited") {
-    const plural = result.retryAfterSeconds === 1 ? "" : "s";
-    updatedForm = showFormErrorSummary(originalForm, slugPattern, `Too many submissions — please try again in ${result.retryAfterSeconds} second${plural}.`);
-  } else {
-    updatedForm = showFormErrorSummary(originalForm, slugPattern, "Something went wrong — please try again.");
-  }
+  const updatedForm = updateFormForResult({ html, originalForm, slugPattern, result });
 
   // The success slot sits BEFORE the `<form>` in document order, so it must be revealed as a
   // SEPARATE regex pass over the already-rebuilt string, never by combining offsets from two
