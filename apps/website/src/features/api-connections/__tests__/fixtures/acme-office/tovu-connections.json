@@ -8,6 +8,7 @@
       "authorizationEndpoint": "https://auth.acme.test/authorize",
       "tokenEndpoint": "https://auth.acme.test/token",
       "authorizationParams": { "public": { "prompt": "consent" }, "confidential": { "access_type": "offline" } },
+      "budgets": [{ "scope": "connection", "perMinute": 45 }],
       "clients": {
         "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET" },
         "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_SECRET" }

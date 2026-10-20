@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseApiConnectionDescriptor, type ApiConnectionDescriptor, type ApiConnectionHooks } from "@jini-ai/integrations/api-connections";
 
 import { defineExecutablePluginContribution, type LoadPluginContributions } from "../agent-plugins/lifecycle.js";
+import { parseConnectionBudgets, type ConnectionBudget } from "./budgets.js";
 
 /**
  * @file Loads the OAuth API connections Agent Plugins declare in {@link API_CONNECTIONS_FILENAME}:
@@ -13,7 +14,8 @@ import { defineExecutablePluginContribution, type LoadPluginContributions } from
  * one executable gate (ACTIVE plugin, bundled digest, contained `.mjs`), like mail adapters. The
  * descriptor is untrusted until Jini's `parseApiConnectionDescriptor` accepts it. Client config is
  * only ever NAMED by the plugin: names must match {@link CLIENT_ENV_PATTERN}, so a plugin can point
- * at its own `…_CLIENT_ID` / `…_CLIENT_SECRET` and never at another secret of this host.
+ * at its own `…_CLIENT_ID` / `…_CLIENT_SECRET` and never at another secret of this host. Request
+ * budgets (`budgets`) are clamped to the host's maxima by `budgets.ts` and never reach the descriptor.
  */
 
 export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
@@ -35,6 +37,8 @@ export interface ApiConnectionDeclaration {
   readonly id: string;
   readonly module: string;
   readonly clients: { readonly web?: ApiConnectionClientConfig; readonly desktop?: ApiConnectionClientConfig };
+  /** Clamped per-minute budgets the host charges on every token read; always includes an instance budget. */
+  readonly budgets: readonly ConnectionBudget[];
   /** Passed to `parseApiConnectionDescriptor` with the plugin id at load time. */
   readonly descriptor: Readonly<Record<string, unknown>>;
 }
@@ -49,6 +53,7 @@ export interface DeclaredApiConnection {
   readonly pluginId: string;
   readonly descriptor: ApiConnectionDescriptor;
   readonly clients: ApiConnectionDeclaration["clients"];
+  readonly budgets: ApiConnectionDeclaration["budgets"];
   readonly module: ApiConnectionHooksModule;
 }
 
@@ -68,6 +73,15 @@ function isEnvName(value: unknown, suffix: "_ID" | "_SECRET"): value is string {
 
 function isOriginList(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.length <= MAX_ORIGINS && value.every(isOrigin);
+}
+
+/** Both runtime clients, or why one is invalid. @complexity O(o) origins. */
+function parseClients(clients: Readonly<Record<string, unknown>>, at: string): ApiConnectionDeclaration["clients"] | string {
+  const web = parseClient(clients.web, `${at}.clients.web`);
+  const desktop = parseClient(clients.desktop, `${at}.clients.desktop`);
+  if (typeof web === "string") return web;
+  if (typeof desktop === "string") return desktop;
+  return { ...(web ? { web } : {}), ...(desktop ? { desktop } : {}) };
 }
 
 /** One client config, or why it is invalid. @complexity O(o) origins. */
@@ -94,19 +108,18 @@ function idOrModuleProblem(id: unknown, module: unknown, at: string): string | u
  * secret that is not confidential; the host still keeps it in config only, never in output or logs.
  * @complexity O(1).
  */
-// complexity-debt: one guard per declaration field; the field list is the complexity.
 function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration | string {
   if (!isObject(entry)) return `${at} must be an object`;
-  const { id, module, clients, ...descriptor } = entry;
+  const { id, module, clients, budgets: declaredBudgets, ...descriptor } = entry;
   const invalid = idOrModuleProblem(id, module, at);
   if (invalid) return invalid;
   if (!isObject(clients)) return `${at}.clients must be an object`;
-  const web = parseClient(clients.web, `${at}.clients.web`);
-  const desktop = parseClient(clients.desktop, `${at}.clients.desktop`);
-  if (typeof web === "string") return web;
-  if (typeof desktop === "string") return desktop;
+  const runtimeClients = parseClients(clients, at);
+  if (typeof runtimeClients === "string") return runtimeClients;
+  const budgets = parseConnectionBudgets({ value: declaredBudgets, at: `${at}.budgets` });
+  if (typeof budgets === "string") return budgets;
   // idOrModuleProblem returned undefined, so both are checked strings.
-  return { id: id as string, module: module as string, clients: { ...(web ? { web } : {}), ...(desktop ? { desktop } : {}) }, descriptor };
+  return { id: id as string, module: module as string, clients: runtimeClients, budgets, descriptor };
 }
 
 const INVALID_JSON = Symbol("invalid-json");
@@ -153,7 +166,7 @@ export async function loadDeclaredApiConnections(
   for (const item of load.items) {
     try {
       const descriptor = parseApiConnectionDescriptor({ value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
-      connections.push({ pluginId: item.pluginId, descriptor, clients: item.descriptor.clients, module: item.module });
+      connections.push({ pluginId: item.pluginId, descriptor, clients: item.descriptor.clients, budgets: item.descriptor.budgets, module: item.module });
     } catch (error) {
       refusals.push(`API connection '${item.descriptor.id}' from '${item.pluginId}' was not loaded: ${error instanceof Error ? error.message : "invalid descriptor"}`);
     }
