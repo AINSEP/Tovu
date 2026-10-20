@@ -76,7 +76,7 @@ test('D-24: Add feedback stays on the websites view when switching to a site tab
     useFindInPage: () => ({}), useZoom: () => ({}), useRunnerNavigation: noop,
     useProjectMutations: () => ({}), FindBar: () => null, TopNav: () => null, TabStrip: () => null,
     MainArea: (props: any) => { areaProps = props; return null; },
-    CreateWebsiteHost: () => null, SiteWorkspaces: () => null,
+    CreateWebsiteHost: () => null, SiteWorkspaces: () => null, createImportSiteAction: () => undefined,
   });
   const render = () => elements(renderApp({
     useProjects: () => ({ projects: [site], setProjects: noop }),

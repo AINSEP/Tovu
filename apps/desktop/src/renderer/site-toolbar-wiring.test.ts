@@ -76,7 +76,7 @@ test('the buttons are wired to the hook, and back/forward disable from live hist
   assert.match(body, /onClick=\{workspace\.reload\}/);
   assert.match(body, /disabled=\{!workspace\.history\.canGoBack\}/);
   assert.match(body, /disabled=\{!workspace\.history\.canGoForward\}/);
-  assert.match(body, /useSiteWorkspace\(project, hidden\)/);
+  assert.match(body, /useSiteWorkspace\(project, hidden, \{ adminPage \}\)/);
 });
 
 test('SiteWorkspace holds no state or effects of its own', () => {
