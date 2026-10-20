@@ -575,13 +575,13 @@ export function usePublishContentConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
 
-  // `null` until BOTH the peer list came back empty and the destination check that follows it has
-  // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
-  // the connect offer a beat before it has anything real to say.
-  const connectOffer: PublishContentConnectOffer | null =
-    peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
-      ? { message: destination.message, candidateUrl: destination.candidateUrl }
-      : null;
+  const connectOffer = publishConnectOffer({
+    peersLoaded,
+    peers,
+    peersError,
+    destinationLoaded,
+    destination,
+  });
 
   const [connecting, setConnecting] = useState(false);
 
@@ -1297,4 +1297,23 @@ function publishMismatchMessage(
 ): string {
   const peerLabel = peers.find((peer) => peer.id === peerId)?.label ?? t("the live site");
   return `${peerLabel} ${t("changed while you were deciding. Check the list again.")}`;
+}
+
+/** The empty-install connection offer, once both discovery reads have settled successfully. */
+function publishConnectOffer(
+  { peersLoaded, peers, peersError, destinationLoaded, destination }: {
+    peersLoaded: boolean;
+    peers: readonly PublishContentPeerSummary[];
+    peersError: string | null;
+    destinationLoaded: boolean;
+    destination: AdminPublishDestinationView | null;
+  },
+  _options: Record<string, never> = {}
+): PublishContentConnectOffer | null {
+  // `null` until BOTH the peer list came back empty and the destination check that follows it has
+  // resolved — so the dialog never flashes a stale "add one in Settings" sentence, and never shows
+  // the connect offer a beat before it has anything real to say.
+  return peersLoaded && peers.length === 0 && peersError === null && destinationLoaded && destination !== null
+    ? { message: destination.message, candidateUrl: destination.candidateUrl }
+    : null;
 }
