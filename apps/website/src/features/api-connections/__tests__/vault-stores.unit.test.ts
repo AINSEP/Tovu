@@ -156,3 +156,20 @@ test("sweep: a storage fault while removing an expired attempt propagates and st
   await assert.rejects(records.putAttempt({ attempt: attempt("new", "2026-10-20T12:16:00.000Z") }), { message: "vault storage write failed" });
   assert.equal(await records.peekAttempt({ state: "new" }), null);
 });
+
+test("row ids: an attempt whose state equals a connection key never touches that connection's record row", async () => {
+  const { records } = stores();
+  await records.compareAndSet({ key: "key-a", expectedRevision: 0, record: record("key-a") });
+  await records.putAttempt({ attempt: attempt("key-a", "2026-10-20T12:10:00.000Z") });
+  assert.equal((await records.read({ key: "key-a" }))?.status, "connected");
+  assert.equal((await records.takeAttempt({ state: "key-a" }))?.state, "key-a");
+  assert.equal((await records.read({ key: "key-a" }))?.revision, 1, "consuming the attempt left the record row alone");
+});
+
+test("vault: rows are stamped with the host clock, not the machine's", async () => {
+  const at = Date.parse("2031-02-03T04:05:06.000Z");
+  const { vault, records, scope } = stores({ nowMs: () => at });
+  await records.compareAndSet({ key: "key-a", expectedRevision: 0, record: record("key-a") });
+  const [row] = await vault.list({ workspaceId: scope.workspaceId, kind: scope.kind, ownerKey: scope.ownerKey, principalId: null });
+  assert.equal(row?.updatedAt, "2031-02-03T04:05:06.000Z");
+});

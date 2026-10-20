@@ -144,3 +144,18 @@ test("refresh: a token read waits for another process's refresh lease on the hos
   assert.ok(performance.now() - startedAt >= 200, "the host's sleep really waited for the lease poll");
   assert.equal(harness.provider.tokenCalls, callsAfterConnect, "no refresh while another process holds the lease");
 });
+
+test("token read: tokens sealed for another client are refused as reconnect-required and the stored record is marked by that read itself", async () => {
+  const env: Record<string, string | undefined> = { ...harness.env };
+  const keyring = new InMemoryKeyring({ hkdfSalt: "api-connections-c3-mark" });
+  const vaultRepo = new InMemoryVaultRepo({});
+  const clock = { nowMs: () => Date.now() };
+  const host = harness.makeHost({ env, keyring, vaultRepo, clock });
+  const { connectionRef } = await connectHosted(harness, host);
+  env.TOVU_ACME_OAUTH_WEB_CLIENT_ID = "acme-web-client-rotated";
+  await assert.rejects(host.accessTokensFor({ pluginId: ACME_PLUGIN }).getAccessToken({ connectionRef }), { code: "reconnect-required", message: /sign-in client changed/ });
+  // Read the row as stored (no honest re-check on read), so only the token read can have marked it.
+  const vault = createApiConnectionVault({ repo: vaultRepo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock, workspaceId: ACME_WORKSPACE });
+  const stored = await createApiConnectionVaultRecordStore({ vault, workspaceId: ACME_WORKSPACE, clock }).read({ key: connectionRef });
+  assert.equal(stored?.status, "reconnect-required");
+});

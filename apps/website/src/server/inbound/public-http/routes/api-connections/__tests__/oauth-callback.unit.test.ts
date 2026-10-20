@@ -12,10 +12,14 @@ import type { AddressInfo } from "node:net";
 import { after, afterEach, before, test } from "node:test";
 
 import express from "express";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
+import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-stores";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
 import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, registerApiConnectionOAuthCallbackRoute } from "../oauth-callback.js";
 
@@ -72,6 +76,36 @@ test("state: a missing, empty or oversized state is refused as no_state without 
     assert.deepEqual({ status: page.status, reason: reasonOf(page.html), cacheControl: page.cacheControl }, { status: 400, reason: "no_state", cacheControl: "no-store" }, JSON.stringify(query).slice(0, 40));
   }
   assert.equal(harness.provider.tokenCalls, 0);
+});
+
+test("state: a repeated state parameter (not one string) is refused as no_state", async () => {
+  const host = harness.makeHost();
+  const start = await startHosted(host);
+  const state = new URL(start.authorizationUrl).searchParams.get("state")!;
+  const page = await get(`${harness.siteOrigin}/api/agent-plugins/connections/oauth/callback?state=${state}&state=${state}&code=c`);
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "no_state" });
+  assert.equal(harness.provider.tokenCalls, 0);
+});
+
+test("security: an attempt row naming another workspace is answered like an unknown state, with no exchange", async () => {
+  const keyring = new InMemoryKeyring({ hkdfSalt: "callback-c3-foreign" });
+  const vaultRepo = new InMemoryVaultRepo({});
+  const clock = { nowMs: () => Date.now() };
+  const logs: string[] = [];
+  const host = harness.makeHost({ keyring, vaultRepo, clock, logs });
+  const start = await startHosted(host);
+  const state = new URL(start.authorizationUrl).searchParams.get("state")!;
+  // A tampered row: the same state, re-sealed in this workspace's vault but naming another workspace.
+  const vault = createApiConnectionVault({ repo: vaultRepo, keyring, sealer: new AesGcmSecretSealer({ keyring }), clock, workspaceId: ACME_WORKSPACE });
+  const records = createApiConnectionVaultRecordStore({ vault, workspaceId: ACME_WORKSPACE, clock });
+  const attempt = (await records.takeAttempt({ state }))!;
+  await records.putAttempt({ attempt: { ...attempt, workspaceId: "ws-2" } });
+  const page = await get(harness.consentRedirect(start.authorizationUrl));
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "state_expired" });
+  assert.equal(harness.provider.tokenCalls, 0);
+  // Routed away before any sign-in completion runs: nothing consumed it and nothing failed to log.
+  assert.equal((await records.peekAttempt({ state }))?.workspaceId, "ws-2");
+  assert.deepEqual(logs, []);
 });
 
 test("state: an attempt whose connection is no longer declared is answered like an unknown state, with no exchange", async () => {

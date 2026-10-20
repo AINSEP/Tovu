@@ -161,8 +161,10 @@ test("desktop: aborting the run closes the listener and returns waiting-for-sign
   const { opened, startLoopback } = observedLoopback();
   const host = harness.makeHost({ runtime: "desktop", startLoopback });
   const controller = new AbortController();
+  const startedAt = performance.now();
   const result = await run(host, { signal: controller.signal, waitTimeoutMs: 60_000, showSignIn: async () => { setTimeout(() => controller.abort(), 20); } });
   assert.equal(result.status, "waiting-for-sign-in");
+  assert.ok(performance.now() - startedAt < 5_000, "the abort closed the listener, not its 60 s timeout");
   assert.ok(await isClosed(opened[0]!.redirectUri));
 });
 
