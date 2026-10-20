@@ -312,26 +312,43 @@ async function planEntity(
 
   const blockReason = await handler.precheck(entity);
   if (blockReason) {
-    // publish-overwrite-live-plan §4/S2 — a slug clash this handler knows how to resolve gets offered
-    // as an overwrite, UNLESS the row that would have to be retired is itself part of this same
-    // bundle (retiring it would move its own slug out from under it mid-run — an ordering problem,
-    // not an overwrite; plan §2's last table row). An already-forced key (the operator's own prior
-    // "overwrite on live" tick, the same `forcedEntityKeys` mechanism the conflict branch below uses)
-    // turns a valid target straight into `forced` with the target attached.
-    const target = await handler.planRetire?.(entity) ?? null;
-    if (target !== null) {
-      if (bundleKeys.has(entityKey(target.entityType, target.entityId))) {
-        return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
-      }
-      const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
-      if (forced) {
-        return { ...identity, outcome: "forced", writes: true, reason: blockReason, canOverwrite: true, retires: target };
-      }
-      return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: true, retires: target };
-    }
-    return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
+    return planBlockedEntity({ entity, handler, deps, bundleKeys, identity, blockReason });
   }
+  return planCheckedEntity({ entity, handler, baseline, deps, identity });
+}
 
+type RowIdentity = Pick<PublishContentOutcomeRow, "entityType" | "entityId" | "entityLabel">;
+
+/** Resolves a precheck refusal into an overwrite offer when safe. @complexity O(1) plus handler I/O. */
+async function planBlockedEntity({ entity, handler, deps, bundleKeys, identity, blockReason }: {
+  entity: PackedEntity; handler: PublishContentHandler; deps: PlanImportDeps;
+  bundleKeys: ReadonlySet<string>; identity: RowIdentity; blockReason: string;
+}, _options = {}): Promise<PublishContentOutcomeRow> {
+  // publish-overwrite-live-plan §4/S2 — a slug clash this handler knows how to resolve gets offered
+  // as an overwrite, UNLESS the row that would have to be retired is itself part of this same
+  // bundle (retiring it would move its own slug out from under it mid-run — an ordering problem,
+  // not an overwrite; plan §2's last table row). An already-forced key (the operator's own prior
+  // "overwrite on live" tick, the same `forcedEntityKeys` mechanism the conflict branch below uses)
+  // turns a valid target straight into `forced` with the target attached.
+  const target = await handler.planRetire?.(entity) ?? null;
+  if (target !== null) {
+    if (bundleKeys.has(entityKey(target.entityType, target.entityId))) {
+      return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
+    }
+    const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
+    if (forced) {
+      return { ...identity, outcome: "forced", writes: true, reason: blockReason, canOverwrite: true, retires: target };
+    }
+    return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: true, retires: target };
+  }
+  return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
+}
+
+/** Compares checked incoming content against destination and sync memory. @complexity O(1) plus reads. */
+async function planCheckedEntity({ entity, handler, baseline, deps, identity }: {
+  entity: PackedEntity; handler: PublishContentHandler; baseline: BaselineRecord | null;
+  deps: PlanImportDeps; identity: RowIdentity;
+}, _options = {}): Promise<PublishContentOutcomeRow> {
   const destination = await handler.inspect(entity.id);
   if (!destination) {
     return { ...identity, outcome: "created", writes: true, reason: null, canOverwrite: false, retires: null };
@@ -353,15 +370,19 @@ async function planEntity(
   // S-F4: when the generic seed-db lookup has no answer, a handler whose seed is not a DB row (e.g.
   // `theme-files`' `__original-themes__` folders) answers for itself via `handler.seedHash`.
   if (!baseline) {
-    const seedHash =
-      (await deps.getSeedHash?.({ entityType: entity.entityType, entityId: entity.id })) ??
-      (await handler.seedHash?.(entity.id)) ??
-      null;
+    const seedHash = await entitySeedHash({ entity, handler, deps });
     if (seedHash !== null && destination.hash === seedHash) {
       return { ...identity, outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null };
     }
   }
 
+  return planConflict({ entity, baseline, deps, identity });
+}
+
+/** Requires explicit operator choice for destination drift. @complexity O(1). */
+function planConflict({ entity, baseline, deps, identity }: {
+  entity: PackedEntity; baseline: BaselineRecord | null; deps: PlanImportDeps; identity: RowIdentity;
+}, _options = {}): PublishContentOutcomeRow {
   // Destination differs from both the incoming source AND the recorded baseline (or there is no
   // baseline at all) — plan §4's two `conflict` rows, unified here because both mean the same thing
   // to the operator: "this destination row does not match what we last agreed on; overwriting it
@@ -378,6 +399,14 @@ async function planEntity(
     return { ...identity, outcome: "forced", writes: true, reason: conflictReason, canOverwrite: false, retires: null };
   }
   return { ...identity, outcome: "conflict", writes: false, reason: conflictReason, canOverwrite: true, retires: null };
+}
+
+/** Uses the handler's seed only when the shared lookup has no answer. @complexity O(1) plus reads. */
+async function entitySeedHash({ entity, handler, deps }: {
+  entity: PackedEntity; handler: PublishContentHandler; deps: PlanImportDeps;
+}, _options = {}): Promise<string | null> {
+  return (await deps.getSeedHash?.({ entityType: entity.entityType, entityId: entity.id })) ??
+    (await handler.seedHash?.(entity.id)) ?? null;
 }
 
 /**
@@ -467,49 +496,18 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   const catalog = buildPublishContentCatalog(deps.publishContentDeps);
   const { handlerByType } = catalog;
 
-  // Entity DTO compatibility is also exact. Refuse before baseline/blob/destination reads so an
-  // operator never receives a partially credible plan for a bundle this importer cannot decode.
-  for (const entity of bundle.entities) {
-    const handler = handlerByType.get(entity.entityType);
-    if (handler && entity.schemaVersion !== handler.schemaVersion) {
-      return {
-        refused: true,
-        refusalReason:
-          `${entity.entityType} '${entity.id}' uses schema version ${entity.schemaVersion}, but this ` +
-          `instance supports version ${handler.schemaVersion} for that type`,
-        applyOrder: [],
-        rows: [],
-      };
-    }
-  }
+  const schemaRefusal = checkBundleSchemas({ bundle, handlerByType });
+  if (schemaRefusal) return schemaRefusal;
 
-  // Pass 1 — prefetch baselines, refuse the whole run on the first hash-version mismatch found.
-  const baselineByKey = new Map<string, BaselineRecord | null>();
-  for (const entity of bundle.entities) {
-    const baseline = await deps.getBaseline({ entityType: entity.entityType, entityId: entity.id });
-    if (baseline && baseline.hashVersion !== CONTENT_HASH_VERSION) {
-      return {
-        refused: true,
-        refusalReason:
-          `baseline for ${entity.entityType} '${entity.id}' was recorded with content-hash version ${baseline.hashVersion}, ` +
-          `but this instance is on version ${CONTENT_HASH_VERSION} — upgrade the older instance before syncing`,
-        applyOrder: [],
-        rows: [],
-      };
-    }
-    baselineByKey.set(entityKey(entity.entityType, entity.id), baseline);
-  }
+  const baselines = await prefetchBaselines({ bundle, deps });
+  if (!(baselines instanceof Map)) return baselines;
+  const baselineByKey = baselines;
 
   // Pass 2 — classify every entity, walking types in dependsOn-derived apply order. Types present in
   // the bundle with no registered handler are appended after, in first-seen order (plan §3 rule 4
   // only orders types that declare dependsOn; an unhandled type has none to sort by, and is always
   // `blocked` regardless of where it sits).
-  const entitiesByType = new Map<string, PackedEntity[]>();
-  for (const entity of bundle.entities) {
-    const list = entitiesByType.get(entity.entityType) ?? [];
-    list.push(entity);
-    entitiesByType.set(entity.entityType, list);
-  }
+  const entitiesByType = groupBundleEntities({ bundle });
   const unhandledTypes = [...entitiesByType.keys()].filter((type) => !handlerByType.has(type));
   const applyOrder = [...catalog.applyOrder, ...unhandledTypes];
 
@@ -532,4 +530,60 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   const rowsWithReferences = await attachReferencedBy(rows, handlerByType);
 
   return { refused: false, refusalReason: null, applyOrder, rows: rowsWithReferences };
+}
+
+/** Refuses incompatible entity DTOs before any baseline reads. @complexity O(n) in entity count. */
+function checkBundleSchemas({ bundle, handlerByType }: {
+  bundle: PublishContentBundle; handlerByType: ReadonlyMap<string, PublishContentHandler>;
+}, _options = {}): PublishContentReport | null {
+  // Entity DTO compatibility is also exact. Refuse before baseline/blob/destination reads so an
+  // operator never receives a partially credible plan for a bundle this importer cannot decode.
+  for (const entity of bundle.entities) {
+    const handler = handlerByType.get(entity.entityType);
+    if (handler && entity.schemaVersion !== handler.schemaVersion) {
+      return {
+        refused: true,
+        refusalReason:
+          `${entity.entityType} '${entity.id}' uses schema version ${entity.schemaVersion}, but this ` +
+          `instance supports version ${handler.schemaVersion} for that type`,
+        applyOrder: [],
+        rows: [],
+      };
+    }
+  }
+
+  return null;
+}
+
+/** Reads all baselines before classification, refusing stale hash generations. @complexity O(n) reads. */
+async function prefetchBaselines({ bundle, deps }: { bundle: PublishContentBundle; deps: PlanImportDeps }, _options = {}): Promise<Map<string, BaselineRecord | null> | PublishContentReport> {
+  // Pass 1 — prefetch baselines, refuse the whole run on the first hash-version mismatch found.
+  const baselineByKey = new Map<string, BaselineRecord | null>();
+  for (const entity of bundle.entities) {
+    const baseline = await deps.getBaseline({ entityType: entity.entityType, entityId: entity.id });
+    if (baseline && baseline.hashVersion !== CONTENT_HASH_VERSION) {
+      return {
+        refused: true,
+        refusalReason:
+          `baseline for ${entity.entityType} '${entity.id}' was recorded with content-hash version ${baseline.hashVersion}, ` +
+          `but this instance is on version ${CONTENT_HASH_VERSION} — upgrade the older instance before syncing`,
+        applyOrder: [],
+        rows: [],
+      };
+    }
+    baselineByKey.set(entityKey(entity.entityType, entity.id), baseline);
+  }
+
+  return baselineByKey;
+}
+
+/** Groups entities in bundle order for dependency-ordered classification. @complexity O(n) time/space. */
+function groupBundleEntities({ bundle }: { bundle: PublishContentBundle }, _options = {}): Map<string, PackedEntity[]> {
+  const entitiesByType = new Map<string, PackedEntity[]>();
+  for (const entity of bundle.entities) {
+    const list = entitiesByType.get(entity.entityType) ?? [];
+    list.push(entity);
+    entitiesByType.set(entity.entityType, list);
+  }
+  return entitiesByType;
 }
