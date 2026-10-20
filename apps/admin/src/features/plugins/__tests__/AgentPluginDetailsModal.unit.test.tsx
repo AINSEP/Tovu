@@ -39,6 +39,16 @@ describe("AgentPluginDetailsModal details-hook injection", () => {
     expect(screen.getByText("fake content body")).toBeInTheDocument();
   });
 
+  it("offers exactly the Package files and Memory views when the plugin contributes nothing else", () => {
+    function useFakeDetails(): AgentPluginDetailsModalController {
+      return { files: [], selectedFile: null, selectFile: vi.fn() };
+    }
+
+    render(<AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeDetails} />);
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory"]);
+  });
+
   it("shows the hook's own status when the fake resolves no files", () => {
     function useFakeDetails(): AgentPluginDetailsModalController {
       return {
