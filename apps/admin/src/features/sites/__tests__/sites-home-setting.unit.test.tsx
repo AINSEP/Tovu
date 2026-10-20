@@ -2,8 +2,6 @@ import { act, renderHook, render, screen, cleanup, within } from "@testing-libra
 import { afterEach, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useSitesHome } from "../hooks/use-sites-home.hooks";
-import { resolveSiteCardView } from "../Sites.hooks";
-import type { AdminSitesSnapshot } from "@/lib/api";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -65,37 +63,122 @@ it("keeps the draft after a non-Error failure and accepts the server's normalize
   expect(calls).toEqual(["/draft/../home", "/draft/../home"]);
 });
 
-it("a Desktop-owned running card offers its URL and has no Web stop action", () => {
-  const site = { name: "alpha", dir: "/home/alpha", displayName: "Alpha", createdAt: "2026-10-09", active: false };
-  const snapshot: AdminSitesSnapshot = { sites: [site], switchingEnabled: true, localManagementEnabled: true, persistedSiteName: null,
-    currentSite: { name: "owner", dir: "/home/owner", listed: true, dirOverridden: false },
-    localSites: [{ name: "alpha", status: "running", pid: 10, port: 3456, daemonPort: null, adminUrl: "http://localhost:3456/admin/", app: "Desktop", external: true }] };
-  const view = resolveSiteCardView({ site, snapshot, busyName: null, switchingEnabled: true, activatingName: null, managed: true });
-  expect(view.lifecycle).toBeNull(); expect(view.openUrl).toBe("http://localhost:3456/admin/"); expect(view.menu).not.toContain("trash");
-});
-
-it("a lease alone supplies the existing Open action even without local lifecycle management", () => {
-  const site = { name: "outside", dir: "/outside", displayName: "Outside", createdAt: "2026-10-09", active: false,
-    running: { pid: 10, port: 3456, app: "Desktop", started: "2026-10-09T00:00:00.000Z", scheme: "https" as const } };
-  const snapshot: AdminSitesSnapshot = { sites: [site], switchingEnabled: false, persistedSiteName: null,
-    currentSite: { name: "owner", dir: "/owner", listed: true, dirOverridden: true } };
-  const view = resolveSiteCardView({ site, snapshot, busyName: null, switchingEnabled: false, activatingName: null, managed: false });
-  expect(view.openUrl).toBe("https://localhost:3456/admin/"); expect(view.lifecycle).toBeNull(); expect(view.menu).toEqual([]);
-});
-
 // DI replaces only the settings port; the component and locale owner execute normally.
 import { SitesHomeSetting } from "../SitesHomeSetting";
 import { t as translate } from "../sites-i18n";
 import type { useSitesConfig } from "../hooks/use-sites-config.hooks";
+import type { SitesUserConfig } from "@/lib/api";
 afterEach(cleanup);
+
+type SitesSettings = ReturnType<typeof useSitesConfig>;
+
+function configFixture(overrides: Partial<SitesUserConfig> = {}): SitesUserConfig {
+  return { sitesHome: "/h", siteRoots: [], databases: "inSite", configPath: "/data/config.json", appData: "/app-data",
+    overrides: { sitesHome: false, siteRoots: false }, warning: null, ...overrides };
+}
+
+/** A typed stand-in for `useSitesConfig`'s result: the dialog open, nothing saving, no rows. */
+function fakeSettings(overrides: Partial<SitesSettings> = {}): SitesSettings {
+  return { open: true, show() {}, close() {}, config: configFixture(), home: "/h", setHome() {}, roots: "", setRoots() {},
+    rootList: [], addedIndex: null, setRootAt() {}, addRoot() {}, removeRoot() {}, databases: "inSite", setDatabases() {},
+    save: async () => {}, saving: false, error: null, useAppData: async () => {}, useLocalHome: async () => {}, ...overrides };
+}
+
+function renderWith(settings: SitesSettings, t?: (key: string) => string) {
+  return render(<SitesHomeSetting home="/h" useSettings={() => settings} t={t} />);
+}
+
+const syncWarning = { provider: "OneDrive", localHome: "/local", message: "English backend diagnostic" };
+
 it("renders localized sites settings and the automatic appData safety notice", () => {
-  const useSettings = (() => ({ open: false, saving: false, error: null, show() {}, useAppData: async () => {}, useLocalHome: async () => {},
-    config: { databases: "appData", overrides: { sitesHome: false }, warning: { provider: "OneDrive", localHome: "/local", message: "English backend diagnostic" } },
-  })) as unknown as typeof useSitesConfig;
-  render(<SitesHomeSetting home="/home" useSettings={useSettings} t={(key) => translate({ locale: "de", key })} />);
+  const settings = fakeSettings({ open: false, config: configFixture({ databases: "appData", warning: syncWarning }) });
+  renderWith(settings, (key) => translate({ locale: "de", key }));
   expect(screen.getByRole("button", { name: "Website-Einstellungen" })).toBeTruthy();
   expect(screen.getByRole("alert").textContent).toContain("OneDrive synchronisiert diesen Ordner. Neue Datenbanken verwenden zur Sicherheit App-Daten.");
   expect(screen.queryByText("English backend diagnostic")).toBeNull();
+});
+
+it("tells an in-site database owner to move databases to app-data when the folder is synced", () => {
+  renderWith(fakeSettings({ open: false, config: configFixture({ warning: syncWarning }) }));
+  expect(screen.getByRole("alert").textContent).toContain("OneDrive syncs this folder. Store databases in app-data to prevent corruption.");
+});
+
+it("shows no sync warning before the config has loaded", () => {
+  renderWith(fakeSettings({ open: false, config: null }));
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("runs the app-data remedy from the sync warning", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const calls: string[] = [];
+  renderWith(fakeSettings({ open: false, config: configFixture({ warning: syncWarning }), useAppData: async () => { calls.push("appData"); } }));
+  await userEvent.setup().click(screen.getByRole("button", { name: "Store databases in app-data" }));
+  expect(calls).toEqual(["appData"]);
+});
+
+it("runs the local-folder remedy from the sync warning", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const calls: string[] = [];
+  renderWith(fakeSettings({ open: false, config: configFixture({ warning: syncWarning }), useLocalHome: async () => { calls.push("localHome"); } }));
+  await userEvent.setup().click(screen.getByRole("button", { name: "Use /local" }));
+  expect(calls).toEqual(["localHome"]);
+});
+
+it("disables the local-folder remedy when TOVU_SITES_HOME overrides the home", () => {
+  renderWith(fakeSettings({ open: false, config: configFixture({ warning: syncWarning, overrides: { sitesHome: true, siteRoots: false } }) }));
+  expect(screen.getByRole("button", { name: "Use /local" })).toBeDisabled();
+});
+
+it("disables both sync remedies while a save is in flight", () => {
+  renderWith(fakeSettings({ open: false, saving: true, config: configFixture({ warning: syncWarning }) }));
+  expect(screen.getByRole("button", { name: "Store databases in app-data" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Use /local" })).toBeDisabled();
+});
+
+it("opens the dialog from the Sites settings button", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const calls: string[] = [];
+  renderWith(fakeSettings({ open: false, show: () => { calls.push("show"); } }));
+  await userEvent.setup().click(screen.getByRole("button", { name: "Sites settings" }));
+  expect(calls).toEqual(["show"]);
+});
+
+it("shows a settings error beside the tab row while the dialog is closed", () => {
+  renderWith(fakeSettings({ open: false, error: "Could not read /data/config.json" }));
+  expect(screen.getByRole("alert").textContent).toBe("Could not read /data/config.json");
+});
+
+it("shows a settings error once, inside the form, while the dialog is open", () => {
+  renderWith(fakeSettings({ error: "Could not write /data/config.json" }));
+  expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual(["Could not write /data/config.json"]);
+});
+
+it("passes typed edits to the home, extra-folder and database setters", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const user = userEvent.setup();
+  const calls: string[] = [];
+  renderWith(fakeSettings({ home: "", rootList: [""], setHome: (value) => { calls.push(`home:${String(value)}`); },
+    setRootAt: (index, value) => { calls.push(`root:${index}:${value}`); }, setDatabases: (value) => { calls.push(`db:${String(value)}`); } }));
+  await user.type(screen.getByLabelText("New websites folder"), "x");
+  await user.type(screen.getByLabelText("Extra folder 1"), "y");
+  await user.selectOptions(screen.getByLabelText("Database location"), "appData");
+  expect(calls).toEqual(["home:x", "root:0:y", "db:appData"]);
+});
+
+it("focuses the extra-folder row that Add folder just created", () => {
+  renderWith(fakeSettings({ rootList: ["/one", ""], addedIndex: 1 }));
+  expect(screen.getByLabelText("Extra folder 2")).toHaveFocus();
+});
+
+it("offers no Save and no config path before the config has loaded", () => {
+  renderWith(fakeSettings({ config: null }));
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  expect(screen.queryByText(/^Saved in/)).toBeNull();
+});
+
+it("disables Save while a save is in flight", () => {
+  renderWith(fakeSettings({ saving: true }));
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
 });
 
 it("puts Sites settings beside the tab row and renders the dialog as a labelled stacked form", async () => {
@@ -103,13 +186,10 @@ it("puts Sites settings beside the tab row and renders the dialog as a labelled 
   const { default: userEvent } = await import("@testing-library/user-event");
   const user = userEvent.setup();
   const calls: string[] = [];
-  const useSettings = (() => ({ open: true, saving: false, error: null, show() {}, close() {}, useAppData: async () => {}, useLocalHome: async () => {},
-    home: "/Users/owner/Documents/Tovu/sites", setHome: (value: string) => calls.push(`home:${value}`), databases: "inSite", setDatabases() {},
-    rootList: ["/extra/one"], addedIndex: null, setRootAt: (index: number, value: string) => calls.push(`root:${index}:${value}`),
-    addRoot: () => calls.push("add"), removeRoot: (index: number) => calls.push(`remove:${index}`), save: async () => { calls.push("save"); },
-    config: { databases: "inSite", configPath: "/data/config.json", overrides: { sitesHome: false, siteRoots: false } },
-  })) as unknown as typeof useSitesConfig;
-  render(<SitesHomeSetting home="/home" tabs={<div role="tablist" aria-label="Sites tabs" />} useSettings={useSettings} />);
+  const settings = fakeSettings({ home: "/Users/owner/Documents/Tovu/sites", setHome: (value) => { calls.push(`home:${String(value)}`); },
+    rootList: ["/extra/one"], setRootAt: (index, value) => { calls.push(`root:${index}:${value}`); },
+    addRoot: () => { calls.push("add"); }, removeRoot: (index) => { calls.push(`remove:${index}`); }, save: async () => { calls.push("save"); } });
+  render(<SitesHomeSetting home="/home" tabs={<div role="tablist" aria-label="Sites tabs" />} useSettings={() => settings} />);
   const row = screen.getByRole("tablist", { name: "Sites tabs" }).parentElement!;
   expect(within(row).getByRole("button", { name: "Sites settings" })).toBeTruthy();
   expect(screen.getByLabelText("New websites folder")).toHaveValue("/Users/owner/Documents/Tovu/sites");
@@ -130,11 +210,7 @@ it("puts Sites settings beside the tab row and renders the dialog as a labelled 
 });
 
 it("shows an empty-list hint and disables folder rows the environment overrides", () => {
-  const useSettings = (() => ({ open: true, saving: false, error: null, show() {}, close() {}, useAppData: async () => {}, useLocalHome: async () => {},
-    home: "/h", setHome() {}, databases: "appData", setDatabases() {}, rootList: [], addedIndex: null, setRootAt() {}, addRoot() {}, removeRoot() {}, save: async () => {},
-    config: { databases: "appData", configPath: "/c.json", overrides: { sitesHome: true, siteRoots: true } },
-  })) as unknown as typeof useSitesConfig;
-  render(<SitesHomeSetting home="/h" useSettings={useSettings} />);
+  renderWith(fakeSettings({ databases: "appData", config: configFixture({ databases: "appData", overrides: { sitesHome: true, siteRoots: true } }) }));
   expect(screen.getByText("No extra folders.")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Add folder" })).toBeDisabled();
   expect(screen.getByLabelText("New websites folder")).toBeDisabled();
