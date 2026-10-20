@@ -1,3 +1,4 @@
+import { redactSecrets } from "@jini-ai/core";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -506,7 +507,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   const publishInput: DeployPublishInput = { files: filesForReceiver({ files, submitUrl: forms.submitUrl }), projectName: input.projectName };
   const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath, forms.hosting);
   await saveReceiverKey({ outcome, save: forms.save });
-  return finishPublishOutcome({ outcome, credential: credentialResult.credential });
+  return finishPublishOutcome({ outcome, credential: credentialResult.credential, target: plan.target });
 }
 
 /**
@@ -541,12 +542,21 @@ async function saveReceiverKey({ outcome, save }: { outcome: StaticPublishOutcom
   catch { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it"); }
 }
 
-/** Final credential-safe projection, including partial provider failures. @complexity O(message bytes). */
-function finishPublishOutcome({ outcome, credential }: { outcome: StaticPublishOutcome; credential: ResolvedCredentialSourceSuccess }, _options = {}): StaticPublishOutcome {
+/** Redact declared secrets from full/partial provider failures and retain the saved credential id.
+ * @complexity O(fields + message bytes × secrets), delegated to the shared redactor. */
+function finishPublishOutcome({ outcome, credential, target }: {
+  outcome: StaticPublishOutcome; credential: ResolvedCredentialSourceSuccess; target: LoadedDeployTarget;
+}, _options = {}): StaticPublishOutcome {
   // A plugin can include its credential in an error message. Keep the useful provider explanation
-  // while removing the resolved token before this site-publish response reaches HTTP or a tool.
-  const safe = "message" in outcome && credential.token
-    ? { ...outcome, message: outcome.message.replaceAll(credential.token, "[REDACTED]") } : outcome;
+  // while removing every declared secret before this site-publish response reaches HTTP or a tool.
+  const exactSecrets = [credential.token, ...(target.descriptor.credential?.fields ?? [])
+    .filter(field => field.secret)
+    .map(field => {
+      const value = credential[field.name];
+      return typeof value === "string" ? value : undefined;
+    })];
+  const safe = "message" in outcome
+    ? { ...outcome, message: redactSecrets({ input: outcome.message }, { exactSecrets, redactPii: false }) } : outcome;
   // Bind history to the row opened for this run, never a later default lookup.
   return safe.ok && credential.credentialId !== undefined ? { ...safe, credentialId: credential.credentialId } : safe;
 }
