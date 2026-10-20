@@ -6,7 +6,11 @@ import {
   clearFormSubmissionResultQueryParams,
   decodeFormFlashCookieValue,
   decodeFormSubmissionResultFromQuery,
+  encodeFormFlashCookieValue,
   encodeFormSubmissionResultQuery,
+  injectFormSubmissionResultIntoHtml,
+  renderFormErrorSlot,
+  renderFormSuccessSlot,
 } from "../form-render.js";
 
 /**
@@ -98,4 +102,50 @@ test("decode flash: rejects a missing, empty or non-string slug even with valid 
   for (const slug of [undefined, "", 42]) {
     assert.equal(decodeFormFlashCookieValue(JSON.stringify({ slug, values: { email: "ada@example.com" } })), undefined);
   }
+});
+
+test("slots: a widget's extra classes and attributes are emitted beside the generic hooks", () => {
+  assert.equal(
+    renderFormSuccessSlot({ slug: "s", message: "Thanks", extraClasses: "legacy-success", extraAttrs: 'data-legacy="s"' }),
+    '<div class="tovu-form-success legacy-success" data-form-slug="s" data-legacy="s" hidden>Thanks</div>',
+  );
+  assert.equal(
+    renderFormErrorSlot({ slug: "s", extraClasses: "legacy-error", extraAttrs: 'data-legacy="s"' }),
+    '<div class="tovu-form-error legacy-error" data-form-slug="s" data-legacy="s" hidden></div>',
+  );
+});
+
+test("slots: without extras only the generic class and slug attribute are emitted", () => {
+  assert.equal(renderFormSuccessSlot({ slug: "s", message: "Thanks" }), '<div class="tovu-form-success" data-form-slug="s" hidden>Thanks</div>');
+  assert.equal(renderFormErrorSlot({ slug: "s" }), '<div class="tovu-form-error" data-form-slug="s" hidden></div>');
+});
+
+test("encode flash: a payload with no values sets no cookie", () => {
+  assert.equal(encodeFormFlashCookieValue({ slug: "s", values: {} }), undefined);
+});
+
+test("encode flash: a slug too long for the cookie on its own sets no cookie", () => {
+  assert.equal(encodeFormFlashCookieValue({ slug: "s".repeat(3001), values: { name: "Ada" } }), undefined);
+});
+
+// HTML-mode forms mark their slots with bare `data-tovu-form-success`/`data-tovu-form-error`
+// attributes instead of the Builder classes.
+const htmlModeFormPage =
+  '<div data-tovu-form-success data-form-slug="s" hidden>Thanks</div>' +
+  '<form data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s" hidden></div></form>';
+
+test("inject: success on an HTML-mode form reveals its bare success slot and hides the form", () => {
+  assert.equal(
+    injectFormSubmissionResultIntoHtml(htmlModeFormPage, { kind: "success", slug: "s" }),
+    '<div data-tovu-form-success data-form-slug="s">Thanks</div>' +
+      '<form hidden data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s" hidden></div></form>',
+  );
+});
+
+test("inject: a one-second rate limit says 'second', not 'seconds'", () => {
+  assert.equal(
+    injectFormSubmissionResultIntoHtml(htmlModeFormPage, { kind: "rate-limited", slug: "s", retryAfterSeconds: 1 }),
+    '<div data-tovu-form-success data-form-slug="s" hidden>Thanks</div>' +
+      '<form data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s">Too many submissions — please try again in 1 second.</div></form>',
+  );
 });
