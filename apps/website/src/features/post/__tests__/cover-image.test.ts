@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildPostRecord } from "./post-record.fixture.js";
-import { collectCoverMediaRefs, projectPostBody, resolveCoverImage } from "../cover-image.js";
+import type { JsonValue } from "@jini-ai/core/primitives";
+import { collectCoverMediaRefs, projectPostBody, resolveCoverImage, type CoverImagePost } from "../cover-image.js";
 
 const photo = { id: "photo", width: 1200, height: 800, contentType: "image/jpeg" };
 const mediaLookup = ({ ref }: { ref: string }) => ref === "photo" || ref === "photo-slug" ? photo : null;
@@ -93,4 +94,96 @@ test("postpolish: malformed nested arrays keep occurrence numbering aligned with
   const image = { type: "image", attrs: { assetId: "photo" } };
   const post = buildPostRecord({ bodyJson: { type: "doc", content: [[image], image] } });
   assert.deepEqual(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), { type: "doc", content: [[], image] });
+});
+
+const docPost = (content: JsonValue[]) => buildPostRecord({ bodyJson: { type: "doc", content } });
+const htmlPost = (bodyHtml: string | null) => buildPostRecord({ bodyFormat: "html", bodyJson: {}, bodyHtml });
+
+test("cover refs: a rendition src resolves to its library ref, and a malformed escape is no ref", () => {
+  assert.deepEqual(collectCoverMediaRefs({ post: docPost([{ type: "image", attrs: { src: " /m/photo%20one/public.v2/a.jpg?w=1 " } }]) }), ["photo one"]);
+  assert.deepEqual(collectCoverMediaRefs({ post: docPost([{ type: "image", attrs: { src: "/m/%E0%A4%A/public.v1/a.jpg" } }]) }), []);
+  assert.deepEqual(collectCoverMediaRefs({ post: docPost([{ type: "image", attrs: { src: "/m/photo/original/a.jpg" } }]) }), []);
+});
+
+test("cover refs: non-string src/assetId/alt attributes are ignored rather than coerced", () => {
+  const post = docPost([{ type: "image", attrs: { src: 7, assetId: 8, alt: 9 } }, { type: "image", attrs: { assetId: "photo", alt: 10 } }]);
+  assert.deepEqual(collectCoverMediaRefs({ post }), ["photo"]);
+  assert.equal(resolveCoverImage({ post }, { mediaLookup })?.alt, post.title);
+});
+
+test("cover refs: image nodes without an attrs object, and non-object nodes, are not candidates", () => {
+  const post = docPost([{ type: "image" }, { type: "media", attrs: [] }, "text", null, { type: "image", attrs: { assetId: "photo" } }]);
+  assert.deepEqual(collectCoverMediaRefs({ post }), ["photo"]);
+  assert.equal(resolveCoverImage({ post }, { mediaLookup })?.bodyOccurrence, 0);
+});
+
+test("cover refs: deduplicates repeated references in first-seen order", () => {
+  const post = docPost([{ type: "image", attrs: { assetId: "b" } }, { type: "image", attrs: { assetId: "a" } }, { type: "image", attrs: { assetId: "b" } }]);
+  assert.deepEqual(collectCoverMediaRefs({ post }), ["b", "a"]);
+});
+
+test("cover refs: an HTML post with no stored HTML has no candidates", () => {
+  assert.deepEqual(collectCoverMediaRefs({ post: htmlPost(null) }), []);
+});
+
+test("HTML media markers: the id wins over the slug, a marker without a string ref is skipped, and its fallback is never a candidate", () => {
+  const html = `<figure data-embed-config='{"type":"media","id":"by-id","slug":"by-slug"}'><img src="/m/fallback/public.v1/a.jpg"></figure>` +
+    `<figure data-embed-config='{"type":"media","slug":5}'><img src="/m/inner/public.v1/a.jpg"></figure>` +
+    `<div data-embed-config='{"type":"menu","id":"nav"}'><img src="/m/menu-child/public.v1/a.jpg"></div>`;
+  assert.deepEqual(collectCoverMediaRefs({ post: htmlPost(html) }), ["by-id", "menu-child"]);
+});
+
+test("HTML media markers: with no marker alt, the element alt is the fallback", () => {
+  const html = `<img data-embed-config='{"type":"media","id":"photo"}' alt="Element alt">`;
+  assert.equal(resolveCoverImage({ post: htmlPost(html) }, { mediaLookup })?.alt, "Element alt");
+});
+
+test("resolve: unknown MIME follows the featured contract, and lookup canonical ids replace slugs", () => {
+  const post = docPost([{ type: "image", attrs: { assetId: "slug" } }]);
+  assert.deepEqual(resolveCoverImage({ post }, { mediaLookup: () => ({ width: null, height: null, contentType: null }) }), { mediaId: "slug", alt: post.title, width: null, height: null, bodyOccurrence: 0 });
+  assert.equal(resolveCoverImage({ post }, { mediaLookup: () => ({ id: "canonical", width: 1, height: 2, contentType: "image/png" }) })?.mediaId, "canonical");
+});
+
+test("resolve: an external candidate without a usable URL falls through to a later library image", () => {
+  const post = docPost([{ type: "image", attrs: { src: "https://[broken" } }, { type: "image", attrs: { alt: "no src" } }, { type: "image", attrs: { assetId: "photo" } }]);
+  assert.equal(resolveCoverImage({ post }, { mediaLookup, allowExternalHttps: true })?.mediaId, "photo");
+});
+
+test("external OG URLs: an upper-case HTTPS scheme is accepted verbatim, and a password-only credential is refused", () => {
+  const upper = docPost([{ type: "image", attrs: { src: "HTTPS://images.example/a.jpg" } }]);
+  assert.equal(resolveCoverImage({ post: upper }, { mediaLookup, allowExternalHttps: true })?.url, "HTTPS://images.example/a.jpg");
+  const password = docPost([{ type: "image", attrs: { src: "https://:secret@images.example/a.jpg" } }]);
+  assert.equal(resolveCoverImage({ post: password }, { mediaLookup, allowExternalHttps: true }), null);
+});
+
+test("projectPostBody: a non-object stored body is returned as-is even when a cover is selected", () => {
+  const body = [{ type: "image", attrs: { assetId: "photo" } }];
+  const post: CoverImagePost = { ...buildPostRecord(), bodyJson: body };
+  assert.equal(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), body);
+});
+
+test("projectPostBody: an explicit hideCoverImageInBody true still hides, and a non-object presentation is ignored", () => {
+  const post = docPost([{ type: "image", attrs: { assetId: "photo" } }, { type: "text", text: "after" }]);
+  for (const presentation of [{ hideCoverImageInBody: true }, "off"]) {
+    assert.deepEqual(projectPostBody({ post: { ...post, ext: { "post-presentation": presentation } } }, { mediaLookup, hasPublicTransform: true }), { type: "doc", content: [{ type: "text", text: "after" }] });
+  }
+});
+
+test("projectPostBody: an image node without attrs is copied and does not consume an occurrence", () => {
+  const post = docPost([{ type: "image" }, { type: "image", attrs: { assetId: "photo" } }]);
+  assert.deepEqual(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), { type: "doc", content: [{ type: "image" }] });
+});
+
+test("projectPostBody: no usable cover returns the stored body unchanged", () => {
+  const post = docPost([{ type: "image", attrs: { assetId: "missing" } }]);
+  assert.equal(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), post.bodyJson);
+});
+
+test("HTML: images inside parser-implied elements (a table's tbody has no source location) are still candidates", () => {
+  assert.deepEqual(collectCoverMediaRefs({ post: htmlPost(`<table><tr><td><img src="/m/photo/public.v1/a.jpg"></td></tr></table>`) }), ["photo"]);
+});
+
+test("projectPostBody: primitive children in malformed content are copied through in place", () => {
+  const post = docPost(["raw", null, { type: "image", attrs: { assetId: "photo" } }, 3]);
+  assert.deepEqual(projectPostBody({ post }, { mediaLookup, hasPublicTransform: true }), { type: "doc", content: ["raw", null, 3] });
 });
