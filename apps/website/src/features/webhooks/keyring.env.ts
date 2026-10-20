@@ -9,7 +9,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import type { KeyringPort } from "./ports.js";
-import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource, type SiteKeySourceMaterial } from "./site-key-sources.js";
 
 // Validation/derivation rationale: Jini packages/platform/src/secrets/keyring.env.ts.
 /**
@@ -144,23 +144,12 @@ export class EnvOrFileKeyring implements KeyringPort {
   private resolveKeyring(): JiniFixedSiteKeyKeyring {
     // Present-but-invalid wins and throws: falling through could seal data under a different
     // key than the operator configured. Ordered sources are readers only; ensureSiteKey owns minting.
-    const env = this.env();
-    for (const source of this.sources) {
-      const material = readSiteKeySourceMaterial(source, env);
-      if (material === undefined) continue;
-      const parsed = parseSiteKeyHex(material.raw);
-      if (parsed.ok) return new JiniFixedSiteKeyKeyring({ hex: parsed.hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: this.keyId });
-      throw new UnusableSiteKeyError({
-        source: source.kind === "env" ? "env" : "file",
-        reason: parsed.reason,
-        message: unusableSiteKeyMessage({
-          subject: source.kind === "env" ? material.envVarName ?? SITE_KEY_ENV_VAR_NAME : describeSiteKeySource(source),
-          detail: describeSiteKeyRejection(parsed),
-          sealedWarningSubject: source.kind !== "env" ? "this file" : parsed.reason === "too-short" ? "this value" : undefined,
-        }),
-      });
+    const present = firstPresentSiteKey({ sources: this.sources, env: this.env() });
+    if (present === undefined) {
+      throw new Error(`no site key: none of the configured sources resolved (${this.sources.map(describeSiteKeySource).join(", ")})`);
     }
-    throw new Error(`no site key: none of the configured sources resolved (${this.sources.map(describeSiteKeySource).join(", ")})`);
+    if (present.parsed.ok) return new JiniFixedSiteKeyKeyring({ hex: present.parsed.hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: this.keyId });
+    throw unusableSiteKeyError({ source: present.source, rejection: present.parsed });
   }
 }
 
@@ -197,6 +186,55 @@ function rethrowKeyringError(error: unknown): never {
  *  configured sources resolved" list only, never the material itself. */
 function describeSiteKeySource(source: SiteKeySource): string {
   return source.kind === "env" ? `env var ${SITE_KEY_ENV_VAR_NAME}` : `the site key file at ${source.path}`;
+}
+
+/** Which status/error `source` a {@link SiteKeySource} reports as: every file kind is `"file"`. */
+function reportedSourceOf(source: SiteKeySource): "env" | "file" {
+  return source.kind === "env" ? "env" : "file";
+}
+
+/** The first source in the list holding ANY material, with that material's verdict. */
+interface PresentSiteKey {
+  readonly source: SiteKeySource;
+  readonly material: SiteKeySourceMaterial;
+  readonly parsed: ParsedSiteKeyHex;
+}
+
+/** Status/reveal share the first-present rule with derivation. Never mint, never cache, never
+ * silently skip a broken source: that could select a key the operator did not intend.
+ * @complexity O(sources), with one small env/file read per attempted source.
+ */
+function firstPresentSiteKey(input: { sources: readonly SiteKeySource[]; env: Record<string, string | undefined> }): PresentSiteKey | undefined {
+  for (const source of input.sources) {
+    const material = readSiteKeySourceMaterial(source, input.env);
+    if (material !== undefined) return { source, material, parsed: parseSiteKeyHex(material.raw) };
+  }
+  return undefined;
+}
+
+/** {@link EnvOrFileKeyring}'s refusal for present-but-invalid material. The env source is named by
+ *  its variable — the only name `readSiteKeySourceMaterial` ever reports for it is
+ *  {@link SITE_KEY_ENV_VAR_NAME} — and a file by its path. */
+function unusableSiteKeyError(input: { source: SiteKeySource; rejection: { reason: SiteKeyRejection; hexDigits: number } }): UnusableSiteKeyError {
+  const isEnv = input.source.kind === "env";
+  return new UnusableSiteKeyError({
+    source: reportedSourceOf(input.source),
+    reason: input.rejection.reason,
+    message: unusableSiteKeyMessage({
+      subject: isEnv ? SITE_KEY_ENV_VAR_NAME : describeSiteKeySource(input.source),
+      detail: describeSiteKeyRejection(input.rejection),
+      sealedWarningSubject: sealedWarningSubjectFor({ isEnv, reason: input.rejection.reason }),
+    }),
+  });
+}
+
+/** The env source. Only a too-short value can have been accepted before 2026-09-16 (malformed hex
+ *  always threw here), so only that case carries the already-sealed warning. The file source:
+ *  every rejection carries it — before 2026-09-16 that branch accepted ANY file content, so an
+ *  install may have been sealing under it. */
+function sealedWarningSubjectFor(input: { isEnv: boolean; reason: SiteKeyRejection }): string | undefined {
+  if (!input.isEnv) return "this file";
+  return input.reason === "too-short" ? "this value" : undefined;
 }
 
 /** Why present site-key material was refused. `"too-short"` means valid hex of fewer than
@@ -313,49 +351,36 @@ export interface InspectSiteKeyMaterialOptions {
   sources: readonly SiteKeySource[];
 }
 
-type ActiveSiteKeyMaterial = {
-  source: "env" | "file" | "none"; hex?: string; invalid?: boolean;
-  reason?: SiteKeyRejection; envVarName?: string;
-};
-
-/** Status/reveal share the first-present rule with derivation. Never mint, never cache, never
- * silently skip a broken source: that could select a key the operator did not intend. */
-function readActiveSiteKeyMaterialFromSources(sources: readonly SiteKeySource[], env: Record<string, string | undefined>): ActiveSiteKeyMaterial {
-  for (const source of sources) {
-    const material = readSiteKeySourceMaterial(source, env);
-    if (material === undefined) continue;
-    const parsed = parseSiteKeyHex(material.raw);
-    const provenance = source.kind === "env" ? { envVarName: material.envVarName } : {};
-    return parsed.ok
-      ? { source: source.kind === "env" ? "env" : "file", hex: parsed.hex, ...provenance }
-      : { source: source.kind === "env" ? "env" : "file", invalid: true, reason: parsed.reason, ...provenance };
-  }
-  return { source: "none" };
-}
-
-/** No write target for a local site with unreadable metadata; legacy shared files are read-only. */
-function resolveReportedKeyFilePath(options: InspectSiteKeyMaterialOptions): string {
-  return siteKeyFilePathFrom(options.sources) ?? "";
-}
-
 /**
  * Read-only snapshot over the same explicit sources derivation uses. Re-read on every call so
  * status and recovery never report cached material. A present invalid source refuses resolution;
  * it never falls through to another key. Nothing here generates, replaces or repairs a file.
  */
 export function inspectSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyStatus {
-  const keyFilePath = resolveReportedKeyFilePath(options);
-  const raw = readActiveSiteKeyMaterialFromSources(options.sources, (deps.env ?? (() => process.env))());
-  const provenance = raw.source === "env" ? { envVarName: raw.envVarName } : {};
-
-  if (raw.hex) return { active: true, source: raw.source, fingerprint: fingerprintSiteKeyHex(raw.hex), keyFilePath, ...provenance };
-  return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath, ...provenance };
+  const { hex: _hex, ...status } = readSiteKeyReveal(options, deps);
+  return status;
 }
 
-/** The `invalid`/`reason` pair both status functions spread onto an inactive result — present
- *  together or not at all. */
-function invalidFields(raw: ActiveSiteKeyMaterial): { invalid?: true; reason?: SiteKeyRejection } {
-  return raw.invalid ? { invalid: true, reason: raw.reason } : {};
+/** One read behind both status functions; {@link inspectSiteKeyMaterial} drops `hex` from it. */
+function readSiteKeyReveal(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps): SiteKeyReveal {
+  // No write target for a local site with unreadable metadata; legacy shared files are read-only.
+  const keyFilePath = siteKeyFilePathFrom(options.sources) ?? "";
+  const present = firstPresentSiteKey({ sources: options.sources, env: (deps.env ?? (() => process.env))() });
+  return siteKeyRevealOf({ present, keyFilePath });
+}
+
+/** The reveal shape (key order is part of the HTTP response) for whatever source is present;
+ *  `envVarName` only for the env source. The `invalid`/`reason` pair both status functions spread
+ *  onto an inactive result — present together or not at all. */
+function siteKeyRevealOf(input: { present: PresentSiteKey | undefined; keyFilePath: string }): SiteKeyReveal {
+  const { present, keyFilePath } = input;
+  if (present === undefined) return { active: false, source: "none", keyFilePath };
+  const source = reportedSourceOf(present.source);
+  const provenance = present.source.kind === "env" ? { envVarName: present.material.envVarName } : {};
+  if (present.parsed.ok) {
+    return { active: true, source, hex: present.parsed.hex, fingerprint: fingerprintSiteKeyHex(present.parsed.hex), keyFilePath, ...provenance };
+  }
+  return { active: false, source, invalid: true, reason: present.parsed.reason, keyFilePath, ...provenance };
 }
 
 /** {@link revealSiteKeyMaterial}'s result. `hex` is present iff `active` — the ONLY other place in
@@ -379,12 +404,7 @@ export interface SiteKeyReveal extends SiteKeyStatus {
  * not only the file-backed case.
  */
 export function revealSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyReveal {
-  const keyFilePath = resolveReportedKeyFilePath(options);
-  const raw = readActiveSiteKeyMaterialFromSources(options.sources, (deps.env ?? (() => process.env))());
-  const provenance = raw.source === "env" ? { envVarName: raw.envVarName } : {};
-
-  if (raw.hex) return { active: true, source: raw.source, hex: raw.hex, fingerprint: fingerprintSiteKeyHex(raw.hex), keyFilePath, ...provenance };
-  return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath, ...provenance };
+  return readSiteKeyReveal(options, deps);
 }
 
 /** Thrown by {@link generateFileSiteKey} when a key file already exists at the target path. */
