@@ -78,46 +78,63 @@ export interface MediaContentEditorProps {
 export function MediaContentEditor({ widgetType, config, onChange, t = (key) => key, agentHandle: base, port, useEditor = useMediaContentEditor, usePreview = useWidgetPreview }: MediaContentEditorProps) {
   const vm = useEditor({ config, onChange, widgetType }, port ? { port } : {});
   const preview = usePreview({ widgetType, config });
-  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: vm.mode, onChange: (id) => vm.setMode(id as MediaContentMode) });
   const panelId = useId();
   return (
     <div className="media-content-editor">
-      <div className="media-content-editor__tabs">
-        <div className="segmented" role="tablist" aria-label={t("Widget content")} onKeyDown={onKeyDown}>
-          {TABS.map((tab) => (
-            <button key={tab.id} type="button" role="tab" aria-selected={vm.mode === tab.id} aria-controls={panelId}
-              className={vm.mode === tab.id ? "is-active" : undefined}
-              tabIndex={resolveTabBarTabIndex({ tabs: TABS, activeId: vm.mode, tab })}
-              onClick={() => vm.setMode(tab.id)}
-              {...handle(base, `tab-${tab.id}`, "button", `Switch to the ${tab.label} tab`)}>
-              {tab.id === "media" ? t("Media") : t("Raw HTML")}
-            </button>
-          ))}
-        </div>
-        {vm.inactiveHasContent ? (
-          <span className="field-hint media-content-editor__notice" role="status">
-            <Icon name="alert-triangle" size={14} aria-hidden="true" />
-            {t("Saving keeps only this tab. The other tab's content will be dropped.")}
-          </span>
-        ) : null}
-      </div>
+      <EditorTabs vm={vm} t={t} base={base} panelId={panelId} />
       <div id={panelId} role="tabpanel" className="media-content-editor__panel">
         {vm.mode === "media" ? <MediaTab vm={vm} t={t} base={base} /> : <HtmlTab vm={vm} t={t} base={base} />}
       </div>
-      <section className="media-content-editor__preview" aria-label={t("Preview")}>
-        <div className="media-content-editor__toolbar">
-          <span className="field-label">{t("Preview")}</span>
-          <span className={preview.error ? "field-error" : "field-hint"} role="status">
-            {preview.error ? t("Preview unavailable.") : preview.loading ? t("Loading preview…") : null}
-          </span>
-        </div>
-        <DevicePreviewFrame width={preview.paneWidth} frameRef={preview.frameRef} paneWidth={preview.paneWidth} expanded>
-          <iframe title={t("Preview")} className="page-preview-iframe" sandbox="" srcDoc={preview.document} />
-        </DevicePreviewFrame>
-      </section>
+      <PreviewSection preview={preview} t={t} />
       {vm.libraryError ? <p className="field-error" role="alert">{vm.libraryError}</p> : null}
       {vm.picker ? <LibraryPicker vm={vm} t={t} base={base} /> : null}
     </div>
+  );
+}
+
+function EditorTabs({ vm, t, base, panelId }: { vm: MediaContentEditorController; t: Translate; base: string | undefined; panelId: string }) {
+  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: vm.mode, onChange: (id) => vm.setMode(id as MediaContentMode) });
+  return (
+    <div className="media-content-editor__tabs">
+      <div className="segmented" role="tablist" aria-label={t("Widget content")} onKeyDown={onKeyDown}>
+        {TABS.map((tab) => (
+          <button key={tab.id} type="button" role="tab" aria-selected={vm.mode === tab.id} aria-controls={panelId}
+            className={vm.mode === tab.id ? "is-active" : undefined}
+            tabIndex={resolveTabBarTabIndex({ tabs: TABS, activeId: vm.mode, tab })}
+            onClick={() => vm.setMode(tab.id)}
+            {...handle(base, `tab-${tab.id}`, "button", `Switch to the ${tab.label} tab`)}>
+            {tab.id === "media" ? t("Media") : t("Raw HTML")}
+          </button>
+        ))}
+      </div>
+      {vm.inactiveHasContent ? (
+        <span className="field-hint media-content-editor__notice" role="status">
+          <Icon name="alert-triangle" size={14} aria-hidden="true" />
+          {t("Saving keeps only this tab. The other tab's content will be dropped.")}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function previewStatus(preview: ReturnType<typeof useWidgetPreview>, t: Translate): string | null {
+  if (preview.error) return t("Preview unavailable.");
+  return preview.loading ? t("Loading preview…") : null;
+}
+
+function PreviewSection({ preview, t }: { preview: ReturnType<typeof useWidgetPreview>; t: Translate }) {
+  return (
+    <section className="media-content-editor__preview" aria-label={t("Preview")}>
+      <div className="media-content-editor__toolbar">
+        <span className="field-label">{t("Preview")}</span>
+        <span className={preview.error ? "field-error" : "field-hint"} role="status">
+          {previewStatus(preview, t)}
+        </span>
+      </div>
+      <DevicePreviewFrame width={preview.paneWidth} frameRef={preview.frameRef} paneWidth={preview.paneWidth} expanded>
+        <iframe title={t("Preview")} className="page-preview-iframe" sandbox="" srcDoc={preview.document} />
+      </DevicePreviewFrame>
+    </section>
   );
 }
 
@@ -181,7 +198,6 @@ function Thumbnail({ row, vm, t }: { row: MediaItemRow; vm: MediaContentEditorCo
 
 function MediaItemRowView({ row, index, vm, t }: { row: MediaItemRow; index: number; vm: MediaContentEditorController; t: Translate }) {
   const n = index + 1;
-  const last = index === vm.rows.length - 1;
   return (
     <li className="media-content-editor__row">
       <Thumbnail row={row} vm={vm} t={t} />
@@ -194,29 +210,41 @@ function MediaItemRowView({ row, index, vm, t }: { row: MediaItemRow; index: num
         aria-label={`${t("Alt text")} ${n}`} onChange={(event) => vm.updateItem(index, { alt: event.target.value || undefined })} />
       <input className="media-content-editor__caption" value={row.item.caption ?? ""} placeholder={row.asset?.caption || t("Caption")}
         aria-label={`${t("Caption")} ${n}`} onChange={(event) => vm.updateItem(index, { caption: event.target.value || undefined })} />
-      {/* The admin's white tip, not the browser's dark `title` one (owner, 2026-10-11). */}
-      <span className="media-content-editor__row-actions">
-        <DockHeaderTip label={t("Move up")}>
-          <button type="button" className="btn-ghost media-content-editor__icon" disabled={index === 0}
-            aria-label={`${t("Move up")} ${n}`} onClick={() => vm.moveItem(index, -1)}>
-            <Icon name="arrow-up" size={14} aria-hidden="true" />
-          </button>
-        </DockHeaderTip>
-        <DockHeaderTip label={t("Move down")}>
-          <button type="button" className="btn-ghost media-content-editor__icon is-down" disabled={last}
-            aria-label={`${t("Move down")} ${n}`} onClick={() => vm.moveItem(index, 1)}>
-            <Icon name="arrow-up" size={14} aria-hidden="true" />
-          </button>
-        </DockHeaderTip>
-        <DockHeaderTip label={t("Remove")}>
-          <button type="button" className="btn-ghost media-content-editor__icon"
-            aria-label={`${t("Remove")} ${n}`} onClick={() => vm.removeItem(index)}>
-            <Icon name="close" size={14} aria-hidden="true" />
-          </button>
-        </DockHeaderTip>
-      </span>
-      {row.problem ? <p className="field-error media-content-editor__row-error">{row.problem === "unknown" ? t("Not in the media library") : problemText(row.problem, row.item.slug, t)}</p> : null}
+      <RowActions index={index} vm={vm} t={t} />
+      {row.problem ? <p className="field-error media-content-editor__row-error">{rowProblemText(row.problem, row.item.slug, t)}</p> : null}
     </li>
+  );
+}
+
+function rowProblemText(problem: NonNullable<MediaItemRow["problem"]>, slug: string, t: Translate): string {
+  return problem === "unknown" ? t("Not in the media library") : problemText(problem, slug, t);
+}
+
+function RowActions({ index, vm, t }: { index: number; vm: MediaContentEditorController; t: Translate }) {
+  const n = index + 1;
+  const last = index === vm.rows.length - 1;
+  return (
+    // The admin's white tip, not the browser's dark `title` one (owner, 2026-10-11).
+    <span className="media-content-editor__row-actions">
+      <DockHeaderTip label={t("Move up")}>
+        <button type="button" className="btn-ghost media-content-editor__icon" disabled={index === 0}
+          aria-label={`${t("Move up")} ${n}`} onClick={() => vm.moveItem(index, -1)}>
+          <Icon name="arrow-up" size={14} aria-hidden="true" />
+        </button>
+      </DockHeaderTip>
+      <DockHeaderTip label={t("Move down")}>
+        <button type="button" className="btn-ghost media-content-editor__icon is-down" disabled={last}
+          aria-label={`${t("Move down")} ${n}`} onClick={() => vm.moveItem(index, 1)}>
+          <Icon name="arrow-up" size={14} aria-hidden="true" />
+        </button>
+      </DockHeaderTip>
+      <DockHeaderTip label={t("Remove")}>
+        <button type="button" className="btn-ghost media-content-editor__icon"
+          aria-label={`${t("Remove")} ${n}`} onClick={() => vm.removeItem(index)}>
+          <Icon name="close" size={14} aria-hidden="true" />
+        </button>
+      </DockHeaderTip>
+    </span>
   );
 }
 
