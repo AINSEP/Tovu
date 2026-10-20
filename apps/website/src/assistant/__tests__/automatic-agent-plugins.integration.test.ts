@@ -360,3 +360,55 @@ for (const denied of ['ask', 'off', 'untrusted'] as const) {
     f.runs.forget({ runId: denied });
   });
 }
+
+test('a turn whose signal is already aborted registers no controller and returns no note', async t => {
+  const f = await fixture(t);
+  const aborted = new AbortController();
+  aborted.abort();
+  assert.equal(await f.runs.start({ runId: 'gone', context: { ...f.context, signal: aborted.signal } }), '');
+  assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'gone' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
+});
+
+test('a tool without guidance capabilities loads no plugin guidance', async t => {
+  const f = await fixture(t);
+  await f.runs.start({ runId: 'plain', context: f.context });
+  assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'plain' }, tool: { id: 'plain_tool' }, signal: f.context.signal }), '');
+  assert.equal(f.published.length, 0);
+  f.runs.forget({ runId: 'plain' });
+});
+
+test('a failing guidance preparation is logged without detail and yields no guidance', async t => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const f = await fixture(t);
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen, principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value: 'ask' } });
+  // The consent card cannot be shown, so asking fails inside the controller's preparation.
+  const context = { ...f.context, emitSurface: async () => { throw new Error('surface closed: secret detail'); } };
+  await assert.rejects(f.runs.start({ runId: 'broken', context }), { message: 'surface closed: secret detail' });
+  assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'broken' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [['[agent-plugins] automatic tool guidance unavailable']]);
+  f.runs.forget({ runId: 'broken' });
+});
+
+test('load_agent_plugin refuses any input key other than pluginId', async t => {
+  const f = await fixture(t);
+  await f.runs.start({ runId: 'strict', context: f.context });
+  await assert.rejects(f.runs.loadRegistration.handler({ executionId: 'x', principal: f.context.principal, run: { id: 'strict' }, input: { pluginId: f.pluginId, extra: true }, signal: f.context.signal }),
+    { name: 'ToolInputError', message: 'Only pluginId is accepted' });
+  f.runs.forget({ runId: 'strict' });
+});
+
+test('a disposed Ask turn publishes nothing after its pending question is aborted', async t => {
+  const f = await fixture(t, { count: 2 });
+  await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
+  await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen, principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) },
+    input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: 'alice', callerPrincipalId: 'alice', authWorkspaceId: f.workspaceId, value: 'ask' } });
+  let opened!: () => void;
+  const opening = new Promise<void>(resolve => { opened = resolve; });
+  const started = f.runs.start({ runId: 'asked', context: { ...f.context, emitSurface: async () => { opened(); } } });
+  await opening;
+  f.runs.forget({ runId: 'asked' });
+  await started.catch(() => '');
+  assert.deepEqual(f.published, []);
+});

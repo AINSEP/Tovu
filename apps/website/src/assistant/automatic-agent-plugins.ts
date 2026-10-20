@@ -28,6 +28,11 @@ export interface AutomaticPluginRun {
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
 
+/** The stored chat Agent Plugins preference; anything but Ask or Off (including no value) is Auto. @complexity O(1). */
+function chatAgentPluginsMode({ value }: { value: unknown }, _options = {}): ChatAgentPlugins {
+  return value === 'ask' || value === 'off' ? value : 'auto';
+}
+
 /** Logical-turn controllers share preflight and the actual authorized tool gate. Cleanup is explicit.
  * @returns start/forget, the read-only guidance loader and the tool preparation hook.
  * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
@@ -57,19 +62,35 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
     // Check after setup awaits so simultaneous starts cannot replace one another's controller.
     const turnId = messageId ?? runId;
     const existing = runs.get(runId) ?? turns.get(turnId);
-    if (existing) {
-      if (existing.context.principal.id !== context.principal.id || existing.context.conversationId !== context.conversationId || (messageId !== undefined && existing.turnId !== messageId)) throw new Error('Agent Plugin run is unavailable');
-      existing.context = context;
-      existing.attempts.add(runId);
-      runs.set(runId, existing);
-      return existing.controller.prepare({ query: context.query, loaded: context.pinned }).finally(() => releaseDetached(existing));
-    }
+    if (existing) return rejoin({ existing, runId, messageId, context });
+    const current = withLateAnswer({ context });
+    const mode = chatAgentPluginsMode({ value: effective?.value });
+    const entry = createEntry({ mode, context: current, turnId, runId });
+    turns.set(turnId, entry);
+    runs.set(runId, entry);
+    // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
+    if (mode === 'off') await current.publish({ conversationId: current.conversationId, state: current.state, plugins: [] });
+    try { return await entry.controller.prepare({ query: current.query, loaded: current.pinned }); }
+    finally { releaseDetached(entry); }
+  }
+  /** Attach a restarted attempt to its live turn's controller; refuses another principal, chat or turn.
+   * @throws Error('Agent Plugin run is unavailable') on any identity mismatch. @complexity O(1). */
+  function rejoin({ existing, runId, messageId, context }: { existing: Entry; runId: string; messageId?: string; context: AutomaticPluginRun }): Promise<string> {
+    if (existing.context.principal.id !== context.principal.id || existing.context.conversationId !== context.conversationId || (messageId !== undefined && existing.turnId !== messageId)) throw new Error('Agent Plugin run is unavailable');
+    existing.context = context;
+    existing.attempts.add(runId);
+    runs.set(runId, existing);
+    return existing.controller.prepare({ query: context.query, loaded: context.pinned }).finally(() => releaseDetached(existing));
+  }
+  /** Fold a terminal attempt's late answer for this chat into the new turn, consuming it once. @complexity O(excluded). */
+  function withLateAnswer({ context }: { context: AutomaticPluginRun }): AutomaticPluginRun {
     const lateAnswer = lateAnswers.get(chatKey(context));
-    if (lateAnswer) {
-      context = { ...context, state: { ...lateAnswer, excluded: [...new Set([...context.state.excluded, ...lateAnswer.excluded])] } };
-      lateAnswers.delete(chatKey(context));
-    }
-    const mode: ChatAgentPlugins = effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto';
+    if (!lateAnswer) return context;
+    lateAnswers.delete(chatKey(context));
+    return { ...context, state: { ...lateAnswer, excluded: [...new Set([...context.state.excluded, ...lateAnswer.excluded])] } };
+  }
+  /** One logical turn's controller wired to the existing catalog, resolver, consent card and settings ports. */
+  function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }): Entry {
     const abort = new AbortController();
     let entry: Entry;
     const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
@@ -97,12 +118,7 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
       },
     } });
     entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]) };
-    turns.set(turnId, entry);
-    runs.set(runId, entry);
-    // An Off event clears an earlier usage strip without reading the catalog or loading guidance.
-    if (mode === 'off') await context.publish({ conversationId: context.conversationId, state: context.state, plugins: [] });
-    try { return await controller.prepare({ query: context.query, loaded: context.pinned }); }
-    finally { releaseDetached(entry); }
+    return entry;
   }
   const prepareGuidance: PrepareToolGuidance = async ({ run, tool, signal }) => {
     const entry = runs.get(run.id);
