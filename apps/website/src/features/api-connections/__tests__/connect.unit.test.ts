@@ -74,7 +74,7 @@ test("connected but missing a scope the connection now requests: a new sign-in c
   const result = await run(host, { showSignIn: async ({ signInUrl }) => { cards.push(signInUrl); } });
   assert.deepEqual(result, { status: "waiting-for-sign-in", connectionRef });
   assert.equal(cards.length, 1);
-  assert.match(new URL(cards[0]!).searchParams.get("scope") ?? "", /acme\.audit/);
+  assert.match(new URL(harness.providerUrl(cards[0]!)).searchParams.get("scope") ?? "", /acme\.audit/);
 });
 
 test("hosted: the call polls the record until the public callback installs a newer credential", async () => {

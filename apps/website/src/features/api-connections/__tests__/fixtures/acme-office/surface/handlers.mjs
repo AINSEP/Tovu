@@ -66,7 +66,7 @@ export default {
     async 'save-binding'({ input, capabilities }) {
       const saved = await capabilities.deliveryBindings.save({
         ...(input.bindingId === undefined ? {} : { bindingId: input.bindingId }), adapterId: input.adapterId, connectionId: input.connectionId, enabled: true,
-        ...(input.formSlugs === undefined ? {} : { formIds: input.formSlugs }), config: { table: input.table, accountId: input.accountId },
+        ...(input.formSlugs === undefined ? { allForms: true } : { formIds: input.formSlugs }), config: { table: input.table, accountId: input.accountId },
       });
       return { json: JSON.stringify(saved) };
     },

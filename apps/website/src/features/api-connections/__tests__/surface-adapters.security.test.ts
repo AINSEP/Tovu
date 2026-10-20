@@ -35,6 +35,7 @@ import { createAdminSurfaceCapabilities } from "../../agent-plugins/admin-surfac
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
+import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { PLUGIN_STATE_MAX_KEYS, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
 import { createSurfaceConnections, type IssuedSignIn } from "../surface-connections.js";
 import { runApiConnectionConnect } from "../connect.js";
@@ -104,17 +105,23 @@ function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () =
   registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
   siteServer.removeAllListeners("request");
   siteServer.on("request", app);
+  browser = trackStartingBrowser(host);
   return host;
 }
 
+/** The browser that started the latest host's sign-ins (it opened the host link and holds the binding). */
+let browser: StartingBrowser | undefined;
+/** The provider URL a sign-in link leads to (hosted links are the host's own; desktop links are the provider's). */
+const providerUrlOf = (link: string): URL => new URL(browser?.providerUrl(link) ?? link);
+
 /** The "browser": consent at the fake provider, back to the callback with a PKCE-bound code and any extra fields. */
 async function consent(authorizationUrl: string, extra: Readonly<Record<string, string>> = {}): Promise<number> {
-  const url = new URL(authorizationUrl);
+  const url = providerUrlOf(authorizationUrl);
   const code = randomBytes(12).toString("hex");
   issued.set(code, url.searchParams.get("code_challenge") ?? "");
   const back = new URL(url.searchParams.get("redirect_uri") ?? "");
   for (const [name, value] of Object.entries({ ...extra, code, state: url.searchParams.get("state") ?? "" })) back.searchParams.set(name, value);
-  return (await fetch(back)).status;
+  return (await fetch(back, { headers: browser?.cookieFor(back) ?? {} })).status;
 }
 
 const portFor = (host: ReturnType<typeof makeHost>, scope: { pluginId?: string; workspaceId?: string; principalId?: string | undefined } = {}) =>
@@ -144,7 +151,7 @@ test("connections: a start parameter the connection does not declare is refused 
   await assert.rejects(portFor(host).begin({ connectionId: "account", action: "connect" }, { startParams: { redirect_uri: "https://evil.example" } }),
     { code: "request-invalid", message: /start parameter 'redirect_uri' is not declared/ });
   const begun = await portFor(host).begin({ connectionId: "account", action: "connect" }, { startParams: { pick_mode: "one" } });
-  assert.equal(new URL(begun.authorizationUrl).searchParams.get("pick_mode"), "one");
+  assert.equal(providerUrlOf(begun.authorizationUrl).searchParams.get("pick_mode"), "one");
 });
 
 test("callback fields: only the declared ones are kept, only the owner plugin can take them, and only once", async () => {
@@ -156,14 +163,14 @@ test("callback fields: only the declared ones are kept, only the owner plugin ca
   await assert.rejects(portFor(host, { pluginId: "other-plugin" }).takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId }), NOT_AVAILABLE);
   assert.deepEqual(await port.takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId }), { picked_ids: "T1" });
   assert.equal(await port.takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId }), null);
-  assert.ok(!begun.attemptId.includes(new URL(begun.authorizationUrl).searchParams.get("state")!), "the attempt id is not the state");
+  assert.ok(!begun.attemptId.includes(providerUrlOf(begun.authorizationUrl).searchParams.get("state")!), "the attempt id is not the state");
 });
 
 test("desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only", async () => {
   const host = makeHost("desktop");
   const port = portFor(host);
   const begun = await port.begin({ connectionId: "account", action: "connect" }, { startParams: { pick_mode: "one" } });
-  assert.match(new URL(begun.authorizationUrl).searchParams.get("redirect_uri")!, /^http:\/\/127\.0\.0\.1:\d+\//);
+  assert.match(providerUrlOf(begun.authorizationUrl).searchParams.get("redirect_uri")!, /^http:\/\/127\.0\.0\.1:\d+\//);
   assert.equal(await consent(begun.authorizationUrl, { picked_ids: "T9" }), 200);
   let fields: Readonly<Record<string, string>> | null = null;
   for (let tries = 0; fields === null && tries < 100; tries += 1) {
@@ -196,6 +203,18 @@ test("issued sign-ins: only links recorded inside a collection, only https, and 
   ]);
   assert.deepEqual(first, { value: 1, signIns: [link("a")] });
   assert.deepEqual(second, { value: 2, signIns: [link("b")] });
+});
+
+test("issued sign-ins (F1): the host's own sign-in link is kept on the site's scheme (http in development); a malformed or other http link is not", async () => {
+  const signIns = createIssuedSignInCollector();
+  const hostLink = { authorizationUrl: "http://127.0.0.1:3000/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/abc", expiresAt: "2026-10-20T10:10:00.000Z" };
+  const collected = await signIns.collect({ run: async () => {
+    signIns.record(hostLink);
+    signIns.record({ authorizationUrl: "http://127.0.0.1:3000/api/admin/v1/workspaces/ws-1/agent-plugins/connections/sign-in/abc/extra", expiresAt: "x" });
+    signIns.record({ authorizationUrl: "not a url", expiresAt: "x" });
+    return 0;
+  } });
+  assert.deepEqual(collected.signIns, [hostLink]);
 });
 
 test("plugin state: another plugin or workspace never sees a value; malformed keys and oversized values are refused", async () => {
@@ -294,7 +313,7 @@ for (const runtime of ["hosted", "desktop"] as const) {
     const reported: IssuedSignIn[] = [];
     const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1", onSignInIssued: (signIn) => reported.push(signIn) });
     const begun = await port.begin({ connectionId: "account", action: "connect" }, { startParams: { pick_mode: "one" } });
-    const state = new URL(begun.authorizationUrl).searchParams.get("state")!;
+    const state = providerUrlOf(begun.authorizationUrl).searchParams.get("state")!;
     assert.deepEqual(Object.keys(begun).sort(), ["attemptId", "authorizationUrl", "expiresAt"]);
     assert.notEqual(begun.attemptId, state);
     assert.notEqual(begun.attemptId, createHash("sha256").update(state).digest("base64url"), "not the earlier state digest either");

@@ -22,7 +22,12 @@ const REF = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, c
 const FOREIGN_REF = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: "other-plugin", connectionId: "account" });
 
 const own = (bindingId: string, extra: Partial<FormDeliveryBinding> = {}): FormDeliveryBinding => ({ bindingId, adapterId: ADAPTER, connectionRef: REF, enabled: true, config: { table: bindingId }, ...extra });
-const draft = (extra: Partial<AdminSurfaceDeliveryBindingDraft> = {}): AdminSurfaceDeliveryBindingDraft => ({ adapterId: ADAPTER, connectionId: "account", enabled: true, config: { table: "Leads" }, ...extra });
+type DraftExtra = Partial<Pick<AdminSurfaceDeliveryBindingDraft, "bindingId" | "adapterId" | "connectionId" | "enabled">> & { readonly formIds?: readonly string[] };
+/** A draft stating its forms, as Jini now requires: the given `formIds`, else `allForms: true`. */
+const draft = (extra: DraftExtra = {}): AdminSurfaceDeliveryBindingDraft => {
+  const { formIds, ...rest } = extra;
+  return { adapterId: ADAPTER, connectionId: "account", enabled: true, config: { table: "Leads" }, ...rest, ...(formIds === undefined ? { allForms: true as const } : { formIds }) };
+};
 
 /** An in-memory binding owner; `onRead` lets a test change the list between reads (another writer). */
 function store(initial: readonly FormDeliveryBinding[], optional: { failWrite?: Error; onRead?: (reads: number) => readonly FormDeliveryBinding[] | undefined } = {}) {
@@ -56,11 +61,11 @@ async function refusal(promise: Promise<unknown>): Promise<{ code: string; messa
 
 // --- list ----------------------------------------------------------------------------------------
 
-test("list: own bindings with the connection id (never the ref) and form slugs, formIds absent kept absent", async () => {
+test("list (F11): own bindings with the connection id (never the ref) and form slugs; a stored binding without formIds is listed as allForms: true", async () => {
   const bindings = store([own("b1", { formIds: ["form-1", "form-2"] }), own("b2")]);
   assert.deepEqual(await portFor(bindings).list(), [
     { bindingId: "b1", adapterId: ADAPTER, connectionId: "account", enabled: true, formIds: ["contact", "signup"], config: { table: "b1" } },
-    { bindingId: "b2", adapterId: ADAPTER, connectionId: "account", enabled: true, config: { table: "b2" } },
+    { bindingId: "b2", adapterId: ADAPTER, connectionId: "account", enabled: true, allForms: true, config: { table: "b2" } },
   ]);
 });
 
@@ -98,10 +103,18 @@ test("save: an existing own binding is replaced in place, the others kept in ord
   assert.deepEqual(bindings.current().map((binding) => [binding.bindingId, binding.enabled]), [["b1", false], ["x1", true], ["b2", true]]);
 });
 
-test("save: a draft without formIds stores none (every form)", async () => {
+test("save (F11): an allForms draft stores no formIds (the forms build's every form) and is answered as allForms: true", async () => {
   const bindings = store([]);
-  await portFor(bindings).save(draft());
+  const saved = await portFor(bindings).save(draft());
   assert.equal(Object.hasOwn(bindings.current()[0]!, "formIds"), false);
+  assert.deepEqual({ allForms: saved.allForms, formIds: saved.formIds }, { allForms: true, formIds: undefined });
+});
+
+test("save (F11): a draft naming no forms (formIds: []) stores an empty list, never every form", async () => {
+  const bindings = store([]);
+  const saved = await portFor(bindings).save(draft({ formIds: [] }));
+  assert.deepEqual(bindings.current()[0]!.formIds, []);
+  assert.deepEqual(saved.formIds, []);
 });
 
 test("security: saving an adapter the plugin does not contribute is refused (adapter-not-owned); nothing written", async () => {

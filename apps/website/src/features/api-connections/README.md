@@ -22,7 +22,9 @@ names no provider.
 | `surface-connections.ts` | The admin-surface `connections` port by connection id (status, begin, confirm/cancel switch, disconnect with verbatim revocation, `takeCallbackFields` keyed by the service's attempt id). `status.lastSignInAttempt` is `{ code, nextAction: 'reconnect' }` after a desktop sign-in failed once the browser had opened (our own code, from `host.lastSignInAttempts`), `null` otherwise; a later successful desktop sign-in clears it. |
 | `plugin-state.ts` | Plugin settings: JSON per key, per workspace + plugin, sealed rows in the same vault kind (no migration); 128 keys and 16 KiB per value; `forPlugin` (surfaces, read-write) and `readerFor` (tools, form delivery: `get` only). |
 | `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort`, composed ahead of saved custom credentials (`server/runtime/composition/form-delivery-deliverer.ts`): the token plus the connection's declared `apiOrigins` as `baseUrl` (first) and `additionalHosts` (the rest, exact origins); the job's frozen `binding.config.accountId` is the only account it serves; first-read refusals become delivery codes (`authorization-required`, `rate-limited`, `configuration-invalid` for a binding with no account). |
-| `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, cookie-less, rate-limited, renders the shared fixed-copy callback page; after a successful exchange it deposits the declared callback fields in `host.callbackInbox`. |
+| `browser-binding.ts` | The hosted half of Jini's browser-binding contract: in-process sign-in handoffs (`host.signInHandoffs`), the host sign-in link, and the `SameSite=Lax` binding cookie scoped to the callback path. |
+| `../../server/inbound/admin-http/routes/agent-plugins/connection-sign-in.ts` | `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/connections/sign-in/:handoffId`, behind the admin session: only the admin who started the sign-in, in a browser session, gets the binding cookie and a redirect to the provider. |
+| `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, session-less, rate-limited, renders the shared fixed-copy callback page; reads the binding cookie and clears it once the attempt is used; after a successful exchange it deposits the declared callback fields in `host.callbackInbox`. |
 
 ## The plugin side
 
@@ -81,8 +83,12 @@ gets all of this by declaring `byoClient: true`.
 ## Rules the host keeps
 
 - The callback is authenticated by the attempt its `state` names (single use, 10 minutes, bound to
-  workspace, actor, connection, scopes and exact callback URL) plus the provider's one-time code;
-  its page never echoes request or provider data; logs carry error codes only.
+  workspace, actor, connection, scopes, exact callback URL and the starting browser) plus the
+  provider's one-time code; its page never echoes request or provider data; logs carry error codes only.
+- Hosted sign-ins hand out the host's sign-in link, never the provider URL: a forwarded link opens
+  nothing in another admin's browser, and a forwarded provider URL is refused at the callback
+  because that browser carries no binding cookie. Desktop keeps the binding in memory beside the
+  loopback receiver.
 - `getAccessToken` serves only refs of connections the calling plugin declares in this workspace;
   every other ref gets the same refusal. Only access tokens leave; refresh tokens stay sealed.
 - Attempts (they hold the PKCE verifier) live sealed in the vault, never in the exportable ledger.

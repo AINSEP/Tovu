@@ -26,11 +26,11 @@ function stores(clock = { nowMs: () => Date.parse("2026-10-20T12:00:00.000Z") })
 
 const record = (key: string, revision = 1): ApiConnectionRecord => ({
   key, workspaceId: WORKSPACE, pluginId: "acme-office", connectionId: "account", status: "connected", revision, generation: 1,
-  account: { accountId: "acct-1", displayName: "Ada" }, grantedScopes: ["acme.files"], staged: null, updatedAt: "2026-10-20T12:00:00.000Z",
+  account: { accountId: "acct-1", displayName: "Ada" }, grantedScopes: ["acme.files"], staged: null, revocationFailure: null, updatedAt: "2026-10-20T12:00:00.000Z",
 });
 
 const attempt = (state: string, expiresAt: string): ApiConnectionAttempt => ({
-  state, attemptId: `attempt-id-${state}`, key: "key-1", ownerKey: "owner", workspaceId: WORKSPACE, actorId: "admin-1", pluginId: "acme-office",
+  state, attemptId: `attempt-id-${state}`, key: "key-1", ownerKey: "owner", browserBindingHash: "binding-hash", workspaceId: WORKSPACE, actorId: "admin-1", pluginId: "acme-office",
   connectionId: "account", intent: "connect", requestedScopes: ["acme.files"], redirectUri: "https://site.test/cb", generation: 0,
   codeVerifier: "v".repeat(43), createdAt: "2026-10-20T11:59:00.000Z", expiresAt,
 });

@@ -21,6 +21,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-stores";
 import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
+import { API_CONNECTION_BINDING_COOKIE } from "#src/features/api-connections/browser-binding";
 import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, registerApiConnectionOAuthCallbackRoute } from "../oauth-callback.js";
 
 let harness: AcmeHarness;
@@ -45,9 +46,10 @@ async function ownSite(host: ApiConnectionHost, deps: { readonly callbackLimiter
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
 
-async function get(url: string | URL) {
-  const response = await fetch(url);
-  return { status: response.status, cacheControl: response.headers.get("cache-control"), html: await response.text() };
+/** GET as the browser that started the sign-in (it carries the binding cookie), unless `headers` says otherwise. */
+async function get(url: string | URL, headers: Readonly<Record<string, string>> = harness.cookieFor(url)) {
+  const response = await fetch(url, { headers });
+  return { status: response.status, cacheControl: response.headers.get("cache-control"), setCookie: response.headers.getSetCookie(), html: await response.text() };
 }
 
 const callbackAt = (origin: string, query: Record<string, string>) => `${origin}/api/agent-plugins/connections/oauth/callback?${new URLSearchParams(query)}`;
@@ -202,4 +204,54 @@ test("log: without an injected log the failure goes to console.error by name and
   assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "state_expired" });
   assert.deepEqual(lines, ["api-connection oauth callback failed: ApiConnectionError invalid-attempt"]);
   assert.equal(harness.provider.tokenCalls, 0, "no code is exchanged for a mismatched callback URL");
+});
+
+// ---- Browser binding (G15 F1): the callback completes only in the browser that started the sign-in.
+
+const CLEARED = `${API_CONNECTION_BINDING_COOKIE}=; Path=/api/agent-plugins/connections/oauth/callback; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+
+test("security (F1): a callback whose browser carries no binding cookie is refused as state_expired and installs nothing", async () => {
+  const logs: string[] = [];
+  const host = harness.makeHost({ logs });
+  const start = await startHosted(host);
+  const page = await get(harness.consentRedirect(start.authorizationUrl), {});
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "state_expired" });
+  assert.equal(harness.provider.tokenCalls, 0, "no code is exchanged without the binding");
+  assert.deepEqual(logs, ["api-connection oauth callback failed: ApiConnectionError invalid-attempt"]);
+  const [connection] = await host.listConnections({ pluginId: ACME_PLUGIN });
+  assert.equal((await host.statusOf({ connection: connection! })).status, "disconnected");
+});
+
+test("security (F1): a callback carrying another sign-in's binding is refused as state_expired and installs nothing", async () => {
+  const host = harness.makeHost();
+  const victimStart = await startHosted(host);
+  const otherStart = await startHosted(host);
+  const page = await get(harness.consentRedirect(victimStart.authorizationUrl), { cookie: `${API_CONNECTION_BINDING_COOKIE}=${otherStart.browserBinding}` });
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "state_expired" });
+  assert.equal(harness.provider.tokenCalls, 0);
+});
+
+test("security (F1): a malformed binding cookie counts as none (refused), never as a partial match", async () => {
+  const host = harness.makeHost();
+  const start = await startHosted(host);
+  const page = await get(harness.consentRedirect(start.authorizationUrl), { cookie: `${API_CONNECTION_BINDING_COOKIE}=${start.browserBinding};x` });
+  assert.equal(page.status, 200, "a well-formed binding among other cookies is read");
+  const second = await startHosted(host);
+  const refused = await get(harness.consentRedirect(second.authorizationUrl), { cookie: `${API_CONNECTION_BINDING_COOKIE}=${second.browserBinding}!` });
+  assert.deepEqual({ status: refused.status, reason: reasonOf(refused.html) }, { status: 400, reason: "state_expired" });
+});
+
+test("security (F1): the starting browser's callback succeeds and the binding cookie is cleared, on success and on a refusal", async () => {
+  const host = harness.makeHost();
+  const start = await startHosted(host);
+  const page = await get(harness.consentRedirect(start.authorizationUrl));
+  assert.deepEqual({ status: page.status, setCookie: page.setCookie }, { status: 200, setCookie: [CLEARED] });
+  const refused = await get(harness.consentRedirect((await startHosted(host)).authorizationUrl), {});
+  assert.deepEqual({ status: refused.status, setCookie: refused.setCookie }, { status: 400, setCookie: [CLEARED] });
+});
+
+test("security (F1): a callback that never reaches a known attempt leaves the binding cookie alone (a stray request cannot cancel a sign-in)", async () => {
+  harness.makeHost();
+  const page = await get(callbackAt(harness.siteOrigin, { state: "unknown-state", code: "c" }), { cookie: `${API_CONNECTION_BINDING_COOKIE}=abc` });
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html), setCookie: page.setCookie }, { status: 400, reason: "state_expired", setCookie: [] });
 });

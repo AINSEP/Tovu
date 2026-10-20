@@ -22,6 +22,7 @@ import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credential
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
+import { trackStartingBrowser, type StartingBrowser } from "#src/features/api-connections/__tests__/support/starting-browser";
 import type { AuthorizeFn } from "#src/contracts/core/commands/index";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";
 
@@ -122,8 +123,12 @@ export async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WE
     env,
     derivedPublicOrigin: undefined,
   });
+  browser = trackStartingBrowser(composition.apiConnections.host);
   return { ...composition, vaultRepo };
 }
+
+/** The browser that started the latest composition's sign-ins (it opened the host link and holds the binding). */
+let browser: StartingBrowser | undefined;
 
 /** Serves the public callback for this composition (only) on the local "site". */
 export function mountCallback(composition: AcmeComposition): void {
@@ -139,13 +144,13 @@ export async function connectHosted(composition: AcmeComposition) {
   const [connection] = await composition.apiConnections.host.listConnections({ pluginId: PLUGIN });
   return runApiConnectionConnect({
     deps: composition.apiConnections, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
-    showSignIn: async ({ signInUrl }) => { assert.equal((await fetch(consentRedirect(signInUrl))).status, 200); },
+    showSignIn: async ({ signInUrl }) => { assert.equal((await followConsent(signInUrl)).status, 200); },
   });
 }
 
 /** The "browser": consent at the fake provider, which redirects back with a code bound to the PKCE challenge. */
 export function consentRedirect(authorizationUrl: string, extraFields: Readonly<Record<string, string>> = {}): string {
-  const url = new URL(authorizationUrl);
+  const url = new URL(browser?.providerUrl(authorizationUrl) ?? authorizationUrl);
   const code = randomBytes(12).toString("hex");
   issued.set(code, url.searchParams.get("code_challenge") ?? "");
   const back = new URL(url.searchParams.get("redirect_uri") ?? "");
@@ -154,6 +159,15 @@ export function consentRedirect(authorizationUrl: string, extraFields: Readonly<
   for (const [name, value] of Object.entries(extraFields)) back.searchParams.set(name, value);
   // The public address is not real; the "browser" reaches this test's local site for it.
   return back.origin === PUBLIC_URL ? `${siteOrigin}${back.pathname}${back.search}` : back.href;
+}
+
+/** The provider URL a sign-in link leads to (a hosted link is the host's own sign-in link). */
+export const providerUrlOf = (link: string): URL => new URL(browser?.providerUrl(link) ?? link);
+
+/** The starting browser consents and follows the redirect back, carrying its binding cookie. */
+export function followConsent(authorizationUrl: string, extraFields: Readonly<Record<string, string>> = {}): Promise<Response> {
+  const back = consentRedirect(authorizationUrl, extraFields);
+  return fetch(back, { headers: browser?.cookieFor(back) ?? {} });
 }
 
 export const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });

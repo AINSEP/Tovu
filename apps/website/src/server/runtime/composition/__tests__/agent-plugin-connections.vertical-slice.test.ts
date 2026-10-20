@@ -37,7 +37,7 @@ import { loadFormDestinationRegistry, type FormDestinationKit } from "#src/featu
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { startConfirmingCall } from "#src/features/agent-plugins/executable-tools/__tests__/fixtures";
 
-import { WORKSPACE, PLUGIN, PUBLIC_URL, accessToken, refreshToken, appended, providerOrigin, loadContributions, allowAll, compose, connectForRef, consentRedirect, startAcmeProvider, stopAcmeProvider, type AcmeComposition } from "./fixtures/acme-provider.js";
+import { WORKSPACE, PLUGIN, PUBLIC_URL, accessToken, refreshToken, appended, providerOrigin, loadContributions, allowAll, compose, connectForRef, followConsent, providerUrlOf, startAcmeProvider, stopAcmeProvider, type AcmeComposition } from "./fixtures/acme-provider.js";
 
 before(startAcmeProvider);
 after(stopAcmeProvider);
@@ -81,8 +81,9 @@ test("vertical slice: a surface reads status, starts a pick sign-in, takes its c
   const { attemptId } = (begun.value as { result: { attemptId: string } }).result;
   assert.equal(begun.signIns.length, 1);
   const link = new URL(begun.signIns[0]!.authorizationUrl);
-  assert.equal(link.searchParams.get("pick_mode"), "one", "the declared start parameter reaches the provider");
-  assert.equal((await fetch(consentRedirect(link.href, { picked_ids: "T1" }))).status, 200);
+  assert.equal(link.origin, PUBLIC_URL, "the host page is offered the host's own sign-in link (F1)");
+  assert.equal(providerUrlOf(link.href).searchParams.get("pick_mode"), "one", "the declared start parameter reaches the provider");
+  assert.equal((await followConsent(link.href, { picked_ids: "T1" })).status, 200);
 
   assert.deepEqual(await dispatch("take-pick", { attemptId }), { ok: true, result: { saved: true } });
   assert.deepEqual(await dispatch("take-pick", { attemptId }), { ok: false, error: { code: "nothing-picked", message: "Nothing was picked. Pick again.", retryable: false } }, "callback fields are taken once");
@@ -188,7 +189,7 @@ test("security: desktop admits only its plaintext loopback redirect, and complet
     deps: composition.apiConnections, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => {
       redirectUri = new URL(signInUrl).searchParams.get("redirect_uri") ?? "";
-      await fetch(consentRedirect(signInUrl));
+      await followConsent(signInUrl);
     },
   });
   assert.equal(connected.status, "connected");

@@ -72,7 +72,9 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/bootstrap`,
       `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/actions`,
       "GET /api/agent-plugin-surfaces/v1/:pluginId/:surfaceId/*",
-      // PUBLIC: plugin-declared API connections' hosted OAuth callback (cookie-less by necessity).
+      // Session-gated: a hosted sign-in link binds the starting browser, then redirects to the provider.
+      `GET ${W}/agent-plugins/connections/sign-in/:handoffId`,
+      // PUBLIC: plugin-declared API connections' hosted OAuth callback (session-less by necessity).
       "GET /api/agent-plugins/connections/oauth/callback",
     ],
   },
