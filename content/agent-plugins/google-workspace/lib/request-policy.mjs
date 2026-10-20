@@ -41,17 +41,24 @@ const SAFE_ERRORS = Object.freeze({
   'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
   'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
   'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
+  // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
+  'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
+  'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },
+  'unsupported-request': { retryable: false, nextAction: 'fix-request', message: 'The batch contains a request kind Google Workspace tools do not support (only reviewed, generally available Sheets request kinds are allowed). Remove it and retry; nothing was sent to Google.' },
 });
 
 /** A failure a person can act on. `outcome` says whether the request may have changed anything. */
 export class GoogleWorkspaceError extends Error {
   /**
    * @param {{ code: keyof typeof SAFE_ERRORS, outcome?: 'not-applied' | 'unknown' }} required
-   * @param {{ retryAfterMs?: number, cause?: unknown }} [optional]
+   * @param {{ retryAfterMs?: number, cause?: unknown, detail?: string }} [optional] `detail` is a
+   *   short pointer the plugin itself composes (a request index, a kind name it validated); never
+   *   Google's text, a token or a cell value.
    */
   constructor(required, optional = {}) {
     const safe = SAFE_ERRORS[required.code];
-    super(safe.message, optional.cause === undefined ? undefined : { cause: optional.cause });
+    const message = optional.detail === undefined ? safe.message : `${safe.message} (${optional.detail})`;
+    super(message, optional.cause === undefined ? undefined : { cause: optional.cause });
     this.name = 'GoogleWorkspaceError';
     this.code = required.code;
     this.retryable = safe.retryable;
@@ -95,6 +102,16 @@ export function parseRetryAfter(required, optional = {}) {
   if (!raw) return undefined;
   const nowMs = optional.nowMs ?? Date.now();
   const ms = /^\d+$/.test(raw) ? Number(raw) * 1000 : Date.parse(raw) - nowMs;
+  return capRetryAfterMs({ ms });
+}
+
+/**
+ * A wait in milliseconds, capped; undefined when it is not a finite, non-negative number. Shared by
+ * Google's Retry-After and the host's budget refusal so both obey one ceiling.
+ * @complexity O(1).
+ */
+export function capRetryAfterMs(required, _optional = {}) {
+  const { ms } = required;
   return Number.isFinite(ms) && ms >= 0 ? Math.min(ms, MAX_RETRY_AFTER_MS) : undefined;
 }
 

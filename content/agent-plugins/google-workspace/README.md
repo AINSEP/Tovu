@@ -16,7 +16,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `plugin.json`, `mcp.json` | Manifest (no MCP servers). |
 | `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). |
 | `products.json` | Product catalog: id, tool prefix, form destinations, required and optional scopes. Sheets = `drive.file` only. |
-| `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`). The skeleton ships `account_info`; the Sheets tools are added to the same file. |
+| `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`): `account_info`, and the Sheets tools in `tools/sheets/` (see its README). |
 | `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces. Today a static placeholder; the connection panel and Picker replace it. |
 | `tovu-form-destinations.json` + `form-destinations/` | Push-only `google-sheets` destination (no `receive`). Refuses as retryable until the mapping/dedupe adapter lands. |
 | `lib/` | Shared code (below). |
@@ -28,8 +28,9 @@ digest at seed time, which the executable trust gate checks before any module lo
 | Module | Exports |
 |---|---|
 | `auth.mjs` | Default `{ createHooks({ http }) }`: Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`, `revoke`). `GOOGLE_REVOCATION_ENDPOINT`, `GOOGLE_ACCOUNT_ACCESS_PAGE`. |
-| `http.mjs` | `createGoogleClient({ http, connections }, { limiter, sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`. |
-| `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`). |
+| `http.mjs` | `createGoogleClient({ http, connections }, { limiter, sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`; `pathSegment` (one encoded path segment, dot segments refused). |
+| `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`); `copyFile({ client, connectionRef, fileId, name }, { parentId })` via Drive `files.copy`. |
+| `sheets-client.mjs` | The Sheets request helper: `sheetsUrl`, `sendSheetsRequest`, `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bound helpers (`boundValueRanges`, `assertPayloadWithin`, `assertOutputWithin`), A1 helpers, `resourceLines` (card lines). |
 | `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`. |
 | `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
 | `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`, `QUOTA_BUDGETS`. |
@@ -42,6 +43,10 @@ digest at seed time, which the executable trust gate checks before any module lo
 - `kind: 'write'` (append, create, copy) with an unknown outcome is `uncertain-outcome` and never
   retried; reads and idempotent writes retry with jittered backoff that honours Retry-After.
 - Revocation is confirmed only by Google's 200.
+- The budgets declared in `tovu-connections.json` (45/min per account, 240/min per instance) are
+  charged by the host on every token read; its refusal (`rate-limited`) becomes `quota-delay` with
+  the host's `retryAfterMs` and `outcome: 'not-applied'`, and follows the same inline backoff rules
+  as Google's 429 (nothing was sent, so even an append may wait and retry).
 - Modules import nothing outside this directory except what the host injects.
 
 ## How it fits
@@ -58,10 +63,7 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
-- The host limiter runs one profile (240/min + burst) for every key, so the per-account 45/min
-  budget is declared here but enforced only at the host profile until the host accepts
-  plugin-declared budgets.
-- Per-workspace product on/off state, Sheets tools and the delivery adapter are later lots.
+- Per-workspace product on/off state and the delivery adapter are later lots.
 - Connection panel and Picker surfaces (G13) are blocked on host seams; only the server-side selection
   checks ship. An admin-surface handler receives the executable-tool capabilities only
   (`connections.getAccessToken`, `http`, `limiter`, `artifacts`), so it cannot: read its connection's
@@ -70,3 +72,20 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
   `picked_file_ids` callback field (the host's connect path passes no start params and drops
   `callbackFields`); persist the verified selection or product flags; or read the public Picker
   config (`TOVU_GOOGLE_PICKER_API_KEY`, `TOVU_GOOGLE_PICKER_APP_ID`, names only).
+
+## Sheets admin tools (`tools/sheets-admin/`, lot G12)
+
+Eleven tools for tabs, sorting, filters, filter views, formatting, named and protected ranges,
+developer metadata, raw batch updates, CSV export and opening a picked file; see
+`tools/sheets-admin/README.md`. Their helpers:
+
+| Module | Exports |
+|---|---|
+| `lib/sheets-admin-request-kinds.mjs` | `REQUEST_KINDS` (the reviewed batchUpdate inventory: effect, replay class, required fields), `checkRequests`, `describeRequests`, batch bounds. |
+| `lib/sheets-admin-common.mjs` | `spreadsheetUrl`, `checkedFileId`, `clientFor`, `getSpreadsheet`, `runBatchUpdate`, `boundedOutput`, `spreadsheetLine`, `tabsOf`, `MAX_OUTPUT_BYTES`. |
+| `lib/sheets-admin-ranges.mjs` | `columnLetters`, `gridRangeLabel`, `parseA1Range`. |
+| `lib/sheets-admin-csv.mjs` | `planChunks`, `encodeCsv`, export bounds. |
+
+These tools use the plugin-side codes `invalid-input` and `limit-exceeded` (shared with the values
+tools) and add `unsupported-request`; `sheets_open_existing` reuses the Picker's `not-a-spreadsheet`, plus an optional plugin-composed `detail`
+on `GoogleWorkspaceError` (a request index or kind name, never Google's text or a cell value).

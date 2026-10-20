@@ -10,10 +10,11 @@
  * reaches here as a grant. Results are file metadata only, never contents or tokens.
  */
 import { DRIVE_FILES_URL, readAccount } from './drive-files.mjs';
+import { pathSegment } from './http.mjs';
 import { GoogleWorkspaceError } from './request-policy.mjs';
+import { SHEETS_API } from './sheets-client.mjs';
 
 export const SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet';
-const SHEETS_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 /**
  * Extra authorization parameters for "Choose spreadsheet" on desktop: Google's native Picker in the
@@ -51,7 +52,7 @@ export function parsePickedFileIds(required, _optional = {}) {
 /** Drive metadata for the picked file; refuses anything but a spreadsheet. @complexity O(1): one request. */
 async function readSpreadsheetFile(client, connectionRef, fileId, optional) {
   const file = await client.request({
-    connectionRef, url: `${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}`, kind: 'read',
+    connectionRef, url: `${DRIVE_FILES_URL}/${pathSegment({ value: fileId })}`, kind: 'read',
     query: { fields: 'id,name,mimeType', supportsAllDrives: 'true' },
   }, optional);
   if (file?.id !== fileId) throw new GoogleWorkspaceError({ code: 'unexpected-response' });
@@ -62,7 +63,7 @@ async function readSpreadsheetFile(client, connectionRef, fileId, optional) {
 /** Opens the spreadsheet through the Sheets API itself: Drive metadata alone does not prove access. @complexity O(1). */
 async function openSpreadsheet(client, connectionRef, fileId, optional) {
   const sheet = await client.request({
-    connectionRef, url: `${SHEETS_URL}/${encodeURIComponent(fileId)}`, kind: 'read',
+    connectionRef, url: `${SHEETS_API}/${pathSegment({ value: fileId })}`, kind: 'read',
     query: { fields: 'spreadsheetId,properties.title' },
   }, optional);
   if (sheet?.spreadsheetId !== fileId) throw new GoogleWorkspaceError({ code: 'unexpected-response' });

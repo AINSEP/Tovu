@@ -39,3 +39,20 @@ Every failure has a `code`, a plain `message`, `retryable`, `outcome` and a `nex
 next action; do not retry on your own when `retryable` is false. When `outcome` is `"unknown"` (for
 example `uncertain-outcome`), the change may already be in the spreadsheet: ask the person to look
 before trying again. Never repeat an append, create or copy just because the answer was lost.
+
+## Sheets tools (spreadsheets, values, search)
+
+Read [sheets](references/sheets.md) first. In short: read with `sheets_get`, `sheets_values_get`,
+`sheets_values_batch_get` or `sheets_find`; create or copy with `sheets_create`, `sheets_copy` or
+`sheets_copy_tab`; add rows with `sheets_values_append`; overwrite or clear with the
+`sheets_values_*update` / `*clear` tools or `sheets_find_replace`. Every change shows a
+confirmation card; only the person's click approves it.
+
+## Tabs, filters, formatting and raw batch updates
+
+The Sheets reference also covers tab changes, sorting, filters and filter views, formatting, named
+and protected ranges, developer metadata, raw batch updates (and which request kinds are allowed),
+CSV export and opening a picked spreadsheet (`sheets_open_existing`). Errors `limit-exceeded`
+(narrow the request), `unsupported-request` (use a listed request kind), `invalid-input` (fix the id,
+range or option) are raised by Tovu before anything is sent to Google; `not-a-spreadsheet` means the
+chosen file is not a spreadsheet (pick one).
