@@ -118,8 +118,15 @@ test('an account switched after confirmation is refused at token time, so the wr
 test('a connection that is not connected is refused before the card, and nothing runs', async () => {
   const fixture = await bootFixture();
   const call = await startConfirmingCall(fixture, WRITE, { ...input, connectionRef: 'conn-unknown' });
+  try {
+    // startConfirmingCall returns as soon as a card is shown OR the call settles, so this fails at once
+    // when the guard is broken instead of after the exchange's multi-minute timeout.
+    assert.equal(call.html, '', 'no confirmation card for a connection that is not connected');
+  } finally {
+    // A broken guard parks the call on the card: release it so the run ends now.
+    if (call.html !== '') await call.answer('cancel');
+  }
   const result = await call.pending;
-  assert.equal(call.html, '');
   assert.equal(result.status, 'failed');
   assert.equal(result.error, NOT_CONNECTED_MESSAGE);
   assert.equal(fixture.calls.length, 0);

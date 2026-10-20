@@ -19,27 +19,16 @@
  * `hostKind` comes from the same runtime detection the API connections use, whatever a caller says.
  */
 import assert from "node:assert/strict";
-import { createHash, randomBytes } from "node:crypto";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
-import path from "node:path";
 import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
 
-import express from "express";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createRandomUuidGenerator, createSystemClock, type HttpClientPort } from "@jini-ai/core/primitives";
-import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools";
 
-import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
@@ -47,145 +36,11 @@ import { createOAuthFormDeliveryConnectionPort } from "#src/features/api-connect
 import { loadFormDestinationRegistry, type FormDestinationKit } from "#src/features/form-destinations/index";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { startConfirmingCall } from "#src/features/agent-plugins/executable-tools/__tests__/fixtures";
-import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
-import type { AuthorizeFn } from "#src/contracts/core/commands/index";
-import { composeAgentPluginConnections } from "../agent-plugin-connections.js";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const fixtureRoot = path.join(here, "../../../../features/api-connections/__tests__/fixtures/acme-office");
-const WORKSPACE = "ws-1";
-const PLUGIN = "acme-office";
-const accessToken = "acme-access-" + "z".repeat(24);
-const refreshToken = "acme-refresh-" + "w".repeat(24);
-const issued = new Map<string, string>();
-/** Every row the fake provider's table API accepted: table, idempotency header and JSON body. */
-const appended: { table: string; idempotencyKey: string | undefined; body: unknown }[] = [];
-let provider: Server;
-let site: Server;
-let providerOrigin = "";
-let siteOrigin = "";
+import { WORKSPACE, PLUGIN, PUBLIC_URL, accessToken, refreshToken, appended, providerOrigin, loadContributions, allowAll, compose, connectForRef, consentRedirect, startAcmeProvider, stopAcmeProvider, type AcmeComposition } from "./fixtures/acme-provider.js";
 
-function listen(server: Server): Promise<string> {
-  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(`http://127.0.0.1:${(server.address() as AddressInfo).port}`)));
-}
-
-/** The site's outbound HTTP: the fake provider's two hosts go to the local server; anything else throws. */
-const http: HttpClientPort = {
-  async send({ request }) {
-    const url = new URL(request.url);
-    if (url.hostname !== "auth.acme.test" && url.hostname !== "api.acme.test") throw new Error(`unexpected outbound host ${url.hostname}`);
-    const response = await fetch(`${providerOrigin}${url.pathname}${url.search}`, { method: request.method, headers: request.headers, ...(request.body === undefined ? {} : { body: request.body as string }) });
-    return { status: response.status, headers: Object.fromEntries(response.headers.entries()), bodyText: await response.text() };
-  },
-};
-
-/** The fake provider's token endpoint: a code it issued, redeemed once with the matching PKCE verifier. */
-function answerTokenEndpoint(res: ServerResponse, body: string): void {
-  const form = new URLSearchParams(body);
-  const challenge = issued.get(form.get("code") ?? "");
-  issued.delete(form.get("code") ?? "");
-  const verified = challenge !== undefined && createHash("sha256").update(form.get("code_verifier") ?? "").digest("base64url") === challenge;
-  res.statusCode = verified ? 200 : 400;
-  res.end(JSON.stringify(verified ? { access_token: accessToken, refresh_token: refreshToken, token_type: "Bearer", expires_in: 3600, scope: "acme.files" } : { error: "invalid_grant" }));
-}
-
-/** The fake provider's table API: `POST /tables/<table>/rows` with the issued bearer token appends one row. */
-function answerTableApi(req: IncomingMessage, res: ServerResponse, body: string): void {
-  // `GET /tables/<id>`: the table exists for the signed-in account (how a surface verifies a pick).
-  if (req.method === "GET") {
-    res.statusCode = req.headers.authorization === `Bearer ${accessToken}` && req.url === "/tables/T1" ? 200 : 404;
-    return void res.end("{}");
-  }
-  const table = /^\/tables\/([^/]+)\/rows$/.exec(req.url ?? "")?.[1];
-  const authorized = table !== undefined && req.headers.authorization === `Bearer ${accessToken}`;
-  if (authorized) appended.push({ table: decodeURIComponent(table), idempotencyKey: req.headers["idempotency-key"] as string | undefined, body: JSON.parse(body) });
-  res.statusCode = authorized ? 201 : 401;
-  res.end("{}");
-}
-
-before(async () => {
-  provider = createServer((req, res) => {
-    let body = "";
-    req.on("data", (chunk) => { body += chunk; });
-    req.on("end", () => {
-      res.setHeader("content-type", "application/json");
-      if (req.url === "/me") {
-        res.statusCode = req.headers.authorization === `Bearer ${accessToken}` ? 200 : 401;
-        return res.end(JSON.stringify({ id: "acct-1", name: "Ada" }));
-      }
-      if (req.url?.startsWith("/tables/")) return answerTableApi(req, res, body);
-      answerTokenEndpoint(res, body);
-    });
-  });
-  providerOrigin = await listen(provider);
-  process.env.TOVU_PUBLIC_URL = PUBLIC_URL;
-  site = createServer();
-  siteOrigin = await listen(site);
-});
-after(async () => {
-  await new Promise((resolve) => provider.close(resolve));
-  await new Promise((resolve) => site.close(resolve));
-  if (previousPublicUrl === undefined) delete process.env.TOVU_PUBLIC_URL;
-  else process.env.TOVU_PUBLIC_URL = previousPublicUrl;
-});
-
-const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: fixtureRoot }, definition: input.definition });
-
-/** The site's public address; the callback route reads it from the process env, as in production. */
-const PUBLIC_URL = "https://site.acme-test.invalid";
-const previousPublicUrl = process.env.TOVU_PUBLIC_URL;
-
-async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL }) {
-  const keyring = new InMemoryKeyring({ hkdfSalt: "agent-plugin-connections-slice" });
-  const vaultRepo = new InMemoryVaultRepo({});
-  const composition = composeAgentPluginConnections({
-    workspaceId: WORKSPACE, loadContributions, vaultRepo, keyring, sealer: new AesGcmSecretSealer({ keyring }), customCredentialRepo: new InMemoryCustomCredentialSetRepo(),
-    clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() }, http,
-    env,
-    derivedPublicOrigin: undefined,
-  });
-  return { ...composition, vaultRepo };
-}
-
-/** Serves the public callback for this composition (only) on the local "site". */
-function mountCallback(composition: Awaited<ReturnType<typeof compose>>): void {
-  const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host: composition.apiConnections.host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
-  site.removeAllListeners("request");
-  site.on("request", app);
-}
-
-/** Connects the fixture's connection through `agent_plugin_connect`'s hosted path and the public callback. */
-async function connectHosted(composition: Awaited<ReturnType<typeof compose>>) {
-  mountCallback(composition);
-  const [connection] = await composition.apiConnections.host.listConnections({ pluginId: PLUGIN });
-  return runApiConnectionConnect({
-    deps: composition.apiConnections, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
-    showSignIn: async ({ signInUrl }) => { assert.equal((await fetch(consentRedirect(signInUrl))).status, 200); },
-  });
-}
-
-/** The "browser": consent at the fake provider, which redirects back with a code bound to the PKCE challenge. */
-function consentRedirect(authorizationUrl: string, extraFields: Readonly<Record<string, string>> = {}): string {
-  const url = new URL(authorizationUrl);
-  const code = randomBytes(12).toString("hex");
-  issued.set(code, url.searchParams.get("code_challenge") ?? "");
-  const back = new URL(url.searchParams.get("redirect_uri") ?? "");
-  back.searchParams.set("code", code);
-  back.searchParams.set("state", url.searchParams.get("state") ?? "");
-  for (const [name, value] of Object.entries(extraFields)) back.searchParams.set(name, value);
-  // The public address is not real; the "browser" reaches this test's local site for it.
-  return back.origin === PUBLIC_URL ? `${siteOrigin}${back.pathname}${back.search}` : back.href;
-}
-
-const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
-/** Connects and returns the opaque ref `agent_plugin_connect` hands the model (H1: never derived here). */
-async function connectForRef(composition: Awaited<ReturnType<typeof compose>>): Promise<string> {
-  const { status, connectionRef } = await connectHosted(composition);
-  assert.equal(status, "connected");
-  assert.equal(typeof connectionRef, "string");
-  return connectionRef;
-}
+before(startAcmeProvider);
+after(stopAcmeProvider);
 
 test("vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition", async () => {
   const composition = await compose();
@@ -283,7 +138,7 @@ test("security: a token a plugin kept in module scope is withheld in a LATER too
 });
 
 /** Loads the fixture surface's handlers through the composition and returns a dispatcher for it. */
-async function surfaceDispatch(composition: Awaited<ReturnType<typeof compose>>, context: Readonly<Record<string, unknown>> = {}) {
+async function surfaceDispatch(composition: AcmeComposition, context: Readonly<Record<string, unknown>> = {}) {
   const fullContext = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account", ...context };
   await composition.adminSurfaceHost.bootstrapData({ context: fullContext });
   const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
