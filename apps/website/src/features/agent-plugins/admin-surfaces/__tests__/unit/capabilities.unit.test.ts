@@ -1,0 +1,79 @@
+/**
+ * @file Unit tests for `capabilities.ts`: an admin-surface call gets the tool port's http, limiter
+ * and (only when bound) artifacts, plus surface-only connections, state and public config, each
+ * scoped to the call. Typed fakes; nothing provider-specific.
+ */
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import type { AdminSurfaceConnections, AdminSurfacePublicConfig, AdminSurfaceState } from '@jini-ai/agent-plugins/admin-surfaces';
+import type { AgentPluginToolCapabilities, AgentPluginToolCapabilityScope } from '@jini-ai/agent-plugins/lifecycle/tools';
+
+import { createAdminSurfaceCapabilities } from '../../capabilities.js';
+
+const unused = (name: string) => async (): Promise<never> => { throw new Error(`${name} is not used by this test`); };
+
+function toolCapabilities(withArtifacts: boolean): AgentPluginToolCapabilities {
+  return {
+    connections: { getAccessToken: unused('connections.getAccessToken') },
+    http: { fetch: unused('http.fetch') },
+    limiter: { check: async () => ({ allowed: true }) },
+    state: { get: async () => null },
+    ...(withArtifacts ? { artifacts: { write: async () => ({ artifactRef: 'artifact-1' }) } } : {}),
+  };
+}
+
+const connections: AdminSurfaceConnections = {
+  getAccessToken: unused('getAccessToken'), status: unused('status'), begin: unused('begin'), confirmSwitch: unused('confirmSwitch'),
+  cancelSwitch: unused('cancelSwitch'), disconnect: unused('disconnect'), takeCallbackFields: unused('takeCallbackFields'),
+};
+const state: AdminSurfaceState = { get: async () => null, set: unused('set'), delete: unused('delete') };
+const publicConfig: AdminSurfacePublicConfig = { get: async () => null };
+const SCOPE: AgentPluginToolCapabilityScope = { pluginId: 'acme-office', workspaceId: 'ws-1', principalId: 'owner' };
+
+function build(withArtifacts: boolean) {
+  const toolScopes: AgentPluginToolCapabilityScope[] = [];
+  const connectionScopes: AgentPluginToolCapabilityScope[] = [];
+  const stateScopes: Array<{ workspaceId: string; pluginId: string }> = [];
+  const tools = toolCapabilities(withArtifacts);
+  const port = createAdminSurfaceCapabilities({
+    tools: (scope) => { toolScopes.push(scope); return tools; },
+    connectionsFor: (scope) => { connectionScopes.push(scope); return connections; },
+    stateFor: (scope) => { stateScopes.push(scope); return state; },
+    publicConfig,
+  });
+  return { port, tools, toolScopes, connectionScopes, stateScopes };
+}
+
+test('http and limiter are the tool port\'s own, built for the same call scope', () => {
+  const { port, tools, toolScopes } = build(false);
+  const capabilities = port(SCOPE);
+  assert.equal(capabilities.http, tools.http);
+  assert.equal(capabilities.limiter, tools.limiter);
+  assert.deepEqual(toolScopes, [SCOPE]);
+});
+
+test('no artifact store bound: the surface gets no artifacts capability at all', () => {
+  const capabilities = build(false).port(SCOPE);
+  assert.equal(Object.hasOwn(capabilities, 'artifacts'), false);
+});
+
+test('an artifact store bound: the surface gets the tool port\'s artifacts', () => {
+  const { port, tools } = build(true);
+  assert.equal(port(SCOPE).artifacts, tools.artifacts);
+});
+
+test('connections get the full call scope; state only the workspace and plugin', () => {
+  const { port, connectionScopes, stateScopes } = build(false);
+  const capabilities = port(SCOPE);
+  assert.equal(capabilities.connections, connections);
+  assert.equal(capabilities.state, state);
+  assert.deepEqual(connectionScopes, [SCOPE]);
+  assert.deepEqual(stateScopes, [{ workspaceId: 'ws-1', pluginId: 'acme-office' }]);
+});
+
+test('public config is the one site-wide port, the same for every call', () => {
+  const { port } = build(false);
+  assert.equal(port(SCOPE).publicConfig, publicConfig);
+  assert.equal(port({ ...SCOPE, pluginId: 'other-plugin' }).publicConfig, publicConfig);
+});
