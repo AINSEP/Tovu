@@ -3,6 +3,7 @@
  * submissions go, contributed by Agent Plugins (`tovu-form-destinations.json`). See `./types.ts`.
  */
 export type {
+  FormDeliveryConnectionPort,
   FormDestinationAddress,
   FormDestinationCredential,
   FormDestinationDescriptor,
@@ -24,3 +25,5 @@ export { assertSubmitUrl, rewriteFormActions } from "./rewrite-actions.js";
 export { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "./key-store.js";
 export { formDestinationKey, pullFromFormDestination, type FormDestinationImportPort } from "./pull.js";
 export { createFormDestinationPort, type FormDestinationPortDeps } from "./port.js";
+export { createFormDestinationDeliverer } from "./deliver.js";
+export { createCustomCredentialConnectionPort } from "./connection-port.js";

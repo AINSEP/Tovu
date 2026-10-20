@@ -79,9 +79,8 @@ import { composeFormSubmissions } from "#src/server/runtime/composition/form-sub
 import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
 import { composeFormDelivery } from "#src/server/runtime/composition/form-delivery";
 import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { ensureFormDeliverySettings } from "#src/features/settings/form-delivery";
-import { createCustomCredentialConnectionPort } from "#src/features/form-destinations/connection-port";
-import { createFormDestinationDeliverer } from "#src/features/form-destinations/deliver";
+import { ensureFormDeliverySettings } from "#src/features/settings/index";
+import { createCustomCredentialConnectionPort, createFormDestinationDeliverer } from "#src/features/form-destinations/index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";

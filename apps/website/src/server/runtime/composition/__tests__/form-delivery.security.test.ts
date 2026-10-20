@@ -1,4 +1,3 @@
-import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -9,12 +8,9 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
-import { createFormDestinationDeliverer } from "#src/features/form-destinations/deliver";
-import { buildFormDestinationRegistry } from "#src/features/form-destinations/registry";
-import type { FormDeliveryConnectionPort, FormDestinationKit } from "#src/features/form-destinations/types";
+import { buildFormDestinationRegistry, createFormDestinationDeliverer, type FormDeliveryConnectionPort, type FormDestinationKit } from "#src/features/form-destinations/index";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
-import { createSettingsPrincipalLookup } from "#src/features/settings/index";
-import { ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/form-delivery";
+import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
