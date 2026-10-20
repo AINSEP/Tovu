@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import nodeFs, { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { themeCardPreviewUrl, themeContentVersion, themePreviewImage } from "../theme-preview-image.js";
+import { MAX_LISTED_FILES, MAX_WALK_DEPTH } from "../theme-files.js";
 
 test("D-22: thumbnail discovery reports no image, actual PNG, then preferred JPEG", () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-theme-preview-"));
@@ -69,4 +71,43 @@ test("a static theme's card shows its own capture keyed by content version, neve
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("the content version stops descending at the walk depth limit", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-theme-version-depth-"));
+  try {
+    // d0 … d(MAX-1): the deepest folder sits at depth MAX_WALK_DEPTH, so its own mtime counts but its
+    // children are never read.
+    const chain = Array.from({ length: MAX_WALK_DEPTH }, (_, i) => `d${i}`);
+    const deepest = join(dir, ...chain);
+    mkdirSync(deepest, { recursive: true });
+    writeFileSync(join(deepest, "too-deep.html"), "x");
+    const at = (seconds: number) => new Date(seconds * 1000);
+    utimesSync(join(deepest, "too-deep.html"), at(900), at(900));
+    for (let i = chain.length; i >= 0; i -= 1) utimesSync(join(dir, ...chain.slice(0, i)), at(100), at(100));
+    assert.equal(themeContentVersion({ dir }), 100_000);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the content version stops stat-ing once more than MAX_LISTED_FILES entries were visited", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-theme-version-cap-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (let i = 0; i <= MAX_LISTED_FILES; i += 1) writeFileSync(join(dir, `f${i}.css`), "");
+  const statSync = mock.method(nodeFs, "statSync");
+  t.after(() => statSync.mock.restore());
+  themeContentVersion({ dir });
+  // The root, then exactly MAX_LISTED_FILES files: the (MAX_LISTED_FILES + 1)th entry ends the walk.
+  assert.equal(statSync.mock.callCount(), 1 + MAX_LISTED_FILES);
+});
+
+test("a non-regular entry (a FIFO) does not move the content version", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-theme-version-fifo-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  execFileSync("mkfifo", [join(dir, "pipe")]);
+  const at = (seconds: number) => new Date(seconds * 1000);
+  utimesSync(join(dir, "pipe"), at(900), at(900));
+  utimesSync(dir, at(100), at(100));
+  assert.equal(themeContentVersion({ dir }), 100_000);
 });
