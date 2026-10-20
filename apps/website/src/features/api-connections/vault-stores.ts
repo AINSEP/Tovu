@@ -4,9 +4,12 @@ import { SecretsVaultService, VaultError, createVaultMetaParsers, type VaultCont
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
 import {
-  createApiConnectionGenerationReader, createVaultOAuthTokenStore, parseOAuthTokenVaultMeta,
+  createApiConnectionGenerationReader, createVaultOAuthTokenStore,
   type ApiConnectionAttempt, type ApiConnectionRecord, type ApiConnectionRecordStore, type ApiConnectionTokenStore,
 } from "@jini-ai/integrations/api-connections";
+import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { API_CONNECTION_RECORD_FORMAT as RECORD_FORMAT, API_CONNECTION_ATTEMPT_FORMAT as ATTEMPT_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
+export { PLUGIN_STATE_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
 
 /**
  * @file Tovu's storage for plugin-declared API connections, all in the existing secrets vault under
@@ -22,10 +25,6 @@ import {
  */
 
 export const API_CONNECTION_VAULT_KIND = "api-connection" as const;
-const RECORD_FORMAT = "api-connection-record";
-const ATTEMPT_FORMAT = "api-connection-attempt";
-/** Plugin settings rows (`plugin-state.ts`): plain JSON a plugin's admin surface saves, sealed like the rest. */
-export const PLUGIN_STATE_FORMAT = "agent-plugin-state";
 const recordId = (key: string): string => `record:${key}`;
 // State is sealed inside the attempt only: row ids and labels are visible to vault listings.
 const attemptId = (state: string): string => `attempt:${createHash("sha256").update(state).digest("hex")}`;
@@ -57,19 +56,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Formats whose metadata is the format name alone. */
-const FORMAT_ONLY: readonly unknown[] = [RECORD_FORMAT, PLUGIN_STATE_FORMAT];
-
-/** Token rows keep Jini's parser; record, settings and attempt rows carry only their format (and an attempt's expiry). */
-function parseApiConnectionMeta(input: { readonly meta: unknown; readonly provider?: string | null | undefined }): VaultMeta {
-  const meta = input.meta;
-  if (isObject(meta) && FORMAT_ONLY.includes(meta.credentialFormat) && Object.keys(meta).length === 1) return { credentialFormat: meta.credentialFormat as string };
-  if (isObject(meta) && meta.credentialFormat === ATTEMPT_FORMAT && Object.keys(meta).length === 2 && Number.isSafeInteger(meta.expiresAtMs)) {
-    return { credentialFormat: ATTEMPT_FORMAT, expiresAtMs: meta.expiresAtMs as number };
-  }
-  return parseOAuthTokenVaultMeta(input);
-}
-
 /** The one vault context every api-connection row of a workspace lives under. */
 export function apiConnectionVaultScope(required: { readonly workspaceId: string }, _optional: Record<string, never> = {}): VaultContext {
   return { workspaceId: required.workspaceId, kind: API_CONNECTION_VAULT_KIND, ownerKey: "tovu", principalId: null, binding: null };
@@ -84,7 +70,7 @@ export function createApiConnectionVault(required: ApiConnectionVaultDeps, _opti
   const scope = apiConnectionVaultScope({ workspaceId: required.workspaceId });
   return new SecretsVaultService({
     repo: required.repo, keyring: required.keyring, sealer: required.sealer,
-    metaParsers: createVaultMetaParsers({}, { parsers: { [API_CONNECTION_VAULT_KIND]: parseApiConnectionMeta } }),
+    metaParsers: createVaultMetaParsers({}, { parsers: { [API_CONNECTION_VAULT_KIND]: input => parseTovuStoreMeta({ ...input, kind: API_CONNECTION_VAULT_KIND }) } }),
     authorize: async ({ context }) => {
       if (context.workspaceId !== scope.workspaceId || context.kind !== scope.kind || context.ownerKey !== scope.ownerKey ||
         context.principalId !== null || ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });

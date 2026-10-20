@@ -12,6 +12,45 @@ const policy: TovuVaultPolicy = {
   legacyPublishCredential: () => undefined,
   tokenField: () => undefined,
 };
+
+const apiConnectionMeta = [
+  { credentialFormat: "agent-plugin-state" },
+  { credentialFormat: "api-connection-record" },
+  { credentialFormat: "api-connection-attempt", expiresAtMs: 123456789 },
+  { credentialFormat: "oauth-token-set", status: "active", leaseHolder: null, leaseExpiresAtMs: null },
+];
+
+test("boot and feature reads share api-connection formats and retain validated recovery annotations", () => {
+  const registry = createTovuVaultKinds({ policy });
+  for (const plain of apiConnectionMeta) {
+    const meta = { ...plain, normalization: "invalid-meta", migration: { originalLabel: "old", mappedLabel: "new" } };
+    assert.deepEqual(registry.metaParsers["api-connection"]({ meta }), meta);
+    assert.deepEqual(parseTovuStoreMeta({ kind: "api-connection", meta }), meta);
+  }
+});
+
+test("api-connection formats reject extra fields, bad attempts and malformed recovery annotations", () => {
+  const registry = createTovuVaultKinds({ policy });
+  for (const plain of apiConnectionMeta) {
+    for (const patch of [{ unexpected: true }, { normalization: ["conflict"] }, { normalization: 1 },
+      { normalization: "unknown" }, { migration: [] }, { migration: null }, { legacyAad: {} }]) {
+      const input = { kind: "api-connection" as const, meta: { ...plain, ...patch } };
+      assert.throws(() => registry.metaParsers[input.kind](input));
+      assert.throws(() => parseTovuStoreMeta(input));
+    }
+  }
+  for (const expiresAtMs of [null, "123", 1.5]) {
+    assert.throws(() => parseTovuStoreMeta({ kind: "api-connection", meta: { credentialFormat: "api-connection-attempt", expiresAtMs } }), { code: "invalid-meta" });
+  }
+  assert.throws(() => parseTovuStoreMeta({ kind: "api-connection", meta: { credentialFormat: "agent-plugin-state", expiresAtMs: 1 } }), { code: "invalid-meta" });
+});
+
+test("only the api-connection kind dispatches OAuth metadata; legacy MCP metadata remains supported", () => {
+  const registry = createTovuVaultKinds({ policy });
+  assert.deepEqual(registry.metaParsers["mcp-auth"]({ meta: {} }), {});
+  assert.throws(() => registry.metaParsers["mcp-auth"]({ meta: apiConnectionMeta[3] }));
+  assert.throws(() => registry.metaParsers["api-connection"]({ meta: {} }), { name: "OAuthTokenStoreError", code: "invalid-record" });
+});
 const parsers = createTovuVaultKinds({ policy }).metaParsers;
 const description = { host: "db.example.test", port: "5432", database: "content", user: "writer" };
 const snapshotAt = "2026-10-16T00:00:00.000Z";

@@ -11,7 +11,7 @@ import { after, afterEach, before, test } from "node:test";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import { InMemoryVaultRepo, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, InMemoryVaultRepo, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from "../vault-stores.js";
@@ -24,6 +24,21 @@ after(async () => { await harness.close(); });
 
 const fixtureLoader = (packageRoot: string = ACME_FIXTURE_ROOT): LoadPluginContributions => (input) =>
   loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot }, definition: input.definition });
+
+test("a legacy OAuth credential requires reconnect without deleting or rewriting its token row", async () => {
+  const vaultRepo = new InMemoryVaultRepo({});
+  const keyring = new InMemoryKeyring({ hkdfSalt: "legacy-oauth-record" });
+  const sealer = new AesGcmSecretSealer({ keyring });
+  const host = harness.makeHost({ vaultRepo, keyring });
+  const { connection, connectionRef } = await connectHosted(harness, host);
+  const current = (await vaultRepo.find({ workspaceId: ACME_WORKSPACE, id: connectionRef }))!;
+  const legacy = { ...current, meta: {}, revision: current.revision + 1,
+    sealed: await sealer.seal({ plaintext: JSON.stringify({ schemaVersion: 1, tokens: { accessToken: "legacy-access" } }),
+      key: await keyring.activeKey({}), aad: buildVaultAad(current) }) };
+  await vaultRepo.put({ record: legacy, expectedRevision: current.revision });
+  assert.equal((await host.statusOf({ connection })).status, "reconnect-required");
+  assert.deepEqual(await vaultRepo.find({ workspaceId: ACME_WORKSPACE, id: connectionRef }), legacy);
+});
 
 /** A vault repo whose read of one row id fails like a storage fault would. */
 class FaultyVaultRepo extends InMemoryVaultRepo {

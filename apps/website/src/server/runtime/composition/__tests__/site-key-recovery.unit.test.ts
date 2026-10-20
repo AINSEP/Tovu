@@ -66,6 +66,33 @@ async function siteWithSealedKey(t: TestContext, hex: string): Promise<string> {
 
 const writeStorageSecret = (dir: string, hex: string) => writeSealedConnectionString({ siteDir: dir, connectionString: "postgres://site" }, keyed(hex));
 
+for (const normalization of ["invalid-meta", ["conflict"]]) {
+  test(`plugin-state recovery validates annotations before rotation: ${JSON.stringify(normalization)}`, async t => {
+    const dir = await siteWithSealedKey(t, A);
+    const kernel = openSqliteFileKernel<ContentDatabase>(path.join(dir, CONTENT_DB_FILENAME));
+    t.after(() => kernel.close());
+    const repo = vaultRepo(kernel);
+    const media = (await repo.find({ workspaceId: WS, id: "media-fal" }))!;
+    const record: VaultRecord = { ...media, id: "plugin-state:acme-office:products", kind: "api-connection", provider: null,
+      label: "Plugin settings", isDefault: false, meta: { credentialFormat: "agent-plugin-state", normalization } };
+    const source = keyed(A);
+    record.sealed = await source.sealer.seal({ plaintext: JSON.stringify({ value: ["files"] }), key: await source.keyring.activeKey(), aad: buildVaultAad(record) });
+    await repo.put({ record, expectedRevision: null });
+    const recover = () => siteKeyRecovery.resealFrom({ siteDir: dir, contentKernel: kernel, hex: B, previousHex: A });
+    if (typeof normalization !== "string") {
+      await assert.rejects(recover(), { code: "invalid-meta" });
+      assert.deepEqual(await repo.find(record), record);
+      assert.deepEqual(await repo.find(media), media, "failed recovery rolls back other rotations too");
+      return;
+    }
+    assert.deepEqual(await recover(), { resealed: 2, unreadable: 0 });
+    const recovered = (await repo.find(record))!;
+    assert.deepEqual(recovered.meta, { credentialFormat: "agent-plugin-state" });
+    assert.deepEqual(JSON.parse(await keyed(B).sealer.open({ sealed: recovered.sealed! }, { aad: buildVaultAad(recovered) })), { value: ["files"] });
+    await assert.rejects(source.sealer.open({ sealed: recovered.sealed! }, { aad: buildVaultAad(recovered) }));
+  });
+}
+
 test("a site with no database and no storage secret has nothing to check, discard or reseal", async t => {
   const dir = siteDir(t);
   assert.deepEqual(await siteKeyRecovery.checkKey({ siteDir: dir, hex: A }), { sealed: 0, opens: 0, storageSecret: "absent", metadataOnly: 0, legacy: 0 });
