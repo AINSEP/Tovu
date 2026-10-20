@@ -26,8 +26,15 @@ function assertScopes(scopes, where) {
   return Object.freeze([...scopes]);
 }
 
-/** The validated, frozen catalog. @complexity O(p * s). */
-function readCatalog(raw) {
+/**
+ * The validated, frozen catalog. Exported so the load-time check can be pinned against malformed
+ * catalogs (the shipped `products.json` always passes it).
+ * @param {{ raw: { baseScopes: unknown, products: readonly { id: string, requiredScopes: unknown }[] } }} required
+ * @throws {Error} When a scope list is not a list of Google OAuth scope URLs.
+ * @complexity O(p * s).
+ */
+export function readCatalog(required, _optional = {}) {
+  const { raw } = required;
   const products = raw.products.map((product) => Object.freeze({
     ...product,
     requiredScopes: assertScopes(product.requiredScopes, `products '${product.id}' requiredScopes`),
@@ -35,7 +42,7 @@ function readCatalog(raw) {
   return Object.freeze({ baseScopes: assertScopes(raw.baseScopes, 'baseScopes'), products: Object.freeze(products) });
 }
 
-export const PRODUCTS = readCatalog(catalog);
+export const PRODUCTS = readCatalog({ raw: catalog });
 
 /**
  * The scopes to request for these products: the base scope plus each product's required scopes,

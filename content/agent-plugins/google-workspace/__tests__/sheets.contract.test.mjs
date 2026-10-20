@@ -381,6 +381,10 @@ const CONTRACTS = [
     { spreadsheetId: SHEET }, [['GET', BASE, { sheets: [{ properties: { sheetId: 0, title: 'A' }, protectedRanges: [{ protectedRangeId: 3 }] }, {}] }]],
     [{ method: 'GET', host: SHEETS_HOST, path: BASE, query: { fields: ['sheets(properties(sheetId,title),protectedRanges(protectedRangeId,range,namedRangeId,tableId,description,warningOnly,requestingUserCanEdit,unprotectedRanges,editors))'] }, body: undefined }],
     { tabs: [{ sheetId: 0, title: 'A', protectedRanges: [{ protectedRangeId: 3 }] }, { protectedRanges: [] }] }],
+  ['sheets_protected_ranges_get of an answer with no tab list returns no tabs', 'sheets_protected_ranges_get',
+    { spreadsheetId: SHEET }, [['GET', BASE, {}]],
+    [{ method: 'GET', host: SHEETS_HOST, path: BASE, query: { fields: ['sheets(properties(sheetId,title),protectedRanges(protectedRangeId,range,namedRangeId,tableId,description,warningOnly,requestingUserCanEdit,unprotectedRanges,editors))'] }, body: undefined }],
+    { tabs: [] }],
   ['sheets_developer_metadata get reads one entry by its numeric id', 'sheets_developer_metadata',
     { spreadsheetId: SHEET, action: 'get', metadataId: 5 }, [['GET', `${BASE}/developerMetadata/5`, { metadataId: 5, metadataKey: 'leads' }]],
     [{ method: 'GET', host: SHEETS_HOST, path: `${BASE}/developerMetadata/5`, query: {}, body: undefined }],
@@ -466,6 +470,14 @@ test('contract: sheets_export_csv of a tab id the spreadsheet does not have is i
   await assert.rejects(callTool('sheets_export_csv', { spreadsheetId: SHEET, sheetId: 9 }), { code: 'invalid-input', message: /no tab with sheetId 9/ });
   assert.equal(fake.requests.length, 1);
 });
+
+for (const range of ['D5:A1', 'A5:D1']) {
+  test(`contract: sheets_export_csv with reversed corners ${range} is invalid-input before any values read`, async () => {
+    serve('GET', BASE, { sheets: [{ properties: { sheetId: 0, title: 'Leads' } }] });
+    await assert.rejects(callTool('sheets_export_csv', { spreadsheetId: SHEET, sheetId: 0, range }), { code: 'invalid-input', message: /top-left corner first/ });
+    assert.equal(fake.requests.length, 1);
+  });
+}
 
 test('contract: sheets_basic_filter get of a tab id the spreadsheet does not have is invalid-input naming the id', async () => {
   serve('GET', BASE, { sheets: [{ properties: { sheetId: 0 } }] });
@@ -558,6 +570,20 @@ const DISCLOSURES = [
   ['sheets_named_ranges', { spreadsheetId: SHEET, action: 'update', namedRangeId: 'nr1', range: { sheetId: 1 } }, [`spreadsheet ${SHEET}`, 'change named range nr1 at tab 1, all rows, all columns (formulas using it follow the change)']],
   ['sheets_named_ranges', { spreadsheetId: SHEET, action: 'delete', namedRangeId: 'nr1' }, [`spreadsheet ${SHEET}`, 'delete named range nr1 (formulas using it stop working)']],
 ];
+
+test('disclosure: a line over 300 characters is shortened to 300 with an ellipsis, never dropped', async () => {
+  const [line] = await disclose('sheets_find_replace', { spreadsheetId: SHEET, find: 'f'.repeat(400), replacement: 'r', allSheets: true });
+  assert.equal(line.length, 300);
+  assert.ok(line.startsWith('Replace every match of "ffff'));
+  assert.ok(line.endsWith('…'));
+});
+
+test('disclosure: a grid-range data filter without a tab id is refused by the schema, so the card never guesses a tab', async () => {
+  const input = (gridRange) => ({ spreadsheetId: SHEET, action: 'clear', dataFilters: [{ gridRange }] });
+  await assert.rejects(disclose('sheets_values_by_data_filter', input({ startRowIndex: 1 })), { name: 'ToolInputError', message: /#\/dataFilters\/0 \(properties\)/ });
+  // The same filter with its tab id is accepted: the refusal is the missing sheetId, nothing else.
+  assert.deepEqual(await disclose('sheets_values_by_data_filter', input({ startRowIndex: 1, sheetId: 0 })), [`Clear every value in grid range on tab 0 of spreadsheet ${SHEET}`]);
+});
 
 for (const [name, input, expected] of DISCLOSURES) {
   test(`disclosure: ${name} ${JSON.stringify(input).slice(0, 90)}`, async () => {
@@ -748,3 +774,21 @@ for (const [name, input] of SIGNAL_CALLS) {
     assert.equal(fake.requests.length, 0);
   });
 }
+
+test('cancellation: account_info called with an aborted signal sends nothing and rejects with the abort', async () => {
+  const controller = new AbortController();
+  const reason = new Error('person cancelled');
+  controller.abort(reason);
+  await assert.rejects(callTool('account_info', {}, { signal: controller.signal }), (error) => error === reason);
+  assert.equal(fake.requests.length, 0);
+});
+
+test('cancellation: sheets_export_csv aborted while its values read is in flight writes no file', async () => {
+  const controller = new AbortController();
+  const reason = new Error('person cancelled');
+  serve('GET', BASE, { sheets: [{ properties: { sheetId: 0, title: 'Leads', gridProperties: { rowCount: 2, columnCount: 2 } } }] });
+  fake.route({ method: 'GET', path: `${BASE}/values:batchGet` }, () => { controller.abort(reason); return [200, { valueRanges: [] }]; });
+  await assert.rejects(callTool('sheets_export_csv', { spreadsheetId: SHEET, sheetId: 0 }, { signal: controller.signal }), (error) => error === reason);
+  assert.equal(fake.requests.length, 2);
+  assert.deepEqual(artifactWrites, []);
+});
