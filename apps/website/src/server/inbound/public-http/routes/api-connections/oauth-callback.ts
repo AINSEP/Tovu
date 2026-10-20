@@ -104,7 +104,7 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
       // Unknown, used, foreign-workspace or no-longer-declared: the same answer for each.
       if (!routed) return send(res, 400, "state_expired");
       const { attempt, connection } = routed;
-      const done = await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params });
+      const done = await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params, browserBinding: "" });
       depositCallbackFields(deps.host, { attempt, attemptId: done.attemptId, fields: done.callbackFields });
       return send(res, 200);
     } catch (error) {

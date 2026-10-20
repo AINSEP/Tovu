@@ -149,10 +149,11 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
     });
     const service = host.serviceFor({ connection, redirectUri: receiver.redirectUri });
     const start = await service.start({ workspaceId: host.workspaceId, actorId, intent, scopeSetIds, redirectUri: receiver.redirectUri }, startOptionsOf(optional));
-    // `state` stays here: it arms the receiver and goes back to `complete`, never into the result.
-    const { state } = start;
+    // `state` and `browserBinding` stay here: the receiver that gets the callback is this process,
+    // so both go straight back to `complete`, never into the result.
+    const { state, browserBinding } = start;
     const completion = receiver.receive({ expectedState: state }).then(
-      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code } }),
+      (callback) => service.complete({ workspaceId: host.workspaceId, actorId, redirectUri: receiver.redirectUri, callbackParams: { ...callback.fields, state, code: callback.code }, browserBinding }),
       () => null,
     ).finally(release);
     return { authorizationUrl: start.authorizationUrl, attemptId: start.attemptId, expiresAt: start.expiresAt, completion };
