@@ -56,8 +56,6 @@ export interface MediaContentState {
   html: string;
 }
 
-const LAYOUTS: readonly string[] = ["single", "grid", "carousel", "masonry"];
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -66,15 +64,19 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-/** Copies only the keys a structured item may carry — never `src`/`mediaId` (contract). */
-function readItem(value: unknown): MediaItem | null {
-  if (!isRecord(value) || typeof value.slug !== "string") return null;
-  const item: MediaItem = { slug: value.slug };
-  const alt = optionalString(value.alt);
-  const caption = optionalString(value.caption);
+/** A row for `slug` carrying the record's string `alt`/`caption` and nothing else. */
+function itemWithText(slug: string, record: Record<string, unknown>): MediaItem {
+  const item: MediaItem = { slug };
+  const alt = optionalString(record.alt);
+  const caption = optionalString(record.caption);
   if (alt !== undefined) item.alt = alt;
   if (caption !== undefined) item.caption = caption;
   return item;
+}
+
+/** Copies only the keys a structured item may carry — never `src`/`mediaId` (contract). */
+function readItem(value: unknown): MediaItem[] {
+  return isRecord(value) && typeof value.slug === "string" ? [itemWithText(value.slug, value)] : [];
 }
 
 /**
@@ -89,13 +91,19 @@ export function legacyImagesToItems(required: { images: unknown[]; library: read
   const slugById = new Map((required.library ?? []).map((asset) => [asset.id, asset.slug]));
   return required.images.flatMap((image) => {
     if (!isRecord(image) || typeof image.mediaId !== "string") return [];
-    const item: MediaItem = { slug: slugById.get(image.mediaId) ?? image.mediaId };
-    const alt = optionalString(image.alt);
-    const caption = optionalString(image.caption);
-    if (alt !== undefined) item.alt = alt;
-    if (caption !== undefined) item.caption = caption;
-    return [item];
+    return [itemWithText(slugById.get(image.mediaId) ?? image.mediaId, image)];
   });
+}
+
+/** An explicit `mode` wins; a mode-less config is Raw HTML only when it carries an `html` string. */
+function readMode(config: Record<string, unknown>): MediaContentMode {
+  return config.mode === "html" || (config.mode === undefined && typeof config.html === "string") ? "html" : "media";
+}
+
+/** Structured `items` win over legacy `images`; neither means an empty list. */
+function readItems(config: Record<string, unknown>, library: readonly AdminMedia[] | null): MediaItem[] {
+  if (Array.isArray(config.items)) return config.items.flatMap(readItem);
+  return Array.isArray(config.images) ? legacyImagesToItems({ images: config.images, library }) : [];
 }
 
 /**
@@ -109,14 +117,10 @@ export function readMediaContent(
   optional: { library?: readonly AdminMedia[] | null } = {},
 ): MediaContentState {
   const { config, widgetType } = required;
-  const mode: MediaContentMode = config.mode === "html" || (config.mode === undefined && typeof config.html === "string") ? "html" : "media";
+  const mode = readMode(config);
   const layouts = mediaLayoutsFor(widgetType);
-  const layout = typeof config.layout === "string" && LAYOUTS.includes(config.layout) && layouts.includes(config.layout as MediaLayout)
-    ? (config.layout as MediaLayout) : layouts[0]!;
-  const items = Array.isArray(config.items)
-    ? config.items.flatMap((value) => { const item = readItem(value); return item ? [item] : []; })
-    : Array.isArray(config.images) ? legacyImagesToItems({ images: config.images, library: optional.library ?? null }) : [];
-  const media: MediaDraft = { items, layout };
+  const layout = layouts.find((candidate) => candidate === config.layout) ?? layouts[0]!;
+  const media: MediaDraft = { items: readItems(config, optional.library ?? null), layout };
   if (typeof config.columns === "number") media.columns = config.columns;
   for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
     const value = optionalString(config[key]);
