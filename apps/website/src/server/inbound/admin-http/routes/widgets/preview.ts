@@ -1,4 +1,5 @@
 import type { JsonObject } from '@jini-ai/core/primitives';
+import { isNonArrayRecord } from '@jini-ai/core/records';
 import { requireWidgetsPermissionOrRespond, mapWidgetErrorToResponse } from '#src/server/inbound/admin-http/http/widgets';
 import type { RouteDeps, RouteRegistrar } from '#src/server/routes/types';
 import { renderWidgetPreview, type WidgetPreviewInput } from './preview-render.js';
@@ -7,7 +8,7 @@ import { renderWidgetPreview, type WidgetPreviewInput } from './preview-render.j
  * @complexity O(n) for the serialized request size (at most 128 KiB).
  */
 export function parseWidgetPreviewBody({ raw }: { raw: unknown }, _optional: Record<string, never> = {}): WidgetPreviewInput | null {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  if (!isNonArrayRecord({ value: raw })) return null;
   const body = raw as Record<string, unknown>;
   if (Object.keys(body).some(key => key !== 'widgetType' && key !== 'content')) return null;
   if (typeof body.widgetType !== 'string' || body.widgetType.length > 100) return null;
