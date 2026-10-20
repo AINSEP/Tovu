@@ -76,7 +76,8 @@ const ROWS = [
   ['deleteConditionalFormatRule', D, UNSAFE, ['index', 'sheetId']],
   ['sortRange', D, SAFE, ['range', 'sortSpecs']],
   ['setDataValidation', W, SAFE, ['range']],
-  ['setBasicFilter', W, SAFE, ['filter']],
+  // A basic filter's sortSpecs physically reorder the rows, like sortRange.
+  ['setBasicFilter', D, SAFE, ['filter']],
   ['addProtectedRange', D, UNSAFE, ['protectedRange']],
   ['updateProtectedRange', D, SAFE, ['protectedRange', 'fields']],
   ['deleteProtectedRange', D, SAFE, ['protectedRangeId']],

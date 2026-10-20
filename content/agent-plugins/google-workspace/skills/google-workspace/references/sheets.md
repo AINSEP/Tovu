@@ -86,7 +86,7 @@ is rows 2-10, columns A-D.
 |---|---|---|
 | `sheets_tab_modify` | add, rename, delete, duplicate or move a tab | danger card (delete removes the tab's data) |
 | `sheets_sort` | reorder rows of a range by up to 10 columns | danger card (the old order is gone) |
-| `sheets_basic_filter` | get, set or clear a tab's filter | card |
+| `sheets_basic_filter` | get, set or clear a tab's filter (hides rows; no sorting: use `sheets_sort`) | card |
 | `sheets_filter_views` | list, add, update, duplicate or delete saved filter views | danger card |
 | `sheets_format` | number formats, fonts, colours, alignment, wrapping, borders, frozen rows/columns, column widths | card; never changes values |
 | `sheets_named_ranges` | list, add, update or delete named ranges | danger card (formulas follow the name) |
@@ -125,13 +125,14 @@ Supported request kinds. Changes data or protection (shown as destructive on the
 `deleteFilterView`, `findReplace`, `pasteData`, `textToColumns`, `deleteRange`,
 `deleteConditionalFormatRule`, `sortRange`, `addProtectedRange`, `updateProtectedRange`,
 `deleteProtectedRange`, `deleteBanding`, `deleteDeveloperMetadata`, `randomizeRange`,
-`deleteDimensionGroup`, `trimWhitespace`, `deleteDuplicates`, `deleteTable`.
+`deleteDimensionGroup`, `trimWhitespace`, `deleteDuplicates`, `deleteTable`, `setBasicFilter` (its
+`sortSpecs` reorder rows).
 
 Other changes: `updateSpreadsheetProperties`, `updateDimensionProperties`, `updateNamedRange`,
 `addNamedRange`, `addSheet`, `unmergeCells`, `updateBorders`, `addFilterView`, `appendCells`,
 `clearBasicFilter`, `duplicateFilterView`, `duplicateSheet`, `insertDimension`, `insertRange`,
 `moveDimension`, `updateEmbeddedObjectPosition`, `updateFilterView`, `appendDimension`,
-`addConditionalFormatRule`, `updateConditionalFormatRule`, `setDataValidation`, `setBasicFilter`,
+`addConditionalFormatRule`, `updateConditionalFormatRule`, `setDataValidation`,
 `autoResizeDimensions`, `addChart`, `updateChartSpec`, `updateBanding`, `addBanding`,
 `createDeveloperMetadata`, `updateDeveloperMetadata`, `addDimensionGroup`, `updateDimensionGroup`,
 `updateEmbeddedObjectBorder`, `addSlicer`, `updateSlicerSpec`, `addTable`, `updateTable`.

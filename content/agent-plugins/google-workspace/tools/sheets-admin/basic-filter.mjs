@@ -20,7 +20,8 @@ async function readFilter(client, input, signal) {
 /** The set/clear request. @complexity O(1). */
 function changeRequest(input) {
   if (input.action === 'clear') return { clearBasicFilter: { sheetId: input.sheetId } };
-  const filter = { range: input.range, ...(input.sortSpecs ? { sortSpecs: input.sortSpecs } : {}), ...(input.filterSpecs ? { filterSpecs: input.filterSpecs } : {}) };
+  // No sortSpecs: a basic-filter sort physically reorders rows (destructive), so sorting stays in `sheets_sort`.
+  const filter = { range: input.range, ...(input.filterSpecs ? { filterSpecs: input.filterSpecs } : {}) };
   return { setBasicFilter: { filter } };
 }
 

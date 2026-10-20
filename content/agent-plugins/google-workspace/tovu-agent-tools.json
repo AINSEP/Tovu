@@ -831,7 +831,7 @@
     },
     {
       "name": "sheets_basic_filter",
-      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Read (get), set or clear the basic filter of a tab. get and clear need sheetId; set needs range and may give sortSpecs and filterSpecs (Sheets FilterSpec objects). A filter hides rows; it never deletes data. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Read (get), set or clear the basic filter of a tab. get and clear need sheetId; set needs range and may give filterSpecs (Sheets FilterSpec objects). A filter hides rows; it never deletes or reorders data (to sort rows, use sheets_sort). The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
       "effect": "write",
       "module": "tools/sheets-admin/basic-filter.mjs",
       "inputSchema": {
@@ -853,20 +853,6 @@
               "endRowIndex": {"type": "integer", "minimum": 0},
               "startColumnIndex": {"type": "integer", "minimum": 0},
               "endColumnIndex": {"type": "integer", "minimum": 0}
-            }
-          },
-          "sortSpecs": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 10,
-            "items": {
-              "type": "object",
-              "required": ["dimensionIndex"],
-              "additionalProperties": false,
-              "properties": {
-                "dimensionIndex": {"type": "integer", "minimum": 0},
-                "sortOrder": {"enum": ["ASCENDING", "DESCENDING"]}
-              }
             }
           },
           "filterSpecs": {"type": "array", "maxItems": 50, "items": {"type": "object"}}

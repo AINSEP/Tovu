@@ -73,6 +73,22 @@ test('disclosure: every write and destructive tool names the spreadsheet and wha
   assert.equal(fake.requests.length, 0);
 });
 
+test('basic filter cannot sort: the schema refuses sortSpecs, and a raw setBasicFilter is disclosed as destructive', async () => {
+  const file = JSON.parse(await readFile(new URL('../tovu-agent-tools.json', import.meta.url), 'utf8'));
+  const tool = file.tools.find((entry) => entry.name === 'sheets_basic_filter');
+  assert.equal(tool.effect, 'write');
+  assert.equal(tool.inputSchema.additionalProperties, false);
+  assert.equal(Object.hasOwn(tool.inputSchema.properties, 'sortSpecs'), false);
+  assert.equal(REQUEST_KINDS.setBasicFilter.effect, 'destructive');
+  assert.deepEqual(batchUpdate.describeAffectedResources({ input: { ...base, requests: [{ setBasicFilter: { filter: { range } } }] } }), [`spreadsheet ${SPREADSHEET}`, 'setBasicFilter x1 (destructive)']);
+});
+
+test('basic filter set sends filterSpecs only, never sortSpecs', async () => {
+  fake.route({ method: 'POST', path: BATCH_PATH }, () => [200, { replies: [{}] }]);
+  await run(basicFilter, { action: 'set', range, filterSpecs: [{ columnIndex: 0 }], sortSpecs: [{ dimensionIndex: 0 }] });
+  assert.deepEqual(JSON.parse(sheetsRequests()[0].body).requests, [{ setBasicFilter: { filter: { range, filterSpecs: [{ columnIndex: 0 }] } } }]);
+});
+
 test('batch disclosure: the card lists every request kind with its count and effect', () => {
   const requests = [{ insertDimension: { range: {} } }, { deleteDimension: { range: {} } }, { insertDimension: { range: {} } }];
   assert.deepEqual(batchUpdate.describeAffectedResources({ input: { ...base, requests } }), [`spreadsheet ${SPREADSHEET}`, 'insertDimension x2 (write)', 'deleteDimension x1 (destructive)']);
