@@ -324,3 +324,19 @@ for (const failure of [null, "handshake", "provisioning"] as const) {
     });
   });
 }
+
+test("L163 connect resolves absent and blank URLs from the candidate and rejects other types first", async () => {
+  let reads = 0;
+  const deps = toolDeps({ findPublishCandidate: async () => { reads++; return null; } });
+  const registration = registrationFor(deps, PUBLISH_CONTENT_CONNECT_TOOL_ID);
+  for (const siteUrl of [undefined, "", "   "]) {
+    const result = await registration.handler(execContext({ siteUrl }));
+    assert.deepEqual(result, { connected: false, message: "There is no live site to publish to yet.", nextStep: "Put this site online once, then come back and connect this computer to it." });
+  }
+  assert.equal(reads, 3);
+  for (const siteUrl of [null, false, 42, {}]) {
+    await assert.rejects(() => registration.handler(execContext({ siteUrl })), { message: "'siteUrl' must be a website address as a string when provided" });
+  }
+  await registration.handler(execContext({ siteUrl: "definitely not a url" }));
+  assert.equal(reads, 3);
+});

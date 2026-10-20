@@ -309,3 +309,19 @@ test("includeReferencedEntities stops on a reference cycle instead of looping", 
   assert.deepEqual(envelope.entities.map((e) => entityKey(e.entityType, e.id)), ["term:t2", "term:t3", "term:t1"]);
   assert.deepEqual(Object.fromEntries(includedFor), { "term:t2": ["term:t1"], "term:t3": ["term:t1"] });
 });
+
+test("L163 reference traversal keeps depth-first order, deduplicates cycles, and sorts shared root labels", () => {
+  const roots = [stated("page", "z", {}), stated("page", "a", {})];
+  const source = { ...ENVELOPE, entities: [...roots, stated("media", "one", {}, ["first"]), stated("media", "two", {}, ["second", "first"])] };
+  const handlers: ReferenceHandlers = new Map([
+    ["page", { references: () => [{ entityType: "media", key: "absent" }, { entityType: "media", key: "one" }, { entityType: "media", key: "two" }] }],
+    ["media", { references: () => [{ entityType: "media", key: "one" }, { entityType: "media", key: "two" }] }],
+  ]);
+  const result = includeReferencedEntities({ ...ENVELOPE, entities: roots }, source, handlers);
+  assert.deepEqual(result.envelope.entities.map(e => entityKey(e.entityType, e.id)), ["media:two", "media:one", "page:z", "page:a"]);
+  assert.deepEqual(result.envelope.blobManifest, ["second", "first"]);
+  assert.deepEqual([...result.includedFor], [["media:two", ["page:a", "page:z"]], ["media:one", ["page:a", "page:z"]]]);
+  const unchanged = includeReferencedEntities(source, source, new Map());
+  assert.equal(unchanged.envelope, source);
+  assert.equal(unchanged.includedFor.size, 0);
+});

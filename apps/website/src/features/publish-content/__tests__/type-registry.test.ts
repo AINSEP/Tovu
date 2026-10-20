@@ -200,3 +200,24 @@ test("registeredPublishTypePermissions lists each type's permission plus what it
     ]
   );
 });
+
+test("L163 catalog deduplicates dependency edges and preserves stable ready-type ordering", () => {
+  registerPublishContentContributor(fakeContributor("last", ["first", "first"]));
+  registerPublishContentContributor(fakeContributor("unrelated"));
+  registerPublishContentContributor(fakeContributor("first"));
+  const catalog = buildPublishContentCatalog({} as PublishContentDeps);
+  assert.deepEqual(catalog.applyOrder, ["unrelated", "first", "last"]);
+  assert.deepEqual(catalog.handlers.map(h => h.entityType), ["last", "unrelated", "first"]);
+});
+
+test("L163 catalog reports every remaining cycle-dependent type before building handlers", () => {
+  let builds = 0;
+  for (const [type, dependencies] of [["tail", ["cycle"]], ["cycle", ["cycle"]]] as const) {
+    const contributor = fakeContributor(type, dependencies);
+    registerPublishContentContributor({ ...contributor, build: deps => { builds++; return contributor.build(deps); } });
+  }
+  assert.throws(() => buildPublishContentCatalog({} as PublishContentDeps), { message: "publish-content dependency cycle among registered types: tail, cycle" });
+  assert.equal(builds, 0);
+  resetPublishContentContributorsForTests();
+  assert.deepEqual(buildPublishContentCatalog({} as PublishContentDeps).applyOrder, []);
+});

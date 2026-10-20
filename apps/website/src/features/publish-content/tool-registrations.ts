@@ -348,11 +348,7 @@ export function buildPublishContentRegistrations(
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
 
-      const supplied = input.siteUrl;
-      if (supplied !== undefined && typeof supplied !== "string") {
-        throw new ToolInputError({ message: "'siteUrl' must be a website address as a string when provided" });
-      }
-      const raw = typeof supplied === "string" && supplied.trim() !== "" ? supplied : await findCandidate();
+      const raw = await connectSiteUrl({ input, findCandidate });
       if (raw === null) {
         // The never-deployed install. An ordinary empty state, reported as a result rather than
         // thrown, so the model can relay the sentence instead of a failure.
@@ -456,14 +452,31 @@ export function contributePublishContentTools(options: {
   } };
 }
 
+/** A blank address uses the discovered site; other supplied types are input errors. */
+async function connectSiteUrl(
+  { input, findCandidate }: { input: Record<string, unknown>; findCandidate: () => Promise<string | null> },
+  _options: Record<string, never> = {}
+): Promise<string | null> {
+  const supplied = input.siteUrl;
+  if (supplied !== undefined && typeof supplied !== "string") {
+    throw new ToolInputError({ message: "'siteUrl' must be a website address as a string when provided" });
+  }
+  return typeof supplied === "string" && supplied.trim() !== "" ? supplied : await findCandidate();
+}
+
+async function suppliedPullPeer(
+  { deps, supplied }: { deps: PublishContentToolDeps; supplied: unknown },
+  _options: Record<string, never> = {}
+): Promise<string> {
+  if (typeof supplied !== "string" || supplied.trim() === "") throw new ToolInputError({ message: "'peerId' must be a non-empty string when provided." });
+  const saved = await deps.publishContentPeerRepo.findById({ workspaceId: deps.workspaceId, id: supplied });
+  if (!saved) throw new ToolInputError({ message: `The saved destination '${supplied}' was not found. Choose a saved peerId or connect the live site again.` });
+  return saved.id;
+}
+
 /** Choose only saved peers; ambiguity is reported rather than guessed. O(p) in saved peers. */
 async function selectPullPeer(deps: PublishContentToolDeps, supplied: unknown): Promise<string> {
-  if (supplied !== undefined) {
-    if (typeof supplied !== "string" || supplied.trim() === "") throw new ToolInputError({ message: "'peerId' must be a non-empty string when provided." });
-    const saved = await deps.publishContentPeerRepo.findById({ workspaceId: deps.workspaceId, id: supplied });
-    if (!saved) throw new ToolInputError({ message: `The saved destination '${supplied}' was not found. Choose a saved peerId or connect the live site again.` });
-    return saved.id;
-  }
+  if (supplied !== undefined) return suppliedPullPeer({ deps, supplied });
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
   if (rows.length === 0) throw new ToolInputError({ message: "No live destination is connected. Connect this computer with publish_content_connect, then plan the pull again." });
   const connectedRows = rows.filter(row => row.sealed === null);
@@ -527,15 +540,19 @@ function pullOverwriteKeys(value: unknown): ReadonlySet<string> {
 /** Translate known refusals for the model; unknown failures retain the normal executor redaction. */
 async function pullToolBoundary<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); } catch (error) {
-    if (error instanceof PlanStaleError) throw new ToolInputError({ message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." });
-    if (error instanceof PublishContentBundleNotFoundError) throw new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
-    // The apply writes row by row, so the refusal names the item and says earlier items stay saved.
-    if (error instanceof PluginHookFailedError) throw toModelFacingPluginHookError(error);
-    if (error instanceof RestorePointUnavailableError) throw new ToolInputError({ message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." });
-    if (error instanceof PublishContentPeerNotFoundError) {
-      throw new ToolInputError({ message: "The saved destination was removed. Choose a saved peerId or connect the live site again." });
-    }
-    if (error instanceof ForbiddenError || error instanceof PublishTrustHandshakeError || error instanceof PublishContentPeerTransportError || error instanceof PublishContentPeerCredentialMissingError || error instanceof PublishContentPeerSecretStoreUnconfiguredError) throw new ToolInputError({ message: error.message });
-    throw error;
+    throw modelFacingPullError({ error });
   }
+}
+
+function modelFacingPullError({ error }: { error: unknown }, _options: Record<string, never> = {}): unknown {
+  if (error instanceof PlanStaleError) return new ToolInputError({ message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." });
+  if (error instanceof PublishContentBundleNotFoundError) return new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
+  // The apply writes row by row, so the refusal names the item and says earlier items stay saved.
+  if (error instanceof PluginHookFailedError) return toModelFacingPluginHookError(error);
+  if (error instanceof RestorePointUnavailableError) return new ToolInputError({ message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." });
+  if (error instanceof PublishContentPeerNotFoundError) {
+    return new ToolInputError({ message: "The saved destination was removed. Choose a saved peerId or connect the live site again." });
+  }
+  if (error instanceof Error && [ForbiddenError, PublishTrustHandshakeError, PublishContentPeerTransportError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError].some((ErrorType) => error instanceof ErrorType)) return new ToolInputError({ message: error.message });
+  return error;
 }

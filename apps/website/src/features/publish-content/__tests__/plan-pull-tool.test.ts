@@ -153,3 +153,53 @@ test("the production contributor projects the same content ports the import rout
   assert.deepEqual(result.counts, { create: 1, update: 0, unchanged: 0, blocked: 0 });
   assert.deepEqual(f.applied, []);
 });
+
+test("L163 pull boundary translates each known refusal and preserves unknown rejection identity", async () => {
+  const { PlanStaleError, ForbiddenError } = await import("../../../contracts/core/gated-mutations/gateway.js");
+  const { PublishContentBundleNotFoundError } = await import("../gated-hooks.js");
+  const { RestorePointUnavailableError } = await import("../execute-import.js");
+  const { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } = await import("../peers.js");
+  const { PublishContentPeerTransportError } = await import("../peer-transport.js");
+  const { PublishTrustHandshakeError } = await import("../../publish-trust/handshake-client.js");
+  const { PluginHookFailedError } = await import("../../../contracts/core/plugin-hook-failed-error.js");
+  const cases: Array<{ error: unknown; message: string }> = [
+    { error: new PlanStaleError({ message: "internal stale" }), message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." },
+    { error: new PublishContentBundleNotFoundError("internal missing"), message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." },
+    { error: new RestorePointUnavailableError("internal backup"), message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." },
+    { error: new PublishContentPeerNotFoundError("internal peer"), message: "The saved destination was removed. Choose a saved peerId or connect the live site again." },
+    { error: new PluginHookFailedError("plugin", "private diagnostic", { refusedItemRef: "post:p" }), message: "PLUGIN_HOOK_FAILED: a site plugin (plugin) refused item post:p; items applied before it stay saved, so check the import history before retrying" },
+    ...[
+      new ForbiddenError({ message: "permission denied", reasonCode: "denied" }),
+      new PublishTrustHandshakeError("handshake refused", "refused"),
+      new PublishContentPeerTransportError("transport refused", "PEER_REJECTED"),
+      new PublishContentPeerCredentialMissingError("credential absent"),
+      new PublishContentPeerSecretStoreUnconfiguredError("store absent"),
+    ].map(error => ({ error, message: error.message })),
+  ];
+  const f = await fixture();
+  const registration = await tool(f.deps, ID);
+  for (const { error, message } of cases) {
+    f.deps.publishContentPeerRepo.findById = async () => { throw error; };
+    await assert.rejects(() => registration.handler(context({ peerId: "live" })), (caught: unknown) => {
+      assert.ok(caught instanceof Error);
+      assert.equal(caught.name, "ToolInputError");
+      assert.equal(caught.message, message);
+      return true;
+    });
+  }
+  for (const error of [new Error("unknown"), { code: "unknown" }]) {
+    f.deps.publishContentPeerRepo.findById = async () => { throw error; };
+    await assert.rejects(() => registration.handler(context({ peerId: "live" })), caught => caught === error);
+  }
+  assert.deepEqual(f.requests, []);
+});
+
+test("L163 default pull selection keeps the lone saved peer and refuses multiple connected peers", async () => {
+  const f = await fixture();
+  const registration = await tool(f.deps, ID);
+  const planned = await registration.handler(context({}));
+  assert.equal((planned as { peerLabel: string }).peerLabel, "Live site");
+  await f.peerRepo.update(peerRow("live", "Live site", true));
+  await f.peerRepo.insert(peerRow("other", "Other site", true));
+  await assert.rejects(() => registration.handler(context({})), { message: "Several destinations are saved. Choose a peerId: live (Live site), other (Other site)." });
+});
