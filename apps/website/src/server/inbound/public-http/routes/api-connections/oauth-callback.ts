@@ -55,6 +55,21 @@ function callbackUrl(req: Request): string {
   return `${resolvePublicOrigin(req)}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
 }
 
+/** The attempt's connection in this workspace, or null; the attempt itself is not consumed here. */
+async function routeAttempt(host: ApiConnectionHost, state: string) {
+  const attempt = await host.records.peekAttempt({ state });
+  if (!attempt || attempt.workspaceId !== host.workspaceId) return null;
+  const connection = (await host.listConnections({ pluginId: attempt.pluginId })).find((candidate) => candidate.descriptor.connectionId === attempt.connectionId);
+  return connection ? { attempt, connection } : null;
+}
+
+/** Codes are closed vocabularies; messages and causes may carry provider text and stay out of logs. */
+function safeErrorLabel(error: unknown): string {
+  if (!(error instanceof Error)) return "unknown";
+  const code = (error as { code?: unknown }).code;
+  return `${error.name} ${typeof code === "string" ? code : "unknown"}`;
+}
+
 /**
  * Mounts `GET {API_CONNECTION_OAUTH_CALLBACK_PATH}`.
  * @complexity O(1) per request plus one bounded token exchange and one contribution load.
@@ -68,16 +83,14 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
     const state = params.state ?? "";
     if (state === "" || state.length > MAX_STATE_LENGTH) return send(res, 400, "no_state");
     try {
-      const attempt = await deps.host.records.peekAttempt({ state });
-      const connection = attempt?.workspaceId === deps.host.workspaceId
-        ? (await deps.host.listConnections({ pluginId: attempt.pluginId })).find((candidate) => candidate.descriptor.connectionId === attempt.connectionId)
-        : undefined;
+      const routed = await routeAttempt(deps.host, state);
       // Unknown, used, foreign-workspace or no-longer-declared: the same answer for each.
-      if (!attempt || !connection) return send(res, 400, "state_expired");
+      if (!routed) return send(res, 400, "state_expired");
+      const { attempt, connection } = routed;
       await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params });
       return send(res, 200);
     } catch (error) {
-      log(`api-connection oauth callback failed: ${error instanceof ApiConnectionError ? error.code : error instanceof Error ? error.name : "unknown"}`);
+      log(`api-connection oauth callback failed: ${safeErrorLabel(error)}`);
       return send(res, 400, classify(error));
     }
   });

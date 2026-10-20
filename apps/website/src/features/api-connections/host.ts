@@ -50,13 +50,17 @@ function setupRefused(message: string): ApiConnectionError {
 }
 
 /** The runtime's OAuth client. Desktop is always public; hosted is confidential only with a secret. @complexity O(1). */
+function configured(env: ApiConnectionHostDeps["env"], name: string | undefined): string | undefined {
+  return name === undefined ? undefined : env[name]?.trim() || undefined;
+}
+
 function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): OAuthClient {
   const config: ApiConnectionClientConfig | undefined = runtime === "desktop" ? connection.clients.desktop : connection.clients.web;
-  const clientId = config ? env[config.clientIdEnv]?.trim() : undefined;
+  const clientId = configured(env, config?.clientIdEnv);
   if (!config || !clientId) {
     throw setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its sign-in client is not configured. Ask the operator to configure it, then retry.`);
   }
-  const clientSecret = runtime === "hosted" && config.clientSecretEnv ? env[config.clientSecretEnv]?.trim() : undefined;
+  const clientSecret = runtime === "hosted" ? configured(env, config.clientSecretEnv) : undefined;
   return clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" };
 }
 

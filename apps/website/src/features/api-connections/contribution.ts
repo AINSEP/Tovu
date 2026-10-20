@@ -62,40 +62,59 @@ function isOrigin(value: unknown): boolean {
   return typeof value === "string" && URL.canParse(value) && new URL(value).origin === value;
 }
 
+function isEnvName(value: unknown, suffix: "_ID" | "_SECRET"): value is string {
+  return typeof value === "string" && CLIENT_ENV_PATTERN.test(value) && value.endsWith(suffix);
+}
+
+function isOriginList(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.length <= MAX_ORIGINS && value.every(isOrigin);
+}
+
 /** One client config, or why it is invalid. @complexity O(o) origins. */
+// complexity-debt: four optional fields, each validated in place; splitting further only moves the branches.
 function parseClient(value: unknown, at: string): ApiConnectionClientConfig | string | undefined {
   if (value === undefined) return undefined;
   if (!isObject(value)) return `${at} must be an object`;
   const { clientIdEnv, clientSecretEnv, redirectOrigins } = value;
-  if (typeof clientIdEnv !== "string" || !CLIENT_ENV_PATTERN.test(clientIdEnv) || !clientIdEnv.endsWith("_ID")) return `${at}.clientIdEnv must name a TOVU_…_CLIENT_ID setting`;
-  if (clientSecretEnv !== undefined && (typeof clientSecretEnv !== "string" || !CLIENT_ENV_PATTERN.test(clientSecretEnv) || !clientSecretEnv.endsWith("_SECRET"))) {
-    return `${at}.clientSecretEnv must name a TOVU_…_CLIENT_SECRET setting`;
-  }
-  if (redirectOrigins !== undefined && (!Array.isArray(redirectOrigins) || redirectOrigins.length > MAX_ORIGINS || !redirectOrigins.every(isOrigin))) {
-    return `${at}.redirectOrigins must be a list of origins`;
-  }
+  if (!isEnvName(clientIdEnv, "_ID")) return `${at}.clientIdEnv must name a TOVU_…_CLIENT_ID setting`;
+  if (clientSecretEnv !== undefined && !isEnvName(clientSecretEnv, "_SECRET")) return `${at}.clientSecretEnv must name a TOVU_…_CLIENT_SECRET setting`;
+  if (redirectOrigins !== undefined && !isOriginList(redirectOrigins)) return `${at}.redirectOrigins must be a list of origins`;
   return { clientIdEnv, ...(clientSecretEnv === undefined ? {} : { clientSecretEnv }), ...(redirectOrigins === undefined ? {} : { redirectOrigins }) };
 }
 
+function idOrModuleProblem(id: unknown, module: unknown, at: string): string | undefined {
+  if (typeof id !== "string" || id.length > 64 || !ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  return undefined;
+}
+
 /** One declaration, or why it is invalid. The desktop client is public: it never takes a secret. @complexity O(1). */
+// complexity-debt: one guard per declaration field; the field list is the complexity.
 function parseDeclaration(entry: unknown, at: string): ApiConnectionDeclaration | string {
   if (!isObject(entry)) return `${at} must be an object`;
   const { id, module, clients, ...descriptor } = entry;
-  if (typeof id !== "string" || id.length > 64 || !ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
-  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  const invalid = idOrModuleProblem(id, module, at);
+  if (invalid) return invalid;
   if (!isObject(clients)) return `${at}.clients must be an object`;
   const web = parseClient(clients.web, `${at}.clients.web`);
   const desktop = parseClient(clients.desktop, `${at}.clients.desktop`);
   if (typeof web === "string") return web;
   if (typeof desktop === "string") return desktop;
   if (desktop?.clientSecretEnv !== undefined) return `${at}.clients.desktop must not declare a secret: an installed app cannot keep one`;
-  return { id, module, clients: { ...(web ? { web } : {}), ...(desktop ? { desktop } : {}) }, descriptor };
+  // idOrModuleProblem returned undefined, so both are checked strings.
+  return { id: id as string, module: module as string, clients: { ...(web ? { web } : {}), ...(desktop ? { desktop } : {}) }, descriptor };
+}
+
+const INVALID_JSON = Symbol("invalid-json");
+function parseJson(raw: string): unknown {
+  try { return JSON.parse(raw); } catch { return INVALID_JSON; }
 }
 
 /** Parses a plugin's {@link API_CONNECTIONS_FILENAME}. Pure; unknown keys go to the descriptor parser. @complexity O(c). */
+// complexity-debt: top-level shape checks plus the per-entry loop and duplicate check.
 export function parseApiConnectionsFile(required: { readonly raw: string }, _optional: Record<string, never> = {}): ParseResult {
-  let value: unknown;
-  try { value = JSON.parse(required.raw); } catch { return { ok: false, reason: "not valid JSON" }; }
+  const value = parseJson(required.raw);
+  if (value === INVALID_JSON) return { ok: false, reason: "not valid JSON" };
   if (!isObject(value) || value.schemaVersion !== 1) return { ok: false, reason: "schemaVersion must be 1" };
   if (!Array.isArray(value.connections) || value.connections.length > MAX_CONNECTIONS) return { ok: false, reason: `connections must be an array of at most ${MAX_CONNECTIONS}` };
   const descriptors: ApiConnectionDeclaration[] = [];

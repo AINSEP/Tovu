@@ -309,13 +309,7 @@ export async function runAgentPluginConnect(
   const oauthServerKeys = Object.entries(plugin.servers)
     .filter(([, config]) => isOAuthServer(config))
     .map(([serverKey]) => serverKey);
-  if (oauthServerKeys.length === 0) {
-    const declared = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
-    if (declared.length === 0) {
-      throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
-    }
-    return connectDeclaredApiConnection(routeDeps, surfaces, ctx, { pluginId, declared }, optional);
-  }
+  if (oauthServerKeys.length === 0) return connectDeclaredApiConnectionOrRefuse(routeDeps, surfaces, ctx, pluginId, optional);
   if (!routeDeps.externalMcpOAuth) {
     throw new Error("agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.");
   }
@@ -383,21 +377,24 @@ export async function runAgentPluginConnect(
 }
 
 /**
- * The API-connection branch: same card, same parked wait, same `{ status }`-only result as the MCP
+ * The API-connection branch (or the original "nothing to connect" refusal): same card, same parked wait, same `{ status }`-only result as the MCP
  * branch, over Jini's api-connections lifecycle instead of an external-MCP row. One declared
  * connection per call, for the same reason the MCP branch takes one pending server.
  * @throws {ToolInputError} More than one declared connection, or a sign-in refusal (safe message).
  * @throws {Error} No interactive channel to show the sign-in card on.
  * @complexity One sign-in round trip bounded by `waitTimeoutMs`.
  */
-async function connectDeclaredApiConnection(
+async function connectDeclaredApiConnectionOrRefuse(
   routeDeps: AgentPluginConnectToolDeps,
   surfaces: AssistantSurfaceDeps,
   ctx: ToolExecutionContext,
-  target: { readonly pluginId: string; readonly declared: readonly DeclaredApiConnection[] },
+  pluginId: string,
   optional: ToolExecutionOptions,
 ): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
-  const { pluginId, declared } = target;
+  const declared: readonly DeclaredApiConnection[] = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
+  if (declared.length === 0) {
+    throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
+  }
   if (declared.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
   }

@@ -1,0 +1,57 @@
+# API connections (Tovu adapters)
+
+## Purpose
+
+Lets an Agent Plugin declare "sign in to this service" for its own REST calls, and runs that sign-in
+through Jini's generic lifecycle (`@jini-ai/integrations/api-connections`: PKCE, attempts, grant
+checks, reconnect, switch, revoke, refresh). This folder is only the Tovu side: storage, plugin
+loading, runtime choice, the chat entry point, the public callback and the host capabilities. It
+names no provider.
+
+## Files
+
+| File | What it does |
+|---|---|
+| `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). |
+| `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
+| `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, and `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability). |
+| `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. |
+| `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort` (unwired until the forms fan-out, G14). |
+| `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, cookie-less, rate-limited, renders the shared fixed-copy callback page. |
+
+## The plugin side
+
+```json
+{ "schemaVersion": 1, "connections": [ {
+  "id": "account", "module": "lib/connection.mjs", "label": "Acme Office",
+  "authorizationEndpoint": "https://…", "tokenEndpoint": "https://…",
+  "authorizationParams": { "public": {}, "confidential": {} }, "startParams": [], "callbackFields": [],
+  "clients": {
+    "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET", "redirectOrigins": ["https://…"] },
+    "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }
+  } } ] }
+```
+
+`createHooks({ http })` returns Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`,
+`revoke`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`); the
+desktop client never takes a secret. A second provider needs only its own plugin files (see the
+`acme-office` test fixture).
+
+## Rules the host keeps
+
+- The callback is authenticated by the attempt its `state` names (single use, 10 minutes, bound to
+  workspace, actor, connection, scopes and exact callback URL) plus the provider's one-time code;
+  its page never echoes request or provider data; logs carry error codes only.
+- `getAccessToken` serves only refs of connections the calling plugin declares in this workspace;
+  every other ref gets the same refusal. Only access tokens leave; refresh tokens stay sealed.
+- Attempts (they hold the PKCE verifier) live sealed in the vault, never in the exportable ledger.
+
+## Wiring still owed (coordinator)
+
+1. Composition root: `createApiConnectionHost({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
+   vaultRepo: repo.vault, keyring, sealer, clock, oauthHttp: createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }),
+   pluginHttp, runtime, env: process.env, publicOrigin })` (deps.ts / app.ts next to `externalMcpOAuthHttpPorts`).
+2. `AgentPluginConnectToolDeps.apiConnections = { host }` where `agent_plugin_connect` is registered.
+3. Public HTTP: `registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter })` beside the external-MCP callback.
+4. G7: the tool capabilities port's `connections` = `host.accessTokensFor({ pluginId })`.
+5. G14: `createOAuthFormDeliveryConnectionPort({ hostFor, adapterPluginId })`.

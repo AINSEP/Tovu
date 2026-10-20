@@ -151,8 +151,18 @@ export function createApiConnectionVaultTokenStore(
   },
   _optional: Record<string, never> = {},
 ): ApiConnectionTokenStore {
-  return createVaultOAuthTokenStore({
+  const store = createVaultOAuthTokenStore({
     vault: required.vault, vaultScope: apiConnectionVaultScope({ workspaceId: required.owner.workspaceId }), owner: required.owner,
     readGeneration: createApiConnectionGenerationReader({ records: required.records }), clock: required.clock,
   });
+  return {
+    ...store,
+    // The vault store only writes under a lease (G2 host duty 3), but the service's sign-in install
+    // persists directly. Take the lease for that write; when this instance already holds it (the
+    // refresher's path) acquisition fails and the held lease authorizes the write as before.
+    async persist(args) {
+      if (!(await store.tryAcquireRefreshLease(args))) return store.persist(args);
+      try { await store.persist(args); } finally { await store.releaseRefreshLease(args); }
+    },
+  };
 }
