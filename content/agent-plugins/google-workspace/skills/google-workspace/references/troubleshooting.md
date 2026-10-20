@@ -22,6 +22,10 @@
 | `unexpected-response` | Google answered in a way Tovu does not understand. | Report it; do not retry in a loop. |
 | `product-disabled` | The product (Sheets) is turned off; products start off. | Ask the person to turn Sheets on in the Google Workspace panel, then retry. The sign-in is kept. |
 
+**"The file picker session ended"** (`picker-expired`) can also mean the same Choose spreadsheet or
+Form destinations panel was opened again in another tab or by another admin: only the most recently
+opened panel can save a pick. Close the other tabs, reopen the panel, and choose the spreadsheet again.
+
 **"Disconnected locally; Google revocation pending"** means Tovu stopped using the account but Google
 did not confirm removing access. Retry disconnect later, or remove Tovu at
 https://myaccount.google.com/connections.

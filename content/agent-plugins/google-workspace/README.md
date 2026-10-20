@@ -93,8 +93,13 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
   stays visible as text.
 - Quotas: the per-account (45/min) and per-instance (240/min) budgets declared in
   `tovu-connections.json` are implemented by the host and charged on every token read; there is no
-  plugin-side limiter. Form delivery is charged once per delivery until it reads a token per
-  request (G14b).
+  plugin-side limiter. Form delivery reads a token per Google request (`credential.getAccessToken`),
+  so it is charged per request like the tools.
+- Hosted Picker sessions are kept one per surface (`picker-session:<surfaceId>`), not per tab or
+  admin: opening the same panel in a second tab (or by a second admin) starts a new session and
+  the first tab's pick is refused as `picker-expired`. Documented in
+  `skills/google-workspace/references/troubleshooting.md`; not changed (a pick only needs one
+  open panel).
 
 ## Sheets admin tools (`tools/sheets-admin/`, lot G12)
 
