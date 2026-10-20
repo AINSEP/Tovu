@@ -63,7 +63,8 @@ Status: PHASE C starting (13:25Z) — phase B complete: B1, B1b, B5j (Jini) + B2
 | C2 | running (Jini oauth loopback + lifecycle/tools + admin-surfaces) | cloud/google-workspace-C2 | | |
 | C3 | running (Tovu api-connections + callback + composition + 0020) | cloud/google-workspace-C3 | | |
 | C4 | running (Tovu executable tools + surfaces server + admin UI) | cloud/google-workspace-C4 | | |
-| C5 | running (plugin: sheets.contract + full coverage) | cloud/google-workspace-C5 | | |
+| C5 | MERGED | cloud/google-workspace-C5 (816c024c8) | merged | tests 224→485 (sheets.contract 173 for 26 tools; form-delivery 33→59; surfaces.contract; ui-views; google-client; products-catalog). Coord coverage (lib + form-destinations, all 15 test files): every file 100/100/100 except http.mjs branch 98.53 (artifact: :143 closing brace of for(;;)). 81 RED (25 security). Prod: readCatalog exported for testability; unreachable sheetId ?? 0 label fallback removed (schema-required, pinned). Note: sheets_format frozen-rows request declared write though inventory rates updateSheetProperties destructive (G15). Subagent 365k tokens (OVER ceiling). |
+| C5b | running (plugin ui entry scripts under jsdom) | cloud/google-workspace-C5b | | |
 | G15–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
