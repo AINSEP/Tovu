@@ -87,3 +87,33 @@ test('without an injected host kit the preview receives the default traced kit',
   assert.equal(typeof previewInput.kit.fetch, 'function');
   assert.equal(typeof previewInput.kit.waitForReachableDeploymentUrl, 'function');
 });
+
+test('provider preview errors redact both declared secrets, including repeated values', async () => {
+  const primary = 'private-primary-value';
+  const secondary = 'private-secondary-value';
+  const f = setup();
+  const registry = await f.deps.loadDeployTargets();
+  const target = registry.get('fixture')!;
+  const multiSecret: DeployTargetRegistry = { ...registry, get: id => id === 'fixture' ? {
+    ...target,
+    descriptor: { ...target.descriptor, credential: { vendorId: 'fixture', tokenField: 'token', fields: [
+      { name: 'token', label: 'Token', required: true, secret: true },
+      { name: 'secondSecret', label: 'Secondary', required: true, secret: true },
+    ] } },
+    module: { ...target.module, preview: async ({ credential }) => {
+      assert.equal(credential.token, primary);
+      assert.equal(credential.secondSecret, secondary);
+      throw new Error(`Provider refused ${credential.token}; secondary ${credential.secondSecret}; retry ${credential.secondSecret}. Check permissions.`);
+    } },
+  } : undefined };
+  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }),
+    resolve: async () => ({ ok: true, token: primary, secondSecret: secondary }) };
+  await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, credentialSource, loadDeployTargets: async () => multiSecret },
+    input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }), error => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'Provider refused [REDACTED:exact_secret]; secondary [REDACTED:exact_secret]; retry [REDACTED:exact_secret]. Check permissions.');
+    assert.equal(error.message.includes(primary), false);
+    assert.equal(error.message.includes(secondary), false);
+    return true;
+  });
+});

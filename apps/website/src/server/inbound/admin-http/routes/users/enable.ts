@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
-import { enablePrincipal } from "@jini-ai/user-management/server";
+import { assertCallerHasAnyPermission, enablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
@@ -56,6 +56,11 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => 
       const caller = getAuthedPrincipal(res);
       const principalId = String(req.params.principalId ?? "");
 
+      // Trash membership is private too: use the identity owner's gate before looking it up.
+      const serviceDeps = identityServiceDepsFrom(deps);
+      await assertCallerHasAnyPermission({ deps: serviceDeps, workspaceId: deps.workspaceId,
+        callerPrincipalId: caller.id, permissions: ["user.manage"] });
+
       // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition:
       // re-activating a trashed principal would leave an ACTIVE user still indexed for purge.
       if (await deps.isInTrash(principalId)) {
@@ -63,7 +68,7 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => 
       }
 
       const { principal } = await enablePrincipal({
-        deps: identityServiceDepsFrom(deps),
+        deps: serviceDeps,
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,

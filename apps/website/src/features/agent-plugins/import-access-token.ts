@@ -174,7 +174,8 @@ async function importDeclaredEnvToken(input: EnvDeclaration & { readonly deps: I
     } else if (outcome === "saved-left-off") {
       log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection; it stays off because an operator turned it off (${AGENT_PLUGINS_SCREEN}). The env var is no longer needed.`);
     }
-  } catch (err) {
-    log.warn(`[agent-plugins] could not copy ${auth.importFromEnv} onto the '${pluginId}' plugin: ${err instanceof Error ? err.message : String(err)}`);
+  } catch {
+    // Importer/store failures can echo the token; keep all importer text out of boot logs.
+    log.warn(`[agent-plugins] could not copy ${auth.importFromEnv} onto the '${pluginId}' plugin. Check the site credential store and try again.`);
   }
 }

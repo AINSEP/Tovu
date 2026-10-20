@@ -18,9 +18,9 @@ function formToolAttributeRanges(
   return ranges;
 }
 
-/** Remove only actual HTML attribute ranges. Re-serializing trusted HTML would
- * change scripts, embeds, formatting and template content on every opt-out. */
-function withoutNativeFormTools(html: string): string {
+/** Collect only actual HTML attribute/script ranges, including nested templates.
+ * @complexity O(n + r log r) in document bytes and r removed ranges. */
+function nativeFormToolRanges({ html }: { html: string }, _options = {}): { startOffset: number; endOffset: number }[] {
   const document = parse(html, { sourceCodeLocationInfo: true });
   const stack: Node[] = [...document.childNodes];
   const ranges: { startOffset: number; endOffset: number }[] = [];
@@ -36,7 +36,26 @@ function withoutNativeFormTools(html: string): string {
     if (node.tagName === 'template') stack.push(...(node as DefaultTreeAdapterMap['template']).content.childNodes);
   }
   ranges.sort((a, b) => b.startOffset - a.startOffset);
-  for (const range of ranges) html = html.slice(0, range.startOffset) + html.slice(range.endOffset);
+  return ranges;
+}
+
+/** Remove only actual HTML attribute ranges. Re-serializing trusted HTML would
+ * change scripts, embeds, formatting and template content on every opt-out.
+ * Reparse after removal: parse5 hides duplicate attributes, which otherwise become live when
+ * the browser parses the edited bytes. Each pass removes at least one attribute or script.
+ * @complexity O(d × (n + r log r)) time, O(n) space, for d duplicate layers,
+ * n HTML bytes and r removed ranges per pass; preserves unrelated source bytes. */
+function withoutNativeFormTools({ html }: { html: string }, _options = {}): string {
+  for (let ranges = nativeFormToolRanges({ html }); ranges.length > 0; ranges = nativeFormToolRanges({ html })) {
+    const parts: string[] = [];
+    let end = html.length;
+    for (const range of ranges) {
+      parts.push(html.slice(range.endOffset, end));
+      end = range.startOffset;
+    }
+    parts.push(html.slice(0, end));
+    html = parts.reverse().join('');
+  }
   return html;
 }
 
@@ -45,7 +64,7 @@ export function injectPublishedWebMcp(
   { html, enabled }: { html: string; enabled: boolean },
   _optional: Record<string, never> = {},
 ): string {
-  if (!enabled) return withoutNativeFormTools(html);
+  if (!enabled) return withoutNativeFormTools({ html });
   if (html.includes(`<script ${SCRIPT_MARKER}`)) return html;
   const script = `<script ${SCRIPT_MARKER}>${createAnnotatedActionsScript({ preferenceKey: 'tovu.admin.webmcp.enabled', confirmationMessage: PUBLISHED_WEBMCP_CONFIRMATION.en, confirmationMessages: PUBLISHED_WEBMCP_CONFIRMATION })}</script>`;
   const bodyEnd = html.toLowerCase().lastIndexOf('</body>');

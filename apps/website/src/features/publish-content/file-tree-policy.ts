@@ -305,7 +305,7 @@ function treePathSegmentReason({ relPath, segments }: { relPath: string; segment
  * caller contract every other kind would have to satisfy for nothing.
  *
  * @returns A reason naming the first offending key, or `null` when every `env`/`headers` value (at
- *   any nesting under those two top-level keys) is empty or a `${...}` placeholder, or when the JSON
+ *   any nesting, including each server's own sections) is empty or a `${...}` placeholder, or when the JSON
  *   does not parse (a malformed `mcp.json` is a different tree's own problem, not this check's).
  * @complexity O(n) in the JSON text length.
  */
@@ -318,20 +318,38 @@ export function checkMcpJsonSecretPlaceholders(jsonText: string): string | null 
   }
   if (typeof parsed !== "object" || parsed === null) return null;
 
-  for (const section of ["env", "headers"] as const) {
-    const reason = mcpSectionReason({ section, value: (parsed as Record<string, unknown>)[section] });
+  return mcpConfigReason({ value: parsed, path: "" });
+}
+
+/** Find env/header sections in server declarations as well as the legacy root shape.
+ * @complexity O(n) JSON nodes; traversal uses O(depth) stack space. */
+function mcpConfigReason({ value, path }: { value: unknown; path: string }, _options = {}): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  for (const key of ["env", "headers"] as const) {
+    const section = path ? `${path}.${key}` : key;
+    const reason = mcpSectionReason({ section, value: record[key] });
+    if (reason) return reason;
+  }
+  for (const [key, entry] of Object.entries(record)) {
+    if (key === "env" || key === "headers") continue;
+    const reason = mcpConfigReason({ value: entry, path: path ? `${path}.${key}` : key });
     if (reason) return reason;
   }
   return null;
 }
 
-/** Checks string entries of one MCP section; nested objects retain legacy behavior. @complexity O(n). */
+/** Check every string leaf in an MCP section, including nested objects and arrays.
+ * @complexity O(n) section nodes; O(depth) stack space. */
 function mcpSectionReason({ section, value }: { section: string; value: unknown }, _options = {}): string | null {
+  if (typeof value === "string") {
+    return value.length === 0 || /^\$\{[^}]+\}$/.test(value) ? null
+      : `has a key written into mcp.json (${section}); move it to live's settings`;
+  }
   if (typeof value !== "object" || value === null) return null;
   for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry !== "string") continue;
-    if (entry.length === 0 || /^\$\{[^}]+\}$/.test(entry)) continue;
-    return `has a key written into mcp.json (${section}.${key}); move it to live's settings`;
+    const reason = mcpSectionReason({ section: `${section}.${key}`, value: entry });
+    if (reason) return reason;
   }
   return null;
 }
@@ -371,13 +389,10 @@ export interface FileTreeFileInput {
  * deny-list (via {@link checkTreePath}, kind-agnostic), then the content scan — matching §2's own
  * stated order. A tree fails as a WHOLE the instant any file fails any rule (this file's header).
  *
- * `textSample` contract: for a `theme-files` tree, a file with a text-like extension
- * ({@link TEXT_LIKE_SCAN_EXTENSIONS}) at or under {@link MAX_SECRET_SCAN_BYTES} is scanned when its
- * `textSample` is supplied, and is NOT scanned (silently skipped, not blocked) when `textSample` is
- * absent — every real caller in this codebase (`features/theme/publish-content.ts`'s `pack()`) always
- * reads and supplies the sample for every qualifying file, so this degrade path exists only for a
- * caller that has a real reason to skip it (e.g. a destination re-check that already trusts bytes it
- * is about to hash-verify some other way), never as this function's own default behavior.
+ * `textSample` contract: a file with a text-like extension ({@link TEXT_LIKE_SCAN_EXTENSIONS})
+ * at or under {@link MAX_SECRET_SCAN_BYTES} must carry its text for scanning. A missing sample
+ * blocks the tree: hash verification alone cannot establish that the bytes are free of secrets.
+ * The source walker and destination byte reader must both supply the qualifying file's sample.
  *
  * @returns One human-readable reason (naming the offending path) for the whole tree, or `null` when
  *   every file passes every check.
@@ -433,7 +448,8 @@ function treeFileReason({ file, spec, seenLowercase }: {
   return treeFileContentReason({ file, spec });
 }
 
-/** Applies the kind's allowlist before scanning supplied text. @complexity O(b) in sample length. */
+/** Applies the kind's allowlist, refusing missing scan input before checking text.
+ * @complexity O(b) in sample length. */
 function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: FileTreeKindSpec }, _options = {}): string | null {
   const ext = extensionOf(file.path);
   if (spec.allowedExtensions) {
@@ -442,7 +458,8 @@ function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: 
     }
   }
 
-  if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES && file.textSample !== undefined) {
+  if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES) {
+    if (file.textSample === undefined) return `"${file.path}" is missing the text required for its secret scan`;
     const hits = scanTextForSecrets(file.textSample);
     if (hits.length > 0) {
       return `"${file.path}" looks like it holds a key (${hits[0]!.patternName})`;

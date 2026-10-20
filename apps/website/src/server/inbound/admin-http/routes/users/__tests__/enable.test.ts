@@ -249,16 +249,23 @@ for (const { error, status, body } of [
   });
 }
 
-test("ENABLE_PRINCIPAL pin: Trash membership is exposed before permission checking (reported, not fixed)", async () => {
-  const { app, deps } = await buildApp({ isInTrash: async () => true }, "unauthorized-user");
-  await deps.principalRepo.save({
-    id: "unauthorized-user", workspaceId: WORKSPACE_ID, kind: "user", displayName: "No grants",
-    status: "active", createdAt: deps.clock.nowIso(),
+for (const trashed of [true, false]) {
+  test(`ENABLE_PRINCIPAL pin: denied permission hides Trash membership (${trashed})`, async () => {
+    let trashReads = 0;
+    const { app, deps } = await buildApp({ isInTrash: async () => { trashReads += 1; return trashed; } }, "unauthorized-user");
+    await deps.principalRepo.save({
+      id: "unauthorized-user", workspaceId: WORKSPACE_ID, kind: "user", displayName: "No grants",
+      status: "active", createdAt: deps.clock.nowIso(),
+    });
+    const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "unauthorized-user" };
+    await handler({ params: { workspaceId: WORKSPACE_ID, principalId: "target" } }, res);
+    assert.equal(capture.statusCode, 403);
+    assert.deepEqual(capture.jsonBody, {
+      error: "principal 'unauthorized-user' is not authorized for any of [user.manage]", code: "FORBIDDEN",
+      details: { permission: "user.manage", reason: "no_grant" },
+    });
+    assert.equal(trashReads, 0);
   });
-  const handler = extractRouteHandler(app, "post", ROUTE_PATH);
-  const { res, capture } = createCapturingResponse();
-  res.locals.principal = { id: "unauthorized-user" };
-  await handler({ params: { workspaceId: WORKSPACE_ID, principalId: "target" } }, res);
-  assert.equal(capture.statusCode, 409);
-  assert.deepEqual(capture.jsonBody, { error: "this user is in the Trash; restore them first", code: "USER_IN_TRASH" });
-});
+}

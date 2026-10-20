@@ -325,7 +325,8 @@ export async function runAgentPluginConnect(
   );
 
   // A colliding row can survive a refused provisioning attempt; never start sign-in on it.
-  const refusal = provisioned.failed[0] ?? provisioned.skipped[0];
+  const refusal = [...provisioned.failed, ...provisioned.skipped]
+    .find(result => oauthServerKeys.includes(result.serverKey));
   if (refusal) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
   }

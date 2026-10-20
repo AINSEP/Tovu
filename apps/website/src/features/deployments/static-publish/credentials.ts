@@ -1,3 +1,4 @@
+import { redactSecrets } from "@jini-ai/core";
 import type { UUID } from "@jini-ai/core/primitives";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
@@ -5,8 +6,24 @@ import { describeCredential, hasDefaultForPublish, resolveDefaultForPublish, res
 import type { PublishConnectionInput } from "../publish-credentials/types.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
-import type { DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
 import type { PublishCredentialSource, ResolvedPublishCredentialSuccess, StaticPublishTargetId } from "./types.js";
+
+/** Keep provider explanations useful without exposing any declared credential secret.
+ * Uses Jini's redactor for both publish and preview responses; does not mutate the credential.
+ * @complexity O(fields + message bytes × secrets), delegated to the shared redactor. */
+export function redactDeployTargetMessage({ message, credential, target }: {
+  message: string; credential: ResolvedPublishCredentialSuccess; target: LoadedDeployTarget;
+}, _options = {}): string {
+  // A plugin can echo secondary secrets as well as its primary token in an error.
+  const exactSecrets = [credential.token, ...(target.descriptor.credential?.fields ?? [])
+    .filter(field => field.secret)
+    .map(field => {
+      const value = credential[field.name];
+      return typeof value === "string" ? value : undefined;
+    })];
+  return redactSecrets({ input: message }, { exactSecrets });
+}
 
 /**
  * @file `PublishCredentialSource` implementations + composition — env-var (self-hosted operator

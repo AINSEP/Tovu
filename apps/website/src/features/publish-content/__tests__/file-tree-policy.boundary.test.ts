@@ -178,9 +178,9 @@ test("checkTreeFiles does not scan a binary-extension file even if its sample ma
   assert.equal(checkTreeFiles("theme-files", files), null);
 });
 
-test("checkTreeFiles skips the scan (does not block) when textSample is omitted", () => {
+test("checkTreeFiles blocks a qualifying file when textSample is omitted", () => {
   const files: FileTreeFileInput[] = [{ path: "theme.json", size: 50, mode: 0o644 }];
-  assert.equal(checkTreeFiles("theme-files", files), null);
+  assert.equal(checkTreeFiles("theme-files", files), '"theme.json" is missing the text required for its secret scan');
 });
 
 // (e) Every file-backed publish-content contributor uses this module (grep-style source check).

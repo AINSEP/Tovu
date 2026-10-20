@@ -1,4 +1,4 @@
-/** L044 characterization: preserve first-refusal order and the existing secret-scan gaps. */
+/** L044 characterization: preserve first-refusal order and enforce secret scans. */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { checkTreePath, checkTreeFiles, checkMcpJsonSecretPlaceholders, FILE_TREE_LIMITS, MAX_SECRET_SCAN_BYTES } from "../file-tree-policy.js";
@@ -38,13 +38,20 @@ test("L044 tree checks preserve aggregate caps, collision ordering, extension an
   assert.equal(checkTreeFiles("theme-files", [file]), null);
 });
 
-test("L044 MCP scan ignores nested literals and malformed JSON (reported, not fixed)", () => {
-  for (const value of ["{", "null", "3", '{"env":null}', '{"env":{"nested":{"key":"literal"}}}']) {
+test("L044 MCP scan checks nested literals while preserving malformed JSON handling", () => {
+  for (const value of ["{", "null", "3", '{"env":null}']) {
     assert.equal(checkMcpJsonSecretPlaceholders(value), null);
   }
   assert.equal(checkMcpJsonSecretPlaceholders('{"env":{"empty":"","placeholder":"${TOKEN}","number":1}}'), null);
   assert.match(checkMcpJsonSecretPlaceholders('{"env":{"first":"literal"},"headers":{"second":"literal"}}')!, /env.first/);
   assert.match(checkMcpJsonSecretPlaceholders('{"headers":{"second":"literal"}}')!, /headers.second/);
+  for (const section of ["env", "headers"]) {
+    const nested = { [section]: { nested: [{ key: "literal" }] } };
+    assert.match(checkMcpJsonSecretPlaceholders(JSON.stringify(nested))!, new RegExp(`${section}\\.nested\\.0\\.key`));
+    assert.match(checkMcpJsonSecretPlaceholders(JSON.stringify({ mcpServers: { helper: nested } }))!, /mcpServers.helper/);
+    const safe = { [section]: { nested: [{ key: "${TOKEN}", empty: "", number: 1 }] } };
+    assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify({ mcpServers: { helper: safe } })), null);
+  }
 });
 
 test("L044 SSH basenames require an exact name or a literal dot suffix", () => {
@@ -52,6 +59,12 @@ test("L044 SSH basenames require an exact name or a literal dot suffix", () => {
   for (const name of ["id_rsax", "id_ed25519x", "id_rsa\n", "id_ed25519\n"]) assert.equal(checkTreePath(name), null);
 });
 
-test("L044 absent text samples skip secret scanning (reported, not fixed)", () => {
-  assert.equal(checkTreeFiles("theme-files", [{ path: "secret.txt", size: 5, mode: 0o644 }]), null);
+test("L044 absent text samples block qualifying files instead of bypassing the secret scan", () => {
+  for (const kind of ["theme-files", "agent-plugin"] as const) {
+    const file = { path: "secret.txt", size: 5, mode: 0o644 };
+    assert.equal(checkTreeFiles(kind, [file]), '"secret.txt" is missing the text required for its secret scan');
+    assert.equal(checkTreeFiles(kind, [{ ...file, textSample: "safe" }]), null);
+    assert.equal(checkTreeFiles(kind, [{ ...file, size: MAX_SECRET_SCAN_BYTES + 1 }]), null);
+    assert.equal(checkTreeFiles(kind, [{ ...file, path: "safe.png" }]), null);
+  }
 });

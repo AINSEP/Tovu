@@ -4,7 +4,7 @@ import { createDeployHostKit } from '../deploy-targets/host-kit.js';
 import type { DeployTargetInspection } from '../deploy-targets/types.js';
 import type { FormDestinationForm } from '#src/features/form-destinations/types';
 import { planStaticPublish, type StaticPublishDeps } from './adapter.js';
-import { toDeployTargetCredential } from './credentials.js';
+import { redactDeployTargetMessage, toDeployTargetCredential } from './credentials.js';
 import type { StaticPublishConfig } from './types.js';
 
 export interface StaticPublishInspectionInput {
@@ -46,7 +46,7 @@ export async function inspectStaticPublish({ deps, input }: { deps: StaticPublis
       credentialBinding: createHash('sha256').update(JSON.stringify(credential)).digest('hex') };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Provider inspection failed. Check the connection and preview again.';
-    throw new ToolInputError({ message: message.replaceAll(resolved.token, '[REDACTED]') });
+    throw new ToolInputError({ message: redactDeployTargetMessage({ message, credential: resolved, target: plan.target }) });
   }
 }
 

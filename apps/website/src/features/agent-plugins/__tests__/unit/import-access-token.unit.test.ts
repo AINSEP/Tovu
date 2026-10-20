@@ -286,13 +286,26 @@ test("env import never throws: a failed save is a warning", async (t) => {
   assert.equal(logs.warn.length, 1);
   assert.match(logs.warn[0] ?? "", /could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin/);
   assert.deepEqual(logs.warn, [
-    "[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin: The credential could not be saved or unlocked. Check the site credential store.",
+    "[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again.",
   ]);
   assert.equal(JSON.stringify(logs).includes("secret store unavailable"), false, "raw sealer failures stay out of warnings");
   assert.equal(JSON.stringify(logs).includes(TOKEN), false, "warnings never contain the credential");
   assert.deepEqual(await readRow(), before);
   assert.deepEqual(connected, []);
   assert.deepEqual(logs.info, [], "a failed save must never claim a successful copy");
+});
+
+test("env import never logs importer text that echoes an opaque access token", async () => {
+  const { deps, logs, log, readRow } = await setup();
+  const before = await readRow();
+  const token = "opaque-import-fixture-value";
+  await importAgentPluginAccessTokensFromEnv({ ...deps,
+    resolveInstalledPlugin: async () => { throw new Error(`importer failure ${token}`); },
+  }, { [ENV_VAR]: token }, log);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
+  assert.equal(JSON.stringify(logs).includes(token), false);
+  assert.equal(JSON.stringify(logs).includes("importer failure"), false);
+  assert.deepEqual(await readRow(), before);
 });
 
 test("env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret", async () => {
@@ -378,7 +391,7 @@ test("env import never sends the token to a row pointed at a URL the bundled plu
   assert.equal(after?.sealedOAuth ?? null, row.sealedOAuth ?? null);
   assert.deepEqual(connected, []);
   assert.equal(logs.warn.length, 1);
-  assert.match(logs.warn[0] ?? "", /points at a different URL than the 'supabase' plugin declares/);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin. Check the site credential store and try again."]);
 });
 
 test("manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server", () => {

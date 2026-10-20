@@ -1,4 +1,3 @@
-import { redactSecrets } from "@jini-ai/core";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -39,7 +38,7 @@ import type { ExportReport } from "#src/features/site-export/index";
  */
 import { firstExportFailure, type ExportFailureSummary } from "#src/features/site-export/export-failure-summary";
 
-import { toDeployTargetCredential } from "./credentials.js";
+import { redactDeployTargetMessage, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 /**
@@ -549,14 +548,8 @@ function finishPublishOutcome({ outcome, credential, target }: {
 }, _options = {}): StaticPublishOutcome {
   // A plugin can include its credential in an error message. Keep the useful provider explanation
   // while removing every declared secret before this site-publish response reaches HTTP or a tool.
-  const exactSecrets = [credential.token, ...(target.descriptor.credential?.fields ?? [])
-    .filter(field => field.secret)
-    .map(field => {
-      const value = credential[field.name];
-      return typeof value === "string" ? value : undefined;
-    })];
   const safe = "message" in outcome
-    ? { ...outcome, message: redactSecrets({ input: outcome.message }, { exactSecrets, redactPii: false }) } : outcome;
+    ? { ...outcome, message: redactDeployTargetMessage({ message: outcome.message, credential, target }) } : outcome;
   // Bind history to the row opened for this run, never a later default lookup.
   return safe.ok && credential.credentialId !== undefined ? { ...safe, credentialId: credential.credentialId } : safe;
 }

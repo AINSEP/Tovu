@@ -225,6 +225,27 @@ test("agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is
   assert.equal(emissions.length, 0);
 });
 
+test("agent_plugin_connect: a skipped stdio helper does not block its OAuth server", async () => {
+  const store = makeStoreDeps();
+  const starts: string[] = [];
+  const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+  const emissions: SurfaceEmission[] = [];
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const deps = baseDeps(store, {
+    externalMcpOAuth: { ...oauth, beginConnect: async input => { starts.push(input.serverId); return oauth.beginConnect(input); } },
+    waitTimeoutMs: 0,
+    resolveInstalledPlugin: async () => ({ servers: {
+      helper: { type: "stdio", command: "node", args: ["helper.js"] }, widget: OAUTH_SERVER,
+    } }),
+  });
+  assert.deepEqual(await runAgentPluginConnect(deps, surfaces, fakeCtx(emissions), "widget-store"), { status: "waiting-for-sign-in" });
+  assert.deepEqual(starts, ["widget"]);
+  assert.equal(emissions.length, 1);
+  assert.equal(await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "helper" }), null);
+  assert.equal((await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))?.provisionedByPluginId, "widget-store");
+  assert.equal(surfaces.surfaceExchanges.size(), 0);
+});
+
 test("agent_plugin_connect: a device-code grant is refused rather than showing a link with no code", async () => {
   const store = makeStoreDeps();
   const emissions: SurfaceEmission[] = [];

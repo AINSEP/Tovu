@@ -21,7 +21,15 @@ test('opt-out keeps text, unmarked scripts and ordinary attributes on implicit o
   }
 });
 
-test('opt-out retains duplicate tool attributes ignored by the parser (reported, not fixed)', () => {
+test('opt-out removes duplicate tool attributes ignored by the first parse', () => {
   const html = '<form toolname=first toolname=second></form>';
-  assert.equal(injectPublishedWebMcp({ html, enabled: false }), '<form  toolname=second></form>');
+  assert.equal(injectPublishedWebMcp({ html, enabled: false }), '<form  ></form>');
+});
+
+test('opt-out removes repeated mixed-case attributes in templates without editing inert text', () => {
+  const html = '<!-- toolname=keep --><template><form TOOLNAME="first" toolname=second ToolName=third class="keep" tooldescription="a" TOOLDescription="b"><input toolparamtitle=a ToolParamTitle=b toolparamdescription=a TOOLPARAMDESCRIPTION=b toolautosubmit TOOlAutoSubmit></form></template><script>const value = "toolname=keep";</script>';
+  const expected = '<!-- toolname=keep --><template><form    class="keep"  ><input      ></form></template><script>const value = "toolname=keep";</script>';
+  const cleaned = injectPublishedWebMcp({ html, enabled: false });
+  assert.equal(cleaned, expected);
+  assert.equal(injectPublishedWebMcp({ html: cleaned, enabled: false }), expected);
 });
