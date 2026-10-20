@@ -1,0 +1,192 @@
+import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
+import type { JsonValue } from "@jini-ai/core/primitives";
+import { ensureSettingDefinitions, getEffective, SCOPE_BIT, ValueValidationFailedError, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort } from "@jini-ai/core/settings";
+
+import { set } from "./site-title-write.js";
+
+/**
+ * @file The two site settings behind durable form delivery, on the existing settings ledger:
+ * `core.forms/deliveryBindings` (which destinations receive each new submission) and
+ * `core.forms/autoPull` (whether the serving app pulls static-site submissions on its own).
+ *
+ * A binding names an adapter (a form destination id) and a connection by reference only. The
+ * secret behind `connectionRef` is resolved fresh on each delivery attempt and never copied into
+ * the setting or the delivery job, which is why `config` refuses anything shaped like a secret.
+ * Delivery copies what it sends: deleting a submission or a binding here later does NOT remove
+ * copies a destination already received.
+ *
+ * Validation lives in one pure function, {@link parseFormDeliveryBindings}, used both when the
+ * setting is read for planning and by {@link writeFormDeliveryBindings} before anything is saved,
+ * so a later admin or plugin UI gets the same rules without a route of its own.
+ */
+
+const NAMESPACE = "core.forms";
+const BINDINGS_KEY = "deliveryBindings";
+const AUTO_PULL_KEY = "autoPull";
+
+/** Caps that keep planning O(bindings × formIds) small and bounded per submission. */
+export const MAX_FORM_DELIVERY_BINDINGS = 100;
+export const MAX_FORM_DELIVERY_FORM_IDS = 1000;
+const MAX_REFERENCE_LENGTH = 256;
+
+const BINDING_FIELDS: ReadonlySet<string> = new Set(["bindingId", "adapterId", "connectionRef", "enabled", "formIds", "config"]);
+/** Matched against a config key lowercased with separators removed (`api_key`, `API-Key` → `apikey`). */
+const SECRET_KEY = /token|secret|password|apikey/;
+/** Values that are credentials whatever their key is called: an Authorization header value, a JWT,
+ *  a PEM private key. */
+const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./, /-----BEGIN [A-Z ]*PRIVATE KEY-----/];
+const FIX_HINT = "Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.";
+
+/**
+ * Registers both definitions without replacing an owner's stored values. Delivery bindings default
+ * to none; automatic pull defaults to ON (owner decision 2026-10-20).
+ * @complexity O(1), two definitions.
+ */
+export function ensureFormDeliverySettings(
+  required: { deps: EnsureSettingDefinitionsDeps; systemPrincipalId: string },
+  _optional: Record<string, never> = {},
+): Promise<void> {
+  return ensureSettingDefinitions(required.deps, { namespace: NAMESPACE, systemPrincipalId: required.systemPrincipalId, definitions: [
+    { key: BINDINGS_KEY, schema: { type: "json" }, defaultValue: [], scopes: SCOPE_BIT.workspace },
+    { key: AUTO_PULL_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: SCOPE_BIT.workspace },
+  ] });
+}
+
+/**
+ * Whether automatic pulls run for this site. Read fresh at every trigger; only an explicit
+ * `false` turns them off, so an unregistered definition keeps the ON default.
+ * @complexity One effective setting read.
+ */
+export async function readFormsAutoPull(
+  required: { settingsRepo: SettingsRepoPort; workspaceId: string },
+  _optional: Record<string, never> = {},
+): Promise<boolean> {
+  const found = await getEffective({ repo: required.settingsRepo }, { namespace: NAMESPACE, key: AUTO_PULL_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  return found?.value !== false;
+}
+
+/**
+ * The site's validated bindings, read fresh when a submission is planned.
+ * @throws ValueValidationFailedError when the stored value breaks a rule (the planning event then
+ *   retries, so a fixed setting takes effect without losing the submission).
+ * @complexity One effective read plus {@link parseFormDeliveryBindings}.
+ */
+export async function readFormDeliveryBindings(
+  required: { settingsRepo: SettingsRepoPort; workspaceId: string },
+  _optional: Record<string, never> = {},
+): Promise<FormDeliveryBinding[]> {
+  const found = await getEffective({ repo: required.settingsRepo }, { namespace: NAMESPACE, key: BINDINGS_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  return parseFormDeliveryBindings({ value: found?.value ?? [] });
+}
+
+/**
+ * Validates the bindings and saves the cleaned list through the host settings chokepoint, so an
+ * invalid or secret-carrying list never reaches the ledger.
+ * @throws ValueValidationFailedError for any rule {@link parseFormDeliveryBindings} enforces;
+ *   authorization and ledger errors from the settings write propagate.
+ * @complexity {@link parseFormDeliveryBindings} plus one settings write.
+ */
+export async function writeFormDeliveryBindings(
+  required: { deps: SetValueRequired["deps"]; workspaceId: string; callerPrincipalId: string; value: unknown },
+  _optional: Record<string, never> = {},
+): Promise<{ value: JsonValue; revisionSeq: number }> {
+  const bindings = parseFormDeliveryBindings({ value: required.value });
+  return set({ deps: required.deps, input: {
+    namespace: NAMESPACE, key: BINDINGS_KEY, scope: "workspace", workspaceId: required.workspaceId,
+    callerPrincipalId: required.callerPrincipalId, value: bindings as unknown as JsonValue,
+  } });
+}
+
+/**
+ * Pure validator: returns fresh, cleaned binding objects or throws naming the first rule broken.
+ * Rules: a list of at most {@link MAX_FORM_DELIVERY_BINDINGS}; each binding has only the known
+ * fields, non-empty bounded `bindingId`/`adapterId`/`connectionRef`, a boolean `enabled`, optional
+ * `formIds` (at most {@link MAX_FORM_DELIVERY_FORM_IDS}; absent = every form, `[]` = none), an
+ * object `config` with no secret-shaped key or value at any depth, and a `bindingId` no other
+ * binding uses (the job index is unique per submission and binding, so a duplicate would abort
+ * the whole delivery plan). Messages never repeat a config value.
+ * @throws ValueValidationFailedError
+ * @complexity O(bindings × (formIds + config size)).
+ */
+export function parseFormDeliveryBindings(required: { value: unknown }, _optional: Record<string, never> = {}): FormDeliveryBinding[] {
+  const { value } = required;
+  if (!Array.isArray(value)) throw invalid("must be a JSON list of bindings.");
+  if (value.length > MAX_FORM_DELIVERY_BINDINGS) throw invalid(`has ${value.length} bindings; at most ${MAX_FORM_DELIVERY_BINDINGS} are allowed. Remove some, then save again.`);
+  const seen = new Set<string>();
+  return value.map((entry: unknown, index) => {
+    const binding = parseBinding({ value: entry, where: `binding ${index + 1}` });
+    if (seen.has(binding.bindingId)) throw invalid(`binding ${index + 1} repeats bindingId ${quote(binding.bindingId)}; give every binding its own id.`);
+    seen.add(binding.bindingId);
+    return binding;
+  });
+}
+
+function parseBinding(required: { value: unknown; where: string }): FormDeliveryBinding {
+  const { value, where } = required;
+  if (!isPlainObject(value)) throw invalid(`${where} must be an object.`);
+  const unknown = Object.keys(value).find(key => !BINDING_FIELDS.has(key));
+  if (unknown !== undefined) throw invalid(`${where} has unknown field ${quote(unknown)}; allowed fields are ${[...BINDING_FIELDS].join(", ")}.`);
+  if (typeof value.enabled !== "boolean") throw invalid(`${where}: enabled must be true or false.`);
+  const formIds = parseFormIds({ value: value.formIds, where });
+  return {
+    bindingId: parseReference({ value: value.bindingId, where, field: "bindingId" }),
+    adapterId: parseReference({ value: value.adapterId, where, field: "adapterId" }),
+    connectionRef: parseReference({ value: value.connectionRef, where, field: "connectionRef" }),
+    enabled: value.enabled,
+    ...(formIds === undefined ? {} : { formIds }),
+    config: parseConfig({ value: value.config, where }),
+  };
+}
+
+function parseReference(required: { value: unknown; where: string; field: string }): string {
+  const { value, where, field } = required;
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_REFERENCE_LENGTH) {
+    throw invalid(`${where}: ${field} must be a non-empty string of at most ${MAX_REFERENCE_LENGTH} characters.`);
+  }
+  return value;
+}
+
+function parseFormIds(required: { value: unknown; where: string }): string[] | undefined {
+  const { value, where } = required;
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw invalid(`${where}: formIds must be a list of form ids (omit it for every form).`);
+  if (value.length > MAX_FORM_DELIVERY_FORM_IDS) throw invalid(`${where}: formIds has ${value.length} entries; at most ${MAX_FORM_DELIVERY_FORM_IDS} are allowed (omit formIds to mean every form).`);
+  return value.map((id: unknown) => parseReference({ value: id, where, field: "every formIds entry" }));
+}
+
+/** Walks the config iteratively (no recursion limit to hit) and returns a deep copy. */
+function parseConfig(required: { value: unknown; where: string }): Record<string, unknown> {
+  const { value, where } = required;
+  if (!isPlainObject(value)) throw invalid(`${where}: config must be an object (use {} when the destination needs none).`);
+  const pending: { path: string; value: unknown }[] = [{ path: "config", value }];
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    if (typeof next.value === "string") assertNotSecretValue({ path: next.path, value: next.value, where });
+    else if (next.value !== null && typeof next.value === "object") pending.push(...childrenOf({ path: next.path, value: next.value, where }));
+  }
+  return structuredClone(value);
+}
+
+function childrenOf(required: { path: string; value: object; where: string }): { path: string; value: unknown }[] {
+  return Object.entries(required.value).map(([key, child]) => {
+    const path = `${required.path}.${key}`;
+    if (SECRET_KEY.test(key.toLowerCase().replace(/[^a-z0-9]/g, ""))) throw invalid(`${required.where}: ${quote(path)} is named like a secret. ${FIX_HINT}`);
+    return { path, value: child };
+  });
+}
+
+function assertNotSecretValue(required: { path: string; value: string; where: string }): void {
+  if (SECRET_VALUES.some(pattern => pattern.test(required.value))) throw invalid(`${required.where}: ${quote(required.path)} holds a value that looks like a credential. ${FIX_HINT}`);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Names from the setting are echoed bounded and quoted, never config values. */
+function quote(text: string): string {
+  return JSON.stringify(text.length > 80 ? `${text.slice(0, 80)}…` : text);
+}
+
+function invalid(detail: string): ValueValidationFailedError {
+  return new ValueValidationFailedError(`Form delivery bindings (${NAMESPACE}.${BINDINGS_KEY}) ${detail}`);
+}
