@@ -273,7 +273,8 @@ test("form delivery: the credential allows only the connection's declared https 
   await connected(host);
   const connectionRef = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: "account" });
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => PLUGIN });
-  const { getAccessToken, ...credential } = (await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }))!;
+  const binding = { bindingId: "b1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: { accountId: ADA.id } };
+  const { getAccessToken, ...credential } = (await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }, { binding }))!;
   assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
   assert.equal(typeof getAccessToken, "function");
   const declaration = (apiOrigins: unknown) => JSON.stringify({ schemaVersion: 1, connections: [{ id: "account", module: "lib/connection.mjs", clients: {}, apiOrigins }] });
