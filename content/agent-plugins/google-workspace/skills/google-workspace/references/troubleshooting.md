@@ -17,6 +17,7 @@
 | `limit-exceeded` | The request or its answer is larger than the tool allows. Nothing was cut short. | Ask for a smaller range, fewer rows or fewer entries. |
 | `export-unavailable` | This site cannot save files from plugin tools, so a CSV export cannot be offered. Nothing was read. | Read the values in chat (`sheets_values_get`) instead. |
 | `unsupported-request` | A raw batch holds a request kind Tovu does not allow. Nothing was sent. | Remove it, or use a listed kind (see the Sheets reference). |
+| `picker-not-configured` | This site's operator has not set up Google's file picker, so an existing spreadsheet cannot be chosen here. | Ask the site operator, or create a new spreadsheet. |
 | `not-a-spreadsheet` / `invalid-selection` | The chosen file is not a Google Sheets spreadsheet, or the picker returned something unusable. | Choose a spreadsheet again with the picker. |
 | `unexpected-response` | Google answered in a way Tovu does not understand. | Report it; do not retry in a loop. |
 | `product-disabled` | The product (Sheets) is turned off; products start off. | Ask the person to turn Sheets on in the Google Workspace panel, then retry. The sign-in is kept. |

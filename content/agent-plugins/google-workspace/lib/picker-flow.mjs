@@ -16,9 +16,10 @@
  * only after the sign-in's state and code checked out. A cancel returns no selection and changes
  * nothing.
  *
- * Which path runs: the hosted JS Picker needs a browser key and app id; the desktop native Picker
- * does not use them. The surface port does not say which runtime the host is, so the Picker is
- * "hosted" exactly when both public config values are set, and "system browser" otherwise.
+ * Which path runs: the host says (`context.hostKind`), never the config. Desktop always uses the
+ * native Picker in the system browser; hosted uses the JS Picker, which needs a browser key and app
+ * id, so a hosted site without both is `unavailable` (`picker-not-configured`) rather than falling
+ * back to a flow built for the desktop app.
  */
 import { DESKTOP_PICKER_START_PARAMS, parsePickedFileIds, verifySelectedSpreadsheet } from './picker-selection.mjs';
 import { GoogleWorkspaceError } from './request-policy.mjs';
@@ -43,6 +44,9 @@ async function hostedPickerConfig(publicConfig) {
   const appId = await publicConfig.get({ name: PICKER_CONFIG_NAMES.appId });
   return developerKey && appId ? { developerKey, appId } : null;
 }
+
+/** The bootstrap for a Picker that cannot run here: the safe code and its fixed sentence. @complexity O(1). */
+const unavailable = (reason) => ({ mode: 'unavailable', reason, message: new GoogleWorkspaceError({ code: reason }).message });
 
 /** A stored session that is this surface's, unexpired, and the one the frame names. @complexity O(1). */
 function isLiveSession(session, sessionId, nowMs) {
@@ -84,9 +88,10 @@ export function createPickerFlow(_required = {}, optional = {}) {
      */
     async bootstrap({ capabilities, context }) {
       const reason = await sheetsUnavailableReason({ capabilities });
-      if (reason !== null) return { mode: 'unavailable', reason, message: new GoogleWorkspaceError({ code: reason }).message };
+      if (reason !== null) return unavailable(reason);
+      if (context.hostKind === 'desktop') return { mode: 'system-browser' };
       const config = await hostedPickerConfig(capabilities.publicConfig);
-      return config === null ? { mode: 'system-browser' } : openHostedSession(capabilities, context, config);
+      return config === null ? unavailable('picker-not-configured') : openHostedSession(capabilities, context, config);
     },
 
     /** Hosted: the frame's `{ sessionId, fileId }` → the verified spreadsheet, for the session's account only. */

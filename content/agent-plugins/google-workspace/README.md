@@ -72,11 +72,13 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
   over its plugin-state reader), nor read the Form destinations panel's saved choices into form
   bindings (`form-destinations` settings key; `bindingConfigFor` builds the binding config).
 - Panels (G13b) are built and unit-tested only; they need a Chrome check (hosted Picker inside the
-  sandboxed frame, desktop system-browser Picker). The surface port does not tell a handler whether
-  the host is hosted or desktop, so the hosted JS Picker is used exactly when both
-  `TOVU_GOOGLE_PICKER_BROWSER_KEY` and `TOVU_GOOGLE_PICKER_APP_ID` are set (placeholders, never
-  real values). The panels cannot open links (no `allow-popups`): the Google account-access page is
-  shown as text to copy.
+  sandboxed frame, desktop system-browser Picker, the account-page button). The host says whether it
+  is hosted or desktop (`context.hostKind`); a hosted site also needs both
+  `TOVU_GOOGLE_PICKER_BROWSER_KEY` and `TOVU_GOOGLE_PICKER_APP_ID` (placeholders, never real values)
+  or the Picker is `picker-not-configured`. The panels cannot open links themselves (no
+  `allow-popups`): the connection panel declares `linkOrigins: ["https://myaccount.google.com"]` and
+  asks the admin page to open the Google account-access page (`client.openLink`); the address also
+  stays visible as text.
 - Quotas: the per-account (45/min) and per-instance (240/min) budgets declared in
   `tovu-connections.json` are implemented by the host and charged on every token read; there is no
   plugin-side limiter. Form delivery is charged once per delivery until it reads a token per

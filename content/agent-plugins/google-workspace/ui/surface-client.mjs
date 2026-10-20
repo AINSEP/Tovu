@@ -1,4 +1,4 @@
-// Verbatim copy of @jini-ai/agent-plugins dist/admin-surfaces/surface-client.js (Jini 624e1380).
+// Verbatim copy of @jini-ai/agent-plugins dist/admin-surfaces/surface-client.js (Jini a4a354d8).
 // The surface is plain static files served without credentials, so it carries its own copy of the
 // self-contained protocol client instead of importing the package; refresh it when the protocol changes.
 /**
@@ -83,8 +83,8 @@ export function createAdminSurfaceClient(required, optional = {}) {
         else if (isMessage(event.data, 'action-response'))
             onResponse(event, event.data);
     });
-    /** Asks the host to run one declared action; resolves with its result. */
-    async function call(input) {
+    /** Posts one request of `kind` to the host origin and waits for its `action-response`. */
+    async function send(kind, fields) {
         if (init === undefined)
             await ready;
         const { mountId, origin } = init;
@@ -96,8 +96,17 @@ export function createAdminSurfaceClient(required, optional = {}) {
                 reject(new AdminSurfaceCallError({ code: 'timeout', message: 'The host did not answer in time. Try again.', retryable: true }));
             }, timeoutMs);
             pending.set(requestId, { resolve, reject, timer });
-            required.parent.postMessage({ protocol: PROTOCOL, version: VERSION, kind: 'action-request', mountId, requestId, action: input.action, payload: input.payload }, origin);
+            required.parent.postMessage({ protocol: PROTOCOL, version: VERSION, kind, mountId, requestId, ...fields }, origin);
         });
+    }
+    /** Asks the host to run one declared action; resolves with its result. */
+    function call(input) {
+        return send('action-request', { action: input.action, payload: input.payload });
+    }
+    /** Asks the host to open `url` outside the sandbox; only https links on the surface's declared
+     * `linkOrigins` open, and the host decides how (new tab, system browser). Rejects with the host's refusal. */
+    async function openLink(input) {
+        await send('open-link', { url: input.url });
     }
     /** The bootstrap `data` the host sent with init, or `undefined` once it has expired (or none was sent). */
     function bootstrap() {
@@ -116,5 +125,6 @@ export function createAdminSurfaceClient(required, optional = {}) {
             pending.delete(requestId);
         }
     }
-    return { ready, call, bootstrap, close };
+    return { ready, call, openLink, bootstrap, close };
 }
+

@@ -56,7 +56,8 @@ The panels cannot open links themselves: when a sign-in starts, the admin page s
   - If Google confirms, the saved sign-in is deleted.
   - If Google does not answer or refuses, Tovu shows **"Disconnected locally; Google revocation
     pending"**. Tovu no longer uses the account, keeps the switched-off sign-in only so it can retry,
-    and the person can remove Tovu at https://myaccount.google.com/connections. Never tell the person
+    and the person can remove Tovu at https://myaccount.google.com/connections (the panel's **Open
+    Google Account page** button opens it). Never tell the person
     revocation succeeded unless Tovu said "confirmed".
 
 ## Advanced: your own Google OAuth client

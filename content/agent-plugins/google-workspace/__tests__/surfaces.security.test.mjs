@@ -11,6 +11,7 @@ import { after, before, beforeEach, test } from 'node:test';
 
 import { readAdminSurfaceFile } from '@jini-ai/agent-plugins/admin-surfaces';
 
+import { GOOGLE_ACCOUNT_ACCESS_PAGE } from '../lib/auth.mjs';
 import { DESKTOP_PICKER_START_PARAMS } from '../lib/picker-selection.mjs';
 import { PICKED_SPREADSHEETS_KEY, PICKER_SESSION_TTL_MS } from '../lib/picker-flow.mjs';
 import { FORM_DESTINATIONS_KEY } from '../lib/form-destination-settings.mjs';
@@ -28,9 +29,10 @@ after(async () => { await fake.close(); });
 beforeEach(() => { fake.reset(); clock = Date.parse('2030-01-01T00:00:00Z'); });
 
 async function boot(options = {}) {
-  const ports = createHostPorts({ publicConfig: PICKER_CONFIG, ...options });
+  const { hostKind = 'hosted', ...portOptions } = options;
+  const ports = createHostPorts({ publicConfig: PICKER_CONFIG, ...portOptions });
   ports.state.set('products', { sheets: true });
-  const surfaces = await bootSurfaces({ fake, ports }, { now: () => clock, randomId: () => SESSION });
+  const surfaces = await bootSurfaces({ fake, ports }, { now: () => clock, randomId: () => SESSION, hostKind });
   return { ports, surfaces };
 }
 
@@ -50,6 +52,12 @@ test('CSP: only the hosted Picker surfaces add sources, exactly apis.google.com 
   assert.match(header, /connect-src 'none'/);
   assert.match(header, /script-src 'self' https:\/\/apis\.google\.com;/);
   assert.match(header, /frame-src https:\/\/docs\.google\.com;/);
+});
+
+test('declarations: only the connection panel may open a link, only to the Google Account page origin it shows', async () => {
+  const linkOrigins = Object.fromEntries((await surfaceDescriptors()).map((surface) => [surface.id, surface.linkOrigins ?? []]));
+  assert.deepEqual(linkOrigins, { connection: ['https://myaccount.google.com'], picker: [], 'form-destinations': [] });
+  assert.equal(new URL(GOOGLE_ACCOUNT_ACCESS_PAGE).origin, linkOrigins.connection[0]);
 });
 
 test('declarations: Picker surfaces declare exactly the desktop start params, the picked_file_ids field and the two public Picker names; the connection panel none', async () => {
@@ -91,9 +99,18 @@ test('bootstrap: Sheets turned off → unavailable (product-disabled), no access
   assert.equal(ports.calls.getAccessToken, 0);
 });
 
-test('bootstrap: without both public Picker values the system-browser Picker is used and no token is handed out', async () => {
+test('bootstrap: a hosted site without both public Picker values is unavailable (picker-not-configured) and hands out no token', async () => {
   const { ports, surfaces } = await boot({ publicConfig: { TOVU_GOOGLE_PICKER_BROWSER_KEY: 'browser-key-placeholder' } });
+  const bootstrap = await surfaces.bootstrap('picker');
+  assert.equal(bootstrap.mode, 'unavailable');
+  assert.equal(bootstrap.reason, 'picker-not-configured');
+  assert.equal(ports.calls.getAccessToken, 0);
+});
+
+test('bootstrap: the host kind decides the flow, not the config: a desktop host gets the system-browser Picker with both values set, and no token', async () => {
+  const { ports, surfaces } = await boot({ hostKind: 'desktop' });
   assert.deepEqual(await surfaces.bootstrap('picker'), { mode: 'system-browser' });
+  assert.deepEqual(await surfaces.bootstrap('form-destinations'), { mode: 'system-browser' });
   assert.equal(ports.calls.getAccessToken, 0);
 });
 
@@ -204,7 +221,7 @@ test('desktop: start is refused while Sheets is off (product-disabled), before a
 
 async function startDesktop() {
   serveGoogle(fake);
-  const booted = await boot({ publicConfig: {} });
+  const booted = await boot({ publicConfig: {}, hostKind: 'desktop' });
   await booted.surfaces.dispatch('picker', 'start-system-picker');
   return booted;
 }
