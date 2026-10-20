@@ -21,7 +21,7 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 | L033 | media | 34/22 | 16 | dispatched | | | |
 | L064 | plugin-runtime | 34/42 | 11 | part 1 merged (5/6); part 2 (tool-registrations.ts) running | install-archive 7/6, install-tool 5/4, tiptap-blocks 7/7, source-tools 4/3, declarative 7/9 | 100/100/100 (install-tool+source-tools funcs need assistant tool-registrations.contracts.test) | 63d0f665..f1d408c1 |
 | L068 | post | 24/18 | 17 | dispatched | | | |
-| L086 | webhooks | 34/25 | 6 | running | | | |
+| L086 | webhooks | 34/25 | 6 | queued (worktree ready, upstream set) | | | |
 | L095 | site-backup B | 19/18 | 15 | queued (after L003 merge) | | | |
 | L112 | publish-trust | 18/17 | 11 | queued | | | |
 | L115 | navigation | 21/17 | 8 | queued | | | |
