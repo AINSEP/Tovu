@@ -140,6 +140,89 @@ function refuse(reason: string): ChallengeVerification {
 }
 
 /**
+ * Names why an already-consumed nonce record cannot be answered at `nowIso` — expired, then issued
+ * for another destination — or `null`.
+ *
+ * @complexity O(1).
+ */
+function issuedRefusal({ issued, nowIso, targetInstallationId }: {
+  issued: PublishChallengeRecord;
+  nowIso: string;
+  targetInstallationId: string;
+}): string | null {
+  const now = Date.parse(nowIso);
+  if (Number.isNaN(now) || now >= Date.parse(issued.expiresAtIso)) return "nonce has expired";
+  if (issued.targetInstallationId !== targetInstallationId) return "nonce was issued for another destination";
+  return null;
+}
+
+/**
+ * Names why `grant` cannot back this response — inactive, then for another installation — or `null`.
+ *
+ * @complexity O(1).
+ */
+function grantRefusal({ grant, nowIso, response }: {
+  grant: PublishTrustGrant;
+  nowIso: string;
+  response: PublishChallengeResponse;
+}): string | null {
+  if (!isGrantActive(grant, nowIso)) return "the publishing grant has expired or been revoked";
+  if (response.sourceInstallationId !== grant.sourceInstallationId) {
+    return "the response names an installation this grant is not for";
+  }
+  return null;
+}
+
+/**
+ * Names why the requested capabilities are refused — none requested, or the FIRST one outside the
+ * grant — or `null`.
+ *
+ * @complexity O(n) in the requested capability count.
+ */
+function capabilityRefusal({ grant, capabilities }: {
+  grant: PublishTrustGrant;
+  capabilities: readonly string[];
+}): string | null {
+  if (!Array.isArray(capabilities) || capabilities.length === 0) return "no capabilities requested";
+  // Intersect, do not accept: a caller asking for something the grant does not hold is refused
+  // outright rather than quietly narrowed, so a widening attempt is visible in the log.
+  for (const capability of capabilities) {
+    if (!grantAllowsCapability(grant, capability)) return `'${String(capability)}' is outside this grant`;
+  }
+  return null;
+}
+
+/**
+ * Names why the signature is refused — no key for the claimed generation, no signature, or a
+ * signature that does not verify over {@link buildChallengeMessage} — or `null`.
+ *
+ * @complexity O(n) in the grant's key count plus one Ed25519 verification.
+ */
+function signatureRefusal({ grant, targetInstallationId, response }: {
+  grant: PublishTrustGrant;
+  targetInstallationId: string;
+  response: PublishChallengeResponse;
+}): string | null {
+  const key = grant.publicKeys.find((candidate) => candidate.generation === response.generation);
+  if (!key) return "no accepted public key for the claimed generation";
+
+  if (typeof response.signatureB64u !== "string" || response.signatureB64u === "") {
+    return "the response carries no signature";
+  }
+  const message = buildChallengeMessage({
+    nonce: response.nonce,
+    targetInstallationId,
+    sourceInstallationId: response.sourceInstallationId,
+    generation: response.generation,
+    capabilities: response.capabilities,
+  });
+  if (!verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: response.signatureB64u })) {
+    return "signature verification failed";
+  }
+  return null;
+}
+
+/**
  * Verifies a challenge response against a grant.
  *
  * ORDER MATTERS: the nonce is consumed FIRST, before any other check. A nonce spent on a failed
@@ -165,41 +248,14 @@ export async function verifyChallengeResponse(
   const issued = await deps.store.takeOnce(response.nonce);
   if (!issued) return refuse("nonce is unknown or was already used");
 
+  // One clock reading: the nonce's TTL and the grant's validity are judged at the same instant.
   const nowIso = deps.clock.nowIso();
-  const now = Date.parse(nowIso);
-  if (Number.isNaN(now) || now >= Date.parse(issued.expiresAtIso)) return refuse("nonce has expired");
-
-  if (issued.targetInstallationId !== input.targetInstallationId) return refuse("nonce was issued for another destination");
-  if (!isGrantActive(grant, nowIso)) return refuse("the publishing grant has expired or been revoked");
-  if (response.sourceInstallationId !== grant.sourceInstallationId) {
-    return refuse("the response names an installation this grant is not for");
-  }
-
-  if (!Array.isArray(response.capabilities) || response.capabilities.length === 0) {
-    return refuse("no capabilities requested");
-  }
-  // Intersect, do not accept: a caller asking for something the grant does not hold is refused
-  // outright rather than quietly narrowed, so a widening attempt is visible in the log.
-  for (const capability of response.capabilities) {
-    if (!grantAllowsCapability(grant, capability)) return refuse(`'${String(capability)}' is outside this grant`);
-  }
-
-  const key = grant.publicKeys.find((candidate) => candidate.generation === response.generation);
-  if (!key) return refuse("no accepted public key for the claimed generation");
-
-  if (typeof response.signatureB64u !== "string" || response.signatureB64u === "") {
-    return refuse("the response carries no signature");
-  }
-  const message = buildChallengeMessage({
-    nonce: response.nonce,
-    targetInstallationId: input.targetInstallationId,
-    sourceInstallationId: response.sourceInstallationId,
-    generation: response.generation,
-    capabilities: response.capabilities,
-  });
-  if (!verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: response.signatureB64u })) {
-    return refuse("signature verification failed");
-  }
+  const reason =
+    issuedRefusal({ issued, nowIso, targetInstallationId: input.targetInstallationId }) ??
+    grantRefusal({ grant, nowIso, response }) ??
+    capabilityRefusal({ grant, capabilities: response.capabilities }) ??
+    signatureRefusal({ grant, targetInstallationId: input.targetInstallationId, response });
+  if (reason !== null) return refuse(reason);
 
   return {
     ok: true,
