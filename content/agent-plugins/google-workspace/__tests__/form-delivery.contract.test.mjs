@@ -462,3 +462,9 @@ test('mapping: a null cell in the header row counts as blank, so the headers aro
   assert.deepEqual(layout.columns, [0, 2]);
   assert.deepEqual(layout.newHeaders, []);
 });
+
+test('mapping: a header row of only null cells is a fresh tab, so every header is written', () => {
+  const mapping = [{ header: '_tovu_submission_id', source: 'id' }, { header: 'Name', field: 'name' }];
+  const layout = planColumns({ mapping, headerRow: [null, null], markers: new Map() });
+  assert.deepEqual(layout.newHeaders, [{ index: 0, header: '_tovu_submission_id' }, { index: 1, header: 'Name' }]);
+});
