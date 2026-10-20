@@ -31,9 +31,9 @@ function credentialDeps(repo = new InMemoryCustomCredentialSetRepo()): CustomCre
     clock: createFakeClock({ startIso: "2026-10-20T00:00:00.000Z" }), idGen: { newId: () => `cred-${++n}` } };
 }
 
-function save(deps: CustomCredentialWriteDeps, required: { workspaceId?: string; label: string; secret: string }) {
+function save(deps: CustomCredentialWriteDeps, required: { workspaceId?: string; label: string; secret: string; worksFor?: string[] }) {
   return createCustomCredential(deps, { workspaceId: required.workspaceId ?? W, label: required.label, category: "general",
-    baseUrl: "https://rows.example.com", connection: { token: required.secret } });
+    baseUrl: "https://rows.example.com", additionalHosts: ["https://upload.rows.example.com"], worksFor: required.worksFor ?? ["rows"], connection: { token: required.secret } });
 }
 
 function job(connectionRef: string): FormDeliveryJob {
@@ -53,7 +53,69 @@ test("the connection port opens the vault entry whose stable id the binding name
   const deps = credentialDeps();
   const saved = await save(deps, { label: "Rows", secret: token("first") });
   const port = createCustomCredentialConnectionPort({ credentials: deps });
-  assert.deepEqual(await port({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), { token: token("first"), baseUrl: "https://rows.example.com" });
+  assert.deepEqual(await port({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }),
+    { token: token("first"), baseUrl: "https://rows.example.com", additionalHosts: ["https://upload.rows.example.com"] });
+});
+
+test("a credential whose worksFor does not name the binding's adapter is refused: authorization-required, adapter never called", async () => {
+  const deps = credentialDeps();
+  const saved = await save(deps, { label: "Rows", secret: token("scoped"), worksFor: ["other-destination"] });
+  const connections = createCustomCredentialConnectionPort({ credentials: deps });
+  assert.equal(await connections({ workspaceId: W, connectionRef: saved.id, adapterId: "rows" }), null);
+  let calls = 0;
+  const deliver = createFormDestinationDeliverer({ connections, kit, loadRegistry: async () => registryWith({ deliver: async () => { calls += 1; } }) });
+  await assert.rejects(deliver({ workspaceId: W, job: job(saved.id) }), (error: unknown) =>
+    error instanceof FormDeliveryError && error.message === "authorization-required" && error.retryable === false);
+  assert.equal(calls, 0);
+});
+
+/** A kit whose fetch records every URL that would have reached the network. */
+function recordingKit(): { kit: FormDestinationKit; sent: string[] } {
+  const sent: string[] = [];
+  const hostKit = { timeouts: { request: 1000 }, now: () => 42, probeContent: async () => assert.fail("not passed to adapters"),
+    fetch: async (url: string) => { sent.push(url); return new Response(null, { status: 204 }); } };
+  return { sent, kit: hostKit };
+}
+
+test("the adapter's kit carries only the members the destination kit names, never the host kit's other network helpers", async () => {
+  const { kit: hostKit } = recordingKit();
+  let seen: FormDestinationKit | undefined;
+  const deliver = createFormDestinationDeliverer({ kit: hostKit, connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com" }),
+    loadRegistry: async () => registryWith({ deliver: async ({ kit: adapterKit }) => { seen = adapterKit; } }) });
+  await deliver({ workspaceId: W, job: job("conn-1") });
+  assert.deepEqual(Object.keys(seen ?? {}).sort(), ["fetch", "now", "timeouts"]);
+  assert.equal(seen?.now?.(), 42);
+  assert.deepEqual(seen?.timeouts, { request: 1000 });
+});
+
+test("an adapter's fetch outside the credential's saved hosts is refused before any network call", async () => {
+  const { kit: guarded, sent } = recordingKit();
+  const refusals: unknown[] = [];
+  const deliver = createFormDestinationDeliverer({ kit: guarded,
+    connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com/api", additionalHosts: ["https://upload.rows.example.com"] }),
+    loadRegistry: async () => registryWith({ deliver: async ({ kit: adapterKit }) => {
+      for (const url of ["https://attacker.example.net/collect", "http://rows.example.com/api", `https://user:${"p".repeat(8)}@rows.example.com/api`]) {
+        await adapterKit.fetch(url, {}, { timeoutMs: 1000 }).catch((error: unknown) => { refusals.push(error); });
+      }
+    } }) });
+  await deliver({ workspaceId: W, job: job("conn-1") });
+  assert.deepEqual(sent, []);
+  assert.equal(refusals.length, 3);
+  for (const error of refusals) {
+    assert.ok(error instanceof FormDeliveryError && error.message === "configuration-invalid" && error.retryable === false, "a non-retryable configuration-invalid refusal");
+  }
+});
+
+test("an adapter's fetch to the credential's baseUrl origin or an additional host reaches the kit", async () => {
+  const { kit: guarded, sent } = recordingKit();
+  const deliver = createFormDestinationDeliverer({ kit: guarded,
+    connections: async () => ({ token: token("hosts"), baseUrl: "https://rows.example.com/api", additionalHosts: ["https://upload.rows.example.com"] }),
+    loadRegistry: async () => registryWith({ deliver: async ({ kit: adapterKit }) => {
+      await adapterKit.fetch("https://rows.example.com/other/path?q=1", {}, { timeoutMs: 1000 });
+      await adapterKit.fetch("https://upload.rows.example.com/files", {}, { timeoutMs: 1000 });
+    } }) });
+  await deliver({ workspaceId: W, job: job("conn-1") });
+  assert.deepEqual(sent, ["https://rows.example.com/other/path?q=1", "https://upload.rows.example.com/files"]);
 });
 
 test("a label swapped to another entry between the id read and the open yields no credential", async () => {

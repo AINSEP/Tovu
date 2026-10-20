@@ -63,8 +63,10 @@ export interface FormDestinationKit {
   readonly timeouts: unknown;
   now?(): number;
 }
-/** A destination's own vendor credential, opened from the vault by its exact label. */
-export interface FormDestinationCredential { readonly token: string; readonly baseUrl: string; readonly username?: string }
+/** A destination's own vendor credential, opened from the vault by its exact label. On the push
+ *  path, `baseUrl`'s origin plus `additionalHosts` are the only origins the attempt's `kit.fetch`
+ *  may reach (`./deliver.ts`). */
+export interface FormDestinationCredential { readonly token: string; readonly baseUrl: string; readonly username?: string; readonly additionalHosts?: readonly string[] }
 
 /** A destination module's default export. Every method is optional; `./registry.ts` checks the set
  *  the descriptor's receive mode needs. All args are `(required, optional)`; effects go through `kit`. */

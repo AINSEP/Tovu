@@ -203,7 +203,8 @@ export function fixtureToken(required: { name: string }): string {
   return `${required.name}-${"t".repeat(32)}`;
 }
 
-/** The contact form, the receiver's saved key, and one saved credential per push destination. */
+/** The contact form, the receiver's saved key, and one saved credential per push destination (each
+ * scoped by `worksFor` to its own adapter, as the connection port requires). */
 export async function seedSite(required: { deps: SiteDeps }): Promise<{ connectionA: string; connectionB: string }> {
   const { deps } = required;
   const at = "2026-10-20T08:00:00.000Z";
@@ -213,8 +214,8 @@ export async function seedSite(required: { deps: SiteDeps }): Promise<{ connecti
   const credentials = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen };
   await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: formDestinationKeyLabel({ scope: RECEIVER_SCOPE }), category: "hosting",
     baseUrl: RECEIVER_URL, connection: { token: fixtureToken({ name: "receiver" }) } });
-  const a = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: "Rows A", category: "general", baseUrl: "https://rows-a.example.test", connection: { token: fixtureToken({ name: "rows-a" }) } });
-  const b = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: "Rows B", category: "general", baseUrl: "https://rows-b.example.test", connection: { token: fixtureToken({ name: "rows-b" }) } });
+  const a = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: "Rows A", category: "general", baseUrl: "https://rows-a.example.test", worksFor: [PUSH_A], connection: { token: fixtureToken({ name: "rows-a" }) } });
+  const b = await createCustomCredential(credentials, { workspaceId: deps.workspaceId, label: "Rows B", category: "general", baseUrl: "https://rows-b.example.test", worksFor: [PUSH_B], connection: { token: fixtureToken({ name: "rows-b" }) } });
   return { connectionA: a.id, connectionB: b.id };
 }
 
