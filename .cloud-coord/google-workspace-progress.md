@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE B — Jini B1 merged + rebuilt (oauth/integrations/agent-plugins); Tovu G6d merged. Running: B2 (Tovu adapt to B1 + loopback cap + stale switch label), Tovu phase-B review (read-only). Next: B1b (Jini export trim/L4), Tovu B-fix lots, G13b (UI), phase C, G15, G16.
+Status: PHASE B — running: B1b (Jini shared token memory + trim), B3 (Tovu generic fixes), G13b (plugin panels + Picker UI). Next: B4 (BYO OAuth client via secure credential capture) after B3; Jini rebuild after B1b; then phase C (full tests), G15 review, G16 fixes, end-of-build suites. G14b blocked on forms-multidest completion.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -54,6 +54,8 @@ Status: PHASE B — Jini B1 merged + rebuilt (oauth/integrations/agent-plugins);
 | G1c | MERGED (Jini, not yet rebuilt into dist) | cloud/google-workspace-G1c (170bcb53) | merged | fence → tokens.loadForRevocation (generation-agnostic, owner-checked, hook-only) → revoke hook → delete only after success; failure = revocation-pending + disabled credential kept, disconnect again retries; staged slot revoked too; new start refused while switch staged (switch-in-progress); confirmed switch does NOT revoke old account's grant (previousAccountRevocation 'not-attempted'). Coord: 78/78, tsc no new errors, guard 26, cx ≤9. Tovu follow-up (G6d): flip plugin oauth.contract.test.mjs:266-267 pin to confirmed + /revoke called; plugin revoke hook must treat 'already revoked' as success. |
 | G14 | MERGED | cloud/google-workspace-G14 (19e4a99b9) | merged | sheets/mapping/dedupe/delivery-result; 24 contract pins, 28 RED; cx ≤8; plugin 156/156. Choices: product off → adapter-unavailable retryable (bounded by outbox 8 attempts); reconnect → authorization-required not retryable (no manual redeliver in forms-multidest → reconnect doesn't resume); adapter doesn't create tabs (config names sheetId). Findings: sheet editors can plant a submission id to suppress delivery (inherent, documented); no 1 MiB append check; OAuth port baseUrl '' → G6d. G14b owed. |
 | B1 | MERGED (Jini 1a541945; oauth rebuilt, integrations/agent-plugins NOT yet rebuilt — breaking for Tovu; rebuild after G6d) | cloud/google-workspace-B1 (b7629649) | 1a541945 | H1, M1–M7, L1–L3, L5–L12 fixed with pins; L4 + explicit-barrel export trim NOT done (→ B1b). Shape changes for Tovu (B2): start.state+attemptId, complete.attemptId; ref ops take {connectionRef, workspaceId}; no service.connectionRefFor/readGeneration (use deriveApiConnectionKey/createApiConnectionGenerationReader); switch result = status view; codes account-unchanged, offline-access-required; surface status.state→status, revocation confirmed|pending|not-needed, ADMIN_SURFACE_ACTION_INTENTS; capability sessions take required `issued`; oauth ./loopback-receiver subpath removed. Coord: oauth 314, integrations 947/948 → 105/105 api-connections after oauth rebuild, agent-plugins 618; tsc 0 new; guard 26; cx unchanged vs base (authorization-code begin 15 / complete 10 pre-existing). Subagent 333k tokens (over ceiling). |
+| B3 | running | cloud/google-workspace-B3 | | |
+| G13b | running | cloud/google-workspace-G13b | | |
 | G15–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
