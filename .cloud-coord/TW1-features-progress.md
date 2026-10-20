@@ -19,9 +19,9 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 | L003 | site-backup A | 86/72 | 21 | running (01:20) | | | |
 | L011 | theme | 67/92 | 17 | part 1 merged (3/7 files); part 2 running | webmcp-markup, markup, publish-content ≤10 | 100/100/100 on those 3 | f973d835, 6f470424 |
 | L033 | media | 34/22 | 16 | dispatched | | | |
-| L064 | plugin-runtime | 34/42 | 11 | dispatched | | | |
+| L064 | plugin-runtime | 34/42 | 11 | part 1 merged (5/6); part 2 (tool-registrations.ts) running | install-archive 7/6, install-tool 5/4, tiptap-blocks 7/7, source-tools 4/3, declarative 7/9 | 100/100/100 (install-tool+source-tools funcs need assistant tool-registrations.contracts.test) | 63d0f665..f1d408c1 |
 | L068 | post | 24/18 | 17 | dispatched | | | |
-| L086 | webhooks | 34/25 | 6 | queued | | | |
+| L086 | webhooks | 34/25 | 6 | running | | | |
 | L095 | site-backup B | 19/18 | 15 | queued (after L003 merge) | | | |
 | L112 | publish-trust | 18/17 | 11 | queued | | | |
 | L115 | navigation | 21/17 | 8 | queued | | | |
@@ -34,3 +34,4 @@ Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). St
 
 ## Next
 - Coordinator dispatched L003, L011, L033, L064, L068 in parallel at ~01:20 UTC (opus-high subagents, brief file + inline context/persona rules).
+- L064 part 1 verify: eslint 0; 146/146 (lot unit tests + assistant contracts + plugin-runtime tests touching these files); root+tests tsc 0. Read install-archive diff: removed `i < segments.length` guard is provably dead (duplicate-path refusal fires first). Three commit subjects carry estimated (not measured) numbers; measured values are in this table. Out of scope: Jini `PluginInstallError` takes no `cause` (PLUGIN_ARCHIVE_INVALID drops the original error).
