@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
 import {
   activationOutlook,
+  createdTokensNoteKey,
   readSnapshot,
   siteNameErrorKey,
   siteRegistration,
@@ -11,6 +12,7 @@ import {
   siteRowStateToneClass,
   siteWriteErrorKey,
   sitesInDisplayOrder,
+  tokensForCreate,
 } from "../rules";
 
 /**
@@ -190,9 +192,20 @@ describe("siteWriteErrorKey", () => {
     );
   });
 
-  it("defers to the shared fallback for any other failure", () => {
+  it("defers to the shared fallback for an unrecognised ApiError code", () => {
     expect(siteWriteErrorKey(new ApiError("boom", 500, "INTERNAL_ERROR"))).toBeNull();
+  });
+
+  it("defers to the shared fallback for an ApiError that carries no code", () => {
+    expect(siteWriteErrorKey(new ApiError("boom", 502))).toBeNull();
+  });
+
+  it("defers to the shared fallback for a failure that is not an ApiError", () => {
     expect(siteWriteErrorKey(new Error("network down"))).toBeNull();
+  });
+
+  it("defers to the shared fallback for a code that names an Object.prototype member", () => {
+    expect(siteWriteErrorKey(new ApiError("odd", 400, "toString"))).toBeNull();
   });
 });
 
@@ -225,5 +238,28 @@ describe("siteRegistration", () => {
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
     expect(siteRegistration(siteFixture(), snapshot)).toBe("registered");
+  });
+});
+
+describe("tokensForCreate", () => {
+  it("trims each typed token and drops the blank ones", () => {
+    expect(tokensForCreate({ github: "  ghp_x  ", notion: "   " })).toEqual({ github: "ghp_x" });
+  });
+
+  it("returns undefined when nothing was typed, so the create body is unchanged", () => {
+    expect(tokensForCreate({ github: "" })).toBeUndefined();
+  });
+});
+
+describe("createdTokensNoteKey", () => {
+  it.each([
+    ["saved", "will connect when this site first starts."],
+    ["failed", "couldn't be saved. Open the site and ask the assistant to connect it."],
+  ] as const)("explains a %s token outcome", (status, expected) => {
+    expect(createdTokensNoteKey(status)).toBe(expected);
+  });
+
+  it.each(["none", undefined] as const)("says nothing for a %s token outcome", (status) => {
+    expect(createdTokensNoteKey(status)).toBeNull();
   });
 });

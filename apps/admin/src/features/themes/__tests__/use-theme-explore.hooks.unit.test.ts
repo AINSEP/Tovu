@@ -2039,6 +2039,18 @@ describe("useThemeExplore — a failed re-read after a successful Delete, Copy o
     expect(result.current.copyingPath).toBeNull();
   });
 
+  it("Copy: a non-Error read failure is reported with the generic refresh message", async () => {
+    const { port, result } = await renderWithFailingReread();
+    port.getThemeDetail = () => Promise.reject("nope");
+
+    await act(async () => {
+      await result.current.copyFile("css/a.css");
+    });
+
+    expect(result.current.notice).toBe("Copied to css/a-1.css");
+    expect(result.current.error).toBe("failed to refresh file list");
+  });
+
   it("Rename: the notice says Renamed and the read failure is its own error", async () => {
     const { port, result } = await renderWithFailingReread();
     const renameSpy = vi.spyOn(port, "renameThemeFile");
@@ -3732,6 +3744,109 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
     expect(result.current.files[0]?.modified).toBe(false);
   });
 
+  it("two overlapping refreshes of the open file adopt its new text once", async () => {
+    const { port, state } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    let releaseRead: (() => void) | undefined;
+    const reads = vi.fn((_themeId: string, _path: string) =>
+      new Promise<{ content: string }>((resolve) => {
+        releaseRead = () => resolve({ content: state.live });
+      }));
+    port.getThemeFile = reads;
+    const detailReads = vi.spyOn(port, "getThemeDetail");
+    const nonceBefore = result.current.previewNonce;
+
+    state.live = "body{color:red}";
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(releaseRead).toBeDefined());
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(detailReads).toHaveBeenCalledTimes(2));
+    await settle();
+    await act(async () => {
+      releaseRead!();
+      await settle();
+    });
+
+    expect(result.current.source).toBe("body{color:red}");
+    expect(result.current.previewNonce).toBe(nonceBefore + 1);
+    expect(reads).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a refresh read that fails while its file is still open, keeping the text on screen", async () => {
+    const { port } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    port.getThemeFile = () => Promise.reject(new Error("read timed out"));
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.error).toBe("read timed out"));
+    expect(result.current.source).toBe(ORIGINAL);
+  });
+
+  it("reports the generic read failure when a refresh read rejects with a non-Error", async () => {
+    const { port } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    port.getThemeFile = () => Promise.reject("nope");
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.error).toBe("failed to read file"));
+  });
+
+  it("reports a failed read shared by two overlapping refreshes", async () => {
+    const { port } = agentWritablePort();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    let failRead: (() => void) | undefined;
+    port.getThemeFile = () =>
+      new Promise((_resolve, reject) => {
+        failRead = () => reject(new Error("read timed out"));
+      });
+    const detailReads = vi.spyOn(port, "getThemeDetail");
+
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(failRead).toBeDefined());
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(detailReads).toHaveBeenCalledTimes(2));
+    await settle();
+    await act(async () => {
+      failRead!();
+      await settle();
+    });
+
+    expect(result.current.error).toBe("read timed out");
+    expect(result.current.source).toBe(ORIGINAL);
+  });
+
+  it("a failed refresh for the previous theme settling after a theme switch reports nothing", async () => {
+    const { port } = agentWritablePort();
+    const { result, rerender } = renderHook(({ id }) => useThemeExplore(id, { port, t: (k) => k }), {
+      initialProps: { id: "basic" },
+    });
+    await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
+    const serverDetail = port.getThemeDetail;
+    let failOld: (() => void) | undefined;
+    port.getThemeDetail = (themeId) => themeId !== "basic"
+      ? serverDetail(themeId)
+      : new Promise((_resolve, reject) => {
+        failOld = () => reject(new Error("detail read failed"));
+      });
+
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(failOld).toBeDefined());
+    rerender({ id: "other" });
+    await waitFor(() => expect(result.current.sourceLoaded).toBe(true));
+    await act(async () => {
+      failOld!();
+      await settle();
+    });
+
+    expect(result.current.error).toBeNull();
+  });
+
   it("stops refreshing once unmounted", async () => {
     const { port } = agentWritablePort();
     const detailSpy = vi.spyOn(port, "getThemeDetail");
@@ -4215,6 +4330,62 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await act(async () => { releaseOld!(); });
     expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true);
     expect(result.current.selected).toBe("pages/about-1.html");
+  });
+
+  it("clears the selection, without touching the address bar, when an external writer removes every file", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    for (const path of [INDEX, ABOUT, STYLE]) await port.deleteThemeFile("basic", path);
+    const searchBefore = window.location.search;
+
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+
+    await waitFor(() => expect(result.current.files).toEqual([]));
+    expect(result.current.selected).toBeNull();
+    expect(result.current.source).toBe("");
+    expect(result.current.error).toBeNull();
+    expect(window.location.search).toBe(searchBefore);
+  });
+
+  it("does not re-read the open file's text on a refresh when its earlier read failed", async () => {
+    const port = fixture();
+    port.getThemeFile = () => Promise.reject(new Error("disk busy"));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.error).toBe("disk busy"));
+    expect(result.current.sourceLoaded).toBe(false);
+    const reads = vi.spyOn(port, "getThemeFile");
+    await port.copyThemeFile("basic", ABOUT);
+
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+
+    await waitFor(() => expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(reads).not.toHaveBeenCalled();
+    expect(result.current.selected).toBe(INDEX);
+  });
+
+  it("stays silent when a refresh read fails after the operator opened another file", async () => {
+    const port = fixture();
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: key => key }));
+    await waitFor(() => expect(result.current.source).toBe("Home"));
+    const serverRead = port.getThemeFile.bind(port);
+    let failRead: (() => void) | undefined;
+    port.getThemeFile = (themeId, path) => path === INDEX
+      ? new Promise((_resolve, reject) => { failRead = () => reject(new Error("read timed out")); })
+      : serverRead(themeId, path);
+
+    act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
+    await waitFor(() => expect(failRead).toBeDefined());
+    act(() => result.current.select(ABOUT));
+    await waitFor(() => expect(result.current.source).toBe("About"));
+    await act(async () => {
+      failRead!();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.selected).toBe(ABOUT);
   });
 
   it("unsubscribes from the theme feed on unmount", async () => {

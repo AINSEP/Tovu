@@ -13,6 +13,34 @@ export const LOCAL_SITE_CONFIRM_KEYS = {
   delete: "Permanently delete this site and all its data? This cannot be undone.",
   switch: "Switch now? Unsaved changes will be lost.",
 };
+type ConfirmableAction = keyof typeof LOCAL_SITE_CONFIRM_KEYS;
+
+/** Whether an action asks the operator first (Trash, permanent delete, Switch now). */
+function isConfirmable(action: AdminLocalSiteAction): action is ConfirmableAction {
+  return action in LOCAL_SITE_CONFIRM_KEYS;
+}
+
+/** Whether the snapshot's capabilities let `action` run at all: Switch now needs `canSwitchNow`,
+ *  every other action needs local management, and a permanent delete also needs its checkbox. */
+function localActionAllowed(
+  { action, canSwitchNow, enabled, deleteChecked }: { action: AdminLocalSiteAction; canSwitchNow: boolean; enabled: boolean; deleteChecked: boolean },
+): boolean {
+  if (action === "switch" ? !canSwitchNow : !enabled) return false;
+  return action !== "delete" || deleteChecked;
+}
+
+/** Whether the host accepted Switch now and is restarting, rather than only saving the default. */
+function restartAccepted(result: unknown): boolean {
+  return (result as { restarting?: boolean } | undefined)?.restarting === true;
+}
+
+/** The operator-facing message for a failed lifecycle write: this feature's own copy for its codes,
+ *  otherwise the shared `describeApiError` fallback. */
+function localActionErrorMessage(failure: unknown, t: Translate): string {
+  const key = siteWriteErrorKey(failure);
+  if (key) return t(key);
+  return describeApiError(failure instanceof Error ? failure : new Error("Request failed"), t("That request failed."));
+}
 
 /** DI confirms allow cancellation and double-click tests without mocking browser modules.
  * Restart refreshes use the live binding, stop after 60 seconds, and release on unmount.
@@ -22,7 +50,7 @@ export function useLocalSites(
   { port, snapshot, t }: { port: SitesPort; snapshot: AdminSitesSnapshot | undefined; t: Translate },
   { confirm = nativeConfirm, visibility = document, timers }: {
     /** Receives the translated message plus the action, so a modal can title and tone itself. */
-    confirm?: (message: string, context: { action: keyof typeof LOCAL_SITE_CONFIRM_KEYS }) => boolean | Promise<boolean>;
+    confirm?: (message: string, context: { action: ConfirmableAction }) => boolean | Promise<boolean>;
     /** Visibility and timer ports keep lifecycle polling testable without replacing modules. */
     visibility?: VisibilitySource;
     timers?: IntervalTimers;
@@ -35,6 +63,7 @@ export function useLocalSites(
   const [switchTarget, setSwitchTarget] = useState<{ name: string; deadline: number } | null>(null);
   const busy = useRef(false);
   const enabled = snapshot?.localManagementEnabled === true;
+  const canSwitchNow = snapshot?.canSwitchNow === true;
   const activeSiteName = snapshot?.currentSite.name;
   const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
   const starting = enabled && snapshot?.localSites?.some((site) => site.status === "starting") === true;
@@ -54,29 +83,20 @@ export function useLocalSites(
   }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
   const run = useCallback(async (name: string, action: AdminLocalSiteAction) => {
     if (busy.current || !port.manageLocalSite) return;
-    if (action === "switch" ? snapshot?.canSwitchNow !== true : !enabled) return;
-    if (action === "delete" && checked[name] !== true) return;
+    if (!localActionAllowed({ action, canSwitchNow, enabled, deleteChecked: checked[name] === true })) return;
     busy.current = true;
     setBusyName(name); setError(null);
     try {
-      const confirmable = action as keyof typeof LOCAL_SITE_CONFIRM_KEYS;
-      const key = LOCAL_SITE_CONFIRM_KEYS[confirmable];
-      if (key && !(await confirm(t(key), { action: confirmable }))) return;
+      if (isConfirmable(action) && !(await confirm(t(LOCAL_SITE_CONFIRM_KEYS[action]), { action }))) return;
       const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
-      if (action === "switch") {
-        if ((result as { restarting?: boolean })?.restarting === true) {
-          setSwitchTarget({ name, deadline: Date.now() + 60_000 });
-        } else {
-          setError(t("This host could not switch now. The default is saved for the next launch."));
-        }
-      }
+      if (action === "switch" && restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
+      else if (action === "switch") setError(t("This host could not switch now. The default is saved for the next launch."));
       refresh();
     } catch (failure) {
-      const key = siteWriteErrorKey(failure);
-      setError(key ? t(key) : describeApiError(failure instanceof Error ? failure : new Error("Request failed"), t("That request failed.")));
+      setError(localActionErrorMessage(failure, t));
     }
     finally { busy.current = false; setBusyName(null); }
-  }, [port, snapshot, enabled, checked, confirm, t, refresh]);
+  }, [port, canSwitchNow, enabled, checked, confirm, t, refresh]);
   const toggleChecked = useCallback((id: string, value: boolean) => setChecked((current) => ({ ...current, [id]: value })), []);
   return { busyName, error, checked, toggleChecked, run };
 }

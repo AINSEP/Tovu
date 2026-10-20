@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
-import type { AdminMedia } from "../../lib/api";
-import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";
-import { MediaContentEditor } from "../WidgetConfigFields/MediaContentEditor";
-import { useMediaContentEditor } from "../WidgetConfigFields/MediaContentEditor.hooks";
-import { useHtmlAttributeRows } from "../WidgetConfigFields/HtmlAttributeRows.hooks";
-import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields/WidgetConfigFields";
+import type { AdminMedia } from "../../../lib/api";
+import type { MediaPickerPort } from "../../MediaPickerDialog/media-picker-port.hooks";
+import { MediaContentEditor } from "../MediaContentEditor";
+import { useMediaContentEditor } from "../MediaContentEditor.hooks";
+import { useHtmlAttributeRows } from "../HtmlAttributeRows.hooks";
+import { WIDGET_TYPE_OPTIONS, WidgetConfigFields, defaultWidgetConfig } from "../WidgetConfigFields";
 
 /**
  * @file `MediaContentEditor` behaviour against an in-memory media library port (no module mocks):

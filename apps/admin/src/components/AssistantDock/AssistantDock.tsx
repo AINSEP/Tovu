@@ -1,8 +1,8 @@
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
-import { SubagentsIndicator } from "./SubagentsIndicator";
-import { DockHeaderTip } from "./DockHeaderTip";
-import { DockSettingsMenu } from "./DockSettingsMenu";
+import { DockHeader } from "./DockHeader";
+import { DockLeadingAccessory } from "./DockLeadingAccessory";
+import { optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
@@ -10,7 +10,6 @@ import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.a
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
-import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
@@ -24,8 +23,6 @@ import {
   ChatPane,
   ChatSettingsDialog,
   useChatSettingsDialog,
-  ConversationList,
-  ConversationTitle,
   JiniChatProvider,
   createMidRunMessagePoster,
   type FrontendSessionBridge,
@@ -34,9 +31,6 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
 import { FailureSurfaceContext, useAgentFailureSurface } from "./AgentFailureCard.hooks";
-import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
-import { FolderDropNotice } from "./FolderDropNotice";
-import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
 import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
 import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
@@ -265,21 +259,18 @@ export interface AssistantDockProps {
 
 /**
  * `agentBridge` is the one prop above not hook-shaped — a plain caller-supplied value, never a
- * resolve-then-call-a-hook seam — so it keeps its own tiny resolver here rather than moving to
- * `AssistantDock.hooks.tsx`'s seam layer. The other eight props' resolve-or-default logic lives in
+ * resolve-then-call-a-hook seam — so it keeps its own default here (`agentBridge = null` below;
+ * until 2026-10-20 a one-line `resolveAgentBridge(override) { return override ?? null; }` resolver)
+ * rather than moving to `AssistantDock.hooks.tsx`'s seam layer. The other eight props' resolve-or-default logic lives in
  * that seam layer instead (`useChatsSeam`, `useExecutionConfigSeam`, `useByokRuntimeSeam`,
  * `useLocalCliSelectionSeam`, `useComposerCapabilitiesSeam`, `useAssistantTransportSeam`,
  * `useAttachmentUploaderSeam`, `useRuntimeAccessSeam` — see that file's own "Seam layer" doc for why
- * and for the ESLint cyclomatic-complexity reasoning this resolver still relies on: a `??` inside a
+ * and for the ESLint cyclomatic-complexity reasoning the old resolver relied on: a `??` inside a
  * separately-scoped function does not count against `AssistantDock`'s own body, unlike the inline
- * `{ useClamp = useSeeMoreClamp }` idiom a single-seam component can afford.
- */
-function resolveAgentBridge(override: FrontendSessionBridge | null | undefined): FrontendSessionBridge | null {
-  return override ?? null;
-}
-
-/**
- * @complexity 6 cyclomatic / 2 cognitive (measured; ESLint's `complexity`/`sonarjs/cognitive-complexity`
+ * `{ useClamp = useSeeMoreClamp }` idiom a single-seam component can afford. The resolver went once
+ * the header and leading-accessory JSX moved out (below) and left the body room for the inline idiom.
+ *
+ * Complexity history: 6 cyclomatic / 2 cognitive (measured; ESLint's `complexity`/`sonarjs/cognitive-complexity`
  * rules, `npx eslint apps/admin/src/components/AssistantDock/AssistantDock.tsx` with both ceilings
  * temporarily set to 1 to read the exact counts). Was 5/2 after the 2026-08-14 resolver-idiom pass
  * (11/2 before it — see the resolver group's own doc comment) until the `chat.get_state`-hang fix
@@ -287,15 +278,18 @@ function resolveAgentBridge(override: FrontendSessionBridge | null | undefined):
  * agentBridge?.bridgeAccess }}>`. Still clears the ≤9/≤9 bar outright; no `admin-complexity-debt.json`
  * entry needed.
  *
- * The 6 is: base 1, plus 4 flat, sibling `?:`/`?.`/`??` expressions in the JSX below —
+ * The 6 was: base 1, plus 4 flat, sibling `?:`/`?.`/`??` expressions in the JSX below —
  * `executionMode={... ? "api" : "local"}`, the conditional `conversationId` spread, the
  * active-conversation-title `?.title ?? "Tovu assistant"` fallback (1 for the ternary, 1 for the
  * spread's own ternary, 1 for `?.` + 1 for `??` on the title fallback), and `agentControl`'s
  * `agentBridge?.bridgeAccess` — none of which wrap another, which is why cognitive stays at 2.
+ * Later header, empty-state, auth-warning and skill-tray conditionals grew it past the ≤10 bar;
+ * 2026-10-20 moved them into `DockHeader`, `DockLeadingAccessory` and `assistant-dock-props.tsx`'s
+ * pure builders, which own those branches (and their tests) now.
  */
 /**
  * Destructured rather than read as `props.x` throughout the body — every seam below is passed
- * straight to its matching `useXSeam` (or, for `agentBridge`, to {@link resolveAgentBridge}), so
+ * straight to its matching `useXSeam` (or, for `agentBridge`, defaulted to `null` in place), so
  * there is nothing left to gain from keeping a `props` object around. Renamed to `...Override`
  * where the prop name would otherwise collide with the imported real hook it defaults to (same
  * "rename the local binding, not the prop" rule `INFO.md`'s Components section states) — `useChats`
@@ -303,7 +297,7 @@ function resolveAgentBridge(override: FrontendSessionBridge | null | undefined):
  */
 export function AssistantDock({
   ChatPane: ChatPaneView = ChatPane,
-  agentBridge: agentBridgeProp,
+  agentBridge = null,
   useChats,
   principalId,
   useAdminLocale,
@@ -322,7 +316,6 @@ export function AssistantDock({
 }: AssistantDockProps) {
   const renderers = useDockRendererRegistry();
   const { mcpUiToolCaller } = renderers;
-  const agentBridge = resolveAgentBridge(agentBridgeProp);
   const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
   // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
@@ -430,8 +423,10 @@ export function AssistantDock({
   });
   // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
   const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t("Tovu assistant") });
+  // One policy-gated selection handler for both the failure card and the picker.
+  const handleSelectionChange = executionPolicy.selectionChange(handleLocalCliSelectionChange);
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
-    onSelectionChange: executionPolicy.selectionChange(handleLocalCliSelectionChange), onExecutionModeChange: handleExecutionModeChange }, {});
+    onSelectionChange: handleSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
   const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });
 
@@ -452,18 +447,17 @@ export function AssistantDock({
         deliverMidRunMessage={midRunMessagePoster}
         onSecretRedacted={onAdminSecretRedacted}
         runtimeAccess={failureSurface.runtimeAccess}
-        {...(agentsPlaceholder ? { agents: agentsPlaceholder } : {})}
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
         // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from
         // the ledger's async load. `useLocalCliSelection` starts at the same `{agentId: "claude"}`
         // this literal used to hardcode, then follows saved changes after the ledger settles.
         selection={localCliSelection}
-        onSelectionChange={executionPolicy.selectionChange(handleLocalCliSelectionChange)}
-        {...(chats.activeId ? { conversationId: chats.activeId } : {})}
+        onSelectionChange={handleSelectionChange}
         initialMessages={failureSurface.initialMessages}
-        {...(refreshSignal ? { refreshSignal } : {})}
-        // Recent prompt recall is local to this signed-in admin, including in a new chat.
-        {...(principalId ? { composerHistoryScope: principalId } : {})}
+        // `agents`, `conversationId`, `refreshSignal` and `composerHistoryScope` are passed only
+        // when they hold a value — see `optionalChatPaneProps`. Recent prompt recall
+        // (`composerHistoryScope`) is local to this signed-in admin, including in a new chat.
+        {...optionalChatPaneProps({ agents: agentsPlaceholder, conversationId: chats.activeId, refreshSignal, composerHistoryScope: principalId })}
         // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously
         // hardcoded to `executionMode: 'local'` / `apiModeAvailable: false` (never passed at all),
         // which made "API · BYOK" permanently disabled with a "not configured" label that was
@@ -504,66 +498,9 @@ export function AssistantDock({
          * the title where a history control is looked for.
          */
         header={
-          <>
-            <div className="jini-chat-pane__header">
-              <div className="jini-chat-pane__heading">
-                {/* The "Workspace chat" eyebrow was removed (owner, 2026-10-06): title, switcher and
-                    close now share one row so the transcript gets that height back. */}
-                {/* Was an `<h1>` — the dock mounts on every route (ADR-049, one conversation for
-                    the whole session), so every admin screen had two `<h1>`s: its own page title
-                    and this one, with no signal to a screen-reader user navigating by heading which
-                    was the real page title. `<h2>` inside this `aria-label="Assistant"` complementary
-                    region (see `App.tsx`'s `<aside>`) reads correctly as a subsection heading
-                    instead of competing with the page's own `<h1>`. Class names, not the element
-                    type, drive this component's styling (`styles/assistant.css`), so the tag change
-                    is visually inert. */}
-                <h2 className="jini-chat-pane__title" title={activeTitle} aria-label={activeTitle}>
-                  <ConversationTitle
-                    key={chats.activeId ?? 'new'}
-                    title={chats.conversations.find((chat) => chat.id === chats.activeId)?.title ?? null}
-                    displayTitle={activeTitle}
-                    disabled={!chats.activeId}
-                    onRename={(title) => chats.activeId ? chats.rename(chats.activeId, title) : undefined}
-                  />
-                </h2>
-              </div>
-              {/* Beside the conversation switcher, not under the title (owner, 2026-10-10). */}
-              <SubagentsIndicator mode={executionConfig.mode} agentId={localCliSelection.agentId}
-                t={(key) => translateAiAssistant({ locale, key })} />
-              {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
-              <DockHeaderTip label={t("Chats")}>
-                <ConversationList
-                  conversations={chats.conversations}
-                  activeConversationId={chats.activeId}
-                  onSelect={chats.select}
-                  onCreate={chats.create}
-                  onDelete={chats.remove}
-                  // Keep the permanent-delete gate, using the admin dialog's shared focus lifecycle.
-                  confirmDelete={(item) => conversationDelete.confirm({ dialog: {
-                    title: chatI18n.t("Delete conversation"),
-                    body: chatI18n.t('Delete "{title}"? This cannot be undone.', { title: item.title ?? chatI18n.t("Untitled") }),
-                    confirmLabel: chatI18n.t("Delete conversation"),
-                    tone: "danger",
-                  } })}
-                  onRename={chats.rename}
-                  // The white "Chats" tip above replaces the browser's dark native one, so the
-                  // switcher drops its own `title` and takes the same name for screen readers.
-                  triggerLabel={t("Chats")}
-                  nativeTitle={false}
-                />
-              </DockHeaderTip>
-              {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
-              <DockHeaderTip label={t("Settings")}>
-                <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins, onMoreSettings: agentPermissions.onMoreSettings })}
-                  notice={chatDisplay.saveFailed || agentPlugins.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
-              </DockHeaderTip>
-            </div>
-            {emptyState.empty ? (
-              <div className="assistant-empty-state" role="status">
-                <p>{t("Hello! Ask me to help with your site.")}</p>
-              </div>
-            ) : null}
-          </>
+          <DockHeader chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
+            locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
+            agentPlugins={agentPlugins} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
         }
         title={t("Tovu assistant")}
         placeholder={t("Ask the assistant to do something…")}
@@ -614,7 +551,7 @@ export function AssistantDock({
           // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch — `undefined`
           // here omits the slot entirely rather than rendering a disabled/hidden button, and
           // flipping that one constant back to `true` restores this exactly as it was.
-          footerLeadingAccessory: VOICE_INPUT_ENABLED ? <PushToTalkMicButton onTranscript={voiceInput.insertTranscript} /> : undefined,
+          footerLeadingAccessory: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }),
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
         // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
@@ -630,25 +567,11 @@ export function AssistantDock({
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
         //
-        // Owner constraint: a persistent chip for a capability most sessions never use clutters
-        // the composer. `FolderDropNotice` (SPEC-053) renders only after a folder drop and clears
-        // on auto-dismiss or explicit dismiss. The drop flow uses the route and `custom` fs root
-        // in `features/fs-files/`. A fragment here adds no DOM node of its
-        // own, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }` selector still reaches
-        // `ChatPane`'s own root exactly as before (see `App.tsx`'s own comment on why a real wrapper
-        // element in this position is a layout trap).
+        // `DockLeadingAccessory`'s own doc carries the owner constraint on what renders here and
+        // why it is a fragment (no DOM node of its own).
         leadingAccessory={
-          <>
-            {executionPolicy.note && <p className="assistant-agent-auth-warning" role="status">{executionPolicy.note}</p>}
-            {/* Jini's AgentRuntimePicker has no warning slot yet, so this rides the slot directly
-                above the input: seen before a send, cleared on sign-in + Rescan or a switch. */}
-            {selectedAgentAuth.warning ? (
-              <p className="assistant-agent-auth-warning" role="status" aria-live="polite">{selectedAgentAuth.warning}</p>
-            ) : null}
-            <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} />
-            <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
-            <SelectedAgentPluginTray chips={selectedSkills.chips} onRemove={selectedSkills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />
-          </>
+          <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop}
+            pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
         }
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
         // through it. Append-only by contract, so a transcript can never clobber a half-written

@@ -312,6 +312,64 @@ describe("useThemes — initial load failure", () => {
 
     await waitFor(() => expect(result.current.error).toBe("failed to load themes"));
   });
+
+  it("leaves settings null and clears busyTheme when an activate succeeds with no loaded presentation to patch", async () => {
+    const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz"] });
+    port.getPresentation = () => Promise.reject(new Error("network down"));
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.error).toBe("network down"));
+
+    await act(async () => {
+      await result.current.activate("quartz");
+    });
+
+    expect(result.current.settings).toBeNull();
+    expect(result.current.busyTheme).toBeNull();
+  });
+});
+
+describe("useThemes — presentation-derived fields", () => {
+  it("exposes empty maps for every per-theme field while the presentation call is still pending", () => {
+    const port = createFakeThemesPort();
+    port.getPresentation = () => new Promise(() => {});
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+
+    expect(result.current.themeTiers).toEqual({});
+    expect(result.current.themeNames).toEqual({});
+    expect(result.current.themePreviewImages).toEqual({});
+    expect(result.current.themeBuiltIn).toEqual({});
+  });
+
+  it("maps each available theme's preview URL as given, keeping null and undefined distinct", async () => {
+    const port = createFakeThemesPort({
+      availableThemeIds: ["basic", "quartz", "old"],
+      availableThemes: [
+        { id: "basic", tier: "declarative", previewImageUrl: "/preview/basic.png" },
+        { id: "quartz", tier: "static", previewImageUrl: null },
+        { id: "old", tier: "static" },
+      ],
+    });
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "old"]));
+
+    expect(result.current.themePreviewImages).toEqual({ basic: "/preview/basic.png", quartz: null, old: undefined });
+    expect(Object.keys(result.current.themePreviewImages ?? {})).toEqual(["basic", "quartz", "old"]);
+  });
+
+  it("marks a theme built-in only when the server says builtIn: true", async () => {
+    const port = createFakeThemesPort({
+      availableThemeIds: ["basic", "mine", "older"],
+      availableThemes: [
+        { id: "basic", tier: "declarative", builtIn: true },
+        { id: "mine", tier: "static", builtIn: false },
+        { id: "older", tier: "static" },
+      ],
+    });
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic", "mine", "older"]));
+
+    expect(result.current.themeBuiltIn).toEqual({ basic: true, mine: false, older: false });
+  });
 });
 
 describe("useThemes — activate failure (current, non-stale generation)", () => {

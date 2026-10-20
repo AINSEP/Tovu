@@ -320,43 +320,82 @@ export function useCreateSiteDatabase(
   useEffect(() => () => clear(), [clear]);
   const supabase = pluginTokens.fields.find((field) => field.pluginId === "supabase") ?? null;
 
-  return { options: options.map((option) => {
-    const selected = option.available && database === option.id;
-    const tokenField = selected && option.id === "supabase" ? supabase : null;
-    const showCustomFields = selected && option.id === "custom";
-    const hasDisclosure = option.id === "custom" || (option.id === "supabase" && supabase !== null);
-    const disclosureId = `site-db-${option.id}-fields`;
-    return {
-      ...option,
-      inputId: `site-db-${option.id}`,
-      disclosureId,
-      selected,
-      disabled: !option.available,
-      ariaDisabled: option.available ? undefined : true,
-      ariaExpanded: hasDisclosure ? selected : undefined,
-      ariaControls: hasDisclosure ? disclosureId : undefined,
-      className: resolveDatabaseOptionClassName({ selected, available: option.available }),
-      statusClassName: option.available ? "status status-ok" : "status status-neutral",
-      statusLabel: option.available ? t("Ready") : t("Not supported yet"),
-      tokenField,
-      showCustomFields,
-      onSelect: () => {
-        // Refuse DOM-forced selection too: a disabled attribute alone is not the boundary.
-        if (!option.available) return;
-        if (option.id !== "supabase") setToken("supabase", "");
-        setDatabase(option.id);
-      },
-    };
-  }) };
+  return { options: options.map((option) => ({
+    ...resolveDatabaseDisclosure({ option, selected: option.available && database === option.id, supabase, t }),
+    onSelect: () => {
+      // Refuse DOM-forced selection too: a disabled attribute alone is not the boundary.
+      if (!option.available) return;
+      if (option.id !== "supabase") setToken("supabase", "");
+      setDatabase(option.id);
+    },
+  })) };
+}
+
+/** One option's availability presentation: an unavailable backend is disabled and says so.
+ *  @complexity O(1). */
+function resolveDatabaseAvailability({ available, t }: { available: boolean; t: Translate }) {
+  return {
+    disabled: !available,
+    ariaDisabled: available ? undefined : true,
+    statusClassName: available ? "status status-ok" : "status status-neutral",
+    statusLabel: available ? t("Ready") : t("Not supported yet"),
+  };
+}
+
+/** Which fields a selected option discloses. No installed Supabase plugin means no token field, so
+ *  Supabase then has nothing to disclose; custom always has its own fields.
+ *  @complexity O(1). */
+function resolveDatabaseFieldsDisclosure(
+  { option, selected, supabase }: { option: SiteDatabaseOption; selected: boolean; supabase: CreateSitePluginTokenField | null },
+) {
+  const hasDisclosure = option.id === "custom" || (option.id === "supabase" && supabase !== null);
+  const disclosureId = `site-db-${option.id}-fields`;
+  return {
+    disclosureId,
+    ariaExpanded: hasDisclosure ? selected : undefined,
+    ariaControls: hasDisclosure ? disclosureId : undefined,
+    tokenField: selected && option.id === "supabase" ? supabase : null,
+    showCustomFields: selected && option.id === "custom",
+  };
+}
+
+/** Everything one database option renders except its select handler.
+ *  @complexity O(1). */
+function resolveDatabaseDisclosure(
+  { option, selected, supabase, t }: { option: SiteDatabaseOption; selected: boolean; supabase: CreateSitePluginTokenField | null; t: Translate },
+): Omit<SiteDatabaseDisclosure, "onSelect"> {
+  return {
+    ...option,
+    inputId: `site-db-${option.id}`,
+    selected,
+    className: resolveDatabaseOptionClassName({ selected, available: option.available }),
+    ...resolveDatabaseAvailability({ available: option.available, t }),
+    ...resolveDatabaseFieldsDisclosure({ option, selected, supabase }),
+  };
 }
 
 /** Both a local supervised child and a foreign lease feed the existing card lifecycle owner. */
-function siteLocalState({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _options = {}) {
+function siteLocalState({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }) {
   const supervised = snapshot.localSites?.find((row) => row.name === site.name);
   if (supervised || !site.running) return supervised;
   const record = site.running;
   return { name: site.name, status: record.port > 0 ? "running" as const : "starting" as const, pid: record.pid,
     port: record.port || null, daemonPort: null, adminUrl: record.port > 0 ? `${record.scheme}://localhost:${record.port}/admin/` : null, external: true };
+}
+
+type LocalSiteState = ReturnType<typeof siteLocalState>;
+
+/** A process is live while starting or running, and also while a crashed one still holds a pid —
+ *  so it is offered Stop, never Start or Trash. @complexity O(1). */
+function isLiveProcess(local: LocalSiteState): boolean {
+  return local?.status === "starting" || local?.status === "running" || local?.pid != null;
+}
+
+/** Open goes to this server's own admin when serving, else to a running child's ready admin.
+ *  @complexity O(1). */
+function resolveLocalOpenUrl({ serving, local }: { serving: boolean; local: LocalSiteState }): string | null {
+  if (serving) return "/admin/";
+  return local?.status === "running" ? local.adminUrl : null;
 }
 
 /** Card lifecycle facts come from host state, with serving binding taking precedence. */
@@ -366,20 +405,15 @@ export function resolveLocalSiteCard(
 ) {
   const serving = site.dir === snapshot.currentSite.dir;
   const local = siteLocalState({ site, snapshot });
-  const status = local?.status ?? "stopped";
-  const live = status === "starting" || status === "running" || local?.pid != null;
-  const busy = busyName !== null;
+  const live = isLiveProcess(local);
   const enabled = snapshot.localManagementEnabled === true;
-  const statusKeys = { starting: "Starting…", running: "Running", stopped: "Stopped", crashed: "Crashed" };
   return {
-    enabled, serving, external: local?.external === true, status, statusLabel: statusKeys[status], port: local?.port ?? null,
+    enabled, serving, external: local?.external === true,
     action: live ? "stop" as const : "start" as const,
     actionLabel: live ? "Stop" : "Start",
-    disabled: busy || !enabled,
-    deleteDisabled: busy || !enabled || serving || live,
-    openUrl: serving ? "/admin/" : status === "running" ? local?.adminUrl ?? null : null,
+    disabled: busyName !== null || !enabled,
+    openUrl: resolveLocalOpenUrl({ serving, local }),
     switchEnabled: snapshot.canSwitchNow === true && !serving,
-    defaultLabel: snapshot.persistedSiteName === site.name ? "Default" : "Make default",
   };
 }
 
@@ -391,12 +425,6 @@ export function resolveTrashDeleteDisabled({ id, checked, busyName }: { id: stri
 /** Trash card controls: the permanent-delete button exists only once its row is selected. */
 export function resolveTrashCardActions({ id, checked, busyName }: { id: string; checked: Record<string, boolean>; busyName: string | null }, _optional = {}) {
   return { selected: checked[id] === true, restoreDisabled: busyName !== null, deleteDisabled: resolveTrashDeleteDisabled({ id, checked, busyName }) };
-}
-
-/** The site the next launch boots: the saved choice, or the serving site when nothing is saved.
- *  @complexity O(1). */
-function isDefaultSite(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): boolean {
-  return site.name === (snapshot.persistedSiteName ?? snapshot.currentSite.name);
 }
 
 /** Overflow-menu entries a card can carry, in menu order — the destructive one always last. */
@@ -423,21 +451,46 @@ export function resolveSiteCardView(
   _optional = {},
 ) {
   const local = resolveLocalSiteCard({ site, snapshot, busyName });
-  const external = local.external;
   const lifecycle = managed && local.enabled;
-  const live = local.action === "stop";
-  const menu: SiteCardMenuAction[] = [];
-  if (switchingEnabled && activatingName === null && !local.serving && !isDefaultSite(site, snapshot)) menu.push("make-default");
-  if (lifecycle && local.switchEnabled) menu.push("switch");
-  if (lifecycle && !local.serving && !live) menu.push("trash");
   return {
-    lifecycle: lifecycle && !local.serving && !external
-      ? { action: local.action, labelKey: local.actionLabel, className: live ? "btn-secondary" : "btn-primary", disabled: local.disabled }
-      : null,
-    openUrl: lifecycle || external ? local.openUrl : null,
-    menu,
+    lifecycle: resolveCardLifecycleButton({ local, lifecycle }),
+    openUrl: lifecycle || local.external ? local.openUrl : null,
+    menu: resolveSiteCardMenu({ site, snapshot, local, lifecycle, switchingEnabled, activatingName }),
     ...(local.serving ? { disabledMenuTitleKey: "Stop or remove isn't available for the site you're using." } : {}),
   };
+}
+
+type LocalSiteCard = ReturnType<typeof resolveLocalSiteCard>;
+
+/** The one visible lifecycle button, or `null` for the serving site, an external process, or a
+ *  card without local management. A live process gets a secondary Stop. @complexity O(1). */
+function resolveCardLifecycleButton({ local, lifecycle }: { local: LocalSiteCard; lifecycle: boolean }) {
+  if (!lifecycle || local.serving || local.external) return null;
+  return { action: local.action, labelKey: local.actionLabel, className: local.action === "stop" ? "btn-secondary" : "btn-primary", disabled: local.disabled };
+}
+
+/** Make default applies only to a non-serving, non-default site while switching is on and no other
+ *  activation is in flight. @complexity O(1). */
+function canMakeDefault(
+  { site, snapshot, serving, switchingEnabled, activatingName }:
+    { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; serving: boolean; switchingEnabled: boolean; activatingName: string | null },
+): boolean {
+  return switchingEnabled && activatingName === null && !serving && !resolveSiteIsDefault(site, snapshot);
+}
+
+/** The overflow menu, in menu order — the destructive one always last; a live process is never
+ *  trashed. @complexity O(1). */
+function resolveSiteCardMenu(
+  { site, snapshot, local, lifecycle, switchingEnabled, activatingName }: {
+    site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; local: LocalSiteCard; lifecycle: boolean;
+    switchingEnabled: boolean; activatingName: string | null;
+  },
+): SiteCardMenuAction[] {
+  const menu: SiteCardMenuAction[] = [];
+  if (canMakeDefault({ site, snapshot, serving: local.serving, switchingEnabled, activatingName })) menu.push("make-default");
+  if (lifecycle && local.switchEnabled) menu.push("switch");
+  if (lifecycle && !local.serving && local.action !== "stop") menu.push("trash");
+  return menu;
 }
 
 /**
@@ -466,9 +519,10 @@ export function resolveSiteStatusPill(
 }
 
 /** Whether this card is the site that opens by default — shown as a star beside the name
- *  (2026-10-09, owner: lose the "Default" line, keep the fact). @complexity O(1). */
+ *  (2026-10-09, owner: lose the "Default" line, keep the fact). The site the next launch boots: the
+ *  saved choice, or the serving site when nothing is saved. @complexity O(1). */
 export function resolveSiteIsDefault(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): boolean {
-  return isDefaultSite(site, snapshot);
+  return site.name === (snapshot.persistedSiteName ?? snapshot.currentSite.name);
 }
 
 /** The status pill's tooltip: which app holds the process ("Running in Web (port 3000)"), or

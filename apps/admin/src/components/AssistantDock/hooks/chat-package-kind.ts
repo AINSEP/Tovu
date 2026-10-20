@@ -1,3 +1,77 @@
+type ChatPackageKind = "skill" | "site-plugin" | "agent-plugin" | "attachment";
+type CentralDirectory = { count: number; offset: number; size: number };
+
+const END_RECORD_SIGNATURE = 0x06054b50;
+const CENTRAL_HEADER_SIGNATURE = 0x02014b50;
+const END_RECORD_SIZE = 22;
+const CENTRAL_HEADER_SIZE = 46;
+/** End record plus the largest possible ZIP comment. */
+const END_RECORD_SEARCH_BYTES = 65557;
+const MAX_ENTRIES = 4096;
+const MAX_DIRECTORY_BYTES = 1024 * 1024;
+const PACKAGE_MARKER = /^(?:[^/]+\/)?(?:SKILL\.md|(?:jini|tovu)\.plugin\.json|plugin\.json)$/;
+
+/** Scans backwards for the end record whose comment length reaches exactly the end of the file; -1 when none does. */
+function findEndRecord({ tail }: { tail: Uint8Array }): number {
+  const view = new DataView(tail.buffer);
+  for (let eocd = tail.length - END_RECORD_SIZE; eocd >= 0; eocd--) {
+    if (view.getUint32(eocd, true) === END_RECORD_SIGNATURE && eocd + END_RECORD_SIZE + view.getUint16(eocd + 20, true) === tail.length) return eocd;
+  }
+  return -1;
+}
+
+/** Locates a single-disk, bounded, self-consistent central directory; null keeps the file an attachment. */
+function readCentralDirectory({ tail, tailStart }: { tail: Uint8Array; tailStart: number }): CentralDirectory | null {
+  const eocd = findEndRecord({ tail });
+  if (eocd < 0) return null;
+  const end = new DataView(tail.buffer);
+  if (end.getUint16(eocd + 4, true) !== 0 || end.getUint16(eocd + 6, true) !== 0) return null;
+  const count = end.getUint16(eocd + 10, true);
+  const size = end.getUint32(eocd + 12, true), offset = end.getUint32(eocd + 16, true);
+  if (count > MAX_ENTRIES || count !== end.getUint16(eocd + 8, true) || size > MAX_DIRECTORY_BYTES || offset + size !== tailStart + eocd) return null;
+  return { count, offset, size };
+}
+
+/** Reads one central header's normalized name and the next header's offset; null when the header is malformed. */
+function readEntry({ bytes, view, cursor }: { bytes: Uint8Array; view: DataView; cursor: number }): { name: string; next: number } | null {
+  if (cursor + CENTRAL_HEADER_SIZE > bytes.length || view.getUint32(cursor, true) !== CENTRAL_HEADER_SIGNATURE) return null;
+  const length = view.getUint16(cursor + 28, true);
+  const next = cursor + CENTRAL_HEADER_SIZE + length + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
+  if (next > bytes.length) return null;
+  const name = new TextDecoder().decode(bytes.subarray(cursor + CENTRAL_HEADER_SIZE, cursor + CENTRAL_HEADER_SIZE + length)).replaceAll("\\", "/").replace(/^\.\//, "");
+  return { name, next };
+}
+
+/** Collects package marker filenames at the archive root or one folder deep; null when the directory is not exactly `count` headers. */
+function readPackageMarkers({ bytes, count }: { bytes: Uint8Array; count: number }): Set<string> | null {
+  const view = new DataView(bytes.buffer), names = new Set<string>();
+  let cursor = 0;
+  for (let i = 0; i < count; i++) {
+    const entry = readEntry({ bytes, view, cursor });
+    if (!entry) return null;
+    if (PACKAGE_MARKER.test(entry.name) && !entry.name.startsWith("__MACOSX/")) names.add(entry.name.split("/").at(-1)!);
+    cursor = entry.next;
+  }
+  return cursor === bytes.length ? names : null;
+}
+
+function kindFromMarkers({ names }: { names: Set<string> }): ChatPackageKind {
+  // A plugin may bundle skills. Its manifest takes precedence so it can reach the assistant.
+  if (names.has("jini.plugin.json") || names.has("tovu.plugin.json")) return "site-plugin"; // tovu.plugin.json: legacy alias
+  if (names.has("plugin.json")) return "agent-plugin";
+  return names.has("SKILL.md") ? "skill" : "attachment";
+}
+
+async function zipPackageKind({ file }: { file: File }): Promise<ChatPackageKind> {
+  const tailStart = Math.max(0, file.size - END_RECORD_SEARCH_BYTES);
+  const tail = new Uint8Array(await file.slice(tailStart).arrayBuffer());
+  const directory = readCentralDirectory({ tail, tailStart });
+  if (!directory) return "attachment";
+  const bytes = new Uint8Array(await file.slice(directory.offset, directory.offset + directory.size).arrayBuffer());
+  const names = readPackageMarkers({ bytes, count: directory.count });
+  return names ? kindFromMarkers({ names }) : "attachment";
+}
+
 /** ZIP names are a routing hint, never install validation. Read only the bounded central directory:
  * deflated payloads need no decompression, and malformed/ZIP64 archives remain ordinary attachments.
  * Generic ZIP name inspection is tracked for Jini extraction (Jini is read-only in this dispatch).
@@ -5,38 +79,11 @@
 export async function chatPackageKind(
   { file }: { file: File },
   _optional: Record<string, never> = {},
-): Promise<"skill" | "site-plugin" | "agent-plugin" | "attachment"> {
+): Promise<ChatPackageKind> {
   if (file.name === "SKILL.md") return "skill";
   if (!file.name.toLowerCase().endsWith(".zip")) return "attachment";
   try {
-    const tailStart = Math.max(0, file.size - 65557);
-    const tail = new Uint8Array(await file.slice(tailStart).arrayBuffer());
-    const end = new DataView(tail.buffer);
-    let eocd = tail.length - 22;
-    for (; eocd >= 0; eocd--) {
-      if (end.getUint32(eocd, true) === 0x06054b50 && eocd + 22 + end.getUint16(eocd + 20, true) === tail.length) break;
-    }
-    if (eocd < 0 || end.getUint16(eocd + 4, true) !== 0 || end.getUint16(eocd + 6, true) !== 0) return "attachment";
-    const count = end.getUint16(eocd + 10, true);
-    const size = end.getUint32(eocd + 12, true), offset = end.getUint32(eocd + 16, true);
-    if (count > 4096 || count !== end.getUint16(eocd + 8, true) || size > 1024 * 1024 || offset + size !== tailStart + eocd) return "attachment";
-    const bytes = new Uint8Array(await file.slice(offset, offset + size).arrayBuffer());
-    const view = new DataView(bytes.buffer), names = new Set<string>();
-    let cursor = 0;
-    for (let i = 0; i < count; i++) {
-      if (cursor + 46 > bytes.length || view.getUint32(cursor, true) !== 0x02014b50) return "attachment";
-      const length = view.getUint16(cursor + 28, true);
-      const next = cursor + 46 + length + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
-      if (next > bytes.length) return "attachment";
-      const name = new TextDecoder().decode(bytes.subarray(cursor + 46, cursor + 46 + length)).replaceAll("\\", "/").replace(/^\.\//, "");
-      if (/^(?:[^/]+\/)?(?:SKILL\.md|(?:jini|tovu)\.plugin\.json|plugin\.json)$/.test(name) && !name.startsWith("__MACOSX/")) names.add(name.split("/").at(-1)!);
-      cursor = next;
-    }
-    if (cursor !== bytes.length) return "attachment";
-    // A plugin may bundle skills. Its manifest takes precedence so it can reach the assistant.
-    if (names.has("jini.plugin.json") || names.has("tovu.plugin.json")) return "site-plugin"; // tovu.plugin.json: legacy alias
-    if (names.has("plugin.json")) return "agent-plugin";
-    return names.has("SKILL.md") ? "skill" : "attachment";
+    return await zipPackageKind({ file });
   } catch {
     return "attachment";
   }

@@ -290,3 +290,67 @@ describe("useWidgetEmbedNodeView — Style dialog", () => {
     expect(result.current.styling).toBe(false);
   });
 });
+
+// Per-placement content override (mediawidget contract): only media/gallery widgets expose it.
+describe("useWidgetEmbedNodeView — placement content", () => {
+  const MEDIA_WIDGET = { ...ACTIVE_WIDGET, widgetType: "media" as const, config: { mediaId: "m1" } };
+
+  /** Renders a node pointing at the media widget, waits for it to resolve, and opens Style. */
+  async function openMediaStyle(updateAttributes = vi.fn()) {
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: MEDIA_WIDGET, whereUsed: NO_WHERE_USED });
+    const view = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
+    await waitFor(() => expect(view.result.current.widget).toEqual(MEDIA_WIDGET));
+    act(() => view.result.current.openStyle());
+    return view;
+  }
+
+  it("seeds the draft from the widget's own content when the Style dialog opens", async () => {
+    const { result } = await openMediaStyle();
+
+    expect(result.current.placementContent).toMatchObject({ custom: false, content: { mediaId: "m1" }, widgetType: "media" });
+  });
+
+  it("is absent for a media widget while the Style dialog is closed", async () => {
+    const { result } = await openMediaStyle();
+
+    act(() => result.current.closeStyle());
+
+    expect(result.current.placementContent).toBeNull();
+  });
+
+  it("setCustom switches the draft to a custom override", async () => {
+    const { result } = await openMediaStyle();
+
+    act(() => result.current.placementContent!.setCustom(true));
+
+    expect(result.current.placementContent).toMatchObject({ custom: true, content: { mediaId: "m1" } });
+  });
+
+  it("setContent replaces the draft content", async () => {
+    const { result } = await openMediaStyle();
+
+    act(() => result.current.placementContent!.setContent({ mediaId: "m2" }));
+
+    expect(result.current.placementContent).toMatchObject({ custom: false, content: { mediaId: "m2" } });
+  });
+
+  it("saveStyle writes a custom override as the node's content", async () => {
+    const updateAttributes = vi.fn();
+    const { result } = await openMediaStyle(updateAttributes);
+    act(() => result.current.placementContent!.setCustom(true));
+    act(() => result.current.placementContent!.setContent({ mediaId: "m2" }));
+
+    act(() => result.current.saveStyle({ alt: null, cssClass: "hero", htmlAttributes: null }));
+
+    expect(updateAttributes).toHaveBeenCalledWith({ cssClass: "hero", htmlAttributes: null, content: { mediaId: "m2" } });
+  });
+
+  it("saveStyle writes null content when the widget's own content is kept", async () => {
+    const updateAttributes = vi.fn();
+    const { result } = await openMediaStyle(updateAttributes);
+
+    act(() => result.current.saveStyle({ alt: null, cssClass: null, htmlAttributes: null }));
+
+    expect(updateAttributes).toHaveBeenCalledWith({ cssClass: null, htmlAttributes: null, content: null });
+  });
+});

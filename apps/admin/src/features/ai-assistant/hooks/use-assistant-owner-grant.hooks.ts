@@ -9,6 +9,14 @@ interface SiteGrantPort<T extends Grant> {
   read(required: Record<string, never>, optional?: Record<string, never>): Promise<T>;
   write(required: Omit<T, "canEdit"> & { riskAcknowledged: boolean }, optional?: Record<string, never>): Promise<T>;
 }
+/** Pure consent policy: only an OFF-to-ON change asks, unless the host opts its grant out.
+ * @param required - The requested and the current server `enabled` value.
+ * @param optional - The host's per-grant enable policy; only an explicit `false` skips consent.
+ * @returns Whether the owner must confirm before the write (also its `riskAcknowledged` value).
+ * @complexity O(1). */
+function enableNeedsConsent(required: { next: boolean; current: boolean }, optional: { confirmEnable?: boolean } = {}) {
+  return optional.confirmEnable !== false && required.next && !required.current;
+}
 /** Both site grants use Jini's query/invalidation owner and cache lifecycle.
  * @param required - Injected authenticated API and cache/namespace identity.
  * @returns Server truth, its load error and a shared cache-replacement port; subscribes until unmount.
@@ -46,11 +54,11 @@ export function useAssistantOwnerGrant<T extends Grant>(required: {
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   async function save(input: { settings: Omit<T, "canEdit"> }, _options = {}) {
-    if (locked.current || !state.settings?.canEdit || state.loadError) return;
+    const current = state.settings;
+    if (locked.current || !current?.canEdit || state.loadError) return;
     locked.current = true; setBusy(true); setSaveError(null);
     try {
-      const enabling = input.settings.enabled && !state.settings.enabled;
-      const needsConfirmation = optional.confirmEnable !== false && enabling;
+      const needsConfirmation = enableNeedsConsent({ next: input.settings.enabled, current: current.enabled }, optional);
       if (needsConfirmation && !await confirmation.confirm({ dialog: {
         title: t(required.title), body: required.dangers.map(t).join("\n"),
         confirmLabel: t(required.confirmLabel), cancelLabel: t("Cancel"), tone: "danger",

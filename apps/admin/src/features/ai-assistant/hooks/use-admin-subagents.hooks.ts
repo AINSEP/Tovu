@@ -1,5 +1,5 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, SUBAGENT_DANGERS, type AssistantSubagentsPort } from "@/lib/assistant-subagents";
+import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "./use-assistant-owner-grant.hooks";
 import { ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions, type AssistantCliCapability } from "@tovu/headless";
 const settingsKey = ["admin-assistant", "subagents"] as const;
@@ -27,23 +27,46 @@ export function useAdminSubagents(required: { port: AssistantSubagentsPort; t?: 
   } };
 }
 
+type DockGrantState = { settings: AssistantSubagentsSettings | null; loadError: string | null };
+/** Pure owner/lock split for the dock: who may open the advanced entry vs who may flip switches.
+ * @param required - Server grant (null until loaded) and the last refresh error.
+ * @returns `owner` (server-confirmed local owner, fresh read) and `canEdit` (owner without an env lock).
+ * @complexity O(1). */
+function dockGrantAccess(required: DockGrantState, _optional = {}) {
+  const owner = !!required.settings?.canEdit && !required.loadError;
+  // unavailableReason with canEdit = a local env lock: the server reads every switch OFF, so a
+  // clickable switch would save and snap straight back. Lock it and show the reason instead.
+  return { owner, canEdit: owner && !required.settings?.unavailableReason };
+}
+/** Pure capability rows for the dock dialog; the master reads ON only when every capability is ON.
+ * @param required - Server grant (null until loaded: everything OFF) and the translation port.
+ * @returns The derived master value and one translated row per CLI capability.
+ * @complexity O(c) for the fixed capability list. */
+function dockCapabilities(required: { settings: AssistantSubagentsSettings | null; t: (key: string) => string }, _optional = {}) {
+  const permissions = assistantCliPermissions({ enabled: required.settings?.enabled ?? false, capabilities: required.settings?.capabilities });
+  return { enabled: ASSISTANT_CLI_CAPABILITIES.every(({ key }) => permissions.capabilities[key]),
+    capabilities: ASSISTANT_CLI_CAPABILITIES.map(item => ({ ...item, label: required.t(item.label), description: required.t(item.description), enabled: permissions.capabilities[item.key] })) };
+}
+/** Narrows the dialog's free-form key; unknown keys must never reach the grant write. */
+function isCliCapability(key: string): key is AssistantCliCapability {
+  return ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key);
+}
 /** Thin host port for Jini's advanced settings dialog; panel and dock share the grant query. */
 export function useDockAgentPermissions(required: { t: (key: string) => string; port?: AssistantSubagentsPort; openSettings?: () => void }, _optional = {}) {
   const state = useAdminSubagents({ ...required, port: required.port ?? assistantSubagentsPort });
-  const permissions = assistantCliPermissions({ enabled: state.settings?.enabled ?? false, capabilities: state.settings?.capabilities });
-  return { enabled: ASSISTANT_CLI_CAPABILITIES.every(({ key }) => permissions.capabilities[key]),
+  const access = dockGrantAccess(state);
+  const view = dockCapabilities({ settings: state.settings, t: required.t });
+  return { enabled: view.enabled,
     // Hide the advanced entry until the server confirms the local-owner capability. Hosted and
     // non-owner chats retain the quick display menu without advertising unavailable permissions.
-    onMoreSettings: state.settings?.canEdit && !state.loadError ? required.openSettings : undefined,
-    // unavailableReason with canEdit = a local env lock: the server reads every switch OFF, so a
-    // clickable switch would save and snap straight back. Lock it and show the reason instead.
-    canEdit: !!state.settings?.canEdit && !state.settings.unavailableReason && !state.loadError, busy: state.busy,
+    onMoreSettings: access.owner ? required.openSettings : undefined,
+    canEdit: access.canEdit, busy: state.busy,
     error: state.loadError ?? state.saveError,
     unavailableReason: state.settings?.unavailableReason,
-    capabilities: ASSISTANT_CLI_CAPABILITIES.map(item => ({ ...item, label: required.t(item.label), description: required.t(item.description), enabled: permissions.capabilities[item.key] })),
+    capabilities: view.capabilities,
     onChange: ({ key, enabled }: { key?: string; enabled: boolean }) => {
       if (key === undefined) void state.setEnabled({ enabled });
-      else if (ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key)) void state.setCapability({ key: key as AssistantCliCapability, enabled });
+      else if (isCliCapability(key)) void state.setCapability({ key, enabled });
     },
   };
 }

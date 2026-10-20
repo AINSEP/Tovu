@@ -43,33 +43,67 @@ function SitesSyncWarning({ settings, t }: { settings: SitesSettings; t: Transla
 
 function SitesSettingsForm({ settings, t }: { settings: SitesSettings; t: Translate }) {
   const id = useId();
-  const overrides = settings.config?.overrides;
   return (
     <form className="sites-settings-form" onSubmit={(event) => { event.preventDefault(); void settings.save(); }}>
-      <div className="sites-settings-field">
-        <FieldLabel htmlFor={`${id}-home`} label={t("New websites folder")} info={t("New sites are created in this folder. Existing site folders stay where they are.")} handle="sites-settings-home-info" t={t} />
-        <input id={`${id}-home`} className="field-mono" value={settings.home} title={settings.home} spellCheck={false} autoComplete="off"
-          disabled={overrides?.sitesHome} onChange={(event) => settings.setHome(event.target.value)} />
-        {overrides?.sitesHome && <p className="field-hint">{interpolate({ template: t("{name} overrides this setting."), vars: { name: "TOVU_SITES_HOME" } })}</p>}
-      </div>
-      <fieldset className="sites-settings-field">
-        <legend><FieldLabel label={t("Extra sites folders")} info={t("Sites inside these folders are listed here too.")} handle="sites-settings-roots-info" t={t} /></legend>
-        <SitesRootRows settings={settings} disabled={overrides?.siteRoots ?? false} t={t} />
-        {overrides?.siteRoots && <p className="field-hint">{interpolate({ template: t("{name} overrides this setting."), vars: { name: "TOVU_SITE_ROOTS" } })}</p>}
-      </fieldset>
-      <div className="sites-settings-field">
-        <FieldLabel htmlFor={`${id}-databases`} label={t("Database location")} info={t("App-data site folders are not self-contained. Transfer their databases too.")} handle="sites-settings-databases-info" t={t} />
-        <select id={`${id}-databases`} value={settings.databases} onChange={(event) => settings.setDatabases(event.target.value as "inSite" | "appData")}>
-          <option value="inSite">{t("Inside each site (data.nosync)")}</option><option value="appData">{t("OS app-data")}</option>
-        </select>
-        <p className="field-hint">{t("Existing databases keep their location. Stop the site before moving databases.")}</p>
-      </div>
+      <SitesHomeField settings={settings} id={id} t={t} />
+      <SitesRootsField settings={settings} t={t} />
+      <SitesDatabasesField settings={settings} id={id} t={t} />
       {settings.error && <p className="notice error" role="alert">{settings.error}</p>}
-      <div className="sites-settings-footer">
-        {settings.config && <p className="sites-settings-saved-in" title={settings.config.configPath}>{interpolate({ template: t("Saved in {path}"), vars: { path: settings.config.configPath } })}</p>}
-        <button type="submit" className="btn-primary" disabled={settings.saving || !settings.config}>{t("Save")}</button>
-      </div>
+      <SitesSettingsFooter settings={settings} t={t} />
     </form>
+  );
+}
+
+/** The "{name} overrides this setting." hint under a field an environment variable pins. */
+function OverrideHint({ name, t }: { name: string; t: Translate }) {
+  return <p className="field-hint">{interpolate({ template: t("{name} overrides this setting."), vars: { name } })}</p>;
+}
+
+/** The new-websites folder; read-only (with its hint) while `TOVU_SITES_HOME` pins it. */
+function SitesHomeField({ settings, id, t }: { settings: SitesSettings; id: string; t: Translate }) {
+  const overridden = settings.config?.overrides.sitesHome;
+  return (
+    <div className="sites-settings-field">
+      <FieldLabel htmlFor={`${id}-home`} label={t("New websites folder")} info={t("New sites are created in this folder. Existing site folders stay where they are.")} handle="sites-settings-home-info" t={t} />
+      <input id={`${id}-home`} className="field-mono" value={settings.home} title={settings.home} spellCheck={false} autoComplete="off"
+        disabled={overridden} onChange={(event) => settings.setHome(event.target.value)} />
+      {overridden && <OverrideHint name="TOVU_SITES_HOME" t={t} />}
+    </div>
+  );
+}
+
+/** The extra sites folders group; its rows are disabled (with a hint) while `TOVU_SITE_ROOTS` pins them. */
+function SitesRootsField({ settings, t }: { settings: SitesSettings; t: Translate }) {
+  const overridden = settings.config?.overrides.siteRoots ?? false;
+  return (
+    <fieldset className="sites-settings-field">
+      <legend><FieldLabel label={t("Extra sites folders")} info={t("Sites inside these folders are listed here too.")} handle="sites-settings-roots-info" t={t} /></legend>
+      <SitesRootRows settings={settings} disabled={overridden} t={t} />
+      {overridden && <OverrideHint name="TOVU_SITE_ROOTS" t={t} />}
+    </fieldset>
+  );
+}
+
+/** Where new databases go: inside each site folder, or the OS app-data folder. */
+function SitesDatabasesField({ settings, id, t }: { settings: SitesSettings; id: string; t: Translate }) {
+  return (
+    <div className="sites-settings-field">
+      <FieldLabel htmlFor={`${id}-databases`} label={t("Database location")} info={t("App-data site folders are not self-contained. Transfer their databases too.")} handle="sites-settings-databases-info" t={t} />
+      <select id={`${id}-databases`} value={settings.databases} onChange={(event) => settings.setDatabases(event.target.value as "inSite" | "appData")}>
+        <option value="inSite">{t("Inside each site (data.nosync)")}</option><option value="appData">{t("OS app-data")}</option>
+      </select>
+      <p className="field-hint">{t("Existing databases keep their location. Stop the site before moving databases.")}</p>
+    </div>
+  );
+}
+
+/** The config path as a muted footer beside Save; Save waits for the config to load. */
+function SitesSettingsFooter({ settings, t }: { settings: SitesSettings; t: Translate }) {
+  return (
+    <div className="sites-settings-footer">
+      {settings.config && <p className="sites-settings-saved-in" title={settings.config.configPath}>{interpolate({ template: t("Saved in {path}"), vars: { path: settings.config.configPath } })}</p>}
+      <button type="submit" className="btn-primary" disabled={settings.saving || !settings.config}>{t("Save")}</button>
+    </div>
   );
 }
 

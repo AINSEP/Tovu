@@ -96,6 +96,39 @@ function missingFrom(from: Iterable<string>, other: ReadonlySet<string>): string
   return [...from].filter((id) => !other.has(id));
 }
 
+/**
+ * The one error line the box shows: a failed save wins, then a failed read of the content's own
+ * terms, then a failed taxonomy-list read.
+ * @param required - The save mutation's and both queries' errors, and the admin locale.
+ * @returns The described error, or `null` when nothing failed.
+ */
+function pickerError({ saveError, assignedError, taxonomiesError, locale }: {
+  saveError: unknown;
+  assignedError: unknown;
+  taxonomiesError: unknown;
+  locale: string;
+}): string | null {
+  if (saveError) return describeApiError(saveError, t({ locale: locale, key: "Failed to save categories & tags" }));
+  const loadError = assignedError ?? taxonomiesError;
+  return loadError ? describeApiError(loadError, t({ locale: locale, key: "Failed to load categories & tags" })) : null;
+}
+
+/**
+ * The box's load state from its two reads.
+ * @param required - Both queries' statuses and how many taxonomies the list holds.
+ * @returns `hidden` once the list is known to be empty; `loading` while either first read is out.
+ */
+function pickerStatus({ taxonomiesStatus, assignedStatus, taxonomyCount }: {
+  taxonomiesStatus: string;
+  assignedStatus: string;
+  taxonomyCount: number;
+}): { hidden: boolean; loading: boolean } {
+  return {
+    hidden: taxonomiesStatus === "success" && taxonomyCount === 0,
+    loading: taxonomiesStatus === "loading" || assignedStatus === "loading",
+  };
+}
+
 export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependencies): TermPickerController {
   const { port, locale } = deps;
   const target = { contentType: props.contentType, contentId: props.contentId };
@@ -145,6 +178,10 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     return taxonomies.find((group) => group.taxonomy.id === taxonomyId);
   }
 
+  function clearNewTermName(taxonomyId: string) {
+    setNames((current) => ({ ...current, [taxonomyId]: "" }));
+  }
+
   function setNewTermName(taxonomyId: string, name: string) {
     if (createTarget === taxonomyId) setCreateTarget(null);
     setNames((current) => ({ ...current, [taxonomyId]: name }));
@@ -179,7 +216,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     }
     tick(ids);
     setCreateTarget(null);
-    setNames((current) => ({ ...current, [taxonomyId]: "" }));
+    clearNewTermName(taxonomyId);
     setAddOpen(taxonomyId, false);
   }
 
@@ -190,7 +227,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
       return;
     }
     tick([existing.id]);
-    setNames((current) => ({ ...current, [taxonomyId]: "" }));
+    clearNewTermName(taxonomyId);
   }
 
   function onNewTermKeyDown(taxonomyId: string, event: { key: string; nativeEvent?: { isComposing: boolean }; preventDefault(): void }) {
@@ -239,20 +276,25 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     }
   }
 
-  const loadError = assignedQuery.error ?? taxonomiesQuery.error;
-  const error = saveMutation.error
-    ? describeApiError(saveMutation.error, t({ locale: locale, key: "Failed to save categories & tags" }))
-    : loadError
-      ? describeApiError(loadError, t({ locale: locale, key: "Failed to load categories & tags" }))
-      : null;
+  const error = pickerError({
+    saveError: saveMutation.error,
+    assignedError: assignedQuery.error,
+    taxonomiesError: taxonomiesQuery.error,
+    locale,
+  });
+  const { hidden, loading } = pickerStatus({
+    taxonomiesStatus: taxonomiesQuery.status,
+    assignedStatus: assignedQuery.status,
+    taxonomyCount: taxonomies.length,
+  });
 
   return {
     taxonomies,
-    hidden: taxonomiesQuery.status === "success" && taxonomies.length === 0,
+    hidden,
     subject: termPickerSubject(props.contentType),
     selected,
     toggle,
-    loading: taxonomiesQuery.status === "loading" || assignedQuery.status === "loading",
+    loading,
     dirty,
     saving: saveMutation.status === "pending",
     message,

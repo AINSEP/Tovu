@@ -58,6 +58,55 @@ describe("resolveSiteCardView — visible actions per state", () => {
   });
 });
 
+describe("resolveSiteCardView — external processes and live pids", () => {
+  it("a Desktop-owned running card offers its URL and has no Web stop action", () => {
+    const site = { name: "alpha", dir: "/home/alpha", displayName: "Alpha", createdAt: "2026-10-09", active: false };
+    const snapshot: AdminSitesSnapshot = { sites: [site], switchingEnabled: true, localManagementEnabled: true, persistedSiteName: null,
+      currentSite: { name: "owner", dir: "/home/owner", listed: true, dirOverridden: false },
+      localSites: [{ name: "alpha", status: "running", pid: 10, port: 3456, daemonPort: null, adminUrl: "http://localhost:3456/admin/", app: "Desktop", external: true }] };
+    const view = resolveSiteCardView({ site, snapshot, busyName: null, switchingEnabled: true, activatingName: null, managed: true });
+    expect(view.lifecycle).toBeNull(); expect(view.openUrl).toBe("http://localhost:3456/admin/"); expect(view.menu).not.toContain("trash");
+  });
+
+  it("a lease alone supplies the existing Open action even without local lifecycle management", () => {
+    const site = { name: "outside", dir: "/outside", displayName: "Outside", createdAt: "2026-10-09", active: false,
+      running: { pid: 10, port: 3456, app: "Desktop", started: "2026-10-09T00:00:00.000Z", scheme: "https" as const } };
+    const snapshot: AdminSitesSnapshot = { sites: [site], switchingEnabled: false, persistedSiteName: null,
+      currentSite: { name: "owner", dir: "/owner", listed: true, dirOverridden: true } };
+    const view = resolveSiteCardView({ site, snapshot, busyName: null, switchingEnabled: false, activatingName: null, managed: false });
+    expect(view.openUrl).toBe("https://localhost:3456/admin/"); expect(view.lifecycle).toBeNull(); expect(view.menu).toEqual([]);
+  });
+
+  it("crashed but still holding a pid: Stop, not Start, and no trash", () => {
+    const crashed = snapshot({ localSites: [{ name: "alpha", status: "crashed", pid: 7, port: null, daemonPort: null, adminUrl: null }] });
+    expect(view({ snapshot: crashed })).toEqual({ lifecycle: { action: "stop", labelKey: "Stop", className: "btn-secondary", disabled: false }, openUrl: null, menu: ["make-default", "switch"] });
+  });
+
+  it("crashed with no pid left: Start again, and trash is offered", () => {
+    const crashed = snapshot({ localSites: [{ name: "alpha", status: "crashed", pid: null, port: null, daemonPort: null, adminUrl: null }] });
+    expect(view({ snapshot: crashed })).toEqual({ lifecycle: { action: "start", labelKey: "Start", className: "btn-primary", disabled: false }, openUrl: null, menu: ["make-default", "switch", "trash"] });
+  });
+
+  it("starting: Stop is offered but no Open until the admin is ready", () => {
+    const starting = snapshot({ localSites: [{ name: "alpha", status: "starting", pid: 3, port: 3101, daemonPort: null, adminUrl: "https://localhost:3101/admin/" }] });
+    expect(view({ snapshot: starting })).toEqual({ lifecycle: { action: "stop", labelKey: "Stop", className: "btn-secondary", disabled: false }, openUrl: null, menu: ["make-default", "switch"] });
+  });
+
+  it("a starting lease (port 0) gives no Open URL", () => {
+    const site = { ...alpha, running: { pid: 10, port: 0, app: "Desktop", started: "2026-10-09T00:00:00.000Z", scheme: "http" as const } };
+    expect(view({ site, managed: false })).toEqual({ lifecycle: null, openUrl: null, menu: ["make-default"] });
+  });
+
+  it("a host that cannot switch now drops Switch now from the menu", () => {
+    expect(view({ snapshot: snapshot({ canSwitchNow: false }) }).menu).toEqual(["make-default", "trash"]);
+  });
+});
+
+it("without local management, a supervised child still drives the status pill (pinned)", () => {
+  const unmanaged = snapshot({ localManagementEnabled: false, localSites: [{ name: "alpha", status: "running", pid: 1, port: 3101, daemonPort: null, adminUrl: null }] });
+  expect(resolveSiteStatusPill({ site: alpha, snapshot: unmanaged, t })).toEqual({ toneClass: "status-ok", label: "Running" });
+});
+
 describe("resolveSiteStatusPill and resolveSiteCardMeta", () => {
   it("states the process with local management, and the binding state without it", () => {
     const local = (status: "starting" | "running" | "stopped" | "crashed", port: number | null = 3101) =>

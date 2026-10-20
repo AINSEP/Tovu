@@ -702,3 +702,209 @@ describe("delete taxonomy via RowMenu + ConfirmDialog", () => {
   // old "shows the blocked-delete reason scoped to the refused taxonomy's own group..." test is
   // deleted rather than adapted — see the T8b handoff.
 });
+
+/** A fetch reply the test settles itself, so a request can be held in flight and then released. */
+function deferredResponse() {
+  let settle!: (response: Response) => void;
+  const promise = new Promise<Response>((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
+
+// Code-health pass (2026-10-20): the inner forms' own field handlers and status lines, driven through
+// their real hooks with a mocked fetch (same convention as the merge-wizard tests above).
+describe("new-term form fields and status (real useNewTermForm, mocked fetch)", () => {
+  it("keeps what is typed in the name input", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
+    renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
+
+    await user.type(screen.getByLabelText(/new term in/i), "Breakfast");
+
+    expect(screen.getByLabelText(/new term in/i)).toHaveValue("Breakfast");
+  });
+
+  it("keeps the parent chosen in a hierarchical taxonomy's parent select", async () => {
+    const user = userEvent.setup();
+    const parent = term({ id: "p1", name: "Meals" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: true }), terms: [parent] };
+    renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
+
+    await user.selectOptions(screen.getByLabelText(/parent term/i), "p1");
+
+    expect(screen.getByLabelText(/parent term/i)).toHaveValue("p1");
+  });
+
+  it("Cancel collapses the form back to its '+ Add term' trigger", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
+    renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
+
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+
+    expect(screen.queryByLabelText(/new term in/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /\+ add term/i })).toBeInTheDocument();
+  });
+
+  it("submitting an empty name shows the required-name alert without calling the API", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
+    renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
+
+    await user.click(screen.getByRole("button", { name: /^add term$/i }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Name is required.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("labels and disables the submit button 'Saving…' while the create is in flight", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
+    const reply = deferredResponse();
+    fetchMock.mockReturnValueOnce(reply.promise);
+    renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
+    await user.type(screen.getByLabelText(/new term in/i), "Breakfast");
+
+    await user.click(screen.getByRole("button", { name: /^add term$/i }));
+
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled();
+    reply.settle(jsonResponse({ term: term({ id: "new", name: "Breakfast" }) }));
+    expect(await screen.findByRole("button", { name: /\+ add term/i })).toBeInTheDocument();
+  });
+});
+
+describe("new-taxonomy form status (real useNewTaxonomyForm)", () => {
+  it("submitting an empty name shows the required-name alert without calling the API", async () => {
+    const user = userEvent.setup();
+    renderTaxonomy({ taxonomies: [], formOpen: true });
+
+    await user.click(screen.getByRole("button", { name: /^create taxonomy$/i }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Name is required.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("merge section error (real useMergeTermSection, mocked fetch)", () => {
+  it("shows the API's refusal message when planning the merge fails", async () => {
+    const user = userEvent.setup();
+    const a = term({ id: "a", name: "Term A" });
+    const b = term({ id: "b", name: "Term B" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [a, b] };
+    renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: a } });
+    await user.selectOptions(screen.getByLabelText(/merge into/i), "b");
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "cycle detected" }, 409));
+
+    await user.click(screen.getByRole("button", { name: /plan merge/i }));
+
+    expect(await screen.findByText("cycle detected")).toHaveClass("save-error");
+  });
+});
+
+describe("term detail panel rename (real useTermDetailPanel, mocked fetch)", () => {
+  function renderSelected() {
+    const selectedTerm = term({ id: "t1", name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [selectedTerm] };
+    const controller = renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: selectedTerm } });
+    return controller;
+  }
+
+  it("shows the raw parent id when the parent is not among the taxonomy's terms", () => {
+    const orphan = term({ id: "c1", name: "Orphan", parentId: "missing-parent" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: true }), terms: [orphan] };
+    renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: orphan } });
+
+    const panel = screen.getByRole("heading", { level: 2, name: "Orphan" }).closest(".settings-detail-panel") as HTMLElement;
+    expect(within(panel).getByText("missing-parent")).toBeInTheDocument();
+  });
+
+  it("keeps what is typed in the rename input", async () => {
+    const user = userEvent.setup();
+    renderSelected();
+
+    await user.clear(screen.getByLabelText(/^rename$/i));
+    await user.type(screen.getByLabelText(/^rename$/i), "Brunch");
+
+    expect(screen.getByLabelText(/^rename$/i)).toHaveValue("Brunch");
+  });
+
+  it("labels and disables Save 'Saving…' while the rename is in flight", async () => {
+    const user = userEvent.setup();
+    const reply = deferredResponse();
+    fetchMock.mockReturnValueOnce(reply.promise);
+    renderSelected();
+    await user.clear(screen.getByLabelText(/^rename$/i));
+    await user.type(screen.getByLabelText(/^rename$/i), "Brunch");
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled();
+    reply.settle(jsonResponse({ term: term({ id: "t1", name: "Brunch", version: 2 }) }));
+    expect(await screen.findByText("Renamed.")).toBeInTheDocument();
+  });
+
+  it("shows 'Renamed.' and reloads the list once the rename lands", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ term: term({ id: "t1", name: "Brunch", version: 2 }) }));
+    const controller = renderSelected();
+    await user.clear(screen.getByLabelText(/^rename$/i));
+    await user.type(screen.getByLabelText(/^rename$/i), "Brunch");
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByText("Renamed.")).toHaveClass("save-ok");
+    expect(controller.load).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the API's refusal message when the rename fails", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "name already taken" }, 409));
+    renderSelected();
+    await user.clear(screen.getByLabelText(/^rename$/i));
+    await user.type(screen.getByLabelText(/^rename$/i), "Brunch");
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByText("name already taken")).toHaveClass("save-error");
+  });
+});
+
+describe("blocked taxonomy delete notice", () => {
+  // `useTaxonomy` still sets `deleteTaxonomyBlocked` when the delete route answers with a typed
+  // refusal (`use-taxonomy.hooks.ts`'s `requestDelete` path), so the group-scoped notice stays
+  // reachable from the controller even though no server blocker exists for taxonomies today.
+  it("shows the refusal reason inside the refused taxonomy's own group only", () => {
+    const groupA: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [] };
+    const groupB: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax2", name: "Tag" }), terms: [] };
+    renderTaxonomy({
+      taxonomies: [groupA, groupB],
+      deleteTaxonomyBlocked: { taxonomyId: "tax2", state: { code: "TERM_HAS_CHILDREN", count: 1, message: "Move its terms first." } },
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(`Can't delete "Tag": Move its terms first.`);
+    expect(alert.closest("section")).toHaveTextContent("Tag");
+    expect(alert.closest("section")).not.toHaveTextContent("Category");
+  });
+});
+
+describe("copy-embed feedback", () => {
+  it("announces the copy result as a status line above the list", () => {
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [] };
+    renderTaxonomy({ taxonomies: [group], copyFeedback: "HTML embed copied." });
+
+    expect(screen.getByText("HTML embed copied.")).toHaveAttribute("role", "status");
+  });
+
+  it("shows no status line when there is no copy result", () => {
+    renderTaxonomy({ taxonomies: [{ taxonomy: taxonomyMeta(), terms: [] }] });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});

@@ -1,0 +1,60 @@
+import { isValidElement } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
+import { optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+
+/**
+ * @file The pure prop builders `AssistantDock.tsx` hands to `ChatPane` and its header, on every
+ * branch. The dock-level wiring is pinned in `components/__tests__/AssistantDock.unit.test.tsx`
+ * ("AssistantDock optional ChatPane props").
+ */
+
+describe("optionalChatPaneProps", () => {
+  it("passes on each of the four props that holds a value", () => {
+    const agents = [{ id: "claude", name: "Claude Code" }];
+    const refreshSignal = { loadMessages: vi.fn(async () => []), visibility: document, focus: window };
+    expect(optionalChatPaneProps({ agents, conversationId: "conv-1", refreshSignal, composerHistoryScope: "admin-1" }))
+      .toEqual({ agents, conversationId: "conv-1", refreshSignal, composerHistoryScope: "admin-1" });
+  });
+
+  it("omits every key whose value is empty, rather than passing it as undefined or null", () => {
+    expect(optionalChatPaneProps({ agents: undefined, conversationId: null, refreshSignal: undefined, composerHistoryScope: undefined })).toEqual({});
+  });
+
+  it("keeps the signed-in admin's history scope in a new chat that has no conversation yet", () => {
+    expect(optionalChatPaneProps({ agents: undefined, conversationId: null, refreshSignal: undefined, composerHistoryScope: "admin-1" }))
+      .toEqual({ composerHistoryScope: "admin-1" });
+  });
+
+  it("treats an empty conversation id and an empty principal id as absent", () => {
+    expect(Object.keys(optionalChatPaneProps({ agents: undefined, conversationId: "", refreshSignal: undefined, composerHistoryScope: "" }))).toEqual([]);
+  });
+});
+
+describe("voiceFooterAccessory", () => {
+  it("mounts the push-to-talk button, wired to the transcript sink, when voice input is on", () => {
+    const onTranscript = vi.fn();
+    const slot = voiceFooterAccessory({ enabled: true, onTranscript });
+    expect(isValidElement(slot) && slot.type).toBe(PushToTalkMicButton);
+    expect(isValidElement<{ onTranscript: unknown }>(slot) && slot.props.onTranscript).toBe(onTranscript);
+  });
+
+  it("omits the slot entirely when voice input is off", () => {
+    expect(voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() })).toBeUndefined();
+  });
+});
+
+describe("renameActiveConversation", () => {
+  it("renames the active conversation to the new title", () => {
+    const rename = vi.fn(async () => undefined);
+    renameActiveConversation({ activeId: "conv-1", rename })("Quarterly report");
+    expect(rename).toHaveBeenCalledWith("conv-1", "Quarterly report");
+  });
+
+  it("does nothing without an active conversation", () => {
+    const rename = vi.fn(async () => undefined);
+    expect(renameActiveConversation({ activeId: null, rename })("Quarterly report")).toBeUndefined();
+    expect(rename).not.toHaveBeenCalled();
+  });
+});

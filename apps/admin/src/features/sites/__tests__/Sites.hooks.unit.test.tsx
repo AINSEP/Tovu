@@ -13,7 +13,9 @@ import {
   resolveSiteSubtitle,
   SITES_TAB_IDS,
   useCreateSiteDatabase,
+  type SiteDatabaseOption,
 } from "../Sites.hooks";
+import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "../hooks/use-create-site-plugin-tokens.hooks";
 
 /**
  * @file Direct tests for the derivations behind the Runner port (2026-09-05).
@@ -130,6 +132,72 @@ describe("useCreateSiteDatabase", () => {
     ]);
     expect(result.current.options.map((option) => option.tokenField)).toEqual([null, null, null]);
     expect(result.current.options.map((option) => option.showCustomFields)).toEqual([false, false, false]);
+  });
+});
+
+describe("useCreateSiteDatabase disclosures", () => {
+  const supabaseField: CreateSitePluginTokenField = { pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens", token: "" };
+  const allAvailable: readonly SiteDatabaseOption[] = [
+    { id: "sqlite", title: "SQLite", hint: "local", available: true },
+    { id: "supabase", title: "Supabase", hint: "hosted", available: true },
+    { id: "custom", title: "Custom", hint: "any", available: true },
+  ];
+
+  function tokens(fields: CreateSitePluginTokenField[], tokenWrites: string[] = []): CreateSitePluginTokensController {
+    return { fields, setToken: (pluginId, value) => { tokenWrites.push(`${pluginId}=${value}`); }, tokensForCreate: () => undefined,
+      displayNames: (ids) => [...ids], clear: () => {} };
+  }
+
+  function disclosureFields(options: ReturnType<typeof useCreateSiteDatabase>["options"]) {
+    return options.map(({ onSelect: _onSelect, ...rest }) => rest);
+  }
+
+  it("describes an unavailable backend as disabled, not ready, and without a disclosure", () => {
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens: tokens([]) }));
+    expect(disclosureFields(result.current.options)[1]).toEqual({
+      id: "supabase", title: "Supabase", hint: "Hosted · not for site content yet.", available: false,
+      inputId: "site-db-supabase", disclosureId: "site-db-supabase-fields", selected: false, disabled: true, ariaDisabled: true,
+      ariaExpanded: undefined, ariaControls: undefined, className: "site-db-option is-unavailable",
+      statusClassName: "status status-neutral", statusLabel: "Not supported yet", tokenField: null, showCustomFields: false,
+    });
+  });
+
+  it("starts on SQLite, which is ready, selected and has nothing to disclose", () => {
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens: tokens([supabaseField]) }, { options: allAvailable }));
+    expect(disclosureFields(result.current.options)[0]).toEqual({
+      ...allAvailable[0], inputId: "site-db-sqlite", disclosureId: "site-db-sqlite-fields", selected: true, disabled: false, ariaDisabled: undefined,
+      ariaExpanded: undefined, ariaControls: undefined, className: "site-db-option is-selected",
+      statusClassName: "status status-ok", statusLabel: "Ready", tokenField: null, showCustomFields: false,
+    });
+  });
+
+  it("expands the selected Supabase option onto its token field", () => {
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens: tokens([supabaseField]) }, { options: allAvailable }));
+    act(() => result.current.options[1].onSelect());
+    expect(disclosureFields(result.current.options)[1]).toMatchObject({ selected: true, ariaExpanded: true, ariaControls: "site-db-supabase-fields", tokenField: supabaseField, showCustomFields: false });
+  });
+
+  it("gives Supabase no disclosure when no Supabase plugin offers a token field", () => {
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens: tokens([]) }, { options: allAvailable }));
+    act(() => result.current.options[1].onSelect());
+    expect(disclosureFields(result.current.options)[1]).toMatchObject({ selected: true, ariaExpanded: undefined, ariaControls: undefined, tokenField: null });
+  });
+
+  it("expands the selected custom option onto its fields and keeps the collapsed Supabase disclosure wired", () => {
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens: tokens([supabaseField]) }, { options: allAvailable }));
+    act(() => result.current.options[2].onSelect());
+    const [, supabase, custom] = disclosureFields(result.current.options);
+    expect(custom).toMatchObject({ selected: true, ariaExpanded: true, ariaControls: "site-db-custom-fields", tokenField: null, showCustomFields: true });
+    expect(supabase).toMatchObject({ selected: false, ariaExpanded: false, ariaControls: "site-db-supabase-fields", tokenField: null });
+  });
+
+  it("clears the hidden Supabase token when another backend is chosen, and keeps it when Supabase is", () => {
+    const writes: string[] = [];
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens: tokens([supabaseField], writes) }, { options: allAvailable }));
+    act(() => result.current.options[1].onSelect());
+    expect(writes).toEqual([]);
+    act(() => result.current.options[2].onSelect());
+    expect(writes).toEqual(["supabase="]);
   });
 });
 

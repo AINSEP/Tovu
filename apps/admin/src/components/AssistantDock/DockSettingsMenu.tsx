@@ -1,10 +1,12 @@
-import { Fragment, useId } from "react";
+import { useId, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { RemixIcon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
-import { activateDockMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
+import { activateDockMenuItem, type DockSettingsMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
+
+type DockMenu = ReturnType<typeof useTaxonomyRowMenu>;
 
 /**
  * The dock header's gear (owner, 2026-10-11): a small menu under it, right-aligned. Built from the
@@ -24,7 +26,13 @@ export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonom
   const items = sections.flatMap((section) => section.items);
   const menu = useMenu({ itemCount: items.length });
   const helpId = useId();
-  let index = 0;
+  // Each section's first row index in the flat roving-focus order.
+  let nextIndex = 0;
+  const firstIndexes = sections.map((section) => {
+    const first = nextIndex;
+    nextIndex += section.items.length;
+    return first;
+  });
   return <>
     <button
       ref={menu.triggerRef}
@@ -44,51 +52,64 @@ export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonom
         role="menu"
         aria-label={label}
         className={`row-menu-popup dock-settings-menu${menu.position?.placement === "above" ? " row-menu-popup-above" : ""}`}
-        style={{
-          position: "fixed",
-          top: menu.position ? menu.position.top : -9999,
-          left: menu.position ? menu.position.left : -9999,
-          visibility: menu.position ? "visible" : "hidden",
-          transform: menu.position?.placement === "above" ? "translateY(-100%)" : undefined,
-        }}
+        style={popupStyle(menu.position)}
         onKeyDown={menu.onMenuKeyDown}
       >
-        {sections.map((section, sectionIndex) => <Fragment key={section.key}>
-          {sectionIndex > 0 ? <div role="separator" className="dock-settings-menu-separator" /> : null}
-          <div role="group" aria-labelledby={section.label ? `dock-settings-${section.key}` : undefined}
-            aria-describedby={section.tooltip ? `${helpId}-section-${section.key}` : undefined}>
-            {/* The section's one ⓘ sits beside the heading, not in it, so the group's name stays the heading alone. */}
-            {section.label ? <div className="dock-settings-menu-heading-row">
-              <div id={`dock-settings-${section.key}`} className="dock-settings-menu-heading">{section.label}</div>
-              {section.tooltip ? <InfoTip label={section.tooltip} descriptionId={`${helpId}-section-${section.key}`} /> : null}
-            </div> : null}
-            {section.items.map((item) => {
-              const itemIndex = index++;
-              const checkable = item.role === "menuitemradio" || item.role === "menuitemcheckbox";
-              const descriptionId = `${helpId}-${item.key}`;
-              return <div key={item.key} className="dock-settings-menu-row">
-                <button
-                  ref={(element) => { menu.itemRefs.current[itemIndex] = element; }}
-                  type="button"
-                  role={item.role ?? "menuitem"}
-                  aria-checked={checkable ? Boolean(item.checked) : undefined}
-                  tabIndex={-1}
-                  className="row-menu-item"
-                  aria-describedby={item.tooltip ? descriptionId : undefined}
-                  aria-disabled={item.disabled ? true : undefined}
-                  onClick={() => activateDockMenuItem({ item, selectItem: menu.selectItem })}
-                >
-                  {checkable ? <span className="dock-settings-menu-check" aria-hidden="true"><RemixIcon name="check-line" size={14} /></span> : null}
-                  {item.label}
-                </button>
-                {item.tooltip ? <InfoTip label={item.tooltip} descriptionId={descriptionId} /> : null}
-              </div>;
-            })}
-          </div>
-        </Fragment>)}
+        {sections.map((section, sectionIndex) => <MenuSection key={section.key} section={section} separated={sectionIndex > 0}
+          firstIndex={firstIndexes[sectionIndex]!} helpId={helpId} menu={menu} />)}
         {notice ? <p className="dock-settings-menu-notice" role="status">{notice}</p> : null}
       </div>,
       document.body,
     ) : null}
   </>;
+}
+
+/** Off-screen and hidden until the hook has measured the popup; lifted when it opens above the gear. */
+function popupStyle(position: DockMenu["position"]): CSSProperties {
+  return {
+    position: "fixed",
+    top: position ? position.top : -9999,
+    left: position ? position.left : -9999,
+    visibility: position ? "visible" : "hidden",
+    transform: position?.placement === "above" ? "translateY(-100%)" : undefined,
+  };
+}
+
+function MenuSection({ section, separated, firstIndex, helpId, menu }: {
+  section: DockSettingsMenuSection; separated: boolean; firstIndex: number; helpId: string; menu: DockMenu;
+}) {
+  return <>
+    {separated ? <div role="separator" className="dock-settings-menu-separator" /> : null}
+    <div role="group" aria-labelledby={section.label ? `dock-settings-${section.key}` : undefined}
+      aria-describedby={section.tooltip ? `${helpId}-section-${section.key}` : undefined}>
+      {/* The section's one ⓘ sits beside the heading, not in it, so the group's name stays the heading alone. */}
+      {section.label ? <div className="dock-settings-menu-heading-row">
+        <div id={`dock-settings-${section.key}`} className="dock-settings-menu-heading">{section.label}</div>
+        {section.tooltip ? <InfoTip label={section.tooltip} descriptionId={`${helpId}-section-${section.key}`} /> : null}
+      </div> : null}
+      {section.items.map((item, offset) => <MenuRow key={item.key} item={item} itemIndex={firstIndex + offset} helpId={helpId} menu={menu} />)}
+    </div>
+  </>;
+}
+
+function MenuRow({ item, itemIndex, helpId, menu }: { item: DockSettingsMenuItem; itemIndex: number; helpId: string; menu: DockMenu }) {
+  const checkable = item.role === "menuitemradio" || item.role === "menuitemcheckbox";
+  const descriptionId = `${helpId}-${item.key}`;
+  return <div className="dock-settings-menu-row">
+    <button
+      ref={(element) => { menu.itemRefs.current[itemIndex] = element; }}
+      type="button"
+      role={item.role ?? "menuitem"}
+      aria-checked={checkable ? Boolean(item.checked) : undefined}
+      tabIndex={-1}
+      className="row-menu-item"
+      aria-describedby={item.tooltip ? descriptionId : undefined}
+      aria-disabled={item.disabled ? true : undefined}
+      onClick={() => activateDockMenuItem({ item, selectItem: menu.selectItem })}
+    >
+      {checkable ? <span className="dock-settings-menu-check" aria-hidden="true"><RemixIcon name="check-line" size={14} /></span> : null}
+      {item.label}
+    </button>
+    {item.tooltip ? <InfoTip label={item.tooltip} descriptionId={descriptionId} /> : null}
+  </div>;
 }

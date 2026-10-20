@@ -7,24 +7,26 @@ import "./copy-keys-dialog.css";
 /** Compact project/keys form; the controller owns all selection and copy decisions. */
 export function CopyKeysDialog({ dialog, t }: { dialog: CopyKeysController; t: Translate }) {
   if (!dialog.open) return null;
+  // Every input locks while the inventory loads or a copy/start is in flight.
+  const locked = dialog.pending || dialog.loading;
   return (
     <Dialog open title={t("Copy keys from another project…")} pending={dialog.pending} onClose={dialog.cancel} className="settings-dialog jini-domain-dialog copy-keys-dialog">
       <form onSubmit={dialog.submit}>
         <div className="jini-dialog-body">
           <label className="copy-keys-source">{t("Source project")}
-            <select value={dialog.sourceSiteId} onChange={dialog.changeSource} disabled={dialog.loading || dialog.pending} data-jini-autofocus="">
+            <select value={dialog.sourceSiteId} onChange={dialog.changeSource} disabled={locked} data-jini-autofocus="">
               <option value="">{t("Choose a project")}</option>
               {dialog.sources.map(source => <option key={source.siteId} value={source.siteId}>{source.name}</option>)}
             </select>
           </label>
           {dialog.loading ? <span role="status">{t("Loading projects…")}</span> : null}
           {dialog.sourceMessage ? <span role="status">{dialog.sourceMessage}</span> : null}
-          {dialog.canStart ? <Button variant="secondary" className="btn-secondary" disabled={dialog.pending || dialog.loading} onPress={dialog.start}>{t("Start project")}</Button> : null}
+          {dialog.canStart ? <Button variant="secondary" className="btn-secondary" disabled={locked} onPress={dialog.start}>{t("Start project")}</Button> : null}
           {dialog.empty ? <span>{t("No keys to copy.")}</span> : null}
           <div className="copy-keys-list">
-            {dialog.keys.map(key => <label key={key.id}><input type="checkbox" value={key.id} checked={key.checked} onChange={dialog.changeKey} disabled={dialog.pending || dialog.loading} />{key.text}{key.worksFor ? <span> · {key.worksFor}</span> : null}</label>)}
+            {dialog.keys.map(key => <label key={key.id}><input type="checkbox" value={key.id} checked={key.checked} onChange={dialog.changeKey} disabled={locked} />{key.text}{key.worksFor ? <span> · {key.worksFor}</span> : null}</label>)}
           </div>
-          <label className="copy-keys-overwrite"><input type="checkbox" checked={dialog.overwrite} onChange={dialog.changeOverwrite} disabled={dialog.pending || dialog.loading} />{t("Overwrite existing")}</label>
+          <label className="copy-keys-overwrite"><input type="checkbox" checked={dialog.overwrite} onChange={dialog.changeOverwrite} disabled={locked} />{t("Overwrite existing")}</label>
           {dialog.error ? <span className="jini-field-error" role="alert">{dialog.error}</span> : null}
           {dialog.results.length ? <ul aria-live="polite" className="copy-keys-results">{dialog.results.map(result => <li key={result.key}>{result.text}</li>)}</ul> : null}
         </div>

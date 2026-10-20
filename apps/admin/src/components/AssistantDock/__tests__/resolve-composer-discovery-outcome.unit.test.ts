@@ -232,3 +232,11 @@ it("regression: installed skill pins guidance and keeps user text as the title s
   expect(outcome).toEqual({ draft: "Redesign the menu" });
   expect(addSkill).toHaveBeenCalledWith(expect.objectContaining({ toolId: "skill_ui_ux_design", name: "ui-ux-design", guidance: expect.stringContaining("Keep focus visible.") }));
 });
+
+it("names a pinned skill without its menu's \" · Skill\" suffix", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skillName: "deploy", guidance: "Ship it.", bundledFiles: [] })));
+  const capabilities = await projectionWith([{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:deploy", label: "deploy · Skill" }, resolve: () => ({ kind: "installed-skill", toolId: "skill_deploy" }) }]);
+  const addSkill = vi.fn();
+  await resolveComposerDiscoveryOutcome(selection("installed-skill:deploy"), { capabilities, navigate: vi.fn(), callAllowlistedTool: vi.fn(), addSkill });
+  expect(addSkill).toHaveBeenCalledWith(expect.objectContaining({ toolId: "skill_deploy", name: "deploy" }));
+});

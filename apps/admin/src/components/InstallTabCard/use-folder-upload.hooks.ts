@@ -1,8 +1,23 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState } from "react";
 
 import { FOLDER_EMPTY, FOLDER_UNREADABLE, FolderZipError, zipFolderFiles } from "./folder-zip";
 
 export const FOLDER_TOO_MANY = "That folder has more than 4096 files.";
+
+/** The only fields of the folder `<input>` the hook reads; a React change event's target satisfies it. */
+export interface PickedFolderInput {
+  readonly files: ArrayLike<File> | null;
+  value: string;
+}
+
+/** Maps a refused folder to the dictionary key the page shows; anything that is not a FolderZipError reads as unreadable. */
+function refusalKey({ error, tooLarge }: { error: unknown; tooLarge: string }): string {
+  if (!(error instanceof FolderZipError)) return FOLDER_UNREADABLE;
+  const keys: Record<FolderZipError["reason"], string> = {
+    empty: FOLDER_EMPTY, "too-large": tooLarge, "too-many": FOLDER_TOO_MANY, unreadable: FOLDER_UNREADABLE,
+  };
+  return keys[error.reason];
+}
 
 /**
  * "Choose a folder" for an "Add a …" tab's {@link ZipDropZone}: opens the browser's folder picker,
@@ -31,8 +46,7 @@ export function useFolderUpload(
     try {
       required.onZipped(await zipFolderFiles({ files, maxBytes: required.maxBytes }));
     } catch (error) {
-      const reason = error instanceof FolderZipError ? error.reason : "unreadable";
-      required.onError(reason === "empty" ? FOLDER_EMPTY : reason === "too-large" ? required.tooLarge : reason === "too-many" ? FOLDER_TOO_MANY : FOLDER_UNREADABLE);
+      required.onError(refusalKey({ error, tooLarge: required.tooLarge }));
     } finally {
       zippingRef.current = false;
       setZipping(false);
@@ -45,7 +59,7 @@ export function useFolderUpload(
     onChoose: () => inputRef.current?.click(),
     /** Snapshots the picked files, then clears the input so picking the same folder again (after
      *  editing it) still fires `change`. */
-    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+    onChange: (event: { target: PickedFolderInput }) => {
       const files = Array.from(event.target.files ?? []);
       event.target.value = "";
       return zip(files);

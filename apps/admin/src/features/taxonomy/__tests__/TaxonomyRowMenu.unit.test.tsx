@@ -101,4 +101,40 @@ describe("taxonomy menus compatible with published admin", () => {
     expect(menu.style.top).toBe("74px");
     host.remove();
   });
+  it("opens above its anchor, lifted by its own height, when the space below the anchor is too small", async () => {
+    const { host } = renderMenu();
+    const trigger = screen.getByRole("button", { name: "Actions for Category" });
+    vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue({
+      top: window.innerHeight - 23, bottom: window.innerHeight - 3, left: 100, right: 120, width: 20, height: 20,
+      x: 100, y: window.innerHeight - 23, toJSON: () => ({}),
+    });
+    await userEvent.click(trigger);
+    const menu = within(host).getByRole("menu");
+    expect(menu).toHaveClass("row-menu-popup", "row-menu-popup-above");
+    expect(menu.style.top).toBe(`${window.innerHeight - 27}px`);
+    expect(menu.style.transform).toBe("translateY(-100%)");
+    expect(menu.style.visibility).toBe("visible");
+    host.remove();
+  });
+
+  it("publishes no agent handles on the trigger or its items when no base handle is given", async () => {
+    const host = document.createElement("main");
+    document.body.append(host);
+    render(<TaxonomyRowMenu portalContainer={host} triggerLabel="Actions" items={[{ key: "edit", label: "Edit", onSelect: vi.fn() }]} />, { container: host });
+    const trigger = screen.getByRole("button", { name: "Actions" });
+    await userEvent.click(trigger);
+    expect(trigger).not.toHaveAttribute("data-agent-element");
+    const item = within(host).getByRole("menuitem", { name: "Edit" });
+    expect(item).not.toHaveAttribute("data-agent-element");
+    expect(item.className).toBe("row-menu-item");
+    host.remove();
+  });
+
+  it("keeps the trigger disabled when there are no actions to offer", () => {
+    const host = document.createElement("main");
+    document.body.append(host);
+    render(<TaxonomyRowMenu portalContainer={host} triggerLabel="Actions" items={[]} />, { container: host });
+    expect(screen.getByRole("button", { name: "Actions" })).toBeDisabled();
+    host.remove();
+  });
 });

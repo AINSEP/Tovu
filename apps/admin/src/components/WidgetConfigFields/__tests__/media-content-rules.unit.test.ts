@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../../lib/api";
 import {
   appendMediaSlugs,
   hasModeContent,
@@ -23,7 +23,7 @@ import {
   toMediaConfig,
   viewedMediaContent,
   type MediaItem,
-} from "../WidgetConfigFields/media-content-rules";
+} from "../media-content-rules";
 
 /** @file Direct coverage for `media-content-rules.ts` — the pure half of `MediaContentEditor`. */
 
@@ -147,6 +147,18 @@ describe("reading and writing config", () => {
     expect(readMediaContent({ config: {}, widgetType: "media" })).toMatchObject({ mode: "media", media: { items: [], layout: "single" } });
   });
 
+  it("lets an explicit media mode win over a stray html string", () => {
+    expect(readMediaContent({ config: { mode: "media", html: "<img>" }, widgetType: "media" })).toEqual({ mode: "media", html: "", media: { items: [], layout: "single" } });
+  });
+
+  it("reads structured items instead of legacy images when a config carries both", () => {
+    expect(readMediaContent({ config: { items: [{ slug: "new" }], images: [{ mediaId: "old" }] }, widgetType: "media" }).media.items).toEqual([{ slug: "new" }]);
+  });
+
+  it("falls back to the default layout and drops columns that are not numbers", () => {
+    expect(readMediaContent({ config: { layout: 3, columns: "4" }, widgetType: "media" }).media).toEqual({ items: [], layout: "single" });
+  });
+
   it("gives Gallery no Single layout (its saved schema has none)", () => {
     expect(mediaLayoutsFor("gallery")).toEqual(["grid", "carousel", "masonry"]);
     expect(readMediaContent({ config: { layout: "single" }, widgetType: "gallery" }).media.layout).toBe("grid");
@@ -219,6 +231,19 @@ describe("tab switching without a config change", () => {
     expect(next).toMatchObject({ viewMode: "media", emit: null });
     expect(viewedMediaContent({ stored: html, viewMode: "media", stash: next.stash }).media).toBe(draft);
     expect(viewedMediaContent({ stored: html, viewMode: "media", stash: {} }).media).toBe(html.media);
+  });
+
+  it("shows the stored (empty) media tab when switching away from Raw HTML with nothing stashed", () => {
+    const html = readMediaContent({ config: { mode: "html", html: "<p/>" }, widgetType: "media" });
+    expect(switchMediaContentMode({ stored: html, stash: {}, mode: "media" })).toEqual({ stash: { html: "<p/>" }, viewMode: "media", emit: null });
+  });
+
+  it("warns that saving the media tab drops a stashed Raw HTML draft", () => {
+    expect(inactiveTabWillBeDropped({ stored, viewMode: null, stash: { html: "<p>draft</p>" } })).toBe(true);
+  });
+
+  it("does not warn when the stashed Raw HTML draft is blank", () => {
+    expect(inactiveTabWillBeDropped({ stored, viewMode: null, stash: { html: "  " } })).toBe(false);
   });
 });
 

@@ -40,7 +40,7 @@ describe('host media ports', () => {
     });
     vi.stubGlobal('fetch', fetch);
     const port = createMediaProvidersPort({});
-    await expect(port.saveCredential({ id: 'unknown', credential: 'secret' })).rejects.toThrow('Unknown media provider');
+    await expect(port.saveCredential({ id: 'unknown', credential: 'secret' })).rejects.toThrow('Unknown media provider "unknown": it is not in this host\'s provider catalog');
     expect(saved).toEqual({});
     const signal = new AbortController().signal;
     await port.saveSettings!({ id, baseUrl: 'https://media.example.test', model: 'model-a' }, { signal });
@@ -105,17 +105,22 @@ describe('host media ports', () => {
     }));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/admin/v1/workspaces/workspace-local/media', expect.objectContaining({ method: 'GET', signal }));
   });
-  it.each(['forbidden', 'not-found', 'version-changed', 'missing-result'])('refuses a 200 restore response whose item outcome is %s', async outcome => {
-    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ restored: 0, results: outcome === 'missing-result' ? [] : [{ entityType: 'media', entityId: 'm1', outcome }] })));
+  it.each([
+    ['forbidden', [{ entityType: 'media', entityId: 'm1', outcome: 'forbidden' }], 'Media restore failed: forbidden'],
+    ['not-found', [{ entityType: 'media', entityId: 'm1', outcome: 'not-found' }], 'Media restore failed: not-found'],
+    ['version-changed', [{ entityType: 'media', entityId: 'm1', outcome: 'version-changed' }], 'Media restore failed: version-changed'],
+    ['missing-result', [], 'Media restore failed: missing item result'],
+  ])('refuses a 200 restore response whose item outcome is %s', async (_outcome, results, message) => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ restored: 0, results })));
     vi.stubGlobal('fetch', fetch);
-    await expect(mediaApi.restore!({ id: 'm1' })).rejects.toThrow();
+    await expect(mediaApi.restore!({ id: 'm1' })).rejects.toThrow(message);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
   it('refuses a restored result when the authoritative reread is missing or still trashed', async () => {
     for (const media of [[], [{ id: 'm1', status: 'trashed' }]]) {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ results: [{ entityType: 'media', entityId: 'm1', outcome: 'restored' }] })))
         .mockResolvedValueOnce(new Response(JSON.stringify({ media }))));
-      await expect(mediaApi.restore!({ id: 'm1' })).rejects.toThrow();
+      await expect(mediaApi.restore!({ id: 'm1' })).rejects.toThrow('Restored media "m1" could not be read back as an active asset; reload the library to see its current state');
     }
   });
   it('uses the authenticated media route, URL and abort signal', async () => {
@@ -175,7 +180,7 @@ describe('host media ports', () => {
     const port = createMediaProvidersPort({});
     expect(await port.list({})).toBeNull();
     const abort = new AbortController(); abort.abort();
-    await expect(port.saveCredential({ id: MEDIA_PROVIDER_CATALOG[0]!.id, credential: 'secret' }, { signal: abort.signal })).rejects.toThrow();
+    await expect(port.saveCredential({ id: MEDIA_PROVIDER_CATALOG[0]!.id, credential: 'secret' }, { signal: abort.signal })).rejects.toMatchObject({ name: 'AbortError', message: 'This operation was aborted' });
   });
   it('persists endpoint/model edits in the existing whole-map store without disturbing keys or siblings', async () => {
     const id = MEDIA_PROVIDER_CATALOG[0]!.id;
@@ -236,7 +241,7 @@ describe('host media ports', () => {
     saved = { ...saved, [id]: { model: 'leftover' } };
     await port.saveChanges!({ providers: { [id]: { baseUrl: '  ', model: '' }, [sibling]: siblingEntry } });
     expect(bodies[3]).toEqual({ [sibling]: siblingEntry, foreign: { model: 'outside-catalog' } });
-    await expect(port.saveChanges!({ providers: { 'not-in-catalog': { model: 'x' } } })).rejects.toThrow('Unknown media provider');
+    await expect(port.saveChanges!({ providers: { 'not-in-catalog': { model: 'x' } } })).rejects.toThrow('Unknown media provider "not-in-catalog": it is not in this host\'s provider catalog');
     expect(bodies).toHaveLength(4);
   });
   it('refreshes only media or unknown changes and unsubscribes on disposal', () => {
