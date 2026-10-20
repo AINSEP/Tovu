@@ -26,32 +26,52 @@ export interface AddonsRouteResolution {
  * @example resolveAddonsRoute({ routePath: "/providers?tab=webhooks" })
  * @complexity O(n) time and space in URL length; the Add-ons table has five fixed entries.
  */
-export function resolveAddonsRoute(
-  { routePath }: { readonly routePath: string },
-  _options = {},
-): AddonsRouteResolution {
-  const pathname = routePath.split("?")[0] ?? "";
-  const query = routePath.slice(pathname.length);
+export function resolveAddonsRoute({ routePath }: { readonly routePath: string }): AddonsRouteResolution {
+  const pathname = routePath.replace(/\?.*$/s, "");
   const parts = pathname.split("/").filter(Boolean);
+  const route = { parts, query: routePath.slice(pathname.length) };
+
+  if (parts[0] === "addons") return { matchPath: stablePanelPath(route) ?? routePath };
+  const redirectPath = legacyRedirectPath(route);
+  return redirectPath ? { matchPath: routePath, redirectPath } : { matchPath: routePath };
+}
+
+interface SplitRoute {
+  /** Non-empty pathname segments, so trailing and doubled slashes do not matter. */
+  readonly parts: readonly string[];
+  /** Raw query bytes including the leading `?`, or "" when the URL has none. */
+  readonly query: string;
+}
+
+/**
+ * Maps a current `/addons/...` URL back to the stable panel path Jini's matcher knows.
+ * @param route Split `/addons/...` route.
+ * @returns Stable-ID matcher path, or undefined for an unknown Add-ons URL.
+ * @complexity O(n) in URL length; the Add-ons table has five fixed entries.
+ */
+function stablePanelPath({ parts, query }: SplitRoute): string | undefined {
+  if (parts.length === 3 && parts[1] === "integrations") return `/integrations/${parts[2]}${query}`;
   const path = `/${parts.join("/")}`;
+  const panel = Object.entries(ADDONS_PANEL_PATHS).find(([, destination]) => destination === path);
+  return panel && `/${panel[0]}${query}`;
+}
 
-  if (parts[0] === "addons") {
-    if (parts.length === 3 && parts[1] === "integrations") {
-      return { matchPath: `/integrations/${parts[2]}${query}` };
-    }
-    const panel = Object.entries(ADDONS_PANEL_PATHS).find(([, destination]) => destination === path);
-    return { matchPath: panel ? `/${panel[0]}${query}` : routePath };
-  }
+/**
+ * Resolves the canonical Add-ons destination for a legacy (pre-move) URL.
+ * @param route Split non-Add-ons route.
+ * @returns Replacement destination, or undefined for current or unrelated routes.
+ * @complexity O(n) in URL length.
+ */
+function legacyRedirectPath({ parts, query }: SplitRoute): string | undefined {
+  const [section = ""] = parts;
+  if (parts.length === 2 && section === "integrations") return `${ADDONS_PANEL_PATHS.providers}/${parts[1]}${query}`;
+  // `hasOwn` keeps prototype names such as `/constructor` from resolving to a destination.
+  if (parts.length !== 1 || !Object.hasOwn(ADDONS_PANEL_PATHS, section)) return undefined;
+  if (section === "integrations") return `${ADDONS_PANEL_PATHS.providers}${withDefaultWebhooksTab(query)}`;
+  return `${ADDONS_PANEL_PATHS[section]}${query}`;
+}
 
-  if (parts.length === 2 && parts[0] === "integrations") {
-    return { matchPath: routePath, redirectPath: `${ADDONS_PANEL_PATHS.providers}/${parts[1]}${query}` };
-  }
-  if (parts.length !== 1) return { matchPath: routePath };
-  const destination = Object.hasOwn(ADDONS_PANEL_PATHS, parts[0]!) ? ADDONS_PANEL_PATHS[parts[0]!] : undefined;
-  if (!destination) return { matchPath: routePath };
-  if (parts[0] === "integrations") {
-    const redirectQuery = new URLSearchParams(query).has("tab") ? query : `${query}${query ? "&" : "?"}tab=webhooks`;
-    return { matchPath: routePath, redirectPath: `${ADDONS_PANEL_PATHS.providers}${redirectQuery}` };
-  }
-  return { matchPath: routePath, redirectPath: `${destination}${query}` };
+/** Bare legacy Integrations links keep their former Webhooks default; explicit tabs survive. */
+function withDefaultWebhooksTab(query: string): string {
+  return new URLSearchParams(query).has("tab") ? query : `${query}${query ? "&" : "?"}tab=webhooks`;
 }
