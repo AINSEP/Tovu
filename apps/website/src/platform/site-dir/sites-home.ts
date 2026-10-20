@@ -1,31 +1,32 @@
 /** Tovu's folder/filenames; generic resolution, locking and registry policy belong to Jini. */
 import { desktopProjectPaths } from "./sites-project-references.js";
+import { nestedSitesCompat } from "./nested-sites-root.js";
+import { defaultSourceRoots, desktopProfileDir, ownerStorageOverrides } from "./sites-workspace-options.js";
 import os from "node:os";
-import fs from "node:fs";
 import path from "node:path";
-import { createDurableJsonFile, createNodeDirectoryWorkspace, createNodeDurableJsonPorts, type DurableJsonPorts } from "@jini-ai/platform/fs";
+import { createNodeDirectoryWorkspace, type DurableJsonPorts } from "@jini-ai/platform/fs";
+
+/** Fixture catalogs from earlier test runs (minted/new-site ids) may be discarded on desktop startup. */
+const CATALOG_RECOVERY = { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } };
 
 export function createSitesWorkspace(_required: Record<string, never>, { homeDir = os.homedir(), env = process.env, cwd = process.cwd(), sourceRoots, catalogRecovery = false, appDataDir, ...directoryOptions }: {
   homeDir?: string; env?: NodeJS.ProcessEnv; cwd?: string; sourceRoots?: readonly string[]; catalogRecovery?: boolean;
   appDataDir?: string;
   canonicalPath?: (required: { path: string }) => string;
-  ports?: import("@jini-ai/platform/fs").DurableJsonPorts;
+  ports?: DurableJsonPorts;
   platform?: NodeJS.Platform; windowsDocuments?: () => string | undefined; readText?: (file: string) => string | undefined;
 } = {}) {
   // Check ambient overrides before the shared resolver can read any settings/catalog files.
-  assertTestHomeIsolation({ homeDir }, { paths: [appDataDir, env.TOVU_DESKTOP_USER_DATA_DIR,
-    env.TOVU_SITES_HOME, env.APPDATA && path.join(env.APPDATA, "Tovu"),
-    env.XDG_DATA_HOME && path.join(env.XDG_DATA_HOME, "Tovu"), env.XDG_CONFIG_HOME && path.join(env.XDG_CONFIG_HOME, "Tovu"),
-    ...(env.TOVU_SITE_ROOTS?.split(",") ?? []), ...(sourceRoots ?? [])].filter((value): value is string => !!value?.trim()).map((value) => path.resolve(cwd, value.trim())) });
+  assertTestHomeIsolation({ homeDir }, { paths: ownerStorageOverrides({ env, cwd }, { appDataDir, sourceRoots }) });
   const workspace = createNodeDirectoryWorkspace({ homeDir, defaultFolder: "Tovu", envName: "TOVU_SITES_HOME",
     settingsFile: path.join(homeDir, ".tovu", "sites-home.json"), registryName: "sites.json", runningName: ".tovu-running.json",
-    ...(catalogRecovery ? { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } } : {}),
+    ...(catalogRecovery ? CATALOG_RECOVERY : {}),
     userConfig: { appName: "Tovu", rootsEnvName: "TOVU_SITE_ROOTS", legacyDefaultFolder: "Tovu Sites",
       legacySettingsFile: path.join(homeDir, ".tovu", "sites-home.json"),
-      sourceRoots: sourceRoots ?? (fs.existsSync(path.join(cwd, "apps", "website", "src")) ? [path.join(cwd, "sites")] : []),
+      sourceRoots: sourceRoots ?? defaultSourceRoots({ cwd }),
     } }, { env, cwd, ...directoryOptions,
       // Desktop's child CLI must share its parent's profile for settings, catalog and databases.
-      appDataDir: appDataDir ?? (env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? (directoryOptions.platform === "win32" ? path.win32 : path).resolve(cwd, env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : undefined),
+      appDataDir: desktopProfileDir({ env, cwd }, { appDataDir, platform: directoryOptions.platform }),
     });
   const config = workspace.config({});
   assertTestHomeIsolation({ homeDir }, { paths: [config.appData, config.configPath, config.sitesHome, ...config.siteRoots] });
@@ -51,39 +52,6 @@ export function assertTestHomeIsolation({ homeDir }: { homeDir: string }, { path
     path.resolve(target) === realHome || protectedRoots.some((root) => within(root, target)))) {
     throw new Error("Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.");
   }
-}
-
-/** The released 0.1.14 default nested sites in Documents/Tovu/sites; desktop startup moves them back up.
- * Explicit homes (saved setting or environment override) keep their contracts and never qualify.
- * Sites the move skips (running, locked, name clash) stay discoverable without saving an extra root.
- * @complexity O(n) immediate children of the nested folder; never writes settings.
- */
-function nestedSitesCompat({ workspace }: { workspace: ReturnType<typeof createNodeDirectoryWorkspace> }, { ports = createNodeDurableJsonPorts({}) }: { ports?: DurableJsonPorts } = {}) {
-  const nestedSitesRoot = (_required: Record<string, never>, _options = {}) => nestedRoot({ workspace }, { ports });
-  return { nestedSitesRoot, roots: (_required: Record<string, never>, _options = {}) => {
-    const roots = workspace.roots({}), nested = nestedSitesRoot({});
-    try {
-      return nested && fs.readdirSync(nested).some((name) => fs.existsSync(path.join(nested, name, ".site-meta.json"))) ? [...new Set([...roots, nested])] : roots;
-    } catch { return roots; }
-  } };
-}
-
-function nestedRoot({ workspace }: { workspace: ReturnType<typeof createNodeDirectoryWorkspace> }, { ports }: { ports: DurableJsonPorts }): string | undefined {
-  const config = workspace.config({});
-  if (config.overrides.sitesHome) return undefined;
-  const saved = createDurableJsonFile({ ...ports, filePath: config.configPath,
-    notices: { prefix: "Tovu sites", lockTimeout: () => "Tovu sites settings are locked." },
-  }).read({});
-  // An unreadable setting may contain a custom pointer: discovery must not authorize a move.
-  if (saved.state === "unreadable") return undefined;
-  if (saved.state === "ok" && (saved.value as { sitesHome?: unknown } | null)?.sitesHome !== undefined) return undefined;
-  const root = path.join(workspace.home({}), "sites");
-  try {
-    if (!fs.lstatSync(root).isDirectory()) return undefined;
-    // A real website named "sites" is a website, never a compatibility container.
-    if (fs.existsSync(path.join(root, ".site-meta.json"))) return undefined;
-    return root;
-  } catch { return undefined; }
 }
 
 /** Creation always uses the shared home. Legacy checkout sites remain a discovery source only. */
