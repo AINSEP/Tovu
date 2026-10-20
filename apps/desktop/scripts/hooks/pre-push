@@ -20,9 +20,55 @@ set -uo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)" || exit 1
 
-# Skip entirely when the push touches nothing this gate covers. Matches the workflow's own `paths:`
-# filter so the two cannot disagree about when desktop gates are relevant.
-if git diff --quiet HEAD @{push} -- "$repo_root/apps/desktop" "$repo_root/eslint.config.mjs" 2>/dev/null; then
+# The paths this gate covers. Matches the workflow's own `paths:` filter so the two cannot disagree
+# about when desktop gates are relevant.
+gated_paths=("$repo_root/apps/desktop" "$repo_root/eslint.config.mjs")
+
+# Git writes an all-zeros sha for "nothing there": the local side of a branch delete, the remote
+# side of a new branch. 40 zeros for SHA-1 repos, 64 for SHA-256.
+is_zero_sha() { case "$1" in *[!0]*) return 1 ;; *) return 0 ;; esac; }
+
+# Succeeds when pushing local_sha changes no gated path compared with what the remote already has;
+# fails when it does, or when that cannot be determined — failing safe means the gates run.
+push_skips_gates() {
+  local local_sha="$1" remote_sha="$2"
+  # Existing branch whose remote tip we have: diff exactly what this push moves the remote across.
+  if ! is_zero_sha "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    git diff --quiet "$remote_sha" "$local_sha" -- "${gated_paths[@]}" 2>/dev/null
+    return
+  fi
+  # New branch (or a remote tip we never fetched). There is no @{push} to diff against, which used
+  # to send EVERY new per-lot branch through the full desktop gates — and those fail in cloud
+  # containers that have no electron. So look only at commits no remote-tracking ref already
+  # contains (git's own sample pre-push hook uses the same `--not --remotes` range): that is the
+  # code this push introduces, whatever branch it was cut from. With no remote-tracking refs at all
+  # there is no base to compare with, so keep the old behaviour and run the gates.
+  [ -n "$(git for-each-ref --count=1 refs/remotes)" ] || return 1
+  local touched
+  touched="$(git rev-list -n 1 "$local_sha" --not --remotes -- "${gated_paths[@]}" 2>/dev/null)" || return 1
+  [ -z "$touched" ]
+}
+
+# Git passes one line per pushed ref on stdin: <local ref> <local sha> <remote ref> <remote sha>.
+# That is the canonical description of the push — HEAD is not necessarily what is being pushed.
+needs_gates=0
+saw_ref=0
+if [ ! -t 0 ]; then
+  while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [ -n "${local_sha:-}" ] || continue
+    saw_ref=1
+    # A branch delete pushes no code.
+    is_zero_sha "$local_sha" && continue
+    push_skips_gates "$local_sha" "${remote_sha:-0}" || needs_gates=1
+  done
+fi
+# Run by hand with no ref lines: fall back to comparing HEAD with its push target.
+if [ "$saw_ref" = 0 ] && ! git diff --quiet HEAD @{push} -- "${gated_paths[@]}" 2>/dev/null; then
+  needs_gates=1
+fi
+
+# Skip entirely when the push touches nothing this gate covers.
+if [ "$needs_gates" = 0 ]; then
   echo "pre-push: no apps/desktop changes in this push — skipping desktop gates."
   exit 0
 fi
