@@ -72,6 +72,7 @@ test("the content history through the current head applies on real Postgres", as
     "0009_posts_author", "0010_members_credentials_revoked_at", "0011_drop_empty_core_commerce_tables", "0012_secrets_vault",
     "0013_unify_vault_credentials", "0014_media_library", "0015_document_blob_ownership",
     "0016_publish_destination_history", "0017_publish_history_kind", "0018_form_submission_remote_receipts",
+    "0019_form_delivery_plans",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
@@ -79,7 +80,7 @@ test("the content history through the current head applies on real Postgres", as
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
   );
   assert.equal(n, collectCoreTables().length + 2, "declared content tables plus post_search_document and tovu_migrations");
-  assert.equal(n, 76, "76 tables at 0018_form_submission_remote_receipts: an accidental drop or addition must change this pin");
+  assert.equal(n, 79, "79 tables at 0019_form_delivery_plans: an accidental drop or addition must change this pin");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");

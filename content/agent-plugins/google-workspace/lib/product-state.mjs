@@ -90,14 +90,3 @@ export async function assertProductEnabled(required, _optional = {}) {
   const label = PRODUCTS.products.find((product) => product.id === required.productId)?.label ?? required.productId;
   throw new GoogleWorkspaceError({ code: 'product-disabled' }, { detail: label });
 }
-
-/**
- * The `productEnabled` port form delivery takes, read from a plugin-state reader (the host hands
- * delivery a reader with `get` only, scoped to this plugin and workspace).
- * @param {{ state?: { get(input: { key: string }): Promise<unknown> }, productId: string }} required
- * @returns {() => Promise<boolean>}
- * @complexity O(1) to build; each call is one state read.
- */
-export function productEnabledReader(required, _optional = {}) {
-  return () => isProductEnabled(required);
-}

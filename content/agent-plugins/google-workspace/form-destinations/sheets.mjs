@@ -19,6 +19,7 @@
  */
 import { columnName, parseA1Range, tabRange } from '../lib/sheets-a1.mjs';
 import { googleClientFor, sheetsUrl } from '../lib/sheets-client.mjs';
+import { isProductEnabled } from '../lib/product-state.mjs';
 import { GoogleWorkspaceError } from '../lib/request-policy.mjs';
 import { findSubmissionRows } from './dedupe.mjs';
 import { DeliveryRefusal, failureResult, resultForError } from './delivery-result.mjs';
@@ -154,15 +155,14 @@ async function appendOnce(requests, tab, layout, row, submissionId) {
   }
 }
 
-/** Off unless the host's reader says the Sheets product is on: an unwired reader never enables delivery. @complexity O(1). */
-async function productEnabled(optional) {
-  return typeof optional.productEnabled === 'function' && (await optional.productEnabled()) === true;
-}
+/** The product this destination belongs to (`products.json`). */
+const SHEETS_PRODUCT = 'sheets';
 
 /** One delivery attempt; throws for every failure (mapped by the caller). @complexity O(rowCount / chunk) requests. */
 async function deliverRow(required, optional) {
   // Retryable: turning Sheets off pauses deliveries, it does not fail them.
-  if (!(await productEnabled(optional))) throw new DeliveryRefusal({ code: 'adapter-unavailable', retryable: true });
+  // Off unless the plugin's own settings say Sheets is on: no state reader never enables delivery.
+  if (!(await isProductEnabled({ state: optional.state, productId: SHEETS_PRODUCT }))) throw new DeliveryRefusal({ code: 'adapter-unavailable', retryable: true });
   const { spreadsheetId, tab: tabConfig } = targetFor(required);
   // One token read per Google request when the host offers it (OAuth: budgets count every request
   // and the job's frozen account is re-checked); a plain credential carries just `token`.
@@ -184,11 +184,10 @@ export default {
   /**
    * The forms delivery contract's `deliver`. Never throws: every failure is a contract result.
    * @param {{ kit: { fetch(url: string, init: RequestInit, options: { timeoutMs: number }): Promise<Response> }, credential: { token: string, getAccessToken?: () => Promise<string> }, form: { slug: string, fields: readonly { name: string, label?: string }[] }, submission: { id: string, answers: Readonly<Record<string, unknown>>, submittedAt: string }, binding: { connectionRef: string, config: Readonly<Record<string, unknown>> }, idempotencyKey?: string }} required
-   * @param {{ productEnabled?: () => boolean | Promise<boolean> }} [optional]
-   *   A host port the delivery contract does not carry yet (wired with the forms fan-out): the
-   *   Sheets product flag (absent = off; build it with `productEnabledReader` from
-   *   `lib/product-state.mjs` over the host's plugin-state reader, the same gate the tools use).
-   *   Quotas are the host's budgets, charged where it resolves the token.
+   * @param {{ state?: { get(input: { key: string }): Promise<unknown> } }} [optional]
+   *   `state`: the host's read-only reader of this plugin's settings, the same store and gate the
+   *   tools use (`isProductEnabled`); absent = Sheets off. Quotas are the host's budgets, charged
+   *   on every token read (`credential.getAccessToken`).
    * @returns {Promise<{ ok: true, reference?: string } | { ok: false, error: { code: string, retryable: boolean, retryAfterMs?: number, outcome?: 'not-applied' | 'unknown' } }>}
    */
   async deliver(required, optional = {}) {

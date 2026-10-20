@@ -6,7 +6,8 @@ import Database from "better-sqlite3";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { collectCoreTables } from "#src/platform/db/migration/manifest";
-import { collectTransferTables, countPartialExclusions } from "../copy-engine.js";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { collectTransferTables, countPartialExclusions, planSnapshotTables } from "../copy-engine.js";
 import { EXCLUDED_CORE_TABLES, SECRET_COLUMN_PATTERN } from "../exclusions.js";
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
 
@@ -54,13 +55,35 @@ test("partial exclusion counts skip settings tables absent from an older snapsho
 });
 
 
-test("the copy excludes every agreed login, saved-key and confirmation table", () => {
+test("the copy excludes every agreed login, saved-key, confirmation and running-lock table", () => {
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).sort(), [
     "identity_users", "sessions", "api_keys", "member_sessions", "member_magic_tokens",
     "admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
     "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
     "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
     "publish_credential_sets", "site_assistant_credentials", "source_control_credential_sets",
-    "vendor_credential_sets", "gated_mutation_tokens", "secrets_vault",
+    "vendor_credential_sets", "gated_mutation_tokens", "secrets_vault", "form_receiver_pulls",
   ].sort());
+});
+
+test("a copy carries form delivery plans and job index rows with their outbox rows, never the receiver pull lease", () => {
+  const copied = new Set(collectTransferTables().map((table) => table.name));
+  assert.deepEqual(["form_delivery_plans", "form_delivery_jobs", "outbox_events", "form_submission_remote_receipts", "form_receiver_pulls"]
+    .map((name) => [name, copied.has(name)]), [
+    ["form_delivery_plans", true], ["form_delivery_jobs", true], ["outbox_events", true], ["form_submission_remote_receipts", true],
+    ["form_receiver_pulls", false],
+  ]);
+  assert.equal(EXCLUDED_CORE_TABLES.form_receiver_pulls, "running-lock");
+});
+
+test("a copy plan names the receiver pull lease as left out because it is a lock held by the running site", () => {
+  const db = openContentDb(":memory:");
+  try {
+    db.$client.prepare("INSERT INTO form_receiver_pulls (workspace_id, receiver_key, lease_token, lease_expires_at, last_started_at) VALUES ('ws', 'host:https://r.example', 't', '2026-10-20T12:06:15.000Z', '2026-10-20T12:00:00.000Z')").run();
+    const { leftOut } = planSnapshotTables(openSqliteSnapshotSource(db.$client.serialize()));
+    assert.deepEqual(leftOut.filter(entry => entry.table === "form_receiver_pulls"),
+      [{ table: "form_receiver_pulls", reason: "locks held by the running site are not copied" }]);
+  } finally {
+    db.$client.close();
+  }
 });

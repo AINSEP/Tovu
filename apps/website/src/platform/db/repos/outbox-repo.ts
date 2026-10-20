@@ -42,11 +42,20 @@ function toRecord(row: Selectable<OutboxEventsTable>): OutboxRecord {
 /** Statuses `claimPending` may take: never claimed, or claimed under a lease that may have expired. */
 const CLAIMABLE_STATUSES = ["pending", "processing"];
 
+/**
+ * Statuses an attempt's outcome may still overwrite (F9C, 2026-10-20). `delivered` and `failed` are
+ * settled: a purge fails a job whose attempt may still be in flight (`form-delivery-repo.ts`
+ * `scrubPurged`), and that attempt's outcome must not revive it, or the retry would send the
+ * blanked answers. `pending` stays writable because a timeout records `pending` while its handler
+ * keeps running, and Jini's `recordOverrun` then lets the late outcome replace that record.
+ */
+const UNSETTLED_STATUSES = ["pending", "processing"];
+
 /** The `outbox_events` row for a freshly-produced event (snake_case). Shared by enqueue
  * and transactional callers so an audit event can be inserted atomically with its domain
  * writes, using the identical row shape rather than a copy or an independent enqueue.
  */
-export function outboxEventValues(event: DomainEvent) {
+export function outboxEventValues(event: DomainEvent<object>) {
   return {
     id: event.id,
     workspace_id: event.workspaceId,
@@ -107,14 +116,17 @@ export class SqlOutboxAdapter implements OutboxPort {
     });
   }
 
+  /** Settles a claimed row as delivered; a row already settled (see {@link UNSETTLED_STATUSES}) is left as it is. */
   async markDelivered({ id }: { id: UUID }): Promise<void> {
-    await this.kernel.run((db) => db.updateTable("outbox_events").set({ status: "delivered" }).where("id", "=", id).execute());
+    await this.kernel.run((db) => db.updateTable("outbox_events").set({ status: "delivered" }).where("id", "=", id)
+      .where("status", "in", UNSETTLED_STATUSES).execute());
   }
 
   /**
    * Marks a claimed row failed and persists whichever `nextStatus` the caller decided (the retry-cap
    * decision lives with the worker — `contracts/core/events/outbox-worker.ts`'s header doc). A
    * single UPDATE, same shape as `markDelivered`: the caller already had every value it needed.
+   * A row already settled (see {@link UNSETTLED_STATUSES}) is left as it is.
    */
   async markFailed(
     { id, error, nextAttemptAt, nextStatus }: {
@@ -129,6 +141,7 @@ export class SqlOutboxAdapter implements OutboxPort {
         .updateTable("outbox_events")
         .set({ status: nextStatus, last_error: error, next_attempt_at: nextAttemptAt })
         .where("id", "=", id)
+        .where("status", "in", UNSETTLED_STATUSES)
         .execute()
     );
   }

@@ -32,7 +32,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`); `copyFile({ client, connectionRef, fileId, name }, { parentId })` via Drive `files.copy`. |
 | `sheets-client.mjs` | The one Sheets client: `sheetsClientFor({ capabilities })` (Sheets product gate per request), `googleClientFor` (ungated: delivery), `sendSheetsRequest`, `assertSpreadsheetId` / `SPREADSHEET_ID_PATTERN` (the one id rule, also every schema's pattern), `sheetsUrl` (the one URL builder; checks the id), `getSpreadsheet`, `runBatchUpdate` (inventory check first), `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bounds (`boundValueRanges`, `assertPayloadWithin`, `outputFits` / `assertOutputWithin`, `spreadsheetFields` (grid-data masks need the opt-in)), `resourceLines` (card lines), `spreadsheetLine`, `tabsOf`. |
 | `sheets-a1.mjs` | A1 helpers, one name and contract each: `columnName`, `columnIndex`, `parseA1Range` (Google's normalized range → parts or undefined), `parseBoundsA1` (a plain `A1:B2` → bounds, else `invalid-input`), `tabRange` (tab-title quoting), `gridRangeLabel` (card label). |
-| `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`, and the product gate: `PRODUCT_STATE_KEY` (`'products'`), `isProductEnabled({ state, productId })`, `assertProductEnabled(...)` (`product-disabled`), `productEnabledReader({ state, productId })` (the `productEnabled` port form delivery takes, built from the host's read-only plugin-state reader). A product is off unless the plugin's settings hold `products: { <id>: true }`. |
+| `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`, and the product gate: `PRODUCT_STATE_KEY` (`'products'`), `isProductEnabled({ state, productId })`, `assertProductEnabled(...)` (`product-disabled`); form delivery uses `isProductEnabled` over the read-only plugin-state reader the host passes as `optional.state`. A product is off unless the plugin's settings hold `products: { <id>: true }`. |
 | `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `verifySpreadsheetAccess({ client, connectionRef, fileId })` (live spreadsheet per Drive, then opened by the Sheets API; shared with `sheets_open_existing`), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
 | `surface-actions.mjs` | For the admin-surface handlers: `CONNECTION_ID` (`'account'`), `surfaceSheetsClient({ capabilities })` (the one Sheets client over the surface port, which names connections by id), `surfaceAccount`, `sheetsUnavailableReason`, `withSurfaceFailures` (plugin/host refusals → surface-safe failures), `surfaceRefusal`. |
 | `picker-flow.mjs` | `createPickerFlow({}, { now, randomId })` → `bootstrap` (hosted session + short-lived token, or `system-browser` / `unavailable`), `verifyHosted`, `startSystemBrowser`, `finishSystemBrowser`; `readPickedSpreadsheets`, `rememberPickedSpreadsheet`, `PICKER_CONFIG_NAMES`, `PICKER_SESSION_TTL_MS`. |
@@ -67,10 +67,12 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
-- Products are read from the plugin's settings and default to OFF; the connection panel writes them.
-  The host does not yet pass delivery a `productEnabled` port (G14b wires `productEnabledReader`
-  over its plugin-state reader), nor read the Form destinations panel's saved choices into form
-  bindings (`form-destinations` settings key; `bindingConfigFor` builds the binding config).
+- Products are read from the plugin's settings and default to OFF; the connection panel writes them,
+  and the host hands form delivery the same settings (read-only) as `optional.state`.
+- The Form destinations panel cannot create the form binding itself: bindings live in the host's
+  `core.forms/deliveryBindings` setting, and no admin-surface capability writes it yet (a Jini
+  admin-surfaces seam; see `form-destinations/README.md`). Until then an admin adds the binding with
+  the config the panel shows (`bindingConfigFor`: spreadsheet, tab and the frozen `accountId`).
 - Panels (G13b) are built and unit-tested only; they need a Chrome check (hosted Picker inside the
   sandboxed frame, desktop system-browser Picker, the account-page button). The host says whether it
   is hosted or desktop (`context.hostKind`); a hosted site also needs both

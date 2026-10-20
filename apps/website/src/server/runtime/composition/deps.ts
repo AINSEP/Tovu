@@ -80,6 +80,10 @@ import { createFileBlobIndex } from "#src/features/publish-content/file-blob-ind
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";
 import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
+import { composeFormDelivery } from "#src/server/runtime/composition/form-delivery";
+import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/form-delivery-deliverer";
+import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { ensureFormDeliverySettings } from "#src/features/settings/index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -1303,6 +1307,7 @@ async function composeSiteRouteDeps(
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1517,7 +1522,12 @@ async function composeSiteRouteDeps(
   const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: kernel, workspaceId });
   const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId });
   const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
+  // Built here (stateless over `kernel`) because a form or submission purge scrubs its frozen
+  // delivery jobs; the delivery wiring further down reuses the same instance.
+  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
   const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([
+    ["form_submission", { afterPurge: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: { submissionId: entityId } }) }],
+    ["form", { afterPurge: ({ workspaceId: ws, entityId }) => formDeliveryRepo.scrubPurged({ workspaceId: ws, purged: { formId: entityId } }) }],
     [
       "widget",
       {
@@ -2625,13 +2635,30 @@ async function composeSiteRouteDeps(
   // receiver key, and the pull imports what it stored (`form-submissions.ts`).
   const formSubmissions = composeFormSubmissions({
     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
-    receipts: new SqlFormSubmissionReceiptRepo(kernel), outbox, bus, clock, idGen,
+    receipts: new SqlFormSubmissionReceiptRepo(kernel), pullLeases: new SqlFormPullLeaseRepo({ kernel }), outbox, bus, clock, idGen,
     credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
     loadFormDestinations: (workspaceId) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     settingsRepo,
   }, { observability });
   routeDeps.formDestination = formSubmissions.destination;
   routeDeps.formSubmissionsPull = formSubmissions.pull;
+  routeDeps.formSubmissionsAutoPull = formSubmissions.autoPull;
+
+  // Durable delivery of each new submission to the `core.forms/deliveryBindings` destinations: one
+  // outbox child job per binding, its credential resolved fresh per attempt (a plugin's OAuth
+  // connection first, else a saved custom credential), status read back from the same rows. The
+  // integrations module starts the subscriptions once per bus.
+  routeDeps.formDeliveryStatus = formDeliveryRepo;
+  routeDeps.formDelivery = composeFormDelivery({
+    bus, plans: formDeliveryRepo, settingsRepo, idGen, clock,
+    formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
+    deliver: composeFormDeliveryDeliverer({
+      apiConnections: agentPluginConnections.apiConnections,
+      loadRegistry: ({ workspaceId }) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+      credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
+      kit: createDeployHostKit({ observability }),
+    }),
+  });
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });

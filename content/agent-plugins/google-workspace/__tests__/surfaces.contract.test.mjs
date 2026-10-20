@@ -86,7 +86,9 @@ test('destinations: list shows each saved destination with its binding config an
   ports.state.set(FORM_DESTINATIONS_KEY, { contact: SAVED, signup: { ...SAVED, accountId: 'perm-bob' } });
   const { result } = await surfaces.dispatch('form-destinations', 'list-destinations');
   assert.deepEqual(result.destinations.map((entry) => [entry.formSlug, entry.sameAccount]), [['contact', true], ['signup', false]]);
-  assert.deepEqual(JSON.parse(result.destinations[0].bindingConfigJson), { spreadsheetId: FILE_ID, tabs: { contact: { sheetId: 7 } } });
+  // The binding config freezes the account the spreadsheet was verified with (each job then refuses another account).
+  assert.deepEqual(JSON.parse(result.destinations[0].bindingConfigJson), { spreadsheetId: FILE_ID, accountId: 'perm-alice', tabs: { contact: { sheetId: 7 } } });
+  assert.deepEqual(JSON.parse(result.destinations[1].bindingConfigJson).accountId, 'perm-bob');
   assert.deepEqual(result.picked, []);
 });
 

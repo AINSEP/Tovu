@@ -21,8 +21,9 @@ import { type OutboxPort, ForbiddenError, adaptLegacyAuthorize, requireToolPermi
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { formsAgentToolCatalog } from "./agent-tools.js";
+import { DELIVERY_STATUS_MAX_LIMIT, formsAgentToolCatalog } from "./agent-tools.js";
 import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
+import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "./delivery-status.js";
 import { deriveAvailableFormSlug } from "@jini-ai/cms/forms";
 import { formSlugPolicy } from "./index.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
@@ -73,6 +74,8 @@ export interface FormsToolDeps {
   formSubmissionRepo: FormSubmissionRepoPort;
   /** `RouteDeps.formSubmissionsPull`: absent outside the real site composition. */
   formSubmissionsPull?: FormSubmissionsPullPort;
+  /** `RouteDeps.formDeliveryStatus`: absent outside the real site composition. */
+  formDeliveryStatus?: FormDeliveryStatusPort;
 }
 
 /**
@@ -98,6 +101,8 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   // -> formSubmissionsPull.pull: host reads, then per row receipt + submission + outbox in one
   //    transaction, then an acknowledgement to the host for the committed rows.
   ["forms_pull_submissions", "mutates-durable-state"],
+  // -> formDeliveryStatus.forSubmission / recentUnfinished: indexed reads of delivery jobs, no write.
+  ["forms_delivery_status", "none"],
 ]);
 
 /**
@@ -193,6 +198,23 @@ function requireSubmissionsLimit(input: Record<string, unknown>): number {
     throw new ToolInputError({ message: `'limit' must be an integer between ${SUBMISSIONS_MIN_LIMIT} and ${SUBMISSIONS_MAX_LIMIT}` });
   }
   return limit;
+}
+
+/** Reads `limit` for the unfinished-deliveries listing; same unwrapped `ToolInputError` shape as
+ *  {@link requireSubmissionsLimit}. */
+function requireDeliveryStatusLimit(input: Record<string, unknown>): number {
+  const limit = input.limit ?? DELIVERY_STATUS_MAX_LIMIT;
+  if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > DELIVERY_STATUS_MAX_LIMIT) {
+    throw new ToolInputError({ message: `'limit' must be an integer between 1 and ${DELIVERY_STATUS_MAX_LIMIT}` });
+  }
+  return limit;
+}
+
+/** Copies only the reported fields, so whatever else a status row carries (now or later) never
+ *  reaches the model. Error codes are already the allowlisted delivery codes. */
+function toDeliveryStatusView(row: FormDeliveryStatusRow): FormDeliveryStatusRow {
+  return { bindingId: row.bindingId, adapterId: row.adapterId, formId: row.formId, submissionId: row.submissionId,
+    status: row.status, attempts: row.attempts, nextRetryAt: row.nextRetryAt, errorCode: row.errorCode };
 }
 
 /** Binds host persistence and the audited command gateway for the Forms policy adapter. */
@@ -403,6 +425,23 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
         throw new FormSubmissionNotFoundError({ message: `submission '${submissionId}' was not found` });
       }
       return { submission: toFormSubmissionView(submission) };
+    },
+
+    forms_delivery_status: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const submissionId = optionalString({ input, key: "submissionId" });
+      const limit = requireDeliveryStatusLimit(input);
+      await requireToolPermission({
+        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        permission: "admin.forms.submissions.read",
+      }, { entityType: "form_submission", ...(submissionId ? { entityId: submissionId } : {}) });
+      const status = routeDeps.formDeliveryStatus;
+      if (!status) throw new ToolInputError({ message: "Form delivery status is not available on this site's server. Restart the site, then try again." });
+      const workspaceId = routeDeps.workspaceId;
+      const rows = submissionId ? await status.forSubmission({ workspaceId, submissionId }) : await status.recentUnfinished({ workspaceId }, { limit });
+      return { deliveries: rows.map(toDeliveryStatusView) };
     },
 
     forms_pull_submissions: async (ctx) => {

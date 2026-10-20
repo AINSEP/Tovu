@@ -160,7 +160,8 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
   assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
   // The push kit's host allowlist is the connection's declared API origin, never empty.
-  const { getAccessToken, ...credential } = (await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }))!;
+  const binding = { bindingId: "b1", adapterId: "row-append", connectionRef, enabled: true, config: { accountId: "acct-1" } };
+  const { getAccessToken, ...credential } = (await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }, { binding }))!;
   assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
   assert.equal(typeof getAccessToken, "function");
 });
@@ -175,9 +176,11 @@ test("security: a form-delivery credential stays on the job's frozen account, fo
   });
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
   const target = { workspaceId: "ws-1", connectionRef, adapterId: "row-append" };
-  await assert.rejects(port(target, { expectedAccountId: "acct-someone-else" }), { code: "account-changed" });
+  const frozenOn = (accountId: string) => ({ binding: { bindingId: "b1", adapterId: "row-append", connectionRef, enabled: true, config: { accountId } } });
+  // The attempt's first read is recorded in the delivery ledger, so it carries the delivery code (not retried).
+  await assert.rejects(port(target, frozenOn("acct-someone-else")), { name: "FormDeliveryError", code: "authorization-required", retryable: false });
 
-  const credential = await port(target, { expectedAccountId: "acct-1" });
+  const credential = await port(target, frozenOn("acct-1"));
   assert.equal(credential?.token, accessToken);
   assert.equal(await credential?.getAccessToken(), accessToken, "the first request uses the attempt's own read");
   assert.equal(await credential?.getAccessToken(), accessToken, "later requests read a fresh token");

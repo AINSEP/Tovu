@@ -247,8 +247,9 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
     hostFor: ({ workspaceId }) => (workspaceId === WORKSPACE ? composition.apiConnections.host : null),
     adapterPluginId: async ({ adapterId }) => destinations.get(adapterId)?.pluginId ?? null,
   });
-  const binding = { bindingId: "binding-1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: { table: "Signups" } };
-  const credential = await credentialFor({ workspaceId: WORKSPACE, connectionRef: binding.connectionRef, adapterId: binding.adapterId });
+  // The binding freezes the account it was set up with (`config.accountId`), as every OAuth binding must.
+  const binding = { bindingId: "binding-1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: { table: "Signups", accountId: "acct-1" } };
+  const credential = await credentialFor({ workspaceId: WORKSPACE, connectionRef: binding.connectionRef, adapterId: binding.adapterId }, { binding });
   assert.ok(credential, "the plugin's own connectionRef yields a credential");
   // The frozen job per the forms-multidest contract; Tovu's FormDestinationModule type gains
   // `binding`/`idempotencyKey` and the result type with that contract's adapter ABI (F4), so the

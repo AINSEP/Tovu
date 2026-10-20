@@ -1,6 +1,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { resolveDefinitionRaw, set as setSettingValue, ValueValidationFailedError, type SetValueRequired } from "@jini-ai/core/settings";
 
+import { enforceFormDeliveryBindingsWrite } from "./form-delivery.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_MAX_LENGTH, SITE_TITLE_NAMESPACE } from "./site-title.js";
 
 /**
@@ -57,5 +58,7 @@ export async function set(required: SetValueRequired, optional: {
       throw new ValueValidationFailedError("Save a usable provider key and a model in AI Assistant before enabling the public assistant.");
     }
   }
-  return setSettingValue({ ...required, input: enforceSiteTitleWriteBounds(required.input) });
+  // Form delivery bindings are validated here too, so no host write path can store a list that
+  // planning would refuse or a secret in a binding's config (`form-delivery.ts`).
+  return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) });
 }

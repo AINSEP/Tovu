@@ -21,7 +21,7 @@ names no provider.
 | `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. `startApiConnectionSignIn` is the shared start (declared start parameters; desktop completion returns the declared callback fields). |
 | `surface-connections.ts` | The admin-surface `connections` port by connection id (status, begin, confirm/cancel switch, disconnect with verbatim revocation, `takeCallbackFields` keyed by the service's attempt id). `status.lastSignInAttempt` is `{ code, nextAction: 'reconnect' }` after a desktop sign-in failed once the browser had opened (our own code, from `host.lastSignInAttempts`), `null` otherwise; a later successful desktop sign-in clears it. |
 | `plugin-state.ts` | Plugin settings: JSON per key, per workspace + plugin, sealed rows in the same vault kind (no migration); 128 keys and 16 KiB per value; `forPlugin` (surfaces, read-write) and `readerFor` (tools, form delivery: `get` only). |
-| `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort` (unwired until the forms fan-out, G14b): the token plus the connection's declared `apiOrigins` as `baseUrl` (first) and `additionalHosts` (the rest). |
+| `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort`, composed ahead of saved custom credentials (`server/runtime/composition/form-delivery-deliverer.ts`): the token plus the connection's declared `apiOrigins` as `baseUrl` (first) and `additionalHosts` (the rest, exact origins); the job's frozen `binding.config.accountId` is the only account it serves; first-read refusals become delivery codes (`authorization-required`, `rate-limited`, `configuration-invalid` for a binding with no account). |
 | `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, cookie-less, rate-limited, renders the shared fixed-copy callback page; after a successful exchange it deposits the declared callback fields in `host.callbackInbox`. |
 
 ## The plugin side
@@ -135,5 +135,7 @@ and puts it on `RouteDeps`:
    `redirectOrigins`. With neither, every hosted sign-in (and token read) is refused with a
    configuration message instead of the provider's redirect-mismatch page.
 
-Still owed: G14 wires `createOAuthFormDeliveryConnectionPort({ hostFor, adapterPluginId })` into the
-forms fan-out.
+Form delivery (G14b): an OAuth binding names the account it was set up with as `config.accountId`;
+that binding is frozen into every job, so after a confirmed account switch the old jobs are refused
+(`authorization-required`, kept in the ledger) instead of delivering to the new account. Re-pointing
+a binding at the new account is an explicit binding edit.

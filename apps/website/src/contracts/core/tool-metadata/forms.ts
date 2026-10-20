@@ -3,6 +3,19 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** forms registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "forms_delivery_status": {
+    search: {
+      keywords: "form submission delivery deliveries destination destinations sheet spreadsheet sent reached status retry retrying failed attempts",
+      queries: [
+        "Did this form submission reach the spreadsheet?",
+        "Which form deliveries failed or are still retrying?",
+        "Why didn't the new signup show up in our sheet?",
+        "Show me the delivery status of the latest form entries.",
+        "Are any form submissions stuck waiting to be sent to their destination?",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
   "forms_create_definition": {
     search: {
       keywords: "form contact form build create new fields",

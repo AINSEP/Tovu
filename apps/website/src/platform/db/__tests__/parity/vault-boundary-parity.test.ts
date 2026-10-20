@@ -18,7 +18,12 @@ const FOLDED = ["site_assistant_credentials", "admin_execution_credentials", "me
 const RETIRED = [...FOLDED, "oauth_pending_authorizations"];
 /** Dropped by step 0011 when empty, as they are here (owner 2026-10-11: no commerce in core). */
 const COMMERCE = ["commerce_order_items", "commerce_orders", "commerce_prices", "commerce_product_images", "commerce_products", "commerce_webhook_events"];
+/** Later migrations' tables, pinned by name (a8bce53c8 0018, 6bee1800b 0019): three are copied; the receiver
+ * pull lease is left out and joins the exclusion list (`database-transfer/exclusions.ts` says why). */
+const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submission_remote_receipts"];
+const LATER_EXCLUDED = ["form_receiver_pulls"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
+const plus = (names: string[], added: string[]) => [...names, ...added].sort();
 
 let mods: ParityModules;
 before(async () => { mods = await loadParityModules(CURRENT_SRC); });
@@ -33,16 +38,16 @@ describe("vault boundary parity [sqlite]", () => {
   after(async () => { await fixture?.kernel.close(); });
 
   test("a transfer copies the same tables as before minus the retired ones", () => {
-    assert.deepEqual(actual.copied, without(golden.copied, [...RETIRED, ...COMMERCE]));
+    assert.deepEqual(actual.copied, plus(without(golden.copied, [...RETIRED, ...COMMERCE]), LATER_COPIED));
   });
   test("the vault is never copied; it is left out next to what was left out before", () => {
     assert.equal(actual.copied.includes("secrets_vault"), false);
-    assert.deepEqual(without(actual.leftOut, ["secrets_vault"]), without(golden.leftOut, RETIRED));
+    assert.deepEqual(without(actual.leftOut, ["secrets_vault"]), plus(without(golden.leftOut, RETIRED), LATER_EXCLUDED));
     assert.ok(actual.leftOut.includes("secrets_vault"));
   });
   test("whole-table transfer exclusions: the vault joins the list; the retired names stay on it", () => {
     // A source that has not run 0012 yet (or an old backup) still holds the folded tables.
-    assert.deepEqual(without(actual.excluded, ["secrets_vault"]), golden.excluded);
+    assert.deepEqual(without(actual.excluded, ["secrets_vault"]), plus(golden.excluded, LATER_EXCLUDED));
     assert.ok(actual.excluded.includes("secrets_vault"));
   });
   test("partially excluded (secret-column) tables are unchanged", () => {

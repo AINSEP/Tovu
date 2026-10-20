@@ -27,6 +27,9 @@ export interface ContentDatabase {
   external_mcp_servers: ExternalMcpServersTable;
   external_mcp_tool_approvals: ExternalMcpToolApprovalsTable;
   form_definitions: FormDefinitionsTable;
+  form_delivery_jobs: FormDeliveryJobsTable;
+  form_delivery_plans: FormDeliveryPlansTable;
+  form_receiver_pulls: FormReceiverPullsTable;
   form_submission_remote_receipts: FormSubmissionRemoteReceiptsTable;
   form_submissions: FormSubmissionsTable;
   gated_mutation_tokens: GatedMutationTokensTable;
@@ -314,6 +317,28 @@ export interface FormDefinitionsTable {
   updated_at: string;
   deleted_at: string | null;
   version: Generated<number>;
+}
+
+export interface FormDeliveryJobsTable {
+  job_id: string;
+  workspace_id: string;
+  submission_id: string;
+  binding_id: string;
+  adapter_id: string;
+}
+
+export interface FormDeliveryPlansTable {
+  workspace_id: string;
+  submission_id: string;
+  form_id: string;
+}
+
+export interface FormReceiverPullsTable {
+  workspace_id: string;
+  receiver_key: string;
+  lease_token: string | null;
+  lease_expires_at: string | null;
+  last_started_at: string;
 }
 
 export interface FormSubmissionRemoteReceiptsTable {
