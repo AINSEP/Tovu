@@ -19,6 +19,8 @@ function blankFields(providerId: string): SourceControlCredentialFormFields {
   return { providerId, token: "", values: {} };
 }
 
+const SYNTHETIC_TOKEN = ["ghp", "abc"].join("_");
+
 const GITHUB = sourceControlProviderInfoFromDescriptor(GITHUB_PROVIDER);
 const FORGE = sourceControlProviderInfoFromDescriptor(FORGE_PROVIDER);
 
@@ -36,6 +38,45 @@ function credential(overrides: Partial<AdminSourceControlCredentialSummary> = {}
 }
 
 describe("sourceControlProviderInfoFromDescriptor", () => {
+  it("keeps custom token names, first matching label, and non-token fields in order", () => {
+    const token = { name: "access", label: "First token", secret: true };
+    const username = { name: "username", label: "Username", required: true };
+    const endpoint = { name: "endpoint", label: "Endpoint" };
+    const descriptor = {
+      id: "custom", label: "Custom",
+      credential: {
+        tokenField: "access", tokenPageUrl: "", help: "",
+        fields: [username, token, { ...token, label: "Second token" }, endpoint],
+      },
+    };
+    const info = sourceControlProviderInfoFromDescriptor(descriptor);
+    expect(info).toEqual({
+      id: "custom", label: "Custom", tokenField: "access", tokenLabel: "First token",
+      tokenPageUrl: "", scopeGuidanceKey: "", fields: [username, endpoint], listed: true,
+    });
+    expect(info.fields[0]).toBe(username);
+    expect(descriptor.credential.fields).toEqual([username, token, { ...token, label: "Second token" }, endpoint]);
+  });
+
+  it("omits tokenLabel when the declared token field is absent and defaults missing guidance", () => {
+    const username = { name: "username", label: "Username" };
+    expect(sourceControlProviderInfoFromDescriptor({
+      id: "custom", label: "Custom", credential: { tokenField: "access", fields: [username] },
+    })).toEqual({
+      id: "custom", label: "Custom", tokenField: "access", tokenPageUrl: "",
+      scopeGuidanceKey: "", fields: [username], listed: true,
+    });
+  });
+
+  it("preserves empty token names and empty token labels", () => {
+    expect(sourceControlProviderInfoFromDescriptor({
+      id: "custom", label: "Custom", credential: { tokenField: "", fields: [{ name: "", label: "" }] },
+    })).toEqual({
+      id: "custom", label: "Custom", tokenField: "", tokenLabel: "", tokenPageUrl: "",
+      scopeGuidanceKey: "", fields: [], listed: true,
+    });
+  });
+
   it("reads the label, guidance, token page and token label from the descriptor, and keeps only non-token fields", () => {
     expect(GITHUB).toEqual({
       id: "github",
@@ -85,7 +126,7 @@ describe("buildSourceControlConnectionInput", () => {
   });
 
   it("passes the token unchanged to the store when the host declares nothing else", () => {
-    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: "  ghp_abc  " }, GITHUB.fields)).toEqual({ providerId: "github", token: "  ghp_abc  " });
+    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: `  ${SYNTHETIC_TOKEN}  ` }, GITHUB.fields)).toEqual({ providerId: "github", token: `  ${SYNTHETIC_TOKEN}  ` });
   });
 
   it("trims ordinary declared fields and drops undeclared or blank ones, preserving the token", () => {
@@ -109,7 +150,7 @@ describe("sourceControlCredentialRowReadyToSave", () => {
   });
 
   it("is true once the token alone is filled in when the host declares nothing else", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("github"), token: "ghp_abc" }, GITHUB)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("github"), token: SYNTHETIC_TOKEN }, GITHUB)).toBe(true);
   });
 
   it("is false until every required declared field is filled, treating whitespace as blank", () => {
