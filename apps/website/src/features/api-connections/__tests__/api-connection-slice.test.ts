@@ -85,14 +85,14 @@ after(async () => {
 
 const hostedEnv = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
 
-function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo } = {}) {
+function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined } = {}) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "api-connection-slice" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: fixtureRoot }, definition: input.definition });
   return createApiConnectionHost({
     workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: options.runtime ?? "hosted",
     env: options.env ?? hostedEnv,
-    publicOrigin: () => siteOrigin,
+    publicOrigin: options.publicOrigin ?? (() => siteOrigin),
   });
 }
 
@@ -175,6 +175,31 @@ test("security: getAccessToken refuses another plugin's or another workspace's c
   const ownRef = deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" });
   await assert.rejects(host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef: foreignWorkspace }), { code: "connection-not-found", message: /not available to this plugin/ });
   await assert.rejects(host.accessTokensFor({ pluginId: "other-plugin" }).getAccessToken({ connectionRef: ownRef }), { code: "connection-not-found", message: /not available to this plugin/ });
+});
+
+/** The fixture's connection with its web client's declared callback origins replaced (absent: none declared). */
+async function withRedirectOrigins(host: ReturnType<typeof makeHost>, redirectOrigins: readonly string[] | undefined) {
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const { redirectOrigins: _declared, ...web } = connection!.clients.web!;
+  return { ...connection!, clients: { ...connection!.clients, web: redirectOrigins === undefined ? web : { ...web, redirectOrigins } } };
+}
+
+test("security (pin): hosted sign-in is refused when this site has no public origin", async () => {
+  const host = makeHost("ws-1", { publicOrigin: () => undefined });
+  const connection = await withRedirectOrigins(host, [siteOrigin]);
+  assert.throws(() => host.hostedCallbackUrl({ connection }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
+});
+
+test("security (pin): hosted sign-in is refused from an origin the connection's web client did not register", async () => {
+  const host = makeHost();
+  const connection = await withRedirectOrigins(host, ["https://other.example"]);
+  assert.throws(() => host.hostedCallbackUrl({ connection }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
+});
+
+test("security (pin): a registered origin gets the fixed public callback path", async () => {
+  const host = makeHost();
+  const connection = await withRedirectOrigins(host, [siteOrigin]);
+  assert.equal(host.hostedCallbackUrl({ connection }), `${siteOrigin}/api/agent-plugins/connections/oauth/callback`);
 });
 
 test("security: an attempt is consumed once even when two callbacks race on the same state", async () => {
