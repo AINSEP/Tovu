@@ -50,6 +50,16 @@ describe("loading the entry's terms", () => {
     expect(hook.result.current.error).toBeNull();
   });
 
+  it("stays loading while the content's own terms are still being read, even once the list has landed", async () => {
+    const pending = deferred<{ termIds: string[] }>();
+    const port: TermPickerPort = { ...createFakeTermPickerPort({ taxonomies: [] }), assignedTerms: () => pending.promise };
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.hidden).toBe(true));
+    expect(result.current.loading).toBe(true);
+    act(() => pending.resolve({ termIds: [] }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+
   it("a failed read is reported with its own message", async () => {
     const port = createFakeTermPickerPort({ loadError: new Error("read exploded") });
     const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
@@ -81,6 +91,24 @@ describe("the taxonomy list and the tagged content", () => {
     const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.error).toBe("list exploded"));
     expect(result.current.hidden).toBe(false);
+  });
+
+  it("when both reads fail, the content's own terms read is the one reported", async () => {
+    const port = createFakeTermPickerPort({ loadError: new Error("read exploded"), taxonomiesError: new Error("list exploded") });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("read exploded");
+  });
+
+  it("a failed save is reported in place of an earlier failed list read", async () => {
+    const port = createFakeTermPickerPort({ taxonomiesError: new Error("list exploded"), saveError: new Error("server exploded") });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe("list exploded"));
+    act(() => result.current.toggle("t1"));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(result.current.error).toBe("server exploded");
   });
 
   it("tags a post by its own content ref and names it a post", async () => {
