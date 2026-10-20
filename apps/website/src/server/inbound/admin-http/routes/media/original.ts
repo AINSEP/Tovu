@@ -1,10 +1,11 @@
 import { documentContentType, documentDisplayFilename, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { parseRangeHeader, type ParsedRange } from "#src/server/inbound/admin-http/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
+import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace } from "./route-guards.js";
 
 /**
  * @file GET a media asset's ORIGINAL bytes for the admin UI's `<img>`/`<video>`
@@ -188,67 +189,26 @@ export function sendMediaOriginalResponse(
 
 export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/original", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const mediaId = String(req.params.mediaId ?? "");
-      const authResult = await deps.authorize({
+      const mediaId = readRouteParam({ req, name: "mediaId" });
+      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.read",
         workspaceId: deps.workspaceId,
         entityType: "media",
         entityId: mediaId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'media.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "media.read", reason: authResult.reason },
-        });
-        return;
-      }
+      } });
+      if (!authorized) return;
 
       const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId });
       if (!resolved) {
         return;
       }
-      const { blob } = resolved;
-
-      if (resolved.media.kind === "document") {
-        const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });
-        if (size != null && size > MAX_DOCUMENT_BYTES) throw new Error("document exceeds size limit");
-      }
-      const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
-      if (resolved.media.kind === "document") {
-        if (sourceBytes.byteLength > MAX_DOCUMENT_BYTES) throw new Error("document exceeds size limit");
-        const filename = documentDisplayFilename(resolved.media);
-        // RFC 5987 encoding keeps titles out of header syntax; storage keys never use names.
-        const encoded = encodeURIComponent(Buffer.from(filename).toString("utf8")).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
-        res.set("Content-Disposition", `attachment; filename="document"; filename*=UTF-8''${encoded}`);
-        sendMediaOriginalResponse(res, sourceBytes, parseRangeHeader({ header: req.get("range"), totalLength: sourceBytes.byteLength }), {
-          safe: documentContentType({ filename: resolved.media.originalFilename ?? "" }), forceDownload: false,
-        });
-        return;
-      }
-      const sniffed = sniffContentType({ bytes: sourceBytes });
-      // Old blobs may predate ingest sanitization; never authorize raw markup from its label.
-      const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
-      const totalLength = bytes.byteLength;
-      const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
-      // Every response here reflects this principal's authorization at request time and may name
-      // whether a specific asset is trashed — never shared-cached (mirrors the public rendition
-      // route's `no-store` on its own non-ok outcomes; this route applies it to every outcome
-      // since none of its bytes are safe to cache across principals/permission changes). See
-      // `sendMediaOriginalResponse` for the rest of the security headers.
-      const range = parseRangeHeader({ header: req.get("range"), totalLength });
-      sendMediaOriginalResponse(res, bytes, range, {
-        safe: forceDownload ? "application/octet-stream" : sniffed,
-        forceDownload,
-      });
+      const sendOriginal = resolved.media.kind === "document" ? sendDocumentOriginal : sendInlineOriginal;
+      await sendOriginal({ req, res, deps, ...resolved });
     } catch {
       // No typed domain error is thrown on this route's own read path — `media`/`assetBlobRepo`
       // not-found is handled explicitly above via the `null` checks, not by catching an error type
@@ -259,3 +219,60 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
     }
   });
 };
+
+/** What both original senders receive: the request (for `Range`), the response, and the resolved asset. */
+interface SendOriginalInput {
+  req: Request;
+  res: Response;
+  deps: Pick<MediaRouteDeps, "blobStore">;
+  media: MediaRecord;
+  blob: { storageKey: string };
+}
+
+/**
+ * Serves a document as a download under its display filename, with its filename-policy type.
+ * Refuses (throws, so the caller 500s) a document over `MAX_DOCUMENT_BYTES` — before reading the
+ * bytes when the store can report a size, and again on the bytes actually read.
+ *
+ * @complexity O(n) in the document's size (one read, one optional copy for a partial range).
+ */
+async function sendDocumentOriginal({ req, res, deps, media, blob }: SendOriginalInput): Promise<void> {
+  const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });
+  if (size != null && size > MAX_DOCUMENT_BYTES) throw new Error("document exceeds size limit");
+  const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+  if (sourceBytes.byteLength > MAX_DOCUMENT_BYTES) throw new Error("document exceeds size limit");
+  const filename = documentDisplayFilename(media);
+  // RFC 5987 encoding keeps titles out of header syntax; storage keys never use names.
+  // The UTF-8 Buffer round-trip turns a lone UTF-16 surrogate into U+FFFD, which
+  // `encodeURIComponent` would otherwise reject with a URIError.
+  const encoded = encodeURIComponent(Buffer.from(filename).toString("utf8")).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  res.set("Content-Disposition", `attachment; filename="document"; filename*=UTF-8''${encoded}`);
+  sendMediaOriginalResponse(res, sourceBytes, parseRangeHeader({ header: req.get("range"), totalLength: sourceBytes.byteLength }), {
+    safe: documentContentType({ filename: media.originalFilename ?? "" }), forceDownload: false,
+  });
+}
+
+/**
+ * Serves an image/video inline under the type sniffed from its bytes (see the module doc's
+ * SECURITY list): SVG is sanitized first, and HTML is forced to an `octet-stream` download.
+ *
+ * @complexity O(n) in the asset's size (read, optional SVG sanitize, optional range copy).
+ */
+async function sendInlineOriginal({ req, res, deps, blob }: SendOriginalInput): Promise<void> {
+  const sourceBytes = await deps.blobStore.get({ storageKey: blob.storageKey });
+  const sniffed = sniffContentType({ bytes: sourceBytes });
+  // Old blobs may predate ingest sanitization; never authorize raw markup from its label.
+  const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
+  const totalLength = bytes.byteLength;
+  const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
+  // Every response here reflects this principal's authorization at request time and may name
+  // whether a specific asset is trashed — never shared-cached (mirrors the public rendition
+  // route's `no-store` on its own non-ok outcomes; this route applies it to every outcome
+  // since none of its bytes are safe to cache across principals/permission changes). See
+  // `sendMediaOriginalResponse` for the rest of the security headers.
+  const range = parseRangeHeader({ header: req.get("range"), totalLength });
+  sendMediaOriginalResponse(res, bytes, range, {
+    safe: forceDownload ? "application/octet-stream" : sniffed,
+    forceDownload,
+  });
+}
