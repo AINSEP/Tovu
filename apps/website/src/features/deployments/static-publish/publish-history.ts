@@ -123,7 +123,7 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
     for (let i = rows.length - 1; i >= 0; i -= 1) {
       const row = rows[i]!;
       const key = JSON.stringify([row.kind ?? "static", row.target, row.projectName]);
-      if ((row.reachable || (row.kind === "deploy" && row.status === "started")) && (row.kind === "tovu-peer" || row.kind === "deploy" || row.configFields !== undefined) && !latest.has(key)) latest.set(key, row);
+      if (isReplayableDestination({ row }) && !latest.has(key)) latest.set(key, row);
       if (latest.size > 200) break;
     }
     return [...latest.values()];
@@ -258,23 +258,43 @@ export async function listPublishDestinations(input: {
   if (rows.length > 200) throw new Error("publish destination limit exceeded (200)");
   const destinations: PublishDestination[] = staticDestinations({ rows, registry: input.registry });
   const peers = new Map(input.peers.map(peer => [peer.id, peer]));
-  for (const row of rows) {
-    const pendingDeploy = row.kind === "deploy" && row.status === "started";
-    if (!row.reachable && !pendingDeploy) continue;
+  destinations.push(...rows.flatMap((row): PublishDestination[] => {
+    if (!isConfirmedOrPending({ row })) return [];
     if (row.kind === "tovu-peer") {
       const peer = peers.get(row.target);
-      if (peer) destinations.push({ id: `tovu-peer:${peer.id}`, kind: "tovu-peer", peerId: peer.id,
-        label: peer.label, url: peer.baseUrl, lastPublishedAt: row.publishedAt });
-    } else if (row.kind === "deploy" && row.url !== "") {
-      // Normalized addresses match root URLs with or without a trailing slash, never by hostname alone.
-      const peer = input.peers.find(candidate => candidate.baseUrl.replace(/\/+$/, "") === row.url.replace(/\/+$/, ""));
-      destinations.push({ id: `deploy:${encodeURIComponent(row.target)}:${encodeURIComponent(row.projectName)}`,
-        kind: "deploy", target: row.target, label: row.projectName, url: row.url,
-        // Acceptance alone never claims a live site, including rows written before this guard.
-        status: pendingDeploy ? "started" : "confirmed",
-        ...(pendingDeploy ? { statusMessage: "Deploy started, not confirmed" } : {}),
-        lastPublishedAt: row.publishedAt, ...(peer ? { linkedPeerId: peer.id } : {}) });
+      return peer ? [{ id: `tovu-peer:${peer.id}`, kind: "tovu-peer", peerId: peer.id,
+        label: peer.label, url: peer.baseUrl, lastPublishedAt: row.publishedAt }] : [];
     }
-  }
+    if (row.kind === "deploy" && row.url !== "") {
+      return [deployDestination({ row, peers: input.peers })];
+    }
+    return [];
+  }));
   return destinations.sort((a, b) => Date.parse(b.lastPublishedAt) - Date.parse(a.lastPublishedAt));
+}
+
+/** Replay needs public static config or a peer/deploy identity, in addition to an eligible outcome. */
+function isReplayableDestination({ row }: { row: PublishHistoryEntry }, _options: Record<string, never> = {}): boolean {
+  return isConfirmedOrPending({ row }) && (row.kind === "tovu-peer" || row.kind === "deploy" || row.configFields !== undefined);
+}
+
+/** Ledger eligibility is shared by selection and projection: only deploys can be pending. */
+function isConfirmedOrPending({ row }: { row: PublishHistoryEntry }, _options: Record<string, never> = {}): boolean {
+  return row.reachable || (row.kind === "deploy" && row.status === "started");
+}
+
+/** A deploy's public status and optional link to a saved peer, without credential resolution. */
+function deployDestination({ row, peers }: {
+  row: PublishHistoryEntry;
+  peers: readonly Pick<PublishContentPeerSummary, "id" | "label" | "baseUrl">[];
+}, _options: Record<string, never> = {}): Extract<PublishDestination, { kind: "deploy" }> {
+  const pendingDeploy = row.status === "started";
+  // Normalized addresses match root URLs with or without a trailing slash, never by hostname alone.
+  const peer = peers.find(candidate => candidate.baseUrl.replace(/\/+$/, "") === row.url.replace(/\/+$/, ""));
+  return { id: `deploy:${encodeURIComponent(row.target)}:${encodeURIComponent(row.projectName)}`,
+    kind: "deploy", target: row.target, label: row.projectName, url: row.url,
+    // Acceptance alone never claims a live site, including rows written before this guard.
+    status: pendingDeploy ? "started" : "confirmed",
+    ...(pendingDeploy ? { statusMessage: "Deploy started, not confirmed" } : {}),
+    lastPublishedAt: row.publishedAt, ...(peer ? { linkedPeerId: peer.id } : {}) };
 }

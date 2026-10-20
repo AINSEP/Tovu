@@ -5,7 +5,7 @@ import type { ObservabilityPort } from "#src/platform/observability/index";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
-import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import { resolveForPublish } from "../publish-credentials/store.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
@@ -172,6 +172,25 @@ function cannotVerify(reason: string, clock: { nowIso(): string }): PublishCrede
   return { status: "unreachable", message: `Could not verify this credential: ${reason}.`, checkedAt: clock.nowIso() };
 }
 
+/** Apply the existing token policy to the primary token and present, descriptor-declared secrets. */
+function assertVerificationCredential({ credential, spec }: {
+  credential: DeployTargetCredential;
+  spec: DeployTargetCredentialSpec | undefined;
+}, _options: Record<string, never> = {}): void {
+  assertCredentialToken({ value: credential.token });
+  for (const field of spec?.fields ?? []) {
+    if (field.secret && field.name !== spec?.tokenField && credential[field.name] !== undefined) {
+      assertCredentialToken({ value: credential[field.name], field: field.name });
+    }
+  }
+}
+
+/** Authentication HTTP statuses override an unreachable reason, while acceptance wins first. */
+function verificationStatus({ check }: { check: DeployCredentialCheck }, _options: Record<string, never> = {}): PublishCredentialVerificationResult["status"] {
+  if (check.ok) return "valid";
+  return check.reason === "rejected" || check.statusCode === 401 || check.statusCode === 403 ? "invalid" : "unreachable";
+}
+
 /**
  * Shared tail of both entry points below: runs the host's own check and stamps `checkedAt` — kept as
  * one function so a THIRD entry point can never build this result shape differently. A target with
@@ -189,10 +208,7 @@ async function computeVerificationResult(
   const loaded = context.registry.get(target);
   if (loaded?.module.verifyCredential === undefined) return cannotVerify(noCheckReason(target), context.clock);
   try {
-    assertCredentialToken({ value: credential.token });
-    for (const field of loaded.descriptor.credential?.fields ?? []) {
-      if (field.secret && field.name !== loaded.descriptor.credential?.tokenField && credential[field.name] !== undefined) assertCredentialToken({ value: credential[field.name], field: field.name });
-    }
+    assertVerificationCredential({ credential, spec: loaded.descriptor.credential });
   } catch (error) {
     return { status: "invalid", message: error instanceof CredentialInputError ? error.message : credentialText({ id: "unreachable" }), checkedAt: context.clock.nowIso() };
   }
@@ -202,7 +218,7 @@ async function computeVerificationResult(
   } catch {
     check = { ok: false, reason: "unreachable" };
   }
-  const status = check.ok ? "valid" : check.reason === "rejected" || check.statusCode === 401 || check.statusCode === 403 ? "invalid" : "unreachable";
+  const status = verificationStatus({ check });
   return {
     status,
     message: buildVerificationMessage(loaded.descriptor.credential?.vendorLabel ?? loaded.descriptor.label, check),

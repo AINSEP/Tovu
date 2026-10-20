@@ -15,7 +15,7 @@ import {
   type PublishCredentialVerificationCache,
 } from "../verify.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
-import type { DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 /**
  * @file Verifies `verify.ts` in isolation — the fix for "ready means a row exists, not a working
@@ -670,4 +670,69 @@ test("verifyPublishCredentialById: an s3-compatible row with no endpoint configu
   await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.equal(seenUrl, "https://s3.us-east-1.amazonaws.com/my-bucket");
+});
+
+test("verification pins host-check classification precedence, labels and cache projection", async () => {
+  const checks: readonly { check: DeployCredentialCheck; status: string; message: string; accountLabel?: string }[] = [
+    { check: { ok: true, accountLabel: "public-name" }, status: "valid", message: "Acme Hosting accepted this credential.", accountLabel: "public-name" },
+    { check: { ok: true }, status: "valid", message: "Acme Hosting accepted this credential." },
+    { check: { ok: false, reason: "unreachable", statusCode: 401 }, status: "invalid", message: "The server rejected this token." },
+    { check: { ok: false, reason: "unreachable", statusCode: 403 }, status: "invalid", message: "The server rejected this token." },
+    { check: { ok: false, reason: "rejected", statusCode: 422 }, status: "invalid", message: "Acme Hosting rejected this credential (HTTP 422) — it is invalid, expired, or missing the required permissions." },
+    { check: { ok: false, reason: "unreachable" }, status: "unreachable", message: "Could not reach Acme Hosting to verify this credential — this does not necessarily mean the credential is bad." },
+  ];
+  for (const scenario of checks) {
+    const cache = new InMemoryPublishCredentialVerificationCache();
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "valid-token" }), cache, clock,
+      loadDeployTargets: stubRegistry({ create: () => assert.fail("no target construction"), verifyCredential: async () => scenario.check }) },
+    { workspaceId: WORKSPACE, target: "acme-host" });
+    const { check: _check, ...expected } = scenario;
+    assert.deepEqual(result, { ...expected, checkedAt: NOW });
+    assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "acme-host" }), result);
+  }
+});
+
+test("verification pins secret-field validation and ignores absent, public and token-alias fields", async () => {
+  for (const extra of [undefined, "valid-extra", "bad\nextra"]) {
+    let calls = 0;
+    const result = await verifyPublishCredential({
+      credentialSource: fakeSource({ ok: true, token: "valid-token", alias: "bad\nalias", publicField: "public\nvalue", ...(extra !== undefined ? { extra } : {}) }),
+      cache: new InMemoryPublishCredentialVerificationCache(), clock,
+      loadDeployTargets: stubRegistry({ create: () => assert.fail("no target construction"), verifyCredential: async () => { calls++; return { ok: true }; } }, {
+        tokenField: "alias", fields: [
+          { name: "alias", label: "Alias", required: true, secret: true },
+          { name: "publicField", label: "Public", required: false },
+          { name: "extra", label: "Extra", required: false, secret: true },
+        ],
+      }),
+    }, { workspaceId: WORKSPACE, target: "acme-host" });
+    assert.equal(result!.status, extra === "bad\nextra" ? "invalid" : "valid");
+    assert.equal(calls, extra === "bad\nextra" ? 0 : 1);
+    assert.equal(result!.checkedAt, NOW);
+  }
+});
+
+test("verification pins invalid primary tokens, unexpected validation errors, and absent credential specs", async () => {
+  for (const { mode, status, expectedCalls } of [
+    { mode: "invalid-token", status: "invalid", expectedCalls: 0 },
+    { mode: "validation-error", status: "invalid", expectedCalls: 0 },
+    { mode: "no-spec", status: "valid", expectedCalls: 1 },
+  ]) {
+    let calls = 0;
+    const loaded: LoadedDeployTarget = {
+      pluginId: "stub", descriptor: { id: "acme", label: "Acme", module: "acme.mjs", configFields: [],
+        ...(mode === "validation-error" ? { credential: { vendorId: "acme", tokenField: "token",
+          get fields(): DeployTargetCredentialSpec["fields"] { throw new Error("private validation detail"); } } } : {}) },
+      module: { create: () => assert.fail("no target construction"), verifyCredential: async () => { calls++; return { ok: true }; } },
+    };
+    const result = await verifyPublishCredential({
+      credentialSource: fakeSource({ ok: true, token: mode === "invalid-token" ? "bad\ntoken" : "valid-token" }),
+      cache: new InMemoryPublishCredentialVerificationCache(), clock,
+      loadDeployTargets: async () => ({ get: () => loaded, list: () => [loaded], refusals: [] }),
+    }, { workspaceId: WORKSPACE, target: "acme" });
+    assert.equal(result!.status, status);
+    assert.equal(calls, expectedCalls);
+    assert.equal(JSON.stringify(result).includes("private validation detail"), false);
+    if (mode === "validation-error") assert.equal(result!.message, "Could not reach the server.");
+  }
 });

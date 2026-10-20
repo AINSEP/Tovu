@@ -247,3 +247,52 @@ test("both adapters expose accepted deploys only as pending, including legacy re
     assert.equal((await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_A })).length, 2);
   }
 });
+
+test("destination selection pins replay eligibility, kind grouping, latest eligible row and the 201-row sentinel", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  assert.deepEqual(await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_A }), []);
+  const rows = [
+    entry({ projectName: "legacy" }),
+    entry({ projectName: "static", configFields: {} }),
+    entry({ projectName: "static", configFields: {}, reachable: false }),
+    entry({ kind: "tovu-peer", projectName: "static" }),
+    entry({ kind: "tovu-peer", projectName: "failed-peer", reachable: false }),
+    entry({ kind: "deploy", projectName: "pending", reachable: false, status: "started" }),
+    entry({ kind: "deploy", projectName: "failed", reachable: false, status: "failed" }),
+    entry({ kind: "deploy", projectName: "confirmed" }),
+    entry({ kind: "deploy", projectName: "confirmed", url: "https://latest.test" }),
+  ];
+  for (const row of rows) await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: row });
+  assert.deepEqual(await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_A }), [rows[8], rows[5], rows[3], rows[1]]);
+  assert.deepEqual(await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_B }), []);
+  for (let i = 0; i < 202; i++) {
+    await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: entry({ projectName: `site-${i}`, configFields: {} }) });
+  }
+  const capped = await historyStore.listDestinationHistory({ workspaceId: WORKSPACE_B });
+  assert.equal(capped.length, 201);
+  assert.equal(capped[0]!.projectName, "site-201");
+  assert.equal(capped[200]!.projectName, "site-1");
+  await assert.rejects(listPublishDestinations({ workspaceId: WORKSPACE_B, historyStore, registry: await loadBundledDeployTargets(), peers: [] }), /limit exceeded/);
+});
+
+test("mixed projection pins empty deploy URLs, exact peer paths, pending status and saved peer identity", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  const registry = await loadBundledDeployTargets();
+  const rows = [
+    entry({ kind: "tovu-peer", target: "saved", projectName: "peer", url: "https://stale.test" }),
+    entry({ kind: "tovu-peer", target: "deleted", projectName: "deleted" }),
+    entry({ kind: "deploy", projectName: "empty", url: "", status: "started", reachable: false }),
+    entry({ kind: "deploy", projectName: "root", url: "https://live.test/", status: "started", reachable: true }),
+    entry({ kind: "deploy", projectName: "path", url: "https://live.test/other", reachable: true }),
+    entry({ kind: "deploy", projectName: "pending", url: "https://pending.test", status: "started", reachable: false }),
+  ];
+  for (const row of rows) await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: row });
+  const destinations = await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore, registry,
+    peers: [{ id: "saved", label: "Current label", baseUrl: "https://live.test" }] });
+  assert.deepEqual(destinations, [
+    { id: "deploy:github-pages:pending", kind: "deploy", target: "github-pages", label: "pending", url: "https://pending.test", status: "started", statusMessage: "Deploy started, not confirmed", lastPublishedAt: rows[5]!.publishedAt },
+    { id: "deploy:github-pages:path", kind: "deploy", target: "github-pages", label: "path", url: "https://live.test/other", status: "confirmed", lastPublishedAt: rows[4]!.publishedAt },
+    { id: "deploy:github-pages:root", kind: "deploy", target: "github-pages", label: "root", url: "https://live.test/", status: "started", statusMessage: "Deploy started, not confirmed", lastPublishedAt: rows[3]!.publishedAt, linkedPeerId: "saved" },
+    { id: "tovu-peer:saved", kind: "tovu-peer", peerId: "saved", label: "Current label", url: "https://live.test", lastPublishedAt: rows[0]!.publishedAt },
+  ]);
+});
