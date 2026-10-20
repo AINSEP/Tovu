@@ -1,6 +1,6 @@
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -10,7 +10,11 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
 import { formDestinationKeyLabel, type FormDestinationPage, type FormDestinationRegistry } from "#src/features/form-destinations/index";
-import { InMemorySettingsRepo } from "@jini-ai/core/settings";
+import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } from "@jini-ai/core/settings";
+import { FORM_PULL_LEASE_MS } from "#src/features/form-destinations/index";
+import { closeSqliteConnection, sqliteKernel } from "#src/platform/db/kernel/index";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { composeFormSubmissions, type FormSubmissionsCompositionDeps } from "../form-submissions.js";
 
 /** @file The composed form destination pull: saved keys → destination pages → import → acknowledge → outbox. */
@@ -21,7 +25,16 @@ const waitlist: FormDefinitionRecord = { id: "f1", workspaceId: W, slug: "waitli
 const page = (ids: string[], slug = "waitlist"): FormDestinationPage => ({ hasMore: false, nextAfter: ids.length,
   items: ids.map((id, index) => ({ seq: index + 1, id, formSlug: slug, answers: { email: `${id}@example.com` }, submittedAt: "2026-10-19T10:00:00.000Z", ip: null })) });
 
-function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string }> }) {
+// The real lease store over an in-memory content.db, so the pins below exercise the shipped claim rules.
+const openStores: Parameters<typeof closeSqliteConnection>[0][] = [];
+after(() => { for (const store of openStores) closeSqliteConnection(store); });
+function realLeases(): SqlFormPullLeaseRepo {
+  const db = openContentDb(":memory:");
+  openStores.push(db);
+  return new SqlFormPullLeaseRepo({ kernel: sqliteKernel(db) });
+}
+
+function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string; pull?: () => Promise<FormDestinationPage> }> }) {
   const keyring = new InMemoryKeyring();
   let n = 0;
   const clock = createFakeClock({ startIso: "2026-10-19T12:00:00.000Z" });
@@ -37,8 +50,14 @@ function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[
     return (...args: unknown[]) => { if (prop !== "enqueue") outboxReads.push(String(prop)); return value.apply(target, args); };
   } });
   // Each saved scope resolves to its own fake destination, as a co-hosted one resolves by host id.
+  const pulls: string[] = [];
   const modules = new Map(Object.entries(hosts).map(([scope, host]) => [scope, { module: {
-    pull: async () => { if (host.fail) throw new Error(host.fail); return host.pages?.shift() ?? { items: [], nextAfter: 0, hasMore: false }; },
+    pull: async () => {
+      pulls.push(scope);
+      if (host.pull) return host.pull();
+      if (host.fail) throw new Error(host.fail);
+      return host.pages?.shift() ?? { items: [], nextAfter: 0, hasMore: false };
+    },
     ack: async ({ ids }: { ids: readonly string[] }) => { (acks[scope] ??= []).push(...ids); return { acknowledged: ids.length }; },
   } }]));
   let registryLoads = 0;
@@ -46,13 +65,14 @@ function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[
     formDefinitionRepo: { list: async () => [waitlist], findBySlug: async ({ slug }) => (slug === "waitlist" ? waitlist : null) },
     formSubmissionRepo: { create: async (record) => { rows.push(record); }, transaction: async (work) => work() },
     receipts: { claim: async () => true },
+    pullLeases: realLeases(),
     outbox, bus: new InMemoryEventBus(), clock: { ...clock, nowIso: () => new Date(clock.nowMs()).toISOString() },
     idGen: { newId: () => `id-${++n}` }, credentials,
     loadFormDestinations: async () => { registryLoads += 1; return { resolve: ({ scope }: { scope: string }) => modules.get(scope), get: () => undefined, list: () => [], refusals: [] } as unknown as FormDestinationRegistry; },
     settingsRepo: new InMemorySettingsRepo(),
   };
   const save = async (scope: string, url: string) => createCustomCredential(credentials, { workspaceId: W, label: formDestinationKeyLabel({ scope }), category: "hosting", baseUrl: url, connection: { token: "k".repeat(43) } });
-  return { deps, rows, acks, outboxReads, save, registryLoads: () => registryLoads };
+  return { deps, rows, acks, outboxReads, pulls, clock, save, registryLoads: () => registryLoads };
 }
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -121,4 +141,99 @@ test("the publish-side port hands the site's active forms, as the generic manife
   s.deps = { ...s.deps, loadFormDestinations: async () => ({ list: () => [cohosted], get: () => cohosted, resolve: () => cohosted, refusals: [] }) };
   const preview = await composeFormSubmissions(s.deps).destination.previewInput({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
   assert.deepEqual(preview.hosting?.forms.map((form) => form.slug), ["waitlist"]);
+});
+
+// ---- Security pins (phase A): the per-receiver pull lease and the automatic pull's admission. ----
+
+/** A receiver whose first page waits until the test releases it, to hold a pull in flight. */
+function heldHost() {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  let entered!: () => void;
+  const inFlight = new Promise<void>((resolve) => { entered = resolve; });
+  return { release, inFlight, host: { pull: async (): Promise<FormDestinationPage> => { entered(); await released; return page(["held-1"]); } } };
+}
+
+test("security: a manual pull while the receiver's pull is in flight answers already-running and reads nothing", async () => {
+  const held = heldHost();
+  const s = setup({ hosts: { h: held.host } });
+  await s.save("h", "https://h.example");
+  const port = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull;
+  const first = port.pull({ workspaceId: W });
+  await held.inFlight;
+  const second = await port.pull({ workspaceId: W });
+  assert.deepEqual({ ran: second.ran, reason: second.ran ? undefined : second.reason, refused: second.destinations[0]?.refused }, { ran: false, reason: "already-running", refused: "already-running" });
+  assert.match(second.message, /https:\/\/h\.example: a pull from this site is already running/);
+  assert.deepEqual(s.pulls, ["h"], "the refused pull never reached the receiver");
+  held.release();
+  const done = await first;
+  assert.equal(done.ran, true);
+  assert.equal(done.totals.imported, 1);
+});
+
+test("security: the automatic pull is skipped within a minute of the last start, while a manual pull still runs", async () => {
+  const s = setup({ hosts: { h: { pages: [] } } });
+  await s.save("h", "https://h.example");
+  const composed = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit });
+  await composed.pull.pull({ workspaceId: W });
+  s.clock.advanceMs(59_000);
+  await composed.autoPull.run({ workspaceId: W });
+  assert.deepEqual(s.pulls, ["h"], "an automatic pull 59 s after the last start reads nothing");
+  await composed.pull.pull({ workspaceId: W });
+  assert.deepEqual(s.pulls, ["h", "h"], "a manual pull bypasses the recent-start check");
+  s.clock.advanceMs(60_000);
+  await composed.autoPull.run({ workspaceId: W });
+  assert.deepEqual(s.pulls, ["h", "h", "h"]);
+});
+
+test("security: a lease left by a crashed pull blocks the receiver only until it expires", async () => {
+  const s = setup({ hosts: { h: { pages: [] } } });
+  await s.save("h", "https://h.example");
+  // A pull that claimed the lease and then died without releasing it.
+  const crashed = await s.deps.pullLeases.claim({ workspaceId: W, receiverKey: "h:https://h.example", token: "crashed",
+    nowIso: s.deps.clock.nowIso(), recentMs: 0, leaseMs: FORM_PULL_LEASE_MS });
+  assert.deepEqual(crashed, { claimed: true });
+  const port = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull;
+  s.clock.advanceMs(FORM_PULL_LEASE_MS - 1);
+  assert.equal((await port.pull({ workspaceId: W })).ran, false);
+  s.clock.advanceMs(1);
+  assert.equal((await port.pull({ workspaceId: W })).ran, true);
+  assert.deepEqual(s.pulls, ["h"]);
+});
+
+test("security: core.forms/autoPull false stops the automatic pull, never the manual one", async () => {
+  const s = setup({ hosts: { h: { pages: [] } } });
+  await s.save("h", "https://h.example");
+  // Registered with default OFF here; lot F4 owns the real definition (default ON).
+  await ensureSettingDefinitions({ settingsRepo: s.deps.settingsRepo, clock: s.deps.clock, ids: s.deps.idGen, principals: { findActiveById: async ({ id }) => ({ id }) } },
+    { namespace: "core.forms", systemPrincipalId: "system", definitions: [{ key: "autoPull", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }] });
+  const composed = composeFormSubmissions(s.deps, { kit: {} as DeployHostKit });
+  await composed.autoPull.run({ workspaceId: W });
+  assert.deepEqual(s.pulls, []);
+  await composed.pull.pull({ workspaceId: W });
+  assert.deepEqual(s.pulls, ["h"]);
+});
+
+test("the pull reports per-form counts and totals beside the existing per-receiver report", async () => {
+  const s = setup({ hosts: { h: { pages: [{ hasMore: false, nextAfter: 3, items: [...page(["a1", "a2"]).items, ...page(["g1"], "gone").items] }] } } });
+  await s.save("h", "https://h.example");
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull.pull({ workspaceId: W });
+  assert.deepEqual(result.forms, [
+    { formId: "f1", formSlug: "waitlist", imported: 2, alreadyImported: 0, unmapped: 0, failed: 0 },
+    { formId: null, formSlug: "gone", imported: 0, alreadyImported: 0, unmapped: 1, failed: 0 },
+  ]);
+  assert.deepEqual(result.totals, { imported: 2, alreadyImported: 0, unmapped: 1, failed: 0 });
+  assert.equal(result.ran, true);
+  assert.equal(result.destinations[0]?.imported, 2);
+});
+
+test("rows of a page whose import fails count as failed for their form; earlier pages keep their counts", async () => {
+  const s = setup({ hosts: { h: { pages: [{ ...page(["ok-1"]), hasMore: true }, { ...page(["bad-1", "bad-2"]), hasMore: false }] } } });
+  await s.save("h", "https://h.example");
+  let claims = 0;
+  s.deps = { ...s.deps, receipts: { claim: async () => { claims += 1; if (claims === 2) throw new Error("store offline"); return true; } } };
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit, logError: () => {} }).pull.pull({ workspaceId: W });
+  assert.deepEqual(result.forms, [{ formId: "f1", formSlug: "waitlist", imported: 1, alreadyImported: 0, unmapped: 0, failed: 2 }]);
+  assert.deepEqual(result.totals, { imported: 1, alreadyImported: 0, unmapped: 0, failed: 2 });
+  assert.match(result.destinations[0]?.error ?? "", /store offline/);
 });

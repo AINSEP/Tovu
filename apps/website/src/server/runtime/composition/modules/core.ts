@@ -1,4 +1,4 @@
-import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import { registerAuthRoutes, requireAdminSession, type AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import { requirePublishTrust } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "#src/server/inbound/public-http/routes/ops/health";
 import { registerPublishTrustHandshakeRoutes } from "#src/server/inbound/public-http/routes/publish-trust/handshake";
@@ -33,7 +33,7 @@ import type { ServerModuleHandle } from "./types.js";
  * passing the full `deps` below satisfies it
  * because `RouteDeps` is a strict superset of `SessionAuthDeps`.
  */
-export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
+export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: AdminSignInPort } = {}): ServerModuleHandle {
   // This install's own publishing identity — the audience every publishing token must name.
   // Derived once per process rather than per request: it is a pure function of the site key and
   // the workspace, so it cannot change while the process runs. Awaited inside each consumer, so a
@@ -75,7 +75,7 @@ export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
       // Order is load-bearing: `registerAuthRoutes` registers the ungated
       // `POST /api/admin/v1/auth/login` (plus logout/me) route BEFORE the
       // gate below mounts, so login itself is never caught by its own gate.
-      registerAuthRoutes(app, deps);
+      registerAuthRoutes(app, deps, { onAdminSignIn: optional.onAdminSignIn });
 
       // Order is load-bearing here too, and in the other direction: the publishing gate runs
       // BEFORE the admin session gate, because a publishing token is presented in the same

@@ -169,7 +169,11 @@ export { buildFormDestinationManifest, type FormDestinationManifestForm } from "
 export {
   importRemoteFormSubmissions,
   type FormDestinationPullReport,
+  type FormImportCounts,
+  type FormPullCounts,
   type FormSubmissionReceiptPort,
+  type FormSubmissionsPullResult,
+  type FormsAutoPullPort,
   type FormSubmissionsPullPort,
   type ImportRemoteSubmissionsDeps,
   type RemoteImportResult,

@@ -1,5 +1,6 @@
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import type { FormPullRefusal } from "@jini-ai/cms/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
 
 /**
@@ -44,6 +45,16 @@ export interface RemoteImportResult {
   readonly invalid: { remoteId: string; formSlug: string; submissionId: string; fieldErrors: FieldError[] }[];
   /** Not imported and not acknowledged (the form no longer exists); they stay at the host. */
   readonly skipped: { remoteId: string; formSlug: string; reason: "unknown_form" }[];
+  /** The same rows counted per form slug, in first-seen order. */
+  readonly forms: FormImportCounts[];
+}
+
+/** One form's rows in an import: new, already imported earlier, and rows naming a form that does not exist here. */
+export interface FormImportCounts {
+  readonly formSlug: string;
+  imported: number;
+  alreadyImported: number;
+  unmapped: number;
 }
 
 /**
@@ -57,19 +68,33 @@ export async function importRemoteFormSubmissions(
   _optional: Record<string, never> = {},
 ): Promise<RemoteImportResult> {
   const { deps, workspaceId, destinationKey, items } = required;
-  const result: { -readonly [K in keyof RemoteImportResult]: RemoteImportResult[K] } = { committedIds: [], imported: 0, duplicates: 0, invalid: [], skipped: [] };
+  const result: { -readonly [K in keyof RemoteImportResult]: RemoteImportResult[K] } = { committedIds: [], imported: 0, duplicates: 0, invalid: [], skipped: [], forms: [] };
   const definitions = new Map<string, FormDefinitionRecord | null>();
+  // A Map, not an object: form slugs come from the receiver and may be any string.
+  const counts = new Map<string, FormImportCounts>();
   for (const item of items) {
     if (!definitions.has(item.formSlug)) definitions.set(item.formSlug, await deps.definitionRepo.findBySlug({ workspaceId, slug: item.formSlug }));
     const definition = definitions.get(item.formSlug);
-    if (!definition) { result.skipped.push({ remoteId: item.id, formSlug: item.formSlug, reason: "unknown_form" }); continue; }
+    const formCounts = countsFor({ counts, formSlug: item.formSlug });
+    if (!definition) { result.skipped.push({ remoteId: item.id, formSlug: item.formSlug, reason: "unknown_form" }); formCounts.unmapped += 1; continue; }
     const outcome = await importOne({ deps, workspaceId, destinationKey, item, definition });
     result.committedIds.push(item.id);
-    if (outcome.kind === "duplicate") { result.duplicates += 1; continue; }
+    if (outcome.kind === "duplicate") { result.duplicates += 1; formCounts.alreadyImported += 1; continue; }
     result.imported += 1;
+    formCounts.imported += 1;
     if (outcome.fieldErrors) result.invalid.push({ remoteId: item.id, formSlug: item.formSlug, submissionId: outcome.submissionId, fieldErrors: outcome.fieldErrors });
   }
+  result.forms = [...counts.values()];
   return result;
+}
+
+/** The slug's running counts, created at zero on first sight. @complexity O(1). */
+function countsFor({ counts, formSlug }: { counts: Map<string, FormImportCounts>; formSlug: string }, _optional = {}): FormImportCounts {
+  const existing = counts.get(formSlug);
+  if (existing) return existing;
+  const created = { formSlug, imported: 0, alreadyImported: 0, unmapped: 0 };
+  counts.set(formSlug, created);
+  return created;
 }
 
 /** Validate, then claim the receipt, write the row and enqueue `form.submission.received` in one
@@ -128,10 +153,35 @@ export interface FormDestinationPullReport {
   readonly invalid: RemoteImportResult["invalid"];
   readonly skipped: RemoteImportResult["skipped"];
   readonly error?: string;
+  /** Set when this receiver's pull lease refused the pull; nothing was read from it. */
+  readonly refused?: FormPullRefusal;
 }
+
+/** One form's rows across a whole pull. `failed` rows were read in a page whose import stopped with
+ * an error: none of that page is acknowledged, so they stay at the host and the next pull retries
+ * them (rows that page committed before the error then count as already imported).
+ * `formId` is null when no form with that slug exists here (its rows are `unmapped`). */
+export interface FormPullCounts extends FormImportCounts {
+  readonly formId: string | null;
+  failed: number;
+}
+
+/** What one pull reports. `ran: false` only when every receiver's lease refused it. */
+export type FormSubmissionsPullResult = {
+  readonly message: string;
+  readonly destinations: readonly FormDestinationPullReport[];
+  readonly forms: readonly FormPullCounts[];
+  readonly totals: { readonly imported: number; readonly alreadyImported: number; readonly unmapped: number; readonly failed: number };
+} & ({ readonly ran: true } | { readonly ran: false; readonly reason: FormPullRefusal });
 
 /** Pulls every published destination's pending submissions (or one target's) into this site. The
  * agent tool and the admin route both call this one composed port. */
 export interface FormSubmissionsPullPort {
-  pull(required: { workspaceId: string }, optional?: { targetId?: string }): Promise<{ readonly message: string; readonly destinations: readonly FormDestinationPullReport[] }>;
+  pull(required: { workspaceId: string }, optional?: { targetId?: string }): Promise<FormSubmissionsPullResult>;
+}
+
+/** The automatic pull the serving app's startup and sign-in triggers run (`composeFormSubmissions`).
+ * Resolves when the pull is done or skipped; it reports nothing. */
+export interface FormsAutoPullPort {
+  run(required: { workspaceId: string }, optional?: Record<string, never>): Promise<void>;
 }

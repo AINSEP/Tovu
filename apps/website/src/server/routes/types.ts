@@ -61,7 +61,7 @@ import type { DatabaseDestinationStorePort } from "../../features/database-trans
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
-import type { FormSubmissionsPullPort } from "../../features/forms/index.js";
+import type { FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { CredentialSchemeRule } from "../../features/custom-credentials/auth-schemes.js";
@@ -703,6 +703,9 @@ export interface FormsDeps {
   /** Pulls submissions a published static site stored at its host (`composeFormSubmissions`). Optional:
    *  only the real composition wires it; absent, the pull tool and route say it is unavailable. */
   formSubmissionsPull?: FormSubmissionsPullPort;
+  /** The same composition's automatic pull. Only `createServingApp` runs it (startup and owner/admin
+   *  sign-in); absent, nothing is pulled automatically. */
+  formSubmissionsAutoPull?: FormsAutoPullPort;
   /** The publish-side half of the same composition: active forms plus the receiver key. Absent,
    *  publishing carries no forms (the old behavior). */
   formDestination?: StaticPublishFormDestinationPort;
