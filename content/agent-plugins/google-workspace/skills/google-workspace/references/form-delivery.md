@@ -2,6 +2,12 @@
 
 The **Google Sheets** form destination adds each accepted submission as a new row.
 
+The person picks where each form goes in the plugin's **Form destinations** tab: the form's short
+name, a spreadsheet (one already chosen, or Google's file picker), and a tab. Tovu checks with Google
+that the account can open that spreadsheet and that the tab exists before saving; a pasted id that
+was never chosen is refused. Saving asks them to confirm that rows stay in the spreadsheet. The tab
+also shows the binding config (spreadsheet id and tab id) the form's Google Sheets destination uses.
+
 - Each form goes to its own tab. Tovu remembers the tab by its id, so renaming the tab is safe.
 - The first row holds the headers: `_tovu_submission_id`, `_tovu_submitted_at`, then the field
   labels. The visitor's IP address is never sent.

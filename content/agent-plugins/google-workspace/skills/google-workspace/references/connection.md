@@ -26,13 +26,28 @@ granting its permissions. Sheets needs only `drive.file`, which the first sign-i
   approving the full list (installed apps cannot add permissions one at a time).
 - On a **hosted site**, Google adds the new permission to the existing ones.
 
+## Where the person does it
+
+The plugin's admin page (Agent Plugins → Google Workspace) has three tabs:
+
+- **Google Workspace** - connect, reconnect, switch account, disconnect, and turn each product on or
+  off ("Grant permission" appears when a product is on but Google has not granted it yet).
+- **Choose spreadsheet** - Google's file picker. Choosing a spreadsheet there is what lets Tovu open
+  it; the chosen spreadsheets are listed with their ids, which you can use in chat.
+- **Form destinations** - which form sends its submissions to which spreadsheet tab.
+
+The panels cannot open links themselves: when a sign-in starts, the admin page shows a
+**Continue to sign-in** button above the panel (on the desktop app it opens the system browser).
+
 ## Account actions
 
 - **Reconnect** - sign in again with the same account. The connection, its spreadsheets and its
   form bindings stay as they are. Use it when Tovu says "Reconnect required".
-- **Switch account** - sign in with a different Google account. Nothing changes until the person
-  confirms; then they choose which spreadsheets and form bindings move to the new account. Jobs that
-  were already queued keep the account they were created with.
+- **Switch account** - sign in with a different Google account. The panel shows the new account and
+  nothing changes until the person confirms it (or keeps the current one). The panel cannot list
+  Tovu's form bindings, so after the switch the person reviews each form in the **Form destinations**
+  tab: a spreadsheet chosen with the old account is marked, and they choose it again if the new
+  account cannot open it. Jobs that were already queued keep the account they were created with.
 - **Disconnect** - Tovu stops using the account at once, then asks Google to revoke its access.
   - If Google confirms, the saved sign-in is deleted.
   - If Google does not answer or refuses, Tovu shows **"Disconnected locally; Google revocation
