@@ -4,6 +4,7 @@ import {
   adminSurfaceBootstrapHeaders,
   createAdminSurfaceActionDispatcher,
   createAdminSurfaceBootstrap,
+  type AdminSurfaceActionOutcome,
   type LoadedAdminSurface,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 
@@ -12,9 +13,11 @@ import {
   adminSurfaceFileUrl,
   createAgentPluginAdminSurfaceSource,
   findAdminSurface,
+  type AdminSurfaceHost,
   type AdminSurfaceRequestContext,
   type AdminSurfaceSource,
 } from "#src/features/agent-plugins/admin-surfaces/surfaces";
+import type { HostSignInLink } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { isSameOriginAdminWrite } from "#src/features/agent-plugins/admin-surfaces/same-origin";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
@@ -87,6 +90,13 @@ async function guarded(res: Response, body: () => Promise<void>): Promise<void> 
   try { await body(); } catch { res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" }); }
 }
 
+/** Runs one action and adds the sign-in links this host issued during it, only when it succeeded. */
+async function withSignIns(host: AdminSurfaceHost, run: () => Promise<AdminSurfaceActionOutcome>): Promise<AdminSurfaceActionOutcome & { readonly hostSignIns?: readonly HostSignInLink[] }> {
+  if (!host.signIns) return run();
+  const { value: outcome, signIns } = await host.signIns.collect({ run });
+  return outcome.ok && signIns.length > 0 ? { ...outcome, hostSignIns: signIns } : outcome;
+}
+
 export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = (app: Express, deps) => {
   app.get(SURFACE_PATH, (req, res) => guarded(res, async () => {
     if (!(await admit(req, res, deps, "admin.plugins.read"))) return;
@@ -119,9 +129,6 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
       onHandlerError: ({ surfaceId, action, error }) => console.error("[admin-surfaces] action handler failed", { pluginId: surface.plugin.pluginId, surfaceId, action, error: error instanceof Error ? error.name : typeof error }),
     });
     const { action, payload } = body;
-    const run = () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) });
-    const { value: outcome, signIns } = host.signIns ? await host.signIns.collect({ run }) : { value: await run(), signIns: [] };
-    // Only links this host issued during this action, and only when the action succeeded.
-    res.set("Cache-Control", "no-store").json(outcome.ok && signIns.length > 0 ? { ...outcome, hostSignIns: signIns } : outcome);
+    res.set("Cache-Control", "no-store").json(await withSignIns(host, () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) })));
   }));
 };

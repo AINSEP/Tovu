@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionRecord, type ApiConnectionRemoteRevocation } from "@jini-ai/integrations/api-connections";
+import { ApiConnectionError, deriveApiConnectionKey, type ApiConnectionRemoteRevocation, type ApiConnectionStatusView } from "@jini-ai/integrations/api-connections";
 import type {
   AdminSurfaceAuthorizationStart, AdminSurfaceConnectionAction, AdminSurfaceConnections, AdminSurfaceConnectionStatus, AdminSurfaceRevocationOutcome,
 } from "@jini-ai/agent-plugins/admin-surfaces";
@@ -55,16 +55,25 @@ function codeOf(error: unknown): string {
   return typeof code === "string" ? code : "unknown";
 }
 
-/** Token-free status from the record; scope sets are the plugin's declared ids whose scopes are all granted. @complexity O(s) hook calls. */
-async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnection, record: Pick<ApiConnectionRecord, "status" | "account" | "grantedScopes"> & { readonly pendingSwitch?: ApiConnectionRecord["account"] } | null): Promise<AdminSurfaceConnectionStatus> {
-  const granted = record?.grantedScopes ?? [];
-  const grantedScopeSetIds: string[] = [];
-  for (const id of record?.status === "connected" ? connection.scopeSets : []) {
-    if ((await host.requestedScopes({ connection, scopeSetIds: [id] })).every((scope) => granted.includes(scope))) grantedScopeSetIds.push(id);
+/** What a status is built from: a record (with its staged switch's account) or a service status view. */
+type StatusSource = Pick<ApiConnectionStatusView, "status" | "account" | "grantedScopes" | "pendingSwitch">;
+const NEVER_CONNECTED: StatusSource = { status: "disconnected", account: null, grantedScopes: [], pendingSwitch: null };
+
+/** The plugin's declared scope sets whose scopes are all granted. @complexity O(s) hook calls. */
+async function grantedScopeSets(host: ApiConnectionHost, connection: DeclaredApiConnection, granted: readonly string[]): Promise<string[]> {
+  const ids: string[] = [];
+  for (const id of connection.scopeSets) {
+    if ((await host.requestedScopes({ connection, scopeSetIds: [id] })).every((scope) => granted.includes(scope))) ids.push(id);
   }
+  return ids;
+}
+
+/** Token-free status; scope sets are the plugin's own ids, never raw provider scopes. */
+async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnection, view: StatusSource): Promise<AdminSurfaceConnectionStatus> {
   return {
-    connectionId: connection.descriptor.connectionId, state: record?.status ?? "disconnected", accountLabel: record?.account?.displayName ?? null,
-    grantedScopeSetIds, pendingSwitchAccountLabel: record?.pendingSwitch?.displayName ?? null,
+    connectionId: connection.descriptor.connectionId, state: view.status, accountLabel: view.account?.displayName ?? null,
+    grantedScopeSetIds: view.status === "connected" ? await grantedScopeSets(host, connection, view.grantedScopes) : [],
+    pendingSwitchAccountLabel: view.pendingSwitch?.displayName ?? null,
   };
 }
 
@@ -109,7 +118,7 @@ export function createSurfaceConnections(
     async status({ connectionId }) {
       const { connection, connectionRef } = await resolve(connectionId);
       const record = await host.records.read({ key: connectionRef });
-      return statusFrom(host, connection, record && { ...record, pendingSwitch: record.staged?.account ?? null });
+      return statusFrom(host, connection, record ? { ...record, pendingSwitch: record.staged?.account ?? null } : NEVER_CONNECTED);
     },
     async begin({ connectionId, action }, optional = {}) {
       const { connection, actorId } = await forActor(connectionId);
