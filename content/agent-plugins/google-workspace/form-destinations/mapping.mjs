@@ -1,21 +1,27 @@
 /**
- * @file Column mapping for the Google Sheets form destination: which header each form field is
- * written under, where those headers sit in the tab's first row, which new columns a delivery adds,
- * and the row of RAW values one submission becomes.
+ * @file Column mapping for the Google Sheets form destination: which column each form field is
+ * written to, which new columns a delivery adds, and the row of RAW values one submission becomes.
  *
  * Exists so a spreadsheet's columns never silently change meaning. Fields are identified by their
- * stable field id (`name`); the label is only the header text. The binding's frozen config records
- * which header each already-written field uses, so a label edited later does not move its data,
- * and a field added later becomes a NEW column at the end. A header that should be there but is
- * missing, appears twice, or a first row without the `_tovu_submission_id` column (a tab Tovu did
- * not prepare) is a mapping error the person repairs; nothing is appended into a sheet whose
- * columns cannot be matched. The visitor's IP is never a field, and answers that are not fields of
- * the frozen form are never written.
+ * stable field id (`name`); the label is only the header text. The first time Tovu writes a field
+ * to a column it tags that column with a developer-metadata marker (`tovu_form_field` = field id,
+ * attached to the column itself). From then on the marker decides the column: a label edited in
+ * the form, a header renamed in the sheet, or columns inserted or moved before it do not move the
+ * field's data (Google moves column metadata with its column). Why a marker in the sheet and not
+ * the binding: the delivery adapter cannot write Tovu's binding, and a marker needs no state
+ * outside the spreadsheet it describes; unlike a header note, people do not see or edit it.
+ * An untagged field is matched by its label in row 1 (and tagged), else added as a new column at
+ * the end. A tab that should have Tovu's columns but lacks them, a header found twice, a field
+ * tagged on two columns, or two entries landing on one column is a mapping error the person
+ * repairs; nothing is appended into a sheet whose columns cannot be matched. The visitor's IP is
+ * never a field, and answers that are not fields of the frozen form are never written.
  */
 import { DeliveryRefusal } from './delivery-result.mjs';
 
 export const SUBMISSION_ID_HEADER = '_tovu_submission_id';
 export const SUBMITTED_AT_HEADER = '_tovu_submitted_at';
+/** Developer-metadata key tagging a column with the form field id it holds. */
+export const FIELD_MARKER_KEY = 'tovu_form_field';
 
 const mappingInvalid = () => new DeliveryRefusal({ code: 'mapping-invalid', retryable: false });
 
@@ -28,55 +34,101 @@ export function cellValue(required, _optional = {}) {
 }
 
 /**
- * The frozen mapping for one job: the two Tovu columns, then one entry per field of the frozen
- * form. `known` marks headers the sheet must already have (recorded in `tab.columns`).
- * @param {{ form: { fields: readonly { name: string, label?: string }[] }, tab: { columns?: readonly { field: string, header: string }[] } }} required
- * @returns {{ header: string, known: boolean, field?: string, source?: 'id' | 'submittedAt' }[]}
+ * The mapping for one job: the two Tovu columns, then one entry per field of the frozen form.
+ * @param {{ form: { fields: readonly { name: string, label?: string }[] } }} required
+ * @returns {{ header: string, field?: string, source?: 'id' | 'submittedAt' }[]}
  * @throws {DeliveryRefusal} `mapping-invalid` when two entries would share a header.
- * @complexity O(fields + columns).
+ * @complexity O(fields).
  */
 export function buildMapping(required, _optional = {}) {
-  const recorded = new Map((required.tab.columns ?? []).map((column) => [column.field, column.header]));
   const entries = [
-    { header: SUBMISSION_ID_HEADER, known: true, source: 'id' },
-    { header: SUBMITTED_AT_HEADER, known: true, source: 'submittedAt' },
-    ...required.form.fields.map((field) => ({
-      // Trimmed like the sheet's cells are, so stray spaces never decide a match; a blank label falls back to the id.
-      field: field.name, known: recorded.has(field.name), header: String(recorded.get(field.name) ?? field.label ?? '').trim() || field.name,
-    })),
+    { header: SUBMISSION_ID_HEADER, source: 'id' },
+    { header: SUBMITTED_AT_HEADER, source: 'submittedAt' },
+    // Trimmed like the sheet's cells are, so stray spaces never decide a match; a blank label falls back to the id.
+    ...required.form.fields.map((field) => ({ field: field.name, header: String(field.label ?? '').trim() || field.name })),
   ];
   if (new Set(entries.map((entry) => entry.header)).size !== entries.length) throw mappingInvalid();
   return entries;
 }
 
-const headerText = (cell) => String(cell ?? '').trim();
+/** Whether a dimension range is exactly one column of this tab. @complexity O(1). */
+const isOneColumnOf = (range, sheetId) => range?.sheetId === sheetId && range.dimension === 'COLUMNS' && range.endIndex - range.startIndex === 1;
 
-/** Every index of `header` in the first row. @complexity O(width). */
-function positionsOf(headerRow, header) {
-  return headerRow.flatMap((cell, index) => (headerText(cell) === header ? [index] : []));
+/** One column marker as `{ field, index }`; anything not exactly one column of this tab is ignored. @complexity O(1). */
+function columnMarker(metadata, sheetId) {
+  const range = metadata?.location?.dimensionRange;
+  const isMarker = metadata?.metadataKey === FIELD_MARKER_KEY && typeof metadata.metadataValue === 'string';
+  return isMarker && isOneColumnOf(range, sheetId) ? { field: metadata.metadataValue, index: range.startIndex } : undefined;
 }
 
 /**
- * Where each mapping entry is written. An empty first row is a fresh tab: every header is new.
- * Otherwise a header found once is used, a header found twice is refused, and a missing header is
- * refused when the sheet should have it (a known field or a Tovu column) and appended otherwise.
- * @param {{ mapping: readonly { header: string, known: boolean }[], headerRow: readonly unknown[] }} required
- * @returns {{ columns: number[], newHeaders: { index: number, header: string }[], width: number }}
- * @throws {DeliveryRefusal} `mapping-invalid` for a duplicated, missing or incompatible header.
+ * Field id → the columns tagged with it, from a `developerMetadata:search` answer.
+ * @param {{ matches: readonly unknown[], sheetId: number }} required `matchedDeveloperMetadata`.
+ * @returns {Map<string, number[]>}
+ * @complexity O(matches).
+ */
+export function readMarkers(required, _optional = {}) {
+  const markers = new Map();
+  for (const match of required.matches) {
+    const marker = columnMarker(match?.developerMetadata, required.sheetId);
+    if (marker) markers.set(marker.field, [...(markers.get(marker.field) ?? []), marker.index]);
+  }
+  return markers;
+}
+
+const headerText = (cell) => String(cell ?? '').trim();
+
+/** Untagged columns of row 1 whose header is `header`. @complexity O(width). */
+function headerPositions(plan, header) {
+  return plan.headerRow.flatMap((cell, index) => (headerText(cell) === header && !plan.tagged.has(index) ? [index] : []));
+}
+
+/** A new column at the end, headed `header`. @complexity O(1). */
+function addColumn(plan, header) {
+  const index = plan.width;
+  plan.width += 1;
+  plan.newHeaders.push({ index, header });
+  return index;
+}
+
+/** A Tovu column: found once by its fixed header, or new on a fresh tab. @complexity O(width). */
+function tovuColumn(plan, entry) {
+  const positions = headerPositions(plan, entry.header);
+  if (positions.length === 1) return positions[0];
+  if (positions.length > 1 || !plan.fresh) throw mappingInvalid();
+  return addColumn(plan, entry.header);
+}
+
+/** A field's column: its marker, else its header found once, else a new column; untagged ones get tagged. @complexity O(width). */
+function fieldColumn(plan, entry, taggedAt) {
+  if (taggedAt.length > 1) throw mappingInvalid();
+  if (taggedAt.length === 1) return taggedAt[0];
+  const positions = headerPositions(plan, entry.header);
+  if (positions.length > 1) throw mappingInvalid();
+  const index = positions.length === 1 ? positions[0] : addColumn(plan, entry.header);
+  plan.untagged.push({ field: entry.field, index });
+  return index;
+}
+
+/**
+ * Where each mapping entry is written. An empty first row is a fresh tab. Tovu's two columns are
+ * found by their fixed headers (refused when missing from a tab that is not fresh); each field by
+ * its marker, else by its label (see the file comment).
+ * @param {{ mapping: readonly { header: string, field?: string, source?: string }[], headerRow: readonly unknown[], markers: ReadonlyMap<string, readonly number[]> }} required
+ * @returns {{ columns: number[], newHeaders: { index: number, header: string }[], untagged: { field: string, index: number }[], width: number }}
+ *   `newHeaders` are contiguous at the end; `untagged` are the field columns to tag.
+ * @throws {DeliveryRefusal} `mapping-invalid` for a duplicated, missing or conflicting column.
  * @complexity O(entries * width).
  */
 export function planColumns(required, _optional = {}) {
+  const { mapping, markers } = required;
   const fresh = required.headerRow.every((cell) => headerText(cell) === '');
-  const width = fresh ? 0 : required.headerRow.length;
-  const newHeaders = [];
-  const columns = required.mapping.map((entry) => {
-    const positions = fresh ? [] : positionsOf(required.headerRow, entry.header);
-    if (positions.length > 1 || (positions.length === 0 && entry.known && !fresh)) throw mappingInvalid();
-    if (positions.length === 1) return positions[0];
-    newHeaders.push({ index: width + newHeaders.length, header: entry.header });
-    return width + newHeaders.length - 1;
-  });
-  return { columns, newHeaders, width: width + newHeaders.length };
+  const tagged = new Set([...markers.values()].flat());
+  const headerRow = fresh ? [] : required.headerRow;
+  const plan = { fresh, tagged, headerRow, width: Math.max(headerRow.length, ...[...tagged].map((index) => index + 1)), newHeaders: [], untagged: [] };
+  const columns = mapping.map((entry) => (entry.source ? tovuColumn(plan, entry) : fieldColumn(plan, entry, markers.get(entry.field) ?? [])));
+  if (new Set(columns).size !== columns.length) throw mappingInvalid();
+  return { columns, newHeaders: plan.newHeaders, untagged: plan.untagged, width: plan.width };
 }
 
 /**

@@ -2,7 +2,7 @@
 
 **Purpose.** Push each accepted form submission into a Google Sheets tab as one row, at least once,
 with best-effort dedupe. Declared in `../tovu-form-destinations.json` as `google-sheets` (push only,
-no `receive`), and listed under the Sheets product in `../products.json`.
+no `receive`), part of the Sheets product (`../products.json`).
 
 ## Public API
 
@@ -21,18 +21,29 @@ method (see the forms-multidest delivery contract, §2–§3).
 Binding config (non-secret, frozen with the job):
 
 ```json
-{ "spreadsheetId": "…", "tabs": { "<formSlug>": { "sheetId": 7, "columns": [{ "field": "email", "header": "Email" }] } } }
+{ "spreadsheetId": "…", "tabs": { "<formSlug>": { "sheetId": 7 } } }
 ```
 
-`columns` lists the fields the sheet already has headers for, and under which header. Fields not
-listed are new: their header (label, else field id) is added at the end of row 1.
+Which column holds which field is kept in the sheet, not the binding: the first time a field is
+written, its column gets a developer-metadata marker (`tovu_form_field` = the field id, visibility
+`DOCUMENT`, attached to that one column). The marker decides the column from then on, so a label
+edited in the form, a header renamed in the sheet, or columns inserted or moved before it keep the
+field's data in one column (Google moves column metadata with the column). An untagged field is
+matched by its label in row 1 and tagged, or gets a new column at the end (header = label, else
+field id). Chosen over the binding because the adapter cannot write Tovu's binding, and over a
+header note because people neither see nor edit metadata. Growing the grid, writing new headers
+(as text cells) and tagging columns happen in ONE atomic `batchUpdate` before the append.
+
+More than one row already holding the submission id (another writer, or a late append racing the
+scan) is reported as delivered with the reference `sheet <id> rows <a>, <b> (duplicate submission
+id: review)`; nothing is appended again.
 
 ## Files
 
 | file | job |
 |---|---|
-| `sheets.mjs` | One attempt: product check → tab by sheet id → header match → dedupe scan → header growth → RAW append → re-scan after a lost answer. |
-| `mapping.mjs` | Field id ↔ header ↔ column; mapping errors; the RAW row (checkbox groups joined `", "`). |
+| `sheets.mjs` | One attempt: product check → tab by sheet id → header row + column markers → dedupe scan → one atomic column batch (grid, headers, markers) → RAW append → re-scan after a lost answer. |
+| `mapping.mjs` | Field id ↔ marker / header ↔ column (`buildMapping`, `readMarkers`, `planColumns`); mapping errors; the RAW row (checkbox groups joined `", "`). |
 | `dedupe.mjs` | Scans the `_tovu_submission_id` column in 5,000-row chunks; > 50,000 data rows → `destination-limit`. |
 | `delivery-result.mjs` | The contract's result shape and the plugin-error → contract-code table. |
 

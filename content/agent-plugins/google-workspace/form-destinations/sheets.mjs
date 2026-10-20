@@ -5,22 +5,23 @@
  * Exists to turn one frozen delivery job (form, submission, binding config, all fixed when the
  * submission was planned) into at most one spreadsheet row, and to report the outcome in the forms
  * delivery contract's vocabulary. Per attempt it: refuses while the Sheets product is off; finds
- * the tab by its numeric sheet id (renames are safe); matches columns by the frozen mapping
- * (`mapping.mjs`); scans the `_tovu_submission_id` column for this submission (`dedupe.mjs`) and
- * stops as delivered when the row is already there; adds headers for new fields; appends the row
- * with RAW values. An append whose answer was lost is never replayed: the column is scanned again,
+ * the tab by its numeric sheet id (renames are safe); matches columns by their field markers and
+ * headers (`mapping.mjs`); scans the `_tovu_submission_id` column for this submission
+ * (`dedupe.mjs`) and stops as delivered when the row is already there (more than one such row is
+ * reported as delivered with a "review" note, never appended again); in one atomic batch grows the
+ * grid, writes the new headers and tags new field columns; appends the row with RAW values. An append whose answer was lost is never replayed: the column is scanned again,
  * and when the row is not found the job reports `outcome-unknown`, so the next attempt scans before
  * appending. Delivery is at-least-once with best-effort dedupe; nothing here claims exactly-once.
  *
  * Binding config (non-secret, frozen per job):
- * `{ spreadsheetId: string, tabs: { [formSlug]: { sheetId: number, columns?: { field, header }[] } } }`.
- * `columns` records which header each already-written field uses.
+ * `{ spreadsheetId: string, tabs: { [formSlug]: { sheetId: number } } }`. Which column holds which
+ * field lives in the sheet itself (column markers), not in the binding.
  */
 import { googleClientFor, parseA1Range, sheetsUrl, columnName } from '../lib/sheets-client.mjs';
 import { GoogleWorkspaceError } from '../lib/request-policy.mjs';
 import { findSubmissionRows } from './dedupe.mjs';
 import { DeliveryRefusal, failureResult, resultForError } from './delivery-result.mjs';
-import { buildMapping, buildRow, planColumns } from './mapping.mjs';
+import { FIELD_MARKER_KEY, buildMapping, buildRow, planColumns, readMarkers } from './mapping.mjs';
 
 /** Per-request cap passed to the host kit; a request that runs past it counts as a lost answer. */
 export const DELIVERY_REQUEST_TIMEOUT_MS = 15_000;
@@ -28,24 +29,16 @@ const TAB_FIELDS = 'sheets.properties(sheetId,title,gridProperties(rowCount,colu
 
 const configurationInvalid = () => new DeliveryRefusal({ code: 'configuration-invalid', retryable: false });
 
-const isColumn = (column) => typeof column?.field === 'string' && column.field !== '' && typeof column.header === 'string' && column.header.trim() !== '';
-
 /**
  * The spreadsheet and tab this form's rows go to, from the frozen binding config.
  * @throws {DeliveryRefusal} `configuration-invalid` when the config does not name them properly.
- * @complexity O(columns).
+ * @complexity O(1).
  */
 function targetFor({ binding, form }) {
   const { spreadsheetId, tabs } = binding.config ?? {};
   const tab = tabs && Object.hasOwn(tabs, form.slug) ? tabs[form.slug] : undefined;
-  if (typeof spreadsheetId !== 'string' || !isTabConfig(tab)) throw configurationInvalid();
+  if (typeof spreadsheetId !== 'string' || !Number.isInteger(tab?.sheetId) || tab.sheetId < 0) throw configurationInvalid();
   return { spreadsheetId, tab };
-}
-
-/** A tab entry: a numeric sheet id, and (when present) well-formed recorded columns. @complexity O(columns). */
-function isTabConfig(tab) {
-  if (!Number.isInteger(tab?.sheetId) || tab.sheetId < 0) return false;
-  return tab.columns === undefined || (Array.isArray(tab.columns) && tab.columns.every(isColumn));
 }
 
 /** `'Tab title'!<cells>`: the title quoted, its quotes doubled, so a title cannot change the range. @complexity O(n). */
@@ -70,11 +63,15 @@ function sheetsRequests({ client, connectionRef, spreadsheetId }) {
     async rows(range) {
       return (await send({ kind: 'read', url: valuesUrl(range), query: { majorDimension: 'ROWS' } }))?.values ?? [];
     },
-    async addColumns(sheetId, length) {
-      await send({ kind: 'write', method: 'POST', url: sheetsUrl({ spreadsheetId }, { method: ':batchUpdate' }), body: { requests: [{ appendDimension: { sheetId, dimension: 'COLUMNS', length } }] } });
+    async markers(sheetId) {
+      const lookup = { metadataKey: FIELD_MARKER_KEY, locationType: 'COLUMN', metadataLocation: { sheetId }, locationMatchingStrategy: 'INTERSECTING_LOCATION' };
+      // A search changes nothing: `read` lets the client retry it.
+      const body = await send({ kind: 'read', method: 'POST', url: sheetsUrl({ spreadsheetId }, { segments: ['developerMetadata'], method: ':search' }), body: { dataFilters: [{ developerMetadataLookup: lookup }] } });
+      return readMarkers({ matches: Array.isArray(body?.matchedDeveloperMetadata) ? body.matchedDeveloperMetadata : [], sheetId });
     },
-    async writeHeaders(range, headers) {
-      await send({ kind: 'idempotent-write', method: 'PUT', url: valuesUrl(range), query: { valueInputOption: 'RAW' }, body: { range, majorDimension: 'ROWS', values: [headers] } });
+    async batch(changes) {
+      // Adds columns and metadata, so a replay could apply twice: a `write`, never replayed when its outcome is unknown.
+      await send({ kind: 'write', method: 'POST', url: sheetsUrl({ spreadsheetId }, { method: ':batchUpdate' }), body: { requests: changes } });
     },
     async append(range, row) {
       const body = await send({ kind: 'write', method: 'POST', url: valuesUrl(range, ':append'), query: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' }, body: { range, majorDimension: 'ROWS', values: [row] } });
@@ -89,19 +86,42 @@ function scanFor(requests, tab, idColumn, submissionId) {
   return findSubmissionRows({ rowCount: tab.rowCount, submissionId, readColumn: ({ from, to }) => requests.rows(a1(tab.title, `${column}${from}:${column}${to}`)) });
 }
 
-/** Success, naming where the row is (sheet id and row numbers only: no titles, no values). @complexity O(rows). */
+/**
+ * Success, naming where the row is (sheet id and row numbers only: no titles, no values). More than
+ * one row with this submission id (another writer, or a late append) is still delivered, never
+ * appended again, but the reference asks for a review so the duplicate is not missed.
+ * @complexity O(rows).
+ */
 function delivered(sheetId, rows) {
   if (rows.length === 0) return { ok: true, reference: `sheet ${sheetId}` };
-  return { ok: true, reference: `sheet ${sheetId} ${rows.length === 1 ? 'row' : 'rows'} ${rows.join(', ')}` };
+  if (rows.length === 1) return { ok: true, reference: `sheet ${sheetId} row ${rows[0]}` };
+  return { ok: true, reference: `sheet ${sheetId} rows ${rows.join(', ')} (duplicate submission id: review)` };
 }
 
-/** Grows the grid and writes the new headers before the row that needs them. @complexity O(new headers). */
-async function ensureHeaders(requests, tab, layout) {
-  if (layout.newHeaders.length === 0) return;
-  if (layout.width > tab.columnCount) await requests.addColumns(tab.sheetId, layout.width - tab.columnCount);
-  const first = layout.newHeaders[0].index;
-  const range = a1(tab.title, `${columnName({ index: first })}1:${columnName({ index: first + layout.newHeaders.length - 1 })}1`);
-  await requests.writeHeaders(range, layout.newHeaders.map((entry) => entry.header));
+/** `updateCells` writing the new headers into row 1 as text (a header can never become a formula). @complexity O(headers). */
+function headerCells(sheetId, newHeaders) {
+  const values = newHeaders.map(({ header }) => ({ userEnteredValue: { stringValue: header } }));
+  return { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: newHeaders[0].index }, rows: [{ values }], fields: 'userEnteredValue' } };
+}
+
+/** `createDeveloperMetadata` tagging one column with the field id it holds. @complexity O(1). */
+function markerRequest(sheetId, { field, index }) {
+  const location = { dimensionRange: { sheetId, dimension: 'COLUMNS', startIndex: index, endIndex: index + 1 } };
+  return { createDeveloperMetadata: { developerMetadata: { metadataKey: FIELD_MARKER_KEY, metadataValue: field, visibility: 'DOCUMENT', location } } };
+}
+
+/**
+ * Before the row that needs them: grows the grid, writes new headers and tags untagged field
+ * columns, in ONE atomic batch, so a half-prepared tab can never be left behind.
+ * @complexity O(new headers + untagged columns).
+ */
+async function prepareColumns(requests, tab, layout) {
+  const changes = [
+    ...(layout.width > tab.columnCount ? [{ appendDimension: { sheetId: tab.sheetId, dimension: 'COLUMNS', length: layout.width - tab.columnCount } }] : []),
+    ...(layout.newHeaders.length > 0 ? [headerCells(tab.sheetId, layout.newHeaders)] : []),
+    ...layout.untagged.map((column) => markerRequest(tab.sheetId, column)),
+  ];
+  if (changes.length > 0) await requests.batch(changes);
 }
 
 /**
@@ -148,11 +168,12 @@ async function deliverRow(required, optional) {
   const client = googleClientFor({ capabilities: { http: { fetch: ({ url }, init) => required.kit.fetch(url, init, { timeoutMs: DELIVERY_REQUEST_TIMEOUT_MS }) }, connections, limiter: optional.limiter } });
   const requests = sheetsRequests({ client, connectionRef: required.binding.connectionRef, spreadsheetId });
   const tab = await requests.tab(tabConfig.sheetId);
-  const mapping = buildMapping({ form: required.form, tab: tabConfig });
-  const layout = planColumns({ mapping, headerRow: (await requests.rows(a1(tab.title, '1:1')))[0] ?? [] });
+  const mapping = buildMapping({ form: required.form });
+  const headerRow = (await requests.rows(a1(tab.title, '1:1')))[0] ?? [];
+  const layout = planColumns({ mapping, headerRow, markers: await requests.markers(tab.sheetId) });
   const existing = await scanFor(requests, tab, layout.columns[0], required.submission.id);
   if (existing.length > 0) return delivered(tab.sheetId, existing);
-  await ensureHeaders(requests, tab, layout);
+  await prepareColumns(requests, tab, layout);
   return appendOnce(requests, tab, layout, buildRow({ mapping, ...layout, submission: required.submission }), required.submission.id);
 }
 
