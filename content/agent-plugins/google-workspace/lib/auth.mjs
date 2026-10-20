@@ -13,7 +13,9 @@
  * only a credential stored without a refresh token could see it for a merely expired access token.
  * Anything else throws, so the host shows "Disconnected locally; Google revocation pending", keeps
  * the disabled sealed credential for a retry, and the person can remove access at
- * {@link GOOGLE_ACCOUNT_ACCESS_PAGE}.
+ * {@link GOOGLE_ACCOUNT_ACCESS_PAGE}. The thrown error's `code` is the host engine's classification:
+ * `provider-unreachable` (no answer: network failure, timeout, 5xx) or `provider-refused` (an
+ * answer that was not a confirmation); its message is a fixed sentence, never Google's text.
  */
 import { readAccount } from './drive-files.mjs';
 import { createGoogleClient } from './http.mjs';
@@ -25,9 +27,15 @@ export const GOOGLE_ACCOUNT_ACCESS_PAGE = 'https://myaccount.google.com/connecti
 
 const REVOCATION_PENDING = 'Google did not confirm the revocation. Disconnected locally; Google revocation pending. Retry, or remove access at https://myaccount.google.com/connections.';
 
+/** The revoke hook's failure: the engine records only `code`, and the message is fixed. @complexity O(1). */
+function revocationFailure(code, cause) {
+  return Object.assign(new Error(REVOCATION_PENDING, cause === undefined ? undefined : { cause }), { code });
+}
+
 /**
  * Asks Google to revoke the grant behind `token` (the refresh token when there is one, which ends
  * the whole grant). Throws unless Google confirmed, or said the token is already revoked.
+ * @throws {Error} `code: 'provider-unreachable'` (no answer, timeout, 5xx) or `'provider-refused'`.
  * @complexity O(1): one request.
  */
 async function revokeAtGoogle(http, token) {
@@ -37,9 +45,11 @@ async function revokeAtGoogle(http, token) {
       method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token }).toString(),
     });
   } catch (cause) {
-    throw new Error(REVOCATION_PENDING, { cause });
+    throw revocationFailure('provider-unreachable', cause);
   }
-  if (response.status !== 200 && !(await alreadyRevoked(response))) throw new Error(REVOCATION_PENDING);
+  if (response.status === 200 || (await alreadyRevoked(response))) return;
+  // A 5xx is Google failing to answer, not Google refusing: a retry may well confirm.
+  throw revocationFailure(response.status >= 500 ? 'provider-unreachable' : 'provider-refused');
 }
 
 /** Google's "this token is already revoked" answer (400 `invalid_token`); an unreadable body is not it. */
