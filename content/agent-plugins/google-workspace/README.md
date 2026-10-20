@@ -16,7 +16,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `plugin.json`, `mcp.json` | Manifest (no MCP servers). |
 | `tovu-connections.json` | The sign-in: Google endpoints, per-client-kind parameters, Picker start params and the `picked_file_ids` callback field, and the NAMES of the host config holding the client ids (`TOVU_GOOGLE_OAUTH_{WEB,DESKTOP}_CLIENT_{ID,SECRET}`, placeholders until the Cloud project exists). |
 | `products.json` | Product catalog: id, tool prefix, form destinations, required and optional scopes. Sheets = `drive.file` only. |
-| `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`). The skeleton ships `account_info`; the Sheets tools are added to the same file. |
+| `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`): `account_info`, and the Sheets tools in `tools/sheets/` (see its README). |
 | `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces. Today a static placeholder; the connection panel and Picker replace it. |
 | `tovu-form-destinations.json` + `form-destinations/` | Push-only `google-sheets` destination (no `receive`). Refuses as retryable until the mapping/dedupe adapter lands. |
 | `lib/` | Shared code (below). |
@@ -28,8 +28,9 @@ digest at seed time, which the executable trust gate checks before any module lo
 | Module | Exports |
 |---|---|
 | `auth.mjs` | Default `{ createHooks({ http }) }`: Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`, `revoke`). `GOOGLE_REVOCATION_ENDPOINT`, `GOOGLE_ACCOUNT_ACCESS_PAGE`. |
-| `http.mjs` | `createGoogleClient({ http, connections }, { limiter, sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`. |
-| `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`). |
+| `http.mjs` | `createGoogleClient({ http, connections }, { limiter, sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`; `pathSegment` (one encoded path segment, dot segments refused). |
+| `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`); `copyFile({ client, connectionRef, fileId, name }, { parentId })` via Drive `files.copy`. |
+| `sheets-client.mjs` | The Sheets request helper: `sheetsUrl`, `sendSheetsRequest`, `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bound helpers (`boundValueRanges`, `assertPayloadWithin`, `assertOutputWithin`), A1 helpers, `resourceLines` (card lines). |
 | `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`. |
 | `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`, `QUOTA_BUDGETS`. |
 
@@ -60,4 +61,4 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 - The host limiter runs one profile (240/min + burst) for every key, so the per-account 45/min
   budget is declared here but enforced only at the host profile until the host accepts
   plugin-declared budgets.
-- Per-workspace product on/off state, Picker, Sheets tools and the delivery adapter are later lots.
+- Per-workspace product on/off state, Picker, the `tools/sheets-admin/` tools and the delivery adapter are later lots.
