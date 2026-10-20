@@ -831,7 +831,7 @@
     },
     {
       "name": "sheets_basic_filter",
-      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Read (get), set or clear the basic filter of a tab. get and clear need sheetId; set needs range and may give filterSpecs (Sheets FilterSpec objects). A filter hides rows; it never deletes or reorders data (to sort rows, use sheets_sort). The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Set or clear the basic filter of a tab. clear needs sheetId; set needs range and may give filterSpecs (Sheets FilterSpec objects). To read a tab's filter without a confirmation, call sheets_get with fields \"sheets(properties(sheetId),basicFilter)\". A filter hides rows; it never deletes or reorders data (to sort rows, use sheets_sort). The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
       "effect": "write",
       "module": "tools/sheets-admin/basic-filter.mjs",
       "inputSchema": {
@@ -841,7 +841,7 @@
         "properties": {
           "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
           "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,200}$"},
-          "action": {"enum": ["get", "set", "clear"]},
+          "action": {"enum": ["set", "clear"]},
           "sheetId": {"type": "integer", "minimum": 0},
           "range": {
             "type": "object",
@@ -861,10 +861,6 @@
           {
             "if": {"properties": {"action": {"const": "set"}}, "required": ["action"]},
             "then": {"required": ["range"]}
-          },
-          {
-            "if": {"properties": {"action": {"const": "get"}}, "required": ["action"]},
-            "then": {"required": ["sheetId"]}
           },
           {
             "if": {"properties": {"action": {"const": "clear"}}, "required": ["action"]},

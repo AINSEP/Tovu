@@ -88,7 +88,7 @@ is rows 2-10, columns A-D.
 |---|---|---|
 | `sheets_tab_modify` | add, rename, delete, duplicate or move a tab | danger card (delete removes the tab's data) |
 | `sheets_sort` | reorder rows of a range by up to 10 columns | danger card (the old order is gone) |
-| `sheets_basic_filter` | get, set or clear a tab's filter (hides rows; no sorting: use `sheets_sort`) | card |
+| `sheets_basic_filter` | set or clear a tab's filter (hides rows; no sorting: use `sheets_sort`). To read a filter, use `sheets_get` with `fields: "sheets(properties(sheetId),basicFilter)"` (no card) | card |
 | `sheets_filter_views` | list, add, update, duplicate or delete saved filter views | danger card |
 | `sheets_format` | number formats, fonts, colours, alignment, wrapping, borders, frozen rows/columns, column widths | card; never changes values |
 | `sheets_named_ranges` | list, add, update or delete named ranges | danger card (formulas follow the name) |
