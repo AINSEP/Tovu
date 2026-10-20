@@ -70,6 +70,27 @@ describeEachDialect(
       assert.deepEqual(await jobRows(ctx, "wb"), [["wb-job-1", "pending", null, { email: "a@example.com" }]], "the same submission id in another workspace is untouched");
     });
 
+    // F9C: the outbox used to settle a row by id alone, so the outcome of an attempt that was in flight
+    // when the purge failed the job set it back to pending, and the retry sent the blanked answers.
+    test("a purge during an in-flight attempt is final: the attempt's retryable failure neither revives the job nor resends it", async () => {
+      const ctx = make();
+      await plan(ctx, "wa", ["b1"]);
+      const [inFlight] = await ctx.outbox.claimPending({ batchSize: 10, nowIso: at(1) });
+      await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
+      await ctx.outbox.markFailed({ id: inFlight.id, error: "rate-limited", nextAttemptAt: at(60_000), nextStatus: "pending" });
+      assert.deepEqual(await jobRows(ctx, "wa"), [["wa-job-1", "failed", "delivery-failed", {}]]);
+      assert.deepEqual(await ctx.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
+    });
+
+    test("a purge during an in-flight attempt is final: the attempt's success does not mark the purged job delivered", async () => {
+      const ctx = make();
+      await plan(ctx, "wa", ["b1"]);
+      const [inFlight] = await ctx.outbox.claimPending({ batchSize: 10, nowIso: at(1) });
+      await ctx.repo.scrubPurged({ workspaceId: "wa", purged: { submissionId: "s1" } });
+      await ctx.outbox.markDelivered({ id: inFlight.id });
+      assert.deepEqual(await jobRows(ctx, "wa"), [["wa-job-1", "failed", "delivery-failed", {}]]);
+    });
+
     test("a purged form scrubs the jobs of every submission planned for it", async () => {
       const ctx = make();
       await plan(ctx, "wa", ["b1"]);
