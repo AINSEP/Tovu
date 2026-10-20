@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { after, before, beforeEach, test } from 'node:test';
 
+import { encodeCsv } from '../lib/sheets-admin-csv.mjs';
 import { REQUEST_KINDS, checkRequests } from '../lib/sheets-admin-request-kinds.mjs';
 import basicFilter from '../tools/sheets-admin/basic-filter.mjs';
 import batchUpdate from '../tools/sheets-admin/batch-update.mjs';
@@ -204,4 +205,8 @@ test('open_existing: no id means waiting with no request; an ungranted id is fil
 test('open_existing: a picked spreadsheet returns metadata only, with a link built from the verified id', async () => {
   fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Leads', mimeType: 'application/vnd.google-apps.spreadsheet', webViewLink: 'https://evil.example/phish' }]);
   assert.deepEqual(await run(openExisting, {}), { status: 'selected', resource: { spreadsheetId: SPREADSHEET, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET}/edit` } });
+});
+
+test('CSV export writes formula-like cells (=, +, -, @) unchanged, so a spreadsheet app opening the file may evaluate them (reported, not fixed)', () => {
+  assert.equal(encodeCsv({ rows: [['=HYPERLINK("https://x.test","y")', '+1', '@SUM(A1)']] }).csv, '"=HYPERLINK(""https://x.test"",""y"")",+1,@SUM(A1)');
 });
