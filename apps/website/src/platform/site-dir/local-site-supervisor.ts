@@ -94,42 +94,23 @@ export function createLocalSiteSupervisor(
   async function probe(entry: Entry) {
     const child = entry.child;
     if (!child || !canProbe(entry)) return;
-    let ready = false;
-    try { ready = await child.ready(); } catch { /* Retry bounded local readiness failures. */ }
+    const ready = await childReady(child);
     if (entry.child !== child || !canProbe(entry)) return;
-    entry.probes++;
-    if (ready) { entry.state.status = "running"; entry.misses = 0; }
-    else entry.misses++;
-    if (entry.state.status === "starting" && entry.probes >= readyAttempts) { crash(entry); return; }
-    if (entry.state.status === "running" && entry.misses >= 3) { crash(entry); return; }
-    scheduleProbe(entry);
+    if (recordProbe({ entry, ready, readyAttempts }) === "crash") crash(entry);
+    else scheduleProbe(entry);
   }
   function scheduleProbe(entry: Entry) {
     entry.cancel = processPort.schedule({ run: () => { void probe(entry); }, delayMs: entry.state.status === "starting" ? 500 : 5000 });
   }
   async function start(name: string): Promise<LocalSiteState> {
     checkName(name);
-    const foreign = processPort.existing?.({ name });
-    if (foreign && !entries.get(name)?.child) return foreign;
-    const previous = entries.get(name);
-    if (previous?.child) {
-      if (previous.state.status === "crashed") throw new LocalSiteError("SITE_STOP_FAILED");
-      return { ...previous.state };
-    }
+    const current = currentState(name);
+    if (current) return current;
     if ([...entries.values()].filter((entry) => entry.child || entry.state.status === "starting").length >= maxConcurrent) throw new LocalSiteError("SITE_LIMIT");
     const entry: Entry = { state: { name, status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }, probes: 0, misses: 0 };
     entries.set(name, entry);
     try {
-      entry.state.port = await allocate();
-      entry.state.daemonPort = await allocate();
-      if (closed) throw new LocalSiteError("SITE_HOST_STOPPING");
-      entry.child = await processPort.launch({ name, port: entry.state.port, daemonPort: entry.state.daemonPort });
-      entry.state.pid = entry.child.pid;
-      entry.state.adminUrl = `${scheme}://localhost:${entry.state.port}/admin/`;
-      entry.child.onExit({ listener: () => { if (entries.get(name) === entry && entry.child && entry.state.status !== "stopped") crash(entry); } });
-      if (closed) { await reap(entry, "stopped"); throw new LocalSiteError("SITE_HOST_STOPPING"); }
-      scheduleProbe(entry);
-      return { ...entry.state };
+      return await launch(entry);
     } catch (error) {
       await reap(entry, "crashed");
       const foreign = processPort.existing?.({ name });
@@ -137,6 +118,31 @@ export function createLocalSiteSupervisor(
       if (error instanceof LocalSiteError) throw error;
       throw new LocalSiteError("SITE_START_FAILED");
     }
+  }
+  /** A site another app runs, or this host's own live child, answers Start without a new launch. */
+  function currentState(name: string): LocalSiteState | undefined {
+    const foreign = processPort.existing?.({ name });
+    const previous = entries.get(name);
+    if (foreign && !previous?.child) return foreign;
+    if (!previous?.child) return undefined;
+    if (previous.state.status === "crashed") throw new LocalSiteError("SITE_STOP_FAILED");
+    return { ...previous.state };
+  }
+  async function launch(entry: Entry): Promise<LocalSiteState> {
+    const { name } = entry.state;
+    const port = await allocate();
+    entry.state.port = port;
+    const daemonPort = await allocate();
+    entry.state.daemonPort = daemonPort;
+    if (closed) throw new LocalSiteError("SITE_HOST_STOPPING");
+    const child = await processPort.launch({ name, port, daemonPort });
+    entry.child = child;
+    entry.state.pid = child.pid;
+    entry.state.adminUrl = `${scheme}://localhost:${port}/admin/`;
+    child.onExit({ listener: () => { if (entries.get(name) === entry && entry.child && entry.state.status !== "stopped") crash(entry); } });
+    if (closed) { await reap(entry, "stopped"); throw new LocalSiteError("SITE_HOST_STOPPING"); }
+    scheduleProbe(entry);
+    return { ...entry.state };
   }
   const supervisor: LocalSiteSupervisorPort = {
     start: ({ name }) => serial(() => start(name)),
@@ -171,4 +177,21 @@ export function createLocalSiteSupervisor(
     },
   };
   return supervisor;
+}
+
+/** Readiness failures are bounded local misses, never a crash on their own. */
+async function childReady(child: LocalSiteProcess): Promise<boolean> {
+  try { return await child.ready(); } catch { /* Retry bounded local readiness failures. */ return false; }
+}
+
+/** Count one probe and decide whether the site has timed out starting or lost a running server.
+ * @returns "crash" after `readyAttempts` unready probes while starting or three misses while running.
+ */
+function recordProbe({ entry, ready, readyAttempts }: { entry: Entry; ready: boolean; readyAttempts: number }): "crash" | "again" {
+  entry.probes++;
+  if (ready) { entry.state.status = "running"; entry.misses = 0; }
+  else entry.misses++;
+  if (entry.state.status === "starting" && entry.probes >= readyAttempts) return "crash";
+  if (entry.state.status === "running" && entry.misses >= 3) return "crash";
+  return "again";
 }
