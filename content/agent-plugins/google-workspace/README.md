@@ -30,9 +30,10 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `auth.mjs` | Default `{ createHooks({ http }) }`: Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`, `revoke`). `GOOGLE_REVOCATION_ENDPOINT`, `GOOGLE_ACCOUNT_ACCESS_PAGE`. |
 | `http.mjs` | `createGoogleClient({ http, connections }, { sleep, random }).request({ connectionRef, url, method, query, body, kind })`; `accessTokenFor`; `buildUrl`; `pathSegment` (one encoded path segment, dot segments refused). |
 | `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`); `copyFile({ client, connectionRef, fileId, name }, { parentId })` via Drive `files.copy`. |
-| `sheets-client.mjs` | The Sheets request helper: `sheetsUrl`, `sendSheetsRequest`, `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bound helpers (`boundValueRanges`, `assertPayloadWithin`, `assertOutputWithin`), A1 helpers, `resourceLines` (card lines). |
+| `sheets-client.mjs` | The one Sheets client: `sheetsClientFor({ capabilities })` (Sheets product gate per request), `googleClientFor` (ungated: delivery), `sendSheetsRequest`, `assertSpreadsheetId` / `SPREADSHEET_ID_PATTERN` (the one id rule, also every schema's pattern), `sheetsUrl` (the one URL builder; checks the id), `getSpreadsheet`, `runBatchUpdate` (inventory check first), `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bounds (`boundValueRanges`, `assertPayloadWithin`, `outputFits` / `assertOutputWithin`, `spreadsheetFields` (grid-data masks need the opt-in)), `resourceLines` (card lines), `spreadsheetLine`, `tabsOf`. |
+| `sheets-a1.mjs` | A1 helpers, one name and contract each: `columnName`, `columnIndex`, `parseA1Range` (Google's normalized range → parts or undefined), `parseBoundsA1` (a plain `A1:B2` → bounds, else `invalid-input`), `tabRange` (tab-title quoting), `gridRangeLabel` (card label). |
 | `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`, and the product gate: `PRODUCT_STATE_KEY` (`'products'`), `isProductEnabled({ state, productId })`, `assertProductEnabled(...)` (`product-disabled`), `productEnabledReader({ state, productId })` (the `productEnabled` port form delivery takes, built from the host's read-only plugin-state reader). A product is off unless the plugin's settings hold `products: { <id>: true }`. |
-| `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
+| `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `verifySpreadsheetAccess({ client, connectionRef, fileId })` (live spreadsheet per Drive, then opened by the Sheets API; shared with `sheets_open_existing`), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
 | `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`. |
 
 ## Rules the plugin keeps
@@ -84,8 +85,6 @@ developer metadata, raw batch updates, CSV export and opening a picked file; see
 | Module | Exports |
 |---|---|
 | `lib/sheets-admin-request-kinds.mjs` | `REQUEST_KINDS` (the reviewed batchUpdate inventory: effect, replay class, required fields), `checkRequests`, `describeRequests`, batch bounds. |
-| `lib/sheets-admin-common.mjs` | `spreadsheetUrl`, `checkedFileId`, `clientFor`, `getSpreadsheet`, `runBatchUpdate`, `boundedOutput`, `spreadsheetLine`, `tabsOf`, `MAX_OUTPUT_BYTES`. |
-| `lib/sheets-admin-ranges.mjs` | `columnLetters`, `gridRangeLabel`, `parseA1Range`. |
 | `lib/sheets-admin-csv.mjs` | `planChunks`, `encodeCsv`, export bounds. |
 
 These tools use the plugin-side codes `invalid-input` and `limit-exceeded` (shared with the values

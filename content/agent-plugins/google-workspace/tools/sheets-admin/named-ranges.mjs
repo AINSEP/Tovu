@@ -4,8 +4,8 @@
  *
  * Exists as a named wrapper over the reviewed named-range request kinds.
  */
-import { boundedOutput, clientFor, getSpreadsheet, runBatchUpdate, spreadsheetLine } from '../../lib/sheets-admin-common.mjs';
-import { gridRangeLabel } from '../../lib/sheets-admin-ranges.mjs';
+import { assertOutputWithin, getSpreadsheet, resourceLines, runBatchUpdate, sheetsClientFor, spreadsheetLine } from '../../lib/sheets-client.mjs';
+import { gridRangeLabel } from '../../lib/sheets-a1.mjs';
 
 /** The fields an update changes: only the ones given. @complexity O(1). */
 const updatedFields = (input) => ['name', 'range'].filter((field) => input[field] !== undefined).join(',');
@@ -19,10 +19,10 @@ const REQUESTS = {
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    const client = clientFor({ capabilities });
+    const client = sheetsClientFor({ capabilities });
     if (input.action === 'list') {
       const body = await getSpreadsheet({ client, connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, fields: 'namedRanges' }, { signal });
-      return boundedOutput({ value: { action: 'list', namedRanges: body?.namedRanges ?? [] } });
+      return assertOutputWithin({ value: { action: 'list', namedRanges: body?.namedRanges ?? [] } });
     }
     const { replies } = await runBatchUpdate({ client, connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [REQUESTS[input.action](input)] }, { signal });
     const added = replies[0]?.addNamedRange?.namedRange;
@@ -36,6 +36,6 @@ export default {
       update: `change named range ${input.namedRangeId}${input.name === undefined ? '' : ` to "${input.name}"`}${where} (formulas using it follow the change)`,
       delete: `delete named range ${input.namedRangeId} (formulas using it stop working)`,
     };
-    return [spreadsheetLine(input), lines[input.action]];
+    return resourceLines({ lines: [spreadsheetLine(input), lines[input.action]] });
   },
 };

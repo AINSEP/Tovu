@@ -6,7 +6,7 @@
  * Exists as a named wrapper so the common tab changes need no raw batch: each action becomes one
  * reviewed request kind and goes through the same batch path as `batch_update`.
  */
-import { clientFor, runBatchUpdate, spreadsheetLine } from '../../lib/sheets-admin-common.mjs';
+import { resourceLines, runBatchUpdate, sheetsClientFor, spreadsheetLine } from '../../lib/sheets-client.mjs';
 
 /** action → the one batch request it sends. */
 const REQUESTS = {
@@ -26,11 +26,11 @@ function resultFor(input, reply) {
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    const { replies } = await runBatchUpdate({ client: clientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [REQUESTS[input.action](input)] }, { signal });
+    const { replies } = await runBatchUpdate({ client: sheetsClientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [REQUESTS[input.action](input)] }, { signal });
     return resultFor(input, replies[0]);
   },
   describeAffectedResources({ input }) {
     const tab = input.sheetId === undefined ? `new tab "${input.title}"` : `tab ${input.sheetId}`;
-    return [spreadsheetLine(input), `${input.action} ${tab}${input.action === 'delete' ? ' and all of its data' : ''}`];
+    return resourceLines({ lines: [spreadsheetLine(input), `${input.action} ${tab}${input.action === 'delete' ? ' and all of its data' : ''}`] });
   },
 };

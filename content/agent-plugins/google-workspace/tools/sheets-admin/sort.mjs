@@ -4,15 +4,15 @@
  *
  * Exists as a named wrapper over the reviewed `sortRange` request, sent through the batch path.
  */
-import { clientFor, runBatchUpdate, spreadsheetLine } from '../../lib/sheets-admin-common.mjs';
-import { gridRangeLabel } from '../../lib/sheets-admin-ranges.mjs';
+import { resourceLines, runBatchUpdate, sheetsClientFor, spreadsheetLine } from '../../lib/sheets-client.mjs';
+import { gridRangeLabel } from '../../lib/sheets-a1.mjs';
 
 export default {
   async invoke({ input, capabilities, signal }) {
-    await runBatchUpdate({ client: clientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [{ sortRange: { range: input.range, sortSpecs: input.sortSpecs } }] }, { signal });
+    await runBatchUpdate({ client: sheetsClientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [{ sortRange: { range: input.range, sortSpecs: input.sortSpecs } }] }, { signal });
     return { sorted: input.range, sortSpecs: input.sortSpecs };
   },
   describeAffectedResources({ input }) {
-    return [spreadsheetLine(input), `reorder rows of ${gridRangeLabel({ range: input.range })} (the old order is not kept)`];
+    return resourceLines({ lines: [spreadsheetLine(input), `reorder rows of ${gridRangeLabel({ range: input.range })} (the old order is not kept)`] });
   },
 };

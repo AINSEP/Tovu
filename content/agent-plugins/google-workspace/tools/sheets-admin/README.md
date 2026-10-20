@@ -23,7 +23,7 @@ by the assistant as `p_google_workspace__<name>`.
 ## How it fits
 
 - Every change is ONE `spreadsheets.batchUpdate`: named tools build reviewed requests and call
-  `runBatchUpdate` (`../../lib/sheets-admin-common.mjs`), the same path as `sheets_batch_update`, so
+  `runBatchUpdate` (`../../lib/sheets-client.mjs`), the same path as `sheets_batch_update`, so
   every request passes the inventory in `../../lib/sheets-admin-request-kinds.mjs` first. A batch
   holding a non-replayable kind is a `write` for the shared client (`../../lib/http.mjs`): an
   unknown outcome is `uncertain-outcome` and is never replayed.

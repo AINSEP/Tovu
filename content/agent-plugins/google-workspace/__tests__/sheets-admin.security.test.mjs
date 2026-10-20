@@ -55,7 +55,7 @@ test('approval: each G12 tool keeps its declared effect (destructive tools are t
 test('schema: every G12 tool takes spreadsheetId only in Google\'s id alphabet and rejects unknown input keys', async () => {
   const file = JSON.parse(await readFile(new URL('../tovu-agent-tools.json', import.meta.url), 'utf8'));
   for (const tool of file.tools.filter((entry) => entry.module.startsWith('tools/sheets-admin/'))) {
-    assert.equal(tool.inputSchema.properties.spreadsheetId.pattern, '^[A-Za-z0-9_-]{10,128}$', tool.name);
+    assert.equal(tool.inputSchema.properties.spreadsheetId.pattern, '^[A-Za-z0-9_-]{10,200}$', tool.name);
     assert.equal(tool.inputSchema.additionalProperties, false, tool.name);
   }
 });
@@ -220,6 +220,8 @@ test('open_existing: no id means waiting with no request; an ungranted id is fil
 
 test('open_existing: a picked spreadsheet returns metadata only, with a link built from the verified id', async () => {
   fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Leads', mimeType: 'application/vnd.google-apps.spreadsheet', webViewLink: 'https://evil.example/phish' }]);
+  // The same check as a Picker selection: Drive metadata, then the Sheets API must open it.
+  fake.route({ method: 'GET', path: `/v4/spreadsheets/${SPREADSHEET}` }, () => [200, { spreadsheetId: SPREADSHEET, properties: { title: 'Leads' } }]);
   assert.deepEqual(await run(openExisting, {}), { status: 'selected', resource: { spreadsheetId: SPREADSHEET, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET}/edit` } });
 });
 

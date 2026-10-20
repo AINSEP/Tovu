@@ -17,7 +17,8 @@
  * `{ spreadsheetId: string, tabs: { [formSlug]: { sheetId: number } } }`. Which column holds which
  * field lives in the sheet itself (column markers), not in the binding.
  */
-import { googleClientFor, parseA1Range, sheetsUrl, columnName } from '../lib/sheets-client.mjs';
+import { columnName, parseA1Range, tabRange } from '../lib/sheets-a1.mjs';
+import { googleClientFor, sheetsUrl } from '../lib/sheets-client.mjs';
 import { GoogleWorkspaceError } from '../lib/request-policy.mjs';
 import { findSubmissionRows } from './dedupe.mjs';
 import { DeliveryRefusal, failureResult, resultForError } from './delivery-result.mjs';
@@ -41,8 +42,7 @@ function targetFor({ binding, form }) {
   return { spreadsheetId, tab };
 }
 
-/** `'Tab title'!<cells>`: the title quoted, its quotes doubled, so a title cannot change the range. @complexity O(n). */
-const a1 = (title, cells) => `'${title.replaceAll("'", "''")}'!${cells}`;
+const a1 = (title, cells) => tabRange({ title, cells });
 
 /**
  * The Sheets requests one delivery makes, over the shared Google client.

@@ -9,7 +9,7 @@
  * formula are prefixed with `'` so opening the file never runs a visitor's formula.
  */
 import { GoogleWorkspaceError } from './request-policy.mjs';
-import { columnLetters } from './sheets-admin-ranges.mjs';
+import { columnName, tabRange } from './sheets-a1.mjs';
 
 export const MAX_EXPORT_ROWS = 20_000;
 export const MAX_EXPORT_CELLS = 100_000;
@@ -18,11 +18,6 @@ export const MAX_CSV_BYTES = 4 * 1024 * 1024;
 const CHUNK_CELLS = 10_000;
 
 const tooLarge = (detail) => new GoogleWorkspaceError({ code: 'limit-exceeded' }, { detail });
-
-/** `'Tab ''name'''`: A1 notation's quoting of a tab title. @complexity O(title). */
-function quotedTitle(title) {
-  return `'${title.replaceAll("'", "''")}'`;
-}
 
 /**
  * The reads covering `area` (zero-based, inclusive), in row order.
@@ -38,11 +33,11 @@ export function planChunks(required, _optional = {}) {
   if (rows > MAX_EXPORT_ROWS) throw tooLarge(`at most ${MAX_EXPORT_ROWS} rows; give a range`);
   if (rows * columns > MAX_EXPORT_CELLS) throw tooLarge(`at most ${MAX_EXPORT_CELLS} cells; give a smaller range`);
   const rowsPerChunk = Math.max(1, Math.floor(CHUNK_CELLS / columns));
-  const [from, to] = [columnLetters({ index: firstColumn }), columnLetters({ index: lastColumn })];
+  const [from, to] = [columnName({ index: firstColumn }), columnName({ index: lastColumn })];
   const chunks = [];
   for (let start = firstRow; start <= lastRow; start += rowsPerChunk) {
     const end = Math.min(lastRow, start + rowsPerChunk - 1);
-    chunks.push({ range: `${quotedTitle(required.title)}!${from}${start + 1}:${to}${end + 1}`, rowCount: end - start + 1 });
+    chunks.push({ range: tabRange({ title: required.title, cells: `${from}${start + 1}:${to}${end + 1}` }), rowCount: end - start + 1 });
   }
   return chunks;
 }
