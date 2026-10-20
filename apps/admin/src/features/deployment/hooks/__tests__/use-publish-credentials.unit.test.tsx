@@ -1075,3 +1075,61 @@ describe("usePublishCredentials — rows come from the deploy registry's descrip
     expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "bucket-host", bucket: "site", secretKey: "s3cr3t" } });
   });
 });
+
+describe("usePublishCredentials — save preflight characterization (L239)", () => {
+  it.each([
+    { name: "missing token on a new row", connected: false, values: {}, error: "Enter a token. Spaces alone are not a token.", writes: 0 },
+    { name: "empty token on a new row", connected: false, values: { token: "" }, error: "Enter a token. Spaces alone are not a token.", writes: 0 },
+    { name: "empty token on a connected row", connected: true, values: { token: "" }, error: null, writes: 0 },
+    { name: "whitespace token on a connected row", connected: true, values: { token: "   " }, error: "Enter a token. Spaces alone are not a token.", writes: 0 },
+    { name: "valid token with a missing required account", connected: false, values: { token: "fixture-token" }, error: null, writes: 0 },
+    { name: "complete new connection", connected: false, values: { token: "fixture-token", accountId: "fixture-account" }, error: null, writes: 1 },
+    { name: "complete replacement connection", connected: true, values: { token: "fixture-token", accountId: "fixture-account" }, error: null, writes: 1 },
+  ])("preserves $name", async ({ connected, values, error, writes }) => {
+    const saved: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, providerId: "cloudflare-pages" };
+    const createCredential = vi.fn(() => Promise.resolve(saved));
+    const updateCredential = vi.fn(() => Promise.resolve(saved));
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: connected ? [saved] : [], executionMode: "self-hosted-cli" }),
+      createCredential,
+      updateCredential,
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+    act(() => {
+      for (const [field, value] of Object.entries(values)) {
+        result.current.setField("cloudflare-pages", field, value ?? "");
+      }
+    });
+    await act(async () => result.current.save("cloudflare-pages"));
+    expect(createCredential).toHaveBeenCalledTimes(connected ? 0 : writes);
+    expect(updateCredential).toHaveBeenCalledTimes(connected ? writes : 0);
+    const row = result.current.rows!.find(row => row.providerId === "cloudflare-pages")!;
+    expect(row.error).toBe(error);
+    expect(row.saving).toBe(false);
+    expect(result.current.credentialChangePending).toBe(false);
+    expect(row.values).toEqual(writes ? {} : values);
+  });
+
+  it("validates an edited draft before rejecting a duplicate in-flight save", async () => {
+    let resolveCreate!: (saved: AdminPublishCredentialSummary) => void;
+    const createCredential = vi.fn(() => new Promise<AdminPublishCredentialSummary>(resolve => { resolveCreate = resolve; }));
+    const port = createFakePublishCredentialsPort({ createCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale, PUBLISH_TARGETS), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+    act(() => result.current.setField("vercel", "token", "fixture-token"));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.save("vercel"); });
+    act(() => result.current.setField("vercel", "token", ""));
+    await act(async () => result.current.save("vercel"));
+    const row = result.current.rows!.find(row => row.providerId === "vercel")!;
+    expect(row.error).toBe("Enter a token. Spaces alone are not a token.");
+    expect(row.saving).toBe(true);
+    expect(createCredential).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolveCreate({ ...GH_CREDENTIAL, providerId: "vercel" });
+      await pending;
+    });
+    expect(result.current.rows!.find(row => row.providerId === "vercel")!.values).toEqual({ token: "" });
+  });
+});

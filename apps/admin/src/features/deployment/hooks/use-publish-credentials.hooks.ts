@@ -291,14 +291,27 @@ export function usePublishCredentials(
     patchRow(providerId, (current) => ({ ...current, values: { ...current.values, [fieldName]: value }, ...(secret ? { error: credentialDraftError({ value }, { locale }) } : {}) }));
   }
 
+  /** Validate the draft before checking the in-flight guard, so even a duplicate click reports
+   *  invalid edits made while the original request is pending. */
+  function canSaveCredential(
+    { providerId, spec, values }: {
+      providerId: AdminPublishCredentialProviderId;
+      spec: AdminPublishTargetCredentialSpec | undefined;
+      values: Readonly<Record<string, string>>;
+    },
+    _options = {}
+  ): boolean {
+    if (spec) {
+      const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider(credentials ?? [], providerId) });
+      if (error) { patchRow(providerId, current => ({ ...current, error })); return false; }
+    }
+    return spec !== undefined && credentialFormReadyToSave(spec, values) && !savingRef.current.has(providerId);
+  }
+
   async function save(providerId: AdminPublishCredentialProviderId) {
     const spec = targets?.find((target) => target.id === providerId)?.credential;
     const values = rowFormStateFor(formStates, providerId).values;
-    if (spec) {
-      const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider(credentials ?? [], providerId) });
-      if (error) { patchRow(providerId, current => ({ ...current, error })); return; }
-    }
-    if (spec === undefined || !credentialFormReadyToSave(spec, values) || savingRef.current.has(providerId)) return;
+    if (!canSaveCredential({ providerId, spec, values }) || spec === undefined) return;
     savingRef.current.add(providerId);
 
     const existing = defaultCredentialForProvider(credentials ?? [], providerId);
