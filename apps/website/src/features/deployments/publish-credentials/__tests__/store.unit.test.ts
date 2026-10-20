@@ -634,12 +634,14 @@ for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publ
   });
 }
 
-test("createPublishCredential rejects s3-compatible with a blank endpoint when one IS supplied (optional means 'may be omitted', not 'may be blank')", async () => {
+// df7e519e5 (2026-10-19): admin forms post an empty string for every optional field the owner left
+// blank, so blank now means "not provided" (the live Cloudflare save failed on zoneId: ""). An
+// all-whitespace endpoint is therefore stored as omitted rather than refused.
+test("createPublishCredential treats a blank s3-compatible endpoint as omitted (forms send '' for an optional field left empty)", async () => {
   const deps = makeDeps();
-  await assert.rejects(
-    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { ...VALID_S3_CONNECTION, endpoint: "   " } }),
-    PublishCredentialValidationError
-  );
+  const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { ...VALID_S3_CONNECTION, endpoint: "   " } });
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.equal((resolved?.connection as { endpoint?: string } | undefined)?.endpoint, undefined, "a blank endpoint must not be persisted");
 });
 
 test("createPublishCredential trims a leading/trailing-whitespace endpoint before persisting it — a stray paste-space must not survive into storage", async () => {
