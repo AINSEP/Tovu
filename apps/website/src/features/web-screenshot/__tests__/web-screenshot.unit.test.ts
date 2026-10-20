@@ -394,3 +394,49 @@ test("the own-site queue limit rejects excess callers with an own-site busy even
     await pending;
   }
 });
+
+test('input option validation preserves precedence, integer bounds and explicit false', () => {
+  const invalid: Array<[Record<string, unknown>, string]> = [
+    [{}, "pass exactly one of 'url'"],
+    [{ url: '/bad', viewport: null, fullPage: null, waitMs: null }, 'viewport must be'],
+    [{ url: '/bad', fullPage: null, waitMs: null }, 'fullPage must be'],
+    [{ url: '/bad', waitMs: null, dismissCookieBanners: null }, 'waitMs must be'],
+    [{ url: '/bad', dismissCookieBanners: null }, 'dismissCookieBanners must be'],
+    ...[NaN, Infinity, -Infinity, -1, 5001, 0.5, '0'].map(waitMs => [{ sitePath: '/', waitMs }, 'waitMs must be'] as [Record<string, unknown>, string]),
+  ];
+  for (const [input, message] of invalid) {
+    assert.throws(() => readWebScreenshotInput(input), (error: unknown) => error instanceof ToolInputError && error.message.includes(message));
+  }
+  for (const waitMs of [0, 5000]) {
+    assert.deepEqual(readWebScreenshotInput({ sitePath: '/', waitMs, dismissCookieBanners: false }), {
+      target: { kind: 'site', path: '/' }, viewport: 'desktop', fullPage: false, waitMs, dismissCookieBanners: false,
+    });
+  }
+});
+
+test('result assembly reports capture before encoding and closes the own-site server after encoder failure', async () => {
+  const order: string[] = [];
+  const failure = new Error('encode failed');
+  const capture = fakeCapture(request => shotFor(request));
+  const service = createWebScreenshotService({ ports: {
+    ...ports(capture), observe: () => { order.push('captured'); },
+    encodeTiles: async () => { order.push('encode'); throw failure; },
+  } });
+  await assert.rejects(service.screenshot({ input: readWebScreenshotInput({ sitePath: '/' }),
+    openOwnSite: async () => ({ origin: 'http://127.0.0.1:53142', close: async () => { order.push('close'); } }),
+    saveCaptureFiles: async () => { order.push('save'); return []; },
+  }), error => error === failure);
+  assert.deepEqual(order, ['captured', 'encode', 'close']);
+});
+
+test('off-origin site-path refusal leaks the opened server (reported, not fixed)', async () => {
+  let closed = 0;
+  const capture = fakeCapture(request => shotFor(request));
+  const service = createWebScreenshotService({ ports: ports(capture) });
+  await assert.rejects(service.screenshot({
+    input: { target: { kind: 'site', path: '//other.example/private' }, viewport: 'desktop', fullPage: false, waitMs: 0 },
+    openOwnSite: async () => ({ origin: 'http://127.0.0.1:53142', close: async () => { closed++; } }),
+  }), { message: 'web_screenshot_page: sitePath must stay on this site.' });
+  assert.equal(closed, 0);
+  assert.deepEqual(capture.requests, []);
+});

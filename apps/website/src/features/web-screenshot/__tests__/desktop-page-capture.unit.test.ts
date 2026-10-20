@@ -69,3 +69,28 @@ test('a malformed channel cannot silently choose Playwright', async () => {
   assert.equal(launches, 0);
   await port.close();
 });
+
+test('native option guards precede transport and numeric waits override settling without a signal', async () => {
+  const received: Array<{ input: Parameters<UrlCapturePort['captureUrl']>[0]; options: Parameters<UrlCapturePort['captureUrl']>[1] }> = [];
+  const capture: UrlCapturePort = { async captureUrl(input, options) { received.push({ input, options }); return result; } };
+  const port = createDesktopPageCapture({ capture });
+  for (const override of [{ dismissCookieBanners: true }, { waitFor: '#ready' }]) {
+    await assert.rejects(port.capture({ ...request, ...override }), { kind: 'failed', message: 'native capture does not support consent clicks or selector waits' });
+  }
+  await assert.rejects(port.capture({ ...request, allowedOrigins: [], dismissCookieBanners: true }),
+    { kind: 'refused', message: 'desktop capture requires sitePath on this site' });
+  assert.deepEqual(received, []);
+  await port.capture({ ...request, waitFor: 0, dismissCookieBanners: false });
+  await port.capture({ ...request, waitFor: 1.5 });
+  assert.deepEqual(received.map(({ input, options }) => [input.settleMs, options]), [[0, {}], [1500, {}]]);
+});
+
+test('native unexpected failures discard transport details while all render codes retain their message', async () => {
+  for (const code of ['aborted', 'timeout', 'navigation-blocked', 'load-failed', 'not-implemented'] as const) {
+    const capture: UrlCapturePort = { async captureUrl() { throw new RenderServiceError({ code, message: 'render detail' }); } };
+    const kind = code === 'aborted' || code === 'timeout' ? 'timeout' : code === 'navigation-blocked' ? 'refused' : 'failed';
+    await assert.rejects(createDesktopPageCapture({ capture }).capture(request), { kind, message: 'render detail' });
+  }
+  const capture: UrlCapturePort = { async captureUrl() { throw new Error('private transport detail'); } };
+  await assert.rejects(createDesktopPageCapture({ capture }).capture(request), { kind: 'failed', message: 'native capture failed' });
+});

@@ -29,16 +29,20 @@ export function createDesktopPageCapture({ capture }: { capture: UrlCapturePort 
         }, signal ? { signal } : {});
         return { ...result, png: Buffer.from(result.png) };
       } catch (error) {
-        if (error instanceof RenderServiceError) {
-          const kind = error.code === 'timeout' || error.code === 'aborted' ? 'timeout'
-            : error.code === 'navigation-blocked' ? 'refused' : 'failed';
-          throw new PageCaptureError({ kind, message: error.message });
-        }
-        throw new PageCaptureError({ kind: 'failed', message: 'native capture failed' });
+        throw nativeCaptureError({ error });
       }
     },
     async close() {},
   };
+}
+
+function nativeCaptureError({ error }: { error: unknown }, _options = {}): PageCaptureError {
+  if (!(error instanceof RenderServiceError)) {
+    return new PageCaptureError({ kind: 'failed', message: 'native capture failed' });
+  }
+  const kind = error.code === 'timeout' || error.code === 'aborted' ? 'timeout'
+    : error.code === 'navigation-blocked' ? 'refused' : 'failed';
+  return new PageCaptureError({ kind, message: error.message });
 }
 
 /** Both compiled serve and source-mode desktop use this same composition decision. No channel
