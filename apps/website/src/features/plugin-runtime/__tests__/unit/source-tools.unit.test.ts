@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
-import { ToolInputError, type ToolExecutionContext, type SurfaceEmitter } from '@jini-ai/core';
+import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, type SurfaceEmitter } from '@jini-ai/core';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { PluginInstallError, PluginSourceError, type PluginSourcePort, type PluginInstallPreview } from '@jini-ai/plugins/host/node';
-import { buildPluginSourceRegistrations, pluginSourceAgentToolCatalog } from '../../source-tools.js';
+import { buildPluginSourceRegistrations, contributePluginSourceTools, pluginSourceAgentToolCatalog, pluginSourceDerivedRisk } from '../../source-tools.js';
 import { pluginAgentToolCatalog } from '../../agent-tools.js';
 import { toolMetadata } from '../../../../contracts/core/tool-metadata/plugin-runtime.js';
 import { BATCHABLE_TOOLS } from '../../../../assistant/batch-tool-inputs.js';
@@ -63,7 +63,7 @@ test('create/open/list/read/write/edit/seal/rollback run without confirmation an
 
 test('source authoring is authorized before the port is accessed, and an unavailable owner is a plain input error', async () => {
   const denied = fixture({ allowed: false });
-  await assert.rejects(denied.tool('plugin_source_seal').handler(ctx({ id: 'rules' }), {}));
+  await assert.rejects(denied.tool('plugin_source_seal').handler(ctx({ id: 'rules' }), {}), error => error instanceof ToolPermissionDeniedError && error.message === "principal 'owner' is not authorized for 'admin.plugins.enable' (matched)");
   assert.deepEqual(denied.calls, []);
   const missing = fixture({ source: false });
   await assert.rejects(missing.tool('plugin_source_create').handler(ctx({ id: 'rules', name: 'Rules', description: '' }), {}), error => error instanceof ToolInputError && /no plugin directory/.test(error.message));
@@ -119,4 +119,68 @@ test('tool schema, metadata, callback admission and batch mirrors cover the work
   for (const name of ['plugin_source_read', 'plugin_source_write', 'plugin_source_edit']) assert.equal(BATCHABLE_TOOLS.some(tool => tool.toolId === name), true);
   assert.equal(isMcpUiToolCallPermitted('plugin_source_delete', true), true);
   assert.equal(isMcpUiToolCallPermitted('plugin_source_delete', false), false);
+});
+
+test('a non-string field is refused by name before the port is called', async () => {
+  const f = fixture();
+  await assert.rejects(f.tool('plugin_source_create').handler(ctx({ id: 'rules', name: 3, description: '' }), {}), error => error instanceof ToolInputError && error.message === 'name must be a string.');
+  assert.deepEqual(f.calls, []);
+});
+
+test('a missing source owner is reported before field validation', async () => {
+  const f = fixture({ source: false });
+  await assert.rejects(f.tool('plugin_source_write').handler(ctx({ id: 'rules', path: 7 }), {}), error => error instanceof ToolInputError && error.message === 'Site plugin source authoring is unavailable: this site has no plugin directory.');
+});
+
+test('a non-boolean replaceAll is refused before the port is called', async () => {
+  const f = fixture();
+  await assert.rejects(f.tool('plugin_source_edit').handler(ctx({ id: 'rules', path: 'README.md', oldString: 'a', newString: 'b', replaceAll: 'yes' }), {}), error => error instanceof ToolInputError && error.message === 'replaceAll must be a boolean.');
+  assert.deepEqual(f.calls, []);
+});
+
+test('an edit without replaceAll passes no replaceAll key to the port', async () => {
+  const f = fixture();
+  await f.tool('plugin_source_edit').handler(ctx({ id: 'rules', path: 'README.md', oldString: 'a', newString: 'b' }), {});
+  assert.deepEqual(f.calls, [{ operation: 'edit', input: { id: 'rules', path: 'README.md', oldString: 'a', newString: 'b' }, options: {} }]);
+});
+
+test('an edit with replaceAll:true passes it through', async () => {
+  const f = fixture();
+  await f.tool('plugin_source_edit').handler(ctx({ id: 'rules', path: 'README.md', oldString: 'a', newString: 'b', replaceAll: true }), {});
+  assert.deepEqual(f.calls, [{ operation: 'edit', input: { id: 'rules', path: 'README.md', oldString: 'a', newString: 'b', replaceAll: true }, options: {} }]);
+});
+
+test('a port failure that is not a source or install refusal propagates unchanged', async () => {
+  const boom = new Error('disk unplugged');
+  const f = fixture({ error: boom });
+  await assert.rejects(f.tool('plugin_source_list').handler(ctx({ id: 'rules' }), {}), error => error === boom);
+});
+
+test('each tool asks for its catalog permission on a plugin entity', async () => {
+  const asked: unknown[] = [];
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registrations = buildPluginSourceRegistrations({ deps: { workspaceId: 'site', authorize: async (request) => { asked.push(request); return { allowed: false, reason: 'denied' }; } }, surfaces: { surfaceExchanges } });
+  for (const name of ['plugin_source_read', 'plugin_source_write']) await assert.rejects(registrations.find(r => r.descriptor.id === name)!.handler(ctx({ id: 'rules' }), {}), ToolPermissionDeniedError);
+  assert.deepEqual(asked, [
+    { principalId: 'owner', permission: 'admin.plugins.read', workspaceId: 'site', entityType: 'plugin' },
+    { principalId: 'owner', permission: 'admin.plugins.enable', workspaceId: 'site', entityType: 'plugin' },
+  ]);
+});
+
+test('the contributor registers the plugin-source domain with its risk map', () => {
+  const contributor = contributePluginSourceTools();
+  assert.equal(contributor.domain, 'plugin-source');
+  assert.equal(contributor.risk, pluginSourceDerivedRisk);
+});
+
+test('a missing field is refused by name', async () => {
+  const f = fixture();
+  await assert.rejects(f.tool('plugin_source_write').handler(ctx({ id: 'rules', path: 'README.md' }), {}), error => error instanceof ToolInputError && error.message === 'content must be a string.');
+  assert.deepEqual(f.calls, []);
+});
+
+test('read passes the requested path to the port', async () => {
+  const f = fixture();
+  await f.tool('plugin_source_read').handler(ctx({ id: 'rules', path: 'server/index.mjs' }), {});
+  assert.deepEqual(f.calls, [{ operation: 'read', input: { id: 'rules', path: 'server/index.mjs' }, options: {} }]);
 });
