@@ -214,6 +214,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Symbolic link — not followed.": "Enlace simbólico: no se sigue.",
     "This file could not be read.": "No se pudo leer este archivo.",
     "Some files are not listed: this package is larger than the viewer's limits.": "Algunos archivos no aparecen: este paquete supera los límites del visor.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Esta vista salió de su página y se cerró. Cierra y vuelve a abrir el plugin para usarla de nuevo.",
+    "Could not open this view. Close and reopen the plugin to try again.": "No se pudo abrir esta vista. Cierra y vuelve a abrir el plugin para intentarlo de nuevo.",
   },
   id: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -390,6 +393,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Nonaktifkan plugin di Terpasang sebelum menghapusnya.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Marketplace direncanakan untuk rilis mendatang. Tovu belum mengambil, menampilkan, atau memasang plugin dari marketplace.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Pasang plugin dengan menempatkan berkasnya di direktori instalasi plugin situs ini.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Tampilan ini keluar dari halamannya dan ditutup. Tutup lalu buka kembali plugin untuk menggunakannya lagi.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Tampilan ini tidak dapat dibuka. Tutup lalu buka kembali plugin untuk mencoba lagi.",
   },
   de: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -566,6 +572,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Deaktivieren Sie ein Plugin unter „Installiert“, bevor Sie es entfernen.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Der Marktplatz ist für eine künftige Version geplant. Tovu ruft noch keine Plugins von einem Marktplatz ab, listet oder installiert sie.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Installieren Sie ein Plugin, indem Sie seine Dateien im Plugin-Installationsverzeichnis dieser Website ablegen.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Diese Ansicht hat ihre Seite verlassen und wurde geschlossen. Schließen Sie das Plugin und öffnen Sie es erneut, um sie wieder zu verwenden.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Diese Ansicht konnte nicht geöffnet werden. Schließen Sie das Plugin und öffnen Sie es erneut, um es noch einmal zu versuchen.",
   },
   "zh-CN": {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -742,6 +751,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "删除插件前，请先在“已安装”中将其关闭。",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "市场计划在未来版本中推出。Tovu 目前还不会从市场获取、列出或安装插件。",
     "Install a plugin by placing its files in this site's plugin install directory.": "将插件文件放入此站点的插件安装目录即可安装插件。",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "此视图已离开其页面并被关闭。请关闭并重新打开该插件以再次使用。",
+    "Could not open this view. Close and reopen the plugin to try again.": "无法打开此视图。请关闭并重新打开该插件后重试。",
   },
   "zh-TW": {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -918,6 +930,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "移除外掛前，請先在「已安裝」中將其關閉。",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "市集預計在未來版本推出。Tovu 目前還不會從市集擷取、列出或安裝外掛。",
     "Install a plugin by placing its files in this site's plugin install directory.": "將外掛檔案放入此網站的外掛安裝目錄即可安裝外掛。",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "此檢視已離開其頁面並被關閉。請關閉並重新開啟該外掛以再次使用。",
+    "Could not open this view. Close and reopen the plugin to try again.": "無法開啟此檢視。請關閉並重新開啟該外掛後再試一次。",
   },
   "pt-BR": {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1094,6 +1109,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Desative o plugin em Instalado antes de removê-lo.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "O marketplace está planejado para uma versão futura. O Tovu ainda não busca, lista nem instala plugins de um marketplace.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Instale um plugin colocando os arquivos dele no diretório de instalação de plugins deste site.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Esta visualização saiu da própria página e foi fechada. Feche e reabra o plugin para usá-la novamente.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Não foi possível abrir esta visualização. Feche e reabra o plugin para tentar novamente.",
   },
   ru: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1270,6 +1288,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Перед удалением отключите плагин на вкладке «Установлено».",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Маркетплейс запланирован в одном из будущих выпусков. Tovu пока не загружает, не показывает и не устанавливает плагины из маркетплейса.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Чтобы установить плагин, поместите его файлы в каталог установки плагинов этого сайта.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Это представление покинуло свою страницу и было закрыто. Закройте плагин и откройте его заново, чтобы снова им воспользоваться.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Не удалось открыть это представление. Закройте плагин и откройте его заново, чтобы повторить попытку.",
   },
   fa: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1446,6 +1467,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "پیش از حذف یک افزونه، آن را در «نصب‌شده» خاموش کنید.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "بازارچه برای نسخه‌ای در آینده برنامه‌ریزی شده است. Tovu هنوز افزونه‌ها را از بازارچه دریافت، فهرست یا نصب نمی‌کند.",
     "Install a plugin by placing its files in this site's plugin install directory.": "برای نصب یک افزونه، فایل‌های آن را در دایرکتوری نصب افزونه‌های این سایت قرار دهید.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "این نما از صفحهٔ خود خارج شد و بسته شد. برای استفادهٔ دوباره، افزونه را ببندید و دوباره باز کنید.",
+    "Could not open this view. Close and reopen the plugin to try again.": "باز کردن این نما ممکن نشد. برای تلاش دوباره، افزونه را ببندید و دوباره باز کنید.",
   },
   ar: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1622,6 +1646,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "عطّل الإضافة في «مثبَّت» قبل إزالتها.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "المتجر مخطط له في إصدار مستقبلي. لا يجلب Tovu الإضافات من متجر ولا يسردها ولا يثبّتها بعد.",
     "Install a plugin by placing its files in this site's plugin install directory.": "ثبّت إضافة بوضع ملفاتها في دليل تثبيت الإضافات الخاص بهذا الموقع.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "غادر هذا العرض صفحته وتم إغلاقه. أغلق الإضافة ثم افتحها مرة أخرى لاستخدامه من جديد.",
+    "Could not open this view. Close and reopen the plugin to try again.": "تعذّر فتح هذا العرض. أغلق الإضافة ثم افتحها مرة أخرى للمحاولة من جديد.",
   },
   ja: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1798,6 +1825,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "削除する前に、「インストール済み」でプラグインをオフにしてください。",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "マーケットプレイスは今後のリリースで予定されています。Tovu はまだマーケットプレイスからプラグインを取得、一覧表示、インストールしません。",
     "Install a plugin by placing its files in this site's plugin install directory.": "このサイトのプラグインインストールディレクトリにファイルを配置して、プラグインをインストールします。",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "このビューは元のページから離れたため閉じられました。もう一度使うには、プラグインを閉じてから開き直してください。",
+    "Could not open this view. Close and reopen the plugin to try again.": "このビューを開けませんでした。もう一度試すには、プラグインを閉じてから開き直してください。",
   },
   ko: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -1974,6 +2004,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "플러그인을 제거하기 전에 설치됨에서 끄세요.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "마켓플레이스는 향후 릴리스에서 제공될 예정입니다. Tovu는 아직 마켓플레이스에서 플러그인을 가져오거나 나열하거나 설치하지 않습니다.",
     "Install a plugin by placing its files in this site's plugin install directory.": "이 사이트의 플러그인 설치 디렉터리에 파일을 넣어 플러그인을 설치하세요.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "이 보기가 해당 페이지를 벗어나 닫혔습니다. 다시 사용하려면 플러그인을 닫았다가 다시 여세요.",
+    "Could not open this view. Close and reopen the plugin to try again.": "이 보기를 열 수 없습니다. 다시 시도하려면 플러그인을 닫았다가 다시 여세요.",
   },
   pl: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2150,6 +2183,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Przed usunięciem wtyczki wyłącz ją na karcie Zainstalowane.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Sklep jest planowany w przyszłej wersji. Tovu nie pobiera, nie wyświetla ani nie instaluje jeszcze wtyczek ze sklepu.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Zainstaluj wtyczkę, umieszczając jej pliki w katalogu instalacji wtyczek tej witryny.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Ten widok opuścił swoją stronę i został zamknięty. Zamknij wtyczkę i otwórz ją ponownie, aby znowu z niego korzystać.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Nie udało się otworzyć tego widoku. Zamknij wtyczkę i otwórz ją ponownie, aby spróbować jeszcze raz.",
   },
   hu: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2326,6 +2362,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Eltávolítás előtt kapcsold ki a bővítményt a Telepítve lapon.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "A piactér egy jövőbeli kiadásban érkezik. A Tovu még nem tölt le, nem listáz és nem telepít bővítményeket piactérről.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Bővítmény telepítéséhez helyezd a fájljait a webhely bővítménytelepítési könyvtárába.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Ez a nézet elhagyta a saját oldalát, ezért bezárult. Az ismételt használathoz zárja be, majd nyissa meg újra a bővítményt.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Ezt a nézetet nem sikerült megnyitni. Az újrapróbálkozáshoz zárja be, majd nyissa meg újra a bővítményt.",
   },
   fr: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2502,6 +2541,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Désactivez l'extension dans Installé avant de la supprimer.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "La place de marché est prévue pour une version future. Tovu ne récupère, ne liste ni n'installe encore d'extensions depuis une place de marché.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Installez une extension en plaçant ses fichiers dans le répertoire d'installation des extensions de ce site.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Cette vue a quitté sa page et a été fermée. Fermez puis rouvrez le plugin pour l'utiliser de nouveau.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Impossible d'ouvrir cette vue. Fermez puis rouvrez le plugin pour réessayer.",
   },
   uk: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2678,6 +2720,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Перед видаленням вимкніть плагін на вкладці «Встановлено».",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Маркетплейс заплановано в одному з майбутніх випусків. Tovu поки не завантажує, не показує і не встановлює плагіни з маркетплейсу.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Щоб установити плагін, помістіть його файли до каталогу встановлення плагінів цього сайту.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Це подання залишило свою сторінку й було закрите. Закрийте плагін і відкрийте його знову, щоб скористатися ним ще раз.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Не вдалося відкрити це подання. Закрийте плагін і відкрийте його знову, щоб повторити спробу.",
   },
   tr: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -2854,6 +2899,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Kaldırmadan önce eklentiyi Yüklü sekmesinde kapatın.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Pazar yeri gelecekteki bir sürüm için planlanıyor. Tovu henüz bir pazar yerinden eklenti getirmiyor, listelemiyor veya yüklemiyor.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Bir eklentiyi, dosyalarını bu sitenin eklenti kurulum dizinine yerleştirerek yükleyin.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Bu görünüm sayfasından ayrıldı ve kapatıldı. Yeniden kullanmak için eklentiyi kapatıp tekrar açın.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Bu görünüm açılamadı. Yeniden denemek için eklentiyi kapatıp tekrar açın.",
   },
   th: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3030,6 +3078,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "ปิดปลั๊กอินในแท็บติดตั้งแล้วก่อนลบ",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "ตลาดกลางมีแผนจะเปิดในรุ่นถัดไป ขณะนี้ Tovu ยังไม่ดึง แสดงรายการ หรือติดตั้งปลั๊กอินจากตลาดกลาง",
     "Install a plugin by placing its files in this site's plugin install directory.": "ติดตั้งปลั๊กอินโดยวางไฟล์ของปลั๊กอินในไดเรกทอรีติดตั้งปลั๊กอินของเว็บไซต์นี้",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "มุมมองนี้ออกจากหน้าของตัวเองและถูกปิดแล้ว ให้ปิดปลั๊กอินแล้วเปิดใหม่เพื่อใช้งานอีกครั้ง",
+    "Could not open this view. Close and reopen the plugin to try again.": "ไม่สามารถเปิดมุมมองนี้ได้ ให้ปิดปลั๊กอินแล้วเปิดใหม่เพื่อลองอีกครั้ง",
   },
   it: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3206,6 +3257,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "Disattiva il plugin in Installato prima di rimuoverlo.",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "Il marketplace è previsto in una versione futura. Tovu non recupera, elenca né installa ancora plugin da un marketplace.",
     "Install a plugin by placing its files in this site's plugin install directory.": "Installa un plugin inserendo i suoi file nella directory di installazione dei plugin di questo sito.",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "Questa vista ha lasciato la propria pagina ed è stata chiusa. Chiudi e riapri il plugin per usarla di nuovo.",
+    "Could not open this view. Close and reopen the plugin to try again.": "Impossibile aprire questa vista. Chiudi e riapri il plugin per riprovare.",
   },
   hi: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3382,6 +3436,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "हटाने से पहले इंस्टॉल किया गया टैब में प्लगिन बंद करें।",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "मार्केटप्लेस भविष्य की किसी रिलीज़ के लिए नियोजित है। Tovu अभी किसी मार्केटप्लेस से प्लगिन न तो लाता है, न सूचीबद्ध करता है और न ही इंस्टॉल करता है।",
     "Install a plugin by placing its files in this site's plugin install directory.": "किसी प्लगिन की फ़ाइलें इस साइट की प्लगिन इंस्टॉल डायरेक्टरी में रखकर उसे इंस्टॉल करें।",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "यह दृश्य अपने पेज से बाहर चला गया और बंद कर दिया गया। इसे फिर से उपयोग करने के लिए प्लगइन को बंद करके दोबारा खोलें।",
+    "Could not open this view. Close and reopen the plugin to try again.": "यह दृश्य खोला नहीं जा सका। फिर से प्रयास करने के लिए प्लगइन को बंद करके दोबारा खोलें।",
   },
   ur: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3558,6 +3615,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "ہٹانے سے پہلے انسٹال شدہ میں پلگ اِن بند کریں۔",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "مارکیٹ پلیس مستقبل کی کسی ریلیز کے لیے منصوبہ بند ہے۔ Tovu ابھی کسی مارکیٹ پلیس سے پلگ اِنز نہ لاتا ہے، نہ فہرست بناتا ہے اور نہ ہی انسٹال کرتا ہے۔",
     "Install a plugin by placing its files in this site's plugin install directory.": "کسی پلگ اِن کی فائلیں اس سائٹ کی پلگ اِن انسٹال ڈائرکٹری میں رکھ کر اسے انسٹال کریں۔",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "یہ منظر اپنے صفحے سے باہر نکل گیا اور بند کر دیا گیا۔ دوبارہ استعمال کے لیے پلگ ان کو بند کر کے دوبارہ کھولیں۔",
+    "Could not open this view. Close and reopen the plugin to try again.": "یہ منظر نہیں کھولا جا سکا۔ دوبارہ کوشش کے لیے پلگ ان کو بند کر کے دوبارہ کھولیں۔",
   },
   bn: {
     // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
@@ -3734,6 +3794,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Turn a plugin off on Installed before removing it.": "সরানোর আগে ইনস্টল করা ট্যাবে প্লাগইনটি বন্ধ করুন।",
     "Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.": "মার্কেটপ্লেস ভবিষ্যতের একটি রিলিজে আসার পরিকল্পনা আছে। Tovu এখনও কোনো মার্কেটপ্লেস থেকে প্লাগইন আনে না, তালিকাভুক্ত করে না বা ইনস্টল করে না।",
     "Install a plugin by placing its files in this site's plugin install directory.": "এই সাইটের প্লাগইন ইনস্টল ডিরেক্টরিতে ফাইলগুলো রেখে একটি প্লাগইন ইনস্টল করুন।",
+    // Plugin-owned admin surface frame notices (2026-10-20).
+    "This view left its page and was closed. Close and reopen the plugin to use it again.": "এই ভিউ তার পেজ ছেড়ে চলে গেছে এবং বন্ধ হয়ে গেছে। আবার ব্যবহার করতে প্লাগইনটি বন্ধ করে আবার খুলুন।",
+    "Could not open this view. Close and reopen the plugin to try again.": "এই ভিউ খোলা যায়নি। আবার চেষ্টা করতে প্লাগইনটি বন্ধ করে আবার খুলুন।",
   },
 };
 
