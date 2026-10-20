@@ -230,6 +230,22 @@ test('revoke hook: a refusal or Google\'s invalid_token is never a confirmation,
   }
 });
 
+test('revoke hook: a transport failure is pending, never confirmed', async () => {
+  const { revoke } = hooksModule.createHooks({ http: { fetch: async () => { throw new Error('socket hang up'); } } });
+  await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.message.includes('Google revocation pending') && error.cause?.message === 'socket hang up');
+});
+
+test('scopes: a product the catalog does not know is refused, never silently dropped from the sign-in', async () => {
+  const h = await harness();
+  await assert.rejects(h.service.start({ workspaceId: WS, actorId: ACTOR, intent: 'connect', scopeSetIds: ['sheets', 'gmail'], redirectUri: h.callback }), /Google Workspace has no product 'gmail'/);
+});
+
+test('identity: a Drive answer that names no stable account id is refused, so no account is bound', async () => {
+  fake.route({ method: 'GET', path: '/drive/v3/about' }, () => [200, { user: { emailAddress: 'alice@example.test' } }]);
+  const { readAccount } = hooksModule.createHooks({ http: { fetch: fake.fetch } });
+  await assert.rejects(readAccount({ accessToken: 'fake-access-token' }), { code: 'unexpected-response' });
+});
+
 test('revoke: a confirmed revocation clears local tokens; a failed one stays "revocation pending", serves no token, and a retry confirms', async () => {
   const h = await harness({ tokenStore: 'memory' });
   const { started } = await signIn(h);
