@@ -241,3 +241,13 @@ test("property: any list of well-formed bindings with non-secret config parses t
     assert.deepEqual(parseFormDeliveryBindings({ value: list }), list, `run ${run}`);
   }
 });
+
+// ---- (reported, not fixed) ----
+
+test("a raw vendor-prefixed token under an innocent config key is accepted (reported, not fixed)", () => {
+  // Only Bearer/Basic values, JWTs, PEM private keys and user:pass URLs are recognised by shape;
+  // a bare provider token (built at runtime here) under a key like `value` is stored and frozen
+  // into every delivery job. Pinned so a later shape rule shows up as a deliberate change.
+  const rawToken = "gh" + "p_" + "x".repeat(36);
+  assert.deepEqual(parseFormDeliveryBindings({ value: [binding({ config: { header: { value: rawToken } } })] })[0]?.config, { header: { value: rawToken } });
+});
