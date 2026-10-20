@@ -554,6 +554,8 @@ export function createByokToolSurface(
           registry,
           {
             ...deps,
+            // Executable Agent Plugin tools that ask before acting use this surface's cards.
+            surfaces: { surfaceExchanges },
             registerInstalled: options.registerInstalledExtensions ?? (async () => {}),
             federation: {
               presetRegistry: routeDeps.federatedMcpPresetRegistry,

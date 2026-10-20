@@ -29,6 +29,9 @@ import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/t
 import { createRetiredPluginToolAliases } from "#src/features/agent-plugins/retired-plugin-tool-aliases";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
 import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
+import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
+import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
+import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 
 /** Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
  *  capability tool directly onto `registry`, in that fixed order. Never throws or rejects: each of
@@ -56,6 +59,24 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
     console.warn(
       `${log} skill tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
     );
+  }
+
+  if (deps.agentPluginTools && deps.surfaces && deps.executablePluginToolRegistry) {
+    try {
+      const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
+      const { surfaces } = deps;
+      const { refusals } = await registerAgentPluginExecutableTools({
+        registry: deps.executablePluginToolRegistry, workspaceId: deps.workspaceId, host: deps.agentPluginTools, authorize: deps.authorize,
+        // Fresh per call and fail-closed: anything but a readable "active" verdict denies.
+        isActive: async ({ pluginId }) => (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === "active",
+        applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
+      });
+      for (const refusal of refusals) console.warn(`${log} ${refusal}`);
+    } catch (error) {
+      console.warn(
+        `${log} executable agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   try {
