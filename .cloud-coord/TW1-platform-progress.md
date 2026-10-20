@@ -19,7 +19,7 @@ See lot table; worst per lot recorded as cyc/cog.
 ## Lot status
 | Lot | Files | Baseline worst cyc/cog | Status | After | Coverage | Commits |
 |---|---|---|---|---|---|---|
-| L023 | site-dir (10 files) | 30/54 (move-sites-home) | dispatched | | | |
+| L023 | site-dir (10 files) | 30/54 | PART 1 MERGED (8/10, verify OK, 183 tests); sites-home + site-registry with fresh agent (L023b) | 9/9 | 100/100/100 (8 files) | 3cfe7d41 6f5f1284 2bf78c8e cde58aa9 46a48384 93346945 edb5690a c282a81d |
 | L096 | secrets/vault-kinds | 30/32 | MERGED (verify OK, 97 tests) | 10/9 | 100/100/100 | 101043e1 |
 | L142 | db key-dependent-data, vault-credential-inventory | 20/20 | MERGED (verify OK, 37 tests) | 7/8 | 100/100/100 | b528df8d, 6749970c |
 | L147 | db/sqlite journal, share-database | 14/16 | MERGED (verify OK, 50 tests) | ≤10/≤10 | 100/100/100 | d609fc90, ab768c4c |
@@ -27,13 +27,17 @@ See lot table; worst per lot recorded as cyc/cog.
 | L265 | server-logs/log-file | 13/8 | MERGED (verify OK, 20 tests) | 9/8 | 100/100/100 | 98696795 |
 | L278 | oauth/endpoint-safety | 12/- | MERGED (verify OK, 48 tests; +172 consumer tests per agent) | ≤10/≤10 | 100/100/100 | a1ab42cd |
 | L279 | site-dir product-root, site-trash (after L023) | 11/11 | queued | | | |
-| L114 | assistant (11 files) | 18/12 | dispatched | | | |
+| L114 | assistant (11 files) | 18/12 | PART 1 MERGED (9/11, verify OK, 143 tests); byok-tool-surface + external-mcp-oauth with fresh agent (L114b) | 10/9 | 100/100/100 (ext-mcp-connection-source branch 96.4: tsx-injected CJS check in lazy import, unreachable) | 21fcdc39 4794de41 6b420912 f40b738d 3e7b48ed cbd13799 2754a079 |
 | L275 | assistant/mcp-federation/registrations | 12/9 | MERGED (verify OK, 79 tests) | 7/4 | 100/100/100 | 95f597f1 |
 
 ## Problems
 - Pre-push hook (apps/desktop/scripts/hooks/pre-push) misfires on the FIRST push of a new branch from a worktree: `git diff HEAD @{push}` fails (no @{push}) so it runs desktop gates, which fail here (no electron). Fix used: push lot branches from the main checkout (`cd /home/user/Tovu && git push -u origin <lot-branch>`), where @{push} resolves and the hook correctly skips. Never --no-verify.
 - Root tsc/typecheck:tests failed only on missing `@tovu/sdk` dist → fixed by `npm run build` in packages/sdk (dist gitignored). Add to SETUP next wave.
 - Subagents shared a `tsc.done` marker name in the scratchpad → told later lots to use lot-specific marker names.
+
+- CONTEXT CAP: L023 subagent ran to ~362k tokens / 146 tool calls (OVER the 300k hard cap) before stopping; L114 reached ~285k / 155 calls. Big multi-file lots (10-11 files) are too large for one subagent: split lots >5 files next wave. Continuation agents told to stay ≤100 tool calls.
+- L023 agent started the local Postgres cluster (pg_ctlcluster 16 main start) and created superuser role `root` for Postgres pins (PGHOST=/var/run/postgresql PGUSER=root).
+- Shared scratchpad: an L142 helper script (red.py) collided with L023's same-named file. Give each lot its own scratch subdir.
 
 ## Bugs pinned (reported, not fixed)
 - L096 vault-meta-rules: normalization status wrapped in an array (e.g. ["conflict"]) is accepted (String() coercion).
@@ -43,6 +47,8 @@ See lot table; worst per lot recorded as cyc/cog.
 - L275 registrations: host-policy confirmation card's writeShapedInputs come only from call args; Jini's own card also uses schema write-shaped names (inconsistent).
 
 ## Cross-area / out-of-scope flags
+- L023: added optional ports inspectStoppedDatabase(…,{verifyIntegrity}), createRawFileSitePort(…,{filesystem}), exported isOutsideRoot(…,{pathApi}). development/scripts/__tests__/sites-move-home.test.ts left in development/ (off-limits).
+- L114: assistant-vault-compat dropped `?? ""`/`?? false` fallbacks (VaultRecord types them non-null); ask-choice isRecord takes positional arg (type predicate).
 - L275: assistant/__tests__/mcp-federation.adapter-memory.test.ts doc comment still names the moved test file; 'Federated tool arguments must be an object.' could name the tool.
 - L096: keyring derive/deriveSigningSecret exist only for Jini's KeyringPort type (Jini change to drop).
 - L142: snapshotVaultCredentials counts a missing COUNT row as 0 (unreachable with real SQL; pinned).
