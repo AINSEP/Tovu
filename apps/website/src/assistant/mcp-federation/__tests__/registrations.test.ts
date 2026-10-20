@@ -1,6 +1,6 @@
-import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
-import { createFederationRuntime } from "../external-mcp-federation-runtime.js";
+import { createFederationRuntime } from "../../external-mcp-federation-runtime.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -12,15 +12,15 @@ import type {
 } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
-import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
+import { InMemoryMcpSession } from "../adapter.memory.js";
+import { attachFederatedMcpTools } from "../bootstrap.js";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, McpAuthFailedError, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor, RemoteToolResult } from "@jini-ai/mcp/federation";
 import {
   registerFederatedMcpPreset as registerPreset,
   resetFederatedMcpPresetsForTests as resetPresets,
-} from "../mcp-federation/presets.js";
-import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations.js";
+} from "../presets.js";
+import { buildFederatedMcpRegistrations, federateSession } from "../registrations.js";
 
 /**
  * @file The federation wiring half: that an admitted remote tool becomes a real `ToolRegistration`,
@@ -1262,7 +1262,7 @@ test("a hosted server that rejects the token is reported as a failed connection,
 
 
 test("booted hosts isolate their presets and runtime boot consumes the injected registry", async () => {
-  const { createRouteDeps } = await import("../../server/runtime/composition/app.js");
+  const { createRouteDeps } = await import("../../../server/runtime/composition/app.js");
   const hostA = createRouteDeps();
   const hostB = createRouteDeps();
   assert.ok(hostA.federatedMcpPresetRegistry);

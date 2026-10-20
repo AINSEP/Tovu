@@ -12,7 +12,7 @@ import { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./presets.js";
 import type { FederatedCallConfirmationOutcome, FederatedCallConfirmationRequest, FederatedCallTarget,
   FederatedMcpConnectionConfig, McpSessionPort, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
-import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
+import type { AdmittedFederatedTool, FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 // Implementation and security rationale: Jini/packages/mcp/src/federation/{registrations,trust}.ts.
 
 /**
@@ -148,10 +148,9 @@ export interface FederatedRegistrationResult {
 export function toJiniFederationDeps({ deps }: { deps: FederationDeps }): JiniFederationDeps {
   return {
     messages: tovuFederationMessages, errorCode: "EXTERNAL_MCP", scope: deps.workspaceId,
-    permissionGate: ({ context, permission, entityType, entityId }) => requireToolPermission({
-      authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
-      principalId: context.principal.id, permission,
-    }, { entityType, entityId }),
+    permissionGate: ({ context, permission, entityType, entityId }) => requireFederatedPermission({
+      deps, principalId: context.principal.id, permission, entityType, entityId,
+    }),
     ...(deps.assertConnectionUsable ? { assertConnectionUsable: ({ connectionId, call }: { connectionId: string; call: FederatedCallTarget }) => deps.assertConnectionUsable!(connectionId, call) } : {}),
     onAuthFailed: async ({ connectionId, error }) => {
       // Both transports use the package's auth error identity; the terminal host hook receives it unchanged.
@@ -162,57 +161,119 @@ export function toJiniFederationDeps({ deps }: { deps: FederationDeps }): JiniFe
   };
 }
 
-/** Adapts the admitted surface without listing again; Jini preserves its frozen-arguments and trust gates. */
-export function buildFederatedMcpRegistrations(params: {
+/** The single CMS permission question every federated call asks — Jini's gate and the host policy
+ * pre-check both go through here, so they can never drift apart.
+ * @throws ForbiddenError (via `requireToolPermission`) naming the principal, permission and reason.
+ * @complexity O(1) plus the evaluator's own I/O.
+ */
+function requireFederatedPermission(required: {
+  deps: Pick<FederationDeps, "authorize" | "workspaceId">; principalId: string; permission: string; entityType: string; entityId: string;
+}): Promise<void> {
+  const { deps, principalId, permission, entityType, entityId } = required;
+  return requireToolPermission({
+    authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission,
+  }, { entityType, entityId });
+}
+
+interface FederatedRegistrationParams {
   tools: readonly RemoteToolDescriptor[]; session: McpSessionPort; config: FederatedMcpConnectionConfig;
   deps: FederationDeps; nativeToolIds: ReadonlySet<string>;
-}): FederatedRegistrationResult {
-  const toolByName = new Map(params.tools.map(tool => [tool.name, structuredClone(tool)]));
-  const classify = (name: string, input: unknown) => federatedApprovalClassFor({ ...toolByName.get(name), input });
-  const needsApproval = (name: string, input: unknown) => approvalClassAsks({ class: classify(name, input) });
-  const deps: FederationDeps = { ...params.deps,
-    confirmCall: async (ctx, request) => {
-      // Jini still owns admission, liveness and authorization before this callback. Explicit
-      // trash/restore uses the native policy table even without a human confirmation channel.
-      // Unclassified SQL, delivery and access operations retain Jini's existing safety gate.
-      const declaredClass = federatedApprovalClassFor({ ...toolByName.get(request.remoteName), input: request.arguments }, { fallbackClass: 'delete' });
-      if (!approvalClassAsks({ class: declaredClass })) return { confirmed: true };
-      if (!params.deps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${request.toolId}: this protected action requires confirmation, and nothing here can ask a person. Nothing was sent.` });
-      // A mandatory destructive/publish approval must never be skipped by a remembered grant.
-      return params.deps.confirmCall(ctx, needsApproval(request.remoteName, request.arguments)
-        ? { ...request, destructive: true, approvalClass: classify(request.remoteName, request.arguments) } : request);
-    },
+}
+
+/** Tovu's CMS publication/trash approval policy, evaluated against the descriptors as enumerated. */
+interface HostApprovalPolicy {
+  readonly classify: (required: { name: string; input: unknown }, optional?: { fallbackClass?: ToolApprovalClass }) => ToolApprovalClass;
+  readonly needsApproval: (required: { name: string; input: unknown }) => boolean;
+}
+
+/** The host deps with the policy-aware confirmation port always present. */
+type PolicyFederationDeps = FederationDeps & { readonly confirmCall: NonNullable<FederationDeps["confirmCall"]> };
+
+/** @complexity O(t) to index the t enumerated tools; each classification is O(1) in the tool count. */
+function createHostApprovalPolicy({ tools }: { tools: readonly RemoteToolDescriptor[] }): HostApprovalPolicy {
+  const toolByName = new Map(tools.map(tool => [tool.name, structuredClone(tool)]));
+  const classify: HostApprovalPolicy["classify"] = ({ name, input }, optional = {}) => federatedApprovalClassFor({ ...toolByName.get(name), input }, optional);
+  return { classify, needsApproval: ({ name, input }) => approvalClassAsks({ class: classify({ name, input }) }) };
+}
+
+/** Wraps the host's confirmation port with the policy. Reads `hostDeps.confirmCall` per call.
+ * @throws ToolInputError `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL` when a protected action has no confirmer.
+ */
+function policyConfirmCall({ policy, hostDeps }: { policy: HostApprovalPolicy; hostDeps: FederationDeps }): PolicyFederationDeps["confirmCall"] {
+  return async (ctx, request) => {
+    // Jini still owns admission, liveness and authorization before this callback. Explicit
+    // trash/restore uses the native policy table even without a human confirmation channel.
+    // Unclassified SQL, delivery and access operations retain Jini's existing safety gate.
+    const call = { name: request.remoteName, input: request.arguments };
+    const declaredClass = policy.classify(call, { fallbackClass: 'delete' });
+    if (!approvalClassAsks({ class: declaredClass })) return { confirmed: true };
+    if (!hostDeps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${request.toolId}: this protected action requires confirmation, and nothing here can ask a person. Nothing was sent.` });
+    // A mandatory destructive/publish approval must never be skipped by a remembered grant.
+    return hostDeps.confirmCall(ctx, policy.needsApproval(call)
+      ? { ...request, destructive: true, approvalClass: policy.classify(call) } : request);
   };
+}
+
+/** Validates federated arguments and returns a private deep copy; absent input means `{}`. */
+function federatedArguments({ input }: { input: unknown }): Record<string, unknown> {
+  const value = input ?? {};
+  if (typeof value !== 'object' || Array.isArray(value)) throw new ToolInputError({ message: 'Federated tool arguments must be an object.' });
+  return structuredClone(value) as Record<string, unknown>;
+}
+
+interface HostPolicyCall {
+  ctx: ToolExecutionContext; options: ToolExecutionOptions; args: Record<string, unknown>; admitted: AdmittedFederatedTool;
+  config: FederatedMcpConnectionConfig; deps: PolicyFederationDeps; hostDeps: FederationDeps; policy: HostApprovalPolicy;
+}
+
+/** Asks the host about a call Tovu's policy gates but Jini's shared classification lets through.
+ * @returns `{ result }` to return instead of running (declined or abandoned), or `undefined` to run.
+ * @throws ToolInputError `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL`, plus liveness/permission refusals.
+ */
+async function askHostPolicy(call: HostPolicyCall): Promise<{ readonly result: unknown } | undefined> {
+  const { ctx, options, args, admitted, config, deps, hostDeps, policy } = call;
+  const sharedConfirmation = federatedCallConfirmationForAction({ remoteName: admitted.remoteName, annotations: admitted.declaredAnnotations, args });
+  if (!policy.needsApproval({ name: admitted.remoteName, input: args }) || sharedConfirmation !== 'none') return undefined;
+  // Recheck before asking as well as inside the original handler after the answer. A
+  // confirmation never substitutes for admission, liveness or the permission evaluator.
+  await deps.assertConnectionUsable?.(config.connectionId, { remoteName: admitted.remoteName, declaredAnnotations: admitted.declaredAnnotations, origin: config.origin });
+  await requireFederatedPermission({ deps, principalId: ctx.principal.id, permission: FEDERATED_TOOL_PERMISSION, entityType: FEDERATED_ENTITY_TYPE, entityId: config.connectionId });
+  if (!hostDeps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${admitted.toolId}: this action requires human approval. Nothing was sent.` });
+  const outcome = await deps.confirmCall({ ...ctx, ...options }, {
+    connectionId: config.connectionId, connectionLabel: config.label, toolId: admitted.toolId,
+    remoteName: admitted.remoteName, arguments: structuredClone(args), destructive: true, approvalClass: policy.classify({ name: admitted.remoteName, input: args }),
+    declaredAnnotations: admitted.declaredAnnotations, origin: config.origin,
+    description: admitted.description, inputSchema: admitted.inputSchema,
+    writeShapedInputs: writeShapedInputNames({ args }),
+  });
+  if (!outcome.confirmed) return { result: outcome.result };
+  if (ctx.signal.aborted) return { result: { executed: false, cancelled: false, reason: 'abandoned' } };
+  return undefined;
+}
+
+/** Puts the host policy in front of one Jini registration. */
+function withHostPolicy(required: Omit<HostPolicyCall, "ctx" | "options" | "args"> & { registration: ToolRegistration }): ToolRegistration {
+  const { registration, admitted, policy } = required;
+  // Remote declarations only veto read-only admission; they never grant it.
+  const vetoReadOnly = policy.needsApproval({ name: admitted.remoteName, input: {} });
+  return { ...registration, ...(vetoReadOnly ? { descriptor: { ...registration.descriptor, readOnly: false } } : {}), handler: async (ctx, options = {}) => {
+    // The package still owns admission, frozen transport arguments, liveness and authorization.
+    // This host adapter adds the owner's CMS publication/trash policy until Jini has a policy port.
+    const args = federatedArguments({ input: ctx.input });
+    const stop = await askHostPolicy({ ...required, ctx, options, args });
+    if (stop) return stop.result;
+    return registration.handler({ ...ctx, input: args }, options);
+  } };
+}
+
+/** Adapts the admitted surface without listing again; Jini preserves its frozen-arguments and trust gates. */
+export function buildFederatedMcpRegistrations(params: FederatedRegistrationParams): FederatedRegistrationResult {
+  const policy = createHostApprovalPolicy({ tools: params.tools });
+  const deps: PolicyFederationDeps = { ...params.deps, confirmCall: policyConfirmCall({ policy, hostDeps: params.deps }) };
   const built = buildJiniRegistrations({ ...params, deps: toJiniFederationDeps({ deps }) });
-  return { ...built, registrations: built.registrations.map((registration, index) => {
-    const admitted = built.report.admitted[index]!;
-    // Remote declarations only veto read-only admission; they never grant it.
-    return { ...registration, ...(needsApproval(admitted.remoteName, {}) ? { descriptor: { ...registration.descriptor, readOnly: false } } : {}), handler: async (ctx, options = {}) => {
-      // The package still owns admission, frozen transport arguments, liveness and authorization.
-      // This host adapter adds the owner's CMS publication/trash policy until Jini has a policy port.
-      const input = ctx.input ?? {};
-      if (typeof input !== 'object' || input === null || Array.isArray(input)) throw new ToolInputError({ message: 'Federated tool arguments must be an object.' });
-      const args = structuredClone(input) as Record<string, unknown>;
-      const sharedConfirmation = federatedCallConfirmationForAction({ remoteName: admitted.remoteName, annotations: admitted.declaredAnnotations, args });
-      if (needsApproval(admitted.remoteName, args) && sharedConfirmation === 'none') {
-        // Recheck before asking as well as inside the original handler after the answer. A
-        // confirmation never substitutes for admission, liveness or the permission evaluator.
-        await deps.assertConnectionUsable?.(params.config.connectionId, { remoteName: admitted.remoteName, declaredAnnotations: admitted.declaredAnnotations, origin: params.config.origin });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: FEDERATED_TOOL_PERMISSION }, { entityType: FEDERATED_ENTITY_TYPE, entityId: params.config.connectionId });
-        if (!params.deps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${admitted.toolId}: this action requires human approval. Nothing was sent.` });
-        const outcome = await deps.confirmCall!({ ...ctx, ...options }, {
-          connectionId: params.config.connectionId, connectionLabel: params.config.label, toolId: admitted.toolId,
-          remoteName: admitted.remoteName, arguments: structuredClone(args), destructive: true, approvalClass: classify(admitted.remoteName, args),
-          declaredAnnotations: admitted.declaredAnnotations, origin: params.config.origin,
-          description: admitted.description, inputSchema: admitted.inputSchema,
-          writeShapedInputs: writeShapedInputNames({ args }),
-        });
-        if (!outcome.confirmed) return outcome.result;
-        if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: 'abandoned' };
-      }
-      return registration.handler({ ...ctx, input: args }, options);
-    } };
-  }) };
+  return { ...built, registrations: built.registrations.map((registration, index) => withHostPolicy({
+    registration, admitted: built.report.admitted[index]!, config: params.config, deps, hostDeps: params.deps, policy,
+  })) };
 }
 
 /** Enumerates once at connect; Jini owns admission and the host supplies permission/policy ports. */
