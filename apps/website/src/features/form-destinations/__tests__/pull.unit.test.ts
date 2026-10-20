@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { FormDestinationKit, FormDestinationPage, RemoteFormSubmission } from "../types.js";
-import { FORM_PULL_LEASE_MS, FORM_PULL_REQUEST_TIMEOUT_MS, formDestinationKey, pullFromFormDestination } from "../pull.js";
+import { FORM_PULL_BUDGET_MS, FORM_PULL_LEASE_MS, FORM_PULL_REQUEST_TIMEOUT_MS, formDestinationKey, pullFromFormDestination } from "../pull.js";
 
 /** @file Page loop, acknowledge-only-committed and key redaction for the generic form destination pull. */
 
@@ -84,12 +84,49 @@ test("without overrides a pull stops after 10 pages of 50, two receiver requests
 
 // ---- Security pin (phase A): the pull lease must outlast the slowest bounded pull. ----
 
-test("security: the pull lease outlasts the worst-case pull (10 pages x 2 requests x the 15 s request cap)", () => {
-  const worstCaseNetworkMs = 10 * 2 * FORM_PULL_REQUEST_TIMEOUT_MS;
+test("security: the pull lease outlasts the worst-case pull (the time budget, one capped request, then local work)", () => {
   assert.equal(FORM_PULL_REQUEST_TIMEOUT_MS, 15_000);
-  assert.equal(worstCaseNetworkMs, 300_000);
-  assert.equal(FORM_PULL_LEASE_MS, 600_000, "twice the network bound leaves room for the local import");
-  assert.ok(FORM_PULL_LEASE_MS > worstCaseNetworkMs);
+  assert.equal(FORM_PULL_BUDGET_MS, 300_000);
+  // No request starts after budget + one request, and none waits past it; the 60 s margin covers
+  // the last page's local import and clock drift.
+  assert.equal(FORM_PULL_LEASE_MS, FORM_PULL_BUDGET_MS + FORM_PULL_REQUEST_TIMEOUT_MS + 60_000);
+});
+
+/** A wall clock a test moves by hand. */
+function manualClock() {
+  let nowMs = 1_000_000;
+  return { now: () => nowMs, advance: (ms: number) => { nowMs += ms; } };
+}
+
+test("security: a slow receiver stops paging once the time budget is spent, and more is reported waiting", async () => {
+  const clock = manualClock();
+  const pages = Array.from({ length: 10 }, (_, index): FormDestinationPage => ({ items: [item(index + 1)], nextAfter: index + 1, hasMore: true }));
+  const h = host(pages);
+  // Each page's pull takes 100 s of wall clock; the third ends exactly at the 300 s budget.
+  const module = { ...h.module, pull: async (required: unknown, optional?: { after?: number; limit?: number }) => { clock.advance(100_000); return h.module.pull(required, optional); } };
+  const result = await pullFromFormDestination({ module, scope: "t", destination, kit, importPage: async ({ items }) => ({ committedIds: items.map((row) => row.id) }) }, { now: clock.now });
+  assert.equal(h.calls.length, 3);
+  assert.deepEqual([result.pulled, result.acknowledged, result.hasMore], [3, 3, true]);
+});
+
+test("security: a request waits at most until budget + one request, and none starts after it", async () => {
+  const clock = manualClock();
+  const asked: number[] = [];
+  const kitSpy: FormDestinationKit = { timeouts: {}, fetch: async (_url, _init, options) => { asked.push(options.timeoutMs); return new Response("{}"); } };
+  const deadlineMs = FORM_PULL_BUDGET_MS + FORM_PULL_REQUEST_TIMEOUT_MS;
+  const module = {
+    pull: async ({ kit: given }: { kit: FormDestinationKit }) => {
+      clock.advance(deadlineMs - 5_000);
+      await given.fetch("https://site.example/pull", {}, { timeoutMs: 15_000 });
+      clock.advance(5_000);
+      await given.fetch("https://site.example/pull", {}, { timeoutMs: 15_000 });
+      return { items: [], nextAfter: 0, hasMore: false };
+    },
+    ack: async () => ({ acknowledged: 0 }),
+  };
+  await assert.rejects(pullFromFormDestination({ module, scope: "t", destination, kit: kitSpy, importPage: async () => ({ committedIds: [] }) }, { now: clock.now }),
+    { message: "pulling form submissions from https://site.example stopped: the pull used up its 300 s time budget. Rows not yet acknowledged stay at the host; pull again later." });
+  assert.deepEqual(asked, [5_000], "the request inside the budget waits only for the time left; the one after it never starts");
 });
 
 test("security: a module asking for a longer request timeout is cut to the pull's 15 s cap; a shorter one is kept", async () => {

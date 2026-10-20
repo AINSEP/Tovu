@@ -8,23 +8,28 @@ import type { FormDestinationAddress, FormDestinationKit, FormDestinationModule,
  */
 const DEFAULT_MAX_PAGES = 10;
 const DEFAULT_PAGE_SIZE = 50;
-/** Each page is one `pull` request and at most one `ack` request. */
-const REQUESTS_PER_PAGE = 2;
 
 /** The longest one receiver request may wait during a pull. A module's own, longer timeout is cut to
  * this, so the pull's duration is bounded by the host rather than by whichever plugin is installed. */
 export const FORM_PULL_REQUEST_TIMEOUT_MS = 15_000;
 
+/** Wall-clock time after which a pull starts no further page (it reports `hasMore` instead). A time
+ * budget, not a request count: a module may make any number of requests per page. */
+export const FORM_PULL_BUDGET_MS = 300_000;
+
+/** Covers the last page's import (local store work, ≤ 50 rows) and clock drift between processes. */
+const FORM_PULL_LEASE_MARGIN_MS = 60_000;
+
 /**
  * How long a pull holds its receiver's lease (`withFormPullLease`). It must outlast the slowest pull,
  * or a second pull could start on the same receiver while the first is still importing.
- * Worst case of a default pull: 10 pages x 2 requests x 15 s = 300 s of network waiting; the import
- * between requests is local store work (≤ 50 rows per page). Doubling that network bound to 600 s
- * covers the import and clock drift. An expired lease is free again, so a crashed pull blocks the
- * receiver for at most this long. A caller passing a larger `maxPages` must also pass a longer lease.
- * Pinned by `__tests__/pull.unit.test.ts`.
+ * Proof: no page starts after {@link FORM_PULL_BUDGET_MS}; every request the pull's kit makes waits
+ * at most until budget + one request (15 s), and a request asked for after that is refused at once.
+ * So all network waiting ends by 315 s, and what can follow is the local import of the page in
+ * hand, which the margin covers: 375 s. An expired lease is free again, so a crashed pull blocks the
+ * receiver for at most this long. Pinned by `__tests__/pull.unit.test.ts`.
  */
-export const FORM_PULL_LEASE_MS = 2 * DEFAULT_MAX_PAGES * REQUESTS_PER_PAGE * FORM_PULL_REQUEST_TIMEOUT_MS;
+export const FORM_PULL_LEASE_MS = FORM_PULL_BUDGET_MS + FORM_PULL_REQUEST_TIMEOUT_MS + FORM_PULL_LEASE_MARGIN_MS;
 
 /** The import step, injected so this module stays independent of the forms feature. */
 export type FormDestinationImportPort<R extends { readonly committedIds: readonly string[] }> =
@@ -36,24 +41,29 @@ export function formDestinationKey({ scope, url }: { scope: string; url: string 
 }
 
 /**
- * Pull, import, acknowledge, for up to `maxPages` pages. `hasMore` stays true when the cap stopped
- * the loop, so the caller can say "pull again". Errors name the address, never the key.
- * @complexity O(maxPages * pageSize) rows; two receiver requests per page.
+ * Pull, import, acknowledge, for up to `maxPages` pages and {@link FORM_PULL_BUDGET_MS}. `hasMore`
+ * stays true when the page cap or the time budget stopped the loop, so the caller can say "pull
+ * again". Errors name the address, never the key.
+ * @param optional.now the wall clock in ms (default `Date.now`), for tests.
+ * @complexity O(maxPages * pageSize) rows; two module calls per page.
  */
 export async function pullFromFormDestination<R extends { readonly committedIds: readonly string[] }>(
   required: { module: Pick<FormDestinationModule, "pull" | "ack">; scope: string; destination: FormDestinationAddress; kit: FormDestinationKit; importPage: FormDestinationImportPort<R> },
-  optional: { maxPages?: number; pageSize?: number } = {},
+  optional: { maxPages?: number; pageSize?: number; now?: () => number } = {},
 ): Promise<{ destinationKey: string; pulled: number; acknowledged: number; hasMore: boolean; pages: R[] }> {
   const { module, scope, destination, importPage } = required;
-  const kit = boundedKit({ kit: required.kit });
+  const { maxPages = DEFAULT_MAX_PAGES, pageSize: limit = DEFAULT_PAGE_SIZE, now = Date.now } = optional;
+  const budgetEndsMs = now() + FORM_PULL_BUDGET_MS;
+  const kit = boundedKit({ kit: required.kit, now, deadlineMs: budgetEndsMs + FORM_PULL_REQUEST_TIMEOUT_MS });
   const { pull, ack } = module;
   if (!pull || !ack) throw new Error(`no installed form destination returns submissions for ${scope}. Turn on the plugin that provides it (or republish the site to a host that receives forms), then pull again.`);
   const destinationKey = formDestinationKey({ scope, url: destination.url });
   const report = { destinationKey, pulled: 0, acknowledged: 0, hasMore: false, pages: [] as R[] };
-  const { maxPages = DEFAULT_MAX_PAGES, pageSize: limit = DEFAULT_PAGE_SIZE } = optional;
   try {
     let after = 0;
     for (let page = 0; page < maxPages; page += 1) {
+      // Out of time: the rows still waiting are the next pull's, exactly as when the page cap stops.
+      if (now() >= budgetEndsMs) break;
       const batch = await pull.call(module, { kit, destination }, { after, limit });
       report.hasMore = batch.hasMore;
       if (batch.items.length === 0) break;
@@ -70,9 +80,15 @@ export async function pullFromFormDestination<R extends { readonly committedIds:
   return report;
 }
 
-/** The caller's kit with every request's timeout capped at {@link FORM_PULL_REQUEST_TIMEOUT_MS}. @complexity O(1). */
-function boundedKit({ kit }: { kit: FormDestinationKit }, _optional = {}): FormDestinationKit {
-  return { ...kit, fetch: (url, init, options) => kit.fetch(url, init, { ...options, timeoutMs: Math.min(options.timeoutMs, FORM_PULL_REQUEST_TIMEOUT_MS) }) };
+/** The caller's kit with every request's timeout capped at {@link FORM_PULL_REQUEST_TIMEOUT_MS} and at
+ * the time left before `deadlineMs`; a request asked for after the deadline is refused unsent.
+ * @complexity O(1). */
+function boundedKit({ kit, now, deadlineMs }: { kit: FormDestinationKit; now: () => number; deadlineMs: number }, _optional = {}): FormDestinationKit {
+  return { ...kit, fetch: (url, init, options) => {
+    const leftMs = deadlineMs - now();
+    if (leftMs <= 0) return Promise.reject(new Error(`the pull used up its ${FORM_PULL_BUDGET_MS / 1000} s time budget`));
+    return kit.fetch(url, init, { ...options, timeoutMs: Math.min(options.timeoutMs, FORM_PULL_REQUEST_TIMEOUT_MS, leftMs) });
+  } };
 }
 
 /** Acknowledges each committed id once; no request when nothing was committed. @complexity O(ids). */
