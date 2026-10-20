@@ -19,14 +19,14 @@ See lot table; worst per lot recorded as cyc/cog.
 ## Lot status
 | Lot | Files | Baseline worst cyc/cog | Status | After | Coverage | Commits |
 |---|---|---|---|---|---|---|
-| L023 | site-dir (10 files) | 30/54 | PART 1 MERGED (8/10, verify OK, 183 tests); sites-home + site-registry with fresh agent (L023b) | 9/9 | 100/100/100 (8 files) | 3cfe7d41 6f5f1284 2bf78c8e cde58aa9 46a48384 93346945 edb5690a c282a81d |
+| L023 | site-dir (10 files) | 30/54 | MERGED (2 agents; verify OK, 183+66 tests) | ≤10/≤10 | 100/100/100 except: sites-home 98.5 & sites-workspace-options 97.1 line (line-1 block comment, source-map artifact), nested-sites-root func 87.5 (Jini createDurableJsonFile lockTimeout callback, unreachable on read) | 8 commits + e9aa1d8b 1700aa69 |
 | L096 | secrets/vault-kinds | 30/32 | MERGED (verify OK, 97 tests) | 10/9 | 100/100/100 | 101043e1 |
 | L142 | db key-dependent-data, vault-credential-inventory | 20/20 | MERGED (verify OK, 37 tests) | 7/8 | 100/100/100 | b528df8d, 6749970c |
 | L147 | db/sqlite journal, share-database | 14/16 | MERGED (verify OK, 50 tests) | ≤10/≤10 | 100/100/100 | d609fc90, ab768c4c |
 | L243 | db/repos change-set, external-mcp, publish-history | 12/4 | MERGED (verify OK, 108 tests) | 10/6 | 100/100/100 | e30707a9, 239c8533, 79f03956 |
 | L265 | server-logs/log-file | 13/8 | MERGED (verify OK, 20 tests) | 9/8 | 100/100/100 | 98696795 |
 | L278 | oauth/endpoint-safety | 12/- | MERGED (verify OK, 48 tests; +172 consumer tests per agent) | ≤10/≤10 | 100/100/100 | a1ab42cd |
-| L279 | site-dir product-root, site-trash (after L023) | 11/11 | queued | | | |
+| L279 | site-dir product-root, site-trash | 11/11 | dispatched (after L023 merge) | | | |
 | L114 | assistant (11 files) | 18/12 | PART 1 MERGED (9/11, verify OK, 143 tests); byok-tool-surface + external-mcp-oauth with fresh agent (L114b) | 10/9 | 100/100/100 (ext-mcp-connection-source branch 96.4: tsx-injected CJS check in lazy import, unreachable) | 21fcdc39 4794de41 6b420912 f40b738d 3e7b48ed cbd13799 2754a079 |
 | L275 | assistant/mcp-federation/registrations | 12/9 | MERGED (verify OK, 79 tests) | 7/4 | 100/100/100 | 95f597f1 |
 
@@ -47,6 +47,7 @@ See lot table; worst per lot recorded as cyc/cog.
 - L275 registrations: host-policy confirmation card's writeShapedInputs come only from call args; Jini's own card also uses schema write-shaped names (inconsistent).
 
 ## Cross-area / out-of-scope flags
+- L023b: apps/desktop/src/shared-sites.ts is a near-copy of createSitesWorkspace + nested probe; ListSitesOptional (=ResolveSiteRootOptional, site-root.ts) doesn't declare sourceRoots/homeDir/platform that listSites forwards; Jini durable-json read ignores injected fs ports. New files sites-workspace-options.ts, nested-sites-root.ts; includeServingSite optional `stat` port.
 - L023: added optional ports inspectStoppedDatabase(…,{verifyIntegrity}), createRawFileSitePort(…,{filesystem}), exported isOutsideRoot(…,{pathApi}). development/scripts/__tests__/sites-move-home.test.ts left in development/ (off-limits).
 - L114: assistant-vault-compat dropped `?? ""`/`?? false` fallbacks (VaultRecord types them non-null); ask-choice isRecord takes positional arg (type predicate).
 - L275: assistant/__tests__/mcp-federation.adapter-memory.test.ts doc comment still names the moved test file; 'Federated tool arguments must be an object.' could name the tool.
