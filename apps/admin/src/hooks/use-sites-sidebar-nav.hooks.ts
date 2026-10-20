@@ -27,6 +27,17 @@ export interface SitesSidebarNavView {
   title: string | undefined;
 }
 
+function formatSitesSidebarLabel(
+  { siteName, locale }: { siteName: string; locale: string },
+  _optional: object,
+) {
+  const plain = translateAdminNavLabel({ locale, key: "Sites" });
+  const pattern = translateAdminNavLabel({ locale, key: "Sites ({siteName})" });
+  const [prefix, suffix = ""] = pattern.split("{siteName}");
+  const label = siteName ? `${prefix}${siteName}${suffix}` : plain;
+  return { prefix, suffix, label };
+}
+
 /**
  * CMS Sites label adapter over Jini's sidebar and the Sites screen's shared query cache.
  * The shared row still owns its icon, route, accessible name and rail tooltip. A portal supplies
@@ -43,10 +54,7 @@ export function useSitesSidebarNav(
   const list = useSitesSnapshot({ port }, { enabled });
   // currentSite is the live binding, even for an unlisted site; persistedSiteName awaits restart.
   const siteName = enabled ? list.data?.currentSite.name ?? "" : "";
-  const plain = translateAdminNavLabel({ locale, key: "Sites" });
-  const pattern = translateAdminNavLabel({ locale, key: "Sites ({siteName})" });
-  const [prefix, suffix = ""] = pattern.split("{siteName}");
-  const label = siteName ? `${prefix}${siteName}${suffix}` : plain;
+  const { prefix, suffix, label } = formatSitesSidebarLabel({ siteName, locale }, {});
   const labelledGroups = groups.map((group) => ({ ...group, items: group.items.map((item) => item.id === "sites" ? { ...item, label } : item) }));
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const nameRef = useRef<HTMLSpanElement>(null);
