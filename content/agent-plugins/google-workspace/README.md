@@ -43,6 +43,10 @@ digest at seed time, which the executable trust gate checks before any module lo
 - `kind: 'write'` (append, create, copy) with an unknown outcome is `uncertain-outcome` and never
   retried; reads and idempotent writes retry with jittered backoff that honours Retry-After.
 - Revocation is confirmed only by Google's 200.
+- The budgets declared in `tovu-connections.json` (45/min per account, 240/min per instance) are
+  charged by the host on every token read; its refusal (`rate-limited`) becomes `quota-delay` with
+  the host's `retryAfterMs` and `outcome: 'not-applied'`, and follows the same inline backoff rules
+  as Google's 429 (nothing was sent, so even an append may wait and retry).
 - Modules import nothing outside this directory except what the host injects.
 
 ## How it fits
@@ -59,9 +63,6 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
-- The host limiter runs one profile (240/min + burst) for every key, so the per-account 45/min
-  budget is declared here but enforced only at the host profile until the host accepts
-  plugin-declared budgets.
 - Per-workspace product on/off state and the delivery adapter are later lots.
 - Connection panel and Picker surfaces (G13) are blocked on host seams; only the server-side selection
   checks ship. An admin-surface handler receives the executable-tool capabilities only

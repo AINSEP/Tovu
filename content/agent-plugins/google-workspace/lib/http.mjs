@@ -12,7 +12,7 @@
  *   non-idempotent write whose outcome is unknown is never replayed.
  * Redirects, HTTPS-only and response-size bounds are enforced by the host's guarded HTTP capability.
  */
-import { GoogleWorkspaceError, backoffMs, classifyFailure, shouldRetryInline } from './request-policy.mjs';
+import { GoogleWorkspaceError, backoffMs, capRetryAfterMs, classifyFailure, shouldRetryInline } from './request-policy.mjs';
 
 const INVALID_JSON = Symbol('invalid-json');
 
@@ -20,7 +20,15 @@ const INVALID_JSON = Symbol('invalid-json');
 const HOST_TOKEN_CODES = new Map([
   ['reconnect-required', 'reconnect-required'], ['not-connected', 'not-connected'], ['connection-not-found', 'not-connected'],
   ['revocation-pending', 'not-connected'], ['account-changed', 'account-changed'],
+  // The host's per-connection budget refused the token read: nothing was sent, so it is a quota wait.
+  ['rate-limited', 'quota-delay'],
 ]);
+
+/** The host's wait, through the same cap as Google's Retry-After; dropped when unusable. @complexity O(1). */
+function hostRetryAfter(cause) {
+  const retryAfterMs = capRetryAfterMs({ ms: cause?.retryAfterMs });
+  return retryAfterMs === undefined ? {} : { retryAfterMs };
+}
 
 /**
  * A fresh access token from the host, read right before the request that uses it. A host refusal
@@ -34,7 +42,7 @@ export async function accessTokenFor(required, _optional = {}) {
     return await required.connections.getAccessToken({ connectionRef: required.connectionRef });
   } catch (cause) {
     const code = HOST_TOKEN_CODES.get(cause?.code);
-    if (code) throw new GoogleWorkspaceError({ code }, { cause });
+    if (code) throw new GoogleWorkspaceError({ code }, { cause, ...hostRetryAfter(cause) });
     throw cause;
   }
 }
@@ -104,10 +112,25 @@ export function createGoogleClient(required, optional = {}) {
     return undefined;
   }
 
+  /**
+   * The token, or the host budget's refusal as a failed attempt: that refusal happens before
+   * anything is sent, so it follows the same backoff rules as the plugin's own limiter refusal.
+   * Every other host refusal ends the call.
+   */
+  async function tokenOrRefusal(connectionRef) {
+    try {
+      return { token: await accessTokenFor({ connections, connectionRef }) };
+    } catch (error) {
+      if (error instanceof GoogleWorkspaceError && error.code === 'quota-delay') return { error };
+      throw error;
+    }
+  }
+
   async function attemptOnce(request, signal) {
     const refusal = await quotaRefusal(request.connectionRef);
     if (refusal) return { ok: false, error: refusal };
-    const token = await accessTokenFor({ connections, connectionRef: request.connectionRef });
+    const { token, error } = await tokenOrRefusal(request.connectionRef);
+    if (error) return { ok: false, error };
     let response;
     try {
       response = await http.fetch({ url: buildUrl(request) }, requestInit(request, token, signal));

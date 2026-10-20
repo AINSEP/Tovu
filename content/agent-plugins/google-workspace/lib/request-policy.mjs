@@ -102,6 +102,16 @@ export function parseRetryAfter(required, optional = {}) {
   if (!raw) return undefined;
   const nowMs = optional.nowMs ?? Date.now();
   const ms = /^\d+$/.test(raw) ? Number(raw) * 1000 : Date.parse(raw) - nowMs;
+  return capRetryAfterMs({ ms });
+}
+
+/**
+ * A wait in milliseconds, capped; undefined when it is not a finite, non-negative number. Shared by
+ * Google's Retry-After and the host's budget refusal so both obey one ceiling.
+ * @complexity O(1).
+ */
+export function capRetryAfterMs(required, _optional = {}) {
+  const { ms } = required;
   return Number.isFinite(ms) && ms >= 0 ? Math.min(ms, MAX_RETRY_AFTER_MS) : undefined;
 }
 
