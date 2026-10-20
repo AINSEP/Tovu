@@ -45,6 +45,8 @@ function classify(error: unknown): OAuthCallbackFailureReason {
   if (!(error instanceof ApiConnectionError)) return "exchange_failed";
   if (error.code === "invalid-attempt" || error.code === "attempt-superseded") return "state_expired";
   if (error.code === "access-denied") return "provider_denied";
+  // A same-account switch would share the live grant; the person needs "reconnect", not a retry.
+  if (error.code === "account-unchanged") return "account_unchanged";
   return "exchange_failed";
 }
 

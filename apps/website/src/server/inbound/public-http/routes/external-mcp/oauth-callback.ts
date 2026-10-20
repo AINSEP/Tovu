@@ -91,7 +91,7 @@ function parseCallbackQuery(query: Record<string, unknown>): { state: string; co
  * `OAuthError.providerErrorCode`, either of which can carry a provider's own response text verbatim
  * (see Jini's `packages/oauth/src/errors.ts`'s header). Whatever this function returns is
  * safe to render and safe to put in the `postMessage` payload, because it can only ever be one of
- * the six fixed strings in {@link OAuthCallbackFailureReason} — nothing it reads from `error` can
+ * the fixed strings in {@link OAuthCallbackFailureReason} — nothing it reads from `error` can
  * reach the return value directly.
  *
  * `OAUTH_INVALID_STATE` covers malformed, tampered, expired, or wrongly-bound state alike (see
