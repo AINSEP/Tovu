@@ -1,15 +1,45 @@
 import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
+  type PresentationSettingsRecord,
 } from "#src/features/presentation/index";
-import { applicableThemeTemplates, findStoredTheme, validThemeIds } from "#src/features/theme/index";
+import { applicableThemeTemplates, findStoredTheme, validThemeIds, type ThemeTemplateKind } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
 import { isPackageShippedTheme } from "#src/features/theme/theme-files";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
 import { registerAdminThemePreviewRoute } from "../themes/preview.js";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps.js";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+
+function activeThemeResponseFields(
+  { themes, settings, kind }: {
+    themes: ContentRouteDeps["themes"];
+    settings: PresentationSettingsRecord;
+    kind?: ThemeTemplateKind;
+  },
+  _optional: Record<string, never> = {},
+) {
+  // Template-picker feature (2026-08-10, unified 2026-08-11) — the active theme's own declared
+  // template list, so BOTH the Post editor's and the Pages editor's pickers always reflect
+  // whichever theme is actually live right now (one shared field since the unified `content`
+  // marker — see `AdminPresentation.activeThemeTemplates`'s own doc).
+  // `findStoredTheme`, not an exact match: a stored retired id (`basic`, renamed `tovu-theme`)
+  // still names the active theme, and the response reports the id the theme list shows.
+  const activeTheme = findStoredTheme({ themes, id: settings.activeThemeId });
+  // Editors request their kind; catalog callers omit it and retain the full list.
+  const activeThemeTemplates = applicableThemeTemplates({ manifest: activeTheme?.manifest, kind });
+  // Slug-collision override (2026-08-10) — every page id the active theme ships, so the editor
+  // can warn when a post's own slug is currently claimed by one of the theme's own pages.
+  const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
+  return {
+    settings: activeTheme
+      ? { ...settings, activeThemeId: activeTheme.manifest.id }
+      : settings,
+    activeThemeTemplates,
+    activeThemeStaticPageIds,
+  };
+}
 
 /**
  * GET presentation settings (active theme + available themes).
@@ -69,18 +99,9 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         input: { workspaceId: deps.workspaceId },
       });
 
-      // Template-picker feature (2026-08-10, unified 2026-08-11) — the active theme's own declared
-      // template list, so BOTH the Post editor's and the Pages editor's pickers always reflect
-      // whichever theme is actually live right now (one shared field since the unified `content`
-      // marker — see `AdminPresentation.activeThemeTemplates`'s own doc).
-      // `findStoredTheme`, not an exact match: a stored retired id (`basic`, renamed `tovu-theme`)
-      // still names the active theme, and the response reports the id the theme list shows.
-      const activeTheme = findStoredTheme({ themes: deps.themes, id: result.settings.activeThemeId });
-      // Editors request their kind; catalog callers omit it and retain the full list.
-      const activeThemeTemplates = applicableThemeTemplates({ manifest: activeTheme?.manifest, kind });
-      // Slug-collision override (2026-08-10) — every page id the active theme ships, so the editor
-      // can warn when a post's own slug is currently claimed by one of the theme's own pages.
-      const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
+      const { settings, activeThemeTemplates, activeThemeStaticPageIds } = activeThemeResponseFields({
+        themes: deps.themes, settings: result.settings, kind,
+      });
       // Card previews are captures of each theme's own render where this site can take them (see
       // `routes/themes/preview.ts`); elsewhere the shipped `screenshots/` file, as before.
       const capturesEnabled = deps.siteBinding !== undefined && themePreviewServiceForHost({ binding: deps.siteBinding }) !== undefined;
@@ -96,9 +117,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
 
       res.json(
         toAdminPresentationResponse({
-          settings: activeTheme
-            ? { ...result.settings, activeThemeId: activeTheme.manifest.id as typeof result.settings.activeThemeId }
-            : result.settings,
+          settings,
           availableThemeIds: result.availableThemeIds,
           availableThemes,
           activeThemeTemplates,
