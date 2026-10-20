@@ -15,8 +15,13 @@ export function readPageBodyOptions(input: Record<string, unknown>): PageBodyOpt
   const { find, textOnly, maxBytes } = input;
   if (find !== undefined && (typeof find !== "string" || find.length < 1 || find.length > 200)) throw new ToolInputError({ message: "find must be a string of 1..200 characters." });
   if (textOnly !== undefined && typeof textOnly !== "boolean") throw new ToolInputError({ message: "textOnly must be a boolean." });
-  if (maxBytes !== undefined && (typeof maxBytes !== "number" || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_MAX_BODY_BYTES)) throw new ToolInputError({ message: "maxBytes must be an integer of 1..1000000." });
+  assertMaxBodyBytes({ maxBytes });
   return { find: find as string | undefined, textOnly: textOnly as boolean | undefined, maxBytes: maxBytes as number | undefined };
+}
+
+/** Keeps the numeric budget validation and its boundary error together. */
+function assertMaxBodyBytes({ maxBytes }: { maxBytes: unknown }, _options: Record<string, never> = {}): void {
+  if (maxBytes !== undefined && (typeof maxBytes !== "number" || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_MAX_BODY_BYTES)) throw new ToolInputError({ message: "maxBytes must be an integer of 1..1000000." });
 }
 
 const OMITTED_ELEMENTS = new Set(["script", "style", "noscript", "template"]);
@@ -26,16 +31,24 @@ function visibleText(body: string): string {
   const pending: Array<DefaultTreeAdapterMap["node"] | string> = [parse(body)];
   const text: string[] = [];
   while (pending.length) {
-    const node = pending.pop()!;
-    if (typeof node === "string") { text.push(node); continue; }
-    if ("tagName" in node && OMITTED_ELEMENTS.has(node.tagName)) continue;
-    if (node.nodeName === "#text" && "value" in node) { text.push(node.value); continue; }
-    if (!("childNodes" in node)) continue;
-    const block = "tagName" in node && BLOCK_ELEMENTS.has(node.tagName);
-    if (block) { text.push(" "); pending.push(" "); }
-    for (let i = node.childNodes.length - 1; i >= 0; i--) pending.push(node.childNodes[i]!);
+    appendVisibleNode({ node: pending.pop()!, pending, text });
   }
   return text.join("").replace(/\s+/g, " ").trim();
+}
+
+/** Visits one parsed node, scheduling children in document order and spaces around blocks. */
+function appendVisibleNode({ node, pending, text }: {
+  node: DefaultTreeAdapterMap["node"] | string;
+  pending: Array<DefaultTreeAdapterMap["node"] | string>;
+  text: string[];
+}, _options: Record<string, never> = {}): void {
+  if (typeof node === "string") { text.push(node); return; }
+  if ("tagName" in node && OMITTED_ELEMENTS.has(node.tagName)) return;
+  if (node.nodeName === "#text" && "value" in node) { text.push(node.value); return; }
+  if (!("childNodes" in node)) return;
+  const block = "tagName" in node && BLOCK_ELEMENTS.has(node.tagName);
+  if (block) { text.push(" "); pending.push(" "); }
+  for (let i = node.childNodes.length - 1; i >= 0; i--) pending.push(node.childNodes[i]!);
 }
 
 /** Cuts at a UTF-8 boundary so shaping does not expand a clipped byte into a replacement character. */
