@@ -28,7 +28,7 @@ See lot table; worst per lot recorded as cyc/cog.
 | L278 | oauth/endpoint-safety | 12/- | MERGED (verify OK, 48 tests; +172 consumer tests per agent) | ≤10/≤10 | 100/100/100 | a1ab42cd |
 | L279 | site-dir product-root, site-trash (after L023) | 11/11 | queued | | | |
 | L114 | assistant (11 files) | 18/12 | dispatched | | | |
-| L275 | assistant/mcp-federation/registrations | 12/- | dispatched | | | |
+| L275 | assistant/mcp-federation/registrations | 12/9 | MERGED (verify OK, 79 tests) | 7/4 | 100/100/100 | 95f597f1 |
 
 ## Problems
 - Pre-push hook (apps/desktop/scripts/hooks/pre-push) misfires on the FIRST push of a new branch from a worktree: `git diff HEAD @{push}` fails (no @{push}) so it runs desktop gates, which fail here (no electron). Fix used: push lot branches from the main checkout (`cd /home/user/Tovu && git push -u origin <lot-branch>`), where @{push} resolves and the hook correctly skips. Never --no-verify.
@@ -40,7 +40,10 @@ See lot table; worst per lot recorded as cyc/cog.
 - L265 log-file: when the tail byte budget starts exactly on a line boundary, the first complete entry is dropped as "torn".
 - L147 share-database: final secret byte scan (requireShareSecretFree/redactSecretShapes, outside lot) misses a token glued to the previous text column (no word boundary).
 
+- L275 registrations: host-policy confirmation card's writeShapedInputs come only from call args; Jini's own card also uses schema write-shaped names (inconsistent).
+
 ## Cross-area / out-of-scope flags
+- L275: assistant/__tests__/mcp-federation.adapter-memory.test.ts doc comment still names the moved test file; 'Federated tool arguments must be an object.' could name the tool.
 - L096: keyring derive/deriveSigningSecret exist only for Jini's KeyringPort type (Jini change to drop).
 - L142: snapshotVaultCredentials counts a missing COUNT row as 0 (unreachable with real SQL; pinned).
 - L147: SiteShareRefusal has no `cause`; appendInterruptedRow ignores params.siteId; findNonTerminalForSite doc claims O(1) via index but filters in memory.
