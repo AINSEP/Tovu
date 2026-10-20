@@ -1,5 +1,47 @@
 # Development scripts
 
+## Quality reports and property tests
+
+`npm run quality:knip` reports unused files, exports, and dependencies with
+[Knip](https://knip.dev/features/monorepos-and-workspaces). It preserves Knip's nonzero
+exit status locally; `.github/workflows/ci.yml` runs it with `continue-on-error: true`
+and excludes it from the gate summary during this report-only rollout. Review each
+finding before deleting anything: runtime registration and computed imports need
+human verification. No baseline or automatic fixes are applied.
+
+`knip.json` follows the actual package boundaries: root-owned `apps/website`,
+`development/scripts`, and `content/agent-plugins/*`; separate admin, desktop and
+site-chat packages; and npm's `packages/*` workspaces. The first three directories
+have no package manifests, so they belong in the root Knip workspace. Source entries
+correspond to package `bin`/`main`/`exports`, Vite HTML/library entries, Electron
+preloads, CLI scripts, tests, and plugin manifest `module`/`entry` paths. When adding
+or changing a plugin's manifest entry, update the matching explicit path in `knip.json`.
+Generated files, dist, coverage/release output, `ADS-memory`, and `AI-Dev-Shop` are ignored.
+
+`npm run quality:properties` runs the four new property suites through the existing
+Node/tsx runner. They are also discovered by `npm test` and `test:ci`; the existing
+CI Test step is informational. [fast-check](https://fast-check.dev/docs/configuration/)
+is pinned in the root devDependencies, where website and shipped-plugin tests run:
+
+| Suite | Properties | Seed |
+| --- | --- | --- |
+| OAuth endpoint safety | Private IPv4/IPv6 rejection, numeric host spellings, HTTPS normalization, userinfo, explicit plaintext loopback opt-in | 20261020 |
+| Consent validation | Copy/CSS bounds, strict full schema, policy link safety, trusted region requirement | 20261021 |
+| Forms validation | Descriptor uniqueness/attributes, text bounds, required fields, unknown keys, immutable inputs, honeypot omission | 20261022 |
+| Google Workspace helpers | A1/column round trips, title quoting, reversed bounds, bounded contiguous reads, CSV escaping/formula safety/padding | 20261023 |
+
+Each suite logs its seed and runs **150 cases per property** with bounded input sizes,
+without network calls or application startup. On failure, fast-check prints the seed,
+shrink path, and counterexample. To replay, use the reported seed and `path` in that
+suite's `parameters` object and rerun `quality:properties`. Knip and fast-check are
+additional signals alongside `check:boundaries` (dependency-cruiser),
+`check:secret-scan`, and [SonarJS lint (no Docker)](../sonarjs/README.md).
+
+Implementation dispatch did not run installs, tests, builds, or Knip. Before merging,
+the Coordinator must regenerate `package-lock.json` for the exact new devDependencies
+and verify `npm ci`, `quality:knip`, and `quality:properties` in an authorized environment.
+Until the lockfile is refreshed, `npm ci` will reject the manifest/lockfile mismatch.
+
 ## Coverage of changed source files
 
 ```bash

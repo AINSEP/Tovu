@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["../../apps/*/src/**/*", "../../content/agent-plugins/**/*"],
+  "exclude": [
+    "../../node_modules", "../../**/node_modules", "../../**/dist", "../../**/build",
+    "../../**/.build", "../../**/vendor", "../../**/__tests__", "../../**/__measurements__",
+    "../../**/__mocks__", "../../**/fixtures", "../../**/test", "../../**/tests",
+    "../../**/*.test.*", "../../**/*.spec.*"
+  ]
+}
