@@ -125,3 +125,14 @@ it("completes successful runs using the authoritative final events without a fai
   expect(h.completed).toEqual([[progress, { kind: "status", label: "Complete" }]]);
   expect(h.errors).toEqual([]);
 });
+
+it("projects a failed checkpoint without an agent id when neither the run nor the checkpoint names one", async () => {
+  const h = harness();
+  await h.transport.reattachRun("run", h.sink);
+  h.emit().onCheckpoint?.({ id: "message", role: "assistant", content: "", runStatus: "failed",
+    events: [{ kind: "raw", line: "Error: denied" }] });
+  expect(h.checkpoints[0]).toEqual({ id: "message", role: "assistant", content: "", runStatus: "failed", events: [
+    { kind: "raw", line: "Error: denied" },
+    { kind: "ext", name: AGENT_FAILURE_EVENT, data: { reason: "Error: denied", details: "Error: denied" } },
+  ] });
+});
