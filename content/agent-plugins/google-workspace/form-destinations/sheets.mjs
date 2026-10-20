@@ -8,7 +8,7 @@
  * the tab by its numeric sheet id (renames are safe); matches columns by their field markers and
  * headers (`mapping.mjs`); scans the `_tovu_submission_id` column for this submission
  * (`dedupe.mjs`) and stops as delivered when the row is already there (more than one such row is
- * reported as delivered with a "review" note, never appended again); in one atomic batch grows the
+ * reported as delivered, never appended again; its "review" note is dropped by the ledger); in one atomic batch grows the
  * grid, writes the new headers and tags new field columns; appends the row with RAW values. An append whose answer was lost is never replayed: the column is scanned again,
  * and when the row is not found the job reports `outcome-unknown`, so the next attempt scans before
  * appending. Delivery is at-least-once with best-effort dedupe; nothing here claims exactly-once.
@@ -90,7 +90,8 @@ function scanFor(requests, tab, idColumn, submissionId) {
 /**
  * Success, naming where the row is (sheet id and row numbers only: no titles, no values). More than
  * one row with this submission id (another writer, or a late append) is still delivered, never
- * appended again, but the reference asks for a review so the duplicate is not missed.
+ * appended again. The reference names the rows for review, but the forms ledger keeps only `ok`
+ * (the contract has no reviewable success), so today no person sees it; see the README.
  * @complexity O(rows).
  */
 function delivered(sheetId, rows) {

@@ -70,6 +70,9 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
+- Duplicate submission ids found in a tab are delivered as `ok` with a "review" note in
+  `reference`, which the forms ledger drops; the contract has no reviewable success outcome, so
+  no person sees it yet (Jini contract change needed for a distinct outcome).
 - Form-delivery retry window: product-off (`adapter-unavailable`) and quota (`rate-limited`)
   refusals are retried within the site's forms retry policy (about 8 attempts over about a day),
   then the job fails; authorization failures (`authorization-required`) fail at once and stay as

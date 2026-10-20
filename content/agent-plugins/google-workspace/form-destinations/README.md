@@ -42,7 +42,9 @@ header note because people neither see nor edit metadata. Growing the grid, writ
 
 More than one row already holding the submission id (another writer, or a late append racing the
 scan) is reported as delivered with the reference `sheet <id> rows <a>, <b> (duplicate submission
-id: review)`; nothing is appended again.
+id: review)`; nothing is appended again. Nobody sees that note today: the forms delivery contract has no reviewable success outcome and the ledger keeps only `ok` (the
+reference is dropped), and any `ok: false` code would fail or re-try a row that is already
+there. A distinct outcome needs a contract change in Jini (`@jini-ai/cms/forms`).
 
 ## Files
 

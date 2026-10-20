@@ -26,8 +26,9 @@ removing the destination there stops new rows (rows already written stay in the 
   submission id in the `_tovu_submission_id` column (and looks again if Google's answer was lost),
   so a retry normally does not add a duplicate. A duplicate is still possible in rare cases (for
   example another person or tool writing to the same tab at the same moment). When Tovu finds the
-  same submission id on two or more rows it does not add another; the delivery says "duplicate
-  submission id: review" with the row numbers, so the person can delete the extra row.
+  same submission id on two or more rows it does not add another, and the delivery counts as done.
+  Tovu does not show such duplicates anywhere yet: if the person suspects one, sort or filter the
+  sheet by `_tovu_submission_id` and delete the extra row.
 - Deleting a submission in Tovu does **not** delete its row in the spreadsheet. When the person
   turns this destination on, tell them: "Rows already sent to Google Sheets stay in the spreadsheet
   if you delete the submission in Tovu."
