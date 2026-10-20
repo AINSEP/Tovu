@@ -39,10 +39,12 @@ function notFound(res: import("express").Response): void {
 
 export function registerAdminSurfaceFilesRoute(app: Express, deps: AdminSurfaceFilesRouteDeps): void {
   const source = deps.adminSurfaceSource ?? createAgentPluginAdminSurfaceSource({ lifecycle: deps.agentPluginLifecycle });
+  // No param fallbacks: Express sets both named params of a matched route, and the `*` tail as a
+  // string ("" for an empty tail), pinned in the routes integration test.
   app.get(`${ADMIN_SURFACE_FILES_PREFIX}/:pluginId/:surfaceId/*`, async (req, res) => {
     try {
-      const surface = await findAdminSurface({ source, workspaceId: deps.workspaceId, pluginId: String(req.params.pluginId ?? ""), surfaceId: String(req.params.surfaceId ?? "") });
-      const file = surface ? await readSurfaceFile({ source, surface, path: String((req.params as Record<string, string>)[0] ?? "") }) : undefined;
+      const surface = await findAdminSurface({ source, workspaceId: deps.workspaceId, pluginId: String(req.params.pluginId), surfaceId: String(req.params.surfaceId) });
+      const file = surface ? await readSurfaceFile({ source, surface, path: String((req.params as Record<string, string>)[0]) }) : undefined;
       if (!file?.ok) return notFound(res);
       res.status(200).set(file.headers).send(file.body);
     } catch {

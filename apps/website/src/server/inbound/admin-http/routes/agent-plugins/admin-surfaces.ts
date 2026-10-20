@@ -48,6 +48,9 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * sandboxed frame cannot and must never choose a URL for the host page to open.
  */
 
+// Route params need no fallback: Express sets every named param of a matched route to a non-empty
+// string (an empty segment never matches), and `requireAdminSession` always runs a JSON body parser
+// before these handlers, so `req.body` is at least `{}` (both pinned in the routes integration test).
 const WRITE_PERMISSION = "admin.plugins.enable";
 const SURFACE_PATH = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/surfaces";
 
@@ -57,7 +60,7 @@ function sourceFor(deps: AgentPluginsRouteDeps): AdminSurfaceSource {
 
 /** Workspace check + permission; `false` when a response was already sent. @complexity O(1) + authorize. */
 async function admit(req: Request, res: Response, deps: AgentPluginsRouteDeps, permission: string): Promise<boolean> {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+  if (String(req.params.workspaceId) !== deps.workspaceId) {
     res.status(404).json({ error: "workspace was not found" });
     return false;
   }
@@ -76,7 +79,7 @@ function admitWrite(req: Request, res: Response): boolean {
 
 /** Resolves the URL's surface, or sends 404. @complexity O(s) admitted surfaces. */
 async function surfaceOrRespond(req: Request, res: Response, deps: AgentPluginsRouteDeps): Promise<LoadedAdminSurface | undefined> {
-  const surface = await findAdminSurface({ source: sourceFor(deps), workspaceId: deps.workspaceId, pluginId: String(req.params.pluginId ?? ""), surfaceId: String(req.params.surfaceId ?? "") });
+  const surface = await findAdminSurface({ source: sourceFor(deps), workspaceId: deps.workspaceId, pluginId: String(req.params.pluginId), surfaceId: String(req.params.surfaceId) });
   if (!surface) res.status(404).json({ error: "admin surface was not found", code: "ADMIN_SURFACE_NOT_FOUND" });
   return surface;
 }
@@ -100,7 +103,7 @@ async function withSignIns(host: AdminSurfaceHost, run: () => Promise<AdminSurfa
 export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = (app: Express, deps) => {
   app.get(SURFACE_PATH, (req, res) => guarded(res, async () => {
     if (!(await admit(req, res, deps, "admin.plugins.read"))) return;
-    const pluginId = String(req.params.pluginId ?? "");
+    const pluginId = String(req.params.pluginId);
     const surfaces = (await sourceFor(deps).list({ workspaceId: deps.workspaceId })).filter((surface) => surface.plugin.pluginId === pluginId);
     res.json({ pluginId, surfaces: surfaces.map(({ descriptor }) => ({ id: descriptor.id, title: descriptor.title, src: adminSurfaceFileUrl({ pluginId, surfaceId: descriptor.id, path: descriptor.entry }), actions: descriptor.actions, linkOrigins: descriptor.linkOrigins ?? [] })) });
   }));
@@ -118,7 +121,7 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
     if (!admitWrite(req, res) || !(await admit(req, res, deps, WRITE_PERMISSION))) return;
     const surface = await surfaceOrRespond(req, res, deps);
     if (!surface) return;
-    const body = (req.body ?? {}) as { action?: unknown; payload?: unknown };
+    const body = req.body as { action?: unknown; payload?: unknown };
     if (typeof body.action !== "string") {
       res.status(400).json({ error: "the request must name an action", code: "INVALID_REQUEST" });
       return;
