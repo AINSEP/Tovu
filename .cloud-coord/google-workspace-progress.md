@@ -1,6 +1,6 @@
 # google-workspace cloud build — progress
 
-Status: PHASE A — all lots built except G13b (UI). Running: G6d (Tovu adapters for G1c/G5c/G5d; Jini dist rebuilt 09:54Z). Coordinator phase B review started. Next: G13b → phase B fix lots → phase C → G15 → G16.
+Status: PHASE A done except G13b (UI, after G6d). PHASE B started: Jini review done (1 High, 7 Medium, 12 Low → all accepted, see google-workspace-phaseB-jini.md) → B1 Jini fix lot running; G6d running (Tovu adapters). Next: Tovu phase-B review after G6d+G13b; B2 Tovu adapt to B1 shapes; phase C; G15; G16.
 
 ## Step 0 / base
 - cloud-proof: `4db891f3 cloud-proof: Linux vm /home/user/Tovu google-workspace` (Linux vm 6.18.44, 2026-10-20 05:16 UTC)
@@ -50,6 +50,7 @@ Status: PHASE A — all lots built except G13b (UI). Running: G6d (Tovu adapters
 | G6c | MERGED 72ee3106e | cloud/google-workspace-G6c (47c7f06d6) | 72ee3106e | budgets on tovu-connections.json connections, charged in host accessTokensFor after ownership check (one token read per request) via real limiter; clamp to host max; refusal rate-limited/retryable/retryAfterMs/not-applied; per-process (documented). Plugin: 45/min per account, 240/min instance. Coord: api-connections tests 27/28 (only the G10 vendor-neutrality allowlist gap), plugin 64/64, tsc + typecheck:tests 0, cx unchanged (2 recorded debt fns at 10). |
 | G1c | MERGED (Jini, not yet rebuilt into dist) | cloud/google-workspace-G1c (170bcb53) | merged | fence → tokens.loadForRevocation (generation-agnostic, owner-checked, hook-only) → revoke hook → delete only after success; failure = revocation-pending + disabled credential kept, disconnect again retries; staged slot revoked too; new start refused while switch staged (switch-in-progress); confirmed switch does NOT revoke old account's grant (previousAccountRevocation 'not-attempted'). Coord: 78/78, tsc no new errors, guard 26, cx ≤9. Tovu follow-up (G6d): flip plugin oauth.contract.test.mjs:266-267 pin to confirmed + /revoke called; plugin revoke hook must treat 'already revoked' as success. |
 | G14 | MERGED | cloud/google-workspace-G14 (19e4a99b9) | merged | sheets/mapping/dedupe/delivery-result; 24 contract pins, 28 RED; cx ≤8; plugin 156/156. Choices: product off → adapter-unavailable retryable (bounded by outbox 8 attempts); reconnect → authorization-required not retryable (no manual redeliver in forms-multidest → reconnect doesn't resume); adapter doesn't create tabs (config names sheetId). Findings: sheet editors can plant a submission id to suppress delivery (inherent, documented); no 1 MiB append check; OAuth port baseUrl '' → G6d. G14b owed. |
+| B1 | running (Jini phase-B fixes) | cloud/google-workspace-B1 | | H1 client-id change locks connection; M1 same-account switch; M2 attemptId/state; M3 callback limits; M4 workspace check on ref ops; M5 cross-call token cache; M6 vocabulary; M7 staged check; lows; export trim |
 | G15–G16 | pending | | | |
 
 ## Coverage / RED / complexity debt / removed checks
