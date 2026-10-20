@@ -6,7 +6,7 @@ import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primit
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
 import { type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
-import { mediaProviderVault, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
+import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
 
 /**
  * @file Per-workspace media-generation vendor credentials — what the admin's Media → "Media
@@ -148,24 +148,24 @@ export class MediaProviderCredentialValidationError extends Error {}
  *  to its own `503 SECRET_STORE_UNCONFIGURED` rather than a generic `400`. */
 export class MediaProviderCredentialSecretStoreUnconfiguredError extends Error {}
 
-/** Stored safe hints keep metadata readable without opening any envelopes, even with no site key. */
-async function toView(record: MediaProviderCredentialRecord): Promise<MediaProviderCredentialView> {
-  const view: MediaProviderCredentialView = {};
-  if (record.baseUrl !== null) view.baseUrl = record.baseUrl;
-  if (record.model !== null) view.model = record.model;
-  if (record.sealed !== null) {
-    view.apiKeyConfigured = true;
-    const row = record.vaultRecord;
-    if (row?.tokenLength !== null && row?.tokenLength !== undefined) {
-      view.apiKeyHint = { length: row.tokenLength, last4: row.tokenLength >= 12 ? row.last4 : null };
-      if (view.apiKeyHint.last4 !== null) view.apiKeyTail = view.apiKeyHint.last4;
-    }
-  }
-  return view;
+/** The key half of a view: only stored safe hints, so reading never opens an envelope. Short or
+ *  unknown-length tokens withhold their suffix. */
+function keyMarkers(record: MediaProviderCredentialRecord): MediaProviderCredentialView {
+  if (record.sealed === null) return {};
+  const row = record.vaultRecord;
+  if (row?.tokenLength === null || row?.tokenLength === undefined) return { apiKeyConfigured: true };
+  const last4 = row.tokenLength >= 12 ? row.last4 : null;
+  return { apiKeyConfigured: true, apiKeyHint: { length: row.tokenLength, last4 }, ...(last4 === null ? {} : { apiKeyTail: last4 }) };
 }
 
-async function toMap(records: readonly MediaProviderCredentialRecord[]): Promise<MediaProviderCredentialMap> {
-  return Object.fromEntries(await Promise.all(records.map(async record => [record.providerId, await toView(record)])));
+/** Stored safe hints keep metadata readable without opening any envelopes, even with no site key. */
+function toView(record: MediaProviderCredentialRecord): MediaProviderCredentialView {
+  return { ...(record.baseUrl === null ? {} : { baseUrl: record.baseUrl }),
+    ...(record.model === null ? {} : { model: record.model }), ...keyMarkers(record) };
+}
+
+function toMap(records: readonly MediaProviderCredentialRecord[]): MediaProviderCredentialMap {
+  return Object.fromEntries(records.map(record => [record.providerId, toView(record)]));
 }
 
 export interface MediaProviderCredentialReadDeps {
@@ -222,34 +222,43 @@ function trimmedOrNull(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-/** Rejects anything the row cannot faithfully hold, before a single write happens. */
-function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput): void {
-  try { assertCredentialFreeField({ value: providerId, field: 'providerId' }); }
-  catch (error) { if (error instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(error.message); throw error; }
+/** Only a credential-policy refusal is an operator mistake; anything else surfaces unchanged. */
+function rethrowAsValidation<T>({ run }: { run: () => T }, _options = {}): T {
+  try { return run(); }
+  catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
+}
+
+function assertKnownProviderId({ providerId }: { providerId: string }, _options = {}): void {
+  rethrowAsValidation({ run: () => assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
   if (!KNOWN_PROVIDER_IDS.has(providerId)) {
     throw new MediaProviderCredentialValidationError(
       `unknown media provider "${providerId}" — expected an engine-canonical id from @jini-ai/integrations/media-providers`
     );
   }
+}
+
+/** `apiKey` is only type-checked here: token normalization owns its own policy and limit. */
+function assertEntryField({ providerId, field, value }: { providerId: string; field: "apiKey" | "baseUrl" | "model"; value: unknown }, _options = {}): void {
+  if (value === undefined) return;
+  if (typeof value !== "string") {
+    throw new MediaProviderCredentialValidationError(`${field} for "${providerId}" must be a string`);
+  }
+  if (field === "apiKey") return;
+  rethrowAsValidation({ run: () => assertCredentialFreeField({ value, field }) });
+  if (value.length > MAX_FIELD_LENGTH) {
+    throw new MediaProviderCredentialValidationError(
+      `${field} for "${providerId}" exceeds ${MAX_FIELD_LENGTH} characters`
+    );
+  }
+}
+
+/** Rejects anything the row cannot faithfully hold, before a single write happens. */
+function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput): void {
+  assertKnownProviderId({ providerId });
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
     throw new MediaProviderCredentialValidationError(`provider "${providerId}" must be an object`);
   }
-  for (const field of ["apiKey", "baseUrl", "model"] as const) {
-    const value = entry[field];
-    if (value === undefined) continue;
-    if (typeof value !== "string") {
-      throw new MediaProviderCredentialValidationError(`${field} for "${providerId}" must be a string`);
-    }
-    if (field !== "apiKey") {
-      try { assertCredentialFreeField({ value, field }); }
-      catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
-    }
-    if (field !== "apiKey" && value.length > MAX_FIELD_LENGTH) {
-      throw new MediaProviderCredentialValidationError(
-        `${field} for "${providerId}" exceeds ${MAX_FIELD_LENGTH} characters`
-      );
-    }
-  }
+  for (const field of ["apiKey", "baseUrl", "model"] as const) assertEntryField({ providerId, field, value: entry[field] });
 }
 
 /** Prepare only supplied keys before the replacement transaction. The later planner re-reads
@@ -264,14 +273,13 @@ async function sealNewProviderKeys(
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider",
     storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
   for (const [providerId, entry] of Object.entries(input.providers)) {
-    if (entry.apiKey === undefined || entry.apiKey === "") continue;
-    let apiKey: string;
-    try { apiKey = normalizeCredentialToken({ value: entry.apiKey, field: "apiKey" }); }
-    catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
+    const submitted = entry.apiKey;
+    if (submitted === undefined || submitted === "") continue;
+    const apiKey = rethrowAsValidation({ run: () => normalizeCredentialToken({ value: submitted, field: "apiKey" }) });
     const scope = mediaVaultScope({ workspaceId: input.workspaceId, providerId });
     const existing = (await deps.repo.vault!.list(scope))[0];
     fresh.set(providerId, await vault.prepare({ ...scope,
-      id: existing?.id ?? `vault:${JSON.stringify(["media-provider", providerId])}`, expectedRevision: existing?.revision ?? null,
+      id: existing?.id ?? mediaVaultId({ providerId }), expectedRevision: existing?.revision ?? null,
       provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model) },
       payload: { apiKey }, hintToken: apiKey }));
   }
