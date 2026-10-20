@@ -1,6 +1,6 @@
 /**
  * @file Characterization pins taken BEFORE executable Agent Plugin tools were wired into the
- * approval owner (google-workspace lot G7). They hold behaviour that change must not alter:
+ * approval owner (feature lot G7). They hold behaviour that change must not alter:
  * the existing confirmation card's Tool/Input rows, the existing extension approval families, and
  * the MCP-UI callback refusing a fresh execution of a plugin tool id.
  */
