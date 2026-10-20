@@ -25,6 +25,7 @@ import type { HttpClientPort } from "@jini-ai/core/primitives";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { FormDestinationKit } from "#src/features/form-destinations/index";
+import { FORM_DESTINATIONS_FILENAME } from "#src/features/form-destinations/registry";
 import { createOAuthDeliverySite, FORM_ID, WORKSPACE, type Consent, type OAuthDeliverySite } from "./form-delivery-oauth.fixture.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -260,5 +261,23 @@ test("the surface lists and removes its own binding; the removal reaches the sto
   const listed = await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "list-bindings" });
   assert.deepEqual(listed.ok && JSON.parse((listed.result as { json: string }).json), [{ bindingId: "b1", adapterId: ADAPTER, connectionId: "account", enabled: true, config: { table: "Leads", accountId: "acct-alice" } }]);
   assert.deepEqual(await site.surfaceAction({ pluginId: PLUGIN, surfaceId: "account", action: "remove-binding", payload: { bindingId: "b1" } }), { ok: true, result: { removed: true } });
+  assert.deepEqual(await site.bindings(), []);
+});
+
+/** acme-office plus a second plugin, "other-vendor", that contributes the adapter id acme's surface declares but does not own. */
+const withOtherVendor: LoadPluginContributions = async (input) => {
+  // other-vendor ships only a form-destinations file.
+  if (input.definition.filename !== FORM_DESTINATIONS_FILENAME) return loadContributions(input);
+  const [own, other] = await Promise.all([loadContributions(input), loadPluginContributionsFromSource({
+    plugin: { pluginId: "other-vendor", packageRoot: path.join(here, "fixtures/other-vendor") }, definition: input.definition,
+  })]);
+  return { items: [...own.items, ...other.items], refusals: [...own.refusals, ...other.refusals] };
+};
+
+test("security: an adapter id the surface declares but ANOTHER plugin contributes is refused (adapter-not-owned); nothing stored", async () => {
+  const site = await createOAuthDeliverySite({ loadContributions: withOtherVendor, http, kit, env });
+  await site.connect({ pluginId: PLUGIN, consent: consentAs("alice") });
+  const outcome = await saveBinding(site, { adapterId: "acme-office-ghost" });
+  assert.deepEqual(outcome.ok ? null : outcome.error.code, "adapter-not-owned");
   assert.deepEqual(await site.bindings(), []);
 });
