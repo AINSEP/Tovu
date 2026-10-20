@@ -6,7 +6,7 @@ import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from 
 import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
 import type { SitePreviewService } from "#src/features/sites/index";
 import { listSiteTrash } from "#src/platform/site-dir/site-trash";
-import type { Express, Response } from "express";
+import type { Express, Request, Response } from "express";
 
 import {
   type createSite as createSiteReal,
@@ -178,6 +178,110 @@ function parseCreateSiteName(body: unknown): { ok: true; name: string } | SiteAd
   return { ok: true, name };
 }
 
+/** Resolved route ports reused while assembling the HTTP listing. */
+type ListingContext = {
+  req: Request;
+  deps: AdminSitesDeps;
+  listSites: NonNullable<AdminSitesDeps["listSites"]>;
+  isSiteSwitcherEnabled: NonNullable<AdminSitesDeps["isSiteSwitcherEnabled"]>;
+  readPersistedActiveSite: NonNullable<AdminSitesDeps["readPersistedActiveSite"]>;
+  localSiteSupervisor: AdminSitesDeps["localSiteSupervisor"];
+  devRestart: DevRestartPort | null;
+  sitePreviews: SitePreviewService | undefined;
+  sitesWorkspace: SitesWorkspace;
+};
+
+/** Build the HTTP snapshot from the served binding. Port failures reach the route's 500 handler.
+ * @complexity O(sites + local sites) time/space, plus the existing filesystem/service reads. */
+function siteListing({ req, deps, listSites, isSiteSwitcherEnabled, readPersistedActiveSite,
+  localSiteSupervisor, devRestart, sitePreviews, sitesWorkspace }: ListingContext, _options = {}) {
+  // Every read below is rooted at the SERVED binding, never `process.cwd()` — see
+  // `switcherBaseForBinding`'s own doc for the wrong-tree bug the cwd default caused.
+  const binding = deps.siteBinding;
+  const registered: readonly SiteListEntry[] = listSitesForBinding({ binding }, { listSites });
+  const switcherBase = switcherBaseForBinding(binding);
+  const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
+  const serving = sites.find((site) => site.dir === binding.dir);
+  const localSites = isSiteSwitcherEnabled() ? localSiteSupervisor?.list() ?? [] : [];
+  const previewVersions = listingPreviewVersions({ req, sites, binding, localSites, sitePreviews, isSiteSwitcherEnabled });
+  return {
+    sitesHome: isSiteSwitcherEnabled() ? sitesWorkspace.home({}) : undefined,
+    switchingEnabled: isSiteSwitcherEnabled(),
+    ...listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart, binding, isSiteSwitcherEnabled, localSites }),
+    sites: sites.map((site) => {
+      if (!site.running) return site;
+      const { pid, port, app, started, scheme } = site.running;
+      return { ...site, running: { pid, port, app, started, scheme } };
+    }),
+    previewVersions,
+    currentSite: { ...binding, listed: serving?.registration === "registered" },
+    // An install-dir boot has no switcher `.env`: whatever sits in the cwd's belongs to another tree.
+    persistedSiteName: switcherBase === null ? null : readPersistedActiveSite({ cwd: switcherBase }),
+  };
+}
+
+/** Enqueue previews only for local management; captures never delay the response.
+ * @complexity O(sites + local sites) time/space through the existing preview service. */
+function listingPreviewVersions({ req, sites, binding, localSites, sitePreviews, isSiteSwitcherEnabled }: {
+  req: Request; sites: ServingSiteListEntry[]; binding: AdminSitesDeps["siteBinding"];
+  localSites: ReturnType<NonNullable<AdminSitesDeps["localSiteSupervisor"]>["list"]>;
+  sitePreviews: SitePreviewService | undefined;
+  isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"];
+}, _options = {}) {
+  // Reads capture mtimes and only ENQUEUES due captures — never awaited here (see the service).
+  const previewVersions = sitePreviews && isSiteSwitcherEnabled()
+    ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites }, { serving: servingAddressOf({ req }) }) })
+    : {};
+  return previewVersions;
+}
+
+/** Whether this boot can restart onto another site. @complexity O(1) time/space. */
+function canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, switcherBase }: {
+  isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"]; devRestart: DevRestartPort | null;
+  binding: AdminSitesDeps["siteBinding"]; switcherBase: string | null;
+}, _options = {}) {
+  return isSiteSwitcherEnabled() && devRestart !== null && devRestart.canSwitchSite !== false && !binding.dirOverridden && switcherBase !== null;
+}
+
+/** HTTP management capabilities and Trash snapshot; failures propagate to the listing route.
+ * @complexity O(trash entries) time/space through the injected trash reader. */
+function listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart, binding, isSiteSwitcherEnabled, localSites }: {
+  deps: AdminSitesDeps; localSiteSupervisor: AdminSitesDeps["localSiteSupervisor"];
+  localSites: ReturnType<NonNullable<AdminSitesDeps["localSiteSupervisor"]>["list"]>;
+  switcherBase: string | null; devRestart: DevRestartPort | null; binding: AdminSitesDeps["siteBinding"];
+  isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"];
+}, _options = {}) {
+  return {
+    localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
+    canSwitchNow: canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, switcherBase }),
+    localSites,
+    trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
+      ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
+  };
+}
+
+/** Forward raw create fields to their feature owner; validation and errors stay there.
+ * @complexity O(1) adapter overhead; creation/token costs belong to createSiteForOwner. */
+function createSiteFromRequest({ body, deps, switcherBase, name }: {
+  body: unknown; deps: AdminSitesDeps; switcherBase: string; name: string;
+}, _options = {}) {
+  return createSiteForOwner(
+    {
+      workspaceId: deps.workspaceId,
+      switcherBase,
+      name,
+      adminPassword: (body as Record<string, unknown> | null | undefined)?.adminPassword,
+      agentPluginTokens: (body as Record<string, unknown> | null | undefined)?.agentPluginTokens,
+    },
+    {
+      createSite: deps.createSite,
+      customCredentialsHttpClient: deps.customCredentialsHttpClient,
+      checkAgentPluginAccessToken: deps.checkAgentPluginAccessToken,
+      sealPendingAgentPluginTokens: deps.sealPendingAgentPluginTokens ?? sealPendingAgentPluginTokensReal,
+    },
+  );
+}
+
 export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
   const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
   registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
@@ -214,36 +318,8 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
-      // Every read below is rooted at the SERVED binding, never `process.cwd()` — see
-      // `switcherBaseForBinding`'s own doc for the wrong-tree bug the cwd default caused.
-      const binding = deps.siteBinding;
-      const registered: readonly SiteListEntry[] = listSitesForBinding({ binding }, { listSites });
-      const switcherBase = switcherBaseForBinding(binding);
-      const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
-      const serving = sites.find((site) => site.dir === binding.dir);
-      const localSites = isSiteSwitcherEnabled() ? localSiteSupervisor?.list() ?? [] : [];
-      // Reads capture mtimes and only ENQUEUES due captures — never awaited here (see the service).
-      const previewVersions = sitePreviews && isSiteSwitcherEnabled()
-        ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites }, { serving: servingAddressOf({ req }) }) })
-        : {};
-      res.status(200).json({
-        sitesHome: isSiteSwitcherEnabled() ? sitesWorkspace.home({}) : undefined,
-        switchingEnabled: isSiteSwitcherEnabled(),
-        localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
-        canSwitchNow: isSiteSwitcherEnabled() && devRestart !== null && devRestart.canSwitchSite !== false && !binding.dirOverridden && switcherBase !== null,
-        localSites,
-        trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
-          ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
-        sites: sites.map((site) => {
-          if (!site.running) return site;
-          const { pid, port, app, started, scheme } = site.running;
-          return { ...site, running: { pid, port, app, started, scheme } };
-        }),
-        previewVersions,
-        currentSite: { ...binding, listed: serving?.registration === "registered" },
-        // An install-dir boot has no switcher `.env`: whatever sits in the cwd's belongs to another tree.
-        persistedSiteName: switcherBase === null ? null : readPersistedActiveSite({ cwd: switcherBase }),
-      });
+      res.status(200).json(siteListing({ req, deps, listSites, isSiteSwitcherEnabled,
+        readPersistedActiveSite, localSiteSupervisor, devRestart, sitePreviews, sitesWorkspace }));
     } catch (err) {
       console.error("[system/sites] unexpected error listing sites", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
@@ -301,21 +377,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         return;
       }
 
-      const created = await createSiteForOwner(
-        {
-          workspaceId: deps.workspaceId,
-          switcherBase: gate.switcherBase,
-          name: parsed.name,
-          adminPassword: (req.body as Record<string, unknown> | null | undefined)?.adminPassword,
-          agentPluginTokens: (req.body as Record<string, unknown> | null | undefined)?.agentPluginTokens,
-        },
-        {
-          createSite: deps.createSite,
-          customCredentialsHttpClient: deps.customCredentialsHttpClient,
-          checkAgentPluginAccessToken: deps.checkAgentPluginAccessToken,
-          sealPendingAgentPluginTokens: deps.sealPendingAgentPluginTokens ?? sealPendingAgentPluginTokensReal,
-        },
-      );
+      const created = await createSiteFromRequest({ body: req.body, deps, switcherBase: gate.switcherBase, name: parsed.name });
       if (!created.ok) {
         sendRefusal(res, created);
         return;
