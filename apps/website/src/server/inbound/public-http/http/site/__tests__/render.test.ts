@@ -1733,7 +1733,8 @@ test("contact-form widget: baseline CSS must not force display on a hidden form 
   // UA stylesheet's `[hidden]{display:none}`, and the empty form stays visible under the success
   // message (2026-08-31 regression: /contact?form=contact-us&form_status=success showed both).
   // Selector body allows one level of nested parens (e.g. `:not([hidden])` inside `:where(...)`).
-  const displayRules = [...css.matchAll(/:where\(((?:[^()]|\([^()]*\))*)\)\s*\{[^}]*\bdisplay\s*:/g)].map((m) => m[1]);
+  // `display:none` rules are skipped: they are the [hidden] guard itself, not a rule it must beat.
+  const displayRules = [...css.matchAll(/:where\(((?:[^()]|\([^()]*\))*)\)\s*\{[^}]*\bdisplay\s*:\s*(?!none\b)/g)].map((m) => m[1]);
   assert.ok(displayRules.length > 0, "expected at least one display-setting rule to audit");
   for (const selector of displayRules) {
     assert.match(selector, /:not\(\[hidden\]\)/, `display-setting selector "${selector}" must exclude [hidden] elements`);

@@ -62,7 +62,11 @@ export { FORM_CLASS, FORM_SLUG_ATTR };
  *    rule origin. Every rule below that sets `display` on a class an instance can carry `hidden` on
  *    is scoped with `:not([hidden])`. `.tovu-form-success`/`.tovu-form-error` need no such guard
  *    because neither ever sets `display`; any NEW rule added here that touches `display` on either
- *    must carry the same guard.
+ *    must carry the same guard. A THEME's own rule is the other half (2026-10-19, BYHO's
+ *    `.oh-form form{display:grid}` kept a sent form on screen after the Cloudflare Worker hid it):
+ *    the `[hidden]{display:none!important}` rule below forces it on any hidden form, success slot
+ *    or error slot — every one carries `data-form-slug`, in both Builder and HTML mode — and
+ *    `!important` is what lets a zero-specificity rule beat a theme's non-important one.
  * 2. **Undefined tokens.** Every `var(--...)` below must name a token that exists in EVERY theme's
  *    `tokens.json`/`tokens.light.json` — themes are copied, not inherited, so a token added to one
  *    theme is still missing from the other seven. The set actually shared by every theme: `--bg
@@ -103,6 +107,7 @@ export const FORM_BASELINE_STYLE =
   // dark-default / :root[data-theme="light"]-override shape so these track the page's real color mode.
   ":root{--tovu-form-danger-fallback:#f87171;--tovu-form-success-fallback:#4ade80;}" +
   ":root[data-theme=\"light\"]{--tovu-form-danger-fallback:#b91c1c;--tovu-form-success-fallback:#166534;}" +
+  `:where(.${FORM_CLASS}[hidden],[${FORM_SLUG_ATTR}][hidden]){display:none!important;}` +
   `:where(.${FORM_CLASS}:not([hidden])){display:flex;flex-direction:column;gap:14px;max-width:480px;}` +
   ":where(.widget-form-field:not([hidden])){display:flex;flex-direction:column;gap:6px;}" +
   ":where(.widget-form-field label){font-weight:600;font-size:0.9rem;}" +

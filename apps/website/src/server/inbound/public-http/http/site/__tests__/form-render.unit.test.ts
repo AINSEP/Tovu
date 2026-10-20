@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  FORM_BASELINE_STYLE,
   clearFormSubmissionResultQueryParams,
   decodeFormFlashCookieValue,
   decodeFormSubmissionResultFromQuery,
@@ -18,6 +19,11 @@ import {
  * missed a key, a second submission from the same page would carry the first one's stale
  * `form_errors`/`form_retry_after` in its redirect Location.
  */
+
+test("baseline style hides a hidden form or slot even when the theme sets display on it", () => {
+  // BYHO's `.oh-form form{display:grid}` beat the UA [hidden] rule, so a sent form stayed visible.
+  assert.ok(FORM_BASELINE_STYLE.includes(":where(.tovu-form[hidden],[data-form-slug][hidden]){display:none!important;}"));
+});
 
 test("clearFormSubmissionResultQueryParams removes all four form_* keys and keeps the page's own params", () => {
   const params = new URLSearchParams(
