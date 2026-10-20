@@ -1,0 +1,31 @@
+# TW1 features — cloud coordinator progress
+
+Branch: `cloud/tw1-features` (base `origin/restructure/apps-website-phased`). Started 2026-10-20 01:02 UTC.
+
+## Setup (≈3 min total)
+- STEP 0: `Linux vm 6.18.44-fc-v139 x86_64`, host `vm`, `/home/user/Tovu`; proof commit 4281af19 pushed.
+- Node: container default v22.22.0. `nvm install 24` (NVM_DIR=/opt/nvm) → v24.22.0, but the shell profile re-prepends /opt/node22, so every command must start with `export PATH=/opt/nvm/versions/node/v24.22.0/bin:$PATH`.
+- AI-Dev-Shop cloned to /home/user/AI-Dev-Shop. Jini (general-work) cloned to /home/user/Jini; `pnpm install --frozen-lockfile` OK; `pnpm --no-bail -r build` 38 pass / 1 fail (@jini-ai/integrations tsc, expected; dist emitted).
+- Tovu `npm ci` root + apps/admin + apps/site-chat: OK. `npm run link:jini` with JINI_PACKAGES_DIR=/home/user/Jini/packages: 57 links (relative symlinks).
+- Worktrees `/home/user/wt-<LOT>` on `cloud/tw1-features-<LOT>`; node_modules symlinked (root, apps/admin, apps/site-chat); `require.resolve('@jini-ai/core')` OK; site-backup sources.unit test 50/50 in a worktree. Symlinks + `eslint.cx.tmp.mjs` added to `.git/info/exclude` (shared by worktrees).
+- Complexity config: `eslint.cx.tmp.mjs` (Tovu's own eslint + eslint-plugin-sonarjs + @typescript-eslint/parser), never committed.
+
+## Personas
+- Coordinator loaded software-architect/skills.md and code-inspection/skills.md.
+
+## Lots (baseline worst cyc/cog, violations)
+| Lot | Area | Baseline worst cyc/cog | Violations | Status | After | Coverage | Commits |
+|---|---|---|---|---|---|---|---|
+| L003 | site-backup A | 86/72 | 21 | dispatched | | | |
+| L011 | theme | 67/92 | 17 | dispatched | | | |
+| L033 | media | 34/22 | 16 | dispatched | | | |
+| L064 | plugin-runtime | 34/42 | 11 | dispatched | | | |
+| L068 | post | 24/18 | 17 | dispatched | | | |
+| L086 | webhooks | 34/25 | 6 | queued | | | |
+| L095 | site-backup B | 19/18 | 15 | queued (after L003 merge) | | | |
+| L112 | publish-trust | 18/17 | 11 | queued | | | |
+| L115 | navigation | 21/17 | 8 | queued | | | |
+
+## Problems / notes
+
+## Next
