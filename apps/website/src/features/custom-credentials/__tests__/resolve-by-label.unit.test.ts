@@ -459,3 +459,27 @@ test("a read adapter returning legacy DTOs without vault context reports unknown
   const saved = await createCustomCredential(deps, validCreateInput);
   assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), { ...saved, tokenHint: null });
 });
+
+for (const connection of [undefined, {}, { token: '' }, { token: '', username: 'ignored' }]) {
+  test(`partial update preserves envelope and username for blank connection ${JSON.stringify(connection)}`, async () => {
+    const deps = makeWriteDeps();
+    const saved = await createCustomCredential(deps, { ...validCreateInput, worksFor: ['vercel'],
+      connection: { token: 'fixture-token-1234', username: 'saved-user' } });
+    const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: saved.id });
+    const updated = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection });
+    assert.equal(updated.username, 'saved-user');
+    assert.deepEqual(updated.worksFor, ['vercel']);
+    assert.deepEqual((await deps.repo.findById({ workspaceId: WORKSPACE, id: saved.id }))?.sealed, before?.sealed);
+    const cleared = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection, username: null, worksFor: [] });
+    assert.equal('username' in cleared, false);
+    assert.deepEqual(cleared.worksFor, []);
+  });
+}
+
+test('partial update validates metadata before connection and worksFor', async () => {
+  const deps = makeWriteDeps();
+  const saved = await createCustomCredential(deps, validCreateInput);
+  await assert.rejects(updateCustomCredential(deps, { workspaceId: WORKSPACE, id: saved.id,
+    label: '', connection: null, worksFor: null }), { message: 'label must be a non-empty string' });
+  assert.deepEqual(await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), saved);
+});

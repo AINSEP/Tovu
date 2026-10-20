@@ -128,3 +128,22 @@ test('API creation forwards explicit worksFor including an empty human prefill',
     assert.deepEqual(f.calls[0]!.ctx.input, { label: 'Production access', worksFor });
   }
 });
+
+for (const input of [
+  { kind: 'api', target: undefined, baseUrl: 'https://example.com' },
+  { kind: 'media-provider', target: null, reason: 'hint' },
+  { kind: 'source-control', label: 'backup' },
+  { kind: 'agent-plugin-token', target: 42 },
+]) test(`routing preserves raw target validation for ${input.kind}`, async () => {
+  const f = fixture();
+  await f.registrations[0]!.handler({ ...f.context, input });
+  const { kind, target, ...hints } = input;
+  const field = kind === 'api' ? 'label' : kind === 'agent-plugin-token' ? 'pluginId' : 'provider';
+  assert.deepEqual(f.calls[0]!.ctx.input, { ...hints, [field]: target });
+});
+
+for (const prefill of [null, 42, 'fields']) test(`publish routing rejects malformed prefill ${JSON.stringify(prefill)}`, async () => {
+  const f = fixture();
+  await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'publish-host', target: 's3', prefill } }), ToolInputError);
+  assert.deepEqual(f.calls, []);
+});

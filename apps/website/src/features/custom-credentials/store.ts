@@ -342,6 +342,27 @@ function customVault(deps: CustomCredentialResolveDeps & Partial<CustomCredentia
     storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 
+/** Validate metadata in its original order before inspecting a replacement connection. */
+function updatedMetadata({ input, existing }: {
+  input: UpdateCustomCredentialInput; existing: CustomCredentialSetRecord;
+}, _options = {}) {
+  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
+  const category = input.category !== undefined ? validateCategory(input.category) : existing.category;
+  const baseUrl = input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl;
+  const additionalHosts = input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts;
+  return { label, category, baseUrl, additionalHosts };
+}
+
+/** Blank connection patches preserve both the envelope and its saved username. */
+function updatedConnection({ input, existing }: {
+  input: UpdateCustomCredentialInput; existing: CustomCredentialSetRecord;
+}, _options = {}) {
+  const connection = input.connection !== undefined && !isEmptyTokenPatch(input.connection) ? validateConnection(input.connection) : undefined;
+  let username = connection ? connection.username : existing.username;
+  if (input.username !== undefined) username = validateUsernamePatch(input.username);
+  return { connection, username };
+}
+
 /** Partial update: blank/omitted connection preserves the envelope, replacing a connection resets
  * its username, and a supplied top-level username wins (null clears). Username is metadata only;
  * removing the old ciphertext fallback makes clear impossible to resurrect, without opening it.
@@ -350,13 +371,8 @@ function customVault(deps: CustomCredentialResolveDeps & Partial<CustomCredentia
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
   const existing = await deps.repo.findById(input);
   if (!existing) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
-  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
-  const category = input.category !== undefined ? validateCategory(input.category) : existing.category;
-  const baseUrl = input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl;
-  const additionalHosts = input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts;
-  const connection = input.connection !== undefined && !isEmptyTokenPatch(input.connection) ? validateConnection(input.connection) : undefined;
-  let username = connection ? connection.username : existing.username;
-  if (input.username !== undefined) username = validateUsernamePatch(input.username);
+  const { label, category, baseUrl, additionalHosts } = updatedMetadata({ input, existing });
+  const { connection, username } = updatedConnection({ input, existing });
   const expectedRevision = existing.vaultRecord!.revision;
   const kind = existing.vaultRecord!.kind === "custom" ? "custom" : "vendor";
   const prepared = await customVault(deps, { kind }).prepare({ ...customVaultScope({ ...input, kind }), id: input.id,

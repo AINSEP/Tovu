@@ -101,6 +101,42 @@ function selection({ params, source }: { params: Record<string, unknown>; source
   return { ids, overwrite };
 }
 
+function validateCopyInput({ input }: { input: unknown }, _options = {}): void {
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length) {
+    throw new ToolInputError({ message: 'Choose the source and keys in the human card; model input must be {}.' });
+  }
+}
+
+function keyFields({ source }: { source: SourceChoice }, _options = {}): FormSurfaceSpec['fields'] {
+  return [
+    { kind: 'multi-enum', name: 'ids', label: 'Keys', required: true, options: source.keys.map(key => ({
+      value: key.id, label: `${key.label} · ${key.provider ?? key.kind}${key.last4 ? ` · …${key.last4}` : ''}` +
+        ` · Works for: ${(key.worksFor ?? []).join(', ') || 'none'}` +
+        (key.publishHosts === undefined ? '' : key.publishHosts.length
+          ? ` · Publish: ${key.publishHosts.join(', ')}` : ' · No static publish host') })) },
+    { kind: 'boolean', name: 'overwrite', label: 'Overwrite existing', value: false },
+  ];
+}
+
+function copyOutcome({ copied, source, uri }: {
+  copied: VaultCopyResult[]; source: SourceChoice; uri: UIResourceUri;
+}, _options = {}) {
+  // Allowlist projection: neither unexpected payload fields nor exceptions reach model/card.
+  const results = copied.map(({ kind, id, status, last4, reasonCode }) => ({ kind, id, status,
+    ...(last4 ? { last4: last4.slice(-4) } : {}), ...(reasonCode ? { reasonCode } : {}) }));
+  const keysById = new Map(source.keys.map(key => [key.id, key]));
+  const failed = results.some(row => row.status === 'failed');
+  return { result: { results }, outcome: { channel: 'mcp-ui' as const, payload: { resource: buildOutcomeSurface({ uri, preferredFrameSize: ['100%', '1px'], title: 'Copy results',
+    state: failed ? (results.some(row => row.status === 'copied') ? 'partial' : 'failure') : 'success', message: '',
+    details: results.map(row => {
+      const key = keysById.get(row.id);
+      return { label: key?.label ?? row.kind,
+        description: `${row.kind}${key?.provider ? ` · ${key.provider}` : ''}`, format: 'status',
+        value: row.status === 'copied' ? `copied ✓${row.last4 ? ` …${row.last4}` : ''}`
+          : row.reasonCode === 'target-exists' ? 'skipped — already there' : `not copied — ${row.reasonCode ?? 'copy-failed'}` };
+    }) }) } } };
+}
+
 /** Register one human-only selection flow. C2 owns all storage effects and fresh revision checks.
  * @param required - Injected C2/admission ports and the daemon's principal-bound exchanges.
  * @returns One tool registration; results contain only safe summaries or a fixed refusal code.
@@ -113,9 +149,7 @@ export function buildCredentialCopyRegistrations({ deps, surfaces }: {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: 'credential-copy',
     catalogModule: 'features/custom-credentials/credential-copy-tool.ts', catalog: indexCatalogById({ catalog }),
     derivedRisk: credentialCopyDerivedRisk, handlers: { [CREDENTIAL_COPY_TOOL_ID]: async (ctx, options = {}) => {
-      if (!ctx.input || typeof ctx.input !== 'object' || Array.isArray(ctx.input) || Object.keys(ctx.input).length) {
-        throw new ToolInputError({ message: 'Choose the source and keys in the human card; model input must be {}.' });
-      }
+      validateCopyInput({ input: ctx.input });
       if (!options.emitSurface) throw new ToolInputError({ message: 'Copying keys requires an interactive card.' });
       await admit({ deps, principalId: ctx.principal.id });
       if (ctx.signal.aborted) return { results: [], reasonCode: 'abandoned' };
@@ -133,6 +167,28 @@ export function buildCredentialCopyRegistrations({ deps, surfaces }: {
       const refused = (reasonCode: string, message = failureMessages[reasonCode] ?? failureMessages['copy-failed']) => ({
         result: { results: [] as VaultCopyResult[], reasonCode },
         outcome: emission(buildOutcomeSurface({ uri, preferredFrameSize: ['100%', '1px'], title: 'Keys not copied', state: 'failure', message })) });
+      async function copySelectedSource({ source }: { source: SourceChoice }, _options = {}) {
+        await admit({ deps, principalId: ctx.principal.id });
+        if (source.reasonCode) return refused(source.reasonCode, source.reasonCode === 'source-needs-upgrade'
+          ? `Start ${source.name} once in Tovu to upgrade it, then copy.` : failureMessages[source.reasonCode]);
+        await exchange.send({ emission: emission(form({ uri, exchangeId: exchange.id, submitLabel: 'Copy',
+          fields: keyFields({ source }) })) });
+        const answer = await exchange.receive({});
+        const ending = ended({ answer, aborted: ctx.signal.aborted });
+        if (ending) return { result: { results: [], reasonCode: ending } };
+        const selected = selection({ params: (answer as Extract<SurfaceMessage, { status: 'received' }>).params, source });
+        if (!selected) return refused('invalid-selection');
+        await admit({ deps, principalId: ctx.principal.id });
+        if (ctx.signal.aborted) return { result: { results: [], reasonCode: 'abandoned' } };
+        const copied = await deps.localCredentialCopy!.copy({ sourceSiteId: source.siteId, ...selected, actorId: ctx.principal.id });
+        return copyOutcome({ copied, source, uri });
+      }
+      function copyFailure({ error, source }: { error: unknown; source: SourceChoice }, _options = {}) {
+        const code = error && typeof error === 'object' && 'reasonCode' in error ? error.reasonCode : undefined;
+        if (code === 'source-needs-upgrade') return refused(code, `Start ${source.name} once in Tovu to upgrade it, then copy.`);
+        return refused(error instanceof ToolInputError || error instanceof ForbiddenError ? 'copy-refused'
+          : typeof code === 'string' && Object.hasOwn(failureMessages, code) ? code : 'copy-failed');
+      }
       try {
         return await askThenReport<{ results: VaultCopyResult[]; reasonCode?: string }>({ exchange, confirmationEmission: emission(form({ uri, exchangeId: exchange.id,
           fields: [{ kind: 'enum', name: 'sourceSiteId', label: 'Source project', required: true,
@@ -145,44 +201,9 @@ export function buildCredentialCopyRegistrations({ deps, surfaces }: {
           const source = sources.find(choice => choice.siteId === params.sourceSiteId);
           if (!source) return refused('invalid-selection');
           try {
-            await admit({ deps, principalId: ctx.principal.id });
-            if (source.reasonCode) return refused(source.reasonCode, source.reasonCode === 'source-needs-upgrade'
-              ? `Start ${source.name} once in Tovu to upgrade it, then copy.` : failureMessages[source.reasonCode]);
-            await exchange.send({ emission: emission(form({ uri, exchangeId: exchange.id, submitLabel: 'Copy', fields: [
-              { kind: 'multi-enum', name: 'ids', label: 'Keys', required: true, options: source.keys.map(key => ({
-                value: key.id, label: `${key.label} · ${key.provider ?? key.kind}${key.last4 ? ` · …${key.last4}` : ''}` +
-                  ` · Works for: ${(key.worksFor ?? []).join(', ') || 'none'}` +
-                  (key.publishHosts === undefined ? '' : key.publishHosts.length
-                    ? ` · Publish: ${key.publishHosts.join(', ')}` : ' · No static publish host') })) },
-              { kind: 'boolean', name: 'overwrite', label: 'Overwrite existing', value: false },
-            ] })) });
-            const answer = await exchange.receive({});
-            const ending = ended({ answer, aborted: ctx.signal.aborted });
-            if (ending) return { result: { results: [], reasonCode: ending } };
-            const selected = selection({ params: (answer as Extract<SurfaceMessage, { status: 'received' }>).params, source });
-            if (!selected) return refused('invalid-selection');
-            await admit({ deps, principalId: ctx.principal.id });
-            if (ctx.signal.aborted) return { result: { results: [], reasonCode: 'abandoned' } };
-            const copied = await deps.localCredentialCopy!.copy({ sourceSiteId: source.siteId, ...selected, actorId: ctx.principal.id });
-            // Allowlist projection: neither unexpected payload fields nor exceptions reach model/card.
-            const results = copied.map(({ kind, id, status, last4, reasonCode }) => ({ kind, id, status,
-              ...(last4 ? { last4: last4.slice(-4) } : {}), ...(reasonCode ? { reasonCode } : {}) }));
-            const keysById = new Map(source.keys.map(key => [key.id, key]));
-            const failed = results.some(row => row.status === 'failed');
-            return { result: { results }, outcome: emission(buildOutcomeSurface({ uri, preferredFrameSize: ['100%', '1px'], title: 'Copy results',
-              state: failed ? (results.some(row => row.status === 'copied') ? 'partial' : 'failure') : 'success', message: '',
-              details: results.map(row => {
-                const key = keysById.get(row.id);
-                return { label: key?.label ?? row.kind,
-                  description: `${row.kind}${key?.provider ? ` · ${key.provider}` : ''}`, format: 'status',
-                  value: row.status === 'copied' ? `copied ✓${row.last4 ? ` …${row.last4}` : ''}`
-                    : row.reasonCode === 'target-exists' ? 'skipped — already there' : `not copied — ${row.reasonCode ?? 'copy-failed'}` };
-              }) })) };
+            return await copySelectedSource({ source });
           } catch (error) {
-            const code = error && typeof error === 'object' && 'reasonCode' in error ? error.reasonCode : undefined;
-            if (code === 'source-needs-upgrade') return refused(code, `Start ${source.name} once in Tovu to upgrade it, then copy.`);
-            return refused(error instanceof ToolInputError || error instanceof ForbiddenError ? 'copy-refused'
-              : typeof code === 'string' && Object.hasOwn(failureMessages, code) ? code : 'copy-failed');
+            return copyFailure({ error, source });
           }
         } });
       } finally { ctx.signal.removeEventListener('abort', abort); exchange.close({}); }

@@ -60,28 +60,26 @@ function selectSave({ input, adapters }: { input: Record<string, unknown>; adapt
   if (!KINDS.includes(kind as CredentialKind)) throw new ToolInputError({ message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host or agent-plugin-token.' });
   const selectedKind = kind as CredentialKind;
   const { kind: _kind, ...metadata } = input;
-  const fields: Record<CredentialKind, readonly string[]> = {
-    api: ['target', 'label', 'baseUrl', 'category', 'worksFor'],
-    'media-provider': ['target', 'reason'],
-    'source-control': ['target', 'label'],
-    'publish-host': ['target', 'prefill'],
-    'agent-plugin-token': ['target'],
-  };
+  const fields = selectedKind === 'api'
+    ? ['target', 'label', 'baseUrl', 'category', 'worksFor']
+    : ['target', 'prefill'];
   const validateHere = selectedKind === 'publish-host' || (selectedKind === 'api' && !('target' in metadata));
-  if (validateHere && Object.keys(metadata).some(key => !fields[selectedKind].includes(key))) {
+  if (validateHere && Object.keys(metadata).some(key => !fields.includes(key))) {
     // Creation previously ignored unknown hints. Refuse them here; other owners already validate
     // their entire input and retain their exact per-kind errors. Never silently drop an extra key.
     throw new ToolInputError({ message: 'credential_save accepts only non-secret metadata for the selected kind; enter secrets in the human form.' });
   }
+  return routeSave({ selectedKind, metadata, adapters });
+}
+
+function routeSave({ selectedKind, metadata, adapters }: {
+  selectedKind: CredentialKind; metadata: Record<string, unknown>; adapters: CredentialSaveAdapters;
+}, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
   const { target: _target, ...hints } = metadata;
   // Forward the raw target under the owner's field name. Its validation retains the exact
   // per-kind error and ordering; a generic target validator would change both.
   switch (selectedKind) {
-    case 'api': {
-      if (!('target' in metadata)) return { handler: adapters.apiCreate, input: metadata };
-      if ('label' in hints) throw new ToolInputError({ message: 'API token rotation accepts target rather than a creation label.' });
-      return { handler: adapters.apiRotate, input: { ...hints, label: metadata.target } };
-    }
+    case 'api': return selectApiSave({ metadata, hints, adapters });
     case 'media-provider':
     case 'source-control': {
       if ('provider' in hints) throw new ToolInputError({ message: 'Use target for the credential provider.' });
@@ -91,16 +89,24 @@ function selectSave({ input, adapters }: { input: Record<string, unknown>; adapt
       if ('pluginId' in hints) throw new ToolInputError({ message: 'Use target for the installed plugin id.' });
       return { handler: adapters.agentPluginToken, input: { ...hints, pluginId: metadata.target } };
     }
-    case 'publish-host': {
-      // requireInputRecord intentionally accepts arrays; publish prefill requires named fields.
-      if (Array.isArray(metadata.prefill)) throw new ToolInputError({ message: 'Credential prefill must be an object.' });
-      const prefill = metadata.prefill === undefined ? {} : requireInputRecord({ input: metadata.prefill });
-      // Keep the resolved target binding authoritative; provider validation owns all other field names.
-      if ('target' in prefill) throw new ToolInputError({ message: 'Credential prefill cannot replace target.' });
-      return { handler: adapters.publishHost, input: { ...prefill, target: metadata.target } };
-    }
+    case 'publish-host': return selectPublishSave({ metadata, adapters });
     default: throw new ToolInputError({ message: 'Unknown credential kind.' });
   }
+}
+
+function selectApiSave({ metadata, hints, adapters }: { metadata: Record<string, unknown>; hints: Record<string, unknown>; adapters: CredentialSaveAdapters; }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
+  if (!('target' in metadata)) return { handler: adapters.apiCreate, input: metadata };
+  if ('label' in hints) throw new ToolInputError({ message: 'API token rotation accepts target rather than a creation label.' });
+  return { handler: adapters.apiRotate, input: { ...hints, label: metadata.target } };
+}
+
+function selectPublishSave({ metadata, adapters }: { metadata: Record<string, unknown>; adapters: CredentialSaveAdapters; }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
+  // requireInputRecord intentionally accepts arrays; publish prefill requires named fields.
+  if (Array.isArray(metadata.prefill)) throw new ToolInputError({ message: 'Credential prefill must be an object.' });
+  const prefill = metadata.prefill === undefined ? {} : requireInputRecord({ input: metadata.prefill });
+  // Keep the resolved target binding authoritative; provider validation owns all other field names.
+  if ('target' in prefill) throw new ToolInputError({ message: 'Credential prefill cannot replace target.' });
+  return { handler: adapters.publishHost, input: { ...prefill, target: metadata.target } };
 }
 
 /** Register the sole credential save tool through the existing registry, forwarding options intact.

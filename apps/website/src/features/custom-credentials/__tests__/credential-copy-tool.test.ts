@@ -328,3 +328,26 @@ test('C3: mixed outcomes preserve safe summaries, truncate tails, and display mi
   assert.doesNotMatch(JSON.stringify(f.emitted), /private-prefix/);
   assert.equal(f.surfaceExchanges.size(), 0);
 });
+
+for (const results of [[], [{ kind: 'vendor' as const, id: 'one', status: 'failed' as const, reasonCode: 'source-missing' }]]) {
+  test(`copy outcome renders ${results.length ? 'failure without a copied row' : 'empty success'}`, async () => {
+    const f = fixture();
+    f.deps.localCredentialCopy!.copy = async () => results;
+    const pending = f.run(); await keys(f); f.answer({ ids: ['one'], overwrite: false });
+    assert.deepEqual(await pending, { results });
+    assert.match(f.resource().text, new RegExp(`data-state="${results.length ? 'failure' : 'success'}"`));
+    assert.equal(f.surfaceExchanges.size(), 0);
+  });
+}
+
+test('key picker preserves custom kind and empty publish-host labels', async () => {
+  const f = fixture();
+  f.deps.localCredentialCopy!.list = async () => [{ siteId: 'source', name: 'Source', keys: [
+    { kind: 'custom', id: 'one', label: 'Custom', provider: null, worksFor: [], publishHosts: [] },
+  ] }];
+  const pending = f.run(); await keys(f);
+  assert.match(f.resource().text, /Custom · custom · Works for: none · No static publish host/);
+  f.answer({ [SURFACE_DISMISSED_PARAM]: true });
+  assert.deepEqual(await pending, { results: [], reasonCode: 'cancelled' });
+  assert.deepEqual(f.calls, []);
+});
