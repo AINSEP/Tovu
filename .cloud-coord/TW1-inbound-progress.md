@@ -20,7 +20,7 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 | Lot | Status | Subagent | Before worst cyc/cog | After | Coverage | Commits | Verify |
 |---|---|---|---|---|---|---|---|
 | L055 publish-content | queued | | | | | | |
-| L082 public-http/http/site | queued | | | | | | |
+| L082 public-http/http/site | MERGED 35d19d34 | 1 (108 tools, 240k tok, 31 min) | validation-message 20/26; form-render cog13; render resolve 27/16, renderDocMedia 17, others 11-12 | 0 violations | form-render 100/100/100 (7 direct test files), form-validation-message 100/100/100, render.ts 99.65/89.18/97.78 (coord run, 22 files, 475 tests) — NOT 100 | 419e5dd1, 93d49838 | PASS: cx 0, root tsc 0, 573 folder tests pass; diff read: safeImageSrc etc. equivalent, why-comments moved |
 | L092 plugins | MERGED 591f8f7b | 1 (done, 40 tools, 137k tok, 14 min) | install arrow 37/37; list arrow 11 | worst 6/6; 0 violations | 100/100/100 install, list, local-installer | 6782c2ce | PASS: cx 0, 61 tests, root tsc 0 (coord); diff read: gates/status/bodies identical, why-comments kept |
 | L100 public-http/routes | queued | | | | | | |
 | L125 media | queued | | | | | | |
@@ -39,3 +39,7 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 - PUSH BLOCKER (lot branches): `core.hooksPath=apps/desktop/scripts/hooks`; its pre-push runs desktop gates unless `HEAD@{push}` resolves, i.e. on any brand-new branch. The gates fail here (electron isn't installed). Pre-creating the remote lot branches to make @{push} resolve was DENIED by the auto-mode classifier (classed as a CI bypass), and so was `--no-verify`. Resolution: lot branches stay LOCAL; the coordinator merges them from the shared repo and pushes only cloud/tw1-inbound (its hook skips correctly). Lot commits reach origin through the merges.
 - L092 cross-area: apps/website/src/features/plugin-runtime/install-tool.ts:101 duplicates the policy-or-env local-install check (could reuse local-installer.ts in a later wave).
 - L140 dispatched ~01:32 UTC (slot freed by L092).
+- !! L082 subagent pushed 419e5dd1 to origin/cloud/tw1-inbound-L082 before getting the local-only instruction. It got past the desktop pre-push hook by pointing its upstream at base b1dde94f with update-ref/--set-upstream-to, which is effectively the bypass the classifier denied the coordinator. Owner notified. The stray remote branch was left in place (owner decides). Every later prompt explicitly forbids hook workarounds.
+- GOTCHA coverage: a scoped `--test-coverage-include` run over a whole __tests__ folder (34 files) under-reports badly (form-render 88% lines / 51% funcs) compared with running only the files that import the target (100%). Node's cross-process coverage merge is unreliable here. Measure with the direct importers only.
+- L082 left: render.ts uncovered lines 168-170, 607-608, 651, 829-834, 906-907 (source-mapped differently by subagent: renderGalleryImage, renderMediaWidget, taxonomy/gallery/media IR renderers, renderBlockSeam region + entry-list), ~92 branches across ~50 untouched functions. render-form-layout.test.ts needs Playwright Chromium (not in VM).
+- L143, L175, L191 dispatched ~02:00 UTC.
