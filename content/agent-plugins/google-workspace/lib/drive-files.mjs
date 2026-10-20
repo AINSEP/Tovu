@@ -10,6 +10,7 @@
 import { GoogleWorkspaceError } from './request-policy.mjs';
 
 export const DRIVE_ABOUT_URL = 'https://www.googleapis.com/drive/v3/about';
+export const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 
 /**
  * The signed-in account: `{ accountId, displayName }`.
