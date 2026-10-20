@@ -11,11 +11,11 @@ import {
 } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
-import { PluginInstallError, type PluginInstallInput, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
+import { PluginInstallError, type PluginInstallerPort, type PluginInstallInput, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
 import { sitePluginLocalInstallEnabled } from "./install.js";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "./install-archive.js";
 import { pluginInstallRiskSentence } from "./install-consent.js";
-import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "./install-source.js";
+import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader, type PluginInstallRequest } from "./install-source.js";
 import type { PluginsToolDeps } from "./tool-registrations.js";
 
 /**
@@ -41,8 +41,8 @@ import type { PluginsToolDeps } from "./tool-registrations.js";
  */
 
 export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller" | "pluginSourcePolicy"> & {
-  /** Defaults to `process.env`; read per call so the switch matches the admin route's. */
   readonly readInstallAttachment?: InstallAttachmentReader;
+  /** Defaults to `process.env`; read per call so the switch matches the admin route's. */
   readonly env?: Readonly<Record<string, string | undefined>>;
 };
 
@@ -83,6 +83,40 @@ function refusedResult(error: PluginInstallError, pluginId: string): unknown {
   return { installed: false, pluginId, reason: error.code, note: `Nothing was installed: ${error.message}${retry}` };
 }
 
+/** The injected deployment policy decides; without one, the site environment does (read per call). */
+function localInstallEnabled(required: { deps: PluginsInstallToolDeps }): boolean {
+  const { deps } = required;
+  return deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env });
+}
+
+/** A folder source passes its path; a ZIP source (local file or chat attachment) passes its bounded bytes. */
+async function installInputFor(
+  required: { request: PluginInstallRequest; ownerId: string; runId: string },
+  optional: { readAttachment?: InstallAttachmentReader } = {},
+): Promise<PluginInstallInput> {
+  const { request, ownerId, runId } = required;
+  if (request.kind === "folder") return { sourceDir: request.path!, replace: request.replace };
+  const archive = await readPluginInstallArchive({ request, ownerId, runId, maxBytes: MAX_PLUGIN_ARCHIVE_BYTES }, optional);
+  return { archive, replace: request.replace };
+}
+
+/** Inspects the package before anything is written; an installer refusal is the caller's input problem. */
+async function previewOrRefuse(required: { installer: PluginInstallerPort; input: PluginInstallInput }): Promise<PluginInstallPreview> {
+  try { return await required.installer.preview(required.input); }
+  catch (error) { if (error instanceof PluginInstallError) throw new ToolInputError({ message: `${error.code}: ${error.message}` }); throw error; }
+}
+
+/** What the model relays after a successful install; the plugin always lands OFF. */
+function installedResult(required: { plugin: PluginInstallPreview }): unknown {
+  const { plugin } = required;
+  return {
+    installed: true, enabled: false,
+    plugin: { id: plugin.id, name: plugin.name, version: plugin.version, tier: plugin.tier, ...(plugin.upgradeFrom ? { upgradeFrom: plugin.upgradeFrom } : {}) },
+    warning: pluginInstallRiskSentence({ preview: plugin }),
+    note: `Installed ${plugin.name} ${plugin.version}. It is OFF in every workspace; turn it on with plugins_set_enabled (family 'site-runtime') if the user wants it on.`,
+  };
+}
+
 /**
  * Order is load-bearing: authorize -> parse -> opt-in gate -> preview -> install with the previewed
  * digest. Preview runs first so an invalid package is refused before anything is written.
@@ -98,24 +132,14 @@ export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Reco
       [PLUGINS_INSTALL_TOOL_ID]: async (ctx) => {
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
         const request = readPluginInstallRequest({ input: ctx.input });
-        const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env });
-        if (!enabled || !deps.pluginInstaller) {
+        const installer = deps.pluginInstaller;
+        if (!localInstallEnabled({ deps }) || !installer) {
           return { installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED", note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first." };
         }
-        const input: PluginInstallInput = request.kind === "folder"
-          ? { sourceDir: request.path!, replace: request.replace }
-          : { archive: await readPluginInstallArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: MAX_PLUGIN_ARCHIVE_BYTES }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) }), replace: request.replace };
-        let preview: PluginInstallPreview;
-        try { preview = await deps.pluginInstaller.preview(input); }
-        catch (error) { if (error instanceof PluginInstallError) throw new ToolInputError({ message: `${error.code}: ${error.message}` }); throw error; }
+        const input = await installInputFor({ request, ownerId: ctx.principal.id, runId: ctx.run.id }, { readAttachment: deps.readInstallAttachment });
+        const preview = await previewOrRefuse({ installer, input });
         try {
-          const plugin = await deps.pluginInstaller.install({ ...input, expectedDigest: preview.digest });
-          return {
-            installed: true, enabled: false,
-            plugin: { id: plugin.id, name: plugin.name, version: plugin.version, tier: plugin.tier, ...(plugin.upgradeFrom ? { upgradeFrom: plugin.upgradeFrom } : {}) },
-            warning: pluginInstallRiskSentence({ preview: plugin }),
-            note: `Installed ${plugin.name} ${plugin.version}. It is OFF in every workspace; turn it on with plugins_set_enabled (family 'site-runtime') if the user wants it on.`,
-          };
+          return installedResult({ plugin: await installer.install({ ...input, expectedDigest: preview.digest }) });
         } catch (error) {
           if (error instanceof PluginInstallError) return refusedResult(error, preview.id);
           throw error;

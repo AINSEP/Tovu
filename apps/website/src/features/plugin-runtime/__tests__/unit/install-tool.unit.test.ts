@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { ToolInputError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, ToolPermissionDeniedError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
 
 import { PluginInstallError, type PluginInstallInput, type PluginInstallerPort, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
-import { buildRegistrations, catalog, type PluginsInstallToolDeps } from "../../install-tool.js";
+import { buildRegistrations, catalog, contributePluginsInstallTools, derivedRisk, type PluginsInstallToolDeps } from "../../install-tool.js";
 
 const PRINCIPAL = "principal-1";
 const PREVIEW: PluginInstallPreview = {
@@ -95,10 +95,46 @@ test("hosted TOVU_PLUGIN_LOCAL_INSTALL opt-in gates it exactly like the admin ro
   assert.deepEqual(result, { installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED", note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first." });
 });
 
+const FORBIDDEN = (error: unknown) => error instanceof ToolPermissionDeniedError && error.message === "principal 'principal-1' is not authorized for 'admin.plugins.enable' (insufficient_permission)";
+const deny: PluginsInstallToolDeps["authorize"] = async () => ({ allowed: false, reason: "insufficient_permission" });
+
 test("a missing permission refuses before any package is inspected", async () => {
   const installer = fakeInstaller();
-  await assert.rejects(() => tool(deps({ pluginInstaller: installer.port, authorize: async () => ({ allowed: false, reason: "insufficient_permission" }) })).handler(ctx(FOLDER), {}));
+  await assert.rejects(() => tool(deps({ pluginInstaller: installer.port, authorize: deny })).handler(ctx(FOLDER), {}), FORBIDDEN);
   assert.equal(installer.previews.length, 0);
+});
+
+test("the permission check asks for admin.plugins.enable on a plugin entity in this workspace for the caller", async () => {
+  const asked: unknown[] = [];
+  const authorize: PluginsInstallToolDeps["authorize"] = async (request) => { asked.push(request); return { allowed: true, reason: "matched" }; };
+  await run(deps({ pluginInstaller: fakeInstaller().port, authorize }), FOLDER);
+  assert.deepEqual(asked, [{ principalId: PRINCIPAL, permission: "admin.plugins.enable", workspaceId: "ws-1", entityType: "plugin" }]);
+});
+
+test("a missing permission refuses before the input is parsed", async () => {
+  await assert.rejects(() => tool(deps({ pluginInstaller: fakeInstaller().port, authorize: deny })).handler(ctx({ source: "not an object" }), {}), FORBIDDEN);
+});
+
+test("an enabled site with no installer bound reports installs as off", async () => {
+  const result = await run(deps(), FOLDER);
+  assert.deepEqual(result, { installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED", note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first." });
+});
+
+test("with no env injected the gate reads process.env at call time", async (t) => {
+  const before = process.env.FLY_APP_NAME;
+  t.after(() => { if (before === undefined) delete process.env.FLY_APP_NAME; else process.env.FLY_APP_NAME = before; });
+  const installer = fakeInstaller();
+  const registration = tool({ workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }), pluginInstaller: installer.port });
+  process.env.FLY_APP_NAME = "hosted-site";
+  const result = await registration.handler(ctx(FOLDER), {}) as { reason: string };
+  assert.equal(result.reason, "PLUGIN_LOCAL_INSTALL_DISABLED");
+  assert.equal(installer.previews.length, 0);
+});
+
+test("an injected policy that allows installs wins over a hosted environment", async () => {
+  const installer = fakeInstaller();
+  const result = await run(deps({ pluginInstaller: installer.port, env: { FLY_APP_NAME: "hosted-site" }, pluginSourcePolicy: { localInstallEnabled: () => true, confirmEnable: () => true } }), FOLDER) as { installed: boolean };
+  assert.equal(result.installed, true);
 });
 
 test("a relative path is refused as caller input", async () => {
@@ -113,6 +149,30 @@ test("an invalid package is refused at preview, before anything is written", asy
   await assert.rejects(() => run(deps({ pluginInstaller: installer.port }), FOLDER),
     (error: unknown) => error instanceof ToolInputError && error.message === "PLUGIN_MANIFEST_INVALID: tovu.plugin.json is missing.");
   assert.equal(installer.installs.length, 0);
+});
+
+test("a preview failure that is not an installer refusal propagates unchanged", async () => {
+  const boom = new Error("disk unplugged");
+  const port: PluginInstallerPort = { preview: async () => { throw boom; }, install: async () => PREVIEW };
+  await assert.rejects(() => run(deps({ pluginInstaller: port }), FOLDER), (error: unknown) => error === boom);
+});
+
+test("an install failure that is not an installer refusal propagates unchanged", async () => {
+  const boom = new Error("disk full");
+  const port: PluginInstallerPort = { preview: async () => PREVIEW, install: async () => { throw boom; } };
+  await assert.rejects(() => run(deps({ pluginInstaller: port }), FOLDER), (error: unknown) => error === boom);
+});
+
+test("an installer refusal other than a changed package has no retry advice", async () => {
+  const installer = fakeInstaller({ installError: new PluginInstallError("PLUGIN_BUSY", "Another install is running.") });
+  const result = await run(deps({ pluginInstaller: installer.port }), FOLDER);
+  assert.deepEqual(result, { installed: false, pluginId: "faq-blocks", reason: "PLUGIN_BUSY", note: "Nothing was installed: Another install is running." });
+});
+
+test("an upgrade names the version it replaced", async () => {
+  const port: PluginInstallerPort = { preview: async () => PREVIEW, install: async () => ({ ...PREVIEW, upgradeFrom: "1.1.0" }) };
+  const result = await run(deps({ pluginInstaller: port }), { ...FOLDER, replace: true }) as { plugin: unknown };
+  assert.deepEqual(result.plugin, { id: "faq-blocks", name: "FAQ Blocks", version: "1.2.0", tier: "tier-3", upgradeFrom: "1.1.0" });
 });
 
 test("an installer refusal after the preview (package changed in between, busy lock) is a relayable result", async () => {
@@ -166,23 +226,29 @@ test("attachment ZIP uses the owner-scoped read port and preview digest", async 
   assert.equal(installer.installs[0]!.expectedDigest, PREVIEW.digest);
 });
 
-test("attachment input refuses both/neither source, folder refs, malformed refs and inaccessible bytes before preview", async () => {
-  const installer = fakeInstaller();
-  const d = deps({ pluginInstaller: installer.port, readInstallAttachment: async () => ({ ok: false, refusal: "not-owner" }) });
-  for (const source of [
-    { kind: "zip" }, { kind: "zip", path: "/tmp/a.zip", attachmentRef: "attachment:zip12345" },
-    { kind: "folder", attachmentRef: "attachment:zip12345" }, { kind: "zip", attachmentRef: "../../etc/passwd" },
-    { kind: "zip", attachmentRef: "attachment:zip12345" },
-  ]) await assert.rejects(() => run(d, { source }), ToolInputError);
-  assert.equal(installer.previews.length, 0);
-});
+const EXACTLY_ONE = "Exactly one of source.path/source.attachmentRef is required.";
+const BAD_REF = "source.attachmentRef must be an attachment:<uuid> ZIP reference.";
+for (const [label, source, message] of [
+  ["neither path nor attachmentRef", { kind: "zip" }, EXACTLY_ONE],
+  ["both path and attachmentRef", { kind: "zip", path: "/tmp/a.zip", attachmentRef: "attachment:zip12345" }, EXACTLY_ONE],
+  ["a folder attachmentRef", { kind: "folder", attachmentRef: "attachment:zip12345" }, BAD_REF],
+  ["a malformed attachmentRef", { kind: "zip", attachmentRef: "../../etc/passwd" }, BAD_REF],
+  ["an inaccessible attachment", { kind: "zip", attachmentRef: "attachment:zip12345" }, "Chat ZIP attachment is unavailable or exceeds the 32 MiB upload limit. Use an attachmentRef listed by chat_list_pending_attachments."],
+] as const) {
+  test(`attachment input refuses ${label} before preview`, async () => {
+    const installer = fakeInstaller();
+    const d = deps({ pluginInstaller: installer.port, readInstallAttachment: async () => ({ ok: false, refusal: "not-owner" }) });
+    await assert.rejects(() => run(d, { source }), (error: unknown) => error instanceof ToolInputError && error.message === message);
+    assert.equal(installer.previews.length, 0);
+  });
+}
 
 test("attachment reading follows permission and site opt-in gates", async () => {
   let reads = 0;
   const readInstallAttachment: NonNullable<PluginsInstallToolDeps["readInstallAttachment"]> = async () => { reads++; return { ok: true, bytes: Buffer.alloc(1) }; };
   const input = { source: { kind: "zip", attachmentRef: "attachment:zip12345" } };
   await run(deps({ env: { NODE_ENV: 'production' }, readInstallAttachment }), input);
-  await assert.rejects(() => run(deps({ authorize: async () => ({ allowed: false, reason: "insufficient_permission" }), readInstallAttachment }), input));
+  await assert.rejects(() => run(deps({ authorize: deny, readInstallAttachment }), input), FORBIDDEN);
   assert.equal(reads, 0);
 });
 
@@ -190,4 +256,10 @@ test("empty content types do not produce an empty warning clause", async () => {
   const port: PluginInstallerPort = { preview: async () => ({ ...PREVIEW, hasCode: false }), install: async () => ({ ...PREVIEW, hasCode: false }) };
   const result = await run(deps({ pluginInstaller: port }), FOLDER) as { warning: string };
   assert.equal(result.warning, "This plugin contains no code.");
+});
+
+test("the contributor registers plugins_install in its own domain with its risk map", () => {
+  const contributor = contributePluginsInstallTools();
+  assert.equal(contributor.domain, "plugins-install");
+  assert.equal(contributor.risk, derivedRisk);
 });
