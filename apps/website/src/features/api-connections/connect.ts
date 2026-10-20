@@ -16,7 +16,8 @@ import type { ApiConnectionHost } from "./host.js";
  * and it reads `connected`. Desktop: an ephemeral 127.0.0.1 loopback listener (Jini's installed-app
  * receiver) catches the redirect and this call completes it itself. The card's link opens in the
  * system browser through the desktop shell's existing external-link policy, so nothing here launches
- * a browser. Results carry a status only, never a token, code or URL.
+ * a browser. Results carry a status only, never a token, code or URL. At most one desktop listener
+ * per connection is pending: a newer sign-in closes the previous one.
  */
 
 export interface ApiConnectionConnectDeps {
@@ -114,11 +115,30 @@ interface SignInOptions {
 
 const startOptionsOf = (optional: SignInOptions) => (optional.startParams === undefined ? {} : { startParams: optional.startParams });
 
+/** Per host (one per workspace), the listener of each connection's pending desktop sign-in. */
+const pendingDesktopSignIns = new WeakMap<ApiConnectionHost, Map<string, AbortController>>();
+
+/**
+ * One pending desktop sign-in per connection (cancel-previous): a new one closes the previous
+ * listener, so repeated clicks never stack 127.0.0.1 listeners that each wait out their timeout.
+ * The previous attempt could not complete anyway once a newer one started.
+ * @returns Frees the slot, only while it still holds this listener. @complexity O(1).
+ */
+function claimLoopbackSlot(host: ApiConnectionHost, connection: DeclaredApiConnection, listening: AbortController): () => void {
+  const slots = pendingDesktopSignIns.get(host) ?? new Map<string, AbortController>();
+  pendingDesktopSignIns.set(host, slots);
+  const key = deriveApiConnectionKey({ workspaceId: host.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId });
+  slots.get(key)?.abort();
+  slots.set(key, listening);
+  return () => { if (slots.get(key) === listening) slots.delete(key); };
+}
+
 async function startDesktopSignIn(required: SignInRequest, optional: SignInOptions): Promise<ApiConnectionSignInStart> {
   const { host, connection, actorId, intent, scopeSetIds } = required;
   const listening = new AbortController();
   const stop = (): void => listening.abort();
-  const release = (): void => optional.signal?.removeEventListener("abort", stop);
+  const free = claimLoopbackSlot(host, connection, listening);
+  const release = (): void => { free(); optional.signal?.removeEventListener("abort", stop); };
   optional.signal?.addEventListener("abort", stop, { once: true });
   try {
     const receiver = await (optional.startLoopback ?? startLoopbackAuthorizationReceiver)({}, {

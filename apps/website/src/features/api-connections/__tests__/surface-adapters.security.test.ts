@@ -4,7 +4,10 @@
  * declared start parameters only, callback fields once and only for the owner plugin, revocation
  * outcomes verbatim, the per-request registry of host-issued sign-in links, plugin state isolation
  * and caps, read-only state for tools, public config that never yields a secret, and the
- * form-delivery API-origin allowlist. The fake provider ("acme-office", a fixture) is a local
+ * form-delivery API-origin allowlist. Phase-B pins: the plugin's attempt id is the service's own
+ * random id (never the OAuth state), every ref operation names the port's workspace, one pending
+ * desktop listener per connection (cancel-previous), and no staged-switch label after its expiry.
+ * The fake provider ("acme-office", a fixture) is a local
  * server; every other host throws.
  */
 import assert from "node:assert/strict";
@@ -21,7 +24,7 @@ import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 import type { AgentPluginStateReader } from "@jini-ai/agent-plugins/lifecycle/tools";
-import type { OAuthHttpPorts } from "@jini-ai/oauth";
+import { startLoopbackAuthorizationReceiver, type OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createIssuedSignInCollector } from "../../agent-plugins/admin-surfaces/issued-sign-ins.js";
@@ -31,7 +34,8 @@ import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
 import { PLUGIN_STATE_MAX_KEYS, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
-import { createSurfaceConnections } from "../surface-connections.js";
+import { createSurfaceConnections, type IssuedSignIn } from "../surface-connections.js";
+import { runApiConnectionConnect } from "../connect.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
@@ -39,7 +43,9 @@ const PLUGIN = "acme-office";
 const WORKSPACE = "ws-1";
 const accessToken = "acme-access-" + "q".repeat(24);
 const issued = new Map<string, string>();
-const provider = { revokeStatus: 200 };
+const ADA = { id: "acct-1", name: "Ada" };
+/** The fake provider's mutable answers; a test that changes one restores it in `finally`. */
+const provider = { revokeStatus: 200, account: ADA };
 let providerServer: Server;
 let siteServer: Server;
 let providerOrigin = "";
@@ -64,7 +70,7 @@ before(async () => {
     req.on("data", (chunk) => { body += chunk; });
     req.on("end", () => {
       res.setHeader("content-type", "application/json");
-      if (req.url === "/me") return void res.end(JSON.stringify({ id: "acct-1", name: "Ada" }));
+      if (req.url === "/me") return void res.end(JSON.stringify(provider.account));
       if (req.url === "/revoke") { res.statusCode = provider.revokeStatus; return void res.end("{}"); }
       const form = new URLSearchParams(body);
       const challenge = issued.get(form.get("code") ?? "");
@@ -83,12 +89,12 @@ after(async () => {
   await new Promise((resolve) => siteServer.close(resolve));
 });
 
-function makeHost(runtime: "hosted" | "desktop" = "hosted") {
+function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () => number } = { nowMs: () => Date.now() }) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "surface-adapters-security" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: fixtureRoot }, definition: input.definition });
   const host = createApiConnectionHost({
     workspaceId: WORKSPACE, loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
-    clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime,
+    clock, oauthHttp, pluginHttp, runtime,
     env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" },
     publicOrigin: () => siteOrigin,
   });
@@ -249,4 +255,102 @@ test("form delivery: the credential allows only the connection's declared https 
   const declaration = (apiOrigins: unknown) => JSON.stringify({ schemaVersion: 1, connections: [{ id: "account", module: "lib/connection.mjs", clients: {}, apiOrigins }] });
   assert.deepEqual(parseApiConnectionsFile({ raw: declaration(["http://api.acme.test"]) }), { ok: false, reason: "connections[0].apiOrigins must be at most 8 https:// origins" });
   assert.deepEqual(parseApiConnectionsFile({ raw: declaration(["https://api.acme.test/path"]) }), { ok: false, reason: "connections[0].apiOrigins must be at most 8 https:// origins" });
+});
+
+/** Signs in as `account` at the fake provider for one action (the provider answers Ada otherwise). */
+async function consentAs(account: { id: string; name: string }, authorizationUrl: string, extra: Readonly<Record<string, string>> = {}): Promise<number> {
+  provider.account = account;
+  try { return await consent(authorizationUrl, extra); } finally { provider.account = ADA; }
+}
+
+for (const runtime of ["hosted", "desktop"] as const) {
+  test(`attempt id (${runtime}): the plugin gets the service's random attempt id, never the OAuth state or a digest of it`, async () => {
+    const host = makeHost(runtime);
+    const reported: IssuedSignIn[] = [];
+    const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1", onSignInIssued: (signIn) => reported.push(signIn) });
+    const begun = await port.begin({ connectionId: "account", action: "connect" }, { startParams: { pick_mode: "one" } });
+    const state = new URL(begun.authorizationUrl).searchParams.get("state")!;
+    assert.deepEqual(Object.keys(begun).sort(), ["attemptId", "authorizationUrl", "expiresAt"]);
+    assert.notEqual(begun.attemptId, state);
+    assert.notEqual(begun.attemptId, createHash("sha256").update(state).digest("base64url"), "not the earlier state digest either");
+    const { authorizationUrl: _url, ...reportedRest } = reported[0]!;
+    assert.ok(!JSON.stringify(reportedRest).includes(state), "only the authorization URL itself carries the state");
+    assert.equal(await consent(begun.authorizationUrl, { picked_ids: "T2" }), 200);
+    let fields: Readonly<Record<string, string>> | null = null;
+    for (let tries = 0; fields === null && tries < 100; tries += 1) {
+      fields = await port.takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId });
+      if (fields === null) await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.deepEqual(fields, { picked_ids: "T2" }, "the fields wait under the attempt id the plugin was given, without state or code");
+  });
+}
+
+test("workspace: every connection-ref operation names the port's workspace (connect, confirm, cancel, disconnect)", async () => {
+  const base = makeHost();
+  const seen: [string, string][] = [];
+  const recording: typeof base = {
+    ...base,
+    serviceFor: (input) => {
+      const service = base.serviceFor(input);
+      return {
+        ...service,
+        getStatus: (args) => { seen.push(["getStatus", args.workspaceId]); return service.getStatus(args); },
+        confirmSwitchAccount: (args) => { seen.push(["confirmSwitchAccount", args.workspaceId]); return service.confirmSwitchAccount(args); },
+        cancelSwitchAccount: (args) => { seen.push(["cancelSwitchAccount", args.workspaceId]); return service.cancelSwitchAccount(args); },
+        disconnect: (args) => { seen.push(["disconnect", args.workspaceId]); return service.disconnect(args); },
+      };
+    },
+  };
+  const [connection] = await base.listConnections({ pluginId: PLUGIN });
+  const connected = await runApiConnectionConnect({
+    deps: { host: recording }, connection: connection!, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async ({ signInUrl }) => { assert.equal(await consent(signInUrl), 200); },
+  });
+  assert.deepEqual(connected, { status: "connected" });
+  const port = createSurfaceConnections({ host: recording, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
+  assert.equal(await consentAs({ id: "acct-2", name: "Bob" }, (await port.begin({ connectionId: "account", action: "switch" })).authorizationUrl), 200);
+  assert.equal((await port.confirmSwitch({ connectionId: "account" })).accountLabel, "Bob");
+  assert.equal(await consentAs({ id: "acct-3", name: "Cy" }, (await port.begin({ connectionId: "account", action: "switch" })).authorizationUrl), 200);
+  assert.equal((await port.cancelSwitch({ connectionId: "account" })).accountLabel, "Bob");
+  assert.equal((await port.disconnect({ connectionId: "account" })).revocation, "confirmed");
+  assert.deepEqual([...new Set(seen.map(([op]) => op))], ["getStatus", "confirmSwitchAccount", "cancelSwitchAccount", "disconnect"]);
+  assert.deepEqual(seen.filter(([, workspaceId]) => workspaceId !== WORKSPACE), []);
+});
+
+test("desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes", async () => {
+  const host = makeHost("desktop");
+  // The real receiver, observed: probing a listener over HTTP would itself consume and close it.
+  const listeners: AbortSignal[] = [];
+  const startLoopback: typeof startLoopbackAuthorizationReceiver = (required, optional = {}) => {
+    if (optional.signal) listeners.push(optional.signal);
+    return startLoopbackAuthorizationReceiver(required, optional);
+  };
+  const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1", startLoopback });
+  await port.begin({ connectionId: "account", action: "connect" });
+  assert.equal(listeners[0]!.aborted, false);
+  const second = await port.begin({ connectionId: "account", action: "connect" });
+  assert.deepEqual(listeners.map((signal) => signal.aborted), [true, false], "only the newer listener is still open");
+  assert.equal(await consent(second.authorizationUrl), 200);
+  let token: string | null = null;
+  for (let tries = 0; token === null && tries < 100; tries += 1) {
+    token = await port.getAccessToken({ connectionId: "account" }).catch(() => null);
+    if (token === null) await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(token, accessToken);
+});
+
+test("status: a staged switch's account label disappears once the switch expired, in status and in action results", async () => {
+  let now = Date.now();
+  const host = makeHost("hosted", { nowMs: () => now });
+  const port = await connected(host);
+  assert.equal(await consentAs({ id: "acct-2", name: "Bob" }, (await port.begin({ connectionId: "account", action: "switch" })).authorizationUrl), 200);
+  assert.equal((await port.status({ connectionId: "account" })).pendingSwitchAccountLabel, "Bob");
+  now += 10 * 60 * 1000 + 1;
+  assert.equal((await port.status({ connectionId: "account" })).pendingSwitchAccountLabel, null);
+  provider.revokeStatus = 503;
+  try {
+    assert.equal((await port.cancelSwitch({ connectionId: "account" })).pendingSwitchAccountLabel, null);
+    const key = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: "account" });
+    assert.notEqual((await host.records.read({ key }))?.staged ?? null, null, "the unrevoked staged switch is kept for a retry; only its label is gone");
+  } finally { provider.revokeStatus = 200; }
 });
