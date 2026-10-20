@@ -30,6 +30,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { createIssuedSignInCollector } from "../../agent-plugins/admin-surfaces/issued-sign-ins.js";
 import { createAdminSurfacePublicConfig, PUBLIC_CONFIG_REFUSED_MESSAGE } from "../../agent-plugins/admin-surfaces/public-config.js";
 import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "../../agent-plugins/executable-tools/host-capabilities.js";
+import { createAdminSurfaceCapabilities } from "../../agent-plugins/admin-surfaces/capabilities.js";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
@@ -89,15 +90,15 @@ after(async () => {
   await new Promise((resolve) => siteServer.close(resolve));
 });
 
-function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () => number } = { nowMs: () => Date.now() }) {
+function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () => number } = { nowMs: () => Date.now() }, startLoopback?: typeof startLoopbackAuthorizationReceiver) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "surface-adapters-security" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: fixtureRoot }, definition: input.definition });
   const host = createApiConnectionHost({
     workspaceId: WORKSPACE, loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock, oauthHttp, pluginHttp, runtime,
-    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" },
+    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client", TOVU_API_CONNECTION_CALLBACK_ORIGINS: siteOrigin },
     publicOrigin: () => siteOrigin,
-  });
+  }, startLoopback === undefined ? {} : { startLoopback });
   const app = express();
   registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
   siteServer.removeAllListeners("request");
@@ -226,12 +227,32 @@ test("tools: plugin state is read-only and scoped to the calling plugin and work
   const port = createAgentPluginToolCapabilities({
     connections: { readAccount: async () => null, getAccessToken: async () => accessToken }, http: { send: async () => { throw new Error("no network"); } },
     limiter: { check: async () => ({ allowed: true }) }, frozen: createFrozenConnectionAccounts(),
-    state: (scope) => { scopes.push(scope); return writable; },
+    state: (scope) => { scopes.push(scope); return writable; }, apiOrigins: async () => [],
   });
   const { state } = port({ pluginId: PLUGIN, workspaceId: WORKSPACE });
   assert.deepEqual(Object.keys(state), ["get"]);
   assert.equal(await state.get({ key: "selection" }), "value");
   assert.deepEqual(scopes, [{ workspaceId: WORKSPACE, pluginId: PLUGIN }]);
+});
+
+test("security: a surface handler's HTTP reaches only the https origins its plugin's connections declare", async () => {
+  const host = makeHost();
+  const sent: string[] = [];
+  const tools = createAgentPluginToolCapabilities({
+    connections: host.toolConnections, http: { send: async ({ request }) => { sent.push(request.url); return { status: 200, headers: {}, bodyText: "{}" }; } },
+    limiter: { check: async () => ({ allowed: true }) }, frozen: createFrozenConnectionAccounts(), state: () => ({ get: async () => null }), apiOrigins: host.apiOriginsFor,
+  });
+  const surface = createAdminSurfaceCapabilities({
+    tools, connectionsFor: (scope) => createSurfaceConnections({ host, pluginId: scope.pluginId, workspaceId: scope.workspaceId }),
+    stateFor: (scope) => host.pluginState.forPlugin(scope), publicConfig: createAdminSurfacePublicConfig({ env: {} }),
+  });
+  const { http } = surface({ pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
+  const undeclared = { message: /only call the API addresses their plugin declares/ };
+  await assert.rejects(http.fetch({ url: "https://auth.acme.test/token" }), undeclared, "a declared connection's sign-in host is not an API origin");
+  await assert.rejects(surface({ pluginId: PLUGIN, workspaceId: "ws-2", principalId: "admin-1" }).http.fetch({ url: "https://api.acme.test/me" }), undeclared, "another workspace declares nothing here");
+  assert.deepEqual(sent, []);
+  await http.fetch({ url: "https://api.acme.test/me" });
+  assert.deepEqual(sent, ["https://api.acme.test/me"]);
 });
 
 test("public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null", async () => {
@@ -251,7 +272,9 @@ test("form delivery: the credential allows only the connection's declared https 
   await connected(host);
   const connectionRef = deriveApiConnectionKey({ workspaceId: WORKSPACE, pluginId: PLUGIN, connectionId: "account" });
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => PLUGIN });
-  assert.deepEqual(await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }), { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  const { getAccessToken, ...credential } = (await port({ workspaceId: WORKSPACE, connectionRef, adapterId: "acme-office-rows" }))!;
+  assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  assert.equal(typeof getAccessToken, "function");
   const declaration = (apiOrigins: unknown) => JSON.stringify({ schemaVersion: 1, connections: [{ id: "account", module: "lib/connection.mjs", clients: {}, apiOrigins }] });
   assert.deepEqual(parseApiConnectionsFile({ raw: declaration(["http://api.acme.test"]) }), { ok: false, reason: "connections[0].apiOrigins must be at most 8 https:// origins" });
   assert.deepEqual(parseApiConnectionsFile({ raw: declaration(["https://api.acme.test/path"]) }), { ok: false, reason: "connections[0].apiOrigins must be at most 8 https:// origins" });
@@ -306,7 +329,7 @@ test("workspace: every connection-ref operation names the port's workspace (conn
     deps: { host: recording }, connection: connection!, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => { assert.equal(await consent(signInUrl), 200); },
   });
-  assert.deepEqual(connected, { status: "connected" });
+  assert.equal(connected.status, "connected");
   const port = createSurfaceConnections({ host: recording, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
   assert.equal(await consentAs({ id: "acct-2", name: "Bob" }, (await port.begin({ connectionId: "account", action: "switch" })).authorizationUrl), 200);
   assert.equal((await port.confirmSwitch({ connectionId: "account" })).accountLabel, "Bob");
@@ -318,14 +341,14 @@ test("workspace: every connection-ref operation names the port's workspace (conn
 });
 
 test("desktop: a new sign-in closes the previous pending loopback listener (cancel-previous); the newer one completes", async () => {
-  const host = makeHost("desktop");
   // The real receiver, observed: probing a listener over HTTP would itself consume and close it.
   const listeners: AbortSignal[] = [];
   const startLoopback: typeof startLoopbackAuthorizationReceiver = (required, optional = {}) => {
     if (optional.signal) listeners.push(optional.signal);
     return startLoopbackAuthorizationReceiver(required, optional);
   };
-  const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1", startLoopback });
+  const host = makeHost("desktop", undefined, startLoopback);
+  const port = createSurfaceConnections({ host, pluginId: PLUGIN, workspaceId: WORKSPACE, principalId: "admin-1" });
   await port.begin({ connectionId: "account", action: "connect" });
   assert.equal(listeners[0]!.aborted, false);
   const second = await port.begin({ connectionId: "account", action: "connect" });

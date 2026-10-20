@@ -164,7 +164,10 @@ async function deliverRow(required, optional) {
   // Retryable: turning Sheets off pauses deliveries, it does not fail them.
   if (!(await productEnabled(optional))) throw new DeliveryRefusal({ code: 'adapter-unavailable', retryable: true });
   const { spreadsheetId, tab: tabConfig } = targetFor(required);
-  const connections = { getAccessToken: async () => required.credential.token };
+  // One token read per Google request when the host offers it (OAuth: budgets count every request
+  // and the job's frozen account is re-checked); a plain credential carries just `token`.
+  const { credential } = required;
+  const connections = { getAccessToken: () => (credential.getAccessToken ? credential.getAccessToken() : Promise.resolve(credential.token)) };
   const client = googleClientFor({ capabilities: { http: { fetch: ({ url }, init) => required.kit.fetch(url, init, { timeoutMs: DELIVERY_REQUEST_TIMEOUT_MS }) }, connections } });
   const requests = sheetsRequests({ client, connectionRef: required.binding.connectionRef, spreadsheetId });
   const tab = await requests.tab(tabConfig.sheetId);
@@ -180,7 +183,7 @@ async function deliverRow(required, optional) {
 export default {
   /**
    * The forms delivery contract's `deliver`. Never throws: every failure is a contract result.
-   * @param {{ kit: { fetch(url: string, init: RequestInit, options: { timeoutMs: number }): Promise<Response> }, credential: { token: string }, form: { slug: string, fields: readonly { name: string, label?: string }[] }, submission: { id: string, answers: Readonly<Record<string, unknown>>, submittedAt: string }, binding: { connectionRef: string, config: Readonly<Record<string, unknown>> }, idempotencyKey?: string }} required
+   * @param {{ kit: { fetch(url: string, init: RequestInit, options: { timeoutMs: number }): Promise<Response> }, credential: { token: string, getAccessToken?: () => Promise<string> }, form: { slug: string, fields: readonly { name: string, label?: string }[] }, submission: { id: string, answers: Readonly<Record<string, unknown>>, submittedAt: string }, binding: { connectionRef: string, config: Readonly<Record<string, unknown>> }, idempotencyKey?: string }} required
    * @param {{ productEnabled?: () => boolean | Promise<boolean> }} [optional]
    *   A host port the delivery contract does not carry yet (wired with the forms fan-out): the
    *   Sheets product flag (absent = off; build it with `productEnabledReader` from

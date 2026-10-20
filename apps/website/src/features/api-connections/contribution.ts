@@ -34,7 +34,8 @@ const SCOPE_SET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 export interface ApiConnectionClientConfig {
   readonly clientIdEnv: string;
   readonly clientSecretEnv?: string;
-  /** Hosted only: the site origins the shared client has registered callbacks for. Absent = any. */
+  /** Hosted only: the site origins the shared client has registered callbacks for, added to the host's
+   *  configured list (`API_CONNECTION_CALLBACK_ORIGINS_ENV`). Neither: hosted sign-in is refused. */
   readonly redirectOrigins?: readonly string[];
 }
 

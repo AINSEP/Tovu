@@ -100,7 +100,8 @@ export function composeAgentPluginConnections(
   const connections = host.toolConnections;
   // One plugin-settings store: surfaces write it, tools (and later form delivery) only read it.
   const state = (scope: { readonly workspaceId: string; readonly pluginId: string }) => host.pluginState.readerFor(scope);
-  const tools = createAgentPluginToolCapabilities({ connections, http, limiter, frozen: createFrozenConnectionAccounts(), state });
+  const apiOrigins = host.apiOriginsFor;
+  const tools = createAgentPluginToolCapabilities({ connections, http, limiter, frozen: createFrozenConnectionAccounts(), state, apiOrigins });
   const signIns = createIssuedSignInCollector();
   const capabilities = createAdminSurfaceCapabilities({
     tools, publicConfig: createAdminSurfacePublicConfig({ env }),
@@ -111,7 +112,7 @@ export function composeAgentPluginConnections(
   });
   return {
     apiConnections: { host },
-    agentPluginTools: { loadContributions, connections, http, limiter, state },
+    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins },
     adminSurfaceHost: createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns }),
   };
 }

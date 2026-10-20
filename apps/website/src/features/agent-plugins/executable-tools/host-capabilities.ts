@@ -7,7 +7,9 @@
  * - connections: delegated to the host's connection accessor, always with the calling plugin and
  *   workspace, so a plugin can only reach its own connections in this workspace. When the call was
  *   confirmed, the account shown on the card is required (a switched account is refused).
- * - http: the guarded outbound client (public addresses only, no redirects), HTTPS only, bounded.
+ * - http: the guarded outbound client (public addresses only, no redirects), HTTPS only, bounded,
+ *   and only to the https origins the calling plugin's connections declare (`apiOrigins`), so a URL
+ *   built from tool input can never carry the plugin's bearer token to another host.
  * - limiter: the real http-kit limiter, keyed per workspace and plugin so budgets never mix.
  * - artifacts: an optional writer; absent, writes refuse with a next step.
  * - state: the plugin's own settings, read-only (`get` alone), from the store its admin surface
@@ -46,6 +48,9 @@ export interface AgentPluginRateLimiter {
 /** The read-only settings view for one plugin in one workspace (`api-connections/plugin-state.ts`'s `readerFor`). */
 export type AgentPluginStateReaderFor = (required: { readonly workspaceId: string; readonly pluginId: string }, optional?: Record<string, never>) => AgentPluginStateReader;
 
+/** The https origins one plugin's connections declare in one workspace (the union of their `apiOrigins`). */
+export type AgentPluginApiOriginsFor = (required: { readonly workspaceId: string; readonly pluginId: string }, optional?: Record<string, never>) => Promise<readonly string[]>;
+
 /** Accounts frozen when a call was confirmed, keyed by that call's abort signal (one per execution). */
 export interface FrozenConnectionAccounts {
   bind(required: { readonly signal: AbortSignal; readonly accounts: ReadonlyMap<string, string> }, optional?: Record<string, never>): void;
@@ -58,6 +63,7 @@ const IDLE_TIMEOUT_MS = 30_000;
 
 export const ARTIFACTS_UNAVAILABLE_MESSAGE = 'Saving a file from a plugin tool is not available on this site yet. Ask for the data in chat instead.';
 export const HTTPS_ONLY_MESSAGE = 'Plugin tools may only call https:// addresses. Report this to the plugin author.';
+export const UNDECLARED_ORIGIN_MESSAGE = 'Plugin tools may only call the API addresses their plugin declares. Report this to the plugin author.';
 export const RESPONSE_TOO_LARGE_MESSAGE = 'The service returned more data than a plugin tool may read at once. Request a smaller range and retry.';
 
 /** Creates the frozen-account map. Weakly keyed: an execution's entry disappears with its signal. @complexity O(1). */
@@ -92,30 +98,43 @@ export function createGuardedPluginHttp(required: { readonly http: HttpClientPor
 }
 
 /**
+ * One plugin's HTTP: an https URL outside its declared origins is refused before anything is sent;
+ * the https rule itself stays in {@link guardedPluginFetch} so a plaintext URL keeps its own message.
+ * @complexity One origins lookup per fetch, then O(response size).
+ */
+function declaredOriginsHttp(http: HttpClientPort, origins: () => Promise<readonly string[]>): AgentPluginToolCapabilities['http'] {
+  return { async fetch({ url }, options) {
+    const target = new URL(url);
+    if (target.protocol === 'https:' && !(await origins()).includes(target.origin)) throw new Error(UNDECLARED_ORIGIN_MESSAGE);
+    return guardedPluginFetch(http, url, options);
+  } };
+}
+
+/**
  * Builds the capabilities port the tool projection calls once per invocation.
  * @param required.connections - Host connection accessor (ownership enforced there and by the scope passed here).
  * @param required.http - The guarded outbound HTTP client.
  * @param required.limiter - The http-kit limiter sized for plugin budgets.
  * @param required.frozen - Accounts frozen by the confirmation step.
  * @param required.state - The plugin settings reader, scoped here to the calling plugin and workspace.
+ * @param required.apiOrigins - The calling plugin's declared API origins; its HTTP reaches no other host.
  * @param optional.artifacts - File writer; omitted, `artifacts.write` refuses.
  * @complexity O(1) per call; each capability is one delegated call.
  */
 export function createAgentPluginToolCapabilities(
   required: {
     readonly connections: AgentPluginConnectionAccess; readonly http: HttpClientPort; readonly limiter: AgentPluginRateLimiter;
-    readonly frozen: FrozenConnectionAccounts; readonly state: AgentPluginStateReaderFor;
+    readonly frozen: FrozenConnectionAccounts; readonly state: AgentPluginStateReaderFor; readonly apiOrigins: AgentPluginApiOriginsFor;
   },
   optional: { readonly artifacts?: AgentPluginArtifactWriter } = {},
 ): AgentPluginToolCapabilitiesPort {
-  const { connections, limiter, frozen, state } = required;
-  const http = createGuardedPluginHttp({ http: required.http });
+  const { connections, limiter, frozen, state, apiOrigins } = required;
   return ({ pluginId, workspaceId, signal }): AgentPluginToolCapabilities => ({
     connections: { async getAccessToken({ connectionRef }) {
       const expectedAccountId = frozen.lookup({ signal, connectionRef });
       return connections.getAccessToken({ workspaceId, pluginId, connectionRef }, expectedAccountId === undefined ? {} : { expectedAccountId });
     } },
-    http,
+    http: declaredOriginsHttp(required.http, () => apiOrigins({ workspaceId, pluginId })),
     // NUL cannot appear in a workspace or plugin id, so one plugin's key can never name another's budget.
     limiter: { check: ({ key }) => limiter.check({ key: `${workspaceId}\u0000${pluginId}\u0000${key}` }) },
     artifacts: { async write(input) {

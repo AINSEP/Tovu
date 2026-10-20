@@ -24,7 +24,8 @@ Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
 1. The plugin ships **switched off**. Offer to turn it on (`plugins_set_enabled`, family
    `agent-plugin`, `pluginId: "google-workspace"`), or the person uses the Agent Plugins screen.
 2. Connect: `agent_plugin_connect { pluginId: "google-workspace" }`. It shows a sign-in card; Google's
-   consent page opens in the system browser. See [connection](references/connection.md).
+   consent page opens in the system browser. Its result carries `connectionRef`: keep it and pass it
+   unchanged as `connectionRef` to every tool below. See [connection](references/connection.md).
 3. Check who is signed in with `p_google_workspace__account_info { connectionRef }` and name that
    account before you change anything.
 4. Sheets itself starts **off**: until the person turns Sheets on in the Google Workspace panel,

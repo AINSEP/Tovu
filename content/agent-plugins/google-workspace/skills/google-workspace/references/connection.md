@@ -8,6 +8,10 @@
 - The consent screen says **Tovu**. The person should allow every permission listed; if they untick
   one, the connection is not saved and Tovu says which permission is missing.
 - If the person cancels on Google's page, nothing is saved. Offer to try again only if they want to.
+- `agent_plugin_connect` answers `{ status, connectionRef }`. `connectionRef` is an opaque reference
+  to this connection (not a password or token). Every tool takes it as `connectionRef`; it does not
+  change on reconnect or account switch. If you lost it, call `agent_plugin_connect` again: when
+  already connected it answers at once without a new sign-in.
 
 ## Products
 

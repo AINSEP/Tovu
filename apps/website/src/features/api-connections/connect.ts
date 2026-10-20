@@ -1,7 +1,6 @@
 import {
   ApiConnectionError, createApiConnectionGenerationReader, deriveApiConnectionKey, type ApiConnectionIntent, type ApiConnectionService, type CompletedAuthorization,
 } from "@jini-ai/integrations/api-connections";
-import { startLoopbackAuthorizationReceiver } from "@jini-ai/oauth";
 import { ToolInputError } from "@jini-ai/core";
 
 import type { DeclaredApiConnection } from "./contribution.js";
@@ -16,19 +15,20 @@ import type { ApiConnectionHost } from "./host.js";
  * and it reads `connected`. Desktop: an ephemeral 127.0.0.1 loopback listener (Jini's installed-app
  * receiver) catches the redirect and this call completes it itself. The card's link opens in the
  * system browser through the desktop shell's existing external-link policy, so nothing here launches
- * a browser. Results carry a status only, never a token, code or URL. At most one desktop listener
+ * a browser. Results carry a status and the opaque `connectionRef` only, never a token, code or URL. At most one desktop listener
  * per connection is pending: a newer sign-in closes the previous one.
  */
 
 export interface ApiConnectionConnectDeps {
   readonly host: ApiConnectionHost;
-  /** Scope sets (opaque product-module ids) to request; default none, i.e. the plugin's base scopes. */
-  readonly scopeSetIds?: (input: { readonly pluginId: string; readonly connectionId: string }) => Promise<readonly string[]>;
-  /** Injectable for tests; production uses Jini's loopback receiver. */
-  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
 
-export type ApiConnectionConnectStatus = { readonly status: "connected" | "waiting-for-sign-in" };
+/**
+ * `connectionRef` is the opaque, plugin-scoped key the plugin's tools take as input. It is not a
+ * secret: the host refuses it for any plugin that does not declare the connection in this workspace.
+ * Returned in both states so a later call can use it once the person finishes signing in.
+ */
+export type ApiConnectionConnectStatus = { readonly status: "connected" | "waiting-for-sign-in"; readonly connectionRef: string };
 
 interface ConnectRun {
   readonly deps: ApiConnectionConnectDeps;
@@ -110,7 +110,6 @@ interface SignInRequest {
 
 interface SignInOptions {
   readonly startParams?: Readonly<Record<string, string>>; readonly timeoutMs?: number; readonly signal?: AbortSignal;
-  readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
 }
 
 const startOptionsOf = (optional: SignInOptions) => (optional.startParams === undefined ? {} : { startParams: optional.startParams });
@@ -141,7 +140,7 @@ async function startDesktopSignIn(required: SignInRequest, optional: SignInOptio
   const release = (): void => { free(); optional.signal?.removeEventListener("abort", stop); };
   optional.signal?.addEventListener("abort", stop, { once: true });
   try {
-    const receiver = await (optional.startLoopback ?? startLoopbackAuthorizationReceiver)({}, {
+    const receiver = await host.startLoopback({}, {
       callbackFields: connection.descriptor.callbackFields.map((field) => field.name), signal: listening.signal,
       ...(optional.timeoutMs === undefined ? {} : { timeoutMs: optional.timeoutMs }),
     });
@@ -173,7 +172,11 @@ async function connectHosted(run: ConnectRun, scopeSetIds: readonly string[]): P
   return waitForCallback(run, service, { connectionRef, startGeneration, readGeneration });
 }
 
-/** Desktop: loopback receiver, consent in the system browser, completion here. The listener always closes. */
+/**
+ * Desktop: loopback receiver, consent in the system browser, completion here. The listener always
+ * closes: this call's own controller also closes it when the card cannot be shown or the run ends,
+ * not only on `run.signal`, so a failed card never leaves a 127.0.0.1 listener up for its timeout.
+ */
 async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): Promise<boolean> {
   const { host } = run.deps;
   const listening = new AbortController();
@@ -181,7 +184,7 @@ async function connectDesktop(run: ConnectRun, scopeSetIds: readonly string[]): 
   run.signal.addEventListener("abort", stop, { once: true });
   try {
     const start = await startApiConnectionSignIn({ host, connection: run.connection, actorId: run.actorId, intent: "connect", scopeSetIds }, {
-      timeoutMs: run.waitTimeoutMs, signal: listening.signal, ...(run.deps.startLoopback ? { startLoopback: run.deps.startLoopback } : {}),
+      timeoutMs: run.waitTimeoutMs, signal: listening.signal,
     }).catch(asToolError);
     await run.showSignIn({ signInUrl: start.authorizationUrl });
     return (await (start.completion ?? Promise.resolve(null)).catch(asToolError)) !== null;
@@ -203,10 +206,12 @@ export async function runApiConnectionConnect(
 ): Promise<ApiConnectionConnectStatus> {
   const { host } = required.deps;
   const { connection } = required;
-  const scopeSetIds = await (required.deps.scopeSetIds?.({ pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId }) ?? Promise.resolve([]));
+  // Chat connects the plugin's base scopes; products add theirs from the plugin's own panel.
+  const scopeSetIds: readonly string[] = [];
   const status = await host.statusOf({ connection });
+  const { connectionRef } = status;
   const wanted = await host.requestedScopes({ connection, scopeSetIds });
-  if (status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected" };
+  if (status.status === "connected" && wanted.every((scope) => status.grantedScopes.includes(scope))) return { status: "connected", connectionRef };
   const connected = host.runtime === "desktop" ? await connectDesktop(required, scopeSetIds) : await connectHosted(required, scopeSetIds);
-  return { status: connected ? "connected" : "waiting-for-sign-in" };
+  return { status: connected ? "connected" : "waiting-for-sign-in", connectionRef };
 }

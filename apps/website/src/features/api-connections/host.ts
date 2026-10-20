@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { createApiConnectionService, deriveApiConnectionKey, ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionService } from "@jini-ai/integrations/api-connections";
-import type { OAuthClient, OAuthHttpPorts } from "@jini-ai/oauth";
+import { startLoopbackAuthorizationReceiver, type OAuthClient, type OAuthHttpPorts } from "@jini-ai/oauth";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
@@ -33,6 +33,13 @@ export const API_CONNECTION_OAUTH_CALLBACK_PATH = "/api/agent-plugins/connection
 
 export type ApiConnectionRuntime = "hosted" | "desktop";
 
+/**
+ * Host setting: the comma-separated site origins registered as hosted sign-in return addresses with
+ * the shared web clients (a placeholder the operator fills; never a secret). It adds to a
+ * connection's own `clients.web.redirectOrigins`; with neither, hosted sign-in is refused.
+ */
+export const API_CONNECTION_CALLBACK_ORIGINS_ENV = "TOVU_API_CONNECTION_CALLBACK_ORIGINS";
+
 export interface ApiConnectionHostDeps {
   readonly workspaceId: string;
   readonly loadContributions: LoadPluginContributions;
@@ -49,7 +56,6 @@ export interface ApiConnectionHostDeps {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** This site's public origin for the hosted callback; undefined when it has none. */
   readonly publicOrigin: () => string | undefined;
-  readonly displayName?: string;
 }
 
 /** The one refusal for a ref the calling plugin does not own here, whatever the reason. */
@@ -84,6 +90,12 @@ function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnection
   return { clientKind, client: clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" } };
 }
 
+/** Each listed entry's origin; an entry that is not a URL is dropped (it can match nothing). @complexity O(n). */
+function configuredOrigins(env: ApiConnectionHostDeps["env"]): string[] {
+  const listed = configured(env, API_CONNECTION_CALLBACK_ORIGINS_ENV)?.split(",") ?? [];
+  return listed.flatMap((entry) => URL.parse(entry.trim())?.origin ?? []);
+}
+
 function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, what: string): ApiConnectionError {
   return setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its ${what} is not configured. Ask the operator to configure it, then retry.`);
 }
@@ -93,7 +105,13 @@ function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnection
  * plugin takes effect without a restart (Node caches each hooks module per file URL).
  * @complexity O(1) setup; each lookup is one contribution load, O(p + c).
  */
-export function createApiConnectionHost(required: ApiConnectionHostDeps, _optional: Record<string, never> = {}) {
+export function createApiConnectionHost(
+  required: ApiConnectionHostDeps,
+  optional: {
+    /** Injectable for tests (observe listeners); production uses Jini's 127.0.0.1 loopback receiver. */
+    readonly startLoopback?: typeof startLoopbackAuthorizationReceiver;
+  } = {},
+) {
   const vault = createApiConnectionVault({ repo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer, clock: required.clock, workspaceId: required.workspaceId });
   const records: ApiConnectionVaultRecordStore = createApiConnectionVaultRecordStore({ vault, workspaceId: required.workspaceId, clock: required.clock });
   const budgets = createConnectionBudgets({ clock: required.clock });
@@ -106,11 +124,24 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     return input.pluginId === undefined ? connections : connections.filter((connection) => connection.pluginId === input.pluginId);
   }
 
-  /** The hosted callback URL, refused when this site has no public origin or the shared client did not register it. */
+  /** The https origins `pluginId`'s connections declare here (union); another workspace declares none. @complexity O(p + c). */
+  async function apiOriginsFor(input: { readonly workspaceId: string; readonly pluginId: string }): Promise<readonly string[]> {
+    if (input.workspaceId !== required.workspaceId) return [];
+    return (await listConnections({ pluginId: input.pluginId })).flatMap((connection) => connection.apiOrigins);
+  }
+
+  /**
+   * The hosted callback URL. Fails closed: refused when no return address is registered at all
+   * (declared or configured), when this site has no public origin, or when its origin is not one of
+   * them, so an unregistered site gets this actionable refusal instead of the provider's error page.
+   */
   function hostedCallbackUrl({ connection }: { readonly connection: DeclaredApiConnection }): string {
     const origin = required.publicOrigin();
-    const allowed = connection.clients.web?.redirectOrigins;
-    if (!origin || (allowed && !allowed.includes(origin))) {
+    const allowed = [...(connection.clients.web?.redirectOrigins ?? []), ...configuredOrigins(required.env)];
+    if (allowed.length === 0) {
+      throw setupRefused(`${connection.descriptor.label} cannot sign in on this site yet: no registered sign-in return address is configured. Ask the operator to set ${API_CONNECTION_CALLBACK_ORIGINS_ENV} to this site's address, then retry.`);
+    }
+    if (!origin || !allowed.includes(origin)) {
       throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address. Use a registered address or configure your own sign-in client.`);
     }
     return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
@@ -124,7 +155,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     const owner = { workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.descriptor.connectionId, clientId: client.clientId };
     return createApiConnectionService({
       descriptor: connection.descriptor, client, clientKind,
-      appOptions: { clientDisplayName: required.displayName ?? "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
+      appOptions: { clientDisplayName: "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
       hooks: connection.module.createHooks({ http: required.pluginHttp }),
       records, tokens: createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }),
       fetchFn: required.oauthHttp.fetchFn, guard: required.oauthHttp.guard, clock: required.clock,
@@ -187,8 +218,9 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     return { connectionRef: key, status: record?.status ?? "disconnected", grantedScopes: record?.grantedScopes ?? [] } as const;
   }
 
-  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, listConnections, serviceFor, accessTokensFor,
-    toolConnections, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
+  const startLoopback = optional.startLoopback ?? startLoopbackAuthorizationReceiver;
+  return { workspaceId: required.workspaceId, runtime: required.runtime, clock: required.clock, records, startLoopback, listConnections, serviceFor, accessTokensFor,
+    toolConnections, apiOriginsFor, declaredFor, requestedScopes, hostedCallbackUrl, statusOf, callbackInbox, pluginState };
 }
 
 export type ApiConnectionHost = ReturnType<typeof createApiConnectionHost>;

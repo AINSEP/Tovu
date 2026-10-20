@@ -85,14 +85,15 @@ after(async () => {
 
 const hostedEnv = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) };
 
-function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo } = {}) {
+function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" | "desktop"; readonly env?: Record<string, string>; readonly vaultRepo?: InMemoryVaultRepo; readonly publicOrigin?: () => string | undefined } = {}) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "api-connection-slice" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: fixtureRoot }, definition: input.definition });
   return createApiConnectionHost({
     workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: options.runtime ?? "hosted",
-    env: options.env ?? hostedEnv,
-    publicOrigin: () => siteOrigin,
+    // Read when a sign-in starts: `mountCallback` moves the site to a new port per test.
+    env: options.env ?? { ...hostedEnv, get TOVU_API_CONNECTION_CALLBACK_ORIGINS() { return siteOrigin; } },
+    publicOrigin: options.publicOrigin ?? (() => siteOrigin),
   });
 }
 
@@ -131,14 +132,39 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
       assert.equal(response.headers.get("cache-control"), "no-store");
     },
   });
-  assert.deepEqual(result, { status: "connected" });
+  // H1: the result hands chat the opaque ref the plugin's tools take; nothing else.
+  const { connectionRef } = result;
+  assert.deepEqual(result, { status: "connected", connectionRef: deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" }) });
   assert.ok(!callbackPage.includes(accessToken) && !callbackPage.includes(refreshToken));
 
-  const connectionRef = deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" });
   assert.equal(await host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef }), accessToken);
   const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
   // The push kit's host allowlist is the connection's declared API origin, never empty.
-  assert.deepEqual(await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }), { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  const { getAccessToken, ...credential } = (await port({ workspaceId: "ws-1", connectionRef, adapterId: "row-append" }))!;
+  assert.deepEqual(credential, { token: accessToken, baseUrl: "https://api.acme.test", additionalHosts: [] });
+  assert.equal(typeof getAccessToken, "function");
+});
+
+test("security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request", async () => {
+  const host = makeHost();
+  await mountCallback(host, []);
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const { connectionRef } = await runApiConnectionConnect({
+    deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
+    showSignIn: async ({ signInUrl }) => { assert.equal((await fetch(consentRedirect(signInUrl))).status, 200); },
+  });
+  const port = createOAuthFormDeliveryConnectionPort({ hostFor: () => host, adapterPluginId: async () => "acme-office" });
+  const target = { workspaceId: "ws-1", connectionRef, adapterId: "row-append" };
+  await assert.rejects(port(target, { expectedAccountId: "acct-someone-else" }), { code: "account-changed" });
+
+  const credential = await port(target, { expectedAccountId: "acct-1" });
+  assert.equal(credential?.token, accessToken);
+  assert.equal(await credential?.getAccessToken(), accessToken, "the first request uses the attempt's own read");
+  assert.equal(await credential?.getAccessToken(), accessToken, "later requests read a fresh token");
+  // A confirmed switch moves the same ref to another account: the frozen job must not follow it.
+  const record = (await host.records.read({ key: connectionRef }))!;
+  assert.ok(await host.records.compareAndSet({ key: connectionRef, expectedRevision: record.revision, record: { ...record, revision: record.revision + 1, account: { accountId: "acct-2", displayName: "Bob" } } }));
+  await assert.rejects(credential!.getAccessToken(), { code: "account-changed" });
 });
 
 test("security: the callback refuses an unknown state without any token exchange and renders no request data", async () => {
@@ -174,6 +200,48 @@ test("security: getAccessToken refuses another plugin's or another workspace's c
   const ownRef = deriveApiConnectionKey({ workspaceId: "ws-1", pluginId: "acme-office", connectionId: "account" });
   await assert.rejects(host.accessTokensFor({ pluginId: "acme-office" }).getAccessToken({ connectionRef: foreignWorkspace }), { code: "connection-not-found", message: /not available to this plugin/ });
   await assert.rejects(host.accessTokensFor({ pluginId: "other-plugin" }).getAccessToken({ connectionRef: ownRef }), { code: "connection-not-found", message: /not available to this plugin/ });
+});
+
+/** The fixture's connection with its web client's declared callback origins replaced (absent: none declared). */
+async function withRedirectOrigins(host: ReturnType<typeof makeHost>, redirectOrigins: readonly string[] | undefined) {
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  const { redirectOrigins: _declared, ...web } = connection!.clients.web!;
+  return { ...connection!, clients: { ...connection!.clients, web: redirectOrigins === undefined ? web : { ...web, redirectOrigins } } };
+}
+
+test("security (pin): hosted sign-in is refused when this site has no public origin", async () => {
+  const host = makeHost("ws-1", { publicOrigin: () => undefined });
+  const connection = await withRedirectOrigins(host, [siteOrigin]);
+  assert.throws(() => host.hostedCallbackUrl({ connection }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
+});
+
+test("security (pin): hosted sign-in is refused from an origin the connection's web client did not register", async () => {
+  const host = makeHost("ws-1", { env: hostedEnv });
+  const connection = await withRedirectOrigins(host, ["https://other.example"]);
+  assert.throws(() => host.hostedCallbackUrl({ connection }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
+});
+
+test("security (pin): a registered origin gets the fixed public callback path", async () => {
+  const host = makeHost("ws-1", { env: hostedEnv });
+  const connection = await withRedirectOrigins(host, [siteOrigin]);
+  assert.equal(host.hostedCallbackUrl({ connection }), `${siteOrigin}/api/agent-plugins/connections/oauth/callback`);
+});
+
+test("security: hosted sign-in fails closed when no callback origin is declared or configured", async () => {
+  const host = makeHost("ws-1", { env: hostedEnv });
+  const connection = await withRedirectOrigins(host, undefined);
+  assert.throws(() => host.hostedCallbackUrl({ connection }), {
+    code: "descriptor-invalid", message: /no registered sign-in return address is configured.*TOVU_API_CONNECTION_CALLBACK_ORIGINS/,
+  });
+});
+
+test("security: the configured callback-origin list admits only the origins it names", async () => {
+  const connectionOf = (host: ReturnType<typeof makeHost>) => withRedirectOrigins(host, undefined);
+  const listed = makeHost("ws-1", { env: { ...hostedEnv, TOVU_API_CONNECTION_CALLBACK_ORIGINS: ` https://other.example , ${siteOrigin}/ ` } });
+  assert.equal(listed.hostedCallbackUrl({ connection: await connectionOf(listed) }), `${siteOrigin}/api/agent-plugins/connections/oauth/callback`);
+  const elsewhere = makeHost("ws-1", { env: { ...hostedEnv, TOVU_API_CONNECTION_CALLBACK_ORIGINS: "https://other.example,not a url" } });
+  const unlisted = await connectionOf(elsewhere);
+  assert.throws(() => elsewhere.hostedCallbackUrl({ connection: unlisted }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
 });
 
 test("security: an attempt is consumed once even when two callbacks race on the same state", async () => {
@@ -220,7 +288,7 @@ test("security: a desktop public client's provider-issued secret reaches only th
       logs.push(await response.text());
     },
   });
-  assert.deepEqual(result, { status: "connected" });
+  assert.equal(result.status, "connected");
   assert.equal(lastTokenForm.get("client_secret"), secret, "sent as client_secret_post to the token endpoint");
   assert.equal(new URL(signInUrl).searchParams.get("prompt"), "consent", "the public client's fixed parameters apply");
   assert.ok(!signInUrl.includes(secret), "never in the browser's authorization URL");
