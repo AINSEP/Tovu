@@ -11,6 +11,9 @@
  * that delivers with the OAuth connectionRef) runs through the real Jini + Tovu seams, with no
  * production code that knows the provider. The grep half of the proof is `../../../../features/
  * api-connections/__tests__/vendor-neutrality.test.ts`.
+ *
+ * Phase-B pin: the token memory Jini keeps per plugin generation survives across calls through
+ * Tovu's real wiring (boot-time tool registration, handler reload before every surface bootstrap).
  */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
@@ -30,6 +33,7 @@ import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
+import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -234,6 +238,37 @@ test("security: the shared connection port refuses another workspace's target an
   await assert.rejects(connections.getAccessToken({ workspaceId: "ws-2", pluginId: PLUGIN, connectionRef }), { code: "connection-not-found", message: /not available to this plugin/ });
   assert.equal(await connections.readAccount({ workspaceId: "ws-2", pluginId: PLUGIN, connectionRef }), null);
   assert.equal(await connections.readAccount({ workspaceId: WORKSPACE, pluginId: "other-plugin", connectionRef }), null);
+});
+
+test("security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)", async () => {
+  const composition = await compose();
+  assert.deepEqual(await connectHosted(composition), { status: "connected" });
+  const registry = createToolRegistry({});
+  await registerAgentPluginExecutableTools({
+    registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration,
+  });
+  const executor = createToolExecutor({ registry });
+  const call = (toolId: string, input: unknown, id: string) => executor.execute({ toolId, principal: { id: "admin-1" }, run: { id }, input });
+  assert.equal((await call("p_acme_office__whoami", { connectionRef }, "run-1")).status, "completed");
+  const leaked = await call("p_acme_office__last_token", {}, "run-2");
+  assert.notEqual(leaked.status, "completed");
+  assert.match(String(leaked.error), new RegExp(WITHHELD_OUTPUT_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.ok(!JSON.stringify(leaked).includes(accessToken));
+
+  const context = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account" };
+  await composition.adminSurfaceHost.bootstrapData({ context });
+  const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
+  const dispatch = (action: string) => createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) })
+    .dispatch({ action, payload: {}, context });
+  assert.deepEqual(await dispatch("whoami"), { ok: true, result: { name: "Ada" } });
+  // Tovu reloads the handlers before every bootstrap; an unchanged plugin keeps its generation and its memory.
+  await composition.adminSurfaceHost.bootstrapData({ context });
+  const surfaceLeak = await dispatch("last-token");
+  const stateLeak = await dispatch("save-last-token");
+  assert.deepEqual([surfaceLeak.ok, stateLeak.ok], [false, false]);
+  assert.ok(!JSON.stringify([surfaceLeak, stateLeak]).includes(accessToken), JSON.stringify([surfaceLeak, stateLeak]));
+  const saved = await composition.apiConnections.host.pluginState.readerFor({ workspaceId: WORKSPACE, pluginId: PLUGIN }).get({ key: "cached" });
+  assert.equal(saved, null, "the token was not written to plugin state");
 });
 
 test("security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself", async () => {

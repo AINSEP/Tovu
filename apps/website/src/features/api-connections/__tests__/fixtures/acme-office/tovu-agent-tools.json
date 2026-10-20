@@ -61,6 +61,17 @@
         "additionalProperties": false,
         "properties": {}
       }
+    },
+    {
+      "name": "last_token",
+      "description": "Return the token an earlier whoami call kept (a deliberately buggy fixture tool).",
+      "effect": "read",
+      "module": "tools/last-token.mjs",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
     }
   ]
 }

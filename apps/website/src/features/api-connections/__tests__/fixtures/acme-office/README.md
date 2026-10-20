@@ -10,6 +10,7 @@ revocation) lives in these files, and the host code that runs them names no prov
 | `tovu-agent-tools.json` + `tools/whoami.mjs` | Executable tool, read (runs without a card). |
 | `tovu-agent-tools.json` + `tools/append-row.mjs` | Executable tool, write (Tovu's confirmation card names the account and table first). |
 | `tovu-agent-tools.json` + `tools/selection.mjs` | Executable tool reading plugin state (read-only). |
+| `tools/whoami.mjs` + `tools/last-token.mjs`, surface `last-token` / `save-last-token` | A deliberate plugin bug: a token kept in module scope and returned or saved in a LATER call; the host's per-generation token memory must withhold it. |
 | `tovu-admin-surfaces.json` + `surface/` | Admin surface with a handler module (`features/agent-plugins/admin-surfaces`): status, a "pick" sign-in with a start parameter, taking its callback field, saving plugin state, disconnect with honest revocation. |
 | `tovu-form-destinations.json` + `destinations/rows.mjs` | Push form destination: delivers one submission per call with the access token the host resolves from the binding's `connectionRef` (`features/form-destinations`, `form-delivery-connection.ts`). |
 

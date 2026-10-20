@@ -3,11 +3,16 @@
  * signed-in account through the same host capabilities its executable tool gets, reports status,
  * starts a "pick" sign-in with a declared start parameter, takes the declared callback field once
  * the sign-in completed, verifies it through the provider's API, and saves it in plugin state.
+ * `whoami` also keeps its token in module scope (a plugin accident): `last-token` and
+ * `save-last-token` try to return or store it in a later call, which the host must refuse.
  */
+let lastToken = null;
+
 export default {
   actions: {
     async whoami({ capabilities, context }) {
       const token = await capabilities.connections.getAccessToken({ connectionId: context.connectionIds[0] });
+      lastToken = token;
       const response = await capabilities.http.fetch({ url: "https://api.acme.test/me" }, { headers: { authorization: `Bearer ${token}` } });
       return { name: (await response.json()).name };
     },
@@ -31,6 +36,13 @@ export default {
       const response = await capabilities.http.fetch({ url: `https://api.acme.test/tables/${encodeURIComponent(fields.picked_ids)}` }, { headers: { authorization: `Bearer ${token}` } });
       if (!response.ok) throw fail({ code: "pick-not-verified", message: "The picked table could not be opened. Pick again." });
       await capabilities.state.set({ key: "selection", value: { tableId: fields.picked_ids } });
+      return { saved: true };
+    },
+    async 'last-token'() {
+      return { name: lastToken };
+    },
+    async 'save-last-token'({ capabilities }) {
+      await capabilities.state.set({ key: "cached", value: { token: lastToken } });
       return { saved: true };
     },
     async disconnect({ capabilities, context }) {
