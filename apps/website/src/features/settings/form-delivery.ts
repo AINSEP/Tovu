@@ -24,8 +24,8 @@ const BINDINGS_KEY = "deliveryBindings";
 const AUTO_PULL_KEY = "autoPull";
 
 /** Caps that keep planning O(bindings × formIds) small and bounded per submission. */
-export const MAX_FORM_DELIVERY_BINDINGS = 100;
-export const MAX_FORM_DELIVERY_FORM_IDS = 1000;
+const MAX_FORM_DELIVERY_BINDINGS = 100;
+const MAX_FORM_DELIVERY_FORM_IDS = 1000;
 const MAX_REFERENCE_LENGTH = 256;
 
 const BINDING_FIELDS: ReadonlySet<string> = new Set(["bindingId", "adapterId", "connectionRef", "enabled", "formIds", "config"]);
