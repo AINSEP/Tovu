@@ -64,7 +64,8 @@ function walkThemeContent(required: { walk: ContentWalk; absolute: string; relat
   walk.newest = Math.max(walk.newest, walk.fs.statSync(absolute).mtimeMs);
   if (depth >= MAX_WALK_DEPTH) return;
   for (const entry of walk.fs.readdirSync(absolute, { withFileTypes: true })) {
-    if (++walk.visited > MAX_LISTED_FILES) return;
+    walk.visited += 1;
+    if (walk.visited > MAX_LISTED_FILES) return;
     visitThemeContentEntry({ ...required, entry });
   }
 }
@@ -84,8 +85,11 @@ function visitThemeContentEntry(required: {
   const { walk, absolute, relative, depth, entry } = required;
   const child = relative ? `${relative}/${entry.name}` : entry.name;
   if (child === "screenshots" || isGeneratedThemePath(child)) return;
-  if (entry.isDirectory()) walkThemeContent({ walk, absolute: join(absolute, entry.name), relative: child, depth: depth + 1 });
-  else if (entry.isFile()) walk.newest = Math.max(walk.newest, walk.fs.statSync(join(absolute, entry.name)).mtimeMs);
+  if (entry.isDirectory()) {
+    walkThemeContent({ walk, absolute: join(absolute, entry.name), relative: child, depth: depth + 1 });
+    return;
+  }
+  if (entry.isFile()) walk.newest = Math.max(walk.newest, walk.fs.statSync(join(absolute, entry.name)).mtimeMs);
 }
 
 /**
