@@ -24,7 +24,7 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 | L092 plugins | MERGED 591f8f7b | 1 (done, 40 tools, 137k tok, 14 min) | install arrow 37/37; list arrow 11 | worst 6/6; 0 violations | 100/100/100 install, list, local-installer | 6782c2ce | PASS: cx 0, 61 tests, root tsc 0 (coord); diff read: gates/status/bodies identical, why-comments kept |
 | L100 public-http/routes | queued | | | | | | |
 | L125 media | queued | | | | | | |
-| L140 assistant daemon | queued | | | | | | |
+| L140 assistant daemon | MERGED 018d352d | 1 (64 tools, 229k tok, 20 min) | onStarted continuation 25/17; resolveSessionBinding 14/13; resolveAttachmentRunFields 13 | 0 violations | run-start-decisions.ts 100/100/100; agent-daemon-server.ts not measurable (entry script booting on import; tests AST-evaluate source); 42 branch pins | 14979dde, 5259531f | PASS: cx 0, 85 tests (changed test files), root tsc 0; diff read: ordering/closure semantics preserved, why-comments moved |
 | L143 agent-plugins | queued | | | | | | |
 | L175 settings | queued | | | | | | |
 | L191 middleware | queued | | | | | | |
@@ -43,3 +43,5 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 - GOTCHA coverage: a scoped `--test-coverage-include` run over a whole __tests__ folder (34 files) under-reports badly (form-render 88% lines / 51% funcs) compared with running only the files that import the target (100%). Node's cross-process coverage merge is unreliable here. Measure with the direct importers only.
 - L082 left: render.ts uncovered lines 168-170, 607-608, 651, 829-834, 906-907 (source-mapped differently by subagent: renderGalleryImage, renderMediaWidget, taxonomy/gallery/media IR renderers, renderBlockSeam region + entry-list), ~92 branches across ~50 untouched functions. render-form-layout.test.ts needs Playwright Chromium (not in VM).
 - L143, L175, L191 dispatched ~02:00 UTC.
+- L140 cross-area: durable-run-routes.ts:35,80 repeat the durableAttemptOwnsAnswer check (could reuse run-start-decisions.ts).
+- Concurrency slip: dispatched L143+L175+L191 while L055/L100/L125 still ran (6 > 5). Stopped L191 at once, before it changed anything (worktree clean). It will be re-dispatched fresh when a slot frees.
