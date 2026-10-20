@@ -45,10 +45,6 @@ interface DrizzleJournal {
   entries: DrizzleJournalEntry[];
 }
 
-function readJournal(): DrizzleJournal {
-  return JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as DrizzleJournal;
-}
-
 /**
  * `"none"` — the db has never had a migration applied (table absent or empty): there is no applied
  * schema state to report at all. `"diverged"` — the table has an applied row whose `created_at`
@@ -64,6 +60,17 @@ export type AppliedSchemaIdentity = "none" | "diverged" | { idx: number; tag: st
 interface SchemaLedgers {
   __drizzle_migrations: { created_at: number };
   tovu_migrations: { id: string };
+}
+
+async function readContentLedgerIdentity(
+  { ledgers, hasContentLedger }: { ledgers: StorageKernel<SchemaLedgers>; hasContentLedger: boolean },
+  _options = {},
+): Promise<AppliedSchemaIdentity> {
+  if (!hasContentLedger) return "none";
+  const head = await ledgers.run((db) => db.selectFrom("tovu_migrations").select("id").orderBy("id", "desc").limit(1).executeTakeFirst());
+  if (head === undefined) return "none";
+  const idx = CONTENT_MIGRATIONS.findIndex((step) => step.id === head.id);
+  return idx === -1 ? "diverged" : { idx, tag: head.id };
 }
 
 /**
@@ -84,11 +91,7 @@ export async function readAppliedSchemaIdentity<DB>(
   const ledgers = kernel as unknown as StorageKernel<SchemaLedgers>;
   const hasContentLedger = await tableExists(kernel, LEDGER_TABLE);
   if (kernel.dialect === "postgres" || (identity === "current" && hasContentLedger)) {
-    if (!hasContentLedger) return "none";
-    const head = await ledgers.run((db) => db.selectFrom("tovu_migrations").select("id").orderBy("id", "desc").limit(1).executeTakeFirst());
-    if (head === undefined) return "none";
-    const idx = CONTENT_MIGRATIONS.findIndex((step) => step.id === head.id);
-    return idx === -1 ? "diverged" : { idx, tag: head.id };
+    return readContentLedgerIdentity({ ledgers, hasContentLedger });
   }
 
   if (!(await tableExists(kernel, "__drizzle_migrations"))) return "none";
@@ -97,7 +100,8 @@ export async function readAppliedSchemaIdentity<DB>(
   );
   if (latest === undefined) return "none";
 
-  const matchingEntry = readJournal().entries.find((entry) => entry.when === Number(latest.created_at));
+  const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as DrizzleJournal;
+  const matchingEntry = journal.entries.find((entry) => entry.when === Number(latest.created_at));
   return matchingEntry ? { idx: matchingEntry.idx, tag: matchingEntry.tag } : "diverged";
 }
 
