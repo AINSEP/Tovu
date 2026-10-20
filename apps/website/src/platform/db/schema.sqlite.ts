@@ -1785,7 +1785,7 @@ export const secretsVault = sqliteTable("secrets_vault", {
   // Postgres schema carries the same names.
   foreignKey({ name: "secrets_vault_workspace_id_fkey", columns: [table.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
   foreignKey({ name: "secrets_vault_principal_id_fkey", columns: [table.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
-  check("secrets_vault_kind", sql`${table.kind} IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth')`),
+  check("secrets_vault_kind", sql`${table.kind} IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth','api-connection')`),
   check("secrets_vault_revision", sql`${table.revision} > 0`),
   check("secrets_vault_token_length", sql`${table.tokenLength} IS NULL OR ${table.tokenLength} >= 0`),
   check("secrets_vault_meta", sql`json_valid(${table.meta}) AND json_type(${table.meta}) = 'object'`),

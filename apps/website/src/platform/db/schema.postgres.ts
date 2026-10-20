@@ -896,7 +896,7 @@ export const secretsVault = pgTable("secrets_vault", {
     primaryKey({ columns: [t.workspaceId, t.id] }),
     foreignKey({ name: "secrets_vault_workspace_id_fkey", columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     foreignKey({ name: "secrets_vault_principal_id_fkey", columns: [t.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
-    check("secrets_vault_kind", sql`kind IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth')`),
+    check("secrets_vault_kind", sql`kind IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth','api-connection')`),
     check("secrets_vault_revision", sql`revision > 0`),
     check("secrets_vault_token_length", sql`token_length IS NULL OR token_length >= 0`),
     check("secrets_vault_meta", sql`jsonb_typeof(meta) = 'object'`),
