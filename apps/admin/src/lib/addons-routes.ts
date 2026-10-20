@@ -73,5 +73,6 @@ function legacyRedirectPath({ parts, query }: SplitRoute): string | undefined {
 
 /** Bare legacy Integrations links keep their former Webhooks default; explicit tabs survive. */
 function withDefaultWebhooksTab(query: string): string {
-  return new URLSearchParams(query).has("tab") ? query : `${query}${query ? "&" : "?"}tab=webhooks`;
+  if (new URLSearchParams(query).has("tab")) return query;
+  return `${query}${query ? "&" : "?"}tab=webhooks`;
 }

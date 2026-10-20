@@ -195,7 +195,7 @@ function queuedLock(holds: Parameters<LockRequest>[0]["hold"][]): LockRequest {
 
 /** Records the promise `startBrowserStream` derives with `.catch`, so a test can await its outcome. */
 class CatchRecordingPromise<T> extends Promise<T> {
-  static derived: Promise<unknown>[] = [];
+  static readonly derived: Promise<unknown>[] = [];
   override catch<R = never>(onRejected?: ((reason: unknown) => R | PromiseLike<R>) | null): Promise<T | R> {
     const derived = super.catch(onRejected);
     CatchRecordingPromise.derived.push(derived);
@@ -319,7 +319,7 @@ describe("browser stream lifecycle edges", () => {
 
   it("a connect failure in the per-tab fallback rejects an unobserved promise (reported, not fixed)", async () => {
     const tab = fakeBrowserOrigin().tab();
-    CatchRecordingPromise.derived = [];
+    CatchRecordingPromise.derived.length = 0;
     const requestLock: LockRequest = ({ hold }) => CatchRecordingPromise.resolve().then(hold);
     const stop = startBrowserStream({ key: "feed", connect: () => { throw new Error("feed refused"); } }, { ports: { ...tab.ports, requestLock } });
     await expect(CatchRecordingPromise.derived[0]).rejects.toThrow("feed refused");

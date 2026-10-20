@@ -126,6 +126,11 @@ export function startBrowserStream<Frame>(
       acquire();
       return;
     }
+    reconcileTab();
+  }
+
+  /** Per-tab mode: keep the connection through the hidden grace period unless a chat is active. */
+  function reconcileTab(): void {
     if (hiddenSince !== undefined && !activity?.active({})) {
       const remaining = HIDDEN_GRACE_MS - (ports.now() - hiddenSince);
       if (remaining <= 0) { halt(); return; }

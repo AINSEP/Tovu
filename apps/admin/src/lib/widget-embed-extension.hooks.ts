@@ -159,7 +159,7 @@ function useResolvedWidget(widgetEntryId: string): { widget: AdminWidget | null 
     if (!widgetEntryId) {
       setIsBroken(true);
       setWidget(null);
-      return;
+      return undefined;
     }
     // Cleared by this run's own cleanup, i.e. as soon as `widgetEntryId` changes or the node view
     // unmounts — see this file's header on why a stale settle must not apply.
