@@ -26,7 +26,7 @@ See lot table; worst per lot recorded as cyc/cog.
 | L243 | db/repos change-set, external-mcp, publish-history | 12/4 | MERGED (verify OK, 108 tests) | 10/6 | 100/100/100 | e30707a9, 239c8533, 79f03956 |
 | L265 | server-logs/log-file | 13/8 | MERGED (verify OK, 20 tests) | 9/8 | 100/100/100 | 98696795 |
 | L278 | oauth/endpoint-safety | 12/- | MERGED (verify OK, 48 tests; +172 consumer tests per agent) | ≤10/≤10 | 100/100/100 | a1ab42cd |
-| L279 | site-dir product-root, site-trash | 11/11 | dispatched (after L023 merge) | | | |
+| L279 | site-dir product-root, site-trash | 11/11 | MERGED (verify OK, 59 tests) | 8/6 | 100/100/100 | e8f6d7ea 07166940 |
 | L114 | assistant (11 files) | 18/12 | MERGED (2 agents; verify OK, 143+187 tests) | 10/9 | 100/100/100 except: ext-mcp-connection-source branch 96.4 (tsx-injected CJS check), byok-tool-surface 98.56 & byok-meta-tool-result 91.13 line (comment lines flagged by tsx source map; branch/func 100) | 7 commits + 76f00f1a cd31ef4d |
 | L275 | assistant/mcp-federation/registrations | 12/9 | MERGED (verify OK, 79 tests) | 7/4 | 100/100/100 | 95f597f1 |
 
@@ -49,6 +49,7 @@ See lot table; worst per lot recorded as cyc/cog.
 - L114 byok-tool-surface: a tool marked requiresConfirmation waits for the turn signal to abort then reads as 'cancelled'; the 'requires human confirmation' refusal is unreachable on the BYOK path (no tool sets the flag today).
 
 ## Cross-area / out-of-scope flags
+- L279: error message changed: worker productRoot relative → 'resolveProductRoot: worker productRoot "<value>" must be an absolute path; the parent thread must pass a resolved path in workerData.productRoot.' LocalSiteError messages are bare codes (SITE_PATH_UNSAFE) — needs local-supervisor + route change. New exported workerProductRoot; assertManagedSiteDirectory optional listSites port.
 - L114b: explicit search-catalog rebuilds in ready/awaitFederation/onAdmitted/executeMetaTool skills refresh are redundant (catalog self-rebuilds); kept with their why-comments. Removed dead `deps.providers ?? createOAuthProviderRegistry` fallback in resolveProviderDescriptor (now type-guaranteed). New file byok-meta-tool-result.ts; exported ByokToolSurfaceOptions type.
 - L023b: apps/desktop/src/shared-sites.ts is a near-copy of createSitesWorkspace + nested probe; ListSitesOptional (=ResolveSiteRootOptional, site-root.ts) doesn't declare sourceRoots/homeDir/platform that listSites forwards; Jini durable-json read ignores injected fs ports. New files sites-workspace-options.ts, nested-sites-root.ts; includeServingSite optional `stat` port.
 - L023: added optional ports inspectStoppedDatabase(…,{verifyIntegrity}), createRawFileSitePort(…,{filesystem}), exported isOutsideRoot(…,{pathApi}). development/scripts/__tests__/sites-move-home.test.ts left in development/ (off-limits).
@@ -61,4 +62,5 @@ See lot table; worst per lot recorded as cyc/cog.
 - L147 added optional seams prepareSharePluginTables(…, {modules}), sanitizeShareDatabase(…, {statfs}) + exported StagingSpacePort type.
 
 ## Next
+All 10 lots merged. Remaining: whole website suite + admin suite on cloud/tw1-platform vs base (wt-base detached at origin/restructure/apps-website-phased).
 - L278: assertSafeProviderEndpoint / assertSafeUserFacingUrl (legacy testing/DB seam) have no production callers — owner decides on removal.
