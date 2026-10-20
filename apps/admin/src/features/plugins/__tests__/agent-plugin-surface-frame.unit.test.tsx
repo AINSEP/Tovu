@@ -216,6 +216,9 @@ describe("AgentPluginSurfaceFrame external links", () => {
 });
 
 describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
+  // The nonce test spies on crypto; a failed assertion must not leak that spy.
+  afterEach(() => { vi.restoreAllMocks(); });
+
   it("shows the could-not-open notice instead of the frame when the bootstrap fails", async () => {
     const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(async () => { throw new Error("401"); }) });
     render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
@@ -224,13 +227,16 @@ describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
     expect(screen.queryByTitle("Manage connection")).toBeNull();
   });
 
-  it("ignores a message that arrives before the frame's first load, even from the frame's own window", async () => {
+  it("ignores a message that arrives before the frame's first load, even a null-source one carrying this mount's nonce", async () => {
+    // Zero random bytes make this mount's nonce predictable, so the message below would pass the
+    // nonce check: only "no live frame yet" stops a null `source` from matching the missing frame.
+    vi.spyOn(globalThis.crypto, "getRandomValues").mockImplementation((array) => array);
     const port = fakePort();
     render(<AgentPluginSurfaceFrame pluginId="acme-office" surface={SURFACE} port={port} t={identity} />);
     const iframe = screen.getByTitle("Manage connection") as HTMLIFrameElement;
     const posted = vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
-    deliver(request("0".repeat(32)), "null", iframe.contentWindow);
     deliver(request("0".repeat(32)), "null", null);
+    deliver(request("0".repeat(32)), "null", iframe.contentWindow);
     await act(async () => { await Promise.resolve(); });
     expect(port.action).not.toHaveBeenCalled();
     expect(posted).not.toHaveBeenCalled();
@@ -276,10 +282,26 @@ describe("AgentPluginSurfaceFrame lifecycle and outcomes", () => {
 });
 
 describe("AgentPluginDetailsModal admin surfaces", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
   it("adds one view per contributed surface after Memory, titled by the plugin", async () => {
     const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
     const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
     render(<AgentPluginDetailsModal plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} surfacesPort={fakePort()} />);
+    await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
+  });
+
+  it("lists surfaces through the admin API when no port is injected", async () => {
+    // Recording fetch stub: the surfaces route answers one surface, the Memory tab its empty listing.
+    vi.stubGlobal("fetch", async (url: string) => {
+      const body = String(url).endsWith("/agent-plugins/acme-office/surfaces")
+        ? { surfaces: [SURFACE] }
+        : { pluginId: "acme-office", learned: [], notes: [], limits: { learned: 1048576, notes: 16384, files: 128 } };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    const plugin: InspectedAgentPlugin = { id: "acme-office", displayName: "Acme Office" };
+    const useDetails = (): AgentPluginDetailsModalController => ({ files: [], selectedFile: null, selectFile: vi.fn() });
+    render(<AgentPluginDetailsModal plugin={plugin} t={identity} onClose={vi.fn()} useDetails={useDetails} />);
     await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
   });
 });
