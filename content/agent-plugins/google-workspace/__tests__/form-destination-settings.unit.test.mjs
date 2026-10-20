@@ -21,9 +21,9 @@ function port(listed) {
   };
 }
 
-test('read: another adapter\'s binding for the same form is left out, the Sheets one kept', async () => {
+test('read: another adapter\'s binding is left out, however it is shaped; the Sheets one kept', async () => {
   const sheets = destinationBinding('contact');
-  const destinations = await readFormDestinations({ deliveryBindings: port([{ ...sheets, bindingId: 'other', adapterId: 'other-rows' }, sheets]) });
+  const destinations = await readFormDestinations({ deliveryBindings: port([sheets, { ...destinationBinding('signup'), bindingId: 'other', adapterId: 'other-rows' }]) });
   assert.deepEqual(Object.keys(destinations), ['contact']);
   assert.equal(destinations.contact.bindingId, 'binding-contact');
 });
