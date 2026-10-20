@@ -23,10 +23,10 @@ Branch: `cloud/tw1-admin` (from `origin/restructure/apps-website-phased`). Lot b
 |---|---|---|---|---|---|---|---|
 | L084 | components | queued | | | | | |
 | L119 | features/sites | queued | | | | | |
-| L134 | features/posts | queued | | | | | |
+| L134 | features/posts | merged 9a809294 | yes | use-post-editor cyc 22/cog 14 → 8/5 (+2 new rules files, worst cyc 7/8) | 100/100/100 on 3 files | 00d3b768 (push blocked by hook; merged locally) | eslint 0, tsc 0, 17 importing test files / 654 tests pass; why-comments verified moved (rename/404 note now in loadedPostHandles doc); removed `editor` null guards verified dead via @tiptap/react d.ts (useEditor w/o immediatelyRender:false returns Editor) |
 | L162 | features/dashboard | merged 2b69ea6f | yes | useDashboard cyc 35→6, cog 3→1 | 100/100/100 | a3edc063 | eslint 0, admin tsc 0, 105 tests pass; diff reviewed (why-comments moved, no as-any, `locale` dep removal verified harmless: Jini useFetchQuery keeps fetch in a stable ref) |
 | L166 | features/ai-assistant | queued | | | | | |
-| L171 | integrations | queued | | | | | |
+| L171 | integrations | running | | | | | |
 | L172 | lib | queued | | | | | |
 | L195 | features/security | queued | | | | | |
 | L209 | features/taxonomy | queued | | | | | |
