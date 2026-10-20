@@ -143,3 +143,40 @@ test("security: a module asking for a longer request timeout is cut to the pull'
   await pullFromFormDestination({ module, scope: "t", destination, kit: kitSpy, importPage: async () => ({ committedIds: [] }) });
   assert.deepEqual(asked, [FORM_PULL_REQUEST_TIMEOUT_MS, 5_000]);
 });
+
+test("the bounded kit hands the module the caller's other kit members and the request's url and init unchanged", async () => {
+  const sent: { url: string; init: RequestInit }[] = [];
+  const timeouts = { request: 9_000 };
+  const kitSpy: FormDestinationKit = { timeouts, now: () => 123, fetch: async (url, init) => { sent.push({ url, init }); return new Response("{}"); } };
+  const init: RequestInit = { method: "POST", headers: { authorization: "Bearer from-module" } };
+  let seen: FormDestinationKit | undefined;
+  const module = {
+    pull: async ({ kit: given }: { kit: FormDestinationKit }) => { seen = given; await given.fetch("https://site.example/pull?after=0", init, { timeoutMs: 1_000 }); return { items: [], nextAfter: 0, hasMore: false }; },
+    ack: async () => ({ acknowledged: 0 }),
+  };
+  await pullFromFormDestination({ module, scope: "t", destination, kit: kitSpy, importPage: async () => ({ committedIds: [] }) });
+  assert.equal(seen?.timeouts, timeouts);
+  assert.equal(seen?.now?.(), 123);
+  assert.deepEqual(sent, [{ url: "https://site.example/pull?after=0", init }]);
+});
+
+test("acknowledgement requests go through the same bounded kit as page requests", async () => {
+  const asked: number[] = [];
+  const kitSpy: FormDestinationKit = { timeouts: {}, fetch: async (_url, _init, options) => { asked.push(options.timeoutMs); return new Response("{}"); } };
+  const module = {
+    pull: async () => ({ items: [item(1)], nextAfter: 1, hasMore: false }),
+    ack: async ({ kit: given, ids }: { kit: FormDestinationKit; ids: readonly string[] }) => { await given.fetch("https://site.example/ack", {}, { timeoutMs: 60_000 }); return { acknowledged: ids.length }; },
+  };
+  const result = await pullFromFormDestination({ module, scope: "t", destination, kit: kitSpy, importPage: async ({ items }) => ({ committedIds: items.map((row) => row.id) }) });
+  assert.deepEqual(asked, [FORM_PULL_REQUEST_TIMEOUT_MS]);
+  assert.equal(result.acknowledged, 1);
+});
+
+test("a pull whose budget runs out while the last page imports still acknowledges that page, then stops with more waiting", async () => {
+  const clock = manualClock();
+  const h = host([{ items: [item(1)], nextAfter: 1, hasMore: true }, { items: [item(2)], nextAfter: 2, hasMore: true }]);
+  const result = await pullFromFormDestination({ module: h.module, scope: "t", destination, kit,
+    importPage: async ({ items }) => { clock.advance(FORM_PULL_BUDGET_MS); return { committedIds: items.map((row) => row.id) }; } }, { now: clock.now });
+  assert.deepEqual(h.acks, [["r1"]]);
+  assert.deepEqual([h.calls.length, result.pulled, result.hasMore], [1, 1, true]);
+});
