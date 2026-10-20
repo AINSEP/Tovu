@@ -33,10 +33,10 @@ export function assistantVaultId({ context }: { context: VaultContext }, _option
 export function createAssistantVault({ repo, context, sealer, keyring, clock }: {
   repo: VaultRepoPort; context: VaultContext; sealer?: SecretSealerPort; keyring?: KeyringPort; clock?: Clock;
 }, { onSealFailure }: { onSealFailure?: (error: unknown) => never } = {}): SecretsVaultService {
-  const unavailable = (): never => { throw new VaultError({ code: "invalid-record" }); };
+  const unavailable = (): Promise<never> => Promise.reject(new VaultError({ code: "invalid-record" }));
   if (context.kind !== "site-assistant" && context.kind !== "personal-execution") throw new VaultError({ code: "context" });
   return createTovuStoreVault({ repo: { vault: repo }, kind: context.kind, context, keyring, clock,
-    sealer: sealer ?? { seal: async () => unavailable(), open: async () => unavailable() },
+    sealer: sealer ?? { seal: unavailable, open: unavailable },
     storageError: error => {
       if (onSealFailure) onSealFailure(error);
       return error instanceof Error ? error : new VaultError({ code: "invalid-record" });
@@ -56,15 +56,20 @@ export async function readAssistantVault({ repo, context, sealer }: {
   if (!raw) return { record: null, tokenHint: null };
   if (buildVaultAad({ ...context, id: raw.id }) !== buildVaultAad(raw)) throw new VaultError({ code: "context" });
   const record = { ...raw, meta: parseTovuStoreMeta({ kind: context.kind as "site-assistant" | "personal-execution", meta: raw.meta }) };
-  let tokenHint: CredentialTokenHint | null = null;
-  if (record.sealed && sealer) {
-    // This port only serves get's identity read; every other operation remains with the owner.
-    const snapshot: VaultRepoPort = Object.create(repo);
-    snapshot.find = async () => record;
-    try {
-      const opened = await createAssistantVault({ repo: snapshot, context, sealer }).get({ ...context, id: record.id });
-      if (typeof opened?.payload?.apiKey === "string") tokenHint = credentialTokenHint({ token: opened.payload.apiKey });
-    } catch { /* Site-key rotation must not prevent reading settings. */ }
-  }
-  return { record, tokenHint };
+  return { record, tokenHint: record.sealed && sealer ? await openTokenHint({ repo, context, sealer, record }) : null };
+}
+
+/** Open exactly the supplied snapshot through Jini and derive its token hint.
+ * @returns null when the payload has no string apiKey or the envelope cannot be opened.
+ * @complexity One open, O(payload size) memory; never reads the repository again. */
+async function openTokenHint({ repo, context, sealer, record }: {
+  repo: VaultRepoPort; context: VaultContext; sealer: SecretSealerPort; record: VaultRecord;
+}, _options = {}): Promise<CredentialTokenHint | null> {
+  // This port only serves get's identity read; every other operation remains with the owner.
+  const snapshot: VaultRepoPort = Object.create(repo);
+  snapshot.find = async () => record;
+  try {
+    const opened = await createAssistantVault({ repo: snapshot, context, sealer }).get({ ...context, id: record.id });
+    return typeof opened?.payload?.apiKey === "string" ? credentialTokenHint({ token: opened.payload.apiKey }) : null;
+  } catch { /* Site-key rotation must not prevent reading settings. */ return null; }
 }

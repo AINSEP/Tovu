@@ -1,4 +1,3 @@
-import type { AssistantToolContributions } from "./tool-contribution-registry.js";
 /**
  * @file In-process admin tool composition for BYOK. Daemon and BYOK use the same registration
  * builder and shared executor factory, keeping catalog, permission, read-only, audit and recovery
@@ -8,6 +7,7 @@ import type { AssistantToolContributions } from "./tool-contribution-registry.js
  * `executeMetaTool` forwards its live emitter; the admin redemption proxy tries this store first,
  * falling back to the daemon only on unknown-or-closed exchanges. The A2UI proxy does likewise.
  */
+import type { AssistantToolContributions } from "./tool-contribution-registry.js";
 import {
   createToolRegistry,
   type Principal,
@@ -25,8 +25,8 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-audit-preset.js";
 import { withFederatedRefusalDiagnosis } from "./tool-recovery-preset.js";
-import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
-import { attachAssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
+import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource, type StoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
+import { attachAssistantToolExtensions, type AssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
 import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
@@ -36,18 +36,12 @@ import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { isChatToolAllowed } from "../contracts/headless/assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
-import type { ByokToolResultBlock } from "./byok-provider-turn.js";
+import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
-/** What one meta-tool call resolves to — deliberately the exact `{content, isError?}` shape
- *  `byok-provider-turn.ts`'s `ByokToolExecutor` contract returns, so the route hands this straight
- *  back to the provider adapter with no second mapping layer of its own. */
-export interface ByokMetaToolResult {
-  readonly content: string | readonly ByokToolResultBlock[];
-  readonly isError?: boolean;
-}
+export type { ByokMetaToolResult } from "./byok-meta-tool-result.js";
 
 export interface ByokToolSurface {
   /** Discovery view only; use this surface's executor/meta calls for execution against the inner registry. */
@@ -202,7 +196,7 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
           // requires: declared without one, some clients
           // delivers the model's object as a JSON-encoded STRING, and every tool here rejects a
           // string input by name rather than coercing it — the effect is that only no-input tools
-          // stay callable. `resolveDelegatedInput` below ALSO accepts that string form defensively,
+          // stay callable. `resolveDelegatedInput` (`byok-meta-tool-result.ts`) ALSO accepts that string form defensively,
           // because this path now spans four providers rather than one client and the failure is
           // both silent and total.
           type: "object",
@@ -218,80 +212,6 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
 ];
 
 const META_TOOL_IDS: ReadonlySet<string> = new Set(META_TOOL_DESCRIPTORS.map((tool) => tool.id));
-
-/** True for the meta-tool argument bags this dispatch accepts — a model can emit anything, including
- *  `null` or a bare string, and every read below has to survive that. */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function err(content: string): ByokMetaToolResult {
-  return { content, isError: true };
-}
-
-/**
- * The output's content blocks when it is an MCP content envelope (`{content: [...]}`) of only `text`
- * and `image` blocks with at least one image — so a picture a tool returns (e.g.
- * `media_view_image`) reaches the provider as an image, not as base64 inside a JSON
- * string. Anything else, including a text-only envelope, returns `null` and keeps the JSON-string
- * contract every other tool relies on. Whitelist, like `@jini-ai/mcp`'s `okResult()`: one unknown
- * block type and the whole output stays a string.
- *
- * @complexity O(blocks).
- */
-function imageContentBlocksOf(output: unknown): ByokToolResultBlock[] | null {
-  if (!isRecord(output) || !Array.isArray(output.content)) return null;
-  const blocks: ByokToolResultBlock[] = [];
-  for (const block of output.content as unknown[]) {
-    if (!isRecord(block)) return null;
-    if (block.type === "text" && typeof block.text === "string") blocks.push({ type: "text", text: block.text });
-    else if (block.type === "image" && typeof block.mimeType === "string" && typeof block.data === "string") {
-      blocks.push({ type: "image", mimeType: block.mimeType, data: block.data });
-    } else return null;
-  }
-  return blocks.some((block) => block.type === "image") ? blocks : null;
-}
-
-function ok(output: unknown): ByokMetaToolResult {
-  const blocks = imageContentBlocksOf(output);
-  if (blocks) return { content: blocks };
-  return { content: typeof output === "string" ? output : JSON.stringify(output ?? null) };
-}
-
-/**
- * Normalizes `execute_delegated_tool`'s `input` argument into what a tool handler accepts.
- *
- * Three shapes are allowed in, deliberately: an object (the declared contract), absent/null (a tool
- * that takes no input), and a JSON-encoded object string. The last is not sloppiness — see the
- * schema comment above: it is a real, observed provider behavior whose failure mode is every
- * input-taking tool silently becoming uncallable. A string that does not parse, or parses to a
- * non-object, is refused with a message naming the problem rather than passed down to fail inside a
- * handler's own type check where the model would see a far less actionable error.
- */
-type DelegatedInputResolution =
-  | { readonly ok: true; readonly input: unknown }
-  | { readonly ok: false; readonly message: string };
-
-/** The string-input branch of {@link resolveDelegatedInput}, split out purely to keep that function's
- *  cognitive complexity under the shop ceiling — see this file's `@file` doc for why a JSON-encoded
- *  string has to be accepted here at all. */
-function resolveDelegatedInputFromString(trimmed: string): DelegatedInputResolution {
-  if (trimmed.length === 0) return { ok: true, input: undefined };
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (isRecord(parsed)) return { ok: true, input: parsed };
-    return { ok: false, message: "'input' parsed as JSON but is not an object — send a JSON object of the tool's input fields." };
-  } catch {
-    return { ok: false, message: "'input' must be a JSON object of the tool's input fields, not a plain string." };
-  }
-}
-
-function resolveDelegatedInput(raw: unknown): DelegatedInputResolution {
-  if (raw === undefined || raw === null) return { ok: true, input: undefined };
-  if (isRecord(raw)) return { ok: true, input: raw };
-  if (typeof raw === "string") return resolveDelegatedInputFromString(raw.trim());
-  return { ok: false, message: `'input' must be a JSON object of the tool's input fields, not ${Array.isArray(raw) ? "an array" : typeof raw}.` };
-}
 
 /**
  * Real identity for one meta-tool call, forwarded into {@link appendToolCatalogAttempt} when
@@ -354,26 +274,6 @@ function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown
   return ok(entry);
 }
 
-/** Maps one `ToolExecutor.execute` outcome onto the meta-tool result shape — split out of
- *  {@link runExecuteDelegatedTool} so its per-case branching does not also count against that
- *  function's own complexity. */
-function mapToolExecutionResult(result: Awaited<ReturnType<ToolExecutor["execute"]>>, toolId: string): ByokMetaToolResult {
-  switch (result.status) {
-    case "completed":
-      return ok(result.output);
-    case "denied":
-      return err(`tool "${toolId}" was denied for this caller`);
-    case "confirmation-denied":
-      return err(`tool "${toolId}" requires human confirmation, which BYOK mode cannot supply yet`);
-    case "timed-out":
-      return err(`tool "${toolId}" timed out`);
-    case "cancelled":
-      return err(`tool "${toolId}" was cancelled`);
-    case "failed":
-      return err(result.error ?? `tool "${toolId}" failed`);
-  }
-}
-
 /** `execute_delegated_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
 async function runExecuteDelegatedTool(
   executor: ToolExecutor,
@@ -404,6 +304,171 @@ async function runExecuteDelegatedTool(
   }
 }
 
+/** Everything {@link createByokToolSurface} needs from its caller — every `AssistantToolRegistryDeps`
+ *  field except `magicLinkPerEmailLimiter` (see {@link createByokToolSurface}'s doc) and `listCatalogTools` (bound to this
+ *  surface's own registry, so `site_describe_capabilities` lists the catalog this surface serves),
+ *  both of which this function builds itself.
+ *  Exported so a caller that must cast into this shape (today: `modules/assistant-byok.ts`, whose own
+ *  `routeDeps: RouteDeps` parameter is narrower than what it actually always receives at runtime —
+ *  see that module's own comment) can cast to a named type instead of repeating this `Omit`. */
+export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools"> & {
+  readonly federatedMcpPresetRegistry?: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
+};
+
+/** The optional half of {@link createByokToolSurface}'s arguments. */
+export interface ByokToolSurfaceOptions {
+  readonly surfaceExchangeStore?: SurfaceExchangeStore;
+  readonly prepareGuidance?: import("@jini-ai/daemon").PrepareToolGuidance;
+  /**
+   * Where every tool-execution attempt is logged, for BOTH halves of this surface: the two
+   * meta-tools (`search_tools`/`describe_tool`, via `tool-catalog-audit.ts`'s own
+   * `appendToolCatalogAttempt` — a single "completed"-phase row per call, there being no
+   * two-phase lifecycle for a catalog read) AND every real tool `execute_delegated_tool` resolves
+   * to (via `withToolAttemptAudit` wrapping `executor` below — the same `requested`-then-final-phase
+   * decorator used by the daemon). Omitted, neither half is logged; tests composing a bare
+   * surface pay nothing extra. Production (`assistant-byok.ts`) always
+   * supplies this.
+   */
+  readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
+  /**
+   * Whether this surface also registers installed Agent Plugin, Agent Skill, and enabled
+   * plugin-capability tools (`installed-extension-tools.ts`) onto its own registry. Defaults to
+   * `true` — every real caller wants these. Set `false` only for a `routeDeps` stub that does not
+   * carry `discoverPlugins`/`postRepo`/`pluginActivationRepo` (a bare `AssistantToolRegistryDeps`
+   * unit-test double): the registrar is fail-open either way, so a missing field there would only
+   * cost a swallowed `console.warn` per call, not a test failure, but there is no reason to pay it.
+   */
+  readonly installExtensions?: boolean;
+  readonly contributions?: AssistantToolContributions;
+  /**
+   * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
+   * injected by the composition root (`modules/assistant-byok.ts` passes
+   * `server/runtime/composition/installed-extension-tools.ts`'s `registerInstalledExtensionTools`)
+   * because its three registrars are feature code `assistant/` must not import by value (the
+   * `assistant <-> features/*` module cycles). Omitted, that pass registers nothing and `ready`
+   * resolves at once; federation is still attached unless `installExtensions: false`.
+   */
+  readonly registerInstalledExtensions?: InstalledExtensionRegistrar;
+  /**
+   * Registers first-party federated MCP presets before this surface is built — injected by the
+   * composition root for the same module-cycle reason as `registerInstalledExtensions`. No root
+   * passes one; vendors arrive as Agent Plugin rows in the stored roster. Omitted, nothing is registered.
+   */
+  readonly registerFederationPresets?: () => void;
+  /**
+   * Test seam, threaded straight into `CreateFederationRuntimeParams.connect` (see that field's
+   * own doc): overrides the session factory federation's boot pass uses for EVERY connection in
+   * the roster, so a test can hand it a fake `McpSessionPort` (e.g.
+   * `mcp-federation/adapter.memory.ts`'s `InMemoryMcpSession`) instead of actually spawning a
+   * child process or dialing a hosted URL. Omitted, the real transport connects, exactly as
+   * `assistant-byok.ts` (the only production caller) wants.
+   */
+  readonly federationConnect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
+}
+
+/** Stable discovery-filter port of `createChatDeleteScope`'s scope. */
+type ChatDeleteDiscoveryScope = Pick<ReturnType<typeof createChatDeleteScope>, "policy">;
+
+// Discovery view only: Jini authorizes invocations against the inner registry's WeakMap
+// identity. Executors must use `registry`, never this filtered view.
+function createDiscoveryRegistry(required: { readonly registry: ToolRegistry; readonly deleteScope: ChatDeleteDiscoveryScope }): ToolRegistry {
+  const { registry, deleteScope } = required;
+  return {
+    register: registry.register,
+    has: ({ toolId }) => registry.has({ toolId }) && isChatToolAllowed({ toolId, policy: deleteScope.policy() }),
+    list: (...args) => registry.list(...args).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })),
+  };
+}
+
+// The stored-roster half of `external-mcp-connection-source.ts` — reads Settings → External
+// MCP's rows fresh on every `federation.resolveConnections()` call (boot, and every reload),
+// never rejecting. `routeDeps.externalMcpOAuth?.tokenResolver` mirrors
+// `agent-daemon-server.ts`'s own `resolveStoredExternalMcpConnections`: omitted (not merely
+// `undefined`-valued) when this surface's `routeDeps` carries no OAuth service, so an
+// `authMode: "oauth"` row degrades to a reported failure rather than launching credential-free.
+function createSurfaceConnectionSource(required: { readonly routeDeps: ByokToolSurfaceDeps }): StoredExternalMcpConnectionSource {
+  const { routeDeps } = required;
+  return createStoredExternalMcpConnectionSource({
+    agentPluginLayout: routeDeps.agentPluginLayout,
+    repo: routeDeps.externalMcpServerRepo,
+    sealer: routeDeps.siteAssistantSecretSealer,
+    ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth.tokenResolver } : {}),
+    workspaceId: routeDeps.workspaceId,
+    log: "[assistant-byok]",
+  });
+}
+
+// THE ONE REGISTRAR (`installed-extension-tools.ts`) — installed-extension tools, then (once
+// that settles) a `FederationRuntime` built but not yet started, per that function's own doc.
+// Skipped entirely under `installExtensions: false`, the same bare-test-double posture `ready`
+// already had: there is no roster to federate without the extension pass ahead of it, and this
+// surface's `federation`/`awaitFederation` degrade to `undefined`/an immediate no-op below.
+function attachSurfaceExtensions(
+  required: {
+    readonly registry: ToolRegistry;
+    readonly deps: AssistantToolRegistryDeps;
+    readonly routeDeps: ByokToolSurfaceDeps;
+    readonly surfaceExchanges: SurfaceExchangeStore;
+    readonly connectionSource: StoredExternalMcpConnectionSource;
+    readonly onAdmitted: () => void;
+  },
+  options: Pick<ByokToolSurfaceOptions, "installExtensions" | "registerInstalledExtensions" | "federationConnect">,
+): AssistantToolExtensions | undefined {
+  if (options.installExtensions === false) return undefined;
+  const { registry, deps, routeDeps, surfaceExchanges, connectionSource, onAdmitted } = required;
+  return attachAssistantToolExtensions(
+    registry,
+    {
+      ...deps,
+      registerInstalled: options.registerInstalledExtensions ?? (async () => {}),
+      federation: {
+        presetRegistry: routeDeps.federatedMcpPresetRegistry,
+        deps: buildExternalMcpFederationDeps({
+          authorize: routeDeps.authorize,
+          workspaceId: routeDeps.workspaceId,
+          repo: routeDeps.externalMcpServerRepo,
+          ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth } : {}),
+          // G3: federated calls that are not read-only ask on a card through THIS surface's
+          // store — the one the API proxy delivers a Local-CLI run's clicks to.
+          surfaceExchanges,
+        }),
+        resolveConnections: () => connectionSource.resolve(),
+        // Only a RELOAD pass reaches this — see `FederationRuntime.reload`'s own doc — so the
+        // boot pass's own newly-searchable tools are rebuilt by `awaitFederation` below, not
+        // here.
+        onAdmitted,
+        ...(options.federationConnect ? { connect: options.federationConnect } : {}),
+      },
+    },
+    "[assistant-byok]",
+  );
+}
+
+// The shared executor factory applies read-only, audit and recovery rules for both processes.
+// Forward the optional audit sink unchanged: omission leaves both halves unlogged.
+//
+// Composed OUTERMOST, matching `agent-daemon-server.ts`'s identical ordering (`:541` there) —
+// see `withFederatedRefusalDiagnosis`'s own header for why outermost is load-bearing. `() =>
+// federation?.reports() ?? []` reads live: empty before `awaitFederation` (or a caller directly
+// holding `federation`) ever starts the boot pass, and again whenever `federation` itself is
+// `undefined`, in which case no toolId here can be `mcp__`-prefixed either — this decorator is
+// then a no-op passthrough, never a behavior change for `installExtensions: false`.
+function composeSurfaceExecutor(
+  required: { readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore; readonly federation: FederationRuntime | undefined },
+  options: Pick<ByokToolSurfaceOptions, "prepareGuidance" | "toolAttemptAudit">,
+): ToolExecutor {
+  const { registry, surfaceExchanges, federation } = required;
+  return withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
+      registry,
+      surfaceExchanges,
+      ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
+      ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
+    }, {}), getSnapshot: () => federation?.reports() ?? [], getBootStatus: () =>
+      federation
+        ? { settled: federation.started, connectFailures: federation.connectFailures(), configuredConnectionIds: federation.configuredConnectionIds() }
+        : { settled: true, connectFailures: [] } }, {});
+}
+
 /**
  * Builds one fresh registry+executor pair over the full admin tool catalog.
  *
@@ -432,81 +497,13 @@ async function runExecuteDelegatedTool(
  * `createToolExecutor` doc).
  * @overallScore 100
  */
-/** Everything {@link createByokToolSurface} needs from its caller — every `AssistantToolRegistryDeps`
- *  field except `magicLinkPerEmailLimiter` (see the doc above) and `listCatalogTools` (bound to this
- *  surface's own registry, so `site_describe_capabilities` lists the catalog this surface serves),
- *  both of which this function builds itself.
- *  Exported so a caller that must cast into this shape (today: `modules/assistant-byok.ts`, whose own
- *  `routeDeps: RouteDeps` parameter is narrower than what it actually always receives at runtime —
- *  see that module's own comment) can cast to a named type instead of repeating this `Omit`. */
-export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools"> & {
-  readonly federatedMcpPresetRegistry?: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
-};
-
-export function createByokToolSurface(
-  routeDeps: ByokToolSurfaceDeps,
-  options: {
-    readonly surfaceExchangeStore?: SurfaceExchangeStore;
-    readonly prepareGuidance?: import("@jini-ai/daemon").PrepareToolGuidance;
-    /**
-     * Where every tool-execution attempt is logged, for BOTH halves of this surface: the two
-     * meta-tools (`search_tools`/`describe_tool`, via `tool-catalog-audit.ts`'s own
-     * `appendToolCatalogAttempt` — a single "completed"-phase row per call, there being no
-     * two-phase lifecycle for a catalog read) AND every real tool `execute_delegated_tool` resolves
-     * to (via `withToolAttemptAudit` wrapping `executor` below — the same `requested`-then-final-phase
-     * decorator used by the daemon). Omitted, neither half is logged; tests composing a bare
-     * surface pay nothing extra. Production (`assistant-byok.ts`) always
-     * supplies this.
-     */
-    readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
-    /**
-     * Whether this surface also registers installed Agent Plugin, Agent Skill, and enabled
-     * plugin-capability tools (`installed-extension-tools.ts`) onto its own registry. Defaults to
-     * `true` — every real caller wants these. Set `false` only for a `routeDeps` stub that does not
-     * carry `discoverPlugins`/`postRepo`/`pluginActivationRepo` (a bare `AssistantToolRegistryDeps`
-     * unit-test double): the registrar is fail-open either way, so a missing field there would only
-     * cost a swallowed `console.warn` per call, not a test failure, but there is no reason to pay it.
-     */
-    readonly installExtensions?: boolean;
-    readonly contributions?: AssistantToolContributions;
-    /**
-     * The installed-extension pass `attachAssistantToolExtensions` runs ahead of federation —
-     * injected by the composition root (`modules/assistant-byok.ts` passes
-     * `server/runtime/composition/installed-extension-tools.ts`'s `registerInstalledExtensionTools`)
-     * because its three registrars are feature code `assistant/` must not import by value (the
-     * `assistant <-> features/*` module cycles). Omitted, that pass registers nothing and `ready`
-     * resolves at once; federation is still attached unless `installExtensions: false`.
-     */
-    readonly registerInstalledExtensions?: InstalledExtensionRegistrar;
-    /**
-     * Registers first-party federated MCP presets before this surface is built — injected by the
-     * composition root for the same module-cycle reason as `registerInstalledExtensions`. No root
-     * passes one; vendors arrive as Agent Plugin rows in the stored roster. Omitted, nothing is registered.
-     */
-    readonly registerFederationPresets?: () => void;
-    /**
-     * Test seam, threaded straight into `CreateFederationRuntimeParams.connect` (see that field's
-     * own doc): overrides the session factory federation's boot pass uses for EVERY connection in
-     * the roster, so a test can hand it a fake `McpSessionPort` (e.g.
-     * `mcp-federation/adapter.memory.ts`'s `InMemoryMcpSession`) instead of actually spawning a
-     * child process or dialing a hosted URL. Omitted, the real transport connects, exactly as
-     * `assistant-byok.ts` (the only production caller) wants.
-     */
-    readonly federationConnect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
-  } = {},
-): ByokToolSurface {
+export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: ByokToolSurfaceOptions = {}): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   // The input omits exactly the limiter and catalog reader built here. Domain slices already
   // declare the clock; the assembled object is checked against AssistantToolRegistryDeps.
   const registry = createToolRegistry({});
   const deleteScope = createChatDeleteScope({ readPolicy: ({ principalId }) => readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady }) });
-  // Discovery view only: Jini authorizes invocations against the inner registry's WeakMap
-  // identity. Executors must use `registry`, never this filtered view.
-  const visibleRegistry: ToolRegistry = {
-    register: registry.register,
-    has: ({ toolId }) => registry.has({ toolId }) && isChatToolAllowed({ toolId, policy: deleteScope.policy() }),
-    list: (...args) => registry.list(...args).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })),
-  };
+  const visibleRegistry = createDiscoveryRegistry({ registry, deleteScope });
   // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
   // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
   // through `routeDeps` cannot replace it.
@@ -521,80 +518,19 @@ export function createByokToolSurface(
     registry.register(registration);
   }
 
-  // The shared executor factory applies read-only, audit and recovery rules for both processes.
-  // Forward the optional audit sink unchanged: omission leaves both halves unlogged.
   // Injected (see the option's doc); a registrar must be idempotent and spawn nothing unless an
   // operator has opted in.
   options.registerFederationPresets?.();
 
-  // The stored-roster half of `external-mcp-connection-source.ts` — reads Settings → External
-  // MCP's rows fresh on every `federation.resolveConnections()` call (boot, and every reload),
-  // never rejecting. `routeDeps.externalMcpOAuth?.tokenResolver` mirrors
-  // `agent-daemon-server.ts`'s own `resolveStoredExternalMcpConnections`: omitted (not merely
-  // `undefined`-valued) when this surface's `routeDeps` carries no OAuth service, so an
-  // `authMode: "oauth"` row degrades to a reported failure rather than launching credential-free.
-  const connectionSource = createStoredExternalMcpConnectionSource({
-    agentPluginLayout: routeDeps.agentPluginLayout,
-    repo: routeDeps.externalMcpServerRepo,
-    sealer: routeDeps.siteAssistantSecretSealer,
-    ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth.tokenResolver } : {}),
-    workspaceId: routeDeps.workspaceId,
-    log: "[assistant-byok]",
-  });
-
-  // THE ONE REGISTRAR (`installed-extension-tools.ts`) — installed-extension tools, then (once
-  // that settles) a `FederationRuntime` built but not yet started, per that function's own doc.
-  // Skipped entirely under `installExtensions: false`, the same bare-test-double posture `ready`
-  // already had: there is no roster to federate without the extension pass ahead of it, and this
-  // surface's `federation`/`awaitFederation` degrade to `undefined`/an immediate no-op below.
-  const extensions =
-    options.installExtensions === false
-      ? undefined
-      : attachAssistantToolExtensions(
-          registry,
-          {
-            ...deps,
-            registerInstalled: options.registerInstalledExtensions ?? (async () => {}),
-            federation: {
-              presetRegistry: routeDeps.federatedMcpPresetRegistry,
-              deps: buildExternalMcpFederationDeps({
-                authorize: routeDeps.authorize,
-                workspaceId: routeDeps.workspaceId,
-                repo: routeDeps.externalMcpServerRepo,
-                ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth } : {}),
-                // G3: federated calls that are not read-only ask on a card through THIS surface's
-                // store — the one the API proxy delivers a Local-CLI run's clicks to.
-                surfaceExchanges,
-              }),
-              resolveConnections: () => connectionSource.resolve(),
-              // Only a RELOAD pass reaches this — see `FederationRuntime.reload`'s own doc — so the
-              // boot pass's own newly-searchable tools are rebuilt by `awaitFederation` below, not
-              // here.
-              onAdmitted: () => {
-                catalog = buildToolCatalogQuery(registry);
-              },
-              ...(options.federationConnect ? { connect: options.federationConnect } : {}),
-            },
-          },
-          "[assistant-byok]",
-        );
+  const connectionSource = createSurfaceConnectionSource({ routeDeps });
+  const extensions = attachSurfaceExtensions(
+    { registry, deps, routeDeps, surfaceExchanges, connectionSource, onAdmitted: () => {
+      catalog = buildToolCatalogQuery(registry);
+    } },
+    options,
+  );
   const federation: FederationRuntime | undefined = extensions?.federation;
-
-  // Composed OUTERMOST, matching `agent-daemon-server.ts`'s identical ordering (`:541` there) —
-  // see `withFederatedRefusalDiagnosis`'s own header for why outermost is load-bearing. `() =>
-  // federation?.reports() ?? []` reads live: empty before `awaitFederation` (or a caller directly
-  // holding `federation`) ever starts the boot pass, and again whenever `federation` itself is
-  // `undefined`, in which case no toolId here can be `mcp__`-prefixed either — this decorator is
-  // then a no-op passthrough, never a behavior change for `installExtensions: false`.
-  const executor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
-      registry,
-      surfaceExchanges,
-      ...(options.prepareGuidance ? { prepareGuidance: options.prepareGuidance } : {}),
-      ...(options.toolAttemptAudit ? { toolAttemptAudit: options.toolAttemptAudit } : {}),
-    }, {}), getSnapshot: () => federation?.reports() ?? [], getBootStatus: () =>
-      federation
-        ? { settled: federation.started, connectFailures: federation.connectFailures(), configuredConnectionIds: federation.configuredConnectionIds() }
-        : { settled: true, connectFailures: [] } }, {});
+  const executor = composeSurfaceExecutor({ registry, surfaceExchanges, federation }, options);
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.
@@ -625,10 +561,9 @@ export function createByokToolSurface(
    */
   async function awaitFederation(timeoutMs: number): Promise<{ readonly settled: boolean }> {
     if (!federation) return { settled: true };
-    const runtime = federation;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const outcome = await Promise.race([
-      runtime.start().then((): "started" => {
+      federation.start().then((): "started" => {
         catalog = buildToolCatalogQuery(registry);
         return "started";
       }),

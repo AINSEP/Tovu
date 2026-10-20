@@ -850,3 +850,76 @@ test("self-registration and disconnect both preserve a normalized vault OAuth pa
     assert.equal(payload.tokens, undefined);
   } finally { await fixture.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// BRANCH PINS (L114 code-health): self-configuration branches the cases above leave unexercised,
+// pinned against the pre-refactor code.
+// ---------------------------------------------------------------------------
+
+/** Self-configures a device-only server (no authorization endpoint) through a connect that carries
+ *  no callback URL, and returns what was registered and stored. */
+async function selfConfigureDeviceOnlyWithoutCallback() {
+  const metadata: Record<string, unknown> = {
+    authorization_endpoint: null,
+    grant_types_supported: ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
+  };
+  const fixture = await startDiscoveryFixture({ metadata });
+  const deviceAuthorizationEndpoint = new URL("/device", fixture.resourceUrl).toString();
+  metadata.device_authorization_endpoint = deviceAuthorizationEndpoint;
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    const service = makeService(store, { fetchFn: stubOneEndpoint(deviceAuthorizationEndpoint, {
+      device_code: "device-secret", user_code: "WDJB-MJHT", verification_uri: "https://device.example.com/activate", expires_in: 900, interval: 5,
+    }) });
+    const started = await service.beginConnect({ serverId: SERVER });
+    const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    const registration = fixture.requests.find((request) => request.url.split("?")[0] === "/oauth2/register");
+    assert.ok(registration, "self-configuration must have registered a client");
+    return { started, endpoints: JSON.parse(record?.oauthEndpointsJson ?? "{}") as Record<string, unknown>, registeredBody: JSON.parse(registration?.body ?? "{}") as Record<string, unknown> };
+  } finally {
+    await fixture.close();
+  }
+}
+
+test("a device-only self-registration with no callback registers no redirect URI and stores none", async () => {
+  const { started, endpoints, registeredBody } = await selfConfigureDeviceOnlyWithoutCallback();
+  assert.equal(started.kind, "device_code");
+  assert.equal(endpoints.registeredRedirectUri, undefined);
+  assert.equal((registeredBody.redirect_uris as unknown[] | undefined)?.length ?? 0, 0);
+});
+
+test("a discovered server that advertises no authorization endpoint stores none", async () => {
+  const { endpoints } = await selfConfigureDeviceOnlyWithoutCallback();
+  assert.equal("authorizationEndpoint" in endpoints, false);
+  assert.equal(typeof endpoints.tokenEndpoint, "string");
+});
+
+test("a discovered server that advertises no grant at all is refused, saying it offers none", async () => {
+  const fixture = await startDiscoveryFixture({ metadata: { grant_types_supported: [] } });
+  const store = makeStore();
+  try {
+    await saveWithoutGrant(store, { url: fixture.resourceUrl });
+    await assert.rejects(makeService(store).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI }),
+      (error: unknown) => error instanceof Error && error.message.includes(`the authorization server for external MCP server '${SERVER}' advertises no grant Tovu supports (it offers: none)`));
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a row with no label registers its client under the server id", async () => {
+  const fixture = await startDiscoveryFixture();
+  const store = makeStore();
+  try {
+    await save(store, { url: fixture.resourceUrl });
+    const row = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
+    assert.ok(row);
+    await store.repo.upsert({ ...row, label: null });
+    await makeService(store).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+    const registration = fixture.requests.find((request) => request.url.split("?")[0] === "/oauth2/register");
+    assert.ok(registration, "self-configuration must have registered a client");
+    assert.equal((JSON.parse(registration?.body ?? "{}") as Record<string, unknown>).client_name, SERVER);
+  } finally {
+    await fixture.close();
+  }
+});

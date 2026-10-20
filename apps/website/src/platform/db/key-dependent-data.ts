@@ -1,4 +1,4 @@
-import { isVaultRestoreArtifact } from "./vault-credential-inventory.js";
+import { isVaultRestoreArtifact, SEALED_COLUMN_SUFFIX } from "./vault-credential-inventory.js";
 import { sql } from "kysely";
 
 import { listColumns, listTables, tableExists } from "./kernel/dialect.js";
@@ -23,7 +23,6 @@ import type { StorageKernel } from "./kernel/port.js";
  * row: its signing secrets derive from the key without a sealed column.
  */
 
-const SEALED_COLUMN_SUFFIX = "sealed_ciphertext";
 const WEBHOOK_SUBSCRIPTIONS_TABLE = "webhook_subscriptions";
 
 /**
@@ -36,14 +35,30 @@ const WEBHOOK_SUBSCRIPTIONS_TABLE = "webhook_subscriptions";
 export async function hasKeyDependentData<DB>(kernel: StorageKernel<DB>): Promise<boolean> {
   for (const table of await listTables(kernel)) {
     if (isVaultRestoreArtifact({ table })) continue;
-    for (const column of await listColumns(kernel, table)) {
-      if (!column.name.endsWith(SEALED_COLUMN_SUFFIX)) continue;
-      const hit = await kernel.query(
-        sql`SELECT 1 AS hit FROM ${sql.table(table)} WHERE ${sql.ref(column.name)} IS NOT NULL LIMIT 1`
-      );
-      if (hit.length > 0) return true;
-    }
+    if (await tableHasSealedValue({ kernel, table })) return true;
   }
+  return hasWebhookSubscription({ kernel });
+}
+
+/**
+ * Whether `table` holds a non-null value in any column whose name ends in `sealed_ciphertext`,
+ * probing those columns in catalog order and stopping at the first hit.
+ *
+ * @complexity O(c) for c catalog columns, plus one `LIMIT 1` probe per sealed column.
+ */
+async function tableHasSealedValue<DB>({ kernel, table }: { kernel: StorageKernel<DB>; table: string }): Promise<boolean> {
+  for (const column of await listColumns(kernel, table)) {
+    if (!column.name.endsWith(SEALED_COLUMN_SUFFIX)) continue;
+    const hit = await kernel.query(
+      sql`SELECT 1 AS hit FROM ${sql.table(table)} WHERE ${sql.ref(column.name)} IS NOT NULL LIMIT 1`
+    );
+    if (hit.length > 0) return true;
+  }
+  return false;
+}
+
+/** Whether a `webhook_subscriptions` table exists and holds any row (its secrets derive from the key). */
+async function hasWebhookSubscription<DB>({ kernel }: { kernel: StorageKernel<DB> }): Promise<boolean> {
   if (!(await tableExists(kernel, WEBHOOK_SUBSCRIPTIONS_TABLE))) return false;
   const subscription = await kernel.query(sql`SELECT 1 AS hit FROM ${sql.table(WEBHOOK_SUBSCRIPTIONS_TABLE)} LIMIT 1`);
   return subscription.length > 0;
@@ -61,14 +76,10 @@ export async function hasKeyDependentData<DB>(kernel: StorageKernel<DB>): Promis
  */
 export async function findKeyDependentData(dbPaths: readonly string[]): Promise<boolean> {
   for (const dbPath of dbPaths) {
-    if (await databaseHasKeyDependentData(dbPath)) return true;
+    // One file's answer, with open/query failures turned into "has data" without aborting the others.
+    if (await scanOpenedKernel(() => openSqliteFileKernel<unknown>(dbPath, { readOnly: true }))) return true;
   }
   return false;
-}
-
-/** One file's answer, with open/query failures turned into "has data" without aborting the others. */
-function databaseHasKeyDependentData(dbPath: string): Promise<boolean> {
-  return scanOpenedKernel(() => openSqliteFileKernel<unknown>(dbPath, { readOnly: true }));
 }
 
 /**

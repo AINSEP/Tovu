@@ -29,19 +29,31 @@ function toRecord(row: Selectable<PublishHistoryTable>): PublishHistoryEntry {
     target: row.target as StaticPublishTargetId,
     ...(row.kind && row.kind !== "static" ? { kind: row.kind as NonNullable<PublishHistoryEntry["kind"]> } : {}),
     url: row.url,
-    reachable: toBool(row.reachable) ?? false,
+    // `toBool` is null only for a NULL column, which `reachable NOT NULL` never yields; read it as false.
+    reachable: toBool(row.reachable) === true,
     status: row.status,
     projectName: row.project_name,
     ...(row.credential_id !== null ? { credentialId: row.credential_id } : {}),
     ...(row.config_fields_json !== null ? { configFields: JSON.parse(row.config_fields_json) as Record<string, string> } : {}),
     publishedAt: row.published_at,
+    ...providerFields(row),
+    triggeredBy: row.triggered_by as PublishTrigger,
+  };
+}
+
+/** The per-target provider fields (github-pages' repo location, a provider's own deploy id), each
+ * present only when its column is non-NULL — absent keys, never present-but-`undefined` ones.
+ * @complexity O(1). */
+function providerFields(
+  row: Selectable<PublishHistoryTable>,
+): Pick<PublishHistoryEntry, "owner" | "repo" | "basePath" | "deploymentId" | "commitSha" | "branch"> {
+  return {
     ...(row.owner !== null ? { owner: row.owner } : {}),
     ...(row.repo !== null ? { repo: row.repo } : {}),
     ...(row.base_path !== null ? { basePath: row.base_path } : {}),
     ...(row.deployment_id !== null ? { deploymentId: row.deployment_id } : {}),
     ...(row.commit_sha !== null ? { commitSha: row.commit_sha } : {}),
     ...(row.branch !== null ? { branch: row.branch } : {}),
-    triggeredBy: row.triggered_by as PublishTrigger,
   };
 }
 
@@ -73,7 +85,7 @@ export class SqlPublishHistoryStore implements PublishHistoryStore {
 
   /** Group before limiting so frequent publishes cannot hide an older destination. One query over
    * workspace history with database grouping/sorting and at most 201 returned rows. */
-  async listDestinationHistory(input: { workspaceId: UUID }, _options: Record<string, never> = {}): Promise<PublishHistoryEntry[]> {
+  async listDestinationHistory(input: { workspaceId: UUID }): Promise<PublishHistoryEntry[]> {
     const rows = await this.kernel.run(db => db.selectFrom("publish_history").selectAll()
       .where("workspace_id", "=", input.workspaceId)
       .where("id", "in", db.selectFrom("publish_history")

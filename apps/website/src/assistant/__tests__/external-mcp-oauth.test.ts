@@ -1,5 +1,5 @@
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import { MAX_AUTHORIZATION_STATE_LENGTH, OAuthError } from "@jini-ai/oauth";
+import { createOAuthProviderRegistry, MAX_AUTHORIZATION_STATE_LENGTH, OAuthError } from "@jini-ai/oauth";
 import { formatAad } from "@jini-ai/platform/secrets";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
@@ -21,6 +21,7 @@ import {
 import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import {
+  ExternalMcpValidationError,
   ExternalMcpSecretStoreUnconfiguredError,
   externalMcpAdmissionRevision,
   type ExternalMcpServerRepoPort,
@@ -1302,4 +1303,197 @@ test("returned memory vault envelopes cannot mutate stored credentials through a
   assert.equal((await readRow(repo)).sealedOAuth!.ciphertext, originalCiphertext);
   await assert.rejects(repo.upsert(row));
   assert.equal((await openExternalMcpOAuthPayload(sealer, await readRow(repo))).clientSecret, "s3cr3t");
+});
+
+// ---------------------------------------------------------------------------
+// BRANCH PINS (L114 code-health): every branch of `external-mcp-oauth.ts` the cases above leave
+// unexercised, pinned against the pre-refactor code. Rows are bent into the shape under test with
+// a direct `repo.upsert`, because `saveExternalMcpServer` refuses most of these shapes up front.
+// ---------------------------------------------------------------------------
+
+type Harness = Awaited<ReturnType<typeof makeHarness>>;
+
+/** A second service over the harness's own store, for the deps `makeHarness` does not expose. */
+function serviceOver(h: Harness, extra: Partial<Parameters<typeof createExternalMcpOAuthService>[0]> = {}) {
+  return createExternalMcpOAuthService({
+    workspaceId: WORKSPACE, repo: h.repo, sealer: h.sealer, keyring: h.keyring, clock: h.clock,
+    devices: createDeviceAuthorizationStore(),
+    httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: ({ url }, init) => h.http.fetchFn(url, init) },
+    lookupProvider: () => PROVIDER,
+    ...extra,
+  });
+}
+
+/** The harness row, rewritten with `patch`. */
+async function bendRow(h: Harness, patch: Partial<Awaited<ReturnType<typeof readRow>>>): Promise<void> {
+  await h.repo.upsert({ ...(await readRow(h.repo)), ...patch });
+}
+
+/** The `scope` a redirect connect asks the provider for, or null when it asks for none. */
+async function requestedScope(h: Harness): Promise<string | null> {
+  const started = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  assert.ok(started.kind === "redirect_required");
+  return new URL(started.authorizationUrl).searchParams.get("scope");
+}
+
+const TOKEN_SCRIPT = [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
+
+test("a post-connect step that throws is logged and does not fail the sign-in", async (t) => {
+  const h = await makeHarness({ script: TOKEN_SCRIPT });
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (line: string) => { warnings.push(line); });
+  await connect(serviceOver(h, { onConnected: async () => { throw new Error("defaults exploded"); } }));
+  assert.equal((await readRow(h.repo)).oauthStatus, "connected");
+  assert.deepEqual(warnings, ["[external-mcp] 'higgs': post-connect step failed: defaults exploded"]);
+});
+
+test("a post-connect step that throws a non-Error is logged by its string form", async (t) => {
+  const h = await makeHarness({ script: TOKEN_SCRIPT });
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (line: string) => { warnings.push(line); });
+  await connect(serviceOver(h, { onConnected: async () => { throw "plain failure"; } }));
+  assert.deepEqual(warnings, ["[external-mcp] 'higgs': post-connect step failed: plain failure"]);
+});
+
+test("connecting a server id with no row is refused, naming the id", async () => {
+  const { service } = await makeHarness();
+  await assert.rejects(service.beginConnect({ serverId: "ghost", redirectUri: REDIRECT_URI }),
+    (error: unknown) => error instanceof ExternalMcpValidationError && error.field === "id" && error.message === "no external MCP server is configured as 'ghost'");
+});
+
+test("connecting a row that does not use OAuth is refused, naming the row", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { authMode: "static_env" });
+  await assert.rejects(h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI }),
+    (error: unknown) => error instanceof ExternalMcpValidationError && error.field === "authMode" && error.message === "external MCP server 'higgs' is not configured to use OAuth");
+});
+
+test("a stored endpoints value that is valid JSON but not an object is read as no endpoints", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthEndpointsJson: "[1]" });
+  assert.equal(await requestedScope(h), "images:generate");
+});
+
+test("a corrupt stored endpoints value is read as no endpoints", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthEndpointsJson: "{not json" });
+  assert.equal(await requestedScope(h), "images:generate");
+});
+
+test("a row with no stored scopes asks the provider for none", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthScopesJson: null });
+  assert.equal(await requestedScope(h), null);
+});
+
+test("stored scopes that are not a JSON array ask the provider for none", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthScopesJson: JSON.stringify({ scope: "x" }) });
+  assert.equal(await requestedScope(h), null);
+});
+
+test("corrupt stored scopes ask the provider for none", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthScopesJson: "[not json" });
+  assert.equal(await requestedScope(h), null);
+});
+
+test("a provider-less row with only token and device endpoints connects by device code under a connection-scoped provider", async () => {
+  const h = await makeHarness({ grant: "device_code", script: [{ json: { device_code: "dc-1", user_code: "ABCD-EFGH", verification_uri: "https://auth.example.com/activate", expires_in: 900, interval: 5 } }] });
+  await bendRow(h, { oauthProviderId: null, oauthEndpointsJson: JSON.stringify({ tokenEndpoint: "https://auth.example.com/token", deviceAuthorizationEndpoint: "https://auth.example.com/device" }) });
+  const started = await h.service.beginConnect({ serverId: SERVER });
+  assert.equal(started.kind, "device_code");
+  assert.equal(h.http.requests[0]?.url, "https://auth.example.com/device");
+});
+
+test("a callback for a row that names neither a provider nor a token endpoint is refused with the operator's fix", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthProviderId: null });
+  await assert.rejects(h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: "s", code: "c" } }),
+    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_REQUEST"
+      && error.message.includes("external MCP server 'higgs' names no OAuth provider and defines no token endpoint"));
+});
+
+test("a callback for a row with no client id is refused, naming the missing client id", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthClientId: null });
+  await assert.rejects(h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: "s", code: "c" } }),
+    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_REQUEST"
+      && error.message.includes("external MCP server 'higgs' has no OAuth client id"));
+});
+
+test("connecting a stdio row that names no provider and no endpoints is refused before any request", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthProviderId: null });
+  await assert.rejects(h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI }),
+    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_REQUEST"
+      && error.message.includes("external MCP server 'higgs' names no OAuth provider and defines no token endpoint"));
+  assert.equal(h.http.callCount(), 0);
+});
+
+test("without a lookupProvider, a registered provider is resolved from the injected registry", async () => {
+  const h = await makeHarness();
+  const providers = createOAuthProviderRegistry({ guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }) });
+  providers.register({ descriptor: PROVIDER });
+  const started = await serviceOver(h, { lookupProvider: undefined, providers }).beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  assert.ok(started.kind === "redirect_required");
+  assert.equal(new URL(started.authorizationUrl).origin, "https://auth.example.com");
+});
+
+test("disconnecting a row whose client id is already gone only resets its status", async () => {
+  const h = await makeHarness();
+  await bendRow(h, { oauthClientId: null, oauthEndpointsJson: JSON.stringify({ dynamicClientId: "old" }) });
+  await h.service.disconnect({ serverId: SERVER });
+  const row = await readRow(h.repo);
+  assert.equal(row.oauthStatus, "disconnected");
+  assert.equal(row.oauthEndpointsJson, JSON.stringify({ dynamicClientId: "old" }));
+});
+
+test("disconnecting a server id with no row writes nothing", async () => {
+  const h = await makeHarness();
+  await h.service.disconnect({ serverId: "ghost" });
+  assert.equal(await h.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "ghost" }), null);
+});
+
+test("a completed sign-in on a row with no client secret seals the tokens alone", async () => {
+  const h = await makeHarness({ script: TOKEN_SCRIPT });
+  await bendRow(h, { sealedOAuth: null });
+  await connect(h.service);
+  const payload = await openExternalMcpOAuthPayload(h.sealer, await readRow(h.repo));
+  assert.equal(payload.clientSecret, undefined);
+  assert.equal(payload.tokens?.accessToken, "at-1");
+});
+
+test("resolving a token for a server id with no row reports re-authorization under the server id", async () => {
+  const { service } = await makeHarness();
+  await assert.rejects(service.tokenResolver.resolveAccessToken({ serverId: "ghost" }),
+    (error: unknown) => error instanceof ExternalMcpReauthRequiredError && error.serverId === "ghost" && error.message.startsWith('"ghost" is disconnected'));
+});
+
+test("resolving a token for a row that holds none reports re-authorization under its label", async () => {
+  const { service } = await makeHarness();
+  await assert.rejects(service.tokenResolver.resolveAccessToken({ serverId: SERVER }),
+    (error: unknown) => error instanceof ExternalMcpReauthRequiredError && error.message.startsWith('"Higgs" is disconnected'));
+});
+
+test("a refresh lease held elsewhere is waited on, then the still-valid token is used once the wait budget runs out", async () => {
+  const h = await makeHarness({ script: TOKEN_SCRIPT });
+  await connect(h.service);
+  h.clock.advance(3_600_000 - 60_000);
+  const nowIso = h.clock.nowIso();
+  assert.equal(await h.repo.tryClaimOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: SERVER, nowIso, leaseUntil: "2099-01-01T00:00:00.000Z" }), true);
+  const pending = h.service.tokenResolver.resolveAccessToken({ serverId: SERVER });
+  // Let the refresher reach its lease wait (and fix its deadline) before time moves past it.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  h.clock.advance(6_000);
+  assert.equal(await pending, "at-1");
+});
+
+test("a post-connect step that succeeds is handed the server id and logs nothing", async (t) => {
+  const h = await makeHarness({ script: TOKEN_SCRIPT });
+  const warn = t.mock.method(console, "warn", () => {});
+  const connected: string[] = [];
+  await connect(serviceOver(h, { onConnected: async (serverId) => { connected.push(serverId); } }));
+  assert.deepEqual(connected, [SERVER]);
+  assert.equal(warn.mock.callCount(), 0);
 });

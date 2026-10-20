@@ -17,8 +17,8 @@ import type { ServerLogEntry } from "./log-buffer.js";
  * the sink: it must never log about itself, because its own log line would come straight back here.
  */
 
-export const DEFAULT_LOG_FILE_MAX_BYTES = 5_000_000;
-export const DEFAULT_LOG_TAIL_BYTES = 2_000_000;
+const DEFAULT_LOG_FILE_MAX_BYTES = 5_000_000;
+const DEFAULT_LOG_TAIL_BYTES = 2_000_000;
 
 /** The filesystem calls the sink and reader need; injectable so rotation is testable in memory. */
 export interface LogFileFsPort {
@@ -120,6 +120,17 @@ function parseLines(text: string, dropFirst: boolean): ServerLogEntry[] {
 }
 
 /**
+ * Parses the newest `budget` bytes of one log file.
+ * @param required Filesystem port, file path, its stat size (null when absent) and the byte budget.
+ * @returns The file's whole entries oldest first; empty when the file is absent or vanished before the read.
+ * @complexity O(budget).
+ */
+function readTailEntries(required: { io: LogFileFsPort; filePath: string; size: number | null; budget: number }): ServerLogEntry[] {
+  if (required.size === null) return [];
+  return parseLines(required.io.readTail(required.filePath, required.budget) ?? "", required.size > required.budget);
+}
+
+/**
  * Reads the newest entries from `<file>.1` then `<file>`, at most `maxBytes` in total.
  * @param required The log file path.
  * @param optional Byte budget, entry cap and filesystem port.
@@ -133,9 +144,9 @@ export function readLogFileTail(required: { filePath: string }, optional: { maxB
   const rotatedPath = `${required.filePath}.1`;
   const rotatedSize = io.size(rotatedPath);
   if (currentSize === null && rotatedSize === null) return null;
-  const current = currentSize === null ? [] : parseLines(io.readTail(required.filePath, budget) ?? "", currentSize > budget);
+  const current = readTailEntries({ io, filePath: required.filePath, size: currentSize, budget });
   const remaining = budget - Math.min(currentSize ?? 0, budget);
-  const rotated = rotatedSize === null || remaining <= 0 ? [] : parseLines(io.readTail(rotatedPath, remaining) ?? "", rotatedSize > remaining);
+  const rotated = remaining <= 0 ? [] : readTailEntries({ io, filePath: rotatedPath, size: rotatedSize, budget: remaining });
   const all = [...rotated, ...current];
   return optional.maxEntries === undefined ? all : all.slice(-optional.maxEntries);
 }

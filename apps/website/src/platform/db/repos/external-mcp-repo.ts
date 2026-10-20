@@ -25,28 +25,36 @@ import { toBool } from "../kernel/dialect.js";
  * correctness guarantee rather than a storage detail. See its doc.
  */
 
-type ServerTable = ExternalMcpServersTable;
-type Row = Selectable<ServerTable>;
+type Row = Selectable<ExternalMcpServersTable>;
 type ServerKey = { workspaceId: UUID; serverId: string };
-type McpDatabase = SecretsVaultDatabase & { external_mcp_servers: ServerTable };
 type JoinedRow = Row & Record<string, unknown>;
+type PayloadKind = "mcp-env" | "mcp-auth";
 const vaultColumns = ["workspace_id", "id", "kind", "owner_key", "principal_id", "binding", "provider", "label", "is_default",
   "revision", "sealed_key_id", "sealed_ciphertext", "sealed_nonce", "sealed_alg", "last4", "token_length", "meta", "created_at", "updated_at"] as const;
 
-function joinedEnvelope({ row, prefix, kind }: { row: JoinedRow; prefix: "env" | "oauth"; kind: "mcp-env" | "mcp-auth" }) {
+function joinedEnvelope({ row, prefix, kind }: { row: JoinedRow; prefix: "env" | "oauth"; kind: PayloadKind }) {
   if (row[`${prefix}_secret_id`] === null) return null;
   const vault = Object.fromEntries(vaultColumns.map(column => [column, row[`${prefix}_${column}`]])) as unknown as SecretsVaultTable;
+  assertJoinedContext({ vault, row, kind });
+  return externalMcpVaultEnvelope({ record: toVaultRecord({ vault }) });
+}
+
+/** Refuses a joined payload that is not this server's own unscoped `kind` payload (or is missing). */
+function assertJoinedContext({ vault, row, kind }: { vault: SecretsVaultTable; row: JoinedRow; kind: PayloadKind }): void {
   if (!vault.id || vault.workspace_id !== row.workspace_id || vault.owner_key !== row.server_id || vault.kind !== kind ||
     vault.principal_id !== null || vault.binding !== null) throw new VaultError({ code: "context" });
+}
+
+/** The vault record behind a context-checked payload; one missing any sealed part is refused. */
+function toVaultRecord({ vault }: { vault: SecretsVaultTable }): VaultRecord {
   const parts = [vault.sealed_key_id, vault.sealed_ciphertext, vault.sealed_nonce, vault.sealed_alg];
   if (parts.some(value => typeof value !== "string")) throw new VaultError({ code: "invalid-record" });
-  const record: VaultRecord = { workspaceId: vault.workspace_id, id: vault.id, kind: vault.kind, ownerKey: vault.owner_key,
+  return { workspaceId: vault.workspace_id, id: vault.id, kind: vault.kind, ownerKey: vault.owner_key,
     principalId: vault.principal_id, binding: vault.binding, provider: vault.provider, label: vault.label,
     isDefault: toBool(vault.is_default) ?? false, revision: Number(vault.revision),
     sealed: { keyId: vault.sealed_key_id!, ciphertext: vault.sealed_ciphertext!, nonce: vault.sealed_nonce!, alg: vault.sealed_alg! },
     last4: vault.last4, tokenLength: vault.token_length, meta: typeof vault.meta === "string" ? JSON.parse(vault.meta) : vault.meta,
     createdAt: vault.created_at, updatedAt: vault.updated_at };
-  return externalMcpVaultEnvelope({ record });
 }
 
 function toRecord(row: JoinedRow): ExternalMcpServerRecord {
@@ -119,10 +127,8 @@ function toRow(record: ExternalMcpServerRecord, pointers: { env_secret_id: strin
 }
 
 export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
-  private readonly store: StorageKernel<McpDatabase>;
   readonly vaultRepo: SqlSecretsVaultRepo;
   constructor(protected readonly kernel: ContentKernel) {
-    this.store = kernel as unknown as StorageKernel<McpDatabase>;
     this.vaultRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> });
   }
 
@@ -151,13 +157,13 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
     await this.kernel.transaction(async () => {
       // Match Jini's writer lock before reading pointers, including callbacks and token refresh.
       await this.kernel.lockKey(`secrets_vault:${record.workspaceId}`);
-      const previous = await this.store.run(db => db.selectFrom("external_mcp_servers")
+      const previous = await this.kernel.run(db => db.selectFrom("external_mcp_servers")
         .select(["env_secret_id", "oauth_secret_id"]).where("workspace_id", "=", record.workspaceId)
         .where("server_id", "=", record.serverId).executeTakeFirst());
       const env_secret_id = await persistExternalMcpVaultEnvelope({ repo: this.vaultRepo, sealed: record.sealedEnv, identity: record, kind: "mcp-env" });
       const oauth_secret_id = await persistExternalMcpVaultEnvelope({ repo: this.vaultRepo, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
       const row = toRow(record, { env_secret_id, oauth_secret_id });
-      await this.store.run(db => db.insertInto("external_mcp_servers").values(row)
+      await this.kernel.run(db => db.insertInto("external_mcp_servers").values(row)
         .onConflict(oc => oc.columns(["workspace_id", "server_id"]).doUpdateSet(row)).execute());
       // The upsert unlinks old pointers first; RESTRICT foreign keys remain satisfied throughout.
       if (previous?.env_secret_id !== env_secret_id) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: record.workspaceId, id: previous?.env_secret_id ?? null });
@@ -168,11 +174,11 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
   async deleteByServerId(input: ServerKey): Promise<boolean> {
     return this.kernel.transaction(async () => {
       await this.kernel.lockKey(`secrets_vault:${input.workspaceId}`);
-      const previous = await this.store.run(db => db.selectFrom("external_mcp_servers")
+      const previous = await this.kernel.run(db => db.selectFrom("external_mcp_servers")
         .select(["env_secret_id", "oauth_secret_id"]).where("workspace_id", "=", input.workspaceId)
         .where("server_id", "=", input.serverId).executeTakeFirst());
       if (!previous) return false;
-      await this.store.run(db => db.deleteFrom("external_mcp_servers").where("workspace_id", "=", input.workspaceId)
+      await this.kernel.run(db => db.deleteFrom("external_mcp_servers").where("workspace_id", "=", input.workspaceId)
         .where("server_id", "=", input.serverId).execute());
       for (const id of [previous.env_secret_id, previous.oauth_secret_id]) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: input.workspaceId, id });
       return true;

@@ -200,3 +200,24 @@ test("restore artifacts and metadata-only vault rows do not block minting; a liv
     } finally { db.close(); }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("findKeyDependentData: a populated column that only contains sealed_ciphertext (not as its suffix) is not key-dependent", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-key-dependent-data-"));
+  try {
+    const dbPath = join(dir, "content.db");
+    const db = new Database(dbPath);
+    try {
+      db.exec("CREATE TABLE plugin_notes (id INTEGER PRIMARY KEY, sealed_ciphertext_hint TEXT, note TEXT)");
+      db.exec("INSERT INTO plugin_notes (sealed_ciphertext_hint, note) VALUES ('hint', 'note')");
+    } finally { db.close(); }
+    assert.equal(await findKeyDependentData([dbPath]), false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("findKeyDependentData: no paths means nothing to scan", async () => {
+  assert.equal(await findKeyDependentData([]), false);
+});
+
+test("scanOpenedKernel: an open that throws fails closed without a kernel to close", async () => {
+  assert.equal(await scanOpenedKernel(() => { throw new Error("cannot open"); }), true);
+});

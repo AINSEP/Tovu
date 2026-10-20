@@ -1,6 +1,11 @@
+import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { desktopProjectPaths, relocateDesktopProjects } from "../../sites-project-references.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createSitesWorkspace } from "../../sites-home.js";
+import { desktopProjectPaths, relocateDesktopProjects, sitesProjectReferences } from "../../sites-project-references.js";
 
 test("desktop catalog paths cover OS profile conventions and isolate an explicit custom profile", () => {
   assert.deepEqual(desktopProjectPaths({ homeDir: "/users/a", appData: "/users/a/Library/Application Support/Tovu", platform: "darwin", env: {} }), [
@@ -32,4 +37,28 @@ test("desktop migration moves valid rows while preserving unusable rows exactly"
     ...value, projects: [...invalid, { ...valid, siteDir: "/new" }],
   });
   assert.equal(valid.siteDir, "/old");
+});
+
+test("a catalog without dismissals gains none when its rows move", () => {
+  assert.deepEqual(relocateDesktopProjects({ value: { projects: [{ siteDir: "/old", createdAt: "date" }] }, from: "/old", to: "/new" }), { projects: [{ siteDir: "/new", createdAt: "date" }] });
+});
+
+test("dismissals that are not a list make the catalog invalid", () => {
+  assert.throws(() => relocateDesktopProjects({ value: { projects: [], dismissed: "/old" }, from: "/old", to: "/new" }), { message: "Desktop projects catalog is invalid." });
+});
+
+test("Linux desktop profiles follow XDG_CONFIG_HOME when it is set", () => {
+  assert.deepEqual(desktopProjectPaths({ homeDir: "/home/a", appData: "/data/Tovu", env: { XDG_CONFIG_HOME: "/xdg" }, platform: "linux" }),
+    ["/data/Tovu/desktop-projects.json", "/xdg/Tovu/desktop-projects.json", "/xdg/tovu-desktop/desktop-projects.json"]);
+});
+
+test("reference participants default to the workspace's desktop profiles, once each, and relocate rows", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-project-references-"));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: home, cwd: home, env: {}, platform: "linux" });
+    const changes = sitesProjectReferences({ workspace: { ...workspace, projectsPaths: ["/p/a.json", "/p/a.json", "/p/b.json"] }, from: "/old", to: "/new" });
+    assert.deepEqual(changes.map((change) => change.filePath), ["/p/a.json", "/p/b.json"]);
+    assert.deepEqual(changes[0]?.transform({ projects: [{ siteDir: "/old", createdAt: "date" }] }), { projects: [{ siteDir: "/new", createdAt: "date" }] });
+    assert.deepEqual(sitesProjectReferences({ workspace, from: "/old", to: "/new" }, { projectsPaths: ["/only.json"] }).map((change) => change.filePath), ["/only.json"]);
+  } finally { fs.rmSync(home, { recursive: true, force: true }); }
 });

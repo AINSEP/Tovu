@@ -1,10 +1,10 @@
 import { createVaultMetaParsers, isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
   type VaultRepoPort, type VaultContext,
-  type VaultKind, type VaultMeta, type VaultMetaParsers, type VaultOptions } from "@jini-ai/platform/secrets/credential-sets";
-import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/features/custom-credentials/types";
+  type VaultKind, type VaultMeta, type VaultMetaParser, type VaultMetaParsers, type VaultOptions } from "@jini-ai/platform/secrets/credential-sets";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
+import { createStoreKeyring, protectStorage } from "./store-vault-guards.js";
+import { assertHostMetaRules, assertRecoveryMeta, parseStructuralMeta, withRecoveryMeta } from "./vault-meta-rules.js";
 
 /** Tovu owns catalogs and safe-metadata policy; Jini owns structural parsing and the vault lifecycle. */
 export interface TovuVaultPolicy {
@@ -24,69 +24,35 @@ export function createTovuVaultKinds(
   { policy }: { policy: TovuVaultPolicy },
   _optional: Record<string, never> = {},
 ): { metaParsers: VaultMetaParsers; policy: TovuVaultPolicy; isCopyableKind: typeof isCopyableKind } {
-  const base = createVaultMetaParsers({});
-  const metaParsers = createVaultMetaParsers({}, { parsers: Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind,
-    ({ meta, provider }: { meta: unknown; provider?: string | null | undefined }, _options: VaultOptions = {}) => {
-      if (Object.hasOwn(meta as object, "legacyAad")) throw new VaultError({ code: "invalid-meta" });
-      const { migration, normalization, ...plain } = meta as VaultMeta;
-      if (normalization !== undefined && !["missing-key", "unopenable", "invalid-meta", "catalog-unavailable", "conflict"].includes(String(normalization))) {
-        throw new VaultError({ code: "invalid-meta" });
-      }
-      if (migration !== undefined && (migration === null || typeof migration !== "object" || Array.isArray(migration))) throw new VaultError({ code: "invalid-meta" });
-      if (migration !== undefined) for (const field of ["originalLabel", "mappedLabel"]) {
-        const value = (migration as VaultMeta)[field];
-        if (typeof value === "string") assertCredentialFreeField({ value, field });
-      }
-      // savedAt describes the destination save, not the last metadata patch. Old migrated rows
-      // omit it and use createdAt; it must survive later lastRun updates without changing.
-      const { savedAt, ...destinationMeta } = plain;
-      const parsed = base[kind]({ meta: kind === "database-destination" ? destinationMeta : plain, provider });
-      if (kind === "database-destination" && savedAt !== undefined) {
-        if (typeof savedAt !== "string") throw new VaultError({ code: "invalid-meta" });
-        parsed.savedAt = savedAt;
-      }
-      validatePeerDestinationMeta({ kind, meta: parsed });
-      if ((kind === "custom" || (kind === "vendor" && parsed.credentialType === "custom")) && !CUSTOM_CREDENTIAL_CATEGORIES.includes(parsed.category as typeof CUSTOM_CREDENTIAL_CATEGORIES[number])) {
-        throw new VaultError({ code: "invalid-meta" });
-      }
-      for (const field of ["baseUrl", "model", "username", "accountLabel"]) {
-        const value = parsed[field];
-        if (typeof value === "string") assertCredentialFreeField({ value, field });
-      }
-      if (Array.isArray(parsed.additionalHosts)) for (const value of parsed.additionalHosts) {
-        if (typeof value !== "string" || new URL(value).origin !== value) throw new VaultError({ code: "invalid-meta" });
-        assertCredentialFreeField({ value, field: "additionalHosts" });
-      }
-      if (Array.isArray(parsed.worksFor)) for (const value of parsed.worksFor) {
-        assertCredentialFreeField({ value: value as string, field: "worksFor" });
-      }
-      const validated = policy.validateMeta({ kind, meta: parsed });
-      return { ...validated, ...(migration === undefined ? {} : { migration }),
-        ...(normalization === undefined ? {} : { normalization }) };
-    }])) as VaultMetaParsers });
-  return { metaParsers, policy, isCopyableKind };
+  return { metaParsers: createHostMetaParsers({ policy }), policy, isCopyableKind };
 }
 
-/** Host read/write invariants, including merged lastRun patches. No connection URI is metadata.
- * @throws VaultError for malformed descriptions, peer bindings or run summaries.
- * @complexity O(metadata size); fixed field checks, no I/O.
+/** Jini's parsers with one host parser per kind; only the policy's metadata decision is consulted.
+ * @complexity O(kinds) setup; no I/O.
  */
-function validatePeerDestinationMeta({ kind, meta }: { kind: VaultKind; meta: VaultMeta }, _options: VaultOptions = {}): void {
-  if (kind === "publish-peer" && (typeof meta.baseUrl !== "string" || typeof meta.remoteWorkspaceId !== "string" || !meta.remoteWorkspaceId)) {
-    throw new VaultError({ code: "invalid-meta" });
-  }
-  if (kind !== "database-destination") return;
-  const description = meta.description as VaultMeta | null;
-  if (!description || ["host", "port", "database", "user"].some(field => typeof description[field] !== "string") ||
-    Object.keys(description).some(field => !["host", "port", "database", "user"].includes(field))) throw new VaultError({ code: "invalid-meta" });
-  for (const [field, value] of Object.entries(description)) assertCredentialFreeField({ value: value as string, field });
-  if (meta.lastRun === null) return;
-  const run = meta.lastRun as VaultMeta | null;
-  if (!run || typeof run.snapshotAt !== "string" || (run.copied !== true && run.copied !== false)) throw new VaultError({ code: "invalid-meta" });
-  const fields = run.copied ? ["copied", "snapshotAt", "tableCount", "rowCount"] : ["copied", "snapshotAt", "code", "message"];
-  if (Object.keys(run).some(field => !fields.includes(field)) || (run.copied
-    ? [run.tableCount, run.rowCount].some(value => typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
-    : typeof run.code !== "string" || typeof run.message !== "string")) throw new VaultError({ code: "invalid-meta" });
+function createHostMetaParsers({ policy }: { policy: Pick<TovuVaultPolicy, "validateMeta"> }, _optional = {}): VaultMetaParsers {
+  const base = createVaultMetaParsers({});
+  const parsers = Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind, createHostParser({ kind, base, policy })]));
+  return createVaultMetaParsers({}, { parsers: parsers as VaultMetaParsers });
+}
+
+/** One kind's host parser. Jini hands it a JSON-safe clone that already passed its own checks.
+ * Order: recovery provenance, structural parse, host rules, then the host policy's catalog decision.
+ * @throws VaultError, CredentialInputError, TypeError (unparseable origin) or host policy errors.
+ * @complexity O(metadata size); no I/O.
+ */
+function createHostParser(
+  { kind, base, policy }: { kind: VaultKind; base: VaultMetaParsers; policy: Pick<TovuVaultPolicy, "validateMeta"> },
+  _optional = {},
+): VaultMetaParser {
+  return ({ meta, provider }, _options: VaultOptions = {}) => {
+    const input = meta as VaultMeta;
+    assertRecoveryMeta({ meta: input });
+    const { migration, normalization, ...plain } = input;
+    const parsed = parseStructuralMeta({ kind, meta: plain, provider, base });
+    assertHostMetaRules({ kind, meta: parsed });
+    return withRecoveryMeta({ meta: policy.validateMeta({ kind, meta: parsed }), migration, normalization });
+  };
 }
 
 /** Feature permissions stay at their existing boundary; this host policy constrains the injected
@@ -100,23 +66,14 @@ export function createTovuStoreVault(required: {
   context?: VaultContext; newId?: (input: VaultOptions) => string;
 }, _options = {}): SecretsVaultService {
   if (!required.repo.vault) throw new VaultError({ code: "invalid-record" });
-  const protect = async <T>(operation: () => Promise<T>): Promise<T> => {
-    try { return await operation(); } catch (error) { throw required.storageError(error); }
-  };
-  return new SecretsVaultService({ repo: required.repo.vault, metaParsers: storeKinds.metaParsers,
+  const protect = <T>(operation: () => Promise<T>): Promise<T> => protectStorage({ operation, source: required });
+  return new SecretsVaultService({ repo: required.repo.vault, metaParsers: storeMetaParsers,
     authorize: async ({ context }) => {
       if (required.context && context.workspaceId !== required.context.workspaceId) throw new VaultError({ code: "context" });
       if (context.kind !== required.kind || context.ownerKey !== "tovu" || context.principalId !== (required.context?.principalId ?? null) ||
         ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });
     },
-    keyring: {
-      derive: input => protect(() => { if (!required.keyring) throw required.storageError(); return required.keyring.derive(input); }),
-      deriveSigningSecret: input => protect(() => { if (!required.keyring) throw required.storageError(); return required.keyring.deriveSigningSecret(input); }),
-      activeKey: () => protect(() => {
-        if (!required.keyring) throw required.storageError();
-        return required.keyring.activeKey({});
-      }),
-    },
+    keyring: createStoreKeyring({ source: required }),
     sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })),
       open: (input, options) => protect(() => required.sealer.open(input, options)) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
@@ -125,13 +82,11 @@ export function createTovuStoreVault(required: {
 }
 
 // Immutable registration; feature stores validate their inputs, these parsers also validate reads.
-const storeKinds = createTovuVaultKinds({ policy: {
-  validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined,
-} });
+const storeMetaParsers = createHostMetaParsers({ policy: { validateMeta: ({ meta }) => meta } });
 
 /** Parse complete feature metadata through the same registration used by the vault service. */
 export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution"; meta: unknown; provider?: string | null | undefined }, _options = {}): VaultMeta {
-  return storeKinds.metaParsers[input.kind](input);
+  return storeMetaParsers[input.kind](input);
 }
 
 /** Binary label order for labelled kinds (`custom`, `publish-peer`): what their pre-vault label
