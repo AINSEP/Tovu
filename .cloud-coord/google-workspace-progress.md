@@ -105,6 +105,7 @@ PASS (G9): acme-office fixture end to end through real Jini + Tovu seams with ze
 Verify + merge G1–G5 as they finish; then G6/G7/G8.
 
 ## forms-multidest relation
+- 14:30Z: forms-multidest COMPLETE (end-of-build results committed 13:11Z, 022e3c9d5; Tovu suite 45 fail vs 48 base). Jini origin/cloud/forms-multidest (01bc4a22) MERGED into Jini cloud/google-workspace (d468614d; guard 26, cms/infra tsc 0). Tovu merge + real fan-out wiring = lot G14b (after C4b, before G15).
 - 11:00Z: forms-multidest F1–F9 merged on its branches, its phase C (C1–C4) still running → NOT complete → no merge; G14 builds against the ratified contract; G14b (wire fan-out) follows when forms-multidest finishes.
 - 08:00Z: origin/cloud/forms-multidest exists; F9 not done; `.cloud-coord/forms-multidest-contract.md` EXISTS (copied to /tmp/forms-multidest-contract.md) → G14 builds against that contract; OAuth FormDeliveryConnectionPort stays unwired; follow-up G14b expected. G9 found Tovu FormDestinationModule.deliver still lacks binding/idempotencyKey (base type, forms-multidest-owned).
 
