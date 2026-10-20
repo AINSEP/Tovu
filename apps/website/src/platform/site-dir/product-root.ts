@@ -16,6 +16,60 @@ import { isMainThread, workerData } from "node:worker_threads";
 
 const MAX_WALK_UP = 12;
 
+/** The calling thread's identity and parent-supplied data, as `node:worker_threads` reports them. */
+export interface ThreadContext {
+  isMainThread: boolean;
+  /** Whatever the parent passed; only a string `productRoot` on it is ever used. */
+  workerData: { productRoot?: unknown } | null | undefined;
+}
+
+/**
+ * Walks up from `fromDir` (itself included) to the first directory `matches` accepts.
+ *
+ * @param required.fromDir - Where the walk starts; resolved to an absolute path first.
+ * @param required.matches - The marker test for one candidate directory.
+ * @returns The matching directory, or `undefined` when none is found within {@link MAX_WALK_UP}
+ *   levels or before the filesystem root.
+ * @complexity O(depth) `matches` calls, capped at {@link MAX_WALK_UP} + 1.
+ */
+function findAncestor({ fromDir, matches }: { fromDir: string; matches: (dir: string) => boolean }): string | undefined {
+  let dir = path.resolve(fromDir);
+  for (let i = 0; i <= MAX_WALK_UP; i++) {
+    if (matches(dir)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return undefined; // reached the filesystem root
+    dir = parent;
+  }
+  return undefined;
+}
+
+/**
+ * The product root a parent thread handed to this worker, when it applies: only inside a worker,
+ * only for the default (no `fromDir`) resolution, and only when `workerData.productRoot` is a string.
+ * Relocated theme workers use the trusted parent-supplied workerData.productRoot for default
+ * resolution; explicit fromDir overrides still exercise ancestor discovery.
+ *
+ * @param required.fromDir - The caller's explicit start directory, if any.
+ * @param optional.thread - Override for testing; defaults to this thread's real context.
+ * @returns The supplied absolute root, or `undefined` when no worker root applies.
+ * @throws If the parent supplied a relative root — an unpredictable cwd must not pick the install.
+ * @complexity O(1).
+ */
+export function workerProductRoot(
+  { fromDir }: { fromDir?: string },
+  { thread = { isMainThread, workerData } }: { thread?: ThreadContext } = {},
+): string | undefined {
+  const supplied = thread.workerData?.productRoot;
+  if (thread.isMainThread || fromDir !== undefined || typeof supplied !== "string") return undefined;
+  if (!path.isAbsolute(supplied)) {
+    throw new Error(
+      `resolveProductRoot: worker productRoot ${JSON.stringify(supplied)} must be an absolute path; ` +
+        `the parent thread must pass a resolved path in workerData.productRoot.`,
+    );
+  }
+  return supplied;
+}
+
 /**
  * Walks up from `fromDir` (defaults to this file's own compiled/source location) until it finds a
  * directory containing both `package.json` and `content/`, and returns that directory.
@@ -29,20 +83,14 @@ const MAX_WALK_UP = 12;
  * @complexity O(depth) filesystem probes, capped at {@link MAX_WALK_UP}; O(1) for an injected root.
  */
 export function resolveProductRoot(fromDir?: string): string {
-  if (!isMainThread && fromDir === undefined && typeof workerData?.productRoot === "string") {
-    if (!path.isAbsolute(workerData.productRoot)) throw new Error("worker productRoot must be absolute");
-    return workerData.productRoot;
-  }
+  const injected = workerProductRoot({ fromDir });
+  if (injected !== undefined) return injected;
   const origin = fromDir ?? import.meta.dirname;
-  let dir = path.resolve(origin);
-  for (let i = 0; i <= MAX_WALK_UP; i++) {
-    if (existsSync(path.join(dir, "package.json")) && existsSync(path.join(dir, "content"))) {
-      return dir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break; // reached the filesystem root
-    dir = parent;
-  }
+  const found = findAncestor({
+    fromDir: origin,
+    matches: (dir) => existsSync(path.join(dir, "package.json")) && existsSync(path.join(dir, "content")),
+  });
+  if (found !== undefined) return found;
   throw new Error(
     `resolveProductRoot: no ancestor of ${JSON.stringify(origin)} within ${MAX_WALK_UP} levels ` +
       `has both a package.json and a content/ directory. Expected to find either the repo root ` +
@@ -68,14 +116,8 @@ export function resolveProductRoot(fromDir?: string): string {
  * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
  */
 export function resolveAppDistDir(app: string, fromDir: string = import.meta.dirname): string {
-  let dir = path.resolve(fromDir);
-  for (let i = 0; i <= MAX_WALK_UP; i++) {
-    if (existsSync(path.join(dir, "apps", app))) return path.join(dir, "apps", app, "dist");
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.resolve(fromDir, "apps", app, "dist");
+  const checkout = findAncestor({ fromDir, matches: (dir) => existsSync(path.join(dir, "apps", app)) });
+  return path.resolve(checkout ?? fromDir, "apps", app, "dist");
 }
 
 /**
@@ -91,12 +133,5 @@ export function resolveAppDistDir(app: string, fromDir: string = import.meta.dir
  * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
  */
 export function resolveCheckoutRoot(fromDir: string = import.meta.dirname): string {
-  let dir = path.resolve(fromDir);
-  for (let i = 0; i <= MAX_WALK_UP; i++) {
-    if (existsSync(path.join(dir, "apps", "website"))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.resolve(fromDir);
+  return findAncestor({ fromDir, matches: (dir) => existsSync(path.join(dir, "apps", "website")) }) ?? path.resolve(fromDir);
 }
