@@ -157,8 +157,9 @@ export interface FormDestinationPullReport {
   readonly refused?: FormPullRefusal;
 }
 
-/** One form's rows across a whole pull. `failed` rows were read in a page whose import or
- * acknowledgement stopped with an error: they stay at the host and the next pull retries them.
+/** One form's rows across a whole pull. `failed` rows were read in a page whose import stopped with
+ * an error: none of that page is acknowledged, so they stay at the host and the next pull retries
+ * them (rows that page committed before the error then count as already imported).
  * `formId` is null when no form with that slug exists here (its rows are `unmapped`). */
 export interface FormPullCounts extends FormImportCounts {
   readonly formId: string | null;

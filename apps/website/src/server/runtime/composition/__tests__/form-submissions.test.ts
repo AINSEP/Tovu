@@ -226,3 +226,14 @@ test("the pull reports per-form counts and totals beside the existing per-receiv
   assert.equal(result.ran, true);
   assert.equal(result.destinations[0]?.imported, 2);
 });
+
+test("rows of a page whose import fails count as failed for their form; earlier pages keep their counts", async () => {
+  const s = setup({ hosts: { h: { pages: [{ ...page(["ok-1"]), hasMore: true }, { ...page(["bad-1", "bad-2"]), hasMore: false }] } } });
+  await s.save("h", "https://h.example");
+  let claims = 0;
+  s.deps = { ...s.deps, receipts: { claim: async () => { claims += 1; if (claims === 2) throw new Error("store offline"); return true; } } };
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit, logError: () => {} }).pull.pull({ workspaceId: W });
+  assert.deepEqual(result.forms, [{ formId: "f1", formSlug: "waitlist", imported: 1, alreadyImported: 0, unmapped: 0, failed: 2 }]);
+  assert.deepEqual(result.totals, { imported: 1, alreadyImported: 0, unmapped: 0, failed: 2 });
+  assert.match(result.destinations[0]?.error ?? "", /store offline/);
+});

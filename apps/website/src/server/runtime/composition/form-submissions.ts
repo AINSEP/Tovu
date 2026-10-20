@@ -240,10 +240,11 @@ function pullMessage({ destinations }: { destinations: readonly FormDestinationP
   return parts.join(" ");
 }
 
-/** A receiver's failure, or why its lease refused the pull; nothing when it ran cleanly. @complexity O(1). */
+/** A receiver's failure, or that its lease refused the pull; nothing when it ran cleanly. Only a
+ * manual pull's message reaches a person, and a manual pull is refused only as `already-running`
+ * (an automatic pull's `recent` refusal is in its report, which no one reads). @complexity O(1). */
 function receiverNote({ report }: { report: FormDestinationPullReport }, _optional = {}): string[] {
   if (report.error) return [`${report.url}: ${report.error}`];
-  if (report.refused === "already-running") return [`${report.url}: a pull from this site is already running; its submissions appear when it finishes.`];
-  if (report.refused === "recent") return [`${report.url}: pulled less than a minute ago, so this automatic pull was skipped.`];
+  if (report.refused) return [`${report.url}: a pull from this site is already running; its submissions appear when it finishes.`];
   return [];
 }

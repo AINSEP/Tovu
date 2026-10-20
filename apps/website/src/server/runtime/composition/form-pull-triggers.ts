@@ -26,12 +26,12 @@ export const FORM_PULL_FAILED_LINE = "[form-submissions] automatic pull failed; 
  */
 export function createServingFormPullTrigger(
   required: { autoPull: FormsAutoPullPort | undefined; workspaceId: string },
-  optional: { warn?: (line: string) => void } = {},
+  _optional: Record<string, never> = {},
 ): { signIn: AdminSignInPort; pullNow(): void; stop(): Promise<void> } {
   const { autoPull, workspaceId } = required;
   const trigger = createFormPullTrigger({
     run: async () => { await autoPull?.run({ workspaceId }); },
-    onError: () => (optional.warn ?? console.warn)(FORM_PULL_FAILED_LINE),
+    onError: () => console.warn(FORM_PULL_FAILED_LINE),
   });
   // `trigger.run` never rejects, so neither sign-in nor boot waits on or fails because of a pull.
   const pullNow = (): void => { void trigger.run(); };
