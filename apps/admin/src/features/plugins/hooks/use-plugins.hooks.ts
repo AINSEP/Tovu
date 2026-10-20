@@ -1,4 +1,3 @@
-import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
@@ -111,6 +110,13 @@ function withId(ids: ReadonlySet<string>, id: string, present: boolean): Readonl
   return next;
 }
 
+function findPluginById({ plugins, id }: {
+  plugins: AdminPlugin[] | null;
+  id: string | null;
+}, _optional = {}): AdminPlugin | null {
+  return plugins?.find((plugin) => plugin.id === id) ?? null;
+}
+
 /**
  * Loads the plugin list and toggles one plugin's activation at a time.
  *
@@ -124,7 +130,7 @@ function withId(ids: ReadonlySet<string>, id: string, present: boolean): Readonl
  * @overallScore 92
  */
 export function usePlugins({ port, locale, t, installPort = defaultPluginInstallPort }: PluginsDependencies): PluginsController {
-  const queryFetch = useQueryFetchCallback(async () => {
+  const queryFetch = useCallback(async () => {
     try { return await port.listPlugins(); }
     catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load plugins" }), { translate: t })); }
   }, [port, locale]);
@@ -202,10 +208,10 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     onRemovePlugin,
     expandedIds,
     onToggleExpanded: (id: string) => setExpandedIds((ids) => withId(ids, id, !ids.has(id))),
-    inspectedPlugin: plugins?.find((plugin) => plugin.id === inspectedPluginId) ?? null,
+    inspectedPlugin: findPluginById({ plugins, id: inspectedPluginId }),
     onInspectPlugin: setInspectedPluginId,
     onCloseInspector: () => setInspectedPluginId(null),
-    pendingRemovePlugin: plugins?.find((plugin) => plugin.id === pendingRemoveId) ?? null,
+    pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
     onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
     onConfirmRemove: (plugin: AdminPlugin) => {
       setPendingRemoveId(null);

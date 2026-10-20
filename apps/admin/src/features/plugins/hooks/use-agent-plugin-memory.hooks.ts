@@ -3,8 +3,23 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
-import type { AgentPluginMemoryPort } from "./agent-plugin-memory-port.hooks";
+import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
+
+type MemoryStatus = { pluginId: string; message: string } | null;
+
+function memoryStatusMessage({ pluginId, status, error, listing, t }: {
+  pluginId: string;
+  status: MemoryStatus;
+  error: Error | null;
+  listing: PluginMemoryListing | null;
+  t: Translate;
+}, _optional = {}): string | null {
+  if (status?.pluginId === pluginId) return status.message;
+  if (error) return t("Could not load memory.");
+  if (!listing) return t("Loading memory…");
+  return null;
+}
 
 export function useAgentPluginMemory(required: { pluginId: string; port: AgentPluginMemoryPort; t: Translate }, _optional = {}) {
   const { pluginId, port, t } = required;
@@ -15,7 +30,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
   const loader = useCachedLoader({ key, fetch: fetchMemory }, { staleTime: 0 });
   const write = useFetchMutation({ run: ({ input }: { input: { pluginId: string; entryPath: string; text: string } }) => port.saveNote(input) }, { invalidates: [key] });
   const [draft, setDraft] = useState({ pluginId, entryPath: "project.md", text: "" });
-  const [status, setStatus] = useState<{ pluginId: string; message: string } | null>(null);
+  const [status, setStatus] = useState<MemoryStatus>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const generation = useRef(0);
   const hydrated = useRef<string | null>(null);
@@ -54,7 +69,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
     finally { saving.current = false; setSavingId(null); }
   };
   return { t, listing, entryPath: current.entryPath, text: current.text, setPath, setText, save,
-    saving: savingId === pluginId, status: status?.pluginId === pluginId ? status.message : query.error ? t("Could not load memory.") : !listing ? t("Loading memory…") : null,
+    saving: savingId === pluginId, status: memoryStatusMessage({ pluginId, status, error: query.error, listing, t }),
     editorDisabled: savingId === pluginId || !listing || hydrated.current !== pluginId,
     pathInputId: `${fieldId}-path`, notesInputId: `${fieldId}-notes`,
     noteFilesHeadingId: `${fieldId}-note-files`, learnedHeadingId: `${fieldId}-learned`,

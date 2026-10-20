@@ -445,3 +445,33 @@ describe("X1: reload() generation guard", () => {
     expect(result.current.plugins).toEqual([aOn, bOn]);
   });
 });
+
+it("resolves inspector and removal targets from the current list, including missing ids", async () => {
+  const plugin: AdminPlugin = { id: "target", name: "Target", version: "1", source: "site", tier: "tier-1", status: "valid", enabled: false, quarantine: null, errors: [] };
+  const port = createFakePluginsPort({ plugins: [plugin] });
+  let finish!: (value: { plugins: AdminPlugin[] }) => void;
+  const pending = new Promise<{ plugins: AdminPlugin[] }>(resolve => { finish = resolve; });
+  port.listPlugins = () => pending;
+  const { result } = renderHook(() => usePlugins({ port, locale: "en", t: key => key }));
+  act(() => {
+    result.current.onInspectPlugin(plugin.id);
+    result.current.onRequestRemove(plugin);
+  });
+  expect(result.current.inspectedPlugin).toBeNull();
+  expect(result.current.pendingRemovePlugin).toBeNull();
+  await act(async () => { finish({ plugins: [plugin] }); await pending; });
+  await waitFor(() => expect(result.current.inspectedPlugin).toEqual(plugin));
+  expect(result.current.pendingRemovePlugin).toEqual(plugin);
+  act(() => {
+    result.current.onInspectPlugin("missing");
+    result.current.onRequestRemove({ ...plugin, id: "missing" });
+  });
+  expect(result.current.inspectedPlugin).toBeNull();
+  expect(result.current.pendingRemovePlugin).toBeNull();
+  act(() => {
+    result.current.onCloseInspector();
+    result.current.onCancelRemove();
+  });
+  expect(result.current.inspectedPlugin).toBeNull();
+  expect(result.current.pendingRemovePlugin).toBeNull();
+});
