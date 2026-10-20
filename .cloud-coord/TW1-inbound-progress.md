@@ -14,6 +14,7 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 
 ## Personas
 - Coordinator: loaded software-architect/skills.md and code-inspection/skills.md (01:05 UTC).
+- Run start 01:03 UTC. Dispatched L055, L082, L092, L100, L125 (opus-high subagents, 5 parallel) at ~01:16 UTC.
 
 ## Lots
 | Lot | Status | Subagent | Before worst cyc/cog | After | Coverage | Commits | Verify |
@@ -31,3 +32,7 @@ Coordinator branch: `cloud/tw1-inbound` (from `origin/restructure/apps-website-p
 ## Problems / notes
 
 ## Next
+- Wait for first five lots; verify+merge each; dispatch L140, L143, L175, L191 as slots free.
+- Machine: 4 cores / 15 GB RAM. 5 parallel agents → typechecks serialized via `flock /tmp/tw1-tsc.lock` (typecheck:tests uses a 6 GB heap; parallel runs would OOM).
+- Worktrees for L140/L143/L175/L191 pre-created (from b1dde94f) with node_modules links + @tovu/sdk built.
+- Subagent brief: scratchpad brief.md (pasted path into each prompt; context rule first, persona load second).
