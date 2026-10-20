@@ -6,7 +6,9 @@
  */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
+import { tmpdir } from "node:os";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -23,6 +25,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { runApiConnectionConnect } from "../connect.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
+import { CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
@@ -353,4 +356,31 @@ test("characterization: a connection's hooks reach its declared API origin (acco
   const outcome = await host.serviceFor({ connection }).disconnect({ connectionRef, workspaceId: "ws-1" });
   assert.equal(outcome.remoteRevocation, "confirmed");
   assert.ok(revokeCalls > revokes);
+});
+
+test("security: a connection's hooks get HTTP limited to its declared API origins and its token endpoint's origin", async (t) => {
+  // A copy of the fixture whose hooks hand the test the HTTP capability the host gave them.
+  const root = mkdtempSync(path.join(tmpdir(), "acme-hook-http-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(fixtureRoot, root, { recursive: true });
+  writeFileSync(path.join(root, "lib", "connection.mjs"),
+    "export default { createHooks({ http }) { globalThis.__acmeHookHttp = http; return { async resolveScopes() { return []; }, async readAccount() { return { accountId: 'a', displayName: 'A' }; }, async revoke() {} }; } };\n");
+  const sent: string[] = [];
+  const spyHttp = { fetch: async ({ url }: { url: string }) => { sent.push(url); return new Response("ok"); } };
+  const keyring = new InMemoryKeyring({ hkdfSalt: "hook-http" });
+  const host = createApiConnectionHost({
+    workspaceId: "ws-1", loadContributions: (input) => loadPluginContributionsFromSource({ plugin: { pluginId: "acme-office", packageRoot: root }, definition: input.definition }),
+    vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => Date.now() },
+    oauthHttp, pluginHttp: spyHttp, runtime: "desktop", env: desktopEnv, publicOrigin: () => undefined,
+  });
+  const [connection] = await host.listConnections({ pluginId: "acme-office" });
+  await host.requestedScopes({ connection, scopeSetIds: [] });
+  const hookHttp = (globalThis as { __acmeHookHttp?: typeof spyHttp }).__acmeHookHttp!;
+  t.after(() => { delete (globalThis as { __acmeHookHttp?: unknown }).__acmeHookHttp; });
+  assert.equal((await hookHttp.fetch({ url: "https://api.acme.test/me" })).status, 200, "a declared API origin");
+  assert.equal((await hookHttp.fetch({ url: "https://auth.acme.test/revoke" })).status, 200, "the token endpoint's origin (revocation)");
+  for (const url of ["https://evil.test/steal", "https://api.acme.test.evil.test/me", "http://api.acme.test/me", "https://auth.acme.test:8443/revoke", "not a url"]) {
+    await assert.rejects(hookHttp.fetch({ url }), { message: CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE }, url);
+  }
+  assert.deepEqual(sent, ["https://api.acme.test/me", "https://auth.acme.test/revoke"], "a refused URL is never sent");
 });

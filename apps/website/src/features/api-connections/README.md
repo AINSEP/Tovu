@@ -16,6 +16,7 @@ names no provider.
 | `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
 | `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
+| `hook-http.ts` | `createConnectionHookHttp({ http, connection })`: the HTTP a connection's hooks get, limited to its declared `apiOrigins` plus its token endpoint's origin (exact origin match; anything else is refused before it is sent). |
 | `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. `startApiConnectionSignIn` is the shared start (declared start parameters; desktop completion returns the declared callback fields). |
 | `surface-connections.ts` | The admin-surface `connections` port by connection id (status, begin, confirm/cancel switch, disconnect with verbatim revocation, `takeCallbackFields` keyed by the service's attempt id). |
 | `plugin-state.ts` | Plugin settings: JSON per key, per workspace + plugin, sealed rows in the same vault kind (no migration); 128 keys and 16 KiB per value; `forPlugin` (surfaces, read-write) and `readerFor` (tools, form delivery: `get` only). |
@@ -43,7 +44,8 @@ so a surface's `status` can report which are granted. `apiOrigins` (optional, at
 exactly those hosts. Neither reaches Jini's descriptor.
 
 `createHooks({ http })` returns Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`,
-`revoke`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`). The web
+`revoke`). Its `http` reaches only the connection's `apiOrigins` and its `tokenEndpoint`'s origin, so
+a provider's revocation endpoint must be on one of those (`hook-http.ts`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`). The web
 client is confidential and must have its secret. The desktop client is public (PKCE, loopback); it
 may name a secret when the provider issues installed apps one, which is sent with
 `client_secret_post` but still kept in host config only, never in output, logs or the vault. A second

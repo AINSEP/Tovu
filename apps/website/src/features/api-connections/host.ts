@@ -10,6 +10,7 @@ import { createAdminSurfaceCallbackInbox } from "@jini-ai/agent-plugins/admin-su
 
 import type { LoadPluginContributions } from "../agent-plugins/lifecycle.js";
 import { createConnectionBudgets } from "./budgets.js";
+import { createConnectionHookHttp, type PluginHttp } from "./hook-http.js";
 import { createAgentPluginStateStore } from "./plugin-state.js";
 import { loadDeclaredApiConnections, type ApiConnectionClientConfig, type DeclaredApiConnection } from "./contribution.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, type ApiConnectionVaultRecordStore } from "./vault-stores.js";
@@ -49,8 +50,8 @@ export interface ApiConnectionHostDeps {
   readonly clock: Clock;
   /** Guarded OAuth fetch + URL policy (`createTovuOAuthHttpPorts`). */
   readonly oauthHttp: OAuthHttpPorts;
-  /** The guarded HTTP capability plugin hooks receive (the same one plugin tools get). */
-  readonly pluginHttp: unknown;
+  /** The guarded plugin HTTP (the same one plugin tools get); each connection's hooks get it limited to that connection's origins. */
+  readonly pluginHttp: PluginHttp;
   readonly runtime: ApiConnectionRuntime;
   /** Host configuration the plugin's client names resolve in (process env at the composition root). */
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -147,6 +148,11 @@ export function createApiConnectionHost(
     return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;
   }
 
+  /** The connection's hooks over HTTP limited to its declared API origins and token endpoint origin. @complexity O(1). */
+  function hooksFor(connection: DeclaredApiConnection) {
+    return connection.module.createHooks({ http: createConnectionHookHttp({ http: required.pluginHttp, connection }) });
+  }
+
   /** One connection's service. Desktop passes the loopback redirect URI its attempt listens on. @complexity O(1). */
   function serviceFor(input: { readonly connection: DeclaredApiConnection; readonly redirectUri?: string }): ApiConnectionService {
     const { connection } = input;
@@ -156,7 +162,7 @@ export function createApiConnectionHost(
     return createApiConnectionService({
       descriptor: connection.descriptor, client, clientKind,
       appOptions: { clientDisplayName: "Tovu", softwareId: "tovu", redirectUris: redirectUri ? [redirectUri] : [] },
-      hooks: connection.module.createHooks({ http: required.pluginHttp }),
+      hooks: hooksFor(connection),
       records, tokens: createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }),
       fetchFn: required.oauthHttp.fetchFn, guard: required.oauthHttp.guard, clock: required.clock,
       randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
@@ -208,7 +214,7 @@ export function createApiConnectionHost(
 
   /** The scopes a sign-in for these scope sets would request, via the plugin's own hook. @complexity One hook call. */
   async function requestedScopes(input: { readonly connection: DeclaredApiConnection; readonly scopeSetIds: readonly string[] }): Promise<readonly string[]> {
-    return input.connection.module.createHooks({ http: required.pluginHttp }).resolveScopes({ scopeSetIds: [...input.scopeSetIds] });
+    return hooksFor(input.connection).resolveScopes({ scopeSetIds: [...input.scopeSetIds] });
   }
 
   /** Token-free status straight from the record; a connection never created reads as disconnected. @complexity One read. */
