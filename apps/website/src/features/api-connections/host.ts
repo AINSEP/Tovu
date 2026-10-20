@@ -101,6 +101,13 @@ function clientKindFor(runtime: ApiConnectionRuntime): ApiConnectionClientKind {
   return runtime === "desktop" ? "public" : "confidential";
 }
 
+type ResolvedClient = { readonly client: OAuthClient; readonly clientKind: ApiConnectionClientKind };
+
+/** An admin's own client for this runtime; its secret goes to the token endpoint like the host's. @complexity O(1). */
+function byoOAuthClient(byo: ByoClient, runtime: ApiConnectionRuntime): ResolvedClient {
+  return { clientKind: clientKindFor(runtime), client: { clientId: byo.clientId, clientSecret: byo.clientSecret, authMethod: "client_secret_post" } };
+}
+
 /**
  * The runtime's OAuth client and how it is registered. Desktop is the installed app (`public`): PKCE,
  * and a provider-issued secret only when the provider requires one for installed apps (it is not
@@ -108,9 +115,7 @@ function clientKindFor(runtime: ApiConnectionRuntime): ApiConnectionClientKind {
  * web client (`confidential`) and must have its server-held secret.
  * @complexity O(1).
  */
-function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"], byo: ByoClient | ApiConnectionError | undefined): { readonly client: OAuthClient; readonly clientKind: ApiConnectionClientKind } {
-  if (byo instanceof ApiConnectionError) throw byo;
-  if (byo) return { clientKind: clientKindFor(runtime), client: { clientId: byo.clientId, clientSecret: byo.clientSecret, authMethod: "client_secret_post" } };
+function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, env: ApiConnectionHostDeps["env"]): ResolvedClient {
   const config: ApiConnectionClientConfig | undefined = runtime === "desktop" ? connection.clients.desktop : connection.clients.web;
   const clientId = configured(env, config?.clientIdEnv);
   if (!config || !clientId) throw notConfigured(connection, runtime, "sign-in client");
@@ -164,8 +169,11 @@ export function createApiConnectionHost(
     return listed;
   }
 
-  function clientFor(connection: DeclaredApiConnection) {
-    return resolveClient(connection, required.runtime, required.env, byoClients.get(connection));
+  /** The connection's OAuth client here: the admin's own when saved (an unusable one refuses), else the host's. @complexity O(1). */
+  function clientFor(connection: DeclaredApiConnection): ResolvedClient {
+    const byo = byoClients.get(connection);
+    if (byo instanceof ApiConnectionError) throw byo;
+    return byo ? byoOAuthClient(byo, required.runtime) : resolveClient(connection, required.runtime, required.env);
   }
 
   function tokensFor(connection: DeclaredApiConnection, clientId: string) {

@@ -117,12 +117,18 @@ function isHttpsOrigin(value: unknown): value is string {
   return isOrigin(value) && new URL(value as string).protocol === "https:";
 }
 
+function isBoundedList(value: unknown, max: number, isItem: (item: unknown) => boolean): value is readonly string[] {
+  return Array.isArray(value) && value.length <= max && value.every(isItem);
+}
+
+const isScopeSetId = (id: unknown): boolean => typeof id === "string" && SCOPE_SET_ID_PATTERN.test(id);
+
 /** Optional host-read fields, each bounded; absent lists are empty and an absent `byoClient` is false. @complexity O(n) entries. */
 function parseHostLists(scopeSets: unknown, apiOrigins: unknown, byoClient: unknown, at: string): Pick<ApiConnectionDeclaration, "scopeSets" | "apiOrigins" | "byoClient"> | string {
   const sets = scopeSets ?? [];
   const origins = apiOrigins ?? [];
-  if (!Array.isArray(sets) || sets.length > MAX_SCOPE_SETS || !sets.every((id) => typeof id === "string" && SCOPE_SET_ID_PATTERN.test(id))) return `${at}.scopeSets must be at most ${MAX_SCOPE_SETS} short ids`;
-  if (!Array.isArray(origins) || origins.length > MAX_API_ORIGINS || !origins.every(isHttpsOrigin)) return `${at}.apiOrigins must be at most ${MAX_API_ORIGINS} https:// origins`;
+  if (!isBoundedList(sets, MAX_SCOPE_SETS, isScopeSetId)) return `${at}.scopeSets must be at most ${MAX_SCOPE_SETS} short ids`;
+  if (!isBoundedList(origins, MAX_API_ORIGINS, isHttpsOrigin)) return `${at}.apiOrigins must be at most ${MAX_API_ORIGINS} https:// origins`;
   if (byoClient !== undefined && typeof byoClient !== "boolean") return `${at}.byoClient must be true or false`;
   return { scopeSets: [...sets] as string[], apiOrigins: [...origins] as string[], byoClient: byoClient === true };
 }
