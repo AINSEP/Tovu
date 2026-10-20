@@ -570,3 +570,21 @@ for (const [key, schema, value, reason] of [
     assert.deepEqual((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, value);
   });
 }
+
+test("core.forms.receiver cleared by an agent asks a human every time, even with a saved plugin grant", async () => {
+  const f = fixture("core.forms", "receiver");
+  f.deps.approvalIdentityForRun = async () => ({ key: "already-approved-plugin", label: "Example" });
+  f.deps.nativeApprovalMemory = { has: async () => true, grant: async () => undefined };
+  await assert.rejects(f.call("settings_clear_value", { namespace: "core.forms", key: "receiver" }), /SETTINGS_NO_CONFIRMATION_CHANNEL/);
+});
+
+test("a confirmed agent write of delivery bindings with a secret in config is still refused by the host chokepoint, and nothing is stored", async () => {
+  const f = fixture("core.forms", "deliveryBindings", { type: "json" });
+  const secretConfig = [{ bindingId: "b1", adapterId: "rows", connectionRef: "conn-1", enabled: true, config: { apiKey: "k".repeat(12) } }];
+  const confirm = { emitSurface: async () => {
+    assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" }), { ok: true });
+  } };
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.forms", key: "deliveryBindings", value: secretConfig }, confirm),
+    /"config\.apiKey" is named like a secret/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+});
