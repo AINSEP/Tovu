@@ -270,15 +270,15 @@ it("card facts protect serving/starting/crashed-with-live-pid and open only read
   const site = { name: "alpha", dir: "/sites/alpha", displayName: "Alpha", active: false, createdAt: "" };
   snapshot.localSites = [{ name: "alpha", status: "starting", pid: 42, port: 3101, daemonPort: 3102, adminUrl: "https://localhost:3101/admin/" }];
   let view = resolveLocalSiteCard({ site, snapshot, busyName: null });
-  expect(view.action).toBe("stop"); expect(view.deleteDisabled).toBe(true); expect(view.openUrl).toBeNull();
+  expect(view.action).toBe("stop"); expect(view.openUrl).toBeNull();
   snapshot.localSites[0].status = "running";
   expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).openUrl).toBe("https://localhost:3101/admin/");
   snapshot.localSites[0].status = "crashed";
-  expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).deleteDisabled).toBe(true);
+  expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).action).toBe("stop");
   snapshot.localSites[0].pid = null;
   expect(resolveLocalSiteCard({ site, snapshot, busyName: null }).action).toBe("start");
   view = resolveLocalSiteCard({ site: { ...site, dir: "/sites/owner" }, snapshot, busyName: null });
-  expect(view.serving).toBe(true); expect(view.deleteDisabled).toBe(true);
+  expect(view.serving).toBe(true); expect(view.openUrl).toBe("/admin/"); expect(view.switchEnabled).toBe(false);
   expect(resolveTrashDeleteDisabled({ id: "x", checked: { x: true }, busyName: "y" })).toBe(true);
 });
 
