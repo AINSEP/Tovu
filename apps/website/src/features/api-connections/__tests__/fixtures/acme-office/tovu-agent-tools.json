@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "name": "whoami",
+      "description": "Read the name of the account the connection is signed in as.",
+      "effect": "read",
+      "module": "tools/whoami.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef"],
+        "additionalProperties": false,
+        "properties": { "connectionRef": { "type": "string" } }
+      }
+    }
+  ]
+}

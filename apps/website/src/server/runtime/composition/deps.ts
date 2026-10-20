@@ -21,6 +21,9 @@ import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
+import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
+import type { StorageKernel } from "@jini-ai/db/kernel";
 import { createPeerSiteReads } from "./peer-site-reads.js";
 import { createLocalCredentialCopy } from "./local-credential-copy.js";
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -2080,6 +2083,23 @@ async function composeSiteRouteDeps(
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
   const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
+  // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
+  // that would re-read the cert/key PEM files off disk for no reason, since the scheme is the only
+  // part of that resolution this needs. Hoisted so the plugin connection seams share it.
+  const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${devCapabilityScheme}://localhost:${Number(process.env.PORT ?? 3000)}`;
+  // Plugin API connections, executable plugin-tool ports and admin-surface handlers share one
+  // connection port and one sealed vault (kind `api-connection`, migration 0020).
+  const agentPluginConnections = composeAgentPluginConnections({
+    workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
+    vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }),
+    keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, http: guardedOutboundHttpClient,
+    env: process.env, derivedPublicOrigin,
+  });
+  // Boot load of plugin admin-surface handlers (each surface open reloads them too; see handlers.ts).
+  const adminSurfaceHandlersReady = agentPluginConnections.adminSurfaceHost.refresh().then(() => {}, (error: unknown) => {
+    console.warn(`[admin-surfaces] handler modules could not be loaded at boot, continuing without them — ${error instanceof Error ? error.message : String(error)}`);
+  });
   // Every app over this composition shares the store's lifetime; each boot pass leaves once settled.
   const siteAppBootWork = new Set<Promise<void>>();
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
@@ -2221,11 +2241,9 @@ async function composeSiteRouteDeps(
       onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock }),
     }),
     externalMcpOAuthDevices,
-    // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
-    // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
-    // that would re-read the cert/key PEM files off disk for no reason, since the scheme is the only
-    // part of that resolution this needs.
-    derivedPublicOrigin: process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${devCapabilityScheme}://localhost:${Number(process.env.PORT ?? 3000)}`,
+    // See `routes/types.ts`'s `derivedPublicOrigin` doc; computed above with the plugin connection seams.
+    derivedPublicOrigin,
+    ...agentPluginConnections,
     // Same shared sealer/keyring once more — see the note above the BYOK repo.
     executionSettingsReady,
     settingsUiTabsReady,
@@ -2623,7 +2641,7 @@ async function composeSiteRouteDeps(
   opened.beforeStoreClose(async () => {
     await Promise.allSettled([
       routeDeps.pluginRuntimeReady, widgetAdoptionReady, blobHydrationReady,
-      adminPasswordResetReady, postSearchBackfillReady, originReady,
+      adminPasswordResetReady, postSearchBackfillReady, originReady, adminSurfaceHandlersReady,
     ]);
     // A boot pass can start another app (for example during export); drain until none remain.
     while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);

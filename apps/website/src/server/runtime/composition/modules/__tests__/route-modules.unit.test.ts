@@ -56,7 +56,9 @@ const noDeps = {} as never;
 const CASES: readonly ModuleCase[] = [
   {
     name: "agent-plugins",
-    create: () => createAgentPluginsModule(noDeps),
+    // With API connections composed (both real roots do), so their public callback is listed too;
+    // registration still reads nothing from the host.
+    create: () => createAgentPluginsModule({ apiConnections: { host: {} } } as never),
     routes: [
       `GET ${W}/agent-plugins`,
       `PATCH ${W}/agent-plugins/:pluginId`,
@@ -70,6 +72,8 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/bootstrap`,
       `POST ${W}/agent-plugins/:pluginId/surfaces/:surfaceId/actions`,
       "GET /api/agent-plugin-surfaces/v1/:pluginId/:surfaceId/*",
+      // PUBLIC: plugin-declared API connections' hosted OAuth callback (cookie-less by necessity).
+      "GET /api/agent-plugins/connections/oauth/callback",
     ],
   },
   { name: "analytics", create: () => createAnalyticsModule(noDeps), routes: [`GET ${W}/analytics/recent-hits`] },

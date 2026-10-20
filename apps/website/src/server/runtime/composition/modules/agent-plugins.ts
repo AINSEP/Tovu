@@ -5,6 +5,8 @@ import { registerAgentPluginsListRoute } from "#src/server/inbound/admin-http/ro
 import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/set-enabled";
 import { registerAgentPluginAdminSurfaceRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
+import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
+import { EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -27,8 +29,13 @@ import type { ServerModuleHandle } from "./types.js";
  * Plugin-owned admin surfaces (2026-10-20): the session-gated list/bootstrap/action routes in
  * `admin-surfaces.ts`, and the PUBLIC surface-files route (see its header for why it carries no
  * session), which therefore must not sit under `/api/admin`.
+ * Plugin-declared API connections (2026-10-20): the PUBLIC OAuth callback their hosted sign-in
+ * returns to, registered only when the composition provides them (`deps.apiConnections`). It is
+ * cookie-less for the reason its own header gives, so it also sits outside `/api/admin`, with its own
+ * per-IP limiter instance sized like the external-MCP callback's (same anonymous, exchange-costly shape).
  */
 export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
+  const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
   return {
     name: "agent-plugins",
     registerRoutes: (app) => {
@@ -39,6 +46,7 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerAgentPluginMemoryRoutes(app, deps);
       registerAgentPluginAdminSurfaceRoutes(app, deps);
       registerAdminSurfaceFilesRoute(app, deps);
+      if (deps.apiConnections) registerApiConnectionOAuthCallbackRoute(app, { host: deps.apiConnections.host, callbackLimiter });
     },
   };
 }

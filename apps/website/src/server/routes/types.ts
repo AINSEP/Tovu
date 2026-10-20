@@ -1377,6 +1377,16 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   siteShareBackend?: import("#src/features/site-backup/share-backend").SiteShareBackend;
   siteImportBackend?: import("#src/features/site-backup/import-backend").SiteImportBackend;
   /**
+   * Plugin-facing host seams over one shared connection port, built by
+   * `server/runtime/composition/agent-plugin-connections.ts` in both composition roots: the
+   * plugin-declared API connections (`agent_plugin_connect` + the public OAuth callback), the
+   * executable plugin-tool host ports, and the plugin-supplied admin-surface handlers. Optional so a
+   * hand-built test bag without them keeps every one of the three families off.
+   */
+  apiConnections?: import("#src/features/api-connections/connect").ApiConnectionConnectDeps;
+  agentPluginTools?: import("#src/features/agent-plugins/executable-tools/register").AgentPluginExecutableToolHost;
+  adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/handlers").AgentPluginAdminSurfaceHandlers;
+  /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`
    * and `server/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root, thread the

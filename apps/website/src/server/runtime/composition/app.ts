@@ -6,6 +6,8 @@ import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/syst
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
+import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
 import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
@@ -1269,6 +1271,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     externalMcpOAuthDevices,
     derivedPublicOrigin,
+    // Same three plugin seams as `deps.ts`, over an in-memory vault. Handler modules load on the
+    // first surface bootstrap rather than at this hermetic root's construction (no boot disk read).
+    ...composeAgentPluginConnections({
+      workspaceId: seededWorkspace.id, loadContributions: agentPluginLifecycle.loadPluginContributions, vaultRepo: new InMemoryVaultRepo({}),
+      keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, http: guardedOutboundHttpClient,
+      env: process.env, derivedPublicOrigin,
+    }),
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
