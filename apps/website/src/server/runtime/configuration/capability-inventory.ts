@@ -156,6 +156,18 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     sourceHints: ["SqliteFormDefinitionRepo", "forms"],
   },
   {
+    name: "form-delivery",
+    ownerModule: "features/form-destinations",
+    classification: "production",
+    sourceOfTruth: "content db (SqlFormDeliveryRepo: form_delivery_plans/form_delivery_jobs); per-binding status derived from outbox_events",
+    readinessDependencies: ["content.db connection", "outbox drainer"],
+    startupCriticality: "optional",
+    securityDependencies: ["identity authorize() gate", "custom credential vault (site key)"],
+    restartTestOwner: "form delivery test suite",
+    hasDurableAdapter: true,
+    sourceHints: ["SqlFormDeliveryRepo", "composeFormDelivery"],
+  },
+  {
     name: "database",
     ownerModule: "features/database",
     classification: "production",
