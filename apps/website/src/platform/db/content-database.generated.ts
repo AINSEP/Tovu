@@ -27,6 +27,7 @@ export interface ContentDatabase {
   external_mcp_servers: ExternalMcpServersTable;
   external_mcp_tool_approvals: ExternalMcpToolApprovalsTable;
   form_definitions: FormDefinitionsTable;
+  form_submission_remote_receipts: FormSubmissionRemoteReceiptsTable;
   form_submissions: FormSubmissionsTable;
   gated_mutation_tokens: GatedMutationTokensTable;
   identity_users: IdentityUsersTable;
@@ -313,6 +314,14 @@ export interface FormDefinitionsTable {
   updated_at: string;
   deleted_at: string | null;
   version: Generated<number>;
+}
+
+export interface FormSubmissionRemoteReceiptsTable {
+  workspace_id: string;
+  destination_key: string;
+  remote_id: string;
+  submission_id: string;
+  imported_at: string;
 }
 
 export interface FormSubmissionsTable {

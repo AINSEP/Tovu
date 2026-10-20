@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 73
+ * Tables: 74
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -293,6 +293,16 @@ export const formDefinitions = pgTable("form_definitions", {
 }, (t) => [
     uniqueIndex("form_definitions_workspace_slug_unique").on(t.workspaceId, t.slug),
     index("idx_form_definitions_workspace").on(t.workspaceId),
+  ]);
+
+export const formSubmissionRemoteReceipts = pgTable("form_submission_remote_receipts", {
+  workspaceId: text("workspace_id").notNull(),
+  destinationKey: text("destination_key").notNull(),
+  remoteId: text("remote_id").notNull(),
+  submissionId: text("submission_id").notNull(),
+  importedAt: text("imported_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.destinationKey, t.remoteId] }),
   ]);
 
 export const formSubmissions = pgTable("form_submissions", {

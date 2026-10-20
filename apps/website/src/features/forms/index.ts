@@ -162,3 +162,16 @@ export function submitForm(
     ...deps, transaction: (work) => deps.submissionRepo.transaction!(work), dispatcher: { dispatch }, logger,
   }, input }, { definitionView: htmlSubmissionDefinition, validateEmails: true, dispatch, attempts });
 }
+
+// Form destinations (a static host that stores submissions): the manifest a publish hands the host,
+// and the import that brings stored submissions back. Generic; no host is named in this feature.
+export { buildFormDestinationManifest, type FormDestinationManifestForm } from "./form-destination-manifest.js";
+export {
+  importRemoteFormSubmissions,
+  type FormDestinationPullReport,
+  type FormSubmissionReceiptPort,
+  type FormSubmissionsPullPort,
+  type ImportRemoteSubmissionsDeps,
+  type RemoteImportResult,
+  type RemoteSubmissionInput,
+} from "./import-remote-submissions.js";

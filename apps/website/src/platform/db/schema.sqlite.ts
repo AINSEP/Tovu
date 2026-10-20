@@ -574,6 +574,24 @@ export const formSubmissions = sqliteTable(
 );
 
 /**
+ * `form_submission_remote_receipts` (migration 0018): one row per submission imported from a form
+ * destination (a static host that stores submissions itself). The key makes a retried pull
+ * idempotent. No foreign key on purpose, so a receipt outlives Trash and purge and a retry cannot
+ * resurrect a deleted submission — see `features/forms/import-remote-submissions.ts`.
+ */
+export const formSubmissionRemoteReceipts = sqliteTable(
+  "form_submission_remote_receipts",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    destinationKey: text("destination_key").notNull(),
+    remoteId: text("remote_id").notNull(),
+    submissionId: text("submission_id").notNull(),
+    importedAt: text("imported_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.workspaceId, table.destinationKey, table.remoteId] })]
+);
+
+/**
  * Redirects (SPEC-009, ADR-033 §2). Core-owned tables reusing ADR-022's write-
  * chokepoint discipline (single write chokepoint, append-only revisions, ULIDs)
  * WITHOUT modelling rules as `entries` (they are operational routing state, not

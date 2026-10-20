@@ -24,6 +24,10 @@ export {
   type StaticPublishPlan,
 } from "./adapter.js";
 
+export { createFormDestinationPort, formDestinationKeyLabel, listFormDestinations } from "./form-destination-port.js";
+export { formDestinationKey, pullFromFormDestination, type FormDestinationImportPort } from "./form-submissions-pull.js";
+export type { StaticPublishFormDestinationPort } from "./adapter.js";
+
 export {
   getPublishRunSnapshot,
   runPublishAndAwait,
