@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { withFileLock } from "@jini-ai/platform/fs";
+import { withFileLock, type DirectoryRecord, type DirectoryRunningRecord } from "@jini-ai/platform/fs";
 import path from "node:path";
 
 import { ValidationError, InitDirNotEmptyError } from "./errors.js";
@@ -7,7 +7,7 @@ import { initSite, type InitSiteResult, type InitSiteRestorePort } from "./init-
 import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
-import { createSitesWorkspace, resolveSitesHome } from "./sites-home.js";
+import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { readSiteRunning } from "./site-running.js";
 
 /**
@@ -66,7 +66,7 @@ export interface SiteListEntry {
    *  not-yet-actioned `activateSite` call may have persisted for the NEXT boot. */
   active: boolean;
   id?: string;
-  running?: import("@jini-ai/platform/fs").DirectoryRunningRecord | null;
+  running?: DirectoryRunningRecord | null;
 }
 
 export type ListSitesOptional = ResolveSiteRootOptional;
@@ -83,41 +83,21 @@ export type ListSitesOptional = ResolveSiteRootOptional;
  *   operator has actually created, never by a single request's own input.
  */
 export function listSites(optional: ListSitesOptional = {}): SiteListEntry[] {
-  const cwd = optional.cwd ?? process.cwd();
   const workspace = createSitesWorkspace({}, optional);
   const currentSiteDir = resolveSiteRoot(optional);
   const registry = workspace.registry({});
-  const known = new Set(registry.list({}).map((entry) => entry.path));
-  for (const root of workspace.roots({})) {
-    let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(root, { withFileTypes: true }); }
-    catch (error) {
-      // No sites directory at all is an honest empty discovery result on a fresh checkout.
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
-      throw error;
-    }
-    for (const entry of entries) if (entry.isDirectory()) known.add(path.join(root, entry.name));
-  }
   const sites: SiteListEntry[] = [];
-  const discovered: import("@jini-ai/platform/fs").DirectoryRecord[] = [];
+  const discovered: DirectoryRecord[] = [];
   const usedNames = new Set<string>();
   const listedPaths = new Set<string>();
-  for (const candidate of known) {
-    let site: ReturnType<typeof readSiteDir>;
-    try { site = readSiteDir({ dir: candidate }); }
-    catch {
-      // Not a valid site (missing/corrupt config.json or .site-meta.json) — skip it rather than
-      // fail the whole listing over one stray or half-written directory (see this function's doc).
-      continue;
-    }
+  for (const candidate of candidateSiteDirs({ workspace })) {
+    const site = readSiteCandidate({ dir: candidate });
+    if (!site) continue;
     const dir = fs.realpathSync(candidate);
     if (listedPaths.has(dir)) continue;
     listedPaths.add(dir);
     const { config, meta } = site;
-    const basename = path.basename(dir);
-    // Arbitrary adopted folders can share basenames or contain spaces. The marker ID supplies a
-    // safe route identifier in those cases; no caller ever supplies an arbitrary filesystem path.
-    const name = SITE_NAME_PATTERN.test(basename) && basename.length <= 100 && !usedNames.has(basename) ? basename : meta.siteId;
+    const name = routeName({ basename: path.basename(dir), siteId: meta.siteId }, { usedNames });
     usedNames.add(name);
     discovered.push({ id: meta.siteId, name: config.name, path: dir, createdBy: "discovered", lastOpened: null });
     sites.push({ id: meta.siteId, name, dir, displayName: config.name, createdAt: meta.createdAt,
@@ -125,6 +105,42 @@ export function listSites(optional: ListSitesOptional = {}): SiteListEntry[] {
   }
   if (discovered.length) registry.merge({ entries: discovered });
   return sites;
+}
+
+/** Catalog rows first, then every immediate subdirectory of each discovery root (unvalidated).
+ * @complexity O(r + n): r catalog rows plus n entries across the roots.
+ */
+function candidateSiteDirs({ workspace }: { workspace: Pick<SitesWorkspace, "registry" | "roots"> }): Set<string> {
+  const known = new Set(workspace.registry({}).list({}).map((entry) => entry.path));
+  for (const root of workspace.roots({})) {
+    for (const entry of readRootEntries({ root })) if (entry.isDirectory()) known.add(path.join(root, entry.name));
+  }
+  return known;
+}
+
+function readRootEntries({ root }: { root: string }): fs.Dirent[] {
+  try { return fs.readdirSync(root, { withFileTypes: true }); }
+  catch (error) {
+    // No sites directory at all is an honest empty discovery result on a fresh checkout.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+function readSiteCandidate({ dir }: { dir: string }): ReturnType<typeof readSiteDir> | undefined {
+  try { return readSiteDir({ dir }); }
+  catch {
+    // Not a valid site (missing/corrupt config.json or .site-meta.json) — skip it rather than
+    // fail the whole listing over one stray or half-written directory (see listSites's doc).
+    return undefined;
+  }
+}
+
+/** The folder name when it is a safe, unused route; otherwise the marker's site id. */
+function routeName({ basename, siteId }: { basename: string; siteId: string }, { usedNames }: { usedNames: ReadonlySet<string> }): string {
+  // Arbitrary adopted folders can share basenames or contain spaces. The marker ID supplies a
+  // safe route identifier in those cases; no caller ever supplies an arbitrary filesystem path.
+  return SITE_NAME_PATTERN.test(basename) && basename.length <= MAX_SITE_NAME_LENGTH && !usedNames.has(basename) ? basename : siteId;
 }
 
 /** Folder-name validation (distinct from `initSite`'s own `--name` display-name rule — see
@@ -163,7 +179,7 @@ export interface CreateSiteResult extends InitSiteResult {
  * @complexity initSite's byte cost plus O(sites + name collisions) for collision-safe imports;
  *   name selection is bounded to 10,000 candidates under a shared home lock.
  */
-export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite; workspace?: ReturnType<typeof createSitesWorkspace>; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void } = {}): Promise<CreateSiteResult> {
+export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite; workspace?: SitesWorkspace; verifiedRestore?: InitSiteRestorePort; collisionSafe?: boolean; onAllocated?: (required: SiteCreationAllocation) => void; beforeRegister?: (required: CreateSiteResult) => void } = {}): Promise<CreateSiteResult> {
   const name = validateSiteName(required.name);
   const workspace = optional.workspace ?? createSitesWorkspace({}, optional);
   const home = workspace.home({});
@@ -180,10 +196,8 @@ export async function createSite(required: CreateSiteRequired, optional: ListSit
       } catch (error) {
         if (optional.verifiedRestore) {
           // The catalog write can fail after init committed. Roll back only this fresh import.
-          fs.rmSync(path.join(result.dir, ".site-meta.json"), { force: true });
-          const db = resolveSiteDatabasePaths({ dir: result.dir, siteId: result.siteId }, { workspace, placement: workspace.config({}).databases, reserveIdentity: false });
-          if (!db.contentDbPath.startsWith(result.dir + path.sep)) fs.rmSync(path.dirname(db.contentDbPath), { recursive: true, force: true });
-          fs.rmSync(result.dir, { recursive: true, force: true });
+          removeUncommittedSite({ dir: result.dir, contentDbPath: () => resolveSiteDatabasePaths({ dir: result.dir, siteId: result.siteId },
+            { workspace, placement: workspace.config({}).databases, reserveIdentity: false }).contentDbPath });
           workspace.registry({}).remove({ path: result.dir });
         }
         throw error;
@@ -212,7 +226,17 @@ export async function createSite(required: CreateSiteRequired, optional: ListSit
  * plus initSite's marker is authoritative; otherwise discard only the allocated fresh files.
  * Throws on conflicting ownership rather than removing another site. O(catalog + site bytes).
  */
-export async function reconcileSiteCreation(required: { allocation: SiteCreationAllocation; workspace: ReturnType<typeof createSitesWorkspace> }, _options: Record<string, never> = {}): Promise<"ready" | "failed"> {
+/** Undo an uncommitted creation: the commit marker first (so the database path is resolved as for a
+ * markerless folder), then an app-data database folder outside the site, then the site folder.
+ */
+function removeUncommittedSite({ dir, contentDbPath }: { dir: string; contentDbPath: () => string }): void {
+  fs.rmSync(path.join(dir, ".site-meta.json"), { force: true });
+  const dbPath = contentDbPath();
+  if (!dbPath.startsWith(dir + path.sep)) fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
+export async function reconcileSiteCreation(required: { allocation: SiteCreationAllocation; workspace: SitesWorkspace }, _options: Record<string, never> = {}): Promise<"ready" | "failed"> {
   const { allocation, workspace } = required;
   return withFileLock({ lockPath: path.join(path.dirname(allocation.dir), ".import-creation.lock"), run: () =>
     withFileLock({ lockPath: `${allocation.dir}.creation.lock`, run: () => {
@@ -223,9 +247,7 @@ export async function reconcileSiteCreation(required: { allocation: SiteCreation
         return "ready" as const;
       }
       if (fs.existsSync(path.join(allocation.dir, ".site-meta.json")) && readSiteDir({ dir: allocation.dir }).meta.siteId !== allocation.siteId) throw new ValidationError("Interrupted import directory belongs to another site; manual recovery required.");
-      fs.rmSync(path.join(allocation.dir, ".site-meta.json"), { force: true });
-      if (!allocation.dbPath.startsWith(allocation.dir + path.sep)) fs.rmSync(path.dirname(allocation.dbPath), { recursive: true, force: true });
-      fs.rmSync(allocation.dir, { recursive: true, force: true });
+      removeUncommittedSite({ dir: allocation.dir, contentDbPath: () => allocation.dbPath });
       return "failed" as const;
     } }, { staleMs: Infinity })
   }, { staleMs: Infinity });
@@ -252,6 +274,11 @@ export interface ServingSiteListEntry extends SiteListEntry {
   registration: SiteRegistration;
 }
 
+export interface IncludeServingSiteOptional {
+  /** Directory stat port; node:fs by default. */
+  stat?: (dir: string) => fs.Stats;
+}
+
 export interface IncludeServingSiteRequired {
   /** {@link listSites}'s own output — unmodified, and every entry becomes `registered`. */
   sites: readonly SiteListEntry[];
@@ -265,9 +292,9 @@ export interface IncludeServingSiteRequired {
  *  never describe two different states of the filesystem.
  *
  *  @complexity O(1) — a single stat. */
-function readServingDirStat(dir: string): fs.Stats | null {
+function readServingDirStat(dir: string, { stat: statDir }: { stat: (dir: string) => fs.Stats }): fs.Stats | null {
   try {
-    const stat = fs.statSync(dir);
+    const stat = statDir(dir);
     return stat.isDirectory() ? stat : null;
   } catch {
     return null;
@@ -329,13 +356,13 @@ function describeUnregisteredServingSite(binding: SiteBinding, stat: fs.Stats): 
  *   `unregistered` entry for the served directory.
  * @complexity O(n) in the number of sites already listed, plus one `stat`.
  */
-export function includeServingSite(required: IncludeServingSiteRequired): ServingSiteListEntry[] {
+export function includeServingSite(required: IncludeServingSiteRequired, { stat = (dir: string) => fs.statSync(dir) }: IncludeServingSiteOptional = {}): ServingSiteListEntry[] {
   const { binding } = required;
   const registered: ServingSiteListEntry[] = required.sites.map((site) => ({ ...site, registration: "registered" }));
   if (registered.some((site) => site.dir === binding.dir)) return registered;
-  const stat = readServingDirStat(binding.dir);
-  if (stat === null) return registered;
-  return [...registered, describeUnregisteredServingSite(binding, stat)];
+  const served = readServingDirStat(binding.dir, { stat });
+  if (served === null) return registered;
+  return [...registered, describeUnregisteredServingSite(binding, served)];
 }
 
 /** What THIS process is actually bound to right now — see {@link describeSiteBinding}. */
@@ -415,8 +442,12 @@ export const SITE_BINDING_NOT_SWITCHABLE_ENV = "TOVU_SITE_BINDING_NOT_SWITCHABLE
  *  resolve — the condition that makes a binding safe to switch/duplicate against. @complexity O(1). */
 function isUnderSwitcherSitesRoot(dir: string, optional: ListSitesOptional): boolean {
   const cwd = optional.cwd ?? process.cwd();
-  return path.dirname(dir) === path.resolve(cwd, "sites") || path.dirname(dir) === resolveSitesHome({}, optional) ||
-    createSitesWorkspace({}, optional).registry({}).list({}).some((entry) => entry.path === dir);
+  return path.dirname(dir) === path.resolve(cwd, "sites") || isInSitesWorkspace({ dir, workspace: createSitesWorkspace({}, optional) });
+}
+
+/** One workspace answers both questions: directly under the shared home, or a catalog-registered folder. */
+function isInSitesWorkspace({ dir, workspace }: { dir: string; workspace: Pick<SitesWorkspace, "home" | "registry"> }): boolean {
+  return path.dirname(dir) === workspace.home({}) || workspace.registry({}).list({}).some((entry) => entry.path === dir);
 }
 
 export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {
