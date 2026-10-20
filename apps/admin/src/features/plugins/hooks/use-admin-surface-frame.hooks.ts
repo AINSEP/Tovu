@@ -6,7 +6,7 @@ import {
   validateAdminSurfaceMessage,
   type AdminSurfaceActionOutcome,
 } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hooks";
+import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPluginSurfaceSummary, HostSignInLink } from "./agent-plugin-surfaces-port.hooks";
 
 /**
  * @file The host page's half of one mounted plugin admin surface (Jini's admin-surface protocol):
@@ -18,6 +18,12 @@ import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./agent
  * answer arrive asynchronously, and if the frame navigated in the meantime its window now holds a
  * different document. Posting there (target `'*'`, the only target an opaque origin allows) would
  * hand that document the bootstrap's short-lived token or an answer meant for the original surface.
+ *
+ * Sign-in links: the frame is sandboxed without `allow-popups`, so the host page opens a sign-in for
+ * it. The only links it ever offers are the ones the server says IT issued while answering this
+ * mount's actions (`hostSignIns`), kept per mount, https only, until opened or expired; a URL in the
+ * plugin's own result is never opened. The page opens them as a new tab with no opener, which the
+ * desktop shell's window policy hands to the system browser (as for every external link).
  */
 
 export type AdminSurfaceFrameStatus = "open" | "navigated" | "failed";
@@ -32,6 +38,20 @@ export interface AdminSurfaceFrameController {
   readonly frameRef: RefObject<HTMLIFrameElement | null>;
   readonly status: AdminSurfaceFrameStatus;
   readonly onLoad: () => void;
+  /** Host-issued sign-in links for this mount, not yet opened or expired. */
+  readonly signIns: readonly HostSignInLink[];
+  /** Forgets a link once the person opened it (each attempt is single use). */
+  readonly onSignInOpened: (link: HostSignInLink) => void;
+}
+
+/** The server's https links only. @complexity O(l). */
+function hostLinks(answer: AgentPluginSurfaceActionAnswer): readonly HostSignInLink[] {
+  return (answer.hostSignIns ?? []).filter((link) => URL.parse(link.authorizationUrl)?.protocol === "https:");
+}
+
+/** What the frame receives: the plugin's outcome alone, never the host's links. */
+function frameOutcome(answer: AgentPluginSurfaceActionAnswer): AdminSurfaceActionOutcome {
+  return answer.ok ? { ok: true, result: answer.result } : { ok: false, error: answer.error };
 }
 
 /**
@@ -47,6 +67,7 @@ export function useAdminSurfaceFrame(
   const loads = useRef(0);
   const mount = useMemo(() => createAdminSurfaceMount({ surfaceId: surface.id }), [surface.id]);
   const [status, setStatus] = useState<AdminSurfaceFrameStatus>("open");
+  const [issued, setIssued] = useState<readonly HostSignInLink[]>([]);
   /** The frame's window while it still shows the document this mount initialized, else null. */
   const liveFrame = useCallback(() => (loads.current === 1 ? frameRef.current?.contentWindow ?? null : null), []);
 
@@ -73,12 +94,18 @@ export function useAdminSurfaceFrame(
       }
       const { request } = verdict;
       void port.action({ pluginId, surfaceId: surface.id, action: request.action, payload: request.payload })
-        .catch(() => HOST_UNAVAILABLE)
-        .then((outcome) => liveFrame()?.postMessage(adminSurfaceActionResponse({ request, outcome }), "*"));
+        .catch((): AgentPluginSurfaceActionAnswer => HOST_UNAVAILABLE)
+        .then((answer) => {
+          const links = hostLinks(answer);
+          if (links.length > 0) setIssued((current) => [...current, ...links]);
+          liveFrame()?.postMessage(adminSurfaceActionResponse({ request, outcome: frameOutcome(answer) }), "*");
+        });
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [status, port, pluginId, surface.id, surface.actions, mount.mountId, liveFrame]);
 
-  return { frameRef, status, onLoad };
+  const onSignInOpened = useCallback((link: HostSignInLink) => setIssued((current) => current.filter((entry) => entry !== link)), []);
+  const signIns = issued.filter((link) => Date.parse(link.expiresAt) > Date.now());
+  return { frameRef, status, onLoad, signIns, onSignInOpened };
 }

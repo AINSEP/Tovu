@@ -12,7 +12,8 @@ import type { InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
  * @file Security pins for the host page's admin-surface mount (phase A): the frame is sandboxed with
  * scripts only; `init` (carrying the bootstrap) is posted once, only into the frame's first
  * document; the message gate ignores anything not from this mount's frame, origin and nonce;
- * undeclared actions are refused without a server call; answers never go to a navigated frame.
+ * undeclared actions are refused without a server call; answers never go to a navigated frame;
+ * only server-issued https sign-in links are offered (new tab, no opener) and never reach the frame.
  * Plus the modal tab that mounts a contributed surface. Typed fake port, acme-style ids.
  */
 
@@ -130,6 +131,32 @@ describe("AgentPluginSurfaceFrame", () => {
     fireEvent.load(iframe);
     await act(async () => { resolve({ ok: true, result: { saved: true } }); });
     expect(posted).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers only the server's https sign-in links, as a new tab without opener, and keeps them out of the frame", async () => {
+    const hostLink = { authorizationUrl: "https://auth.acme.test/authorize?state=s1", expiresAt: new Date(Date.now() + 60_000).toISOString() };
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({
+      ok: true, result: { authorizationUrl: "https://evil.example/phish" },
+      hostSignIns: [hostLink, { authorizationUrl: "javascript:alert(1)", expiresAt: hostLink.expiresAt }],
+    })) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    const links = screen.getAllByRole("link", { name: "Continue to sign-in" });
+    expect(links.map((link) => [link.getAttribute("href"), link.getAttribute("target"), link.getAttribute("rel")])).toEqual([[hostLink.authorizationUrl, "_blank", "noopener noreferrer"]]);
+    expect(posted.mock.calls[1]![0]).not.toHaveProperty("hostSignIns");
+    fireEvent.click(links[0]!);
+    expect(screen.queryByRole("link", { name: "Continue to sign-in" })).toBeNull();
+  });
+
+  it("never offers an expired sign-in link", async () => {
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({
+      ok: true, result: { saved: true }, hostSignIns: [{ authorizationUrl: "https://auth.acme.test/authorize?state=old", expiresAt: new Date(Date.now() - 1).toISOString() }],
+    })) });
+    const { frameWindow, posted, init } = await mounted(port);
+    deliver(request(init.mountId), "null", frameWindow);
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("link", { name: "Continue to sign-in" })).toBeNull();
   });
 });
 
