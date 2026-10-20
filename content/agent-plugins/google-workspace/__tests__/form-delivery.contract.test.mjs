@@ -134,6 +134,16 @@ test('a lost append that never landed is outcome-unknown (retryable); the retry 
   assert.equal(sheets.rowsOf(TAB_ID).length, 2);
 });
 
+test('a lost append whose re-scan also fails stays outcome-unknown, never reported as delivered', async () => {
+  const sheets = grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
+  const lost = { ...kitOver(), fetch: async (url, init, options) => {
+    if (!url.includes(':append')) return kitOver().fetch(url, init, options);
+    sheets.failNext = { status: 403 };
+    throw new Error('socket hang up');
+  } };
+  assert.deepEqual(await deliver(job({ kit: lost })), { ok: false, error: { code: 'outcome-unknown', retryable: true, outcome: 'unknown' } });
+});
+
 test('missing header: a recorded column whose header is gone is mapping-invalid and nothing is appended', async () => {
   grid([{ sheetId: TAB_ID, title: 'Contact form', rows: { 1: ['_tovu_submission_id', '_tovu_submitted_at', 'Name'] } }]);
   const config = { spreadsheetId: BOOK, tabs: { contact: { sheetId: TAB_ID, columns: [{ field: 'name', header: 'Name' }, { field: 'email', header: 'Email' }] } } };

@@ -38,9 +38,14 @@ const isColumn = (column) => typeof column?.field === 'string' && column.field !
 function targetFor({ binding, form }) {
   const { spreadsheetId, tabs } = binding.config ?? {};
   const tab = tabs && Object.hasOwn(tabs, form.slug) ? tabs[form.slug] : undefined;
-  if (typeof spreadsheetId !== 'string' || !Number.isInteger(tab?.sheetId) || tab.sheetId < 0) throw configurationInvalid();
-  if (tab.columns !== undefined && !(Array.isArray(tab.columns) && tab.columns.every(isColumn))) throw configurationInvalid();
+  if (typeof spreadsheetId !== 'string' || !isTabConfig(tab)) throw configurationInvalid();
   return { spreadsheetId, tab };
+}
+
+/** A tab entry: a numeric sheet id, and (when present) well-formed recorded columns. @complexity O(columns). */
+function isTabConfig(tab) {
+  if (!Number.isInteger(tab?.sheetId) || tab.sheetId < 0) return false;
+  return tab.columns === undefined || (Array.isArray(tab.columns) && tab.columns.every(isColumn));
 }
 
 /** `'Tab title'!<cells>`: the title quoted, its quotes doubled, so a title cannot change the range. @complexity O(n). */
