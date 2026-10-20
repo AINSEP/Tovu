@@ -95,6 +95,8 @@
     "e2e:journeys:real": "TOVU_E2E_REAL_SERVICES=1 playwright test --config=development/playwright.journeys.config.ts",
     "e2e:desktop": "env -u TOVU_DESKTOP_E2E_APP -u TOVU_E2E_DESKTOP_APP playwright test --config=development/playwright.desktop-journeys.config.ts",
     "e2e:desktop:app": "node development/e2e/support/run-packaged-desktop.mjs",
+    "quality:semgrep": "node development/scripts/quality-semgrep.mjs",
+    "quality:semgrep:test": "node development/scripts/quality-semgrep.mjs --test",
     "quality:knip": "knip --config knip.json --no-progress",
     "quality:properties": "node --import tsx --test \"apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts\" \"apps/website/src/features/consent/__tests__/unit/validation.property.unit.test.ts\" \"apps/website/src/features/forms/__tests__/unit/field-validation.property.unit.test.ts\" \"content/agent-plugins/google-workspace/__tests__/sheets-helpers.property.unit.test.mjs\"",
     "quality:sonar": "eslint --no-config-lookup --config development/sonarjs/eslint.config.mjs --format ./development/sonarjs/formatter.mjs \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",

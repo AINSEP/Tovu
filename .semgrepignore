@@ -1,0 +1,14 @@
+# Replaces Semgrep's default ignore list: deliberately keep application tests in scope.
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/release/
+**/fixtures/
+**/__fixtures__/
+**/generated/
+**/*.generated.*
+ADS-memory/
+AI-Dev-Shop/
+.git/
+# The scan runner excludes .semgrep/tests explicitly, so --test can still read it.

@@ -1,0 +1,60 @@
+name: Semgrep
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semgrep-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Official 1.180.0 multi-platform index, verified against Docker Hub.
+      # https://hub.docker.com/layers/semgrep/semgrep/1.180.0/images/sha256-dffc9caeecc924370d30f9187b6edf10949600d3ef5f69ef5c359074d8fc7d2d
+      SEMGREP_IMAGE: semgrep/semgrep:1.180.0@sha256:529ee8a277ec8adc5b534d7c74eea0a47e9de21d62852b6ba7ac6ba9566845c3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Scan the PR head, not GitHub's synthetic merge; compare its merge base below.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Host Node runs only the dependency-free adapter. Semgrep runs inside its official image;
+      # using docker run avoids Alpine job-container incompatibility with JS-based Actions.
+      - name: Test custom rules (blocking)
+        run: node development/scripts/quality-semgrep.mjs --test --docker
+      - name: Resolve PR merge base
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        id: baseline
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eu
+          baseline=$(git merge-base "$PR_BASE_SHA" HEAD)
+          echo "sha=$baseline" >> "$GITHUB_OUTPUT"
+      - name: Diff-aware application scan (report-only)
+        if: ${{ always() && github.event_name == 'pull_request' && steps.baseline.outputs.sha != '' }}
+        continue-on-error: true
+        env:
+          SEMGREP_BASE: ${{ steps.baseline.outputs.sha }}
+        run: node development/scripts/quality-semgrep.mjs --docker --baseline-commit "$SEMGREP_BASE"
+      - name: Historical migrations (report-only)
+        if: ${{ always() && github.event_name == 'pull_request' && steps.baseline.outputs.sha != '' }}
+        continue-on-error: true
+        env:
+          SEMGREP_BASE: ${{ steps.baseline.outputs.sha }}
+        run: node development/scripts/check-immutable-migrations.mjs "$SEMGREP_BASE"
+      - name: Manual full scan (report-only)
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        continue-on-error: true
+        run: node development/scripts/quality-semgrep.mjs --docker

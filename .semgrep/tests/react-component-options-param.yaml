@@ -1,0 +1,36 @@
+rules:
+  - id: react-component-options-param
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: React passes component arguments; put options in props instead of a second parameter.
+    paths:
+      # TS angle-bracket assertions in .ts are not JSX.
+      include: ['**/*.tsx', '**/*.jsx', '**/*.js', '**/*.mjs', '**/*.cjs']
+    patterns:
+      - pattern-either:
+          - pattern: |
+              function $COMPONENT($PROPS, $OPTIONS, ...) {
+                ...
+                return $JSX;
+                ...
+              }
+          - pattern: |
+              const $COMPONENT = ($PROPS, $OPTIONS, ...) => {
+                ...
+                return $JSX;
+                ...
+              };
+          - pattern: const $COMPONENT = ($PROPS, $OPTIONS, ...) => $JSX;
+          - pattern: |
+              const $COMPONENT = function($PROPS, $OPTIONS, ...) {
+                ...
+                return $JSX;
+                ...
+              };
+      - metavariable-regex:
+          metavariable: $COMPONENT
+          regex: '^[A-Z][A-Za-z0-9]*$'
+      - metavariable-regex:
+          metavariable: $JSX
+          regex: '(?s)^\s*\(*\s*<'
+      - focus-metavariable: $COMPONENT

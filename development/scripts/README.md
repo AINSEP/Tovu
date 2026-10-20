@@ -42,6 +42,126 @@ the Coordinator must regenerate `package-lock.json` for the exact new devDepende
 and verify `npm ci`, `quality:knip`, and `quality:properties` in an authorized environment.
 Until the lockfile is refreshed, `npm ci` will reject the manifest/lockfile mismatch.
 
+## Semgrep (free Community CLI, report-only)
+
+```bash
+npm run quality:semgrep                       # full tree; counts by severity/rule
+npm run quality:semgrep:test                  # semgrep --test .semgrep
+npm run quality:semgrep -- --baseline-commit <merge-base-sha>
+node development/scripts/check-immutable-migrations.mjs <PR-base-sha-or-ref>
+```
+
+Install the separate CLI with `brew install semgrep` or `pipx install semgrep`.
+No npm dependency, login, account, API token, or paid engine is needed. Both npm
+commands print that hint and exit 127 if the binary is missing. Scans explicitly
+select `--oss-only`, disable metrics/version checks, and fetch public registry rules
+over the network. Full scans print counts without printing matched source or
+credential strings. Tool/config/parse errors retain a nonzero exit status;
+application findings are informational. Local reports use temporary files which
+the runner removes on exit; no application or persistent service is started.
+
+`.semgrep.yml` is a **runner input manifest**, written in the JSON subset of YAML.
+It combines `p/typescript`, `p/javascript`, `p/nodejs`, `p/secrets`,
+`p/owasp-top-ten`, and our local rules. Semgrep does not provide a rule-file include
+directive: the dependency-free Node adapter expands this list into repeated
+[`--config` arguments](https://semgrep.dev/docs/running-rules#use-multiple-rules-and-rulesets-simultaneously).
+Use the npm command, not `semgrep --config .semgrep.yml`. To run only custom rules,
+use `semgrep scan --oss-only --config .semgrep/tests --exclude .semgrep/tests .`.
+The registry packs can evolve independently of our pinned CLI image.
+
+Each YAML/test pair lives in `.semgrep/tests/` with the same basename so the exact
+[`semgrep --test .semgrep`](https://semgrep.dev/docs/writing-rules/testing-rules)
+command discovers every rule and its positive/negative annotations recursively.
+`provider-errors.yaml` contains two rules sharing the same sources/redactors via
+YAML anchors. The application scan excludes these synthetic fixtures explicitly.
+`.semgrepignore` excludes dependencies, output, fixtures, generated files,
+`ADS-memory`, and `AI-Dev-Shop`; application tests remain in scope for secret checks.
+
+| Rule | Level | Review finding captured |
+| --- | --- | --- |
+| `react-component-options-param` | error | PascalCase function/arrow returning JSX with a second parameter: React supplies arguments; options belong in props. |
+| `no-raw-fetch` | warn | Raw `fetch`, `undici.request`, and Node HTTP(S) request calls bypass guarded outbound HTTP. Includes named request imports/aliases. |
+| `no-provider-error-echo` | warn | Caught integration message/body text flows into constructed errors, throws, returns, responses, or logs. |
+| `no-as-any` | warn | A TypeScript assertion discards type safety. |
+| `no-secret-literals-in-tests` | error | Test string literals contain credential prefixes; construct fake values at runtime. |
+| `log-raw-error` | warn | Caught integration error text reaches logging without the existing redactor. |
+| `immutable-migrations` | report-only git check | A migration already present at the merge base was edited, deleted, renamed, or replaced; add a forward migration instead. |
+
+**Ownership and limits.** The HTTP owner is
+`@jini-ai/platform/http/guarded` (`packages/platform/src/http/guarded/transport.fetch.ts`
+in Jini). Tovu's `platform/http/client.ts` delegates to it, and
+`platform/oauth/endpoint-safety.ts:createTovuOAuthHttpPorts` adapts the same port.
+Only those exact Tovu adapters and Jini's exact pinned transport files are exempt;
+browser admin/site-chat/desktop-renderer sources are excluded from the SSRF rule.
+Other calls, including direct server test HTTP, are review signals. Computed calls,
+destructured global fetch aliases and arbitrary CommonJS aliases are not fully covered.
+
+The two error rules share integration path filters (providers, importers, OAuth,
+external MCP, API connections, assistant, and shipped agent plugins). In those
+files any caught `.message`, `.body`, `.bodyText`, `.response.body/data`,
+`String(error)`, or `.toString()` is untrusted. CE tracks local flow, including
+temporary variables, interpolation and object responses; it cannot establish
+exception provenance or follow arbitrary wrappers across functions/files. Integration
+code outside these paths needs its owner added. Non-provider failures within those
+paths can be false positives; typed safe errors require review. Whole-error logging
+and uncaught/rejected Promise callbacks are outside this initial rule's coverage.
+Sanitizers reuse `redactSecrets`, `redactText`, `redactUserText(...).text`,
+`redactSecretShapes(...).text`, `redactDiagnosticSecrets(...).text`, and the existing
+`deps.redact` port convention; the rules do not prove a helper's implementation.
+Redacted diagnostics still belong in operator logs; use fixed public error copy.
+
+The test-secret rule intentionally detects short prefix-shaped literals, not just
+valid credentials. Its only committed positives are short, invalid `FAKE` values
+needed to test the detector. Normal application fixtures must join separate pieces
+at runtime (for example `["ghp", "_", "FAKE"].join("")`). Constant propagation is
+disabled for this rule so runtime fixture construction is not reported.
+
+**Tovu-specific checks.** Semgrep cannot compare historical file contents. The small
+git script compares `HEAD` with `git merge-base <base> HEAD`, limits the check to
+`apps/website/src/platform/db/migrations/00*.ts` present at that base, disables rename
+detection, and flags any changed historical path. New migrations are allowed. It
+compares commits, not unstaged edits, and needs full history. A missing/invalid base
+is an error, never a clean report.
+
+`admin-route-auth` is deliberately skipped: `server/runtime/composition/modules/core.ts`
+mounts `requirePublishTrust` and `requireAdminSession` on `/api/admin` before feature
+registrars run. Permissions are commonly checked inside handlers through
+`server/inbound/admin-http/authorize-guard.ts:authorizeOrRespond`, or direct
+`deps.authorize` calls, rather than a middleware argument at each registration.
+A CE per-handler syntax rule cannot prove that cross-file Express registration
+order, inherited authentication, or permission coverage; it would flag protected
+handlers and could bless a misplaced check. Keep authorization integration tests
+and review as the evidence until a registration contract can be checked reliably.
+
+**CI and the factory learns loop.** `.github/workflows/semgrep.yml` uses the
+[official Semgrep 1.180.0 container](https://hub.docker.com/layers/semgrep/semgrep/1.180.0/images/sha256-dffc9caeecc924370d30f9187b6edf10949600d3ef5f69ef5c359074d8fc7d2d)
+pinned by its multi-platform SHA-256 digest. It checks out PR HEAD with full history,
+resolves the merge base from the PR base SHA, and passes `--baseline-commit` for
+diff-aware scans. Only the custom-rule tests block; scanning and historical-migration
+findings use step-level `continue-on-error: true`. Manual dispatch runs a full scan.
+No token, npm install, SARIF upload, application execution, or cloud account is involved.
+
+When review finds a recurring invariant, first inspect its existing owner and the
+language/framework protections. Reduce the finding to a minimal failing example,
+add a same-basename YAML/fixture pair in `.semgrep/tests`, and place `// ruleid: id`
+or `// ok: id` immediately before every positive/negative line. Include a realistic
+safe alternative and alias/branch variants; add a narrow owner exception only with
+evidence. Run `quality:semgrep:test`, then a full scan and triage noise before accepting
+the rule. This turns a reviewed failure into a repeatable check for future changes.
+
+To make findings blocking, first triage the report-only runs, tighten noisy rules,
+and agree on the selected rules/severities and treatment of existing debt. Then add
+a separate selected-rule invocation with `--error`, remove that step's
+`continue-on-error`, and require its job in branch protection. Keep unrelated noisy
+packs report-only. Remove `continue-on-error` separately for the migration step when
+that policy is approved; its script already exits 1 on violations.
+
+This dispatch did not execute scans, rule tests, installs, builds, or the git check;
+the fixtures and CI remain unverified until an authorized run. Shared runner/rule
+extraction to `@jini-ai/devops` is recorded in
+`ADS-memory/.local-artifacts/tovu-to-jini-extract/SURVEY.md`: the sibling Jini source
+and canonical survey are outside this dispatch's writable roots.
+
 ## Coverage of changed source files
 
 ```bash
