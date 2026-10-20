@@ -11,6 +11,7 @@ Branch: `cloud/tw1-admin` (from `origin/restructure/apps-website-phased`). Lot b
 - Worktrees: `/home/user/cx/mkwt.sh <LOT>` = `git worktree add ../wt-<LOT> -b cloud/tw1-admin-<LOT> cloud/tw1-admin` + symlink the 3 node_modules from the main checkout. Resolution works inside worktrees. `node_modules` added to `.git/info/exclude` so the symlinks never show as untracked.
 - **Brief correction:** vitest is 4.1.11 — `--minWorkers` is an unknown option (errors). Use `npx vitest run --maxWorkers=2 <files>`.
 - Complexity: temp flat config outside the repo at `/home/user/cx/eslint.cx.mjs` (typescript-eslint parser + eslint-plugin-sonarjs from Tovu root node_modules, complexity 10, sonarjs/cognitive-complexity 10, noInlineConfig). Run: `/home/user/Tovu/node_modules/.bin/eslint --no-config-lookup -c /home/user/cx/eslint.cx.mjs -f json <files>` (unix formatter not in eslint 10).
+- **Setup gap found:** admin `tsc --noEmit` failed on base with TS2307 `@tovu/sdk` (6 errors) because `packages/sdk/dist` is not built by `npm ci`. Fix: `cd packages/sdk && npx tsc -p tsconfig.json` (dist is gitignored). After that admin tsc EXIT 0 on base. Add this to setup for the next wave.
 - Baseline violations: 51 across the 33 lot files (`/home/user/cx/baseline.txt`).
 
 ## Personas
@@ -32,5 +33,6 @@ Branch: `cloud/tw1-admin` (from `origin/restructure/apps-website-phased`). Lot b
 | L213 | features/themes | queued | | | | | |
 
 ## Problems / notes
+- 01:10 UTC: L084, L119, L134, L162, L166 dispatched in parallel (opus-high subagents, worktrees /home/user/wt-<LOT>).
 
 ## Next
