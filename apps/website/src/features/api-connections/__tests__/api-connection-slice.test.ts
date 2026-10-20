@@ -27,6 +27,7 @@ import { byoClientLabel } from "../byo-client.js";
 import { runApiConnectionConnect } from "../connect.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
 import { createApiConnectionHost } from "../host.js";
+import { parseApiConnectionsFile } from "../contribution.js";
 import { CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 
@@ -519,4 +520,13 @@ test("security: a hosted BYO web client returns to this site's own address, and 
   const offline = makeHost("ws-1", { env: {}, customCredentialRepo, publicOrigin: () => undefined });
   const [withoutOrigin] = await offline.listConnections({ pluginId: "acme-office" });
   assert.throws(() => offline.hostedCallbackUrl({ connection: withoutOrigin! }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
+});
+
+test("security: a byoClient flag that is not true or false refuses the whole declaration (never read as allowed)", () => {
+  const declaration = { id: "account", module: "lib/connection.mjs", clients: { web: { clientIdEnv: "TOVU_ACME_OAUTH_WEB_CLIENT_ID" } } };
+  assert.deepEqual(parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [{ ...declaration, byoClient: "yes" }] }) }), { ok: false, reason: "connections[0].byoClient must be true or false" });
+  const absent = parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [declaration] }) });
+  assert.equal(absent.ok && absent.descriptors[0]!.byoClient, false);
+  const declared = parseApiConnectionsFile({ raw: JSON.stringify({ schemaVersion: 1, connections: [{ ...declaration, byoClient: true }] }) });
+  assert.ok(declared.ok && declared.descriptors[0]!.byoClient === true && !("byoClient" in declared.descriptors[0]!.descriptor), "never reaches Jini's descriptor");
 });
