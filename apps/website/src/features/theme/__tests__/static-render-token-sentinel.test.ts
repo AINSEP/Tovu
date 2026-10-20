@@ -71,3 +71,7 @@ ${STYLESHEET_SENTINEL}
 </html>`
   );
 });
+
+test("a page id the theme does not have renders null (the caller's fallback body), with no override", () => {
+  assert.equal(renderStaticPage({ theme: makeTheme("<html></html>"), pageId: "missing" }), null);
+});
