@@ -182,3 +182,41 @@ test("publication failure restores the old digest and its exact disabled activat
     assert.equal(await readFile(path.join(workspace.root, "activations.json"), "utf8"), before);
   });
 });
+
+test("L025b prepass pins root precedence, unrelated top-level files and bounded manifest reads", async () => {
+  await withLayout(async layout => {
+    const root = await buildZipFixture([{ path: "plugin.json", content: manifest("root-choice") }, { path: "wrapped/plugin.json", content: manifest("wrapped-choice") }]);
+    assert.equal((await install(layout, root)).plugin.pluginId, "root-choice");
+    const cases = [
+      { entries: [{ path: "wrapped/plugin.json", content: manifest("wrapped-choice") }, { path: "readme.txt", content: "outside" }], code: "MANIFEST_MISSING" },
+      { entries: [{ path: "plugin.json", content: " ".repeat(1024 * 1024 + 1) }], code: "MANIFEST_INVALID" },
+    ];
+    for (const value of cases) {
+      await assert.rejects(() => buildZipFixture(value.entries).then(archive => install(layout, archive)), { code: value.code });
+    }
+    const archive = Buffer.from("prepass-cap");
+    const archiveReader: import("../../lifecycle.js").AgentPluginArchiveReaderPort = {
+      async *entries() { for (let index = 0; index < 4097; index++) yield { kind: "directory", entryPath: `dir-${index}/` }; },
+    };
+    await assert.rejects(() => installUploadedAgentPlugin({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner" }, { layout, archiveReader }), { code: "TOO_MANY_ENTRIES" });
+  });
+});
+
+test("L025b host admission surrounds publication and same-byte no-ops", async () => {
+  await withLayout(async layout => {
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("hosted") }]);
+    const candidates: unknown[] = [];
+    const pluginHost: import("../../../../contracts/headless/plugin-host.js").PluginHostPort = {
+      getPlugin: async () => null,
+      findProviders: async () => [],
+      getHostCapability: () => undefined,
+      withInstallIdentity: async ({ candidate, run }) => { candidates.push(candidate); return run(); },
+    };
+    const required = { archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner" };
+    assert.equal((await installUploadedAgentPlugin(required, { layout, pluginHost })).alreadyInstalled, false);
+    assert.equal((await installUploadedAgentPlugin(required, { layout, pluginHost })).alreadyInstalled, true);
+    assert.equal(candidates.length, 2);
+    assert.deepEqual(candidates[0], candidates[1]);
+    assert.equal((candidates[0] as { localId: string }).localId, "hosted");
+  });
+});

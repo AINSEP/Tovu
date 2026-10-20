@@ -115,21 +115,7 @@ async function readBounded(stream: AsyncIterable<Uint8Array>): Promise<Buffer> {
  * @complexity O(e) in entry count, capped at {@link MAX_PREPASS_ENTRIES}.
  */
 async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint8Array): Promise<{ prefix: string; pluginId: string }> {
-  const manifests = new Map<string, Buffer>();
-  const topLevel = new Set<string>();
-  let count = 0;
-  try {
-    for await (const entry of reader.entries(archive)) {
-      if (++count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError({ code: "TOO_MANY_ENTRIES", message: `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap` });
-      const name = entry.entryPath.replaceAll("\\", "/").replace(/^\.\//, "");
-      const [head] = name.split("/");
-      if (head && !IGNORED_TOP_LEVEL.has(head)) topLevel.add(name.includes("/") ? `${head}/` : head);
-      if (entry.kind === "file" && /^(?:[^/]+\/)?plugin\.json$/.test(name)) manifests.set(name, await readBounded(entry.openReadStream()));
-    }
-  } catch (error) {
-    if (error instanceof AgentPluginInstallError) throw error;
-    throw new AgentPluginUploadError("ARCHIVE_UNREADABLE", "the file is not a readable .zip archive", { cause: error });
-  }
+  const { manifests, topLevel } = await scanPackageManifests({ reader, archive });
   const folders = [...topLevel].filter((name) => name.endsWith("/"));
   const prefix = manifests.has(MANIFEST) ? "" : topLevel.size === 1 && folders.length === 1 ? folders[0]! : null;
   const raw = prefix === null ? undefined : manifests.get(prefix + MANIFEST);
@@ -212,21 +198,10 @@ export async function installUploadedAgentPlugin(
           if (existing.length === 0) await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId, enabled: false, actor }, { origin: "operator-installed" });
           installed = await publish();
         } catch (error) {
-          const destination = path.join(packagesDir, digest);
-          // publish can fail while freezing its new tree. Remove that tree before restoring the old
-          // one, so a failed upgrade never leaves two resolvable versions under the same id.
-          if (staged.length > 0) {
-            try { if ((await lstat(destination)).isDirectory()) await removeFrozenPackageTree({ root: destination }); }
-            catch (cleanupError) { if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError; }
-          }
+          await removeFailedPublication({ packagesDir, digest, staged });
           throw await restoreStagedTrees({ staged, cause: error });
         }
-        // Publication is settled. Cleanup must never delete the new version then try to restore
-        // an old tree whose cleanup already succeeded. Quarantine names are excluded from discovery.
-        for (const tree of staged) {
-          try { await removeFrozenPackageTree({ root: tree.quarantined }); }
-          catch { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}'`); }
-        }
+        await retireReplacedPackages({ staged, pluginId });
         return installed;
       };
       if (!optional.pluginHost) return run();
@@ -285,4 +260,58 @@ function validateUploadedBytes(required: { archive: Uint8Array; expectedSha256: 
     throw new AgentPluginInstallError({ code: "DIGEST_MISMATCH", message: "the uploaded bytes do not match the file that was chosen" });
   }
   return digest;
+}
+
+async function scanPackageManifests(
+  { reader, archive }: { reader: AgentPluginArchiveReaderPort; archive: Uint8Array },
+  _optional: Record<string, never> = {},
+) {
+  const manifests = new Map<string, Buffer>();
+  const topLevel = new Set<string>();
+  let count = 0;
+  try {
+    for await (const entry of reader.entries(archive)) {
+      if (++count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError({ code: "TOO_MANY_ENTRIES", message: `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap` });
+      await indexPackageManifest({ entry, manifests, topLevel });
+    }
+  } catch (error) {
+    if (error instanceof AgentPluginInstallError) throw error;
+    throw new AgentPluginUploadError("ARCHIVE_UNREADABLE", "the file is not a readable .zip archive", { cause: error });
+  }
+  return { manifests, topLevel };
+}
+
+async function indexPackageManifest(
+  { entry, manifests, topLevel }: { entry: AgentPluginArchiveEntry; manifests: Map<string, Buffer>; topLevel: Set<string> },
+  _optional: Record<string, never> = {},
+) {
+  const name = entry.entryPath.replaceAll("\\", "/").replace(/^\.\//, "");
+  const [head] = name.split("/");
+  if (head && !IGNORED_TOP_LEVEL.has(head)) topLevel.add(name.includes("/") ? `${head}/` : head);
+  if (entry.kind === "file" && /^(?:[^/]+\/)?plugin\.json$/.test(name)) manifests.set(name, await readBounded(entry.openReadStream()));
+}
+
+async function removeFailedPublication(
+  { packagesDir, digest, staged }: { packagesDir: string; digest: string; staged: readonly StagedTree[] },
+  _optional: Record<string, never> = {},
+) {
+  const destination = path.join(packagesDir, digest);
+  // publish can fail while freezing its new tree. Remove that tree before restoring the old
+  // one, so a failed upgrade never leaves two resolvable versions under the same id.
+  if (staged.length > 0) {
+    try { if ((await lstat(destination)).isDirectory()) await removeFrozenPackageTree({ root: destination }); }
+    catch (cleanupError) { if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError; }
+  }
+}
+
+async function retireReplacedPackages(
+  { staged, pluginId }: { staged: readonly StagedTree[]; pluginId: string },
+  _optional: Record<string, never> = {},
+) {
+  // Publication is settled. Cleanup must never delete the new version then try to restore
+  // an old tree whose cleanup already succeeded. Quarantine names are excluded from discovery.
+  for (const tree of staged) {
+    try { await removeFrozenPackageTree({ root: tree.quarantined }); }
+    catch { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}'`); }
+  }
 }

@@ -535,3 +535,30 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+test("L025b guidance pins selection guards, reader recovery and sanitized unknown names", async () => {
+  const source: import("../../tool-registrations.js").AgentPluginToolSource = {
+    id: "agent_plugin_pinned", pluginId: "pinned", archiveDigest: "a".repeat(64), description: "Pinned guidance", defaultSkillName: "pinned",
+    skills: [{ name: "pinned", summary: "Default", markdown: "DEFAULT" }, { name: "other", summary: "x".repeat(400), markdown: "OTHER" }],
+  };
+  const allow = { isCallable: async () => true };
+  for (const skill of [undefined, "pinned", "missing", "/private/operator/path"]) {
+    const [registration] = buildAgentPluginToolRegistrations([source], allow);
+    const result = await registration!.handler(fakeCtx({ ...(skill === undefined ? {} : { skill }), file: "reference.md" }), {}) as { guidance: string; note: string; files: string[]; availableSkills: { description: string }[] };
+    assert.equal(result.guidance, "DEFAULT");
+    assert.deepEqual(result.files, []);
+    assert.match(result.note, /no supporting-file reader/);
+    assert.equal(result.note.includes("/private/operator/path"), false);
+    assert.equal(result.note.includes("Unrecognized skill"), skill === "missing" || skill === "/private/operator/path");
+    assert.equal(result.availableSkills[0]!.description.length, 320);
+  }
+  for (const content of [{ text: "", files: ["reference.md"], note: "refused" }, { text: "FILE", files: ["reference.md"], note: "context" }, { text: "", files: [] }]) {
+    const [registration] = buildAgentPluginToolRegistrations([{ ...source, skills: [{ ...source.skills[0]!, readFile: async () => content }] }], allow);
+    const result = await registration!.handler(fakeCtx(), {}) as { guidance: string; files: string[]; note?: string };
+    assert.equal(result.guidance, content.note && !content.text ? "DEFAULT" : content.text);
+    assert.deepEqual(result.files, content.files);
+    assert.equal(result.note, content.note);
+  }
+  const [broken] = buildAgentPluginToolRegistrations([{ ...source, defaultSkillName: "absent" }], allow);
+  await assert.rejects(() => broken!.handler(fakeCtx(), {}), /default skill 'absent' missing/);
+});

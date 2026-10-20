@@ -421,20 +421,9 @@ function readSkillArgument(rawInput: unknown): { skill?: string; file?: string }
  * a model that got the default (or a specific skill) still knows what else it can ask for next.
  */
 async function buildPluginToolResult(source: AgentPluginToolSource, input: { skill?: string; file?: string }): Promise<Record<string, unknown>> {
-  const requestedSkill = input.skill;
-  const match = source.skills.find(skill => skill.name === requestedSkill);
-  const fallback = source.skills.find(skill => skill.name === source.defaultSkillName);
-  if (!fallback) {
-    // Cannot happen in practice: `defaultSkillName` is always chosen FROM `source.skills` in
-    // `loadInstalledAgentPluginToolSources`. Guarded rather than asserted with `!` so a future bug
-    // here fails loudly with an actionable message instead of a null-dereference.
-    throw new Error(`agent-plugin tool '${source.id}': default skill '${source.defaultSkillName}' missing from its own skill list`);
-  }
-
-  const selected = match ?? fallback;
-  const content = selected.readFile ? await selected.readFile({}, input.file !== undefined ? { file: input.file } : {}) : undefined;
-  // An unknown/refused file keeps the skill's instructions available, like unknown-skill recovery.
-  const notes = [content?.note];
+  const { selected, requestedSkill, match, fallback } = selectPluginSkill({ source, input });
+  const content = await readPluginSkillGuidance({ selected }, input);
+  const notes = [content.note];
   if (requestedSkill !== undefined && !match) {
     // Reflect only a simple name; a caller-supplied absolute path must never appear in a note.
     const label = /^[a-z0-9-]+$/.test(requestedSkill) ? ` '${requestedSkill}'` : "";
@@ -444,8 +433,8 @@ async function buildPluginToolResult(source: AgentPluginToolSource, input: { ski
   return {
     pluginId: source.pluginId,
     skillName: selected.name,
-    guidance: content && !(content.note && !content.text) ? content.text : selected.markdown,
-    files: content?.files ?? [],
+    guidance: content.guidance,
+    files: content.files,
     // Keep the availability list short without removing vocabulary from the indexed description.
     availableSkills: source.skills.filter(skill => skill.name !== selected.name).map(skill => ({ name: skill.name, description: skill.summary.slice(0, 320) })),
     ...(notes.some(Boolean) ? { note: notes.filter(Boolean).join(" ") } : {}),
@@ -880,23 +869,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
     // call below throws on any known input (`readInstalledMcpServerIds` already collapses a missing,
     // unreadable, or invalid `mcp.json` to `[]`), so this guards a future throwing change there.
     try {
-      const skills = await resolveSkillsForSearchTolerant(plugin);
-      const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
-      const identity = await readInstalledAgentPluginIdentity({ plugin });
-
-      candidates.push({
-        pluginId: plugin.pluginId,
-        ...(plugin.displayName !== undefined ? { displayName: plugin.displayName } : {}),
-        ...(plugin.summary !== undefined ? { summary: plugin.summary } : {}),
-        ...(plugin.version !== undefined ? { version: plugin.version } : {}),
-        ...(plugin.description !== undefined ? { description: plugin.description } : {}),
-        id: identity.id,
-        provides: identity.provides,
-        keywords: identity.keywords,
-        enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),
-        skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
-        mcpServerIds,
-      });
+      candidates.push(await buildSearchCandidate({ plugin, activations }));
     } catch (error) {
       console.warn(`[agent-plugins] '${plugin.pluginId}': ${error instanceof Error ? error.message : String(error)} — excluded from search`);
     }
@@ -1020,4 +993,57 @@ const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPlugi
  *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeAgentPluginConnectTools(): ToolContributor {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
+}
+
+function selectPluginSkill(
+  { source, input }: { source: AgentPluginToolSource; input: { skill?: string } },
+  _optional: Record<string, never> = {},
+) {
+  const requestedSkill = input.skill;
+  const match = source.skills.find(skill => skill.name === requestedSkill);
+  const fallback = source.skills.find(skill => skill.name === source.defaultSkillName);
+  if (!fallback) {
+    // Cannot happen in practice: `defaultSkillName` is always chosen FROM `source.skills` in
+    // `loadInstalledAgentPluginToolSources`. Guarded rather than asserted with `!` so a future bug
+    // here fails loudly with an actionable message instead of a null-dereference.
+    throw new Error(`agent-plugin tool '${source.id}': default skill '${source.defaultSkillName}' missing from its own skill list`);
+  }
+
+  return { selected: match ?? fallback, requestedSkill, match, fallback };
+}
+
+async function readPluginSkillGuidance(
+  { selected }: { selected: AgentPluginSkillDetail },
+  optional: { file?: string } = {},
+) {
+  const content = selected.readFile ? await selected.readFile({}, optional.file !== undefined ? { file: optional.file } : {}) : undefined;
+  // An unknown/refused file keeps the skill's instructions available, like unknown-skill recovery.
+  return {
+    guidance: content && !(content.note && !content.text) ? content.text : selected.markdown,
+    files: content?.files ?? [],
+    note: content?.note,
+  };
+}
+
+async function buildSearchCandidate(
+  { plugin, activations }: { plugin: Awaited<ReturnType<typeof listInstalledPlugins>>[number]; activations: Awaited<ReturnType<typeof readAgentPluginActivations>> },
+  _optional: Record<string, never> = {},
+): Promise<AgentPluginSearchCandidate> {
+  const skills = await resolveSkillsForSearchTolerant(plugin);
+  const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
+  const identity = await readInstalledAgentPluginIdentity({ plugin });
+
+  return {
+    pluginId: plugin.pluginId,
+    ...(plugin.displayName !== undefined ? { displayName: plugin.displayName } : {}),
+    ...(plugin.summary !== undefined ? { summary: plugin.summary } : {}),
+    ...(plugin.version !== undefined ? { version: plugin.version } : {}),
+    ...(plugin.description !== undefined ? { description: plugin.description } : {}),
+    id: identity.id,
+    provides: identity.provides,
+    keywords: identity.keywords,
+    enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),
+    skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
+    mcpServerIds,
+  };
 }

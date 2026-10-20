@@ -6,7 +6,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, realpath } from "node:fs/promises";
+import { chmod, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -367,3 +367,17 @@ test("workspace isolation: a search in workspace A finds nothing installed only 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+test("L025b search projection preserves optional metadata and isolates invalid identities", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal(WORKSPACE_A, "minimal-pinned", { "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "minimal-pinned" }) }, "minimal-pinned");
+    const bad = await installReal(WORKSPACE_A, "bad-pinned", { "plugin.json": manifestJson("bad-pinned") }, "bad-pinned");
+    await chmod(path.join(bad.packageRoot, "plugin.json"), 0o600);
+    await writeFile(path.join(bad.packageRoot, "plugin.json"), JSON.stringify({ name: "bad-pinned", extensions: { tovu: { id: "INVALID" } } }));
+    const result = await search(WORKSPACE_A, { query: "minimal-pinned" });
+    assert.equal(result.totalInstalled, 1);
+    assert.equal(result.matches[0]!.pluginId, "minimal-pinned");
+    assert.equal(result.matches[0]!.version, null);
+    assert.equal(result.matches[0]!.description, null);
+  });
+});

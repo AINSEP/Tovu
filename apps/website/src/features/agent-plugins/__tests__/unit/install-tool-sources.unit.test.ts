@@ -126,3 +126,28 @@ test("folder input keeps package validation and refuses symlinks", async t => {
   await assert.rejects(() => f.install.handler(context({ source: { kind: "folder", path: folder } }), {}), { message: "Could not read that folder. Try again." });
   assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
 });
+
+test("L025b bundled source pins malformed ids, extra keys and failed seeding", async t => {
+  const f = await fixture(t);
+  for (const source of [{ kind: "bundled" }, { kind: "bundled", bundledId: 12 }, { kind: "bundled", bundledId: "ui-ux-design", extra: false }]) {
+    await assert.rejects(() => f.install.handler(context({ source }), {}), { message: "Bundled source requires only kind:'bundled' and a bundledId; no path or attachmentRef." });
+  }
+  await writePackage(path.join(f.sourceRoot, "ui-ux-design"), "ui-ux-design");
+  // Discovery accepts the manifest; extraction must still refuse its symbolic link.
+  await symlink(path.join(f.sourceRoot, "ui-ux-design", "plugin.json"), path.join(f.sourceRoot, "ui-ux-design", "link"));
+  await assert.rejects(() => f.install.handler(context(bundledInput), {}), /could not be installed:/);
+  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+});
+
+test("L025b identical uploads preserve an undetermined activation as null", async t => {
+  const f = await fixture(t);
+  const folder = path.join(f.root, "local");
+  await writePackage(folder, "unknown-state");
+  const input = { source: { kind: "folder", path: folder } };
+  await f.install.handler(context(input), {});
+  await writeFile(path.join(f.workspaceRoot, "activations.json"), "{");
+  const result = await f.install.handler(context(input), {}) as { enabled: boolean | null; alreadyInstalled: boolean; note: string };
+  assert.equal(result.enabled, null);
+  assert.equal(result.alreadyInstalled, true);
+  assert.equal(result.note, "These exact bytes are already installed; activation was not changed.");
+});

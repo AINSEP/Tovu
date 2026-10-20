@@ -19,11 +19,7 @@ export function buildPluginMemoryRegistrations(required: {
     for (const operation of ["read", "write"] as const) {
       const id = `${source.id}__memory_${operation}`;
       const sideEffects = operation === "read" ? "none" : "mutates-durable-state";
-      catalog.push({ name: id, description: `${operation === "read" ? "Read" : "Refresh"} ${source.pluginId}'s learned account knowledge. UTF-8 text only. Never credentials or permissions.`,
-        sideEffects, authorization: { permission: "admin.assistant.use" },
-        inputSchema: { type: "object", additionalProperties: false, required: operation === "read" ? ["entryPath"] : ["entryPath", "text"],
-          properties: { entryPath: { type: "string" }, ...(operation === "write" ? { text: { type: "string" } } : {}) } },
-      });
+      catalog.push(memoryToolDefinition({ id, source, operation, sideEffects }));
       owners.set(id, source); risk.set(id, sideEffects);
       approvalFamilies.set(id, operation === "read" ? 'plugin-memory-read' : 'plugin-memory-write');
       handlers[id] = async ctx => {
@@ -46,4 +42,15 @@ export function buildPluginMemoryRegistrations(required: {
       (await required.gate.isCallable(owner)) ? policy.authorize(ctx) : "deny" } },
       family: approvalFamilies.get(registration.descriptor.id)! });
   });
+}
+
+function memoryToolDefinition(
+  { id, source, operation, sideEffects }: { id: string; source: Identity; operation: "read" | "write"; sideEffects: AgentToolSideEffect },
+  _optional: Record<string, never> = {},
+): AgentToolDefinition {
+  return { name: id, description: `${operation === "read" ? "Read" : "Refresh"} ${source.pluginId}'s learned account knowledge. UTF-8 text only. Never credentials or permissions.`,
+    sideEffects, authorization: { permission: "admin.assistant.use" },
+    inputSchema: { type: "object", additionalProperties: false, required: operation === "read" ? ["entryPath"] : ["entryPath", "text"],
+      properties: { entryPath: { type: "string" }, ...(operation === "write" ? { text: { type: "string" } } : {}) } },
+  };
 }
