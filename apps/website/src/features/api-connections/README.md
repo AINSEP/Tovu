@@ -12,9 +12,9 @@ names no provider.
 
 | File | What it does |
 |---|---|
-| `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). |
+| `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts). |
 | `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
-| `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, and `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability). |
+| `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
 | `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. |
 | `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort` (unwired until the forms fan-out, G14). |
 | `../../server/inbound/public-http/routes/api-connections/oauth-callback.ts` | `GET /api/agent-plugins/connections/oauth/callback`, cookie-less, rate-limited, renders the shared fixed-copy callback page. |
@@ -33,9 +33,11 @@ names no provider.
 ```
 
 `createHooks({ http })` returns Jini's `ApiConnectionHooks` (`resolveScopes`, `readAccount`,
-`revoke`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`); the
-desktop client never takes a secret. A second provider needs only its own plugin files (see the
-`acme-office` test fixture).
+`revoke`). Client ids are host config the plugin only names (`TOVU_…_CLIENT_ID` / `_SECRET`). The web
+client is confidential and must have its secret. The desktop client is public (PKCE, loopback); it
+may name a secret when the provider issues installed apps one, which is sent with
+`client_secret_post` but still kept in host config only, never in output, logs or the vault. A second
+provider needs only its own plugin files (see the `acme-office` test fixture).
 
 ## Rules the host keeps
 
@@ -46,12 +48,21 @@ desktop client never takes a secret. A second provider needs only its own plugin
   every other ref gets the same refusal. Only access tokens leave; refresh tokens stay sealed.
 - Attempts (they hold the PKCE verifier) live sealed in the vault, never in the exportable ledger.
 
-## Wiring still owed (coordinator)
+## Wiring (done in G6b)
 
-1. Composition root: `createApiConnectionHost({ workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
-   vaultRepo: repo.vault, keyring, sealer, clock, oauthHttp: createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }),
-   pluginHttp, runtime, env: process.env, publicOrigin })` (deps.ts / app.ts next to `externalMcpOAuthHttpPorts`).
-2. `AgentPluginConnectToolDeps.apiConnections = { host }` where `agent_plugin_connect` is registered.
-3. Public HTTP: `registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter })` beside the external-MCP callback.
-4. G7: the tool capabilities port's `connections` = `host.accessTokensFor({ pluginId })`.
-5. G14: `createOAuthFormDeliveryConnectionPort({ hostFor, adapterPluginId })`.
+`server/runtime/composition/agent-plugin-connections.ts`'s `composeAgentPluginConnections` builds the
+host once per site in both roots (`deps.ts` with the SQLite vault, `app.ts` with an in-memory one)
+and puts it on `RouteDeps`:
+
+1. `RouteDeps.apiConnections = { host }`: `agent_plugin_connect` reads it, and the `agent-plugins`
+   server module registers the public callback (`GET /api/agent-plugins/connections/oauth/callback`).
+2. `RouteDeps.agentPluginTools.connections` and the admin-surface handlers' capabilities use
+   `host.toolConnections`.
+3. Runtime: desktop when the server runs under the desktop shell's Electron Node
+   (`ELECTRON_RUN_AS_NODE=1`), hosted otherwise. Desktop's OAuth guard admits the plaintext
+   `http://127.0.0.1` redirect (the transport still refuses private addresses). The hosted callback
+   origin is `TOVU_PUBLIC_URL`, else the listener origin; a provider client that lists
+   `redirectOrigins` refuses any other.
+
+Still owed: G14 wires `createOAuthFormDeliveryConnectionPort({ hostFor, adapterPluginId })` into the
+forms fan-out.

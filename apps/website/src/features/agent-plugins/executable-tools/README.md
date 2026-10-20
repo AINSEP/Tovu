@@ -51,16 +51,22 @@ handler runs; a plugin disabled during confirmation is refused.
 ## Host wiring (composition root)
 
 `InstalledExtensionToolDeps.agentPluginTools` and `.surfaces` enable this family; without them it is
-skipped. Both assistant processes already pass `surfaces`. The site composition binds the host once:
+skipped. Both assistant processes pass `surfaces`, and both receive `agentPluginTools` through their
+`routeDeps` spread (`RouteDeps.agentPluginTools`). Both composition roots build it with
+`server/runtime/composition/agent-plugin-connections.ts`:
 
 ```ts
 agentPluginTools: {
   loadContributions: agentPluginLifecycle.loadPluginContributions,
-  connections: <API-connection accessor>,      // must refuse refs the plugin/workspace does not own
+  connections: apiConnectionHost.toolConnections,  // refuses refs the plugin/workspace does not own
   http: guardedOutboundHttpClient,
-  limiter: createRateLimiter({ profile: <plugin budget profile>, clock }),
+  limiter: createRateLimiter({ profile: AGENT_PLUGIN_OUTBOUND_BUDGET, clock }),
 }
 ```
+
+The same `connections`, `http` and `limiter` back plugin admin-surface handlers
+(`../admin-surfaces/handlers.ts`). `createGuardedPluginHttp({ http })` is the `http` capability on
+its own, which API-connection hooks receive.
 
 ## Extension points
 
@@ -72,4 +78,5 @@ connection, and receives the same ports. Provider endpoints, scopes and parsing 
 - Tools are loaded once per boot; enabling a plugin later needs a restart to add its tools (disabling
   is enforced per call).
 - `artifacts.write` refuses until a host artifact store is bound.
-- One limiter profile for every plugin key; plugin-declared budgets are not read yet.
+- One limiter profile (`AGENT_PLUGIN_OUTBOUND_BUDGET`, 240/min per plugin key) for every plugin;
+  plugin-declared budgets (per user / per instance) are a TODO until a declaration format exists.

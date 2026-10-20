@@ -33,14 +33,23 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 | `findAdminSurface`, `readSurfaceFile`, `adminSurfaceFileUrl` | `surfaces.ts` | lookup by id, contained read with headers, the public file URL |
 | `AdminSurfaceHost`, `NO_ADMIN_SURFACE_HOST` | `surfaces.ts` | the port that supplies action handlers and bootstrap data (none by default) |
 | `isSameOriginAdminWrite` | `same-origin.ts` | the CSRF gate for the two POST routes |
+| `createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities })` | `handlers.ts` | the real `AdminSurfaceHost`: plugin `handlerModule`s through Jini's handler host, plus `refresh()` |
 
 ## Extension points
 
 - A second provider plugin adds a surface by shipping `tovu-admin-surfaces.json` and its static
   files; no Tovu change is needed to list, serve and mount it.
 - Action handlers and bootstrap data come from an `AdminSurfaceHost` passed as
-  `AgentPluginsRouteDeps.adminSurfaceHost`. Until a host supplies one, every declared action answers
-  `action-unavailable` and bootstrap data is `null`.
+  `AgentPluginsRouteDeps.adminSurfaceHost`. Both composition roots pass `handlers.ts`'s host (built
+  in `server/runtime/composition/agent-plugin-connections.ts`), so a plugin answers its own declared
+  actions with a `handlerModule` (`.mjs`, admitted by the executable trust gate). Its handlers get the
+  executable-tool capability port: the same connection ownership rule, guarded HTTP and limiter as
+  the plugin's tools. Without a handler module, a declared action answers `action-unavailable` and
+  bootstrap data is `null`.
+- Handler modules load at boot (`deps.ts`) and again before every surface bootstrap. The admin frame
+  always asks for its bootstrap when a surface opens, so a plugin enabled since the last load answers
+  on the next open, whichever process or writer enabled it; disabling is enforced per request by the
+  routes' active-only admission.
 
 ## Rules
 
