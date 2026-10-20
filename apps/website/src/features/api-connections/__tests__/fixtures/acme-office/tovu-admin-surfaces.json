@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "surfaces": [
+    {
+      "id": "account",
+      "title": "Acme account",
+      "entry": "surface/index.html",
+      "handlerModule": "surface/handlers.mjs",
+      "actions": [
+        {
+          "name": "whoami",
+          "input": { "type": "object", "properties": { "connectionRef": { "type": "string", "maxLength": 512 } }, "required": ["connectionRef"] },
+          "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        }
+      ]
+    }
+  ]
+}

@@ -80,10 +80,14 @@ export function composeAgentPluginConnections(
   _optional: Record<string, never> = {},
 ): AgentPluginConnectionsComposition {
   const { workspaceId, loadContributions, clock, http, env } = required;
+  const runtime = resolveApiConnectionRuntime({ env });
   const host = createApiConnectionHost({
     workspaceId, loadContributions, vaultRepo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer, clock,
-    oauthHttp: createTovuOAuthHttpPorts({ http }), pluginHttp: createGuardedPluginHttp({ http }),
-    runtime: resolveApiConnectionRuntime({ env }), env,
+    // The installed-app redirect is `http://127.0.0.1:<port>` (RFC 8252 loopback), and the OAuth guard
+    // checks redirect URIs like endpoints, so desktop admits plaintext loopback there. Nothing is
+    // fetched from loopback because of it: the guarded transport still refuses private addresses.
+    oauthHttp: createTovuOAuthHttpPorts({ http }, { allowLoopbackHttp: runtime === "desktop" }), pluginHttp: createGuardedPluginHttp({ http }),
+    runtime, env,
     publicOrigin: () => apiConnectionPublicOrigin({ env, derivedPublicOrigin: required.derivedPublicOrigin }),
   });
   const limiter = createRateLimiter({ profile: AGENT_PLUGIN_OUTBOUND_BUDGET, clock });
