@@ -3,6 +3,8 @@ import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
 import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
+import { FormDeliveryBindingsConflictError } from "#src/features/settings/index";
+
 /**
  * @file Tovu's `deliveryBindings` port for plugin admin-surface handlers (Jini's
  * `AdminSurfaceDeliveryBindings`): a plugin's destination screen lists, saves and removes the
@@ -26,7 +28,8 @@ import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 /** Read and write of the site's `core.forms/deliveryBindings` list (the forms build owns both). */
 export interface FormDeliveryBindingsStore {
   read(required: { readonly workspaceId: string }): Promise<readonly FormDeliveryBinding[]>;
-  write(required: { readonly workspaceId: string; readonly callerPrincipalId: string; readonly value: readonly FormDeliveryBinding[] }): Promise<void>;
+  /** Atomically refuses a stale expectedValue with FormDeliveryBindingsConflictError. */
+  write(required: { readonly workspaceId: string; readonly callerPrincipalId: string; readonly value: readonly FormDeliveryBinding[]; readonly expectedValue: readonly FormDeliveryBinding[] }): Promise<void>;
 }
 
 export interface SurfaceDeliveryBindingsDeps {
@@ -127,7 +130,7 @@ function ownIndex(ownership: Ownership, bindingId: string): number {
  * @param required.principalId - The admin the route authenticated; every call is refused without one,
  *   and every write is authorized for this principal by the settings chokepoint.
  * @complexity Each call: one bindings read, one connection and one adapter listing, one forms list,
- *   then O(b + f); `save` and `remove` add one settings write.
+ *   then O(b + f); `save` and `remove` add one guarded settings write and retry once on conflict.
  */
 export function createSurfaceDeliveryBindings(
   required: SurfaceDeliveryBindingsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined },
@@ -155,11 +158,26 @@ export function createSurfaceDeliveryBindings(
     };
   }
 
-  /** One write through the binding owner; its validation refusal keeps its people-facing message. */
-  async function write(callerPrincipalId: string, value: readonly FormDeliveryBinding[]): Promise<void> {
+  /**
+   * Merges against fresh ownership and writes through the binding owner; one conflict retries the
+   * whole ownership check, so a concurrent removal or ownership change cannot be undone.
+   * Validation keeps its people-facing message; a second conflict asks the panel to refresh.
+   * @complexity At most two ownership reads and guarded writes; O(b + f) merge time/space per try.
+   */
+  async function update<T>(
+    input: { callerPrincipalId: string; merge: (owned: Ownership) => { value: readonly FormDeliveryBinding[]; result: T } },
+    optional: { retry?: boolean } = {},
+  ): Promise<T> {
+    const owned = await ownership();
+    const { value, result } = input.merge(owned);
     try {
-      await required.bindings.write({ workspaceId, callerPrincipalId, value });
+      await required.bindings.write({ workspaceId, callerPrincipalId: input.callerPrincipalId, value, expectedValue: owned.all });
+      return result;
     } catch (error) {
+      if (error instanceof FormDeliveryBindingsConflictError) {
+        if (optional.retry !== false) return update(input, { retry: false });
+        throw new AdminSurfaceActionError({ code: "delivery-binding-conflict", message: "Delivery settings changed in another panel. List the bindings again and retry your change." }, { cause: error });
+      }
       if (!(error instanceof ValueValidationFailedError)) throw error;
       throw new AdminSurfaceActionError({ code: "delivery-binding-invalid", message: error.message }, { cause: error });
     }
@@ -173,18 +191,19 @@ export function createSurfaceDeliveryBindings(
     },
     async save(draft) {
       const callerPrincipalId = admin();
-      const owned = await ownership();
-      const stored = toStored(owned, draft, draft.bindingId ?? required.newBindingId());
-      // Ownership of an existing binding is checked on this same read, right before the write.
-      const replaced = draft.bindingId === undefined ? owned.all.length : ownIndex(owned, draft.bindingId);
-      await write(callerPrincipalId, [...owned.all.slice(0, replaced), stored, ...owned.all.slice(replaced + 1)]);
-      return toView(owned, stored, draft.connectionId);
+      const bindingId = draft.bindingId ?? required.newBindingId();
+      return update({ callerPrincipalId, merge: (owned) => {
+        const stored = toStored(owned, draft, bindingId);
+        const replaced = draft.bindingId === undefined ? owned.all.length : ownIndex(owned, draft.bindingId);
+        return { value: [...owned.all.slice(0, replaced), stored, ...owned.all.slice(replaced + 1)], result: toView(owned, stored, draft.connectionId) };
+      } });
     },
     async remove({ bindingId }) {
       const callerPrincipalId = admin();
-      const owned = await ownership();
-      const index = ownIndex(owned, bindingId);
-      await write(callerPrincipalId, owned.all.filter((_binding, at) => at !== index));
+      return update({ callerPrincipalId, merge: (owned) => {
+        const index = ownIndex(owned, bindingId);
+        return { value: owned.all.filter((_binding, at) => at !== index), result: undefined };
+      } });
     },
   };
 }

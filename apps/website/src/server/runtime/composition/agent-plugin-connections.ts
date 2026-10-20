@@ -88,10 +88,11 @@ export interface AgentPluginDeliveryBindingsDeps {
 }
 
 /** `core.forms/deliveryBindings` through its owner's read and typed write. @complexity O(1) to build. */
-function formDeliveryBindingsStore(settings: SetValueRequired["deps"]): FormDeliveryBindingsStore {
+function formDeliveryBindingsStore(required: { settings: SetValueRequired["deps"] }, _optional: Record<string, never> = {}): FormDeliveryBindingsStore {
+  const { settings } = required;
   return {
     read: ({ workspaceId }) => readFormDeliveryBindings({ settingsRepo: settings.repo, workspaceId }),
-    write: async ({ workspaceId, callerPrincipalId, value }) => { await writeFormDeliveryBindings({ deps: settings, workspaceId, callerPrincipalId, value }); },
+    write: async ({ workspaceId, callerPrincipalId, value, expectedValue }) => { await writeFormDeliveryBindings({ deps: settings, workspaceId, callerPrincipalId, value }, { expectedValue }); },
   };
 }
 
@@ -138,7 +139,7 @@ export function composeAgentPluginConnections(
   const signIns = createIssuedSignInCollector();
   const delivery = optional.deliveryBindings;
   const deliveryBindingsFor = delivery && ((scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined }) => createSurfaceDeliveryBindings({
-    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore(delivery.settings),
+    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore({ settings: delivery.settings }),
     declaredConnectionIds: async ({ pluginId }) => (await host.listConnections({ pluginId })).map((connection) => connection.descriptor.connectionId),
     contributedAdapterIds: async ({ workspaceId: scopeWorkspaceId, pluginId }) => (await loadFormDestinationRegistry({ workspaceId: scopeWorkspaceId }, { loadContributions })).list()
       .filter((destination) => destination.pluginId === pluginId).map((destination) => destination.descriptor.id),

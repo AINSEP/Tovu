@@ -153,4 +153,4 @@ export type { AgentToolDefinition } from "@jini-ai/core";
 
 export { ensureFeatureFlag, readFeatureFlag, FEATURE_FLAGS_NAMESPACE, type FeatureFlagDefinition } from './feature-flags.js';
 export { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "./form-delivery.js";
-export { writeFormDeliveryBindings } from "./form-delivery-write.js";
+export { writeFormDeliveryBindings, FormDeliveryBindingsConflictError } from "./form-delivery-write.js";

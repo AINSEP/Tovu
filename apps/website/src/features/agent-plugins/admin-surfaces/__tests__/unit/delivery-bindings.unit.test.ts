@@ -13,6 +13,7 @@ import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
 import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
+import { FormDeliveryBindingsConflictError } from "#src/features/settings/index";
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "../../delivery-bindings.js";
 
 const WORKSPACE = "ws-1";
@@ -36,7 +37,11 @@ function store(initial: readonly FormDeliveryBinding[], optional: { failWrite?: 
   const writes: { workspaceId: string; callerPrincipalId: string; value: readonly FormDeliveryBinding[] }[] = [];
   const port: FormDeliveryBindingsStore = {
     async read() { reads += 1; value = optional.onRead?.(reads) ?? value; return structuredClone(value); },
-    async write(input) { if (optional.failWrite) throw optional.failWrite; writes.push(input); value = input.value; },
+    async write({ expectedValue, ...input }) {
+      if (optional.failWrite) throw optional.failWrite;
+      if (JSON.stringify(expectedValue) !== JSON.stringify(value)) throw new FormDeliveryBindingsConflictError();
+      writes.push(input); value = input.value;
+    },
   };
   return { port, writes, current: () => value };
 }
@@ -170,6 +175,16 @@ test("save: the binding owner's validation refusal becomes delivery-binding-inva
 test("save: any other write failure (authorization, ledger) propagates unchanged", async () => {
   const denied = new Error("settings.workspace.write denied");
   assert.equal(await portFor(store([], { failWrite: denied })).save(draft()).catch((caught: unknown) => caught), denied);
+});
+
+test("save: a second bindings conflict stops retrying and gives the panel an actionable refusal", async () => {
+  let reads = 0;
+  const bindings = store([], { failWrite: new FormDeliveryBindingsConflictError(), onRead: () => { reads += 1; return undefined; } });
+  const error = await refusal(portFor(bindings).save(draft()));
+  assert.equal(error.code, "delivery-binding-conflict");
+  assert.match(error.message, /another panel.*List the bindings again/);
+  assert.equal(reads, 2);
+  assert.deepEqual(bindings.current(), []);
 });
 
 // --- remove --------------------------------------------------------------------------------------
