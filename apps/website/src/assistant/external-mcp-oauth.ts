@@ -278,6 +278,10 @@ export interface ExternalMcpOAuthDeps {
   readonly onConnected?: (serverId: string) => Promise<void>;
 }
 
+/** {@link ExternalMcpOAuthDeps} as the service holds them: `providers` defaulted once at construction,
+ *  so nothing downstream builds a second registry. */
+type ExternalMcpOAuthServiceDeps = ExternalMcpOAuthDeps & { readonly providers: OAuthProviderRegistry };
+
 /** Stable registration identity; callback URLs come only from the host's trusted origin policy.
  * Device-only clients deliberately register no redirect URI (RFC 7591).
  */
@@ -392,6 +396,13 @@ async function requireOAuthRecord(deps: ExternalMcpOAuthDeps, serverId: string):
   return record;
 }
 
+/** The refusal for a row that names no provider and no token endpoint. One builder for both places
+ *  that reach it — provider resolution and self-configuration on a row with no URL to discover from —
+ *  because from the operator's side it is the same problem with the same fix. */
+function noOAuthProviderError(required: { readonly serverId: string }): OAuthError {
+  return new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${required.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.", });
+}
+
 /** The endpoint trio an operator may type onto a connection, as stored. Absent members mean "this
  *  connection names a registered provider for that part instead", or — on a remote connection — that
  *  discovery has not run yet. */
@@ -480,17 +491,16 @@ function readStoredScopes(record: ExternalMcpServerRecord): string[] {
  * `OAUTH_UNSAFE_ENDPOINT` when a typed endpoint fails the outbound-safety check.
  * @complexity O(1).
  */
-function resolveProviderDescriptor(deps: ExternalMcpOAuthDeps, record: ExternalMcpServerRecord): OAuthProviderDescriptor {
+function resolveProviderDescriptor(deps: ExternalMcpOAuthServiceDeps, record: ExternalMcpServerRecord): OAuthProviderDescriptor {
   const endpoints = readStoredEndpoints(record);
   if (endpoints.tokenEndpoint !== undefined) {
     return buildConnectionOwnedProvider(deps, record, { ...endpoints, tokenEndpoint: endpoints.tokenEndpoint });
   }
   if (record.oauthProviderId === null) {
-    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.", });
+    throw noOAuthProviderError({ serverId: record.serverId });
   }
   if (deps.lookupProvider) return deps.lookupProvider(record.oauthProviderId);
-  const providers = deps.providers ?? createOAuthProviderRegistry({ guard: deps.httpPorts.guard });
-  return providers.get({ providerId: record.oauthProviderId });
+  return deps.providers.get({ providerId: record.oauthProviderId });
 }
 
 /** Builds the client identity for one row, unsealing the client secret only when there is one.
@@ -565,7 +575,7 @@ async function discoverConnectionAuthorizationServer(
 ): Promise<DiscoveredOAuthConfiguration> {
   const resourceUrl = record.url;
   if (resourceUrl === null) {
-    throw new OAuthError({ code: "OAUTH_INVALID_REQUEST", message: `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.", });
+    throw noOAuthProviderError({ serverId: record.serverId });
   }
   return withTovuOAuthCopy({ call: () => discoverAuthorizationServer(
     { ...deps.httpPorts, resourceUrl },
@@ -729,19 +739,8 @@ async function selfConfigureConnection(
 
   const discovered = await discoverConnectionAuthorizationServer(deps, record);
   const endpoints: StoredOAuthEndpoints = mustDiscover ? toStoredEndpoints(discovered) : { ...stored };
-  // Resolved from the SAME discovery call that found the endpoints, on the same terms as those and
-  // the client id below: an operator-named grant always wins, and only a row that left it blank asks
-  // the server what it actually supports rather than have `beginConnect` guess. The cast is safe:
-  // every non-null `oauthGrant` on a row was either validated by `assertOAuthGrant` at save time or
-  // written by a PRIOR call to this same resolver, so it is always one of `EXTERNAL_MCP_OAUTH_GRANTS`
-  // even though the column's declared type is a bare `string | null`.
-  const grant: ExternalMcpOAuthGrant =
-    record.oauthGrant === null ? resolveGrantFromDiscovery(discovered.server.grantTypesSupported, record.serverId) : (record.oauthGrant as ExternalMcpOAuthGrant);
-  // Scopes the operator named win; an empty list adopts what the resource itself asks for, because a
-  // resource that advertises `offline_access` is naming the scope that decides whether this
-  // connection can ever refresh.
-  const operatorScopes = readStoredScopes(record);
-  const scopes = operatorScopes.length > 0 ? operatorScopes : [...discovered.resourceScopes];
+  const grant = selfConfiguredGrant({ record, discovered });
+  const scopes = selfConfiguredScopes({ record, discovered });
 
   // Narrowed on the field rather than on `mustRegister`, so there is no fallback that could write an
   // empty client id if the two ever disagreed.
@@ -750,19 +749,59 @@ async function selfConfigureConnection(
   }
 
   const minted = await mintClientForConnection(deps, record, discovered, { redirectUri, scopes, grant });
-  const registered: StoredOAuthEndpoints = {
-    ...withoutSelfRegisteredClient(endpoints),
-    ...(minted.clientSecret === null ? {} : { clientAuth: minted.tokenEndpointAuthMethod }),
-    dynamicClientId: minted.clientId,
-    ...(redirectUri === undefined ? {} : { registeredRedirectUri: redirectUri }),
-  };
   return persistSelfConfiguration(deps, record, {
-    endpoints: registered,
+    endpoints: withMintedClient({ endpoints, minted, redirectUri }),
     scopes,
     grant,
     clientId: minted.clientId,
     clientSecret: minted.clientSecret,
   });
+}
+
+/**
+ * The grant a self-configuring connect uses. Resolved from the SAME discovery call that found the
+ * endpoints, on the same terms as those and the client id: an operator-named grant always wins, and
+ * only a row that left it blank asks the server what it actually supports rather than have
+ * `beginConnect` guess. The cast is safe: every non-null `oauthGrant` on a row was either validated by
+ * `assertOAuthGrant` at save time or written by a PRIOR call to this same resolver, so it is always one
+ * of `EXTERNAL_MCP_OAUTH_GRANTS` even though the column's declared type is a bare `string | null`.
+ * @throws {OAuthError} From {@link resolveGrantFromDiscovery}.
+ * @complexity O(n) in the number of advertised grant types.
+ */
+function selfConfiguredGrant(required: { readonly record: ExternalMcpServerRecord; readonly discovered: DiscoveredOAuthConfiguration }): ExternalMcpOAuthGrant {
+  const { record, discovered } = required;
+  return record.oauthGrant === null ? resolveGrantFromDiscovery(discovered.server.grantTypesSupported, record.serverId) : (record.oauthGrant as ExternalMcpOAuthGrant);
+}
+
+/**
+ * The scopes a self-configuring connect requests. Scopes the operator named win; an empty list adopts
+ * what the resource itself asks for, because a resource that advertises `offline_access` is naming
+ * the scope that decides whether this connection can ever refresh.
+ * @complexity O(n) in the number of scopes.
+ */
+function selfConfiguredScopes(required: { readonly record: ExternalMcpServerRecord; readonly discovered: DiscoveredOAuthConfiguration }): string[] {
+  const operatorScopes = readStoredScopes(required.record);
+  return operatorScopes.length > 0 ? operatorScopes : [...required.discovered.resourceScopes];
+}
+
+/**
+ * The endpoints blob for a freshly minted client: any previous self-registered client's marks
+ * dropped, then this client's own — its id, the callback it was registered with (none for a
+ * device-grant connect), and `clientAuth` only when the server issued a secret.
+ * @complexity O(1).
+ */
+function withMintedClient(required: {
+  readonly endpoints: StoredOAuthEndpoints;
+  readonly minted: Awaited<ReturnType<typeof mintClientForConnection>>;
+  readonly redirectUri: string | undefined;
+}): StoredOAuthEndpoints {
+  const { endpoints, minted, redirectUri } = required;
+  return {
+    ...withoutSelfRegisteredClient(endpoints),
+    ...(minted.clientSecret === null ? {} : { clientAuth: minted.tokenEndpointAuthMethod }),
+    dynamicClientId: minted.clientId,
+    ...(redirectUri === undefined ? {} : { registeredRedirectUri: redirectUri }),
+  };
 }
 
 /**
@@ -1007,7 +1046,7 @@ async function setOAuthStatus(
  *   its in-memory adapter is only suitable when begin and poll run in the same process.
  */
 export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
-  const deps = { ...required, providers: required.providers ?? createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
+  const deps: ExternalMcpOAuthServiceDeps = { ...required, providers: required.providers ?? createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
   const refresher = createTokenRefresher({
     clock: deps.clock,
     sleep: ({ ms }) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
