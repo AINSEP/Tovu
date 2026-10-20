@@ -267,6 +267,77 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: AgentT
   assertToolIsWirable({ toolId, catalogEntry, derivedRisk: derivedRiskByToolId(contributions) });
 }
 
+/** Supply host-owned site ports while preserving the peer bag's fail-closed lookup contract. */
+function enrichToolRouteDeps({ routeDeps }: { routeDeps: AssistantToolRegistryDeps }, _optional = {}): AssistantToolRegistryDeps {
+  // Enriches (never mutates) the caller's own `routeDeps` with the site-switcher flag `sites` needs
+  // and cannot import for itself. `routeDeps.isSiteSwitcherEnabled ??` preserves a test's own fake.
+  const enrichment = {
+    ...routeDeps,
+    isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
+    devRestart: routeDeps.devRestart === undefined ? devRestartPortFromEnv() : routeDeps.devRestart,
+  };
+  // Keep peer composition's fail-closed missing-field behavior through this enrichment.
+  return new Proxy(enrichment, {
+    get: (target, key, receiver) => key === "isSiteSwitcherEnabled" || key === "devRestart"
+      ? Reflect.get(target, key, receiver) : Reflect.get(routeDeps, key),
+  });
+}
+
+type ToolAssemblyInput = {
+  routeDeps: AssistantToolRegistryDeps;
+  surfaces: ChatDeleteSurfaceDeps;
+  contributions?: AssistantToolContributions;
+  policy: AssistantPermanentDeletesPolicy;
+};
+
+/** Assemble domain handlers in catalog order, refusing duplicate admitted ids. */
+function collectDomainRegistrations({ routeDeps, surfaces, contributions, policy }: ToolAssemblyInput, _optional = {}) {
+  const registrations: ToolRegistration[] = [];
+  const ownerByToolId = new Map<string, string>();
+  for (const slice of allToolContributors(contributions)) {
+    for (const registration of slice.build(routeDeps, surfaces)) {
+      // The owner opt-in absorbs the former static ban; forbidden tools never pass.
+      if (!isChatToolAllowed({ toolId: registration.descriptor.id, policy })) continue;
+      const owner = ownerByToolId.get(registration.descriptor.id);
+      if (owner) {
+        // Unreachable while `derivedRiskByToolId()`'s merge holds — a tool cannot be wired
+        // without a risk entry, and the merge already refuses a shared id. Kept because that
+        // argument is about today's code: this is the check on the actual registration list, and
+        // it is what `ToolRegistry` would otherwise silently accept a second binding for.
+        throw new Error(
+          `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} and ${slice.domain} domains — one tool id must resolve to exactly one handler`,
+        );
+      }
+      ownerByToolId.set(registration.descriptor.id, slice.domain);
+      registrations.push(registration);
+    }
+  }
+
+  return { registrations, ownerByToolId };
+}
+
+/** Append derived handlers, retaining the original domain-only snapshot for every pass. */
+function appendDerivedRegistrations({ registrations, ownerByToolId, routeDeps, surfaces, contributions, policy }:
+  ToolAssemblyInput & { registrations: ToolRegistration[]; ownerByToolId: Map<string, string> }, _optional = {}): void {
+  // Derived contributors reuse already-built domain handlers, so run after domain assembly.
+  // Each derive sees only the domain contributions, not earlier derived passes.
+  // Pushed before the collapse's early return so both shapes include them.
+  const contributed: readonly ToolRegistration[] = [...registrations];
+  for (const derived of contributions?.derivedContributors.list({}) ?? []) {
+    for (const registration of derived.derive({ registrations: contributed, routeDeps, surfaces })) {
+      if (!isChatToolAllowed({ toolId: registration.descriptor.id, policy })) continue;
+      const owner = ownerByToolId.get(registration.descriptor.id);
+      if (owner) {
+        throw new Error(
+          `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} domain and ${derived.domain}'s post-processing pass — one tool id must resolve to exactly one handler`,
+        );
+      }
+      ownerByToolId.set(registration.descriptor.id, derived.domain);
+      registrations.push(registration);
+    }
+  }
+}
+
 /**
  * Builds the complete agent-tool surface for one workspace's route-deps bag.
  *
@@ -307,64 +378,18 @@ export function buildAssistantToolRegistrations(
     readonly targetScope?: "on" | "off";
   } = {},
 ): ToolRegistration[] {
-  const registrations: ToolRegistration[] = [];
-  const ownerByToolId = new Map<string, string>();
-
-  // Enriches (never mutates) the caller's own `routeDeps` with the site-switcher flag `sites` needs
-  // and cannot import for itself. `routeDeps.isSiteSwitcherEnabled ??` preserves a test's own fake.
-  const enrichment = {
-    ...routeDeps,
-    isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
-    devRestart: routeDeps.devRestart === undefined ? devRestartPortFromEnv() : routeDeps.devRestart,
-  };
-  // Keep peer composition's fail-closed missing-field behavior through this enrichment.
-  const enrichedRouteDeps: AssistantToolRegistryDeps = new Proxy(enrichment, {
-    get: (target, key, receiver) => key === "isSiteSwitcherEnabled" || key === "devRestart"
-      ? Reflect.get(target, key, receiver) : Reflect.get(routeDeps, key),
-  });
-
+  const enrichedRouteDeps = enrichToolRouteDeps({ routeDeps });
   const assertChatDeleteAllowed = async ({ toolId, principalId }: { toolId: string; principalId?: string }) => {
     const policy = await readChatPermanentDeletesPolicy({ ...routeDeps, principalId, settingsReady: routeDeps.settingsUiTabsReady });
     if (!isChatToolAllowed({ toolId, policy })) throw chatDeleteRefusal({ toolId });
   };
   const guardedSurfaces: ChatDeleteSurfaceDeps = { ...surfaces, assertChatDeleteAllowed };
   const policy = options.permanentDeletePolicy ?? DEFAULT_PERMANENT_DELETES_POLICY;
-  for (const slice of allToolContributors(options.contributions)) {
-    for (const registration of slice.build(enrichedRouteDeps, guardedSurfaces)) {
-      // The owner opt-in absorbs the former static ban; forbidden tools never pass.
-      if (!isChatToolAllowed({ toolId: registration.descriptor.id, policy })) continue;
-      const owner = ownerByToolId.get(registration.descriptor.id);
-      if (owner) {
-        // Unreachable while `derivedRiskByToolId()`'s merge holds — a tool cannot be wired
-        // without a risk entry, and the merge already refuses a shared id. Kept because that
-        // argument is about today's code: this is the check on the actual registration list, and
-        // it is what `ToolRegistry` would otherwise silently accept a second binding for.
-        throw new Error(
-          `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} and ${slice.domain} domains — one tool id must resolve to exactly one handler`,
-        );
-      }
-      ownerByToolId.set(registration.descriptor.id, slice.domain);
-      registrations.push(registration);
-    }
-  }
+  const { registrations, ownerByToolId } = collectDomainRegistrations({ routeDeps: enrichedRouteDeps,
+    surfaces: guardedSurfaces, contributions: options.contributions, policy });
 
-  // Derived contributors reuse already-built domain handlers, so run after domain assembly.
-  // Each derive sees only the domain contributions, not earlier derived passes.
-  // Pushed before the collapse's early return so both shapes include them.
-  const contributed: readonly ToolRegistration[] = [...registrations];
-  for (const derived of options.contributions?.derivedContributors.list({}) ?? []) {
-    for (const registration of derived.derive({ registrations: contributed, routeDeps: enrichedRouteDeps, surfaces: guardedSurfaces })) {
-      if (!isChatToolAllowed({ toolId: registration.descriptor.id, policy })) continue;
-      const owner = ownerByToolId.get(registration.descriptor.id);
-      if (owner) {
-        throw new Error(
-          `tool-registrations.ts: '${registration.descriptor.id}' is registered by both the ${owner} domain and ${derived.domain}'s post-processing pass — one tool id must resolve to exactly one handler`,
-        );
-      }
-      ownerByToolId.set(registration.descriptor.id, derived.domain);
-      registrations.push(registration);
-    }
-  }
+  appendDerivedRegistrations({ registrations, ownerByToolId, routeDeps: enrichedRouteDeps,
+    surfaces: guardedSurfaces, contributions: options.contributions, policy });
 
   // `content_read` runs after domain assembly because it reuses the built registrations;
   // see `content-read-tool.ts` for its ownership and per-resource permission contract.
