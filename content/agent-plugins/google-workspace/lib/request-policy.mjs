@@ -39,17 +39,25 @@ const SAFE_ERRORS = Object.freeze({
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off for the plugin. Turn it on in the Google Workspace plugin, then retry.' },
   'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
+  // Refusals raised by the plugin itself, before anything is sent to Google.
+  'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'A spreadsheet id, tab id, range or option in the request is not valid for this tool. Fix it and retry; nothing was sent to Google.' },
+  'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'The request or its answer is larger than Google Workspace tools allow at once. Ask for a smaller range or fewer changes; nothing partial was returned.' },
+  'unsupported-request': { retryable: false, nextAction: 'fix-request', message: 'The batch contains a request kind Google Workspace tools do not support (only reviewed, generally available Sheets request kinds are allowed). Remove it and retry; nothing was sent to Google.' },
+  'wrong-file-type': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google spreadsheet. Choose a spreadsheet with the file picker, or create a new one.' },
 });
 
 /** A failure a person can act on. `outcome` says whether the request may have changed anything. */
 export class GoogleWorkspaceError extends Error {
   /**
    * @param {{ code: keyof typeof SAFE_ERRORS, outcome?: 'not-applied' | 'unknown' }} required
-   * @param {{ retryAfterMs?: number, cause?: unknown }} [optional]
+   * @param {{ retryAfterMs?: number, cause?: unknown, detail?: string }} [optional] `detail` is a
+   *   short pointer the plugin itself composes (a request index, a kind name it validated); never
+   *   Google's text, a token or a cell value.
    */
   constructor(required, optional = {}) {
     const safe = SAFE_ERRORS[required.code];
-    super(safe.message, optional.cause === undefined ? undefined : { cause: optional.cause });
+    const message = optional.detail === undefined ? safe.message : `${safe.message} (${optional.detail})`;
+    super(message, optional.cause === undefined ? undefined : { cause: optional.cause });
     this.name = 'GoogleWorkspaceError';
     this.code = required.code;
     this.retryable = safe.retryable;

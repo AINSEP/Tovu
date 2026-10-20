@@ -12,6 +12,451 @@
         "additionalProperties": false,
         "properties": { "connectionRef": { "type": "string", "minLength": 1, "maxLength": 512 } }
       }
+    },
+    {
+      "name": "sheets_tab_modify",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Add, rename, delete, duplicate or move one tab (sheetId is the tab's numeric id). add needs title; rename needs sheetId and title; delete and duplicate need sheetId (duplicate may set title and index); move needs sheetId and index. Deleting a tab deletes its data. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "destructive",
+      "module": "tools/sheets-admin/tab-modify.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "action": {"enum": ["add", "rename", "delete", "duplicate", "move"]},
+          "sheetId": {"type": "integer", "minimum": 0},
+          "title": {"type": "string", "minLength": 1, "maxLength": 100},
+          "index": {"type": "integer", "minimum": 0}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"action": {"const": "add"}}, "required": ["action"]},
+            "then": {"required": ["title"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "rename"}}, "required": ["action"]},
+            "then": {"required": ["sheetId", "title"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "delete"}}, "required": ["action"]},
+            "then": {"required": ["sheetId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "duplicate"}}, "required": ["action"]},
+            "then": {"required": ["sheetId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "move"}}, "required": ["action"]},
+            "then": {"required": ["sheetId", "index"]}
+          }
+        ]
+      }
+    },
+    {
+      "name": "sheets_sort",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Physically reorder the rows of a grid range (zero-based, end-exclusive indices) by up to 10 columns; dimensionIndex is the zero-based column. The old row order is not kept. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "destructive",
+      "module": "tools/sheets-admin/sort.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "range", "sortSpecs"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "range": {
+            "type": "object",
+            "required": ["sheetId"],
+            "additionalProperties": false,
+            "properties": {
+              "sheetId": {"type": "integer", "minimum": 0},
+              "startRowIndex": {"type": "integer", "minimum": 0},
+              "endRowIndex": {"type": "integer", "minimum": 0},
+              "startColumnIndex": {"type": "integer", "minimum": 0},
+              "endColumnIndex": {"type": "integer", "minimum": 0}
+            }
+          },
+          "sortSpecs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": ["dimensionIndex"],
+              "additionalProperties": false,
+              "properties": {
+                "dimensionIndex": {"type": "integer", "minimum": 0},
+                "sortOrder": {"enum": ["ASCENDING", "DESCENDING"]}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "sheets_basic_filter",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Read (get), set or clear the basic filter of a tab. get and clear need sheetId; set needs range and may give sortSpecs and filterSpecs (Sheets FilterSpec objects). A filter hides rows; it never deletes data. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "write",
+      "module": "tools/sheets-admin/basic-filter.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "action": {"enum": ["get", "set", "clear"]},
+          "sheetId": {"type": "integer", "minimum": 0},
+          "range": {
+            "type": "object",
+            "required": ["sheetId"],
+            "additionalProperties": false,
+            "properties": {
+              "sheetId": {"type": "integer", "minimum": 0},
+              "startRowIndex": {"type": "integer", "minimum": 0},
+              "endRowIndex": {"type": "integer", "minimum": 0},
+              "startColumnIndex": {"type": "integer", "minimum": 0},
+              "endColumnIndex": {"type": "integer", "minimum": 0}
+            }
+          },
+          "sortSpecs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": ["dimensionIndex"],
+              "additionalProperties": false,
+              "properties": {
+                "dimensionIndex": {"type": "integer", "minimum": 0},
+                "sortOrder": {"enum": ["ASCENDING", "DESCENDING"]}
+              }
+            }
+          },
+          "filterSpecs": {"type": "array", "maxItems": 50, "items": {"type": "object"}}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"action": {"const": "set"}}, "required": ["action"]},
+            "then": {"required": ["range"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "get"}}, "required": ["action"]},
+            "then": {"required": ["sheetId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "clear"}}, "required": ["action"]},
+            "then": {"required": ["sheetId"]}
+          }
+        ]
+      }
+    },
+    {
+      "name": "sheets_filter_views",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. List, add, update, duplicate or delete saved filter views. list may narrow to one sheetId; add needs filter (with range); update needs filterViewId, filter and fields (the filter properties to change); duplicate and delete need filterViewId. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "destructive",
+      "module": "tools/sheets-admin/filter-views.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "action": {"enum": ["list", "add", "update", "duplicate", "delete"]},
+          "sheetId": {"type": "integer", "minimum": 0},
+          "filterViewId": {"type": "integer", "minimum": 0},
+          "filter": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "title": {"type": "string", "minLength": 1, "maxLength": 100},
+              "range": {
+                "type": "object",
+                "required": ["sheetId"],
+                "additionalProperties": false,
+                "properties": {
+                  "sheetId": {"type": "integer", "minimum": 0},
+                  "startRowIndex": {"type": "integer", "minimum": 0},
+                  "endRowIndex": {"type": "integer", "minimum": 0},
+                  "startColumnIndex": {"type": "integer", "minimum": 0},
+                  "endColumnIndex": {"type": "integer", "minimum": 0}
+                }
+              },
+              "namedRangeId": {"type": "string", "minLength": 1, "maxLength": 128},
+              "sortSpecs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "object",
+                  "required": ["dimensionIndex"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "dimensionIndex": {"type": "integer", "minimum": 0},
+                    "sortOrder": {"enum": ["ASCENDING", "DESCENDING"]}
+                  }
+                }
+              },
+              "filterSpecs": {"type": "array", "maxItems": 50, "items": {"type": "object"}}
+            }
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {"enum": ["title", "range", "namedRangeId", "sortSpecs", "filterSpecs"]}
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"action": {"const": "add"}}, "required": ["action"]},
+            "then": {"required": ["filter"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "update"}}, "required": ["action"]},
+            "then": {"required": ["filterViewId", "filter", "fields"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "duplicate"}}, "required": ["action"]},
+            "then": {"required": ["filterViewId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "delete"}}, "required": ["action"]},
+            "then": {"required": ["filterViewId"]}
+          }
+        ]
+      }
+    },
+    {
+      "name": "sheets_format",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Format a grid range: cellFormat (a Sheets CellFormat: numberFormat, textFormat, backgroundColor, horizontalAlignment, wrapStrategy and so on) with fields naming exactly which format properties to set (for example [\"textFormat.bold\", \"numberFormat\"]); borders (top, bottom, left, right, innerHorizontal, innerVertical); frozenRowCount and frozenColumnCount for the range's tab; columnWidth in pixels for the range's columns. Never changes cell values. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "write",
+      "module": "tools/sheets-admin/format.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "range"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "range": {
+            "type": "object",
+            "required": ["sheetId"],
+            "additionalProperties": false,
+            "properties": {
+              "sheetId": {"type": "integer", "minimum": 0},
+              "startRowIndex": {"type": "integer", "minimum": 0},
+              "endRowIndex": {"type": "integer", "minimum": 0},
+              "startColumnIndex": {"type": "integer", "minimum": 0},
+              "endColumnIndex": {"type": "integer", "minimum": 0}
+            }
+          },
+          "cellFormat": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "numberFormat": {},
+              "backgroundColor": {},
+              "backgroundColorStyle": {},
+              "borders": {},
+              "padding": {},
+              "horizontalAlignment": {},
+              "verticalAlignment": {},
+              "wrapStrategy": {},
+              "textDirection": {},
+              "textFormat": {},
+              "hyperlinkDisplayType": {},
+              "textRotation": {}
+            }
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^(numberFormat|backgroundColor|backgroundColorStyle|borders|padding|horizontalAlignment|verticalAlignment|wrapStrategy|textDirection|textFormat|hyperlinkDisplayType|textRotation)(\\.[A-Za-z]+)*$"
+            }
+          },
+          "borders": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "top": {"type": "object"},
+              "bottom": {"type": "object"},
+              "left": {"type": "object"},
+              "right": {"type": "object"},
+              "innerHorizontal": {"type": "object"},
+              "innerVertical": {"type": "object"}
+            }
+          },
+          "frozenRowCount": {"type": "integer", "minimum": 0, "maximum": 1000},
+          "frozenColumnCount": {"type": "integer", "minimum": 0, "maximum": 100},
+          "columnWidth": {"type": "integer", "minimum": 1, "maximum": 2000}
+        },
+        "dependentRequired": {"cellFormat": ["fields"], "fields": ["cellFormat"]},
+        "anyOf": [
+          {"required": ["cellFormat"]},
+          {"required": ["borders"]},
+          {"required": ["frozenRowCount"]},
+          {"required": ["frozenColumnCount"]},
+          {"required": ["columnWidth"]}
+        ]
+      }
+    },
+    {
+      "name": "sheets_named_ranges",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. List, add, update or delete named ranges. add needs name and range; update needs namedRangeId and a new name or range; delete needs namedRangeId. Formulas that use a deleted or moved name change with it. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "destructive",
+      "module": "tools/sheets-admin/named-ranges.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "action": {"enum": ["list", "add", "update", "delete"]},
+          "namedRangeId": {"type": "string", "minLength": 1, "maxLength": 128},
+          "name": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]{0,99}$"},
+          "range": {
+            "type": "object",
+            "required": ["sheetId"],
+            "additionalProperties": false,
+            "properties": {
+              "sheetId": {"type": "integer", "minimum": 0},
+              "startRowIndex": {"type": "integer", "minimum": 0},
+              "endRowIndex": {"type": "integer", "minimum": 0},
+              "startColumnIndex": {"type": "integer", "minimum": 0},
+              "endColumnIndex": {"type": "integer", "minimum": 0}
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"action": {"const": "add"}}, "required": ["action"]},
+            "then": {"required": ["name", "range"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "update"}}, "required": ["action"]},
+            "then": {"required": ["namedRangeId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "delete"}}, "required": ["action"]},
+            "then": {"required": ["namedRangeId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "update"}}, "required": ["action"]},
+            "then": {"anyOf": [{"required": ["name"]}, {"required": ["range"]}]}
+          }
+        ]
+      }
+    },
+    {
+      "name": "sheets_protected_ranges_get",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Which ranges are protected, who may edit them, and whether the connected account can (requestingUserCanEdit). Optionally only one tab (sheetId). Changing protection goes through sheets_batch_update.",
+      "effect": "read",
+      "module": "tools/sheets-admin/protected-ranges-get.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "sheetId": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    {
+      "name": "sheets_developer_metadata",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Read developer metadata: get one entry by metadataId, or search with up to 20 Sheets DataFilter objects. Creating, changing or deleting metadata goes through sheets_batch_update.",
+      "effect": "read",
+      "module": "tools/sheets-admin/developer-metadata.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "action": {"enum": ["get", "search"]},
+          "metadataId": {"type": "integer", "minimum": 0},
+          "dataFilters": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "object"}}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"action": {"const": "get"}}, "required": ["action"]},
+            "then": {"required": ["metadataId"]}
+          },
+          {
+            "if": {"properties": {"action": {"const": "search"}}, "required": ["action"]},
+            "then": {"required": ["dataFilters"]}
+          }
+        ]
+      }
+    },
+    {
+      "name": "sheets_batch_update",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Send up to 100 Sheets batchUpdate request objects (each names exactly one request kind, for example {\"insertDimension\": {...}}) in one atomic call, at most 1 MiB. Only reviewed, generally available request kinds are accepted (see the Sheets reference of this plugin); any other kind is refused before anything is sent. Field masks must be explicit, never *. The card lists every request kind. The person confirms on a card before anything changes; remote changes cannot be undone from Tovu.",
+      "effect": "destructive",
+      "module": "tools/sheets-admin/batch-update.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "requests"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "requests": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {"type": "object", "minProperties": 1, "maxProperties": 1}
+          }
+        }
+      }
+    },
+    {
+      "name": "sheets_export_csv",
+      "description": "Pass the connectionRef from the connection status and the spreadsheetId of a spreadsheet the person picked or Tovu created. Export one tab (sheetId), or an A1 range of it such as A1:F500, as a CSV file the person can download. At most 20,000 rows and 100,000 cells; a larger export is refused, never cut short. valueRenderOption FORMATTED_VALUE (default, as displayed) or UNFORMATTED_VALUE. Returns the file reference and its size, not the data.",
+      "effect": "read",
+      "module": "tools/sheets-admin/export-csv.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef", "spreadsheetId", "sheetId"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"},
+          "sheetId": {"type": "integer", "minimum": 0},
+          "range": {"type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,6}:[A-Z]{1,3}[1-9][0-9]{0,6}$"},
+          "valueRenderOption": {"enum": ["FORMATTED_VALUE", "UNFORMATTED_VALUE"]}
+        }
+      }
+    },
+    {
+      "name": "sheets_open_existing",
+      "description": "Work with a spreadsheet the person already has. Pass the connectionRef. Without spreadsheetId it answers waiting: the person chooses the file with Google's file picker in the Google Workspace plugin (a pasted link grants nothing). With the spreadsheetId of a picked file it checks that Tovu can open it and that it is a spreadsheet, and returns its id, title and link.",
+      "effect": "read",
+      "module": "tools/sheets-admin/open-existing.mjs",
+      "inputSchema": {
+        "type": "object",
+        "required": ["connectionRef"],
+        "additionalProperties": false,
+        "properties": {
+          "connectionRef": {"type": "string", "minLength": 1, "maxLength": 512},
+          "spreadsheetId": {"type": "string", "pattern": "^[A-Za-z0-9_-]{10,128}$"}
+        }
+      }
     }
   ]
 }

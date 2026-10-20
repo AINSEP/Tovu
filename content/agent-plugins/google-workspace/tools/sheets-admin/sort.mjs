@@ -1,0 +1,18 @@
+/**
+ * @file Tool `sheets_sort` (`p_google_workspace__sheets_sort`): physically reorder the rows of a grid range by one
+ * or more columns. Destructive: the original row order is gone and Tovu cannot undo a remote change.
+ *
+ * Exists as a named wrapper over the reviewed `sortRange` request, sent through the batch path.
+ */
+import { clientFor, runBatchUpdate, spreadsheetLine } from '../../lib/sheets-admin-common.mjs';
+import { gridRangeLabel } from '../../lib/sheets-admin-ranges.mjs';
+
+export default {
+  async invoke({ input, capabilities, signal }) {
+    await runBatchUpdate({ client: clientFor({ capabilities }), connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, requests: [{ sortRange: { range: input.range, sortSpecs: input.sortSpecs } }] }, { signal });
+    return { sorted: input.range, sortSpecs: input.sortSpecs };
+  },
+  describeAffectedResources({ input }) {
+    return [spreadsheetLine(input), `reorder rows of ${gridRangeLabel({ range: input.range })} (the old order is not kept)`];
+  },
+};

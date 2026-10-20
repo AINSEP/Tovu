@@ -1,0 +1,59 @@
+/**
+ * @file Tool `sheets_export_csv` (`p_google_workspace__sheets_export_csv`): one tab (or an A1 range of it) as a CSV
+ * file the person can download. Read only on Google's side; the file is written through the host's
+ * artifact capability and only its reference, size and dimensions come back to chat.
+ *
+ * Exists because chat output is bounded (64 KiB) while a tab is not: the export reads the tab in
+ * bounded chunks, encodes CSV locally, and refuses — never truncates — anything over its bounds.
+ */
+import { clientFor, getSpreadsheet, spreadsheetUrl, tabsOf } from '../../lib/sheets-admin-common.mjs';
+import { encodeCsv, planChunks } from '../../lib/sheets-admin-csv.mjs';
+import { parseA1Range } from '../../lib/sheets-admin-ranges.mjs';
+import { GoogleWorkspaceError } from '../../lib/request-policy.mjs';
+
+/** The tab's title and grid size. @complexity O(t) tabs. */
+async function readTab(client, input, signal) {
+  const body = await getSpreadsheet({ client, connectionRef: input.connectionRef, spreadsheetId: input.spreadsheetId, fields: 'sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))' }, { signal });
+  const properties = tabsOf({ body, sheetId: input.sheetId })[0]?.properties;
+  if (typeof properties?.title !== 'string') throw new GoogleWorkspaceError({ code: 'invalid-input' }, { detail: `no tab with sheetId ${input.sheetId}` });
+  return properties;
+}
+
+/** The area to export: the given range, or the tab's whole grid. @complexity O(1). */
+function areaOf(input, properties) {
+  if (input.range !== undefined) return parseA1Range({ range: input.range });
+  const grid = properties.gridProperties ?? {};
+  return { firstRow: 0, lastRow: Math.max(0, (grid.rowCount ?? 1) - 1), firstColumn: 0, lastColumn: Math.max(0, (grid.columnCount ?? 1) - 1) };
+}
+
+/** Every chunk's rows, each padded to its row count so later chunks keep their place. @complexity O(cells). */
+async function readRows(client, input, chunks, signal) {
+  const rows = [];
+  for (const chunk of chunks) {
+    const body = await client.request({
+      connectionRef: input.connectionRef, url: spreadsheetUrl({ spreadsheetId: input.spreadsheetId, suffix: '/values:batchGet' }), kind: 'read',
+      query: { ranges: chunk.range, majorDimension: 'ROWS', valueRenderOption: input.valueRenderOption ?? 'FORMATTED_VALUE' },
+    }, signal ? { signal } : {});
+    const values = Array.isArray(body?.valueRanges?.[0]?.values) ? body.valueRanges[0].values : [];
+    for (let index = 0; index < chunk.rowCount; index += 1) rows.push(Array.isArray(values[index]) ? values[index] : []);
+  }
+  return rows;
+}
+
+/** A file name from the tab title: letters, digits, space, dot, dash and underscore only. @complexity O(title). */
+function fileNameFor(title) {
+  const safe = title.replace(/[^\p{L}\p{N} ._-]+/gu, '_').trim().slice(0, 80);
+  return `${safe === '' ? 'sheet' : safe}.csv`;
+}
+
+export default {
+  async invoke({ input, capabilities, signal }) {
+    const client = clientFor({ capabilities });
+    const properties = await readTab(client, input, signal);
+    const chunks = planChunks({ title: properties.title, area: areaOf(input, properties) });
+    const { csv, rows, columns, bytes } = encodeCsv({ rows: await readRows(client, input, chunks, signal) });
+    const fileName = fileNameFor(properties.title);
+    const { artifactRef } = await capabilities.artifacts.write({ name: fileName, mediaType: 'text/csv', content: csv });
+    return { artifactRef, fileName, rows, columns, bytes };
+  },
+};
