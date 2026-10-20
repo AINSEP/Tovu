@@ -43,6 +43,18 @@ function parseJson(text) {
   try { return JSON.parse(text); } catch { return INVALID_JSON; }
 }
 
+/**
+ * One caller-supplied value as one encoded URL path segment.
+ * @throws {GoogleWorkspaceError} `invalid-input` for an empty, `.` or `..` segment: URL parsing
+ *   resolves those as dot segments and would move the request to another endpoint.
+ * @complexity O(n) characters.
+ */
+export function pathSegment(required, _optional = {}) {
+  const { value } = required;
+  if (typeof value !== 'string' || value === '' || value === '.' || value === '..') throw new GoogleWorkspaceError({ code: 'invalid-input' });
+  return encodeURIComponent(value);
+}
+
 /** `url` plus query parameters; an array value repeats the key (Sheets `ranges=`). @complexity O(q). */
 export function buildUrl(required, _optional = {}) {
   const url = new URL(required.url);
