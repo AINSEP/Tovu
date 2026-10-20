@@ -2,18 +2,33 @@
 
 The **Google Sheets** form destination adds each accepted submission as a new row.
 
-- Each form gets its own tab. Tovu remembers the tab by its id, so renaming the tab is safe.
-- The first row holds the field labels. Tovu adds `_tovu_submission_id` and the submitted time. The
-  visitor's IP address is never sent.
+- Each form goes to its own tab. Tovu remembers the tab by its id, so renaming the tab is safe.
+- The first row holds the headers: `_tovu_submission_id`, `_tovu_submitted_at`, then the field
+  labels. The visitor's IP address is never sent.
 - Checkbox groups are joined with ", ". Values are written as plain text, never as formulas.
-- A new form field becomes a new column at the end; existing columns never change meaning.
+- A new form field becomes a new column at the end; existing columns never change meaning, even
+  when a field's label is edited later.
 - Every submission stays saved in Tovu, whatever happens to the spreadsheet. If Google is slow or
-  the account needs reconnecting, deliveries wait and resume.
-- Delivery is **at least once**: before every append Tovu looks for the submission id in the sheet,
-  so a retry normally does not add a duplicate, but a duplicate is still possible in rare cases.
-- Deleting a submission in Tovu does **not** delete its row in the spreadsheet. Say so when the
-  person turns the destination on.
+  asks Tovu to slow down, deliveries wait and resume.
+- Delivery is **at least once with best-effort dedupe**: before every append Tovu looks for the
+  submission id in the `_tovu_submission_id` column (and looks again if Google's answer was lost),
+  so a retry normally does not add a duplicate. A duplicate is still possible in rare cases (for
+  example another person or tool writing to the same tab at the same moment).
+- Deleting a submission in Tovu does **not** delete its row in the spreadsheet. When the person
+  turns this destination on, tell them: "Rows already sent to Google Sheets stay in the spreadsheet
+  if you delete the submission in Tovu."
 - Turning Sheets off pauses deliveries; it does not lose them.
 
-In this build the destination is declared but not active yet: deliveries wait in Tovu with
-"Delivery to Google Sheets is not available in this build yet".
+## When a delivery fails
+
+| code | what it means | what to do |
+|---|---|---|
+| `authorization-required` | Google no longer accepts the sign-in (reconnect required) or a permission is missing. | Reconnect Google Workspace with the same account; the failed delivery stays listed in Tovu. |
+| `resource-not-granted` | The connected account cannot open this spreadsheet. | Choose the spreadsheet again with the file picker. |
+| `configuration-invalid` | The destination does not name a tab for this form, or the tab was deleted. | Choose the tab again in the destination settings. |
+| `mapping-invalid` | The first row's headers do not match: a header is missing or appears twice, `_tovu_submission_id` is missing, or two fields share a label. | Repair the headers in row 1 (or give the fields distinct labels). |
+| `destination-limit` | The tab has more than 50,000 rows, too many to check for duplicates. | Point the form at a new tab or spreadsheet. |
+| `rate-limited` | Google asked Tovu to slow down. | Nothing; it retries after the wait. |
+| `outcome-unknown` | Google did not confirm the append and the row was not found. | Nothing; the next try checks again before appending. |
+| `adapter-unavailable` | Sheets is turned off for the plugin. | Turn Sheets on; waiting deliveries resume. |
+| `delivery-failed` | Google was unavailable or answered unexpectedly. | Usually nothing; it retries. |

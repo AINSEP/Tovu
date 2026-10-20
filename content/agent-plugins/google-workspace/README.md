@@ -18,7 +18,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `products.json` | Product catalog: id, tool prefix, form destinations, required and optional scopes. Sheets = `drive.file` only. |
 | `tovu-agent-tools.json` + `tools/` | Executable tools (`p_google_workspace__<name>`): `account_info`, and the Sheets tools in `tools/sheets/` (see its README). |
 | `tovu-admin-surfaces.json` + `ui/` | Plugin-owned admin surfaces. Today a static placeholder; the connection panel and Picker replace it. |
-| `tovu-form-destinations.json` + `form-destinations/` | Push-only `google-sheets` destination (no `receive`). Refuses as retryable until the mapping/dedupe adapter lands. |
+| `tovu-form-destinations.json` + `form-destinations/` | Push-only `google-sheets` destination (no `receive`): frozen column mapping, bounded submission-id dedupe, contract-shaped results. See `form-destinations/README.md`. Not yet called by the host's forms fan-out (wired in a later lot). |
 | `lib/` | Shared code (below). |
 | `skills/google-workspace/` | What the in-app assistant reads. |
 | `__tests__/` | `fake-google-http.mjs` (127.0.0.1 fake Google) and the OAuth contract pins. |
