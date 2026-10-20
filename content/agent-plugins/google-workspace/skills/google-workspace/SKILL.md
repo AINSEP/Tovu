@@ -54,5 +54,5 @@ The Sheets reference also covers tab changes, sorting, filters and filter views,
 and protected ranges, developer metadata, raw batch updates (and which request kinds are allowed),
 CSV export and opening a picked spreadsheet (`sheets_open_existing`). Errors `limit-exceeded`
 (narrow the request), `unsupported-request` (use a listed request kind), `invalid-input` (fix the id,
-range or option) and `wrong-file-type` (pick a spreadsheet) are raised by Tovu before anything is
-sent to Google.
+range or option) are raised by Tovu before anything is sent to Google; `not-a-spreadsheet` means the
+chosen file is not a spreadsheet (pick one).

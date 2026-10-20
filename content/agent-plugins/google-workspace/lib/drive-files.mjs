@@ -1,7 +1,7 @@
 /**
  * @file Drive helpers shared by every Google Workspace product: who the connection is signed in as
- * and whole-file copy (`files.copy`, used by `sheets_copy`). File metadata (`files.get`) joins here
- * when the Picker needs it.
+ * and whole-file copy (`files.copy`, used by `sheets_copy`). File metadata reads (`files.get`) stay
+ * with their callers (Picker verification, `sheets_open_existing`) and share `DRIVE_FILES_URL` here.
  *
  * Exists so identity costs no extra permission: Drive `about.get` answers under `drive.file`, so
  * the sign-in never adds `openid`, `email` or `profile` scopes just to learn the account.

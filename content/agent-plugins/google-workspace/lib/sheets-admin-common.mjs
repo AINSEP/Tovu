@@ -11,11 +11,11 @@
  * Requests go through the plugin's one Google client (`http.mjs`), which reads the token right
  * before each attempt and owns retries. Phase B may fold this into the Sheets client.
  */
-import { createGoogleClient } from './http.mjs';
+import { createGoogleClient, pathSegment } from './http.mjs';
 import { GoogleWorkspaceError } from './request-policy.mjs';
 import { checkRequests } from './sheets-admin-request-kinds.mjs';
+import { SHEETS_API } from './sheets-client.mjs';
 
-export const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 /** Largest JSON answer a tool returns to chat. */
 export const MAX_OUTPUT_BYTES = 64 * 1024;
 
@@ -34,7 +34,7 @@ export function checkedFileId(required, _optional = {}) {
 
 /** `…/spreadsheets/<id><suffix>`; the id is checked and encoded. @complexity O(1). */
 export function spreadsheetUrl(required, _optional = {}) {
-  return `${SHEETS_API}/${encodeURIComponent(checkedFileId({ id: required.spreadsheetId }))}${required.suffix ?? ''}`;
+  return `${SHEETS_API}/${pathSegment({ value: checkedFileId({ id: required.spreadsheetId }) })}${required.suffix ?? ''}`;
 }
 
 /** The plugin's Google client over one call's host capabilities. @complexity O(1). */

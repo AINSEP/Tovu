@@ -7,6 +7,7 @@ import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
 
 import type { LoadPluginContributions } from "../agent-plugins/lifecycle.js";
+import { createConnectionBudgets } from "./budgets.js";
 import { loadDeclaredApiConnections, type ApiConnectionClientConfig, type DeclaredApiConnection } from "./contribution.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, type ApiConnectionVaultRecordStore } from "./vault-stores.js";
 
@@ -18,7 +19,8 @@ import { createApiConnectionVault, createApiConnectionVaultRecordStore, createAp
  * Runtime decides the client: `hosted` uses the plugin's web client (confidential: its secret is
  * required) and the fixed public callback; `desktop` uses the installed-app client (public, PKCE,
  * optionally with a provider-issued non-confidential secret) and a per-attempt loopback redirect.
- * Tokens stay bound to the client that issued them.
+ * Tokens stay bound to the client that issued them. Every token read first spends the connection's
+ * declared request budgets (`budgets.ts`), counted in this host's memory.
  */
 
 /** The public, cookie-less callback every hosted API-connection sign-in returns to. */
@@ -89,6 +91,7 @@ function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnection
 export function createApiConnectionHost(required: ApiConnectionHostDeps, _optional: Record<string, never> = {}) {
   const vault = createApiConnectionVault({ repo: required.vaultRepo, keyring: required.keyring, sealer: required.sealer, clock: required.clock, workspaceId: required.workspaceId });
   const records: ApiConnectionVaultRecordStore = createApiConnectionVaultRecordStore({ vault, workspaceId: required.workspaceId, clock: required.clock });
+  const budgets = createConnectionBudgets({ clock: required.clock });
 
   async function listConnections(input: { readonly pluginId?: string } = {}): Promise<readonly DeclaredApiConnection[]> {
     const { connections } = await loadDeclaredApiConnections({ workspaceId: required.workspaceId, loadContributions: required.loadContributions });
@@ -140,6 +143,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
       async getAccessToken(input: { readonly connectionRef: string }, options: { readonly expectedAccountId?: string } = {}): Promise<string> {
         const connection = await declaredFor({ pluginId: scope.pluginId, connectionRef: input.connectionRef });
         if (!connection) throw notAvailable();
+        await budgets.charge({ workspaceId: required.workspaceId, pluginId: scope.pluginId, connectionId: connection.descriptor.connectionId, connectionRef: input.connectionRef, budgets: connection.budgets });
         return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef }, options);
       },
     };

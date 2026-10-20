@@ -14,6 +14,7 @@ names no provider.
 |---|---|
 | `vault-stores.ts` | All state in the secrets vault, kind `api-connection` (migration 0020): token sets (Jini's vault token store, fenced `install` for sign-in), connection records (revision CAS), single-use sign-in attempts (revision-checked delete; expired ones swept). Labels are unique per row (key, plus a state digest for attempts). |
 | `contribution.ts` | Loads `tovu-connections.json` through the lifecycle's executable trust gate; Jini parses the descriptor; the hooks module default-exports `createHooks({ http })`. |
+| `budgets.ts` | Plugin-declared request budgets: `parseConnectionBudgets` (clamps to `HOST_BUDGET_MAXIMUM`, 240/min + burst 40), `createConnectionBudgets({ clock }).charge(target)` over the real http-kit limiter, and `ConnectionBudgetExceededError` (`rate-limited`). |
 | `host.ts` | `createApiConnectionHost(deps)` per workspace: `listConnections`, `serviceFor`, `statusOf`, `requestedScopes`, `hostedCallbackUrl`, `accessTokensFor({ pluginId }).getAccessToken({ connectionRef })` (the plugin host capability), and `toolConnections` (the same rule as the executable-tool / admin-surface connection port, plus `readAccount`). |
 | `connect.ts` | The API-connection branch of `agent_plugin_connect`: hosted waits for the public callback; desktop uses Jini's 127.0.0.1 loopback receiver and completes itself. |
 | `form-delivery-connection.ts` | OAuth `FormDeliveryConnectionPort` (unwired until the forms fan-out, G14). |
@@ -26,6 +27,7 @@ names no provider.
   "id": "account", "module": "lib/connection.mjs", "label": "Acme Office",
   "authorizationEndpoint": "https://…", "tokenEndpoint": "https://…",
   "authorizationParams": { "public": {}, "confidential": {} }, "startParams": [], "callbackFields": [],
+  "budgets": [{ "scope": "connection", "perMinute": 45 }, { "scope": "instance", "perMinute": 240 }],
   "clients": {
     "web": { "clientIdEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_ID", "clientSecretEnv": "TOVU_ACME_OAUTH_WEB_CLIENT_SECRET", "redirectOrigins": ["https://…"] },
     "desktop": { "clientIdEnv": "TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID" }
@@ -47,6 +49,34 @@ provider needs only its own plugin files (see the `acme-office` test fixture).
 - `getAccessToken` serves only refs of connections the calling plugin declares in this workspace;
   every other ref gets the same refusal. Only access tokens leave; refresh tokens stay sealed.
 - Attempts (they hold the PKCE verifier) live sealed in the vault, never in the exportable ledger.
+
+## Request budgets
+
+A connection may declare `budgets`: at most one per scope, `{ "scope": "instance" | "connection",
+"perMinute": n, "burst"?: n }`. `connection` is one signed-in account (one `connectionRef`);
+`instance` is this site's share across every account of that declared connection. The host charges
+them on every `getAccessToken` (the capability rule is one token read per authenticated request),
+so chat tools, admin-surface actions and form delivery all spend the same budgets without the plugin
+pacing itself. How the host keeps them:
+
+- Keys are scope + workspace + plugin + connection id (+ the ref for `connection`), NUL-separated, so
+  a plugin never spends another plugin's, another connection's or the host's budget.
+- Only an owned ref is charged: a forged ref is refused first, so it neither drains a budget nor
+  creates counters. The per-account budget is checked first, so a busy account's refused calls do
+  not spend the instance budget its siblings share.
+- Values are clamped to `HOST_BUDGET_MAXIMUM` (240/min, burst 40); a connection that declares no
+  instance budget gets that maximum. A malformed entry refuses the whole declaration (never unbounded).
+- A refusal is `ConnectionBudgetExceededError`: `code: "rate-limited"`, `retryable: true`,
+  `retryAfterMs` (from the limiter's window), `outcome: "not-applied"`; nothing was sent, so a
+  caller (form delivery) waits and retries rather than dropping work. A provider's own Retry-After
+  and jittered backoff stay the plugin's job.
+- Counters live in memory, PER PROCESS: each process that composes the host (the API server and the
+  agent daemon each do) holds its own, so the real ceiling is the declared budget times the number
+  of such processes, and a restart resets it. Declare budgets below the provider's quota with that
+  in mind; a shared budget would need a distributed atomic store, which http-kit does not provide.
+
+Separately, the `limiter` capability (`AGENT_PLUGIN_OUTBOUND_BUDGET`) is a plugin's own pacing tool:
+whatever it checks there, the declared budgets above still apply.
 
 ## Wiring (done in G6b)
 

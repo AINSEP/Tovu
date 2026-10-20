@@ -22,10 +22,11 @@ import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
  */
 
 /**
- * Every plugin's outbound budget until plugins can declare their own: per plugin key, one shared
+ * The budget behind the `limiter` capability a plugin calls itself: per plugin key, one shared
  * window per site, sized to the largest per-instance budget a bundled provider needs (~240/min).
- * TODO(plugin budgets): read plugin-declared budgets (per user / per instance) once a declaration
- * format exists; until then a plugin narrows its own use through its `limiter.check` keys.
+ * Budgets a plugin DECLARES on a connection (`budgets` in `tovu-connections.json`) are enforced by
+ * the host on every token read instead (`features/api-connections/budgets.ts`), whatever the plugin
+ * calls here.
  */
 export const AGENT_PLUGIN_OUTBOUND_BUDGET: RateLimitProfile = { windowSeconds: 60, max: 240, burst: 40 };
 

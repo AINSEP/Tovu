@@ -9,11 +9,11 @@
  * this?": an ungranted file is `file-not-granted` with the next action "choose it with the picker".
  * Chat receives resource metadata only; the link is built from the verified id, not taken from Google.
  */
+import { DRIVE_FILES_URL } from '../../lib/drive-files.mjs';
+import { pathSegment } from '../../lib/http.mjs';
+import { SPREADSHEET_MIME_TYPE } from '../../lib/picker-selection.mjs';
 import { checkedFileId, clientFor } from '../../lib/sheets-admin-common.mjs';
 import { GoogleWorkspaceError } from '../../lib/request-policy.mjs';
-
-export const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
-const SPREADSHEET_MIME = 'application/vnd.google-apps.spreadsheet';
 
 const WAITING = Object.freeze({
   status: 'waiting',
@@ -26,10 +26,10 @@ export default {
     if (input.spreadsheetId === undefined) return WAITING;
     const id = checkedFileId({ id: input.spreadsheetId });
     const file = await clientFor({ capabilities }).request({
-      connectionRef: input.connectionRef, url: `${DRIVE_FILES_URL}/${encodeURIComponent(id)}`, kind: 'read', query: { fields: 'id,name,mimeType,trashed' },
+      connectionRef: input.connectionRef, url: `${DRIVE_FILES_URL}/${pathSegment({ value: id })}`, kind: 'read', query: { fields: 'id,name,mimeType,trashed' },
     }, signal ? { signal } : {});
     if (file?.id !== id || file.trashed === true) throw new GoogleWorkspaceError({ code: 'file-not-granted' });
-    if (file.mimeType !== SPREADSHEET_MIME) throw new GoogleWorkspaceError({ code: 'wrong-file-type' });
+    if (file.mimeType !== SPREADSHEET_MIME_TYPE) throw new GoogleWorkspaceError({ code: 'not-a-spreadsheet' });
     return { status: 'selected', resource: { spreadsheetId: id, title: typeof file.name === 'string' ? file.name : '', url: `https://docs.google.com/spreadsheets/d/${id}/edit` } };
   },
 };

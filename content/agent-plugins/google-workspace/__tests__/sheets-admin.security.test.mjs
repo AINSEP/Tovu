@@ -192,12 +192,12 @@ test('format: the cell-format mask is always under userEnteredFormat, and the sc
   for (const field of ['userEnteredValue', '*', 'note', 'textFormat.bold,userEnteredValue']) assert.equal(pattern.test(field), false, field);
 });
 
-test('open_existing: no id means waiting with no request; an ungranted id is file-not-granted; a non-spreadsheet is wrong-file-type', async () => {
+test('open_existing: no id means waiting with no request; an ungranted id is file-not-granted; a non-spreadsheet is not-a-spreadsheet (the Picker code)', async () => {
   assert.equal((await run(openExisting, { spreadsheetId: undefined })).status, 'waiting');
   assert.equal(fake.requests.length, 0);
   await assert.rejects(run(openExisting, {}), { code: 'file-not-granted', nextAction: 're-pick-file' });
   fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Notes', mimeType: 'application/vnd.google-apps.document' }]);
-  await assert.rejects(run(openExisting, {}), { code: 'wrong-file-type', nextAction: 're-pick-file' });
+  await assert.rejects(run(openExisting, {}), { code: 'not-a-spreadsheet', nextAction: 're-pick-file' });
   fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Old', mimeType: 'application/vnd.google-apps.spreadsheet', trashed: true }]);
   await assert.rejects(run(openExisting, {}), { code: 'file-not-granted' });
 });

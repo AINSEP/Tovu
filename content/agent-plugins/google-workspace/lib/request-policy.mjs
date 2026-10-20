@@ -38,12 +38,13 @@ const SAFE_ERRORS = Object.freeze({
   'uncertain-outcome': { retryable: false, nextAction: 'review-outcome', message: 'Google did not confirm whether the change was applied. Check the spreadsheet before trying again.' },
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off for the plugin. Turn it on in the Google Workspace plugin, then retry.' },
+  'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
+  'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
   'destination-unavailable': { retryable: true, nextAction: 'retry-later', message: 'Delivery to Google Sheets is not available in this build yet. Submissions stay saved in Tovu.' },
   // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).
   'invalid-input': { retryable: false, nextAction: 'fix-request', message: 'This request is not valid for the tool. Check the spreadsheet id, tab, range and options, then try again. Nothing was sent to Google.' },
   'limit-exceeded': { retryable: false, nextAction: 'narrow-request', message: 'This request or its result is larger than the tool allows. Ask for a smaller range, fewer rows or fewer entries, then try again.' },
   'unsupported-request': { retryable: false, nextAction: 'fix-request', message: 'The batch contains a request kind Google Workspace tools do not support (only reviewed, generally available Sheets request kinds are allowed). Remove it and retry; nothing was sent to Google.' },
-  'wrong-file-type': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google spreadsheet. Choose a spreadsheet with the file picker, or create a new one.' },
 });
 
 /** A failure a person can act on. `outcome` says whether the request may have changed anything. */

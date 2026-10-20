@@ -100,7 +100,7 @@ is rows 2-10, columns A-D.
   (for example `["textFormat.bold", "numberFormat"]`). Properties not listed stay as they are.
 - `sheets_open_existing` without `spreadsheetId` answers `waiting`: ask the person to choose the file
   with Google's picker in the Google Workspace plugin, or offer to create a new spreadsheet.
-  `file-not-granted` means the file was never picked (or was trashed); `wrong-file-type` means it is
+  `file-not-granted` means the file was never picked (or was trashed); `not-a-spreadsheet` means it is
   not a spreadsheet.
 - `sheets_export_csv` reads at most 20,000 rows and 100,000 cells and writes at most 4 MiB. A bigger
   tab is refused (`limit-exceeded`), never cut short: export a range instead. It returns a file

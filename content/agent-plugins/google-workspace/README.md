@@ -32,6 +32,7 @@ digest at seed time, which the executable trust gate checks before any module lo
 | `drive-files.mjs` | `readAccount({ client, connectionRef })` via Drive `about.get` (works under `drive.file`); `copyFile({ client, connectionRef, fileId, name }, { parentId })` via Drive `files.copy`. |
 | `sheets-client.mjs` | The Sheets request helper: `sheetsUrl`, `sendSheetsRequest`, `valueInputOption` (RAW default), `SHEETS_LIMITS` and the bound helpers (`boundValueRanges`, `assertPayloadWithin`, `assertOutputWithin`), A1 helpers, `resourceLines` (card lines). |
 | `product-state.mjs` | `PRODUCTS` (validated catalog), `scopesFor({ productIds })`. |
+| `picker-selection.mjs` | `verifySelectedSpreadsheet({ client, connectionRef, fileId, expectedAccountId })` (plain Drive id, same account, spreadsheet MIME via Drive `files.get`, real access via Sheets `spreadsheets.get`; metadata only), `parsePickedFileIds({ value })` (desktop callback field → one id or null on cancel), `DESKTOP_PICKER_START_PARAMS`, `SPREADSHEET_MIME_TYPE`. |
 | `request-policy.mjs` | `GoogleWorkspaceError`, `classifyFailure`, `parseRetryAfter`, `backoffMs`, `shouldRetryInline`, `QUOTA_BUDGETS`. |
 
 ## Rules the plugin keeps
@@ -61,7 +62,15 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 - The host limiter runs one profile (240/min + burst) for every key, so the per-account 45/min
   budget is declared here but enforced only at the host profile until the host accepts
   plugin-declared budgets.
-- Per-workspace product on/off state, Picker and the delivery adapter are later lots.
+- Per-workspace product on/off state and the delivery adapter are later lots.
+- Connection panel and Picker surfaces (G13) are blocked on host seams; only the server-side selection
+  checks ship. An admin-surface handler receives the executable-tool capabilities only
+  (`connections.getAccessToken`, `http`, `limiter`, `artifacts`), so it cannot: read its connection's
+  status or `connectionRef`; start connect / reconnect / switch account, confirm or cancel a switch, or
+  disconnect (revoke); start a desktop sign-in with `DESKTOP_PICKER_START_PARAMS` and receive the
+  `picked_file_ids` callback field (the host's connect path passes no start params and drops
+  `callbackFields`); persist the verified selection or product flags; or read the public Picker
+  config (`TOVU_GOOGLE_PICKER_API_KEY`, `TOVU_GOOGLE_PICKER_APP_ID`, names only).
 
 ## Sheets admin tools (`tools/sheets-admin/`, lot G12)
 
@@ -77,5 +86,5 @@ developer metadata, raw batch updates, CSV export and opening a picked file; see
 | `lib/sheets-admin-csv.mjs` | `planChunks`, `encodeCsv`, export bounds. |
 
 These tools use the plugin-side codes `invalid-input` and `limit-exceeded` (shared with the values
-tools) and add `unsupported-request` and `wrong-file-type`, plus an optional plugin-composed `detail`
+tools) and add `unsupported-request`; `sheets_open_existing` reuses the Picker's `not-a-spreadsheet`, plus an optional plugin-composed `detail`
 on `GoogleWorkspaceError` (a request index or kind name, never Google's text or a cell value).
