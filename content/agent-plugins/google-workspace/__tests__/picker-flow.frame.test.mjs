@@ -93,9 +93,10 @@ test('hosted: after a failure inside Google\'s loader, the next choice loads the
 test('hosted: once loaded, later choices reuse the library (no second script)', async () => {
   const builds = pickerApi.builds.length;
   const { result } = await openHosted(fakeClient({}));
+  const opened = { scripts: pickerScripts(frame).length, newBuilds: pickerApi.builds.length - builds };
+  assert.deepEqual(opened, { scripts: 0, newBuilds: 1 });
   pickerApi.fire({ action: 'cancel' });
   assert.equal(await result, null);
-  assert.deepEqual({ scripts: pickerScripts(frame).length, newBuilds: pickerApi.builds.length - builds }, { scripts: 0, newBuilds: 1 });
 });
 
 test('hosted: the Picker opens with the bootstrap key, app id and short-lived token, spreadsheets only, visible', async () => {
@@ -199,10 +200,12 @@ test('system browser: a final cancelled, none or expired answer shows its senten
 test('system browser: polling stops one poll after the link expires and says it expired', async () => {
   const client = fakeClient({ 'start-system-picker': { expiresAt: new Date(NOW + 3000).toISOString() }, 'finish-system-picker': { status: 'waiting' } });
   const { result, statuses } = await systemChoice(client);
+  let settled = false;
+  result.then(() => { settled = true; });
   await poll();
   await poll();
+  assert.deepEqual({ settled, finishes: client.calls.filter((call) => call.action === 'finish-system-picker').length, last: statuses.at(-1) }, { settled: true, finishes: 2, last: pollText({ status: 'expired' }) });
   assert.equal(await result, null);
-  assert.deepEqual({ finishes: client.calls.filter((call) => call.action === 'finish-system-picker').length, last: statuses.at(-1) }, { finishes: 2, last: pollText({ status: 'expired' }) });
 });
 
 test('system browser: when the person stops waiting, polling stops and the panel says nothing was chosen', async () => {

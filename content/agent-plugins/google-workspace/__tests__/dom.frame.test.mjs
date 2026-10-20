@@ -18,10 +18,15 @@ afterEach(() => { mock.timers.reset(); mock.restoreAll(); frame.close(); });
 test('connectToHost: the client learns the host from its parent window and posts there, to the host origin only', async () => {
   frame.respond.set('status', () => ({ ok: 'yes' }));
   const client = connectToHost({ window: frame.window });
+  let ready = false;
+  client.ready.then(() => { ready = true; });
   frame.init();
-  await client.ready;
-  assert.deepEqual(await client.call({ action: 'status', payload: {} }), { ok: 'yes' });
+  await flush();
+  assert.equal(ready, true);
+  const answer = client.call({ action: 'status', payload: {} });
+  await flush();
   assert.deepEqual(frame.posted.map((entry) => [entry.targetOrigin, entry.message.mountId, entry.message.action]), [[HOST_ORIGIN, MOUNT_ID, 'status']]);
+  assert.deepEqual(await answer, { ok: 'yes' });
   client.close();
 });
 
