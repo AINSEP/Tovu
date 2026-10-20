@@ -280,8 +280,15 @@ export function decodePublishCriteriaFromQuery(raw: string): PublishCriteria | n
     return null;
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-  const obj = parsed as Record<string, unknown>;
+  return sanitizeCriteriaObject({ obj: parsed as Record<string, unknown> });
+}
 
+/** Keeps only supported criteria fields from a decoded object, using the query's forgiving caps.
+ *  @complexity O(n) in the decoded object's `types`/`items` length. */
+function sanitizeCriteriaObject(
+  { obj }: { obj: Record<string, unknown> },
+  _options: Record<string, never> = {},
+): PublishCriteria {
   const types = sanitizeCriteriaList(obj.types);
   const items = sanitizeCriteriaList(obj.items);
   const overwrite = obj.overwrite === true;
