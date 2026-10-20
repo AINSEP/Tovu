@@ -12,16 +12,23 @@ method (see the forms-multidest delivery contract, §2–§3).
 - `required`: `{ kit, credential, form, submission, binding, idempotencyKey }` exactly as the host
   hands a frozen job. `credential.token` is the access token the host resolved for this attempt
   from `binding.connectionRef`; it is used only in the `authorization` header.
-- `optional`: `{ productEnabled? }` — a host port the contract does not carry yet. Without
-  `productEnabled` (or when it returns anything but `true`) delivery refuses as
-  `adapter-unavailable`, retryable: Sheets off pauses deliveries, it never enables them by default.
+- `optional`: `{ state? }` — the host's read-only reader of this plugin's settings (the store the
+  connection panel writes). Unless it holds `products.sheets === true` (no reader counts as off),
+  delivery refuses as `adapter-unavailable`, retryable: Sheets off pauses deliveries, it never
+  enables them by default.
+- `credential.getAccessToken()` (OAuth connections): one fresh token per Google request, so the
+  host's declared budgets count every request and the frozen account is re-checked each time.
 - Returns a `FormDeliveryResult`; it never throws.
 
 Binding config (non-secret, frozen with the job):
 
 ```json
-{ "spreadsheetId": "…", "tabs": { "<formSlug>": { "sheetId": 7 } } }
+{ "spreadsheetId": "…", "accountId": "…", "tabs": { "<formSlug>": { "sheetId": 7 } } }
 ```
+
+`accountId` is read by the host, not this module: the OAuth connection port refuses a job whose
+connection now holds another account (`authorization-required`), and a binding without one
+(`configuration-invalid`).
 
 Which column holds which field is kept in the sheet, not the binding: the first time a field is
 written, its column gets a developer-metadata marker (`tovu_form_field` = the field id, visibility
@@ -63,10 +70,16 @@ A second destination (another product or another provider plugin) copies this sh
 push-only descriptor, a `deliver` that maps its own errors to the nine contract codes, and its own
 dedupe. Nothing here is imported by Tovu core or Jini.
 
-## Wiring left for the forms fan-out lot (G14b)
+## Wiring (G14b) and what is left
 
-- Pass `productEnabled` (`productEnabledReader` over the plugin-state reader) in `optional`, or extend the contract.
-- Quotas: the host charges the declared budgets per token read, but a delivery gets one pre-resolved
-  token for its 3-15 requests (finding M4). Hand delivery a per-request `getAccessToken()` instead.
-- The OAuth `FormDeliveryConnectionPort` returns `baseUrl: ""`; the push kit only reaches the
-  credential's `baseUrl` origin plus `additionalHosts`, so it must allow `https://sheets.googleapis.com`.
+Wired: the host composes the OAuth connection port ahead of saved custom credentials, so a binding
+whose `connectionRef` is this plugin's connection resolves through it (`additionalHosts` = the
+declared `apiOrigins` after the first, as exact origins); delivery gets `optional.state` and a
+per-request `getAccessToken()`.
+
+Left (seam gap, needs Jini): the destination panel saves its choice in this plugin's settings
+(`form-destinations`), but the binding owner is the host's `core.forms/deliveryBindings` setting,
+which no admin-surface capability can write (Jini `admin-surfaces` declares only connections, state
+and public config). A host-written binding needs a new declared capability (e.g. "save this form's
+binding for my own adapter and connection") with a human confirmation, since a binding copies every
+submission to a destination. Until then the panel shows the binding config to copy.

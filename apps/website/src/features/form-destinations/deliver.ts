@@ -1,6 +1,6 @@
 import { FormDeliveryError, type FormDeliveryJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import { resolveRequestTarget } from "@jini-ai/integrations/credentialed-http";
-import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationRegistry } from "./types.js";
+import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestinationKit, FormDestinationPluginState, FormDestinationRegistry } from "./types.js";
 
 /**
  * @file The host half of one push-delivery attempt: find the binding's adapter among the loaded
@@ -19,6 +19,8 @@ import type { FormDeliveryConnectionPort, FormDestinationCredential, FormDestina
  *   loaded destination with the binding's adapter id has `deliver`; `authorization-required`
  *   (non-retryable) when the connection port finds no credential. The adapter's `kit.fetch` rejects
  *   with `configuration-invalid` (non-retryable) for a URL outside the credential's saved hosts.
+ * @param optional.pluginState - The read-only settings of a plugin in a workspace; when given, each
+ *   adapter receives its own plugin's as `optional.state` (so a product turned off pauses delivery).
  * @complexity One registry load and one credential resolution per attempt, then the adapter's own cost.
  */
 export function createFormDestinationDeliverer(
@@ -27,17 +29,18 @@ export function createFormDestinationDeliverer(
     connections: FormDeliveryConnectionPort;
     kit: FormDestinationKit;
   },
-  _optional: Record<string, never> = {},
+  optional: { pluginState?: (required: { workspaceId: string; pluginId: string }) => FormDestinationPluginState } = {},
 ): (required: { workspaceId: string; job: FormDeliveryJob }) => Promise<FormDeliveryResult | void> {
   return async ({ workspaceId, job }) => {
     const { binding } = job;
     const adapter = (await required.loadRegistry({ workspaceId })).get(binding.adapterId);
     if (!adapter?.module.deliver) throw new FormDeliveryError({ code: "adapter-unavailable", retryable: true });
     // Resolved on every attempt and passed only to the adapter, so rotation and revocation apply at once.
-    const credential = await required.connections({ workspaceId, connectionRef: binding.connectionRef, adapterId: binding.adapterId });
+    const credential = await required.connections({ workspaceId, connectionRef: binding.connectionRef, adapterId: binding.adapterId }, { binding });
     if (!credential) throw new FormDeliveryError({ code: "authorization-required", retryable: false });
     const kit = credentialScopedKit({ kit: required.kit, credential, workspaceId, connectionRef: binding.connectionRef });
-    return adapter.module.deliver({ kit, credential, ...job.snapshot, binding, idempotencyKey: job.idempotencyKey });
+    const state = optional.pluginState?.({ workspaceId, pluginId: adapter.pluginId });
+    return adapter.module.deliver({ kit, credential, ...job.snapshot, binding, idempotencyKey: job.idempotencyKey }, state ? { state } : {});
   };
 }
 

@@ -63,6 +63,33 @@ test("the adapter is called with the frozen form, submission, binding and idempo
   assert.deepEqual(rest, { credential, form: job.snapshot.form, submission: job.snapshot.submission, binding: job.binding, idempotencyKey: '["s1","b1"]' });
 });
 
+test("the connection port is handed the job's frozen binding, for a connection kind that freezes more than the ref (G14b)", async () => {
+  const asked: unknown[] = [];
+  const job = frozenJob();
+  const deliver = createFormDestinationDeliverer({ kit: hostKit({ withNow: false }).kit, loadRegistry: async () => registryWith({ deliver: async () => undefined }),
+    connections: async (input, optional) => { asked.push([input, optional]); return { token: token("frozen"), baseUrl: "https://rows.example.com" }; } });
+  await deliver({ workspaceId: W, job });
+  assert.deepEqual(asked, [[{ workspaceId: W, connectionRef: "conn-1", adapterId: "rows" }, { binding: job.binding }]]);
+});
+
+test("with a plugin-state reader, the adapter gets its own plugin's settings in this workspace as optional.state (G14b)", async () => {
+  const scopes: unknown[] = [];
+  const state = { get: async ({ key }: { readonly key: string }) => (key === "products" ? { rows: true } : null) };
+  let given: unknown;
+  const deliver = createFormDestinationDeliverer({ kit: hostKit({ withNow: false }).kit, connections: async () => ({ token: token("state"), baseUrl: "https://rows.example.com" }),
+    loadRegistry: async () => registryWith({ deliver: async (_required, optional) => { given = optional; } }) },
+  { pluginState: (scope) => { scopes.push(scope); return state; } });
+  await deliver({ workspaceId: W, job: frozenJob() });
+  assert.deepEqual(scopes, [{ workspaceId: W, pluginId: "p1" }]);
+  assert.deepEqual(given, { state });
+});
+
+test("without a plugin-state reader the adapter's optional carries no state (a product gate then stays closed) (G14b)", async () => {
+  let given: unknown = "unset";
+  await deliverer({ module: { deliver: async (_required, optional) => { given = optional; } } })({ workspaceId: W, job: frozenJob() });
+  assert.deepEqual(given, {});
+});
+
 test("the adapter's result is returned unchanged, success or failure", async () => {
   const results: (FormDeliveryResult | void)[] = [{ ok: true, reference: "row-9" }, { ok: false, error: { code: "rate-limited", retryable: true, retryAfterMs: 1_000, outcome: "not-applied" } }, undefined];
   for (const result of results) {

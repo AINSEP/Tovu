@@ -62,7 +62,9 @@ over about a day). To stop those too, delete or revoke the binding's saved crede
 
 - `types.ts`: the module ABI (`FormDestinationModule`, `FormDeliveryConnectionPort`, …).
 - `registry.ts`: loads and validates contributed destinations.
-- `deliver.ts`: `createFormDestinationDeliverer` (one push attempt).
+- `deliver.ts`: `createFormDestinationDeliverer` (one push attempt). It hands the connection port
+  the job's frozen `binding` (`optional.binding`) and, when the composition gives it a
+  `pluginState` reader, each adapter its own plugin's read-only settings (`optional.state`).
 - `connection-port.ts`: `createCustomCredentialConnectionPort` (a saved custom credential by id).
 - `port.ts`, `pull.ts`, `select.ts`, `key-store.ts`, `rewrite-actions.ts`: the receive side.
 
@@ -74,4 +76,6 @@ over about a day). To stop those too, delete or revoke the binding's saved crede
   it in the site composition instead of, or beside, the custom-credential port. It must resolve by
   stable id within the given workspace, return null when there is no usable credential or the
   connection is not granted to `adapterId`, return the origins it may reach (`baseUrl` +
-  `additionalHosts`), and never cache or persist what it returns.
+  `additionalHosts`, exact origins), and never cache or persist what it returns. The site binds the
+  plugin OAuth port (`features/api-connections/form-delivery-connection.ts`) ahead of the
+  custom-credential port in `server/runtime/composition/form-delivery-deliverer.ts`.

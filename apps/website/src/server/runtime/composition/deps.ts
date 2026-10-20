@@ -81,9 +81,9 @@ import { buildContentPublishPorts } from "#src/server/runtime/composition/conten
 import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";
 import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submission-receipt-repo";
 import { composeFormDelivery } from "#src/server/runtime/composition/form-delivery";
+import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/form-delivery-deliverer";
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { ensureFormDeliverySettings } from "#src/features/settings/index";
-import { createCustomCredentialConnectionPort, createFormDestinationDeliverer } from "#src/features/form-destinations/index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -2645,15 +2645,17 @@ async function composeSiteRouteDeps(
   routeDeps.formSubmissionsAutoPull = formSubmissions.autoPull;
 
   // Durable delivery of each new submission to the `core.forms/deliveryBindings` destinations: one
-  // outbox child job per binding, its credential resolved fresh per attempt, status read back from
-  // the same rows. The integrations module starts the subscriptions once per bus.
+  // outbox child job per binding, its credential resolved fresh per attempt (a plugin's OAuth
+  // connection first, else a saved custom credential), status read back from the same rows. The
+  // integrations module starts the subscriptions once per bus.
   routeDeps.formDeliveryStatus = formDeliveryRepo;
   routeDeps.formDelivery = composeFormDelivery({
     bus, plans: formDeliveryRepo, settingsRepo, idGen, clock,
     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
-    deliver: createFormDestinationDeliverer({
+    deliver: composeFormDeliveryDeliverer({
+      apiConnections: agentPluginConnections.apiConnections,
       loadRegistry: ({ workspaceId }) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-      connections: createCustomCredentialConnectionPort({ credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }),
+      credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
       kit: createDeployHostKit({ observability }),
     }),
   });

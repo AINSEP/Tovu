@@ -64,9 +64,15 @@ export interface FormDestinationKit {
   now?(): number;
 }
 /** A destination's own vendor credential, opened from the vault by its exact label. On the push
- *  path, `baseUrl`'s origin plus `additionalHosts` are the only origins the attempt's `kit.fetch`
- *  may reach (`./deliver.ts`). */
-export interface FormDestinationCredential { readonly token: string; readonly baseUrl: string; readonly username?: string; readonly additionalHosts?: readonly string[] }
+ *  path, `baseUrl`'s origin plus `additionalHosts` (exact origins) are the only origins the
+ *  attempt's `kit.fetch` may reach (`./deliver.ts`). A connection kind whose tokens are short-lived
+ *  (OAuth) also offers `getAccessToken`: one fresh read per provider request, the first returning
+ *  `token`, so the connection's request budgets count every request of the attempt. */
+export interface FormDestinationCredential { readonly token: string; readonly baseUrl: string; readonly username?: string; readonly additionalHosts?: readonly string[]; readonly getAccessToken?: () => Promise<string> }
+
+/** Read-only view of the adapter's own plugin settings (scoped to its plugin and workspace), the
+ *  same store the plugin's admin surface writes and its tools read. */
+export interface FormDestinationPluginState { get(required: { readonly key: string }): Promise<unknown> }
 
 /** A destination module's default export. Every method is optional; `./registry.ts` checks the set
  *  the descriptor's receive mode needs. All args are `(required, optional)`; effects go through `kit`. */
@@ -88,17 +94,21 @@ export interface FormDestinationModule {
    *  when it can dedupe. Return nothing or `{ ok: true }` on success, or `{ ok: false, error }` with a
    *  `FormDeliveryErrorCode`; only that code is recorded, never a message, so a thrown error or an
    *  unknown code becomes a retryable `delivery-failed`. `binding`/`idempotencyKey` are optional in the
-   *  type only so receive-only modules compile unchanged; the push path always passes them. */
-  deliver?(required: { readonly kit: FormDestinationKit; readonly credential: FormDestinationCredential; readonly form: FormDestinationForm; readonly submission: { readonly id: string; readonly answers: Readonly<Record<string, unknown>>; readonly submittedAt: string }; readonly binding?: FormDeliveryBinding; readonly idempotencyKey?: string }, optional?: Record<string, never>): Promise<void | FormDeliveryResult>;
+   *  type only so receive-only modules compile unchanged; the push path always passes them.
+   *  `optional.state` is the plugin's read-only settings (e.g. a product turned off pauses delivery). */
+  deliver?(required: { readonly kit: FormDestinationKit; readonly credential: FormDestinationCredential; readonly form: FormDestinationForm; readonly submission: { readonly id: string; readonly answers: Readonly<Record<string, unknown>>; readonly submittedAt: string }; readonly binding?: FormDeliveryBinding; readonly idempotencyKey?: string }, optional?: { readonly state?: FormDestinationPluginState }): Promise<void | FormDeliveryResult>;
 }
 
 /** Resolves a binding's `connectionRef` to the credential its adapter needs, or null when there is
  *  none (deleted, revoked, other workspace). The single seam for connection kinds: the shipped one
  *  opens a custom credential by stable id (`./connection-port.ts`); an OAuth connection is another
- *  implementation of this same type. Modules never see the vault, only the resolved credential. */
+ *  implementation of this same type. Modules never see the vault, only the resolved credential.
+ *  `optional.binding` is the job's frozen binding, for a kind that freezes more than the ref (the
+ *  OAuth one reads the account the binding was set up with). A port may throw a `FormDeliveryError`
+ *  to record a specific code. */
 export type FormDeliveryConnectionPort = (
   required: { readonly workspaceId: string; readonly connectionRef: string; readonly adapterId: string },
-  optional?: Record<string, never>,
+  optional?: { readonly binding?: FormDeliveryBinding },
 ) => Promise<FormDestinationCredential | null>;
 
 /** One entry of a plugin's `tovu-form-destinations.json`. */

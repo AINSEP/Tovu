@@ -11,6 +11,7 @@ export type {
   FormDestinationKit,
   FormDestinationModule,
   FormDestinationPage,
+  FormDestinationPluginState,
   FormDestinationPublishInput,
   FormDestinationRegistry,
   FormReceiverPlan,

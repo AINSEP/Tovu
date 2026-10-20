@@ -36,7 +36,7 @@ test('vertical slice: Sheets on → hosted Picker → verified selection → for
   assert.equal(saved.ok, true);
   assert.deepEqual(saved.result.destinations, [{
     formSlug: 'contact', spreadsheetId: FILE_ID, title: 'Leads', url: `https://docs.google.com/spreadsheets/d/${FILE_ID}/edit`, sheetId: 7, tabTitle: 'Leads',
-    bindingConfigJson: JSON.stringify({ spreadsheetId: FILE_ID, tabs: { contact: { sheetId: 7 } } }), sameAccount: true,
+    bindingConfigJson: JSON.stringify({ spreadsheetId: FILE_ID, accountId: 'perm-alice', tabs: { contact: { sheetId: 7 } } }), sameAccount: true,
   }]);
   assert.deepEqual(saved.result.picked.map((entry) => entry.spreadsheetId), [FILE_ID]);
 

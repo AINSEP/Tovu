@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { after, before, beforeEach, test } from 'node:test';
 
 import catalog from '../products.json' with { type: 'json' };
-import { PRODUCT_STATE_KEY, productEnabledReader } from '../lib/product-state.mjs';
+import { PRODUCT_STATE_KEY, isProductEnabled } from '../lib/product-state.mjs';
 import accountInfo from '../tools/account-info.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { CONNECTION, PLUGIN_ROOT, SPREADSHEET, TOKEN } from './sheets-admin-harness.mjs';
@@ -113,9 +113,9 @@ test('account_info is the sign-in, not a product: it answers while every product
   assert.deepEqual(await accountInfo.invoke({ input: { connectionRef: CONNECTION }, capabilities }), { accountId: 'perm-alice', displayName: 'alice@example.test' });
 });
 
-test('form delivery reader: productEnabledReader answers true only for products.sheets === true, and false with no reader', async () => {
-  assert.equal(await productEnabledReader({ state: readerOf({ sheets: true }), productId: 'sheets' })(), true);
-  assert.equal(await productEnabledReader({ state: readerOf({ sheets: false }), productId: 'sheets' })(), false);
-  assert.equal(await productEnabledReader({ state: readerOf(null), productId: 'sheets' })(), false);
-  assert.equal(await productEnabledReader({ productId: 'sheets' })(), false);
+test('form delivery gate: isProductEnabled (over the state reader the host hands delivery) is true only for products.sheets === true, and false with no reader', async () => {
+  assert.equal(await isProductEnabled({ state: readerOf({ sheets: true }), productId: 'sheets' }), true);
+  assert.equal(await isProductEnabled({ state: readerOf({ sheets: false }), productId: 'sheets' }), false);
+  assert.equal(await isProductEnabled({ state: readerOf(null), productId: 'sheets' }), false);
+  assert.equal(await isProductEnabled({ productId: 'sheets' }), false);
 });

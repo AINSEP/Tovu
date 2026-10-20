@@ -41,12 +41,15 @@ export function writeFormDestinations(required, _optional = {}) {
 }
 
 /**
- * The binding config for one saved destination, as the Sheets destination reads it.
- * @param {{ formSlug: string, destination: { spreadsheetId: string, sheetId: number } }} required
- * @returns {{ spreadsheetId: string, tabs: Record<string, { sheetId: number }> }}
+ * The binding config for one saved destination, as the Sheets destination reads it. `accountId` is
+ * the account the spreadsheet was verified with: the host freezes it into every delivery job and
+ * refuses a job once the connection holds another account (an account switch never silently moves
+ * where rows go).
+ * @param {{ formSlug: string, destination: { spreadsheetId: string, sheetId: number, accountId: string } }} required
+ * @returns {{ spreadsheetId: string, accountId: string, tabs: Record<string, { sheetId: number }> }}
  * @complexity O(1).
  */
 export function bindingConfigFor(required, _optional = {}) {
   const { formSlug, destination } = required;
-  return { spreadsheetId: destination.spreadsheetId, tabs: { [formSlug]: { sheetId: destination.sheetId } } };
+  return { spreadsheetId: destination.spreadsheetId, accountId: destination.accountId, tabs: { [formSlug]: { sheetId: destination.sheetId } } };
 }

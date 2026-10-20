@@ -67,7 +67,9 @@ function job({ form = FORM, submission = {}, config = { spreadsheetId: BOOK, tab
   };
 }
 
-const ON = Object.freeze({ productEnabled: () => true });
+/** The host's read-only plugin-state reader over these stored settings (what the host hands delivery). */
+const stateOf = (products) => Object.freeze({ state: { get: async ({ key }) => (key === 'products' ? products : null) } });
+const ON = stateOf({ sheets: true });
 /** @returns {Promise<FormDeliveryResult>} */
 const deliver = (input, optional = ON) => destination.deliver(input, optional);
 const sheetsRequests = () => fake.requests.filter((request) => request.host === 'sheets.googleapis.com');
@@ -259,17 +261,18 @@ test('scan-limit failure: a tab past the 50,000-row ceiling is destination-limit
   assert.equal(appends().length, 0);
 });
 
-test('product disabled (or no product reader wired): adapter-unavailable, retryable, nothing sent to Google', async () => {
+test('product disabled (or no plugin-state reader wired): adapter-unavailable, retryable, nothing sent to Google', async () => {
   grid([{ sheetId: TAB_ID, title: 'Contact form' }]);
   const refused = { ok: false, error: { code: 'adapter-unavailable', retryable: true, outcome: 'not-applied' } };
-  assert.deepEqual(await deliver(job(), { productEnabled: async () => false }), refused);
+  assert.deepEqual(await deliver(job(), stateOf({ sheets: false })), refused);
   assert.deepEqual(await deliver(job(), {}), refused);
-  assert.deepEqual(await deliver(job(), { productEnabled: async () => undefined }), refused);
+  assert.deepEqual(await deliver(job(), stateOf(null)), refused);
+  assert.deepEqual(await deliver(job(), stateOf({ sheets: 'true' })), refused);
   assert.equal(fake.requests.length, 0);
 });
 
 test('an unexpected host error is a retryable delivery-failed whose text is dropped', async () => {
-  const result = await deliver(job(), { productEnabled: () => { throw new Error(`reader failed for ${TOKEN}`); } });
+  const result = await deliver(job(), { state: { get: async () => { throw new Error(`reader failed for ${TOKEN}`); } } });
   assert.deepEqual(result, { ok: false, error: { code: 'delivery-failed', retryable: true } });
 });
 
