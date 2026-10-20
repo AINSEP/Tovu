@@ -6,7 +6,7 @@ revocation) lives in these files, and the host code that runs them names no prov
 
 | File | Seam it exercises |
 |---|---|
-| `tovu-connections.json` + `lib/connection.mjs` | API connection: OAuth sign-in (PKCE), account identity, revocation (`features/api-connections`). |
+| `tovu-connections.json` + `lib/connection.mjs` | API connection: OAuth sign-in (PKCE), account identity, revocation, and a per-account request budget (`features/api-connections`). |
 | `tovu-agent-tools.json` + `tools/whoami.mjs` | Executable tool, read (runs without a card). |
 | `tovu-agent-tools.json` + `tools/append-row.mjs` | Executable tool, write (Tovu's confirmation card names the account and table first). |
 | `tovu-admin-surfaces.json` + `surface/` | Admin surface with a handler module (`features/agent-plugins/admin-surfaces`). |
