@@ -7,6 +7,7 @@ chosen account and Zone permissions to the selected zones. Request only the chos
 |---|---|
 | Workers publish | **Account → Workers Scripts → Edit** |
 | Pages publish | **Account → Cloudflare Pages → Edit** |
+| Form submissions (Workers sites with active forms) | **Account → D1 → Edit** in addition to Workers publish |
 | Preview custom domains, either target | **Zone → Zone → Read**, **Zone → DNS → Read**, **Zone → Workers Routes → Read**, **Account → Workers Scripts → Read**, **Account → Cloudflare Pages → Read** |
 | Workers Custom Domain attachment | **Account → Workers Scripts → Edit**; **Zone → SSL and Certificates → Read** for certificate polling |
 | Pages domain attachment | **Account → Cloudflare Pages → Edit**, **Zone → DNS → Edit** |

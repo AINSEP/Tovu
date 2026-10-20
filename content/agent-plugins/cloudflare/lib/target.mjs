@@ -3,6 +3,7 @@ import { createApi, refusal, segment, PAGES_PROJECTS_PAGING } from './api.mjs';
 import { prepareAssets } from './assets.mjs';
 import { previewDomains, assertDomainApproval, applyDomains } from './domains.mjs';
 import { normalizeDomain } from './zones.mjs';
+import { formPageRoutes, formsWorkerParts, normalizeForms, previewForms, provisionForms } from './forms.mjs';
 
 /** Stable jini-<project> identity, retained for Pages; an explicitly recorded remote name wins. */
 /**
@@ -22,11 +23,11 @@ export function resourceName({ projectName, config, kit }, _options = {}) {
 }
 
 /** Read-only resource and domain inspection through the plugin-owned API. */
-export async function previewTarget({ credential, config, kit, projectName, targetId }, _options = {}) {
+export async function previewTarget({ credential, config, kit, projectName, targetId, formDestination }, _options = {}) {
   const api = createApi({ credential, kit });
   const name = resourceName({ projectName, config, kit });
   const domain = config.customDomain ? normalizeDomain({ domain: config.customDomain, kit }) : undefined;
-  try { return await inspectTarget({ api, config, kit, targetId, name, domain }); }
+  try { return await inspectTarget({ api, config, kit, targetId, name, domain, formDestination }); }
   catch (error) {
     if (!domain) throw error;
     return { resourceName: name, targetId, hostingChanges: [], domains: { inventoryStatus: 'unknown', changes: [],
@@ -35,7 +36,7 @@ export async function previewTarget({ credential, config, kit, projectName, targ
   }
 }
 
-async function inspectTarget({ api, config, kit, targetId, name, domain }, _options = {}) {
+async function inspectTarget({ api, config, kit, targetId, name, domain, formDestination }, _options = {}) {
   const path = targetId === 'cloudflare-workers' ? `${api.accountPath}/workers/scripts` : `${api.accountPath}/pages/projects`;
   const resources = await api.list({ path }, targetId === 'cloudflare-workers' ? {} : PAGES_PROJECTS_PAGING);
   // Workers scripts are identified by `id`, Pages projects by `name`.
@@ -46,7 +47,8 @@ async function inspectTarget({ api, config, kit, targetId, name, domain }, _opti
     hostingChanges.push({ action: 'enable-workers-dev', targetId, resourceName: name });
   }
   const domains = domain ? await previewDomains({ api, kit, targetId, resourceName: name, domain, zoneId: config.zoneId }) : undefined;
-  return { resourceName: name, targetId, hostingChanges, ...(domains ? { domains } : {}) };
+  const formSubmissions = await previewForms({ api, kit, resourceName: name, targetId, formDestination });
+  return { resourceName: name, targetId, hostingChanges, ...(domains ? { domains } : {}), ...(formSubmissions ? { formSubmissions } : {}) };
 }
 
 /** Read workers.dev from Cloudflare. Never manufacture an account subdomain or register one. */
@@ -69,16 +71,34 @@ export function createTarget({ credential, config, kit, targetId, upload }, _opt
       const domainInput = { api, kit, targetId, resourceName: name, domain: requestedDomain, zoneId: config.zoneId, approval: merged.metadata?.domainApproval };
       const plan = requestedDomain ? await assertDomainApproval(domainInput) : undefined;
       const prepared = preparePublish({ input: merged, kit, config, plan, targetId });
-      const hosting = await upload({ api, kit, resourceName: name, prepared: prepared.assets });
+      const forms = await prepareForms({ api, kit, targetId, resourceName: name, formDestination: merged.metadata?.formDestination, files: merged.files });
+      const hosting = await upload({ api, kit, resourceName: name, prepared: prepared.assets, ...(forms ? { forms: forms.parts } : {}) });
       const link = await kit.waitForReachableDeploymentUrl([hosting.url], { providerLabel: targetId });
       const hostnames = plan ? await applyDomains({ api, kit, plan, proof: prepared.proof }) : [];
-      const complete = hostnames.every(hostname => hostname.status === 'ready' && !hostname.operationFailed);
-      return { targetId, url: hosting.url, deploymentId: hosting.deploymentId, status: complete ? link.status : 'link-delayed',
-        statusMessage: complete ? link.statusMessage : `Hosting is ${link.status}; custom domains are unfinished. ${hostnames.filter(host => host.status !== 'ready' || host.operationFailed).map(host => host.message).join(' ')}`,
-        providerMetadata: { resourceName: name, projectName: name, accountId: api.accountId, hosting: { ...link, url: hosting.url }, hostnames, ...(plan ? { domainChanges: plan.changes, zoneId: plan.zone.id } : {}) } };
+      return publishResult({ targetId, name, accountId: api.accountId, hosting, link, hostnames, plan, forms });
     },
     checkReachability: url => kit.checkDeploymentUrl(url),
   };
+}
+
+/** The publish outcome: hosting status, unfinished custom domains, and safe provider metadata (never a key). */
+function publishResult({ targetId, name, accountId, hosting, link, hostnames, plan, forms }, _options = {}) {
+  const complete = hostnames.every(hostname => hostname.status === 'ready' && !hostname.operationFailed);
+  return { targetId, url: hosting.url, deploymentId: hosting.deploymentId, status: complete ? link.status : 'link-delayed',
+    statusMessage: complete ? link.statusMessage : `Hosting is ${link.status}; custom domains are unfinished. ${hostnames.filter(host => host.status !== 'ready' || host.operationFailed).map(host => host.message).join(' ')}`,
+    providerMetadata: { resourceName: name, projectName: name, accountId, hosting: { ...link, url: hosting.url }, hostnames, ...(plan ? { domainChanges: plan.changes, zoneId: plan.zone.id } : {}),
+      ...(forms ? { formSubmissions: forms.summary } : {}) } };
+}
+
+/** Workers with active forms: provision D1 and build the receiver parts. Pages and form-less sites keep assets only.
+ * Runs after consent checks and before the upload session, so a failed provision changes no script. */
+async function prepareForms({ api, kit, targetId, resourceName, formDestination, files }, _options = {}) {
+  if (targetId !== 'cloudflare-workers') return undefined;
+  const normalized = normalizeForms({ formDestination, kit });
+  if (!normalized) return undefined;
+  const database = await provisionForms({ api, kit, resourceName });
+  const parts = await formsWorkerParts({ manifest: normalized, secret: normalized.secret, databaseId: database.databaseId }, { pageRoutes: formPageRoutes({ files }) });
+  return { parts, summary: { forms: normalized.forms.length, databaseId: database.databaseId, databaseName: database.databaseName } };
 }
 
 function preparePublish({ input, kit, config, plan, targetId }, _options = {}) {
