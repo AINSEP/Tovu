@@ -67,6 +67,7 @@ async function statusFrom(host: ApiConnectionHost, connection: DeclaredApiConnec
     connectionId: connection.descriptor.connectionId, status: view.status, accountLabel: view.account?.displayName ?? null,
     grantedScopeSetIds: view.status === "connected" ? await grantedScopeSets(host, connection, view.grantedScopes) : [],
     pendingSwitchAccountLabel: view.pendingSwitch?.displayName ?? null,
+    lastSignInAttempt: null,
   };
 }
 

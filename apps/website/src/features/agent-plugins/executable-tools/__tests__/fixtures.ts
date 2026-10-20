@@ -8,7 +8,7 @@ import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator, type HttpClientPort, type HttpRequest } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import type { LoadedAgentPluginTool, AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { createIssuedTokenMemories, type LoadedAgentPluginTool, type AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { AuthorizeFn } from '../../../../contracts/core/commands/index.js';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
@@ -75,7 +75,7 @@ export async function bootFixture(options: { readonly active?: () => boolean; re
   const loadContributions: AgentPluginExecutableToolHost['loadContributions'] = async () => ({ items: acmeTools(calls), refusals: [] });
   const registered = await registerAgentPluginExecutableTools({
     registry, workspaceId: WORKSPACE, authorize: options.authorize ?? allowAll,
-    host: { loadContributions, connections, http, limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }), apiOrigins: async () => ['https://api.acme.test'] },
+    host: { loadContributions, connections, http, limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }), apiOrigins: async () => ['https://api.acme.test'], issuedTokens: createIssuedTokenMemories() },
     isActive: async () => options.active?.() ?? true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });

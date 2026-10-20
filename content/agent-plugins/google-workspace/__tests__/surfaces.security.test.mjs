@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { after, before, beforeEach, test } from 'node:test';
 
-import { adminSurfaceContentSecurityPolicy } from '@jini-ai/agent-plugins/admin-surfaces';
+import { readAdminSurfaceFile } from '@jini-ai/agent-plugins/admin-surfaces';
 
 import { DESKTOP_PICKER_START_PARAMS } from '../lib/picker-selection.mjs';
 import { PICKED_SPREADSHEETS_KEY, PICKER_SESSION_TTL_MS } from '../lib/picker-flow.mjs';
@@ -43,7 +43,10 @@ test('CSP: only the hosted Picker surfaces add sources, exactly apis.google.com 
   const csp = Object.fromEntries((await surfaceDescriptors()).map((surface) => [surface.id, surface.csp]));
   const picker = { 'script-src': ['https://apis.google.com'], 'frame-src': ['https://docs.google.com'] };
   assert.deepEqual(csp, { connection: {}, picker, 'form-destinations': picker });
-  const header = adminSurfaceContentSecurityPolicy({ descriptor: { csp: csp.picker } });
+  // The header the host serves the picker entry with (the CSP builder itself is internal to Jini).
+  const pickerDescriptor = (await surfaceDescriptors()).find((surface) => surface.id === 'picker');
+  const served = await readAdminSurfaceFile({ surface: { plugin: {}, descriptor: pickerDescriptor }, path: pickerDescriptor.entry, readFile: async () => '' });
+  const header = served.headers['Content-Security-Policy'];
   assert.match(header, /connect-src 'none'/);
   assert.match(header, /script-src 'self' https:\/\/apis\.google\.com;/);
   assert.match(header, /frame-src https:\/\/docs\.google\.com;/);

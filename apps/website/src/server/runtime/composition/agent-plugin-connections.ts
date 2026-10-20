@@ -1,6 +1,7 @@
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
+import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "#src/features/api-connections/host";
@@ -102,6 +103,9 @@ export function composeAgentPluginConnections(
   const state = (scope: { readonly workspaceId: string; readonly pluginId: string }) => host.pluginState.readerFor(scope);
   const apiOrigins = host.apiOriginsFor;
   const tools = createAgentPluginToolCapabilities({ connections, http, limiter, frozen: createFrozenConnectionAccounts(), state, apiOrigins });
+  // ONE token memory for both seams: a plugin's tools and surface handlers share module scope, so a
+  // token a handler obtained must be withheld from a tool's output too, and the reverse.
+  const issuedTokens = createIssuedTokenMemories();
   const signIns = createIssuedSignInCollector();
   const capabilities = createAdminSurfaceCapabilities({
     tools, publicConfig: createAdminSurfacePublicConfig({ env }),
@@ -112,7 +116,7 @@ export function composeAgentPluginConnections(
   });
   return {
     apiConnections: { host },
-    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins },
-    adminSurfaceHost: createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns }),
+    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens },
+    adminSurfaceHost: createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities, issuedTokens, hostKind: runtime }, { signIns }),
   };
 }

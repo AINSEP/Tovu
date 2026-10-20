@@ -16,7 +16,7 @@
 import { createToolRegistrationScope, type ToolExecutionContext, type ToolRegistration, type ToolRegistry } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
-import { createAgentPluginToolProjection, defineAgentPluginToolContribution, type AgentPluginToolEffect, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { createAgentPluginToolProjection, defineAgentPluginToolContribution, type AgentPluginToolEffect, type IssuedTokenMemories, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 import { EXTENSION_TOOL_APPROVAL_POLICY, withExtensionApprovalPolicy } from '../../../contracts/headless/assistant-tool-approval-policy.js';
@@ -46,6 +46,9 @@ export interface AgentPluginExecutableToolHost {
   readonly state: AgentPluginStateReaderFor;
   /** Each plugin's declared API origins: the only hosts its tools' HTTP may reach. */
   readonly apiOrigins: AgentPluginApiOriginsFor;
+  /** The site's ONE token memory, shared with the admin-surface handler host: a plugin's tools and
+   *  handlers share module scope, so a token either obtained must be withheld from both. */
+  readonly issuedTokens: IssuedTokenMemories;
 }
 
 /** Wraps one registration in the approval owner (`applyToolApprovalPolicy`, injected by the composition root). */
@@ -88,7 +91,7 @@ export async function registerAgentPluginExecutableTools(
   const frozen = createFrozenConnectionAccounts();
   const capabilities = createAgentPluginToolCapabilities({ connections: host.connections, http: host.http, limiter: host.limiter, frozen, state: host.state, apiOrigins: host.apiOrigins }, host.artifacts ? { artifacts: host.artifacts } : {});
   const contributions = createPluginContributionRegistry({});
-  const projection = createAgentPluginToolProjection({ registry: contributions, toolIdFor: pluginToolIdFor, capabilities });
+  const projection = createAgentPluginToolProjection({ registry: contributions, toolIdFor: pluginToolIdFor, capabilities, issuedTokens: host.issuedTokens });
   const disclose = createAgentPluginDisclosure({ source: projection, connections: host.connections, frozen });
   const load = await host.loadContributions({ workspaceId, definition: toolContribution }, { orderByPluginId: true });
   const { refusals } = projection.sync({ loaded: load.items, refusals: load.refusals });
