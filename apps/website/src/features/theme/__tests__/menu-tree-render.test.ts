@@ -384,6 +384,15 @@ test("flat path (renderMenuLinks): every legitimate href passes through unchange
   }
 });
 
+test("flat path (renderMenuLinks): a root-relative href the URL parser rejects ('//a b') collapses to '#' instead of throwing", () => {
+  const html = renderStaticPage({
+    theme: flatTheme(),
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "X", href: "//a b" }) },
+  });
+  assert.equal(html, `<html><body><nav data-embed-config='{"type":"menu","id":"${HEADER_ID}"}'><a href="#">X</a></nav></body></html>`);
+});
+
 test("tree path (menuItemBody): every malicious href scheme collapses to '#', never reaches the page", () => {
   for (const hostileHref of MALICIOUS_HREF_SCHEMES) {
     const html = renderStaticPage({
