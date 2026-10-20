@@ -30,11 +30,13 @@ export const MAX_FORM_DELIVERY_FORM_IDS = 1000;
 const MAX_REFERENCE_LENGTH = 256;
 
 const BINDING_FIELDS: ReadonlySet<string> = new Set(["bindingId", "adapterId", "connectionRef", "enabled", "formIds", "config"]);
-/** Matched against a config key lowercased with separators removed (`api_key`, `API-Key` → `apikey`). */
-const SECRET_KEY = /token|secret|password|apikey/;
-/** Values that are credentials whatever their key is called: an Authorization header value, a JWT,
- *  a PEM private key. */
-const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./, /-----BEGIN [A-Z ]*PRIVATE KEY-----/];
+/** Matched against a config key lowercased with separators removed (`api_key`, `API-Key` → `apikey`).
+ *  `auth` and `pwd` match only as the whole key, so `author` or `authorName` stay usable. */
+const SECRET_KEY = /token|secret|password|passphrase|apikey|privatekey|accesskey|credential|authorization|^auth$|^pwd$/;
+/** Values that are credentials whatever their key is called: a Bearer Authorization header value, a
+ *  JWT, a PEM private key, a URL carrying `user:pass@`. HTTP Basic is {@link isBasicCredential}. */
+const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /\b[a-z][\w+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/i];
+const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i;
 const FIX_HINT = "Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.";
 
 /**
@@ -148,11 +150,14 @@ function parseBinding(required: { value: unknown; where: string }): FormDelivery
   };
 }
 
+/** Ids and references are checked like config values: a secret pasted into one would be stored
+ *  and copied into every delivery job as plainly as one in `config`. */
 function parseReference(required: { value: unknown; where: string; field: string }): string {
   const { value, where, field } = required;
   if (typeof value !== "string" || value.length === 0 || value.length > MAX_REFERENCE_LENGTH) {
     throw invalid(`${where}: ${field} must be a non-empty string of at most ${MAX_REFERENCE_LENGTH} characters.`);
   }
+  assertNotSecretValue({ path: field, value, where });
   return value;
 }
 
@@ -185,7 +190,16 @@ function childrenOf(required: { path: string; value: object; where: string }): {
 }
 
 function assertNotSecretValue(required: { path: string; value: string; where: string }): void {
-  if (SECRET_VALUES.some(pattern => pattern.test(required.value))) throw invalid(`${required.where}: ${quote(required.path)} holds a value that looks like a credential. ${FIX_HINT}`);
+  if (SECRET_VALUES.some(pattern => pattern.test(required.value)) || isBasicCredential(required.value)) {
+    throw invalid(`${required.where}: ${quote(required.path)} holds a value that looks like a credential. ${FIX_HINT}`);
+  }
+}
+
+/** An HTTP Basic Authorization value: base64 that decodes to `user:password`. Decoding keeps plain
+ *  words after "Basic" (a "Basic tier" plan name) usable. */
+function isBasicCredential(value: string): boolean {
+  const encoded = BASIC_VALUE.exec(value)?.[1];
+  return encoded !== undefined && Buffer.from(encoded, "base64").toString("utf8").includes(":");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
