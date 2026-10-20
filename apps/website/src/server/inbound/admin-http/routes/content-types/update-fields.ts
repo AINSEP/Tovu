@@ -28,13 +28,13 @@ function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ContentTypeAlreadyExistsError) return { status: 409, code: "CONTENT_TYPE_ALREADY_EXISTS" };
   if (error instanceof EntityNotLiveError) return { status: 409, code: error.code };
   if (error instanceof VersionConflictError) return { status: 409, code: "VERSION_CONFLICT" };
-  if (
-    error instanceof ValidationError ||
-    error instanceof InvalidFieldShapeError ||
-    error instanceof InvalidFieldNameGrammarError ||
-    error instanceof InvalidFieldKindError ||
-    error instanceof QueryableFieldCapExceededError
-  ) {
+  if ([
+    ValidationError,
+    InvalidFieldShapeError,
+    InvalidFieldNameGrammarError,
+    InvalidFieldKindError,
+    QueryableFieldCapExceededError,
+  ].some((ErrorType) => error instanceof ErrorType)) {
     return { status: 400, code: "VALIDATION_ERROR" };
   }
   return { status: 500, code: "INTERNAL_ERROR" };
