@@ -191,6 +191,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: input checks, auth, and permission", async (t) =
       body: "{}",
     });
     assert.equal(notZip.status, 400);
+    assert.deepEqual(await notZip.json(), { code: "VALIDATION_ERROR", error: "An application/zip upload is required." });
     assert.equal((await upload(baseUrl, "", archive)).status, 401);
     const otherWorkspace = await fetch(`${baseUrl}/api/admin/v1/workspaces/other/agent-plugins/install/zip?expectedSha256=${sha(archive)}`, {
       method: "POST",
@@ -198,6 +199,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: input checks, auth, and permission", async (t) =
       body: Uint8Array.from(archive),
     });
     assert.equal(otherWorkspace.status, 404);
+    assert.deepEqual(await otherWorkspace.json(), { error: "workspace was not found" });
 
     const bare = await loginAsBarePrincipal(deps, baseUrl);
     const forbidden = await upload(baseUrl, bare, archive);
@@ -277,11 +279,14 @@ test("AGENT_PLUGIN_INSTALL_ZIP: an unreadable activation record refuses installa
     await mkdir(workspaceRoot, { recursive: true });
     const activations = path.join(workspaceRoot, "activations.json");
     await writeFile(activations, "{malformed");
+    const warn = t.mock.method(console, "warn", () => undefined);
     const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
     const response = await upload(baseUrl, cookie, archive);
     assert.equal(response.status, 409);
     assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ACTIVATIONS_BUSY", error: "Could not install the plugin. Try again." });
     assert.equal(await readFile(activations, "utf8"), "{malformed");
+    const warned = warn.mock.calls.map((call) => String(call.arguments[0]));
+    assert.equal(warned.some((line) => line.startsWith("[agent-plugins] upload refused — agent-plugin activation: ")), true);
   });
 });
 
@@ -336,5 +341,114 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a blocked publish destination is an internal ins
     });
     assert.equal(await readFile(blocker, "utf8"), "not a package directory");
     assert.deepEqual(await listInstalledPlugins(workspace.root), []);
+  });
+});
+
+const DIGEST_MESSAGE = { code: "VALIDATION_ERROR", error: "expectedSha256 must be the file's lowercase hex SHA-256." };
+
+function post(baseUrl: string, cookie: string, query: string, init: { contentType?: string; body?: Buffer } = {}) {
+  return fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip${query}`, {
+    method: "POST",
+    headers: { cookie, "content-type": init.contentType ?? "application/zip" },
+    body: Uint8Array.from(init.body ?? Buffer.from("zip")),
+  });
+}
+
+test("AGENT_PLUGIN_INSTALL_ZIP: a missing expectedSha256 is a validation error", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const response = await post(baseUrl, cookie, "");
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: a repeated expectedSha256 is a validation error", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const digest = "a".repeat(64);
+  const response = await post(baseUrl, cookie, `?expectedSha256=${digest}&expectedSha256=${digest}`);
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: an uppercase expectedSha256 is a validation error", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const response = await post(baseUrl, cookie, `?expectedSha256=${"A".repeat(64)}`);
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: permission is checked before any input validation", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl } = await bootAuthenticated(buildTestApp(deps), t);
+  const bare = await loginAsBarePrincipal(deps, baseUrl);
+  const response = await post(baseUrl, bare, "?expectedSha256=bad&replace=yes", { contentType: "text/plain" });
+  assert.equal(response.status, 403);
+  assert.equal(((await response.json()) as { details: { permission: string } }).details.permission, "admin.plugins.enable");
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: the digest is checked before the content type", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const response = await post(baseUrl, cookie, "?expectedSha256=bad", { contentType: "text/plain" });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: the content type is checked before replace", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const response = await post(baseUrl, cookie, `?expectedSha256=${"a".repeat(64)}&replace=yes`, { contentType: "text/plain" });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { code: "VALIDATION_ERROR", error: "An application/zip upload is required." });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: the body is parsed before replace is checked", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${"a".repeat(64)}&replace=yes`, {
+    method: "POST", headers: { cookie, "content-type": "application/zip", "content-encoding": "gzip" }, body: Uint8Array.from(Buffer.from("zip")),
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { code: "AGENT_PLUGIN_ARCHIVE_UNREADABLE", error: "The upload could not be read." });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: replace=false keeps refusing a different package under an installed name", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const v1 = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const v2 = await buildZipFixture([{ path: "plugin.json", content: manifest("2.0.0") }]);
+    assert.equal((await upload(baseUrl, cookie, v1)).status, 201);
+    const clash = await post(baseUrl, cookie, `?expectedSha256=${sha(v2)}&replace=false`, { body: v2 });
+    assert.equal(clash.status, 409);
+    assert.deepEqual(await clash.json(), { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN", error: "This plugin ID is already installed. Choose Replace existing version to upgrade it." });
+  });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: the install runs under the plugin host's identity admission", async (t) => {
+  await withTempPluginsDir(async () => {
+    const deps = createRouteDeps();
+    const host = deps.pluginHost;
+    assert.ok(host);
+    const admission = t.mock.method(host, "withInstallIdentity");
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    assert.equal((await upload(baseUrl, cookie, archive)).status, 201);
+    assert.equal(admission.mock.callCount(), 1);
+    const [{ candidate }] = admission.mock.calls[0]!.arguments;
+    assert.deepEqual({ localId: candidate.localId, family: candidate.family }, { localId: PLUGIN_ID, family: "agent-plugin" });
+  });
+});
+
+test("AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs switched off", async (t) => {
+  await withTempPluginsDir(async () => {
+    const deps = createRouteDeps();
+    const { pluginHost: _host, ...hostless } = deps;
+    const app = express();
+    app.use(express.json());
+    registerAuthRoutes(app, deps);
+    app.use("/api/admin", requireAdminSession(deps));
+    registerAgentPluginInstallRoute(app, hostless);
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const response = await upload(baseUrl, cookie, archive);
+    assert.equal(response.status, 201);
+    const body = (await response.json()) as { alreadyInstalled: boolean; agentPlugin: { pluginId: string; enabled: boolean } };
+    assert.deepEqual({ alreadyInstalled: body.alreadyInstalled, pluginId: body.agentPlugin.pluginId, enabled: body.agentPlugin.enabled }, { alreadyInstalled: false, pluginId: PLUGIN_ID, enabled: false });
   });
 });
