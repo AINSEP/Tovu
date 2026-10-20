@@ -174,25 +174,31 @@ export function siteNameErrorKey(raw: string): string | null {
   return null;
 }
 
+/** Each write error code this feature has its own copy for, mapped to that English copy key. A
+ *  `Map` rather than an object literal so a code that happens to name an `Object.prototype` member
+ *  (`toString`, `constructor`) still falls through to the shared fallback. */
+const SITE_WRITE_ERROR_KEYS: ReadonlyMap<string | undefined, string> = new Map([
+  ["SITE_SWITCHING_DISABLED", "Site switching is turned off on this deployment."],
+  ["SITE_ALREADY_EXISTS", "A folder with that name already exists under sites/."],
+  ["SITE_LIMIT", "Stop a site before starting another."],
+  ["SITE_RUNNING", "Stop this site before moving it to Trash."],
+  ["SITE_SERVING", "The serving site cannot be stopped or moved to Trash."],
+  ["SITE_STOP_FAILED", "The site could not be fully stopped. Try Stop again."],
+  ["SITE_START_FAILED", "The site could not start."],
+  ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],
+  ["AGENT_PLUGIN_TOKEN_UNSUPPORTED", "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created."],
+]);
+
 /**
- * Operator-facing copy for the two error codes this feature's writes have their own meaning for —
+ * Operator-facing copy for the error codes this feature's writes have their own meaning for —
  * the "check my own codes first, fall through for the rest" shape `lib/api.ts`'s `describeApiError`
  * documents. Returns an English copy key, or `null` to let the shared fallback answer.
  *
- * @complexity Time/space: O(1) — one `instanceof` and two comparisons.
+ * @complexity Time/space: O(1) — one `instanceof` and one map lookup.
  */
 export function siteWriteErrorKey(e: unknown): string | null {
   if (!(e instanceof ApiError)) return null;
-  if (e.code === "SITE_SWITCHING_DISABLED") return "Site switching is turned off on this deployment.";
-  if (e.code === "SITE_ALREADY_EXISTS") return "A folder with that name already exists under sites/.";
-  if (e.code === "SITE_LIMIT") return "Stop a site before starting another.";
-  if (e.code === "SITE_RUNNING") return "Stop this site before moving it to Trash.";
-  if (e.code === "SITE_SERVING") return "The serving site cannot be stopped or moved to Trash.";
-  if (e.code === "SITE_STOP_FAILED") return "The site could not be fully stopped. Try Stop again.";
-  if (e.code === "SITE_START_FAILED") return "The site could not start.";
-  if (e.code === "AGENT_PLUGIN_TOKEN_INVALID") return "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created.";
-  if (e.code === "AGENT_PLUGIN_TOKEN_UNSUPPORTED") return "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created.";
-  return null;
+  return SITE_WRITE_ERROR_KEYS.get(e.code) ?? null;
 }
 
 /**
