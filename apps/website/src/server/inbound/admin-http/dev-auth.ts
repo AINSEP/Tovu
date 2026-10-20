@@ -459,6 +459,18 @@ async function mintSessionForPrincipal(deps: SessionAuthDeps, principalId: strin
   return { rawToken, expiresAt: session.expiresAt };
 }
 
+/** Resolve the seeded boot owner only after identity initialization, refusing non-operators. */
+async function resolveBootOwner(
+  { deps }: { deps: SessionAuthDeps },
+  _optional = {},
+): Promise<{ principalId: string; principal: OperatorPrincipalRecord } | null> {
+  await deps.identityReady;
+  const principalId = await deps.ownerPrincipalId;
+  const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
+  if (!principal || principal.status !== "active" || !isOperatorPrincipal(principal)) return null;
+  return { principalId, principal };
+}
+
 /** Shared desktop/browser exchange: consume once, verify the real session, then set its cookie.
  * Resolves null after sending the existing rejection body. Repository failures propagate.
  * @complexity O(1): a bounded number of principal/session lookups and one session write.
@@ -471,13 +483,12 @@ export async function redeemOwnerBootSession(
     res.status(401).json({ error: "invalid or spent boot token", code: "UNAUTHENTICATED" });
     return null;
   }
-  await deps.identityReady;
-  const principalId = await deps.ownerPrincipalId;
-  const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
-  if (!principal || principal.status !== "active" || !isOperatorPrincipal(principal)) {
+  const owner = await resolveBootOwner({ deps });
+  if (!owner) {
     res.status(500).json({ error: "internal error" });
     return null;
   }
+  const { principalId, principal } = owner;
   const { rawToken, expiresAt } = await mintSessionForPrincipal(deps, principalId);
   // The fork guard promised in `mintSessionForPrincipal`'s doc: prove the row this route just
   // wrote is one the library itself will accept, BEFORE setting a cookie on it. Without this, a
