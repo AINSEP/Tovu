@@ -21,19 +21,34 @@ export function resolveSiteDatabasePaths(
   const contentDbPath = workspace.databasePath({ dir, id, filename: "content.db", placement });
   const chatDbPath = workspace.databasePath({ dir, id, filename: "chat.db", placement });
   const appDataRoot = path.join(workspace.config({}).appData, "databases") + path.sep;
-  if (contentDbPath.startsWith(appDataRoot) || chatDbPath.startsWith(appDataRoot)) {
-    // initSite supplies a fresh ID while keeping metadata as its LAST commit marker.
-    if (!identity.stable && !(placement && siteId)) throw new Error("App-data databases require .site-meta.json with a stable siteId. Initialize this folder before starting it.");
-    if (!placement) {
-      const canonical = fs.realpathSync(dir);
-      const owner = workspace.registry({}).list({}).find((entry) => entry.id === id);
-      if (owner && owner.path !== canonical) throw new Error(`This app-data database belongs to ${owner.path}. A copied folder must get a new siteId and its own database before starting.`);
-      // Reserve the identity before opening either DB; simultaneous Finder copies serialize on
-      // the shared catalog's existing lock instead of acquiring independent path-keyed leases.
-      if (reserveIdentity && !owner) workspace.registry({}).merge({ entries: [{ id, path: canonical, name: path.basename(dir), createdBy: "database-owner", lastOpened: null }] });
-    }
-  }
+  if (contentDbPath.startsWith(appDataRoot) || chatDbPath.startsWith(appDataRoot)) admitAppDataIdentity({ dir, id, stable: identity.stable, placement, siteId }, { workspace, reserveIdentity });
   return { siteId: id, contentDbPath, chatDbPath };
+}
+
+/** App-data databases need a stable identity; boot-time resolution (no explicit placement) also
+ * proves this folder owns it. @throws Without a stable identity, or when another folder owns it.
+ */
+function admitAppDataIdentity(
+  { dir, id, stable, placement, siteId }: { dir: string; id: string; stable?: boolean; placement?: "inSite" | "appData"; siteId?: string },
+  { workspace, reserveIdentity }: { workspace: SitesWorkspace; reserveIdentity: boolean },
+): void {
+  // initSite supplies a fresh ID while keeping metadata as its LAST commit marker.
+  if (!stable && !(placement && siteId)) throw new Error("App-data databases require .site-meta.json with a stable siteId. Initialize this folder before starting it.");
+  if (!placement) admitAppDataOwner({ dir, id }, { workspace, reserveIdentity });
+}
+
+/** App-data databases are keyed by siteId, so a Finder copy of a folder must not open the
+ * original's databases. Refuse an identity another folder owns; otherwise reserve it.
+ * @throws When the catalog records the identity for a different folder.
+ * @complexity O(n) catalog records.
+ */
+function admitAppDataOwner({ dir, id }: { dir: string; id: string }, { workspace, reserveIdentity }: { workspace: SitesWorkspace; reserveIdentity: boolean }): void {
+  const canonical = fs.realpathSync(dir);
+  const owner = workspace.registry({}).list({}).find((entry) => entry.id === id);
+  if (owner && owner.path !== canonical) throw new Error(`This app-data database belongs to ${owner.path}. A copied folder must get a new siteId and its own database before starting.`);
+  // Reserve the identity before opening either DB; simultaneous Finder copies serialize on
+  // the shared catalog's existing lock instead of acquiring independent path-keyed leases.
+  if (reserveIdentity && !owner) workspace.registry({}).merge({ entries: [{ id, path: canonical, name: path.basename(dir), createdBy: "database-owner", lastOpened: null }] });
 }
 function readDatabaseIdentity({ dir }: { dir: string }): { id: string; kind?: string; stable?: boolean } {
   try {
