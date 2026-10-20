@@ -51,6 +51,14 @@ test('approval: each G12 tool keeps its declared effect (destructive tools are t
   });
 });
 
+test('schema: every G12 tool takes spreadsheetId only in Google\'s id alphabet and rejects unknown input keys', async () => {
+  const file = JSON.parse(await readFile(new URL('../tovu-agent-tools.json', import.meta.url), 'utf8'));
+  for (const tool of file.tools.filter((entry) => entry.module.startsWith('tools/sheets-admin/'))) {
+    assert.equal(tool.inputSchema.properties.spreadsheetId.pattern, '^[A-Za-z0-9_-]{10,128}$', tool.name);
+    assert.equal(tool.inputSchema.additionalProperties, false, tool.name);
+  }
+});
+
 test('disclosure: every write and destructive tool names the spreadsheet and what changes, before anything is sent', () => {
   const cases = [
     [tabModify, { action: 'delete', sheetId: 3 }, 'delete tab 3 and all of its data'],
@@ -97,6 +105,12 @@ test('bounds: more than 100 requests or more than 1 MiB per batch is limit-excee
   await refusedBeforeGoogle(run(batchUpdate, { requests: many }), 'limit-exceeded');
   const huge = [{ updateCells: { rows: [{ values: [{ note: 'n'.repeat(1024 * 1024) }] }], fields: 'note', range } }];
   await refusedBeforeGoogle(run(batchUpdate, { requests: huge }), 'limit-exceeded');
+});
+
+test('bounds: more than 48 different request kinds is limit-exceeded, so the card can always list every kind', async () => {
+  const kinds = Object.entries(REQUEST_KINDS).slice(0, 49).map(([kind, entry]) => ({ [kind]: Object.fromEntries(entry.requires.map((requirement) => [[requirement].flat()[0], requirement === 'fields' ? 'title' : {}])) }));
+  await refusedBeforeGoogle(run(batchUpdate, { requests: kinds }), 'limit-exceeded');
+  assert.equal(checkRequests({ requests: kinds.slice(0, 48) }).kinds.size, 48);
 });
 
 test('uncertain: a batch holding a non-replayable kind that gets a 5xx is uncertain-outcome and is sent exactly once', async () => {
@@ -147,6 +161,12 @@ test('export bounds: a tab over 20,000 grid rows is refused after the metadata r
   assert.deepEqual(fake.requests.map((request) => request.path), [`/v4/spreadsheets/${SPREADSHEET}`]);
 });
 
+test('export bounds: a range over 100,000 cells is refused before any values read', async () => {
+  fake.route({ method: 'GET', path: `/v4/spreadsheets/${SPREADSHEET}` }, () => [200, { sheets: [{ properties: { sheetId: 3, title: 'T', gridProperties: { rowCount: 10, columnCount: 2 } } }] }]);
+  await assert.rejects(run(exportCsv, { sheetId: 3, range: 'A1:Z5000' }), { code: 'limit-exceeded' });
+  assert.deepEqual(fake.requests.map((request) => request.path), [`/v4/spreadsheets/${SPREADSHEET}`]);
+});
+
 test('export bounds: a CSV over 4 MiB is an error and no partial file is written', async () => {
   fake.route({ method: 'GET', path: `/v4/spreadsheets/${SPREADSHEET}` }, () => [200, { sheets: [{ properties: { sheetId: 3, title: 'Wide', gridProperties: { rowCount: 10_000, columnCount: 10 } } }] }]);
   const row = Array.from({ length: 10 }, () => 'v'.repeat(50));
@@ -177,6 +197,8 @@ test('open_existing: no id means waiting with no request; an ungranted id is fil
   await assert.rejects(run(openExisting, {}), { code: 'file-not-granted', nextAction: 're-pick-file' });
   fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Notes', mimeType: 'application/vnd.google-apps.document' }]);
   await assert.rejects(run(openExisting, {}), { code: 'wrong-file-type', nextAction: 're-pick-file' });
+  fake.route({ method: 'GET', path: `/drive/v3/files/${SPREADSHEET}` }, () => [200, { id: SPREADSHEET, name: 'Old', mimeType: 'application/vnd.google-apps.spreadsheet', trashed: true }]);
+  await assert.rejects(run(openExisting, {}), { code: 'file-not-granted' });
 });
 
 test('open_existing: a picked spreadsheet returns metadata only, with a link built from the verified id', async () => {
