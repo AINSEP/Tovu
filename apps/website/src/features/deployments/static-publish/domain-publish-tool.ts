@@ -10,6 +10,7 @@ import type { StaticPublishToolDeps } from '../publish-agent-tools.js';
 import type { StaticPublishConfig, StaticPublishOutcome, PublishCredentialSource } from './types.js';
 import { inspectStaticPublish, type StaticPublishInspection } from './inspection.js';
 import { getPublishRunSnapshot, runPublishAndAwait } from './publish-run.js';
+import { domainPublishRows } from './domain-publish-rows.js';
 import type { PublishHistoryStore } from './publish-history.js';
 
 interface DomainPublishDetails extends StaticPublishInspection {
@@ -44,11 +45,7 @@ export function domainPublishTool(required: {
     },
     dialog: ({ details }) => ({
       toolId: 'deployment_execute_static_publish', errorCode: 'DOMAIN_PUBLISH', title: 'Publish and change these domain bindings?',
-      details: [
-        { label: 'Project', value: projectName }, { label: 'Target', value: config.target },
-        { label: 'Current records, bindings and routes', value: JSON.stringify(details.inspection?.domains?.hostnames, null, 2) },
-        { label: 'Exact changes', value: JSON.stringify(details.inspection, null, 2) },
-      ],
+      details: domainPublishRows({ inspection: details.inspection!, projectName, target: config.target }),
       warning: 'The listed records, bindings and whole overlapping routes will be changed. This can interrupt the existing site and other hosts covered by wildcard routes. Mail, TXT and CAA stay unchanged. There is no automatic rollback. Cancel to keep everything as it is.',
       danger: true, confirmLabel: 'Publish and apply these changes',
     }),

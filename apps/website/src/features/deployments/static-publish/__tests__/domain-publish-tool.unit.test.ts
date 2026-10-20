@@ -79,6 +79,9 @@ function exchangeId(surface: SurfaceEmission): string {
   const match = resource.resource.text.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match);
   assert.match(resource.resource.text, /old-record/);
+  // The card is a readable change list, not a JSON dump of the inspection.
+  assert.match(resource.resource.text, /Now on www\.example\.com/);
+  assert.doesNotMatch(resource.resource.text, /Exact changes|&quot;hostname&quot;/);
   return match[1]!;
 }
 
