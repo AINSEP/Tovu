@@ -45,6 +45,18 @@ const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 // Admin first because that is where a workspace opens. See `SiteWorkspace` for why.
 const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
 
+// "Import site" opens a site's own admin on its Sites > Import tab; hidden when there is no site.
+function createImportSiteAction(
+  { projects, openProjectTab }: {
+    projects: readonly SiteRecord[];
+    openProjectTab: ReturnType<typeof useProjectTabs>['openProjectTab'];
+  },
+  _options = {},
+): (() => void) | undefined {
+  const importTarget = resolveImportSiteTarget({ projects });
+  return importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
+}
+
 /**
  * Runner's root component.
  *
@@ -88,9 +100,7 @@ export function App({
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
   const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab, adminPages } = useTabs();
   const { adding, addError, addNotice, addSite } = useAddSite({ setProjects }, { onAlreadyTracked: openProjectTab });
-  // "Import site" opens a site's own admin on its Sites > Import tab; hidden when there is no site.
-  const importTarget = resolveImportSiteTarget({ projects });
-  const importSite = importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
+  const importSite = createImportSiteAction({ projects, openProjectTab });
   const {
     activeId,
     setActiveId,

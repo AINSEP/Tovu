@@ -98,6 +98,13 @@ export function loadResetKey(state: SiteWorkspaceState): string {
   return `${state.reloadNonce}:${state.view}:${state.softLoads}`;
 }
 
+function adminPagePath(
+  input: { view: SiteSurface; adminPage?: SiteAdminPage },
+  _options = {},
+): string {
+  return input.view === 'admin' && input.adminPage ? SITE_ADMIN_PAGES[input.adminPage] : '';
+}
+
 /**
  * A surface URL, or blank when no server is running. Trailing slash on `/admin/` on purpose:
  * `/admin` answers 301, a visible flash on every open. `adminPage` (the "Import site" entry) puts
@@ -108,7 +115,7 @@ export function siteSurfaceUrl(
   input: { port: number | null | undefined; view: SiteSurface; status?: SiteRecord['status']; externalUrl?: string; adminPage?: SiteAdminPage },
   _optional: Record<string, never> = {},
 ): string {
-  const page = input.view === 'admin' && input.adminPage ? SITE_ADMIN_PAGES[input.adminPage] : '';
+  const page = adminPagePath(input);
   if (input.externalUrl) {
     if (input.view === "site") return new URL("/", input.externalUrl).href;
     return page ? new URL(`/admin/${page}`, input.externalUrl).href : input.externalUrl;
