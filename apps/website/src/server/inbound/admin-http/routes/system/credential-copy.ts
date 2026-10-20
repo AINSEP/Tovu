@@ -9,16 +9,29 @@ import type { RouteDeps } from "#src/server/routes/types";
 type Deps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "authorize" | "gatedMutations" | "localCredentialCopy">;
 const BASE = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
 
+function loopbackSockets({ req }: { req: Request }, _options = {}): boolean {
+  return isLoopbackHost(req.socket.localAddress?.replace(/^::ffff:/, "")) &&
+    isLoopbackHost(req.socket.remoteAddress?.replace(/^::ffff:/, ""));
+}
+
 /** Local capability plus real sockets/Host: forwarded headers and a spoofed Host cannot admit a remote caller. */
 function localRequest({ req }: { req: Request }, _options = {}): boolean {
-  if (!isLoopbackHost(req.socket.localAddress?.replace(/^::ffff:/, "")) ||
-    !isLoopbackHost(req.socket.remoteAddress?.replace(/^::ffff:/, ""))) return false;
+  if (!loopbackSockets({ req })) return false;
   if (Object.keys(req.headers).some(name => name === "forwarded" || name.startsWith("x-forwarded-"))) return false;
   try {
     const url = new URL(`${req.protocol}://${req.get("host")}`);
     if (!isLocalAdminUrl({ url }) || url.host !== req.get("host")) return false;
     return req.get("origin") === undefined || req.get("origin") === url.origin;
   } catch { return false; }
+}
+
+async function authorizedCopy({ res, deps, actorId }: { res: Response; deps: Deps; actorId: string }, _options = {}): Promise<boolean> {
+  if (!await authorizeOrRespond(res, deps.authorize, { principalId: actorId, permission: "system.write", workspaceId: deps.workspaceId })) return false;
+  const instance = deps.gatedMutations.gatewayDeps.authorizeInstance;
+  if (instance && !(await instance({ principalId: actorId, permission: "system.write" })).allowed) {
+    res.status(403).json({ reasonCode: "owner-only" }); return false;
+  }
+  return true;
 }
 
 /** Every verb requires the seeded owner's session, existing RBAC and optional instance admission. */
@@ -28,15 +41,16 @@ async function admitted({ req, res, deps }: { req: Request; res: Response; deps:
   if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return false; }
   const actorId = getAuthedPrincipal(res).id;
   if (actorId !== await deps.ownerPrincipalId) { res.status(403).json({ reasonCode: "owner-only" }); return false; }
-  if (!await authorizeOrRespond(res, deps.authorize, { principalId: actorId, permission: "system.write", workspaceId: deps.workspaceId })) return false;
-  const instance = deps.gatedMutations.gatewayDeps.authorizeInstance;
-  if (instance && !(await instance({ principalId: actorId, permission: "system.write" })).allowed) {
-    res.status(403).json({ reasonCode: "owner-only" }); return false;
-  }
+  if (!await authorizedCopy({ res, deps, actorId })) return false;
   if (!deps.localCredentialCopy?.localHost || !localRequest({ req })) {
     res.status(403).json({ reasonCode: "local-host-only" }); return false;
   }
   return true;
+}
+
+function validCopyIds({ ids }: { ids: unknown }, _options = {}): boolean {
+  return Array.isArray(ids) && ids.length >= 1 && ids.length <= 100 &&
+    ids.every((id: unknown) => typeof id === "string" && id.length > 0 && id.length <= 512 && !/[\x00-\x1f\x7f]/.test(id));
 }
 
 /** One endpoint shared by both UIs; source discovery and vault transfer remain injected operations. */
@@ -58,8 +72,7 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     if (!body || typeof body !== "object" || Array.isArray(body) ||
       Object.keys(body).some(key => !["sourceSiteId", "ids", "overwrite"].includes(key)) ||
       typeof body.sourceSiteId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(body.sourceSiteId) ||
-      !Array.isArray(body.ids) || body.ids.length < 1 || body.ids.length > 100 ||
-      !body.ids.every((id: unknown) => typeof id === "string" && id.length > 0 && id.length <= 512 && !/[\x00-\x1f\x7f]/.test(id)) ||
+      !validCopyIds({ ids: body.ids }) ||
       typeof body.overwrite !== "boolean") {
       res.status(400).json({ reasonCode: "invalid-request" }); return;
     }

@@ -24,6 +24,14 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
 }, optional: { requireAcknowledgment?: boolean; scope?: "user" | "workspace" } = {}): void {
   const { app, deps, path } = required;
   const routeDeps = { ...deps, settingsReady: deps.settingsUiTabsReady };
+  async function parseGrantUpdate({ body }: { body: Record<string, unknown> | null }, _optional = {}) {
+    if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+    const settings = required.parse(body);
+    const previous = await required.read();
+    const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
+    if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+    return { settings, needsAcknowledgment };
+  }
   mountSettingsJsonRoute({ app, deps: routeDeps, method: "get", path,
     handle: async ({ principal }) => {
       // The dock is available to every authenticated administrator, including those without
@@ -37,12 +45,7 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
     handle: async ({ request, principal, authorize }) => {
       if (principal.id !== await deps.ownerPrincipalId) rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: required.writeReason });
       if (required.canEdit && !required.canEdit({ isOwner: true })) rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: "Not available on hosted sites" });
-      const body = request.body as Record<string, unknown> | null;
-      if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
-      const settings = required.parse(body);
-      const previous = await required.read();
-      const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
-      if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+      const { settings, needsAcknowledgment } = await parseGrantUpdate({ body: request.body as Record<string, unknown> | null });
       const scope = optional.scope ?? "workspace";
       await authorize({ permission: scope === "user" ? "settings.user.self.write" : "settings.workspace.write", entityType: "setting-value" });
       const input = { namespace: required.namespace, scope,

@@ -15,6 +15,7 @@ import {
   PublishCredentialValidationError,
   updatePublishCredential,
   type PublishCredentialSummary,
+  type UpdatePublishCredentialInput,
 } from "#src/features/deployments/publish-credentials/index";
 import {
   canYieldAccountLabel,
@@ -104,6 +105,15 @@ export type AdminPublishCredentialsDeps = Pick<
 >;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
+
+function credentialUpdateFields({ body }: { body: Record<string, unknown> }, _optional = {}): Omit<UpdatePublishCredentialInput, "workspaceId" | "id"> {
+  return {
+    ...(body.label !== undefined ? { label: body.label } : {}),
+    ...(body.connection !== undefined ? { connection: body.connection } : {}),
+    ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
+    ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
+  };
+}
 
 /** Every error this route can produce, shaped once so each handler below stays a thin dispatch.
  *  Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
@@ -294,10 +304,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       const credential = await updatePublishCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         id: req.params.id,
-        ...(body.label !== undefined ? { label: body.label } : {}),
-        ...(body.connection !== undefined ? { connection: body.connection } : {}),
-        ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
-        ...(body.worksFor !== undefined ? { worksFor: body.worksFor } : {}),
+        ...credentialUpdateFields({ body }),
       });
       if (before && body.worksFor !== undefined) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
       // A label-only/isDefault-only rename verifies nothing new — the connection (and therefore
