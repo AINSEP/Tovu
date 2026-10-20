@@ -83,13 +83,14 @@ after(async () => {
   await new Promise((resolve) => siteServer.close(resolve));
 });
 
-function makeHost() {
+function makeHost(runtime: "hosted" | "desktop" = "hosted") {
   const keyring = new InMemoryKeyring({ hkdfSalt: "surface-adapters-security" });
   const loadContributions: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: PLUGIN, packageRoot: fixtureRoot }, definition: input.definition });
   const host = createApiConnectionHost({
     workspaceId: WORKSPACE, loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
-    clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: "hosted",
-    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) }, publicOrigin: () => siteOrigin,
+    clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime,
+    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_ACME_OAUTH_DESKTOP_CLIENT_ID: "acme-desktop-client" },
+    publicOrigin: () => siteOrigin,
   });
   const app = express();
   registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
@@ -148,6 +149,21 @@ test("callback fields: only the declared ones are kept, only the owner plugin ca
   assert.deepEqual(await port.takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId }), { picked_ids: "T1" });
   assert.equal(await port.takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId }), null);
   assert.ok(!begun.attemptId.includes(new URL(begun.authorizationUrl).searchParams.get("state")!), "the attempt id is not the state");
+});
+
+test("desktop: the loopback sign-in deposits the declared callback fields for the owner plugin only", async () => {
+  const host = makeHost("desktop");
+  const port = portFor(host);
+  const begun = await port.begin({ connectionId: "account", action: "connect" }, { startParams: { pick_mode: "one" } });
+  assert.match(new URL(begun.authorizationUrl).searchParams.get("redirect_uri")!, /^http:\/\/127\.0\.0\.1:\d+\//);
+  assert.equal(await consent(begun.authorizationUrl, { picked_ids: "T9" }), 200);
+  let fields: Readonly<Record<string, string>> | null = null;
+  for (let tries = 0; fields === null && tries < 100; tries += 1) {
+    fields = await port.takeCallbackFields({ connectionId: "account", attemptId: begun.attemptId });
+    if (fields === null) await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.deepEqual(fields, { picked_ids: "T9" });
+  assert.equal(await port.getAccessToken({ connectionId: "account" }), accessToken, "the loopback completion connected the account");
 });
 
 test("disconnect: revocation is reported verbatim, never 'revoked' unless the provider confirmed", async () => {
