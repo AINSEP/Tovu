@@ -263,7 +263,10 @@ async function completeDevSiteMetaOrWarn(dir: string): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function prepareSiteBoot(
+  { useMemory }: { useMemory: boolean },
+  _options: Record<string, never> = {},
+): Promise<ReturnType<typeof claimSiteRunning> | undefined> {
   // Fixes a live-found crash (2026-08-16, `process-error-guards.ts`'s own header has the full
   // account): an unhandled async rejection anywhere beneath an Express 4 route handler used to take
   // down this ENTIRE process, not just the one request that triggered it. Placed first — before any
@@ -320,15 +323,16 @@ async function main(): Promise<void> {
   // adopted or minted.
   if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
 
-  // Reserve the actual HTTP(S) listener before composition derives origins or spawns daemons.
-  // During boot it answers 503; attaching the app later keeps this SAME socket bound throughout.
-  let requestHandler: import("node:http").RequestListener = (_request, response) => {
-    response.writeHead(503, { "Retry-After": "1" });
-    response.end("Server is starting");
-  };
-  const server = devTls.active && devTls.credentials
-    ? createHttpsServer(devTls.credentials, (request, response) => requestHandler(request, response))
-    : createHttpServer((request, response) => requestHandler(request, response));
+  return runningLease;
+}
+
+async function reserveSiteBootListener(
+  { server, runningLease }: {
+    server: ReturnType<typeof createHttpServer>;
+    runningLease: ReturnType<typeof claimSiteRunning> | undefined;
+  },
+  _options: Record<string, never> = {},
+): Promise<void> {
   // WHY THIS EXISTS: without it, a listen failure is an unhandled `'error'` event on the Server,
   // which Node re-throws — so the process dies with a raw stack trace and no statement of what is
   // wrong. Measured 2026-08-15: `tsx watch` restarted this process on a source edit, force-killed
@@ -362,6 +366,21 @@ async function main(): Promise<void> {
     }
     throw error;
   }
+}
+
+async function main(): Promise<void> {
+  const runningLease = await prepareSiteBoot({ useMemory }, {});
+
+  // Reserve the actual HTTP(S) listener before composition derives origins or spawns daemons.
+  // During boot it answers 503; attaching the app later keeps this SAME socket bound throughout.
+  let requestHandler: import("node:http").RequestListener = (_request, response) => {
+    response.writeHead(503, { "Retry-After": "1" });
+    response.end("Server is starting");
+  };
+  const server = devTls.active && devTls.credentials
+    ? createHttpsServer(devTls.credentials, (request, response) => requestHandler(request, response))
+    : createHttpServer((request, response) => requestHandler(request, response));
+  await reserveSiteBootListener({ server, runningLease }, {});
 
   server.on("error", (error: Error) => { throw error; });
 
