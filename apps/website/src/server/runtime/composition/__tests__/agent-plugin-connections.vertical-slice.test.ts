@@ -186,7 +186,7 @@ test("vertical slice: connect -> public callback -> executable tool call -> admi
   assert.equal(await composition.adminSurfaceHost.bootstrapData({ context }), null, "opening the surface loads its handlers");
   const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
   const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) });
-  const answer = await dispatcher.dispatch({ action: "whoami", payload: { connectionRef }, context });
+  const answer = await dispatcher.dispatch({ action: "whoami", payload: {}, context });
   assert.deepEqual(answer, { ok: true, result: { name: "Ada" } });
   assert.ok(!JSON.stringify([toolResult.output, answer]).includes(accessToken), "no token in any answer");
 });
@@ -260,7 +260,7 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
   await composition.adminSurfaceHost.bootstrapData({ context });
   const [surface] = (await loadContributions({ workspaceId: WORKSPACE, definition: defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME }) })).items;
   const dispatcher = createAdminSurfaceActionDispatcher({ descriptor: surface!.descriptor, handlers: composition.adminSurfaceHost.handlersFor({ pluginId: PLUGIN, surfaceId: "account" }) });
-  assert.deepEqual(await dispatcher.dispatch({ action: "whoami", payload: { connectionRef }, context }), { ok: true, result: { name: "Ada" } });
+  assert.deepEqual(await dispatcher.dispatch({ action: "whoami", payload: {}, context }), { ok: true, result: { name: "Ada" } });
 
   // Push form delivery: the binding stores only the connectionRef; the OAuth port resolves the token per attempt.
   const destinations = await loadFormDestinationRegistry({ workspaceId: WORKSPACE }, { loadContributions });

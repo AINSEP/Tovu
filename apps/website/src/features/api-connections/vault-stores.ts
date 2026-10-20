@@ -11,7 +11,8 @@ import {
 /**
  * @file Tovu's storage for plugin-declared API connections, all in the existing secrets vault under
  * the `api-connection` kind (migration 0020): the sealed token sets (Jini's vault token store), the
- * connection records and the single-use sign-in attempts.
+ * connection records and the single-use sign-in attempts. The same kind also holds plugin settings
+ * rows (`plugin-state.ts`), so plugin state needs no new table or vault kind (no migration 0021).
  *
  * Why the vault for records and attempts too: the settings ledger is append-only and exportable,
  * and an attempt carries a PKCE verifier that must never be exported or logged. Sealed vault rows
@@ -23,6 +24,8 @@ import {
 export const API_CONNECTION_VAULT_KIND = "api-connection" as const;
 const RECORD_FORMAT = "api-connection-record";
 const ATTEMPT_FORMAT = "api-connection-attempt";
+/** Plugin settings rows (`plugin-state.ts`): plain JSON a plugin's admin surface saves, sealed like the rest. */
+export const PLUGIN_STATE_FORMAT = "agent-plugin-state";
 const recordId = (key: string): string => `record:${key}`;
 const attemptId = (state: string): string => `attempt:${state}`;
 /**
@@ -53,10 +56,13 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Token rows keep Jini's parser; record and attempt rows carry only their format and an expiry. */
+/** Formats whose metadata is the format name alone. */
+const FORMAT_ONLY: readonly unknown[] = [RECORD_FORMAT, PLUGIN_STATE_FORMAT];
+
+/** Token rows keep Jini's parser; record, settings and attempt rows carry only their format (and an attempt's expiry). */
 function parseApiConnectionMeta(input: { readonly meta: unknown; readonly provider?: string | null | undefined }): VaultMeta {
   const meta = input.meta;
-  if (isObject(meta) && meta.credentialFormat === RECORD_FORMAT && Object.keys(meta).length === 1) return { credentialFormat: RECORD_FORMAT };
+  if (isObject(meta) && FORMAT_ONLY.includes(meta.credentialFormat) && Object.keys(meta).length === 1) return { credentialFormat: meta.credentialFormat as string };
   if (isObject(meta) && meta.credentialFormat === ATTEMPT_FORMAT && Object.keys(meta).length === 2 && Number.isSafeInteger(meta.expiresAtMs)) {
     return { credentialFormat: ATTEMPT_FORMAT, expiresAtMs: meta.expiresAtMs as number };
   }

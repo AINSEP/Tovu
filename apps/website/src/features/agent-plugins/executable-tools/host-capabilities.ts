@@ -10,9 +10,11 @@
  * - http: the guarded outbound client (public addresses only, no redirects), HTTPS only, bounded.
  * - limiter: the real http-kit limiter, keyed per workspace and plugin so budgets never mix.
  * - artifacts: an optional writer; absent, writes refuse with a next step.
+ * - state: the plugin's own settings, read-only (`get` alone), from the store its admin surface
+ *   writes, keyed by the same plugin and workspace.
  * Nothing here names a provider.
  */
-import type { AgentPluginHttpOptions, AgentPluginLimitResult, AgentPluginToolCapabilities, AgentPluginToolCapabilitiesPort } from '@jini-ai/agent-plugins/lifecycle/tools';
+import type { AgentPluginHttpOptions, AgentPluginLimitResult, AgentPluginStateReader, AgentPluginToolCapabilities, AgentPluginToolCapabilitiesPort } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 
 /** Which connection a call asks for. `connectionRef` is opaque and comes from plugin input. */
@@ -40,6 +42,9 @@ export interface AgentPluginArtifactWriter {
 export interface AgentPluginRateLimiter {
   check(required: { readonly key: string }): Promise<AgentPluginLimitResult>;
 }
+
+/** The read-only settings view for one plugin in one workspace (`api-connections/plugin-state.ts`'s `readerFor`). */
+export type AgentPluginStateReaderFor = (required: { readonly workspaceId: string; readonly pluginId: string }, optional?: Record<string, never>) => AgentPluginStateReader;
 
 /** Accounts frozen when a call was confirmed, keyed by that call's abort signal (one per execution). */
 export interface FrozenConnectionAccounts {
@@ -92,14 +97,18 @@ export function createGuardedPluginHttp(required: { readonly http: HttpClientPor
  * @param required.http - The guarded outbound HTTP client.
  * @param required.limiter - The http-kit limiter sized for plugin budgets.
  * @param required.frozen - Accounts frozen by the confirmation step.
+ * @param required.state - The plugin settings reader, scoped here to the calling plugin and workspace.
  * @param optional.artifacts - File writer; omitted, `artifacts.write` refuses.
  * @complexity O(1) per call; each capability is one delegated call.
  */
 export function createAgentPluginToolCapabilities(
-  required: { readonly connections: AgentPluginConnectionAccess; readonly http: HttpClientPort; readonly limiter: AgentPluginRateLimiter; readonly frozen: FrozenConnectionAccounts },
+  required: {
+    readonly connections: AgentPluginConnectionAccess; readonly http: HttpClientPort; readonly limiter: AgentPluginRateLimiter;
+    readonly frozen: FrozenConnectionAccounts; readonly state: AgentPluginStateReaderFor;
+  },
   optional: { readonly artifacts?: AgentPluginArtifactWriter } = {},
 ): AgentPluginToolCapabilitiesPort {
-  const { connections, limiter, frozen } = required;
+  const { connections, limiter, frozen, state } = required;
   const http = createGuardedPluginHttp({ http: required.http });
   return ({ pluginId, workspaceId, signal }): AgentPluginToolCapabilities => ({
     connections: { async getAccessToken({ connectionRef }) {
@@ -113,5 +122,7 @@ export function createAgentPluginToolCapabilities(
       if (!optional.artifacts) throw new Error(ARTIFACTS_UNAVAILABLE_MESSAGE);
       return optional.artifacts.write({ ...input, workspaceId, pluginId });
     } },
+    // A fresh object with `get` alone: whatever the store exposes, a tool can never write through it.
+    state: { get: (input) => state({ workspaceId, pluginId }).get(input) },
   });
 }

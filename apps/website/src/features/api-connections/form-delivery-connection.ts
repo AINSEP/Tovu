@@ -13,17 +13,21 @@ import type { ApiConnectionHost } from "./host.js";
  * the binding's adapter, so one plugin's destination can never spend another plugin's connection.
  */
 
+/** A delivery credential plus the extra hosts the push kit may reach with it (hosts, like custom credentials). */
+export type OAuthFormDeliveryCredential = FormDestinationCredential & { readonly additionalHosts: readonly string[] };
+
 /** Contract shape from the forms-multidest brief; replaced by its exported type at G14. */
 export type FormDeliveryConnectionPort = (
   required: { readonly workspaceId: string; readonly connectionRef: string; readonly adapterId: string },
   optional?: Record<string, never>,
-) => Promise<FormDestinationCredential | null>;
+) => Promise<OAuthFormDeliveryCredential | null>;
 
 /**
  * @param required.hostFor - The workspace's API-connection host, or null when it has none.
  * @param required.adapterPluginId - Which plugin contributes a form-destination adapter id; null when none.
  * @returns null for a ref this port does not own (so a composite port can try static credentials);
- *   otherwise the access token as the credential. API-connection refusals (reconnect required,
+ *   otherwise the access token as the credential, with the connection's declared `apiOrigins` as
+ *   `baseUrl` (the first) and `additionalHosts` (the rest). API-connection refusals (reconnect required,
  *   account changed, …) propagate with their safe message for the delivery's error mapping.
  * @complexity One contribution load plus one token read.
  */
@@ -38,10 +42,13 @@ export function createOAuthFormDeliveryConnectionPort(
     const host = required.hostFor({ workspaceId });
     const pluginId = host ? await required.adapterPluginId({ workspaceId, adapterId }) : null;
     if (!host || !pluginId) return null;
-    const declared = await host.listConnections({ pluginId });
-    if (!declared.some((connection) => deriveApiConnectionKey({ workspaceId, pluginId, connectionId: connection.descriptor.connectionId }) === connectionRef)) return null;
+    const declared = (await host.listConnections({ pluginId }))
+      .find((connection) => deriveApiConnectionKey({ workspaceId, pluginId, connectionId: connection.descriptor.connectionId }) === connectionRef);
+    if (!declared) return null;
     const token = await host.accessTokensFor({ pluginId }).getAccessToken({ connectionRef });
-    // OAuth destinations take their API origin from the plugin, not the credential.
-    return { token, baseUrl: "" };
+    // The push kit allows the base URL's origin plus `additionalHosts`; an OAuth destination reaches
+    // only the https origins its plugin declared on the connection (none declared: nothing allowed).
+    const [baseUrl = "", ...rest] = declared.apiOrigins;
+    return { token, baseUrl, additionalHosts: rest.map((origin) => new URL(origin).host) };
   };
 }

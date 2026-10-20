@@ -1,13 +1,41 @@
 /**
- * @file Test-fixture admin-surface handler module for the fake "acme-office" plugin: one action that
- * reads the signed-in account through the same host capabilities its executable tool gets.
+ * @file Test-fixture admin-surface handler module for the fake "acme-office" plugin: reads the
+ * signed-in account through the same host capabilities its executable tool gets, reports status,
+ * starts a "pick" sign-in with a declared start parameter, takes the declared callback field once
+ * the sign-in completed, verifies it through the provider's API, and saves it in plugin state.
  */
 export default {
   actions: {
-    async whoami({ input, capabilities }) {
-      const token = await capabilities.connections.getAccessToken({ connectionRef: input.connectionRef });
+    async whoami({ capabilities, context }) {
+      const token = await capabilities.connections.getAccessToken({ connectionId: context.connectionIds[0] });
       const response = await capabilities.http.fetch({ url: "https://api.acme.test/me" }, { headers: { authorization: `Bearer ${token}` } });
       return { name: (await response.json()).name };
+    },
+    async status({ capabilities, context }) {
+      const status = await capabilities.connections.status({ connectionId: context.connectionIds[0] });
+      const appId = await capabilities.publicConfig.get({ name: "TOVU_ACME_CHOOSER_APP_ID" });
+      return {
+        state: status.state, grantedScopeSetIds: [...status.grantedScopeSetIds],
+        ...(status.accountLabel === null ? {} : { accountLabel: status.accountLabel }), ...(appId === null ? {} : { appId }),
+      };
+    },
+    async 'begin-pick'({ capabilities, context }) {
+      const started = await capabilities.connections.begin({ connectionId: context.connectionIds[0], action: "reconnect" }, { startParams: { pick_mode: "one" } });
+      return { attemptId: started.attemptId };
+    },
+    async 'take-pick'({ input, capabilities, context, fail }) {
+      const connectionId = context.connectionIds[0];
+      const fields = await capabilities.connections.takeCallbackFields({ connectionId, attemptId: input.attemptId });
+      if (fields === null || fields.picked_ids === undefined) throw fail({ code: "nothing-picked", message: "Nothing was picked. Pick again." });
+      const token = await capabilities.connections.getAccessToken({ connectionId });
+      const response = await capabilities.http.fetch({ url: `https://api.acme.test/tables/${encodeURIComponent(fields.picked_ids)}` }, { headers: { authorization: `Bearer ${token}` } });
+      if (!response.ok) throw fail({ code: "pick-not-verified", message: "The picked table could not be opened. Pick again." });
+      await capabilities.state.set({ key: "selection", value: { tableId: fields.picked_ids } });
+      return { saved: true };
+    },
+    async disconnect({ capabilities, context }) {
+      const outcome = await capabilities.connections.disconnect({ connectionId: context.connectionIds[0] });
+      return { state: outcome.state, revocation: outcome.revocation };
     },
   },
 };

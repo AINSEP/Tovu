@@ -39,7 +39,10 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  * because a sandboxed frame's module-script fetches carry no cookie.
  *
  * Ids from the URL are only compared against admitted surfaces, never joined into a path. Errors
- * never echo handler text; the dispatcher already maps throws to surface-safe failures.
+ * never echo handler text; the dispatcher already maps throws to surface-safe failures. An action
+ * that started a sign-in also returns `hostSignIns`: the authorization links the host itself issued
+ * during that request (`issued-sign-ins.ts`), which the host page offers to open, because the
+ * sandboxed frame cannot and must never choose a URL for the host page to open.
  */
 
 const WRITE_PERMISSION = "admin.plugins.enable";
@@ -115,6 +118,10 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
       // Only the error's class reaches the log: a handler's message could quote provider detail.
       onHandlerError: ({ surfaceId, action, error }) => console.error("[admin-surfaces] action handler failed", { pluginId: surface.plugin.pluginId, surfaceId, action, error: error instanceof Error ? error.name : typeof error }),
     });
-    res.set("Cache-Control", "no-store").json(await dispatcher.dispatch({ action: body.action, payload: body.payload, context: contextFor(res, deps, surface) }));
+    const { action, payload } = body;
+    const run = () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) });
+    const { value: outcome, signIns } = host.signIns ? await host.signIns.collect({ run }) : { value: await run(), signIns: [] };
+    // Only links this host issued during this action, and only when the action succeeded.
+    res.set("Cache-Control", "no-store").json(outcome.ok && signIns.length > 0 ? { ...outcome, hostSignIns: signIns } : outcome);
   }));
 };

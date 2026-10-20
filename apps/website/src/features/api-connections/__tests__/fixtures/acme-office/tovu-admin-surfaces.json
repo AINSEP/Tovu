@@ -6,11 +6,42 @@
       "title": "Acme account",
       "entry": "surface/index.html",
       "handlerModule": "surface/handlers.mjs",
+      "connections": [{ "id": "account", "startParams": ["pick_mode"], "callbackFields": ["picked_ids"] }],
+      "publicConfig": ["TOVU_ACME_CHOOSER_APP_ID"],
       "actions": [
         {
           "name": "whoami",
-          "input": { "type": "object", "properties": { "connectionRef": { "type": "string", "maxLength": 512 } }, "required": ["connectionRef"] },
+          "input": { "type": "object", "properties": {} },
           "result": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }
+        },
+        {
+          "name": "status",
+          "input": { "type": "object", "properties": {} },
+          "result": {
+            "type": "object",
+            "properties": {
+              "state": { "type": "string" },
+              "accountLabel": { "type": "string" },
+              "grantedScopeSetIds": { "type": "array", "items": { "type": "string" } },
+              "appId": { "type": "string" }
+            },
+            "required": ["state", "grantedScopeSetIds"]
+          }
+        },
+        {
+          "name": "begin-pick",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "attemptId": { "type": "string" } }, "required": ["attemptId"] }
+        },
+        {
+          "name": "take-pick",
+          "input": { "type": "object", "properties": { "attemptId": { "type": "string", "maxLength": 128 } }, "required": ["attemptId"] },
+          "result": { "type": "object", "properties": { "saved": { "type": "boolean" } }, "required": ["saved"] }
+        },
+        {
+          "name": "disconnect",
+          "input": { "type": "object", "properties": {} },
+          "result": { "type": "object", "properties": { "state": { "type": "string" }, "revocation": { "type": "string" } }, "required": ["state", "revocation"] }
         }
       ]
     }
