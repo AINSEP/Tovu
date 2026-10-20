@@ -4,7 +4,7 @@ import type { ConsentReceiptStorageHealth } from '@jini-ai/cms/consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { ToolInputError } from '@jini-ai/core';
 import type { AuthorizeFn } from '#src/contracts/core/commands/index';
-import type { SiteConsentStore } from './revisions.js';
+import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
 import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from './validation.js';
 import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT_CSS_SELECTORS } from '@jini-ai/cms/consent';
@@ -26,6 +26,16 @@ export interface ConsentServicePorts {
   necessaryScripts: readonly { content: string }[];
   /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
   receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
+}
+
+/** Unsaved input takes precedence over the draft, then the effective published/legacy policy. */
+function sampleConsentConfig({ state, proposed }: { state: SiteConsentState & { effective: ConsentConfig }; proposed: unknown }, _options = {}): ConsentConfig {
+  return parseConsentConfig({ value: proposed === undefined ? state.draft?.config ?? state.effective : proposed });
+}
+
+/** Readiness and preview require the same complete bounded page evidence. */
+function isCompleteConsentPage({ page }: { page: { ok: boolean; truncated: boolean } }, _options = {}): boolean {
+  return page.ok && !page.truncated;
 }
 
 /** Creates one workspace's adapters over the engine and durable policy store.
@@ -62,33 +72,34 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
    * Storage errors expose no private paths; render failure/truncation also blocks readiness. */
   const readiness = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
-    const config = proposed === undefined ? parseConsentConfig({ value: state.draft?.config ?? state.effective }) : parseConsentConfig({ value: proposed });
+    const config = sampleConsentConfig({ state, proposed });
     path = consentPagePath({ path });
     const blockingProblems = await problems({ config: { ...config, enabled: true } });
     let receipts: ConsentReceiptStorageHealth;
     try { receipts = await ports.receiptStorage({}); }
     catch { receipts = { writable: false, count: null }; }
     if (!receipts.writable || receipts.count === null) blockingProblems.push({ code: 'RECEIPT_STORAGE_UNAVAILABLE', message: 'Consent receipt storage is unavailable or not writable. Visitor choices cannot be saved reliably.' });
+    const metadata = { receipts, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, blockingProblems };
     try {
       const page = await ports.renderPage({ path });
-      if (!page.ok || page.truncated) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
+      if (!isCompleteConsentPage({ page })) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
       const dryRun = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts });
       blockingProblems.push(...dryRun.problems);
-      return { ready: blockingProblems.length === 0, receipts, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated, blockingProblems,
+      return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
     } catch {
       blockingProblems.push({ code: 'RENDER_FAILED', message: 'The page could not be rendered safely. Readiness cannot be established.' });
-      return { ready: false, receipts, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), detected: [], truncated: false, blockingProblems, limitations: ['Rendered evidence unavailable.'] };
+      return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), detected: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
     }
   };
   /** Render the real gated page into an inert iframe document for the separate admin UI.
    * Returned HTML must only be used in a sandbox without scripts, forms or same-origin access. */
   const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
     const state = await read({ principalId });
-    const config = parseConsentConfig({ value: proposed === undefined ? state.draft?.config ?? state.effective : proposed });
+    const config = sampleConsentConfig({ state, proposed });
     path = consentPagePath({ path });
     const page = await ports.renderPage({ path });
-    if (!page.ok || page.truncated) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
+    if (!isCompleteConsentPage({ page })) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
     const result = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts });
     if (result.gatedHtml === null) throw new ToolInputError({ message: 'The consent engine could not safely render the preview.' });
     return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };

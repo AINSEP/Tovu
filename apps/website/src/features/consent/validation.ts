@@ -29,12 +29,17 @@ export function parseConsentConfig({ value }: { value: unknown }, _options = {})
 function validateConsentCopy({ config }: { config: SiteConsentSettings }, _options = {}): void {
   if (!SITE_CONSENT_REGION_MODES.includes(config.regionMode) || !SITE_CONSENT_PLACEMENTS.includes(config.placement)) throw new ToolInputError({ message: 'Choose a supported region mode and placement.' });
   if (config.policyVersion.trim().length < 1 || config.policyVersion.length > 64) throw new ToolInputError({ message: 'policyVersion must contain 1–64 characters.' });
+  validateConsentTextFields({ config });
+  if (config.privacyPolicyUrl.length > 2000 || config.secondaryLinkUrl.length > 2000) throw new ToolInputError({ message: 'Policy links must be at most 2000 characters.' });
+}
+
+/** Banner fields share copy bounds; only the secondary link label may be empty. */
+function validateConsentTextFields({ config }: { config: SiteConsentSettings }, _options = {}): void {
   for (const [key, max] of Object.entries(SITE_CONSENT_TEXT_LIMITS)) {
     const text = config[key as keyof typeof SITE_CONSENT_TEXT_LIMITS];
     const emptyAllowed = key === 'secondaryLinkLabel' && text.length === 0;
     if (text.length > max || (!emptyAllowed && !text.trim())) throw new ToolInputError({ message: `${key} must contain 1–${max} characters.` });
   }
-  if (config.privacyPolicyUrl.length > 2000 || config.secondaryLinkUrl.length > 2000) throw new ToolInputError({ message: 'Policy links must be at most 2000 characters.' });
 }
 
 /** The engine diagnoses CSS semantics; the boundary caps its input and refuses non-object tokens. */

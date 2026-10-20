@@ -14,6 +14,20 @@ function sourceLabel({ value }: { value: string | undefined }, _options = {}): s
   catch { return '[invalid resource URL]'; }
 }
 
+/** Project one engine payload; templates contribute only their first element, not its subtree. */
+function inventoryItem({ node }: { node: DefaultTreeAdapterMap['element'] }, _options = {}): ConsentInventoryItem | null {
+  const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
+  if (node.tagName === 'template') {
+    if (!attrs.has('data-jini-consent-script') && !attrs.has('data-jini-consent-resource')) return null;
+    const child = (node as DefaultTreeAdapterMap['template']).content.childNodes.find((item): item is DefaultTreeAdapterMap['element'] => 'tagName' in item);
+    if (!child) return null;
+    const source = child.attrs.find(attr => ['src', 'href', 'data', 'poster'].includes(attr.name))?.value;
+    return { tag: child.tagName, category: attrs.get('data-category') ?? 'blocked', source: sourceLabel({ value: source }) };
+  }
+  const payload = attrs.get('data-jini-consent-attributes');
+  return payload ? { tag: node.tagName, category: attrs.get('data-jini-consent-category') ?? 'blocked', source: null, attributes: Object.keys(JSON.parse(payload)) } : null;
+}
+
 /** Projects engine-created inert templates/attribute payloads, capped at 200 entries.
  * It neither interprets authored category labels nor executes scripts. O(n) gated HTML bytes. */
 export function consentGateInventory({ html }: { html: string }, _options = {}): { items: ConsentInventoryItem[]; truncated: boolean } {
@@ -23,19 +37,9 @@ export function consentGateInventory({ html }: { html: string }, _options = {}):
   while (nodes.length) {
     const node = nodes.pop()!;
     if (!('tagName' in node)) continue;
-    const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
-    if (node.tagName === 'template') {
-      if (!attrs.has('data-jini-consent-script') && !attrs.has('data-jini-consent-resource')) continue;
-      const child = (node as DefaultTreeAdapterMap['template']).content.childNodes.find((item): item is DefaultTreeAdapterMap['element'] => 'tagName' in item);
-      if (child) {
-        const source = child.attrs.find(attr => ['src', 'href', 'data', 'poster'].includes(attr.name))?.value;
-        items.push({ tag: child.tagName, category: attrs.get('data-category') ?? 'blocked', source: sourceLabel({ value: source }) });
-      }
-    } else {
-      const payload = attrs.get('data-jini-consent-attributes');
-      if (payload) items.push({ tag: node.tagName, category: attrs.get('data-jini-consent-category') ?? 'blocked', source: null, attributes: Object.keys(JSON.parse(payload)) });
-      nodes.push(...node.childNodes);
-    }
+    const item = inventoryItem({ node });
+    if (item) items.push(item);
+    if (node.tagName !== 'template') nodes.push(...node.childNodes);
     if (items.length === 200) { truncated = nodes.length > 0; break; }
   }
   return { items, truncated };
