@@ -92,3 +92,12 @@ Verify + merge G1–G5 as they finish; then G6/G7/G8.
 ## forms-multidest relation
 - 11:00Z: forms-multidest F1–F9 merged on its branches, its phase C (C1–C4) still running → NOT complete → no merge; G14 builds against the ratified contract; G14b (wire fan-out) follows when forms-multidest finishes.
 - 08:00Z: origin/cloud/forms-multidest exists; F9 not done; `.cloud-coord/forms-multidest-contract.md` EXISTS (copied to /tmp/forms-multidest-contract.md) → G14 builds against that contract; OAuth FormDeliveryConnectionPort stays unwired; follow-up G14b expected. G9 found Tovu FormDestinationModule.deliver still lacks binding/idempotencyKey (base type, forms-multidest-owned).
+
+## Phase B — Tovu review decisions (coordinator, 2026-10-20; owner may override)
+Findings: .cloud-coord/google-workspace-phaseB-tovu.md (4 High, 7 Medium, 7 Low). All accepted. Owner-flagged items decided fail-closed, listed for owner review:
+- H2 product default: a product is OFF until enabled in the connection panel (owner: enabling a product and granting scopes are separate steps); tools refuse `product-disabled`, form delivery pauses (retryable adapter-unavailable, as G14).
+- H4 origins: apiOrigins = the two Google API origins the plugin calls; redirectOrigins = config placeholder list (TOVU_… names), empty → hosted sign-in refused with a configuration message (fail closed) instead of accepting any origin.
+- M2 CSV export: prefix `'` on text cells starting with = + - @ (OWASP CSV-injection guidance); documented as a fidelity trade-off.
+- M6 quotas: host budgets are the single limiter layer (plugin limiter layer removed); 'instance' = per Tovu site instance (not per workspace).
+- L6 BYO OAuth client: NOT deferrable — OWNER DECISIONS require it as an advanced option via existing secure credential capture → lot B4.
+Planned lots: B3 (Tovu generic: H1, M1, M3, M4, L5, L7 generic parts), B3p (plugin: H2, H4, M2, M5, M6, M7, L1–L4, L6, L7 fields=*), B4 (BYO client), then G13b (connection panel + Picker + destination panel).
