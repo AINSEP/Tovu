@@ -33,6 +33,13 @@ export const API_CONNECTION_OAUTH_CALLBACK_PATH = "/api/agent-plugins/connection
 
 export type ApiConnectionRuntime = "hosted" | "desktop";
 
+/**
+ * Host setting: the comma-separated site origins registered as hosted sign-in return addresses with
+ * the shared web clients (a placeholder the operator fills; never a secret). It adds to a
+ * connection's own `clients.web.redirectOrigins`; with neither, hosted sign-in is refused.
+ */
+export const API_CONNECTION_CALLBACK_ORIGINS_ENV = "TOVU_API_CONNECTION_CALLBACK_ORIGINS";
+
 export interface ApiConnectionHostDeps {
   readonly workspaceId: string;
   readonly loadContributions: LoadPluginContributions;
@@ -84,6 +91,12 @@ function resolveClient(connection: DeclaredApiConnection, runtime: ApiConnection
   return { clientKind, client: clientSecret ? { clientId, clientSecret, authMethod: "client_secret_post" } : { clientId, authMethod: "none" } };
 }
 
+/** Each listed entry's origin; an entry that is not a URL is dropped (it can match nothing). @complexity O(n). */
+function configuredOrigins(env: ApiConnectionHostDeps["env"]): string[] {
+  const listed = configured(env, API_CONNECTION_CALLBACK_ORIGINS_ENV)?.split(",") ?? [];
+  return listed.flatMap((entry) => URL.parse(entry.trim())?.origin ?? []);
+}
+
 function notConfigured(connection: DeclaredApiConnection, runtime: ApiConnectionRuntime, what: string): ApiConnectionError {
   return setupRefused(`${connection.descriptor.label} is not set up on this ${runtime === "desktop" ? "desktop app" : "site"}: its ${what} is not configured. Ask the operator to configure it, then retry.`);
 }
@@ -106,11 +119,18 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     return input.pluginId === undefined ? connections : connections.filter((connection) => connection.pluginId === input.pluginId);
   }
 
-  /** The hosted callback URL, refused when this site has no public origin or the shared client did not register it. */
+  /**
+   * The hosted callback URL. Fails closed: refused when no return address is registered at all
+   * (declared or configured), when this site has no public origin, or when its origin is not one of
+   * them, so an unregistered site gets this actionable refusal instead of the provider's error page.
+   */
   function hostedCallbackUrl({ connection }: { readonly connection: DeclaredApiConnection }): string {
     const origin = required.publicOrigin();
-    const allowed = connection.clients.web?.redirectOrigins;
-    if (!origin || (allowed && !allowed.includes(origin))) {
+    const allowed = [...(connection.clients.web?.redirectOrigins ?? []), ...configuredOrigins(required.env)];
+    if (allowed.length === 0) {
+      throw setupRefused(`${connection.descriptor.label} cannot sign in on this site yet: no registered sign-in return address is configured. Ask the operator to set ${API_CONNECTION_CALLBACK_ORIGINS_ENV} to this site's address, then retry.`);
+    }
+    if (!origin || !allowed.includes(origin)) {
       throw setupRefused(`${connection.descriptor.label} cannot sign in from this site's address. Use a registered address or configure your own sign-in client.`);
     }
     return `${origin}${API_CONNECTION_OAUTH_CALLBACK_PATH}`;

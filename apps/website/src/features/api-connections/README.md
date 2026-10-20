@@ -100,8 +100,11 @@ and puts it on `RouteDeps`:
 3. Runtime: desktop when the server runs under the desktop shell's Electron Node
    (`ELECTRON_RUN_AS_NODE=1`), hosted otherwise. Desktop's OAuth guard admits the plaintext
    `http://127.0.0.1` redirect (the transport still refuses private addresses). The hosted callback
-   origin is `TOVU_PUBLIC_URL`, else the listener origin; a provider client that lists
-   `redirectOrigins` refuses any other.
+   origin is `TOVU_PUBLIC_URL`, else the listener origin. Hosted sign-in fails closed: the origin
+   must be in `TOVU_API_CONNECTION_CALLBACK_ORIGINS` (comma-separated origins the operator
+   registered with the shared web clients; a placeholder, not a secret) or the client's own
+   `redirectOrigins`. With neither, every hosted sign-in (and token read) is refused with a
+   configuration message instead of the provider's redirect-mismatch page.
 
 Still owed: G14 wires `createOAuthFormDeliveryConnectionPort({ hostFor, adapterPluginId })` into the
 forms fan-out.

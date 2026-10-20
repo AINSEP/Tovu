@@ -34,7 +34,7 @@ function makeHost(clock: { nowMs(): number } = { nowMs: () => Date.now() }) {
   return createApiConnectionHost({
     workspaceId: "ws-1", loadContributions, vaultRepo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock, oauthHttp, pluginHttp: { fetch: noNetwork }, runtime: "hosted",
-    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24) },
+    env: { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_API_CONNECTION_CALLBACK_ORIGINS: "https://site.example" },
     publicOrigin: () => "https://site.example",
   });
 }

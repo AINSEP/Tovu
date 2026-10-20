@@ -131,7 +131,7 @@ const loadContributions: LoadPluginContributions = (input) => loadPluginContribu
 const PUBLIC_URL = "https://site.acme-test.invalid";
 const previousPublicUrl = process.env.TOVU_PUBLIC_URL;
 
-async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL }) {
+async function compose(env: Record<string, string> = { TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL }) {
   const keyring = new InMemoryKeyring({ hkdfSalt: "agent-plugin-connections-slice" });
   const vaultRepo = new InMemoryVaultRepo({});
   const composition = composeAgentPluginConnections({
@@ -207,7 +207,7 @@ test("vertical slice: connect -> public callback -> executable tool call -> admi
 });
 
 test("vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it", async () => {
-  const composition = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_ACME_CHOOSER_APP_ID: "app-123" });
+  const composition = await compose({ TOVU_ACME_OAUTH_WEB_CLIENT_ID: "acme-web-client", TOVU_ACME_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_PUBLIC_URL: PUBLIC_URL, TOVU_API_CONNECTION_CALLBACK_ORIGINS: PUBLIC_URL, TOVU_ACME_CHOOSER_APP_ID: "app-123" });
   await connectForRef(composition);
   const context = { workspaceId: WORKSPACE, principalId: "admin-1", pluginId: PLUGIN, surfaceId: "account" };
   await composition.adminSurfaceHost.bootstrapData({ context });

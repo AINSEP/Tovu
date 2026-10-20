@@ -91,7 +91,8 @@ function makeHost(workspaceId = "ws-1", options: { readonly runtime?: "hosted" |
   return createApiConnectionHost({
     workspaceId, loadContributions, vaultRepo: options.vaultRepo ?? new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }),
     clock: { nowMs: () => Date.now() }, oauthHttp, pluginHttp, runtime: options.runtime ?? "hosted",
-    env: options.env ?? hostedEnv,
+    // Read when a sign-in starts: `mountCallback` moves the site to a new port per test.
+    env: options.env ?? { ...hostedEnv, get TOVU_API_CONNECTION_CALLBACK_ORIGINS() { return siteOrigin; } },
     publicOrigin: options.publicOrigin ?? (() => siteOrigin),
   });
 }
@@ -191,15 +192,32 @@ test("security (pin): hosted sign-in is refused when this site has no public ori
 });
 
 test("security (pin): hosted sign-in is refused from an origin the connection's web client did not register", async () => {
-  const host = makeHost();
+  const host = makeHost("ws-1", { env: hostedEnv });
   const connection = await withRedirectOrigins(host, ["https://other.example"]);
   assert.throws(() => host.hostedCallbackUrl({ connection }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
 });
 
 test("security (pin): a registered origin gets the fixed public callback path", async () => {
-  const host = makeHost();
+  const host = makeHost("ws-1", { env: hostedEnv });
   const connection = await withRedirectOrigins(host, [siteOrigin]);
   assert.equal(host.hostedCallbackUrl({ connection }), `${siteOrigin}/api/agent-plugins/connections/oauth/callback`);
+});
+
+test("security: hosted sign-in fails closed when no callback origin is declared or configured", async () => {
+  const host = makeHost("ws-1", { env: hostedEnv });
+  const connection = await withRedirectOrigins(host, undefined);
+  assert.throws(() => host.hostedCallbackUrl({ connection }), {
+    code: "descriptor-invalid", message: /no registered sign-in return address is configured.*TOVU_API_CONNECTION_CALLBACK_ORIGINS/,
+  });
+});
+
+test("security: the configured callback-origin list admits only the origins it names", async () => {
+  const connectionOf = (host: ReturnType<typeof makeHost>) => withRedirectOrigins(host, undefined);
+  const listed = makeHost("ws-1", { env: { ...hostedEnv, TOVU_API_CONNECTION_CALLBACK_ORIGINS: ` https://other.example , ${siteOrigin}/ ` } });
+  assert.equal(listed.hostedCallbackUrl({ connection: await connectionOf(listed) }), `${siteOrigin}/api/agent-plugins/connections/oauth/callback`);
+  const elsewhere = makeHost("ws-1", { env: { ...hostedEnv, TOVU_API_CONNECTION_CALLBACK_ORIGINS: "https://other.example,not a url" } });
+  const unlisted = await connectionOf(elsewhere);
+  assert.throws(() => elsewhere.hostedCallbackUrl({ connection: unlisted }), { code: "descriptor-invalid", message: /cannot sign in from this site's address/ });
 });
 
 test("security: an attempt is consumed once even when two callbacks race on the same state", async () => {
