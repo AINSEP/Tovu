@@ -11,7 +11,9 @@
  * - a failure becomes a safe {@link GoogleWorkspaceError} (code, `retryable`, `retryAfterMs`,
  *   `outcome`, next action); Google's message text is dropped because it can echo sheet contents;
  * - only retryable failures are retried, with jittered backoff that honours Retry-After, and a
- *   non-idempotent write whose outcome is unknown is never replayed.
+ *   non-idempotent write whose outcome is unknown is never replayed;
+ * - a 401 is tried once more at once with a freshly read token (the token can expire between the
+ *   host's freshness check and Google's); only a second 401 becomes `reconnect-required`.
  * Redirects, HTTPS-only and response-size bounds are enforced by the host's guarded HTTP capability.
  */
 import { GoogleWorkspaceError, backoffMs, capRetryAfterMs, classifyFailure, shouldRetryInline } from './request-policy.mjs';
@@ -34,9 +36,9 @@ function hostRetryAfter(cause) {
 
 /**
  * A fresh access token from the host, read right before the request that uses it. A host refusal
- * becomes the matching safe error (`invalid_grant` surfaces here as `reconnect-required`, and
- * nothing undelivered is dropped); any other host error passes through unchanged, since host
- * errors never carry secrets.
+ * becomes the matching safe error (`invalid_grant` surfaces here as `reconnect-required`; a form
+ * delivery then fails at once and stays listed as failed); any other host error passes through
+ * unchanged, since host errors never carry secrets.
  * @complexity O(1) plus the host's token read.
  */
 export async function accessTokenFor(required, _optional = {}) {
@@ -94,7 +96,7 @@ async function readResponse(response, kind) {
  * Creates the client over the host capabilities a module received.
  * @param {{ http: { fetch(target: { url: string }, init?: RequestInit): Promise<Response> }, connections: { getAccessToken(input: { connectionRef: string }): Promise<string> } }} required
  * @param {{ sleep?: (ms: number) => Promise<void>, random?: () => number }} [optional]
- * @complexity O(attempts); each attempt is one token read (where the host charges its budgets) and one request.
+ * @complexity O(attempts); each attempt is one token read (where the host charges its budgets) and one request (two after a 401).
  */
 export function createGoogleClient(required, optional = {}) {
   const { http, connections } = required;
@@ -124,7 +126,16 @@ export function createGoogleClient(required, optional = {}) {
       if (signal?.aborted) throw cause;
       return { ok: false, error: classifyFailure({ kind: request.kind, cause }) };
     }
-    return readResponse(response, request.kind);
+    return { ...(await readResponse(response, request.kind)), unauthorized: response.status === 401 };
+  }
+
+  /**
+   * One attempt, and one more with a fresh token read when Google answered 401. Google refused a
+   * 401 before acting, so even a `write` is safe to send again; a second 401 is final.
+   */
+  async function attemptWithFreshToken(request, signal) {
+    const first = await attemptOnce(request, signal);
+    return first.unauthorized ? attemptOnce(request, signal) : first;
   }
 
   return {
@@ -135,7 +146,7 @@ export function createGoogleClient(required, optional = {}) {
      */
     async request(request, options = {}) {
       for (let attempt = 0; ; attempt += 1) {
-        const result = await attemptOnce(request, options.signal);
+        const result = await attemptWithFreshToken(request, options.signal);
         if (result.ok) return result.value;
         const delayMs = backoffMs({ attempt, retryAfterMs: result.error.retryAfterMs }, optional.random ? { random: optional.random } : {});
         if (!shouldRetryInline({ error: result.error, attempt, delayMs })) throw result.error;

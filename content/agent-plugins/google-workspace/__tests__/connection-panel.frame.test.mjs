@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 
-import { REVOCATION_PENDING_TEXT } from '../ui/connection-view.mjs';
+import { DISCONNECT_CONFIRM_TEXT, REVOCATION_PENDING_TEXT } from '../ui/connection-view.mjs';
 import {
   HOST_ORIGIN, MARKUP, MOUNT_ID, button, buttonLabels, createFrame, declaredActions, flush, refusal, screenText,
 } from './frame-harness.mjs';
@@ -143,8 +143,10 @@ test('Disconnect and revoke: a confirmed revocation reads as confirmed', async (
   await openPanel(panelView());
   frame.respond.set('disconnect', () => panelView({ connection: { status: 'disconnected', grantedProducts: [], accountLabel: undefined }, revocation: 'confirmed' }));
   button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   assert.deepEqual(frame.requests().at(-1), { action: 'disconnect', payload: {} });
+  assert.equal(frame.document.querySelector('.confirm'), null);
   assert.equal(notice(frame).className, 'notice ok');
   assert.equal(notice(frame).textContent, 'Disconnected. Google confirmed that Tovu\'s access to the account was removed.');
 });
@@ -153,12 +155,30 @@ test('Disconnect and revoke: a pending revocation never reads as revoked, and of
   await openPanel(panelView());
   frame.respond.set('disconnect', () => panelView({ connection: { status: 'revocation-pending', grantedProducts: [], accountLabel: undefined }, revocation: 'pending' }));
   button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   assert.equal(notice(frame).className, 'notice');
   assert.ok(notice(frame).textContent.startsWith(`${REVOCATION_PENDING_TEXT}.`));
   assert.equal(frame.document.getElementById('account-heading').textContent, REVOCATION_PENDING_TEXT);
   assert.deepEqual(buttonLabels(frame).slice(0, 3), ['Retry Google revocation', 'Connect again', 'Open Google Account page']);
   assert.equal(frame.document.querySelector('.url').textContent, ACCOUNT_ACCESS);
+});
+
+test('Disconnect and revoke asks first inside the panel and sends nothing until confirmed', async () => {
+  await openPanel(panelView());
+  button(frame, 'Disconnect and revoke').click();
+  await flush();
+  assert.equal(frame.document.querySelector('.confirm p').textContent, DISCONNECT_CONFIRM_TEXT);
+  assert.deepEqual(frame.requests().map((request) => request.action), ['status']);
+});
+
+test('Cancel on the disconnect question removes it and sends nothing', async () => {
+  await openPanel(panelView());
+  button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Cancel').click();
+  await flush();
+  assert.equal(frame.document.querySelector('.confirm'), null);
+  assert.deepEqual(frame.requests().map((request) => request.action), ['status']);
 });
 
 test('Retry Google revocation sends disconnect again', async () => {
@@ -195,25 +215,51 @@ test('a staged switch names the new account and lists the form destinations that
     destinations: [{ formSlug: 'contact', title: 'Leads', tabTitle: 'Contact' }],
   }));
   assert.equal(frame.document.getElementById('account-heading').textContent, 'Switch to Bob?');
-  assert.deepEqual([...frame.document.querySelectorAll('section li')].map((item) => item.textContent).slice(0, 1), ['contact: Leads / Contact']);
+  const boxes = [...frame.document.querySelectorAll('input[name="reassign"]')];
+  assert.deepEqual(boxes.map((box) => [box.value, box.checked, box.closest('label').textContent]), [['contact', false, 'contact: Leads / Contact']]);
+});
+
+test('confirming a switch sends only the ticked destinations, then says what moved, what did not and what kept the old account', async () => {
+  await openPanel(panelView({
+    connection: { pendingSwitchAccountLabel: 'Bob' },
+    destinations: [{ formSlug: 'contact', title: 'Leads', tabTitle: 'Contact' }, { formSlug: 'signup', title: 'Leads', tabTitle: 'Signup' }, { formSlug: 'survey', title: 'Polls', tabTitle: 'Survey' }],
+  }));
+  frame.respond.set('confirm-switch', () => ({ ...panelView({ connection: { accountLabel: 'Bob' } }), reassignment: { moved: ['contact'], failed: [{ formSlug: 'signup', code: 'file-not-granted', message: 'Tovu cannot open this file.' }] } }));
+  const [contact, signup] = frame.document.querySelectorAll('input[name="reassign"]');
+  contact.checked = true;
+  signup.checked = true;
+  button(frame, 'Use Bob').click();
+  await flush();
+  assert.deepEqual(frame.requests().at(-1), { action: 'confirm-switch', payload: { reassign: ['contact', 'signup'] } });
+  assert.equal(notice(frame).textContent, 'Switched account. Now delivering as the new account: contact. Not moved, signup: Tovu cannot open this file. Still using the old account (deliveries fail until you choose the spreadsheet again in Form destinations): signup, survey.');
+  assert.equal(notice(frame).className, 'notice');
+});
+
+test('a switch where every ticked destination moved reads as a success', async () => {
+  await openPanel(panelView({ connection: { pendingSwitchAccountLabel: 'Bob' }, destinations: [{ formSlug: 'contact', title: 'Leads', tabTitle: 'Contact' }] }));
+  frame.respond.set('confirm-switch', () => ({ ...panelView({ connection: { accountLabel: 'Bob' } }), reassignment: { moved: ['contact'], failed: [] } }));
+  frame.document.querySelector('input[name="reassign"]').checked = true;
+  button(frame, 'Use Bob').click();
+  await flush();
+  assert.deepEqual([notice(frame).textContent, notice(frame).className], ['Switched account. Now delivering as the new account: contact.', 'notice ok']);
 });
 
 test('a staged switch with no form destinations shows no destination list', async () => {
   await openPanel(panelView({ connection: { pendingSwitchAccountLabel: 'Bob' }, products: [] }));
-  assert.equal(frame.document.querySelectorAll('li').length, 0);
+  assert.equal(frame.document.querySelectorAll('li, fieldset').length, 0);
 });
 
 test('a destination list is shown only while a switch is staged', async () => {
   await openPanel(panelView({ destinations: [{ formSlug: 'contact', title: 'Leads', tabTitle: 'Contact' }], products: [] }));
-  assert.equal(frame.document.querySelectorAll('li').length, 0);
+  assert.equal(frame.document.querySelectorAll('li, fieldset').length, 0);
 });
 
 test('Use <account> confirms the staged switch and shows the result', async () => {
   await openPanel(panelView({ connection: { pendingSwitchAccountLabel: 'Bob' } }));
-  frame.respond.set('confirm-switch', () => panelView({ connection: { accountLabel: 'Bob' } }));
+  frame.respond.set('confirm-switch', () => ({ ...panelView({ connection: { accountLabel: 'Bob' } }), reassignment: { moved: [], failed: [] } }));
   button(frame, 'Use Bob').click();
   await flush();
-  assert.deepEqual(frame.requests().at(-1), { action: 'confirm-switch', payload: {} });
+  assert.deepEqual(frame.requests().at(-1), { action: 'confirm-switch', payload: { reassign: [] } });
   assert.equal(frame.document.getElementById('account-heading').textContent, 'Connected as Bob');
 });
 
@@ -250,9 +296,10 @@ test('a refused action shows the host sentence above the last panel view', async
 test('while an action is in flight every button is disabled, so a second click sends nothing', async () => {
   await openPanel(panelView());
   button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   const disabled = [...frame.document.querySelectorAll('button')].map((control) => control.disabled);
-  button(frame, 'Disconnect and revoke').click();
+  button(frame, 'Yes, disconnect and revoke').click();
   await flush();
   assert.equal(disabled.every(Boolean), true);
   assert.deepEqual(frame.requests().map((request) => request.action), ['status', 'disconnect']);
@@ -272,6 +319,7 @@ test('security: everything the panel posts is a declared connection action or a 
   await openPanel(panelView({ connection: { pendingSwitchAccountLabel: 'Bob' } }));
   const view = panelView({ connection: { status: 'revocation-pending', grantedProducts: [], accountLabel: undefined }, products: [{ id: 'sheets', label: 'Google Sheets', enabled: true, granted: false }], revocation: 'pending' });
   for (const action of ['status', 'confirm-switch', 'cancel-switch', 'disconnect', 'set-product']) frame.respond.set(action, () => view);
+  frame.respond.set('confirm-switch', () => ({ ...view, reassignment: { moved: [], failed: [] } }));
   frame.respond.set('sign-in', () => ({ expiresAt: new Date(NOW).toISOString() }));
   frame.respond.set('open-link', () => null);
   for (const label of ['Use Bob', 'Retry Google revocation', 'Turn Google Sheets off', 'Connect again', 'Open Google Account page']) {

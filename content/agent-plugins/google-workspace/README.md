@@ -46,7 +46,10 @@ digest at seed time, which the executable trust gate checks before any module lo
 - Errors carry a fixed message per code, never Google's text (it echoes ranges and values).
 - `kind: 'write'` (append, create, copy) with an unknown outcome is `uncertain-outcome` and never
   retried; reads and idempotent writes retry with jittered backoff that honours Retry-After.
-- Revocation is confirmed only by Google's 200.
+- Revocation is confirmed only by Google's 200 (or `invalid_token`: already revoked); a failed
+  revoke throws `provider-unreachable` or `provider-refused` for the host to record.
+- A 401 is sent once more at once with a freshly read token (an access token can expire in
+  flight); only a second 401 is `reconnect-required`. Tools and form delivery share this.
 - The budgets declared in `tovu-connections.json` (45/min per account, 240/min per instance) are
   charged by the host on every token read; its refusal (`rate-limited`) becomes `quota-delay` with
   the host's `retryAfterMs` and `outcome: 'not-applied'`, and follows the same inline backoff rules
@@ -67,6 +70,15 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
 
 ## Known gaps
 
+- Duplicate submission ids found in a tab are delivered as `ok` with a "review" note in
+  `reference`, which the forms ledger drops; the contract has no reviewable success outcome, so
+  no person sees it yet (Jini contract change needed for a distinct outcome).
+- Form-delivery retry window: product-off (`adapter-unavailable`) and quota (`rate-limited`)
+  refusals are retried within the site's forms retry policy (about 8 attempts over about a day),
+  then the job fails; authorization failures (`authorization-required`) fail at once and stay as
+  failed jobs, with no automatic re-send after a reconnect. Owner decision pending on longer holds
+  (for example a `paused` outcome resumed by turning the product on or reconnecting).
+
 - Products are read from the plugin's settings and default to OFF; the connection panel writes them,
   and the host hands form delivery the same settings (read-only) as `optional.state`.
 - The Form destinations panel saves each form's choice as the form's delivery binding through the
@@ -84,8 +96,13 @@ under its own prefix, and its modules under `products/<id>/`, all on the same si
   stays visible as text.
 - Quotas: the per-account (45/min) and per-instance (240/min) budgets declared in
   `tovu-connections.json` are implemented by the host and charged on every token read; there is no
-  plugin-side limiter. Form delivery is charged once per delivery until it reads a token per
-  request (G14b).
+  plugin-side limiter. Form delivery reads a token per Google request (`credential.getAccessToken`),
+  so it is charged per request like the tools.
+- Hosted Picker sessions are kept one per surface (`picker-session:<surfaceId>`), not per tab or
+  admin: opening the same panel in a second tab (or by a second admin) starts a new session and
+  the first tab's pick is refused as `picker-expired`. Documented in
+  `skills/google-workspace/references/troubleshooting.md`; not changed (a pick only needs one
+  open panel).
 
 ## Sheets admin tools (`tools/sheets-admin/`, lot G12)
 

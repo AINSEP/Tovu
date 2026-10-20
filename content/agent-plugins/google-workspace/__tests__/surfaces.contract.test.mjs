@@ -48,9 +48,108 @@ test('connection: the status lists the form destinations a switch would affect, 
 test('connection: confirm-switch asks the host to confirm and answers with the new account', async () => {
   const { ports, surfaces } = await boot();
   ports.connection.pendingSwitchAccountLabel = 'Bob';
-  const outcome = await surfaces.dispatch('connection', 'confirm-switch');
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: [] });
   assert.equal(ports.calls.confirmSwitch, 1);
   assert.deepEqual(outcome.result.connection, { status: 'connected', grantedProducts: ['sheets'], accountLabel: 'Bob' });
+});
+
+test('connection: confirm-switch with nothing ticked moves no destination and sends nothing to Google', async () => {
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact'));
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: [] });
+  assert.deepEqual(outcome.result.reassignment, { moved: [], failed: [] });
+  assert.deepEqual([ports.bindings[0].config.accountId, fake.requests.length], ['perm-alice', 0]);
+});
+
+test('connection: a ticked destination is checked with the new account, then saved with its account id; an unticked one keeps the old account', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact', { title: 'Old title' }), destinationBinding('signup'));
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact'] });
+  assert.deepEqual(outcome.result.reassignment, { moved: ['contact'], failed: [] });
+  assert.deepEqual(ports.bindings.map((binding) => [binding.bindingId, binding.config.accountId, binding.config.title]), [['binding-contact', 'perm-bob', 'Leads'], ['binding-signup', 'perm-alice', 'Leads']]);
+  assert.deepEqual(ports.bindings[0].config.tabs, { contact: { sheetId: 7 } });
+  assert.deepEqual(fake.requests.map((request) => request.path), ['/drive/v3/about', `/drive/v3/files/${FILE_ID}`, `/v4/spreadsheets/${FILE_ID}`]);
+});
+
+test('connection: a destination ticked twice is moved once', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact'));
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact', 'contact'] });
+  assert.deepEqual(outcome.result.reassignment, { moved: ['contact'], failed: [] });
+});
+
+test('connection: a ticked destination the new account cannot open is listed with the plugin message and left unchanged', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob', fileStatus: 404 });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact'));
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact'] });
+  assert.equal(outcome.ok, true);
+  assert.deepEqual(outcome.result.reassignment.failed.map((entry) => [entry.formSlug, entry.code]), [['contact', 'file-not-granted']]);
+  assert.equal(outcome.result.reassignment.failed[0].message.includes(FILE_ID), false);
+  assert.deepEqual(ports.bindings[0], destinationBinding('contact'));
+});
+
+test('connection: a ticked form with no saved destination is listed as destination-not-found', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['signup'] });
+  assert.deepEqual(outcome.result.reassignment, { moved: [], failed: [{ formSlug: 'signup', code: 'destination-not-found', message: 'This form destination is no longer saved. Reload the panel and check Form destinations.' }] });
+});
+
+test('connection: when the new account cannot be read every ticked destination is listed and none moves', async () => {
+  const { ports, surfaces } = await boot();
+  ports.state.set('products', { sheets: false });
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact'), destinationBinding('signup'));
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact', 'signup'] });
+  assert.deepEqual(outcome.result.reassignment.failed.map((entry) => [entry.formSlug, entry.code]), [['contact', 'product-disabled'], ['signup', 'product-disabled']]);
+  assert.deepEqual([ports.bindings.map((binding) => binding.config.accountId), fake.requests.length], [['perm-alice', 'perm-alice'], 0]);
+});
+
+test('connection: a host failure while saving a moved destination is listed with the fixed sentence, never the host text', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact'));
+  ports.deliveryBindings.save = async () => { throw new Error('settings row /srv/data/settings.db locked'); };
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact'] });
+  assert.deepEqual(outcome.result.reassignment.failed, [{ formSlug: 'contact', code: 'reassign-failed', message: 'Tovu could not check this spreadsheet with the new account. Choose its spreadsheet again in Form destinations.' }]);
+});
+
+test('security: a stored destination whose spreadsheet id is not a Drive id is refused before any request names it', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  ports.bindings.push(destinationBinding('contact', { spreadsheetId: '../../drive/v3/about' }));
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact'] });
+  assert.deepEqual(outcome.result.reassignment.failed.map((entry) => entry.code), ['invalid-selection']);
+  assert.deepEqual(fake.requests.map((request) => request.path), ['/drive/v3/about']);
+  assert.equal(ports.bindings[0].config.accountId, 'perm-alice');
+});
+
+test('security: confirm-switch without an explicit reassign choice is refused by the schema and nothing is confirmed', async () => {
+  const { ports, surfaces } = await boot();
+  ports.connection.pendingSwitchAccountLabel = 'Bob';
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch');
+  assert.deepEqual([outcome.ok, outcome.error.code], [false, 'invalid-payload']);
+  assert.equal(ports.calls.confirmSwitch, 0);
+});
+
+test('security: a refused switch moves no destination', async () => {
+  serveGoogle(fake, { accountId: 'perm-bob' });
+  const { ports, surfaces } = await boot();
+  ports.bindings.push(destinationBinding('contact'));
+  ports.connections.confirmSwitch = async () => { throw Object.assign(new Error('No account switch is waiting.'), { code: 'no-pending-switch' }); };
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: ['contact'] });
+  assert.equal(outcome.error.code, 'no-pending-switch');
+  assert.deepEqual([ports.bindings[0].config.accountId, fake.requests.length], ['perm-alice', 0]);
 });
 
 test('connection: cancel-switch asks the host to cancel and keeps the current account', async () => {
@@ -64,7 +163,7 @@ test('connection: cancel-switch asks the host to cancel and keeps the current ac
 test('connection: a host refusal of confirm-switch reaches the panel with its code and message', async () => {
   const { ports, surfaces } = await boot();
   ports.connections.confirmSwitch = async () => { throw Object.assign(new Error('No account switch is waiting.'), { code: 'no-pending-switch' }); };
-  const outcome = await surfaces.dispatch('connection', 'confirm-switch');
+  const outcome = await surfaces.dispatch('connection', 'confirm-switch', { reassign: [] });
   assert.deepEqual([outcome.ok, outcome.error.code, outcome.error.message], [false, 'no-pending-switch', 'No account switch is waiting.']);
 });
 

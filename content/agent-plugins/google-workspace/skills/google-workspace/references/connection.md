@@ -23,9 +23,10 @@ granting its permissions. Sheets needs only `drive.file`, which the first sign-i
   sends nothing to Google. Tell the person to enable Sheets there; you cannot turn it on from chat.
   Checking which account is connected (`account_info`) works while every product is off.
 - Turning a product **off** stops its tools at once (even a call that is part way through stops
-  before its next request to Google) and pauses its form deliveries: submissions stay saved in Tovu
-  and are delivered after it is turned on again. It does **not** sign the account out or revoke
-  anything at Google.
+  before its next request to Google). Its form deliveries are retried for about a day (about 8
+  attempts) and then marked failed; submissions stay saved in Tovu, but a delivery that already
+  failed is not sent again when the product is turned back on. It does **not** sign the account
+  out or revoke anything at Google.
 - On the **desktop app**, adding a product that needs a new permission means signing in again and
   approving the full list (installed apps cannot add permissions one at a time).
 - On a **hosted site**, Google adds the new permission to the existing ones.
@@ -48,11 +49,18 @@ The panels cannot open links themselves: when a sign-in starts, the admin page s
 - **Reconnect** - sign in again with the same account. The connection, its spreadsheets and its
   form bindings stay as they are. Use it when Tovu says "Reconnect required".
 - **Switch account** - sign in with a different Google account. The panel shows the new account and
-  nothing changes until the person confirms it (or keeps the current one). The panel cannot list
-  Tovu's form bindings, so after the switch the person reviews each form in the **Form destinations**
-  tab: a spreadsheet chosen with the old account is marked, and they choose it again if the new
-  account cannot open it. Jobs that were already queued keep the account they were created with.
-- **Disconnect** - Tovu stops using the account at once, then asks Google to revoke its access.
+  nothing changes until the person confirms it (or keeps the current one). While the switch waits,
+  the panel lists the plugin's form destinations, each with an unticked box. Only the ones the
+  person ticks move to the new account, and each moves only after Tovu checked that the new account
+  can open its spreadsheet; the panel then lists what moved and what did not (and why).
+  - A destination left unticked, or one the new account could not open, keeps the old account. Its
+    deliveries fail with `authorization-required` ("Reconnect required") until the person chooses
+    its spreadsheet again in the **Form destinations** tab with the new account.
+  - Deliveries that were already queued keep the account they were created with, so after a switch
+    they fail; they are not sent again automatically.
+  - The Google Workspace tools act as the new account at once.
+- **Disconnect** - the panel first asks "Disconnect and revoke?" (it cannot be undone at Google);
+  after the person confirms, Tovu stops using the account at once, then asks Google to revoke its access.
   - If Google confirms, the saved sign-in is deleted.
   - If Google does not answer or refuses, Tovu shows **"Disconnected locally; Google revocation
     pending"**. Tovu no longer uses the account, keeps the switched-off sign-in only so it can retry,

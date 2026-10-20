@@ -380,7 +380,9 @@ test('switch: a staged switch names the new account and offers confirm/cancel on
   assert.equal(summary.heading, 'Switch to bob@example.test?');
   assert.deepEqual(summary.buttons.map((entry) => entry.action), ['confirm-switch', 'cancel-switch']);
   assert.match(summary.detail, /Nothing changes until you confirm/);
-  assert.match(summary.detail, /cannot see which form bindings use this sign-in/);
+  assert.match(summary.detail, /Form destinations stay with the account their spreadsheet was chosen with/);
+  assert.match(summary.detail, /keeps the old account: its deliveries fail with "Reconnect required"/);
+  assert.equal(/act as the new account, which may/.test(summary.detail), false);
 });
 
 test('failures: a host error without a safe code reaches the frame only as the generic action-failed, never its text', async () => {

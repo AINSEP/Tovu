@@ -52,6 +52,28 @@ function scripted(required, optional = {}) {
 const read = (client, optional = {}) => client.request({ connectionRef: 'conn-1', url: URL_UNDER_TEST, kind: 'read' }, optional);
 const write = (client) => client.request({ connectionRef: 'conn-1', url: URL_UNDER_TEST, method: 'POST', kind: 'write', body: { a: 1 } });
 
+test('client: a single 401 is sent again at once with a freshly read token, then succeeds', async () => {
+  const tokens = ['expired-in-flight', 'fresh'];
+  const fetches = [];
+  const http = { async fetch(target, init) { fetches.push(init.headers.authorization); return new Response(fetches.length === 1 ? '' : '{"ok":true}', { status: fetches.length === 1 ? 401 : 200 }); } };
+  const sleeps = [];
+  const client = createGoogleClient({ http, connections: { getAccessToken: async () => tokens.shift() } }, { sleep: async (ms) => { sleeps.push(ms); } });
+  assert.deepEqual(await read(client), { ok: true });
+  assert.deepEqual([fetches, sleeps], [['Bearer expired-in-flight', 'Bearer fresh'], []]);
+});
+
+test('client: a 401 on a write is sent again once (Google refused it before acting)', async () => {
+  const { client, fetches } = scripted({ answers: [{ status: 401 }, { status: 200, text: '{}' }] });
+  assert.deepEqual(await write(client), {});
+  assert.equal(fetches.length, 2);
+});
+
+test('client: a second 401 is reconnect-required, not-applied, with no further retry', async () => {
+  const { client, fetches, sleeps } = scripted({ answers: [{ status: 401 }] });
+  await assert.rejects(read(client), (error) => error instanceof GoogleWorkspaceError && error.code === 'reconnect-required' && error.outcome === 'not-applied');
+  assert.deepEqual([fetches.length, sleeps], [2, []]);
+});
+
 test('client: an empty 2xx body resolves to null', async () => {
   const { client } = scripted({ answers: [{ status: 200, text: '' }] });
   assert.equal(await read(client), null);

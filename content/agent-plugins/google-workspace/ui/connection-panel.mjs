@@ -9,13 +9,15 @@
  * its link expires. The Google Account page (to remove access by hand while a revocation is
  * pending) is opened the same way, through the surface client's `openLink`.
  */
-import { connectionSummary, productRows, revocationMessage } from './connection-view.mjs';
+import { DISCONNECT_CONFIRM_TEXT, REASSIGN_HINT, connectionSummary, productRows, reassignmentMessage, revocationMessage } from './connection-view.mjs';
 import { busy, connectToHost, failureText, h, show, wait } from './dom.mjs';
 
 const POLL_MS = 4000;
 let client;
 let app;
 let notice = null;
+/** True while the panel asks "Disconnect and revoke?"; the revocation is sent only from that step. */
+let confirmingDisconnect = false;
 
 const call = (action, payload = {}) => client.call({ action, payload });
 
@@ -51,12 +53,35 @@ function onAction(action, view) {
     render(view);
     await followSignIn(view, started.expiresAt);
   });
-  if (action === 'disconnect' || action === 'retry-revocation') return run(async () => {
+  if (action === 'disconnect') { confirmingDisconnect = true; notice = null; return render(view); }
+  if (action === 'confirm-disconnect' || action === 'retry-revocation') return run(async () => {
+    confirmingDisconnect = false;
     const result = await call('disconnect');
     notice = { text: revocationMessage({ revocation: result.revocation }), ok: result.revocation === 'confirmed' };
     render(result);
   });
+  if (action === 'confirm-switch') return run(async () => {
+    const result = await call('confirm-switch', { reassign: tickedDestinations() });
+    notice = { text: reassignmentMessage({ reassignment: result.reassignment, destinations: view.destinations }), ok: result.reassignment.failed.length === 0 };
+    render(result);
+  });
   return run(async () => { notice = null; render(await call(action)); });
+}
+
+/** The form slugs whose "move to the new account" box is ticked right now. */
+function tickedDestinations() {
+  return [...app.querySelectorAll('input[name="reassign"]')].filter((box) => box.checked).map((box) => box.value);
+}
+
+/** One unticked checkbox per destination while a switch is staged: moving one is always a choice. */
+function reassignList(destinations) {
+  return h('fieldset', { class: 'list' }, [
+    h('legend', {}, [REASSIGN_HINT]),
+    ...destinations.map((entry) => h('label', { class: 'check' }, [
+      h('input', { type: 'checkbox', name: 'reassign', value: entry.formSlug }),
+      `${entry.formSlug}: ${entry.title} / ${entry.tabTitle}`,
+    ])),
+  ]);
 }
 
 /**
@@ -71,14 +96,27 @@ function accountAccessLink(url) {
   ]);
 }
 
+/** The second step of "Disconnect and revoke": nothing is sent until the person confirms here. */
+function disconnectConfirmation(view) {
+  const cancel = () => { confirmingDisconnect = false; render(view); };
+  return h('div', { class: 'confirm', role: 'group', 'aria-label': 'Confirm disconnect' }, [
+    h('p', {}, [DISCONNECT_CONFIRM_TEXT]),
+    h('div', { class: 'actions' }, [
+      h('button', { type: 'button', class: 'primary', onClick: () => onAction('confirm-disconnect', view) }, ['Yes, disconnect and revoke']),
+      h('button', { type: 'button', onClick: cancel }, ['Cancel']),
+    ]),
+  ]);
+}
+
 function connectionCard(view) {
   const summary = connectionSummary({ connection: view.connection });
   const switching = Boolean(view.connection.pendingSwitchAccountLabel);
   return h('section', { class: 'card', 'aria-labelledby': 'account-heading' }, [
     h('h2', { id: 'account-heading' }, [summary.heading]),
     h('p', { class: 'muted' }, [summary.detail]),
-    switching && view.destinations.length > 0 ? h('ul', { class: 'list' }, view.destinations.map((entry) => h('li', {}, [`${entry.formSlug}: ${entry.title} / ${entry.tabTitle}`]))) : null,
+    switching && view.destinations.length > 0 ? reassignList(view.destinations) : null,
     h('div', { class: 'actions' }, summary.buttons.map((entry, index) => h('button', { type: 'button', class: index === 0 ? 'primary' : undefined, onClick: () => onAction(entry.action, view) }, [entry.label]))),
+    confirmingDisconnect ? disconnectConfirmation(view) : null,
     view.connection.status === 'revocation-pending' ? accountAccessLink(view.accountAccessUrl) : null,
   ]);
 }
@@ -121,6 +159,7 @@ export function initConnectionPanel(required) {
   client = connectToHost({ window: required.window });
   app = required.document.getElementById('app');
   notice = null;
+  confirmingDisconnect = false;
   lastView = null;
   client.ready.then(() => call('status')).then(render, (error) => { notice = { text: failureText(error) }; render(null); });
 }

@@ -286,14 +286,10 @@ const CONTRACTS = [
     { spreadsheetId: SHEET, range: { sheetId: 0, startRowIndex: 1 }, sortSpecs: [{ dimensionIndex: 2, sortOrder: 'DESCENDING' }] }, [['POST', `${BASE}:batchUpdate`, { replies: [{}] }]],
     [batchUpdate([{ sortRange: { range: { sheetId: 0, startRowIndex: 1 }, sortSpecs: [{ dimensionIndex: 2, sortOrder: 'DESCENDING' }] } }])],
     { sorted: { sheetId: 0, startRowIndex: 1 }, sortSpecs: [{ dimensionIndex: 2, sortOrder: 'DESCENDING' }] }],
-  ['sheets_basic_filter get reads only tab ids and basic filters and returns the named tab\'s filter', 'sheets_basic_filter',
-    { spreadsheetId: SHEET, action: 'get', sheetId: 3 }, [['GET', BASE, { sheets: [{ properties: { sheetId: 0 } }, { properties: { sheetId: 3 }, basicFilter: { range: { sheetId: 3 } } }] }]],
-    [{ method: 'GET', host: SHEETS_HOST, path: BASE, query: { fields: ['sheets(properties(sheetId),basicFilter)'] }, body: undefined }],
-    { action: 'get', sheetId: 3, filter: { range: { sheetId: 3 } } }],
-  ['sheets_basic_filter get of a tab with no filter returns filter: null', 'sheets_basic_filter',
-    { spreadsheetId: SHEET, action: 'get', sheetId: 0 }, [['GET', BASE, { sheets: [{ properties: { sheetId: 0 } }] }]],
-    [{ method: 'GET', host: SHEETS_HOST, path: BASE, query: { fields: ['sheets(properties(sheetId),basicFilter)'] }, body: undefined }],
-    { action: 'get', sheetId: 0, filter: null }],
+  ['sheets_get with the basic-filter mask reads tab filters (the read the write-only sheets_basic_filter points to)', 'sheets_get',
+    { spreadsheetId: SHEET, fields: 'sheets(properties(sheetId),basicFilter)' }, [['GET', BASE, { sheets: [{ properties: { sheetId: 3 }, basicFilter: { range: { sheetId: 3 } } }] }]],
+    [{ method: 'GET', host: SHEETS_HOST, path: BASE, query: { fields: ['sheets(properties(sheetId),basicFilter)'], includeGridData: ['false'] }, body: undefined }],
+    { sheets: [{ properties: { sheetId: 3 }, basicFilter: { range: { sheetId: 3 } } }] }],
   ['sheets_basic_filter set without filter specs sends only the range and returns the range\'s tab', 'sheets_basic_filter',
     { spreadsheetId: SHEET, action: 'set', range: { sheetId: 2, endRowIndex: 10 } }, [['POST', `${BASE}:batchUpdate`, { replies: [{}] }]],
     [batchUpdate([{ setBasicFilter: { filter: { range: { sheetId: 2, endRowIndex: 10 } } } }])],
@@ -479,9 +475,9 @@ for (const range of ['D5:A1', 'A5:D1']) {
   });
 }
 
-test('contract: sheets_basic_filter get of a tab id the spreadsheet does not have is invalid-input naming the id', async () => {
-  serve('GET', BASE, { sheets: [{ properties: { sheetId: 0 } }] });
-  await assert.rejects(callTool('sheets_basic_filter', { spreadsheetId: SHEET, action: 'get', sheetId: 9 }), { code: 'invalid-input', message: /no tab with sheetId 9/ });
+test('contract: sheets_basic_filter has no get action (a read inside a write tool would ask for a needless confirmation)', async () => {
+  await assert.rejects(callTool('sheets_basic_filter', { spreadsheetId: SHEET, action: 'get', sheetId: 3 }), { name: 'ToolInputError', message: /\/action/ });
+  assert.equal(fake.requests.length, 0);
 });
 
 test('contract: sheets_copy with an answer that names no file id is unexpected-response with an unknown outcome', async () => {
@@ -555,7 +551,6 @@ const DISCLOSURES = [
   ['sheets_tab_modify', { spreadsheetId: SHEET, action: 'delete', sheetId: 4 }, [`spreadsheet ${SHEET}`, 'delete tab 4 and all of its data']],
   ['sheets_tab_modify', { spreadsheetId: SHEET, action: 'rename', sheetId: 4, title: 'R' }, [`spreadsheet ${SHEET}`, 'rename tab 4']],
   ['sheets_sort', { spreadsheetId: SHEET, range: { sheetId: 0, startRowIndex: 1 }, sortSpecs: [{ dimensionIndex: 0 }] }, [`spreadsheet ${SHEET}`, 'reorder rows of tab 0, rows 2 onward, all columns (the old order is not kept)']],
-  ['sheets_basic_filter', { spreadsheetId: SHEET, action: 'get', sheetId: 2 }, [`spreadsheet ${SHEET}`, 'read the basic filter of (no change) tab 2']],
   ['sheets_basic_filter', { spreadsheetId: SHEET, action: 'set', range: { sheetId: 2, startRowIndex: 0, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 4 } }, [`spreadsheet ${SHEET}`, 'replace the basic filter on tab 2, rows 1-10, columns A-D']],
   ['sheets_basic_filter', { spreadsheetId: SHEET, action: 'clear', sheetId: 2 }, [`spreadsheet ${SHEET}`, 'remove the basic filter from tab 2']],
   ['sheets_filter_views', { spreadsheetId: SHEET, action: 'list' }, [`spreadsheet ${SHEET}`, 'list filter views (no change)']],
@@ -614,7 +609,8 @@ for (const [status, body, code, retryable, nextAction] of FAILURES) {
   test(`error mapping: HTTP ${status} ${JSON.stringify(body.error?.errors ?? body.error?.details ?? '')} → ${code}`, async () => {
     serve('GET', `${BASE}/values/Leads`, body, status);
     await assert.rejects(callTool('sheets_values_get', { spreadsheetId: SHEET, range: 'Leads' }), { name: 'GoogleWorkspaceError', code, retryable, nextAction, outcome: 'not-applied' });
-    assert.equal(fake.requests.length, 1);
+    // A 401 is sent once more with a fresh token before it counts as reconnect-required.
+    assert.equal(fake.requests.length, status === 401 ? 2 : 1);
   });
 }
 
@@ -700,7 +696,6 @@ for (const [name, input] of [
 const BIG = 'y'.repeat(70 * 1024);
 for (const [name, input, method, path, answer] of [
   ['sheets_get_by_data_filter', { spreadsheetId: SHEET, dataFilters: [{ a1Range: 'Leads!A1' }] }, 'POST', `${BASE}:getByDataFilter`, { spreadsheetId: SHEET, note: BIG }],
-  ['sheets_basic_filter', { spreadsheetId: SHEET, action: 'get', sheetId: 0 }, 'GET', BASE, { sheets: [{ properties: { sheetId: 0 }, basicFilter: { note: BIG } }] }],
   ['sheets_filter_views', { spreadsheetId: SHEET, action: 'list' }, 'GET', BASE, { sheets: [{ properties: { sheetId: 0 }, filterViews: [{ title: BIG }] }] }],
   ['sheets_filter_views', { spreadsheetId: SHEET, action: 'add', filter: { title: 'T' } }, 'POST', `${BASE}:batchUpdate`, { replies: [{ addFilterView: { filter: { title: BIG } } }] }],
   ['sheets_named_ranges', { spreadsheetId: SHEET, action: 'list' }, 'GET', BASE, { namedRanges: [{ name: BIG }] }],

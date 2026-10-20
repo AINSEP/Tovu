@@ -5,15 +5,20 @@
  * Exists so the account lifecycle has one honest screen: connect, reconnect (same account, same
  * connection), switch account (staged: the new account is shown and must be confirmed), turn a
  * product on or off (a settings write, never a change to what Google granted), grant a product's
- * permission (a separate sign-in), and revoke. Revocation is reported exactly as the host reports it:
+ * permission (a separate sign-in), and revoke. Confirming a switch also moves the form destinations
+ * the person ticked to the new account, each only after the new account opened its spreadsheet; the
+ * rest stay frozen to the old account (a switch never silently changes where rows go). Revocation is reported exactly as the host reports it:
  * `confirmed` only when Google confirmed; `pending` means Tovu stopped using the sign-in but Google
  * has not confirmed, so the panel says so and offers a retry. No result carries a token, a
  * connection ref or a raw Google scope; scope sets are the plugin's own product ids.
  */
 import { GOOGLE_ACCOUNT_ACCESS_PAGE } from '../lib/auth.mjs';
+import { verifySpreadsheetAccess } from '../lib/picker-selection.mjs';
 import { PRODUCTS, PRODUCT_STATE_KEY } from '../lib/product-state.mjs';
-import { CONNECTION_ID, withSurfaceFailures } from '../lib/surface-actions.mjs';
-import { readFormDestinations } from '../lib/form-destination-settings.mjs';
+import { GoogleWorkspaceError } from '../lib/request-policy.mjs';
+import { assertSpreadsheetId } from '../lib/sheets-client.mjs';
+import { CONNECTION_ID, surfaceAccount, surfaceSheetsClient, withSurfaceFailures } from '../lib/surface-actions.mjs';
+import { readFormDestinations, saveFormDestination } from '../lib/form-destination-settings.mjs';
 
 /** The connection status the frame sees; empty labels are left out (the schemas have no null). @complexity O(1). */
 function connectionView(status) {
@@ -61,6 +66,59 @@ async function intendedScopeSets(capabilities) {
   return PRODUCTS.products.filter((product) => enabled[product.id] || status.grantedScopeSetIds.includes(product.id)).map((product) => product.id);
 }
 
+/** Fixed sentences for a destination that was not moved; plugin errors keep their own fixed message. */
+const NOT_FOUND = { code: 'destination-not-found', message: 'This form destination is no longer saved. Reload the panel and check Form destinations.' };
+const NOT_MOVED = { code: 'reassign-failed', message: 'Tovu could not check this spreadsheet with the new account. Choose its spreadsheet again in Form destinations.' };
+
+/** Why one destination was not moved, as the frame may see it (never Google's text). @complexity O(1). */
+function notMoved(formSlug, error) {
+  return { formSlug, ...(error instanceof GoogleWorkspaceError ? { code: error.code, message: error.message } : NOT_MOVED) };
+}
+
+/**
+ * Moves one destination to `accountId`, only after that account opened its spreadsheet through
+ * Drive and the Sheets API; the tab (numeric sheet id) stays as it was chosen.
+ * @complexity O(1): two requests, one binding write.
+ */
+async function moveDestination(capabilities, accountId, formSlug, destination) {
+  const fileId = assertSpreadsheetId({ id: destination.spreadsheetId }, { code: 'invalid-selection' });
+  const verified = await verifySpreadsheetAccess({ client: surfaceSheetsClient({ capabilities }), connectionRef: CONNECTION_ID, fileId });
+  const moved = { spreadsheetId: fileId, title: verified.title, sheetId: destination.sheetId, tabTitle: destination.tabTitle, accountId };
+  await saveFormDestination({ deliveryBindings: capabilities.deliveryBindings, formSlug, destination: moved }, { bindingId: destination.bindingId });
+}
+
+/** Tries each ticked destination in turn; a failure leaves that binding exactly as it was. @complexity O(t) moves. */
+async function moveEach(capabilities, accountId, formSlugs) {
+  const destinations = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
+  const outcome = { moved: [], failed: [] };
+  for (const formSlug of formSlugs) {
+    if (!Object.hasOwn(destinations, formSlug)) { outcome.failed.push({ formSlug, ...NOT_FOUND }); continue; }
+    try {
+      await moveDestination(capabilities, accountId, formSlug, destinations[formSlug]);
+      outcome.moved.push(formSlug);
+    } catch (error) {
+      outcome.failed.push(notMoved(formSlug, error));
+    }
+  }
+  return outcome;
+}
+
+/**
+ * After a confirmed switch: the ticked destinations (form slugs) move to the new account; unticked
+ * ones keep the old account, so their deliveries are refused until the person re-picks them.
+ * @complexity O(t): one account read, then two requests and one write per ticked destination.
+ */
+async function reassignDestinations(capabilities, formSlugs) {
+  if (formSlugs.length === 0) return { moved: [], failed: [] };
+  let account;
+  try {
+    account = await surfaceAccount({ capabilities });
+  } catch (error) {
+    return { moved: [], failed: formSlugs.map((formSlug) => notMoved(formSlug, error)) };
+  }
+  return moveEach(capabilities, account.accountId, formSlugs);
+}
+
 /**
  * Builds the panel's handler module.
  * @returns {{ actions: Record<string, Function> }} The `handlerModule` default export shape.
@@ -78,9 +136,11 @@ export function createConnectionPanelHandlers(_required = {}, _optional = {}) {
         return { expiresAt: started.expiresAt };
       }),
 
-      'confirm-switch': ({ capabilities, fail }) => act(fail, async () => {
+      /** `reassign`: the form slugs whose destinations move to the new account (none by default). */
+      'confirm-switch': ({ capabilities, input, fail }) => act(fail, async () => {
         await capabilities.connections.confirmSwitch({ connectionId: CONNECTION_ID });
-        return panelView(capabilities);
+        const reassignment = await reassignDestinations(capabilities, [...new Set(input.reassign)]);
+        return { ...(await panelView(capabilities)), reassignment };
       }),
 
       'cancel-switch': ({ capabilities, fail }) => act(fail, async () => {

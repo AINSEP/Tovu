@@ -16,15 +16,27 @@ const REVOCATION_TEXT = Object.freeze({
   'not-needed': 'Disconnected. There was no Google access left to remove.',
 });
 
-/** Shown while a switch is staged: the plugin cannot read Tovu's form bindings, so it says so. */
-export const SWITCH_NOTE = 'This panel cannot see which form bindings use this sign-in. After the switch, the Google Workspace tools and every form destination that uses this sign-in act as the new account, which may not be able to open spreadsheets chosen with the old one. Review the destinations listed here and choose their spreadsheets again if needed.';
+/**
+ * Shown while a switch is staged. The panel lists this plugin's form destinations (its delivery
+ * bindings), and each stays with the account its spreadsheet was chosen with unless the person ticks it.
+ */
+export const SWITCH_NOTE = 'After the switch, the Google Workspace tools act as the new account. Form destinations stay with the account their spreadsheet was chosen with: tick the ones below that should deliver as the new account, and Tovu first checks that the new account can open each spreadsheet. A destination you leave unticked, or that the new account cannot open, keeps the old account: its deliveries fail with "Reconnect required" until you choose its spreadsheet again in Form destinations. Deliveries already queued keep the old account and are not sent again.';
+
+/** What the panel says under the destination checkboxes: nothing is ticked until the person ticks it. */
+export const REASSIGN_HINT = 'Move to the new account (nothing is moved unless you tick it):';
+
+/**
+ * The panel's own second step before a revocation (the sandboxed frame has no `confirm()`): it is
+ * irreversible at Google, so one click must never do it.
+ */
+export const DISCONNECT_CONFIRM_TEXT = 'Disconnect and revoke? Tovu stops using this Google account at once and asks Google to remove its access. This cannot be undone: using Google Workspace again needs a new sign-in, and form deliveries fail until then.';
 
 const button = (action, label) => ({ action, label });
 
 const STATES = Object.freeze({
   disconnected: () => ({ heading: 'Not connected', detail: 'Connect a Google account to let Tovu work with the spreadsheets you choose or create. Tovu asks only for access to files you pick or it creates.', buttons: [button('connect', 'Connect Google account')] }),
   connected: ({ accountLabel }) => ({ heading: `Connected as ${accountLabel ?? 'a Google account'}`, detail: 'Reconnect keeps this account and its settings. Switch account asks you to confirm the new account before anything changes.', buttons: [button('reconnect', 'Reconnect'), button('switch', 'Switch account'), button('disconnect', 'Disconnect and revoke')] }),
-  'reconnect-required': () => ({ heading: 'Reconnect required', detail: 'Google no longer accepts the saved sign-in. Form submissions waiting to be delivered are kept; reconnect the same account to continue.', buttons: [button('reconnect', 'Reconnect'), button('disconnect', 'Disconnect and revoke')] }),
+  'reconnect-required': () => ({ heading: 'Reconnect required', detail: 'Google no longer accepts the saved sign-in. Form deliveries fail while it is like this and stay listed as failed; they are not sent again after you reconnect. Reconnect the same account so new submissions are delivered.', buttons: [button('reconnect', 'Reconnect'), button('disconnect', 'Disconnect and revoke')] }),
   'revocation-pending': () => ({ heading: REVOCATION_PENDING_TEXT, detail: REVOCATION_TEXT.pending, buttons: [button('retry-revocation', 'Retry Google revocation'), button('connect', 'Connect again')] }),
 });
 
@@ -56,9 +68,27 @@ export function revocationMessage(required, _optional = {}) {
   return REVOCATION_TEXT[required.revocation] ?? REVOCATION_TEXT.pending;
 }
 
+/**
+ * The sentence after a confirmed switch: which destinations moved, which did not and why (the
+ * plugin's fixed messages only), and that the rest still use the old account.
+ * @param {{ reassignment: { moved: string[], failed: Array<{ formSlug: string, message: string }> }, destinations: Array<{ formSlug: string }> }} required
+ * @returns {string}
+ * @complexity O(d).
+ */
+export function reassignmentMessage(required, _optional = {}) {
+  const { moved, failed } = required.reassignment;
+  const kept = required.destinations.filter((entry) => !moved.includes(entry.formSlug)).map((entry) => entry.formSlug);
+  return [
+    'Switched account.',
+    moved.length > 0 ? `Now delivering as the new account: ${moved.join(', ')}.` : null,
+    ...failed.map((entry) => `Not moved, ${entry.formSlug}: ${entry.message}`),
+    kept.length > 0 ? `Still using the old account (deliveries fail until you choose the spreadsheet again in Form destinations): ${kept.join(', ')}.` : null,
+  ].filter(Boolean).join(' ');
+}
+
 /** A product's state line: on/off is a setting; Google's permission is a separate fact. @complexity O(1). */
 function productNote(product, connected) {
-  if (!product.enabled) return 'Off. Its tools and form deliveries are paused; the Google sign-in and its permissions are kept.';
+  if (!product.enabled) return 'Off. Its tools stop. Its form deliveries are retried for about a day, then marked failed. The Google sign-in and its permissions are kept.';
   if (!connected) return 'On. Connect a Google account to use it.';
   return product.granted ? 'On. Google has granted the permission it needs.' : 'On, but Google has not granted its permission yet. Grant it to use this product.';
 }

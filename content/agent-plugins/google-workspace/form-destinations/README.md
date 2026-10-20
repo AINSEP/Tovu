@@ -14,8 +14,8 @@ method (see the forms-multidest delivery contract, §2–§3).
   from `binding.connectionRef`; it is used only in the `authorization` header.
 - `optional`: `{ state? }` — the host's read-only reader of this plugin's settings (the store the
   connection panel writes). Unless it holds `products.sheets === true` (no reader counts as off),
-  delivery refuses as `adapter-unavailable`, retryable: Sheets off pauses deliveries, it never
-  enables them by default.
+  delivery refuses as `adapter-unavailable`, retryable: while Sheets is off a job is retried within
+  the forms retry policy (about 8 attempts over about a day), then marked failed; no reader never enables delivery.
 - `credential.getAccessToken()` (OAuth connections): one fresh token per Google request, so the
   host's declared budgets count every request and the frozen account is re-checked each time.
 - Returns a `FormDeliveryResult`; it never throws.
@@ -42,7 +42,9 @@ header note because people neither see nor edit metadata. Growing the grid, writ
 
 More than one row already holding the submission id (another writer, or a late append racing the
 scan) is reported as delivered with the reference `sheet <id> rows <a>, <b> (duplicate submission
-id: review)`; nothing is appended again.
+id: review)`; nothing is appended again. Nobody sees that note today: the forms delivery contract has no reviewable success outcome and the ledger keeps only `ok` (the
+reference is dropped), and any `ok: false` code would fail or re-try a row that is already
+there. A distinct outcome needs a contract change in Jini (`@jini-ai/cms/forms`).
 
 ## Files
 

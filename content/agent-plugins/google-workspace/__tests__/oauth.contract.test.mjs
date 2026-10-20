@@ -228,15 +228,21 @@ test('revoke hook: a refusal is never a confirmation (only invalid_token, "alrea
   const { revoke } = hooksModule.createHooks({ http: { fetch: fake.fetch } });
   Object.assign(fake.behaviour, { revokeStatus: 400, revokeBody: { error: 'invalid_token' } });
   await revoke({ token: 'fake-refresh-kept' });
-  for (const [status, body] of [[503, {}], [400, { error: 'invalid_request' }], [503, { error: 'invalid_token' }]]) {
+  for (const [status, body, code] of [[503, {}, 'provider-unreachable'], [400, { error: 'invalid_request' }, 'provider-refused'], [503, { error: 'invalid_token' }, 'provider-unreachable'], [403, { error: 'invalid_token' }, 'provider-refused']]) {
     Object.assign(fake.behaviour, { revokeStatus: status, revokeBody: body });
-    await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.message.includes('Google revocation pending') && !error.message.includes('fake-refresh-kept'));
+    await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.code === code && error.message.includes('Google revocation pending') && !error.message.includes('fake-refresh-kept'));
   }
 });
 
-test('revoke hook: a transport failure is pending, never confirmed', async () => {
+test('revoke hook: Google\'s own error text never reaches the thrown message', async () => {
+  const { revoke } = hooksModule.createHooks({ http: { fetch: fake.fetch } });
+  Object.assign(fake.behaviour, { revokeStatus: 400, revokeBody: { error: 'invalid_request', error_description: 'provider-detail-xyz' } });
+  await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.code === 'provider-refused' && !error.message.includes('provider-detail-xyz') && error.cause === undefined);
+});
+
+test('revoke hook: a transport failure is pending (provider-unreachable), never confirmed', async () => {
   const { revoke } = hooksModule.createHooks({ http: { fetch: async () => { throw new Error('socket hang up'); } } });
-  await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.message.includes('Google revocation pending') && error.cause?.message === 'socket hang up');
+  await assert.rejects(revoke({ token: 'fake-refresh-kept' }), (error) => error.code === 'provider-unreachable' && error.message.includes('Google revocation pending') && error.cause?.message === 'socket hang up');
 });
 
 test('scopes: a product the catalog does not know is refused, never silently dropped from the sign-in', async () => {

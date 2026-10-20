@@ -28,8 +28,10 @@ export class DeliveryRefusal extends Error {
 }
 
 /**
- * Plugin safe code → [contract code, retryable]. Authorization problems are not retried (the
- * person reconnects; the failed job stays in the ledger), quota and transient failures are.
+ * Plugin safe code → [contract code, retryable]. Authorization problems are not retried: the job
+ * fails at once and stays in the ledger as failed (it is not re-sent after a reconnect). Quota,
+ * product-off and transient failures are retried within the forms retry policy (about 8 attempts
+ * over about a day), then the job fails.
  */
 const CONTRACT_CODES = new Map([
   ['not-connected', ['authorization-required', false]], ['reconnect-required', ['authorization-required', false]],
