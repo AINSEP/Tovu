@@ -269,3 +269,40 @@ test("empty void and unclosed top-level sections are still reported for missing 
     { tag: "section", suggestedHandle: undefined },
   ]);
 });
+
+// L254: pin the quote-aware open-tag walk before separating it from attribute parsing.
+for (const { opening, handle, tag, unclosed } of [
+  { opening: `<SECTION title="left > 'right'" data-agent-element="hero">`, handle: "hero", tag: "section", unclosed: false },
+  { opening: `<section title='left > "right"' data-agent-element='hero'>`, handle: "hero", tag: "section", unclosed: false },
+  { opening: `<section data-agent-element="">`, handle: "", tag: "section", unclosed: false },
+  { opening: `<section data-agent-element='hero'/>`, handle: "hero", tag: "section", unclosed: true },
+  { opening: `<section title=plain data-agent-element="hero">`, handle: "hero", tag: "section", unclosed: false },
+]) {
+  test(`L254 open-tag offsets and handle survive ${opening}`, () => {
+    const html = opening + "body</section>";
+    assert.deepEqual(scanPageMarkup(html).regions, [{
+      handle, tag, start: 0, innerStart: opening.length,
+      innerEnd: opening.length + (unclosed ? 0 : 4),
+      end: opening.length + (unclosed ? 0 : "body</section>".length),
+      depth: 0, unclosed,
+    }]);
+  });
+}
+
+for (const prefix of ["< 3", `<div title="unterminated >`, `<div title='unterminated >`, "<div no-end"]) {
+  test(`L254 malformed open tag contributes no region: ${prefix}`, () => {
+    const html = `<section data-agent-element="hero">body</section>` + prefix;
+    assert.deepEqual(regionHandlesIn(html), ["hero"]);
+    const found = locateRegion(html, "hero");
+    assert.ok("region" in found);
+    assert.equal(replaceRegionInner(html, found.region, "changed"), `<section data-agent-element="hero">changed</section>` + prefix);
+  });
+}
+
+test("L254 an unhandled open tag preserves the next region's offsets", () => {
+  const html = `<div title='ordinary > text'></div><section data-agent-element='hero'>body</section>`;
+  assert.deepEqual(scanPageMarkup(html).topLevel.map(({ handle }) => handle), [undefined, "hero"]);
+  const found = locateRegion(html, "hero");
+  assert.ok("region" in found);
+  assert.equal(replaceRegionInner(html, found.region, "X"), `<div title='ordinary > text'></div><section data-agent-element='hero'>X</section>`);
+});
