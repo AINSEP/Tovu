@@ -253,6 +253,51 @@ describe("useFolderDrop", () => {
     expect(result.current.notice).toMatchObject({ replacedPreviousPath: null });
   });
 
+  it.each([
+    { previousPath: null, replacedPreviousPath: null },
+    { previousPath: "/Users/x/site", replacedPreviousPath: null },
+    { previousPath: "/Users/x/old-site", replacedPreviousPath: "/Users/x/old-site" },
+  ])("pins replacement wording for previous root $previousPath", async ({ previousPath, replacedPreviousPath }) => {
+    const composerHandle = fakeComposerHandle();
+    const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
+    const setCustomRoot = vi.fn(async (path: string) => ({ path }));
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port,
+      getCustomRoot: async () => ({ path: previousPath }),
+      setCustomRoot,
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+
+    expect(setCustomRoot).toHaveBeenCalledExactlyOnceWith("/Users/x/site");
+    expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/site", replacedPreviousPath });
+  });
+
+  it("a prior confirmation timer erases a later error notice (reported, not fixed)", async () => {
+    const composerHandle = fakeComposerHandle();
+    const { a, b, port } = twoFolderDrops();
+    const setCustomRoot = vi.fn<(path: string) => Promise<{ path: string }>>()
+      .mockResolvedValueOnce({ path: "/Users/x/a" })
+      .mockRejectedValueOnce(new Error("write failed"));
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
+      getPort: () => port,
+      getCustomRoot: async () => ({ path: null }),
+      setCustomRoot,
+      autoDismissMs: 1000,
+    }));
+
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(a.dataTransfer)));
+    expect(result.current.notice).toEqual({ kind: "confirmation", path: "/Users/x/a", replacedPreviousPath: null });
+    act(() => vi.advanceTimersByTime(600));
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
+    const errorNotice = { kind: "error", path: "/Users/x/b", reason: "endpoint-unreachable" };
+    expect(result.current.notice).toEqual(errorNotice);
+    act(() => vi.advanceTimersByTime(399));
+    expect(result.current.notice).toEqual(errorNotice);
+    act(() => vi.advanceTimersByTime(1));
+    expect(result.current.notice).toBeNull();
+  });
+
   it("still sets the custom root when reading the previous value fails (best-effort read, REQ-02 unaffected)", async () => {
     const composerHandle = fakeComposerHandle();
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
