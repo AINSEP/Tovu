@@ -25,7 +25,7 @@ See lot table; worst per lot recorded as cyc/cog.
 | L147 | db/sqlite journal, share-database | 14/16 | MERGED (verify OK, 50 tests) | ≤10/≤10 | 100/100/100 | d609fc90, ab768c4c |
 | L243 | db/repos change-set, external-mcp, publish-history | 12/4 | MERGED (verify OK, 108 tests) | 10/6 | 100/100/100 | e30707a9, 239c8533, 79f03956 |
 | L265 | server-logs/log-file | 13/8 | MERGED (verify OK, 20 tests) | 9/8 | 100/100/100 | 98696795 |
-| L278 | oauth/endpoint-safety | 12/- | dispatched | | | |
+| L278 | oauth/endpoint-safety | 12/- | MERGED (verify OK, 48 tests; +172 consumer tests per agent) | ≤10/≤10 | 100/100/100 | a1ab42cd |
 | L279 | site-dir product-root, site-trash (after L023) | 11/11 | queued | | | |
 | L114 | assistant (11 files) | 18/12 | dispatched | | | |
 | L275 | assistant/mcp-federation/registrations | 12/- | dispatched | | | |
@@ -48,3 +48,4 @@ See lot table; worst per lot recorded as cyc/cog.
 - L147 added optional seams prepareSharePluginTables(…, {modules}), sanitizeShareDatabase(…, {statfs}) + exported StagingSpacePort type.
 
 ## Next
+- L278: assertSafeProviderEndpoint / assertSafeUserFacingUrl (legacy testing/DB seam) have no production callers — owner decides on removal.
