@@ -45,6 +45,11 @@ export interface ApiConnectionHostDeps {
   readonly displayName?: string;
 }
 
+/** The one refusal for a ref the calling plugin does not own here, whatever the reason. */
+function notAvailable(): ApiConnectionError {
+  return new ApiConnectionError({ code: "connection-not-found", message: "This connection is not available to this plugin here. Connect the plugin's account, then retry." });
+}
+
 /** Why a connection cannot be used on this host, in words for the person, never a secret value. */
 function setupRefused(message: string): ApiConnectionError {
   return new ApiConnectionError({ code: "descriptor-invalid", message });
@@ -118,6 +123,12 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
     });
   }
 
+  /** The connection `connectionRef` names, only when THIS plugin declares it in THIS workspace. @complexity O(p + c). */
+  async function declaredFor(input: { readonly pluginId: string; readonly connectionRef: string }): Promise<DeclaredApiConnection | undefined> {
+    return (await listConnections({ pluginId: input.pluginId })).find((candidate) =>
+      deriveApiConnectionKey({ workspaceId: required.workspaceId, pluginId: input.pluginId, connectionId: candidate.descriptor.connectionId }) === input.connectionRef);
+  }
+
   /**
    * The plugin host capability `connections.getAccessToken({ connectionRef })`, scoped to one plugin.
    * The ref must be the key of a connection THIS plugin declares in THIS workspace; anything else is
@@ -128,15 +139,30 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
   function accessTokensFor(scope: { readonly pluginId: string }) {
     return {
       async getAccessToken(input: { readonly connectionRef: string }, options: { readonly expectedAccountId?: string } = {}): Promise<string> {
-        const connection = (await listConnections({ pluginId: scope.pluginId })).find((candidate) =>
-          deriveApiConnectionKey({ workspaceId: required.workspaceId, pluginId: scope.pluginId, connectionId: candidate.descriptor.connectionId }) === input.connectionRef);
-        if (!connection) {
-          throw new ApiConnectionError({ code: "connection-not-found", message: "This connection is not available to this plugin here. Connect the plugin's account, then retry." });
-        }
+        const connection = await declaredFor({ pluginId: scope.pluginId, connectionRef: input.connectionRef });
+        if (!connection) throw notAvailable();
         return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef }, options);
       },
     };
   }
+
+  /**
+   * The connection port executable tools and admin-surface handlers receive (one per site; each
+   * call names its workspace and plugin). A target in another workspace, or a ref its plugin does
+   * not declare here, reads as no account and is refused exactly like an unknown ref.
+   * @complexity As {@link accessTokensFor}; `readAccount` is one contribution load and one record read.
+   */
+  const toolConnections = {
+    async readAccount(target: { readonly workspaceId: string; readonly pluginId: string; readonly connectionRef: string }) {
+      if (target.workspaceId !== required.workspaceId || !(await declaredFor(target))) return null;
+      const record = await records.read({ key: target.connectionRef });
+      return record?.status === "connected" && record.account ? { accountId: record.account.accountId, displayName: record.account.displayName } : null;
+    },
+    async getAccessToken(target: { readonly workspaceId: string; readonly pluginId: string; readonly connectionRef: string }, options: { readonly expectedAccountId?: string } = {}): Promise<string> {
+      if (target.workspaceId !== required.workspaceId) throw notAvailable();
+      return accessTokensFor({ pluginId: target.pluginId }).getAccessToken({ connectionRef: target.connectionRef }, options);
+    },
+  };
 
   /** The scopes a sign-in for these scope sets would request, via the plugin's own hook. @complexity One hook call. */
   async function requestedScopes(input: { readonly connection: DeclaredApiConnection; readonly scopeSetIds: readonly string[] }): Promise<readonly string[]> {
@@ -151,7 +177,7 @@ export function createApiConnectionHost(required: ApiConnectionHostDeps, _option
   }
 
   return { workspaceId: required.workspaceId, runtime: required.runtime, records, listConnections, serviceFor, accessTokensFor,
-    requestedScopes, hostedCallbackUrl, statusOf };
+    toolConnections, requestedScopes, hostedCallbackUrl, statusOf };
 }
 
 export type ApiConnectionHost = ReturnType<typeof createApiConnectionHost>;

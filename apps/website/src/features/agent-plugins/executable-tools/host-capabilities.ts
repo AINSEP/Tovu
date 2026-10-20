@@ -78,6 +78,15 @@ async function guardedPluginFetch(http: HttpClientPort, url: string, options: Ag
 }
 
 /**
+ * The guarded `http` capability alone, for host code that hands plugin modules the same HTTP a tool
+ * gets (API-connection hooks read the signed-in account through it).
+ * @complexity O(1); each fetch is O(response size).
+ */
+export function createGuardedPluginHttp(required: { readonly http: HttpClientPort }, _optional: Record<string, never> = {}): AgentPluginToolCapabilities['http'] {
+  return { fetch: ({ url }, options) => guardedPluginFetch(required.http, url, options) };
+}
+
+/**
  * Builds the capabilities port the tool projection calls once per invocation.
  * @param required.connections - Host connection accessor (ownership enforced there and by the scope passed here).
  * @param required.http - The guarded outbound HTTP client.
@@ -90,13 +99,14 @@ export function createAgentPluginToolCapabilities(
   required: { readonly connections: AgentPluginConnectionAccess; readonly http: HttpClientPort; readonly limiter: AgentPluginRateLimiter; readonly frozen: FrozenConnectionAccounts },
   optional: { readonly artifacts?: AgentPluginArtifactWriter } = {},
 ): AgentPluginToolCapabilitiesPort {
-  const { connections, http, limiter, frozen } = required;
+  const { connections, limiter, frozen } = required;
+  const http = createGuardedPluginHttp({ http: required.http });
   return ({ pluginId, workspaceId, signal }): AgentPluginToolCapabilities => ({
     connections: { async getAccessToken({ connectionRef }) {
       const expectedAccountId = frozen.lookup({ signal, connectionRef });
       return connections.getAccessToken({ workspaceId, pluginId, connectionRef }, expectedAccountId === undefined ? {} : { expectedAccountId });
     } },
-    http: { fetch: ({ url }, options) => guardedPluginFetch(http, url, options) },
+    http,
     // NUL cannot appear in a workspace or plugin id, so one plugin's key can never name another's budget.
     limiter: { check: ({ key }) => limiter.check({ key: `${workspaceId}\u0000${pluginId}\u0000${key}` }) },
     artifacts: { async write(input) {
